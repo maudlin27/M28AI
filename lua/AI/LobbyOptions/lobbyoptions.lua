@@ -191,6 +191,26 @@ AIOpts = {
         },
     },
     {
+        default = 2,
+        label = "M28: CPU performance mode?",
+        help = 'If enabled, M28 will use simpler functionality for parts of its logic, making it less challenging but also faster to run',
+        key = 'M28CPUPerformance',
+        value_text = "",
+        value_help = "Enable performance mode?",
+        values = {
+            { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
+                text = 'Yes',
+                help = 'Apply CPU performance mode',
+                key = 1,
+            },
+            {
+                text = 'No',
+                help = 'Dont enable performance mode (recommended)',
+                key = 2,
+            },
+        },
+    },
+    {
         default = 1,
         label = "M28: Prioritise stronger units?",
         help = 'By default M28 will always build certain T1-T3 land and certain experimental units over others (e.g. bricks instead of loyalists after a few have been built); disabling this should increase variety of units built',

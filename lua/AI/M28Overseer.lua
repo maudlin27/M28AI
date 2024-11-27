@@ -459,6 +459,8 @@ function M28BrainCreated(aiBrain)
         if not(M28Utilities.bFAFActive) or not(_G.reprs) then LoudCompatibility.AddReprCommands() end --If LOUD is active will have already called this
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains, will also fork various threads including for overwhelm, Overwhelm rate='..tonumber(ScenarioInfo.Options.M28OvwR or tostring(0))..'; ScenarioInfo.Options.M28OvwT='..(ScenarioInfo.Options.M28OvwT or 'nil')) end
         M28Utilities.bM28AIInGame = true
+        --Specify if performance mode enabled
+        if ScenarioInfo.Options.M28CPUPerformance == 1 then M28Utilities.bCPUPerformanceMode = true end
         --LOG('M28 in game 3')
 
         --Get the first non-human M28Brain
@@ -473,7 +475,8 @@ function M28BrainCreated(aiBrain)
         M28Chat.SendMessage(oChatBrain, 'LoadingMap', 'Analysing map (M28 v'..import('/mods/M28AI/mod_info.lua').version..'), wait a minute', 0, 10000, false)
 
         ForkThread(GameSettingWarningsChecksAndInitialChatMessages, oChatBrain)
-        if bDebugMessages == true then LOG(sFunctionRef..': oChatBrain='..oChatBrain.Nickname..'; ScenarioInfo.Options.M28CombinedArmy='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')) end
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': oChatBrain='..oChatBrain.Nickname..'; ScenarioInfo.Options.M28CombinedArmy='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')..'; PerformanceMode='..tostring(M28Utilities.bCPUPerformanceMode)) end
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
         ForkThread(M28Building.DetermineBuildingExpectedValues)

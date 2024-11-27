@@ -15,6 +15,10 @@ Tooltips = {
         title = "Time between M28 orders",
         description = "Minimum number of seconds between orders for most units (e.g. makes M28 kiting significantly weaker).  Doesnt affect certain microing",
     },
+    pref_M28CPUPerformance = {
+        title = 'M28: Enable performance mode?',
+        description = 'If enabled, M28 will use simpler functionality for parts of its logic, making it less challenging but also faster to run',
+    },
     pref_M28PrioritiseBPs = {
         title = 'M28: Prioritise stronger units?',
         description = 'By default M28 will always build certain T1-T3 land units over others (e.g. bricks instead of loyalists after a few have been built); disabling this should increase variety of units built',

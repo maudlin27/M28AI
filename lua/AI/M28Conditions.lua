@@ -1887,6 +1887,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                         if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesWanted='..iAirFactoriesWanted..'; iAirFactoriesHave='..iAirFactoriesHave..'; In t1 spam mode='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])) end
                                         if iAirFactoriesHave >= 1 and ZoneWantsT1Spam(tLZTeamData, iTeam) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Want to focus on t1 spam so want more land facs') end
+                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                             return false
                                         elseif iAirFactoriesWanted > iAirFactoriesHave then
                                             --If we have 1 air fac, and want to save mass for mmls, then get land fac instead

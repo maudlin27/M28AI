@@ -37,6 +37,9 @@ bLoudModActive = false
 bSteamActive = false
 bLCEActive = false --LOUD community edition
 
+--General game options to more quickly refer to
+bCPUPerformanceMode = false
+
 function ConsiderIfLoudActive()
     local bDebugMessages = false --simplified setup/no profiling as dont want to call profiler at this stage since hardly anything will have loaded and might cause compatibility headaches
     local sFunctionRef = 'ConsiderIfLoudActive'

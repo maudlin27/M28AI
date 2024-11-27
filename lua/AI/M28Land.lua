@@ -935,34 +935,42 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         local tAvailableScouts = {}
         local bCheckForEnemies = false
         local tEnemyUnitTablesToConsider = {}
-        --Check for neemies if there are any in this or adjacent land zone
-        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-            --if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then
-            table.insert(tEnemyUnitTablesToConsider, tLZTeamData[M28Map.subrefTEnemyUnits])
-        end
         local bFriendlyCombatInAdjZone = false
-        if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 50 then bFriendlyCombatInAdjZone = true end
+        if M28Utilities.bCPUPerformanceMode then
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                table.insert(tEnemyUnitTablesToConsider, tLZTeamData[M28Map.reftoNearestDFEnemies])
+                bCheckForEnemies = true
+            end
+        else
+            --Check for neemies if there are any in this or adjacent land zone
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                --if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then
+                table.insert(tEnemyUnitTablesToConsider, tLZTeamData[M28Map.subrefTEnemyUnits])
+            end
 
-        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
-            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemies in iAdjLZ='..iAdjLZ..'; enemy combat total='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]) end
-                if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal] > 0 then
-                    table.insert(tEnemyUnitTablesToConsider, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
-                end
-                if not(bFriendlyCombatInAdjZone) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] > 50 then
-                    bFriendlyCombatInAdjZone = true
-                end
-            end
-        end
-        if tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] then
-            for iEntry, tPlateauAndZone in tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] do
-                local tAdjLZTeamData = M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam]
-                if (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 0 then
-                    table.insert(tEnemyUnitTablesToConsider, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+            if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 50 then bFriendlyCombatInAdjZone = true end
+
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemies in iAdjLZ='..iAdjLZ..'; enemy combat total='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]) end
+                    if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal] > 0 then
+                        table.insert(tEnemyUnitTablesToConsider, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
+                    end
+                    if not(bFriendlyCombatInAdjZone) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] > 50 then
+                        bFriendlyCombatInAdjZone = true
+                    end
                 end
             end
+            if tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] then
+                for iEntry, tPlateauAndZone in tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] do
+                    local tAdjLZTeamData = M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam]
+                    if (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 0 then
+                        table.insert(tEnemyUnitTablesToConsider, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                    end
+                end
+            end
+            if M28Utilities.IsTableEmpty(tEnemyUnitTablesToConsider) == false then bCheckForEnemies = true end
         end
-        if M28Utilities.IsTableEmpty(tEnemyUnitTablesToConsider) == false then bCheckForEnemies = true end
 
         local oEnemyToRunFrom
         local oPrevEnemyToRunFrom
@@ -1429,7 +1437,11 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
             --iEnemyBestMobileDFRange = math.max(iEnemyBestMobileDFRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange])
             --iEnemyBestStructureDFRange = math.max(iEnemyBestStructureDFRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange])
             --Record adjacent structures that have high (highest recorded or >=50) DF range
-            iEnemyPDThreshold = math.min(50, math.max(     iEnemyBestMobileDFRange,iEnemyBestStructureDFRange))
+            if M28Utilities.bCPUPerformanceMode then
+                iEnemyPDThreshold = 60
+            else
+                iEnemyPDThreshold = math.min(50, math.max(     iEnemyBestMobileDFRange,iEnemyBestStructureDFRange))
+            end
             if (tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) >= iEnemyPDThreshold and M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                 local tEnemyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tAltLZTeamData[M28Map.subrefTEnemyUnits])
                 if M28Utilities.IsTableEmpty(tEnemyStructures) == false then
@@ -3932,7 +3944,9 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrP
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, will issue interim order now for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                     if M28UnitInfo.IsUnitValid(oUnit) then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrPondRef, sOrderDesc, bAmphibiousAndUsingPlateauRef, iDefaultDistOverride, iMaxAngleDifForMovingBackwardsOverride, bUsingPondRef)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     end
                 end
             end
