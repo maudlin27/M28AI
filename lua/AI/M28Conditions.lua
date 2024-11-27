@@ -3197,10 +3197,11 @@ function HaveEngineersOrFactoriesInZone(tLZOrWZTeamData)
 end
 
 
-function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, iTeam, iSearchDistance, tStartPoint, iMassValue, iOptionalSearchCategory, tOptionalAdditionalUnits)
+function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, iTeam, iSearchDistance, tStartPoint, iEnemyMassTotalThreshold, iOptionalSearchCategory, tOptionalAdditionalUnits, bOnlyIncludeDFUnits, bIncludeEnemyCombatRange)
     --Essentially a much more cpu intesnive version of getunitsaroundpoint, that will make use of M28's memory of where units are; will search current zone and adjacent zones; can also pass it tOptionalAdditionalUnits for further away units
-        --iMassValue - if >= this in mass then returns true, otherwise returns false
+    --iEnemyMassTotalThreshold - if >= this in mass then returns true, otherwise returns false
     local iCumulativeUnitValue = 0
+    local iCurDist
     function ConsiderUnitTable(tUnits)
         if M28Utilities.IsTableEmpty(tUnits) == false then
             local tUnitTable
@@ -3209,9 +3210,12 @@ function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, i
             end
             if M28Utilities.IsTableEmpty(tUnitTable) == false then
                 for iUnit, oUnit in tUnitTable do
-                    if M28UnitInfo.IsUnitValid(oUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartPoint) <= iSearchDistance then
-                        iCumulativeUnitValue = iCumulativeUnitValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
-                        if iCumulativeUnitValue >= iMassValue then return true end
+                    if M28UnitInfo.IsUnitValid(oUnit) and (not(bOnlyIncludeDFUnits) or oUnit[M28UnitInfo.refiDFRange] > 0) then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartPoint)
+                        if iCurDist <= iSearchDistance or (bIncludeEnemyCombatRange and iCurDist - oUnit[M28UnitInfo.refiCombatRange] <= iSearchDistance) then
+                            iCumulativeUnitValue = iCumulativeUnitValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
+                            if iCumulativeUnitValue >= iEnemyMassTotalThreshold then return true end
+                        end
                     end
                 end
             end
