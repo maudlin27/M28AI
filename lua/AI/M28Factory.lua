@@ -76,6 +76,8 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
     local sFunctionRef = 'GetBlueprintThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oFactory='..(oFactory.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactory) or 'nil')..'; is iCategoryCondition nil='..tostring(iCategoryCondition == nil)..'; Time='..GetGameTimeSeconds()) end
     --If are a t1 land fac then get the slowest unit (to try and avoid getting LABs if tanks are an option) - disabled as causing issues with not getting skirmisher type units
     --if not(bGetFastest) and not(bGetSlowest) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oFactory.UnitId) then bGetSlowest = true end
@@ -170,9 +172,9 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
                             iHighestPriority = -100
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if sBlueprint has a priority specified if we arent looking for slowest or fastest. sBlueprint='..sBlueprint..'; bGetSlowest='..tostring(bGetSlowest)..'; bGetFastest='..tostring(bGetFastest)..'; bGetCheapest='..tostring((bGetCheapest or false))..'; bGetMostExpensive='..tostring(bGetMostExpensive or false)) end
-                        if not(bGetSlowest) and not(bGetFastest) and not(bGetCheapest) and not(bGetMostExpensive) and aiBrain[reftBlueprintPriorityOverride][sBlueprint] then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have a priority specified='..aiBrain[reftBlueprintPriorityOverride][sBlueprint]..'; iHighestPriority='..iHighestPriority) end
-                            iHighestPriority = math.max(aiBrain[reftBlueprintPriorityOverride][sBlueprint], iHighestPriority)
+                        if not(bGetSlowest) and not(bGetFastest) and not(bGetCheapest) and not(bGetMostExpensive) and (aiBrain[reftBlueprintPriorityOverride][sBlueprint] or 0) > iHighestPriority then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have a priority specified, or is higher than current priority='..(aiBrain[reftBlueprintPriorityOverride][sBlueprint] or 'nil')..'; iHighestPriority='..iHighestPriority) end
+                            iHighestPriority = math.max((aiBrain[reftBlueprintPriorityOverride][sBlueprint] or 0), iHighestPriority)
                         end
                         if bGetSlowest == true or bGetFastest == true then
                             oCurBlueprint = tAllBlueprints[sBlueprint]
@@ -265,6 +267,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
         end
 
         local iBPToBuild = math.random(1, iBestBlueprints)
+
         if bDebugMessages == true then
             LOG(sFunctionRef..': End of code, iBestBlueprints='..iBestBlueprints..'; Will return random number if this is more than 1, iBPToBuild='..iBPToBuild..'; tBestBlueprints[iBPToBuild]='..(tBestBlueprints[iBPToBuild] or 'nil')..'; tBestBlueprints='..repru(tBestBlueprints))
         end
@@ -457,13 +460,15 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 end
             end
             --Overrides applicable to both LCE and normal (FAF/LOUD)
+            if bDebugMessages == true then LOG(sFunctionRef..': Is this a LB BP='..tostring((sBPIDToBuild == 'ual0106' or sBPIDToBuild == 'url0106' or sBPIDToBuild == 'uel0106'))..'; ScenarioInfo.Options.M28PrioritiseBPs='..(ScenarioInfo.Options.M28PrioritiseBPs or 'nil')..'; LAB lifetime count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)) end
             if (sBPIDToBuild == 'ual0106' or sBPIDToBuild == 'url0106' or sBPIDToBuild == 'uel0106') and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --light assault bots - disable after the first couple
                 --Redundancy for cases where LABs get built far more than wanted (most of the time they get avoided by choosing the slowest T1 land unit)
                 local iLABLifetimeCount = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)
-                if iLABLifetimeCount >= 10 or not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or (iLABLifetimeCount >= 5 and M28Conditions.GetTeamLifetimeBuildCount(aiBrain.M28Team, M28UnitInfo.refCategoryLightAttackBot) >= 16) then
+                if iLABLifetimeCount >= 10 or not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or (iLABLifetimeCount >= 2 and not(EntityCategoryContains(categories.AEON, oFactory.UnitId))) or (iLABLifetimeCount >= 5 and M28Conditions.GetTeamLifetimeBuildCount(aiBrain.M28Team, M28UnitInfo.refCategoryLightAttackBot) >= 15) then
                     aiBrain[reftBlueprintPriorityOverride]['ual0106'] = -1 --LAB (so prioritise aurora instead)
                     aiBrain[reftBlueprintPriorityOverride]['url0106'] = -1 --LAB (so prioritise mantis instead)
                     aiBrain[reftBlueprintPriorityOverride]['uel0106'] = -1 --Mechmarine (so prioritise striker instead)
+                    if bDebugMessages == true then LOG(sFunctionRef..': LABs should be much less likely to be built now') end
                 end
             end
         else
@@ -1106,10 +1111,10 @@ end
 
 function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForLandFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     local iCategoryToBuild
     local iTeam = aiBrain.M28Team
@@ -1541,8 +1546,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': T1 factory Core expansion - have no land combat so will try to get some')
             end
-            --Get LAB if we arent seraphim, and this is the only land fac in this zone
-            if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) then
+            --Get LAB if we arent seraphim, and this is the only land fac in this zone, and on a different plateau to our core base
+            if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) and (EntityCategoryContains(categories.AEON, oFactory.UnitId) or not(tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]))) then
                 local tFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                 local bHaveOtherFactiresThatHaveBuilt = false
                 if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
@@ -1573,10 +1578,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --core expansion and enemies nearby - build tank
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (oFactory[refiTotalBuildCount] <= 6 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) then
-        if bDebugMessages == true then LOG(sFunctionRef..': nearby enemies so want tanks, will prioritise bots if our factory LC is nil for them, attack bot lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLightAttackBot, false)..'; DF tank lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank, false)) end
-        if iFactoryTechLevel == 1 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLightAttackBot, false) < 1 and ConsiderBuildingCategory(M28UnitInfo.refCategoryLightAttackBot) then return sBPIDToBuild
-        elseif M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank, false) < (1 + M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect)) * 2.5 and ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then return sBPIDToBuild
-        elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat -M28UnitInfo.refCategoryLightAttackBot) then return sBPIDToBuild
+        if bDebugMessages == true then LOG(sFunctionRef..': nearby enemies so want tanks, will prioritise bots if our factory LC is nil for them and arent in a core zone, attack bot lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLightAttackBot, false)..'; DF tank lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank, false)) end
+        if iFactoryTechLevel == 1 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLightAttackBot, false) < 1 and ConsiderBuildingCategory(M28UnitInfo.refCategoryLightAttackBot) then if bDebugMessages == true then LOG(sFunctionRef..': Getting LAB') end return sBPIDToBuild
+        elseif M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank, false) < (1 + M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect)) * 2.5 and ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then if bDebugMessages == true then LOG(sFunctionRef..': Getting DF tank') end return sBPIDToBuild
+        elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat -M28UnitInfo.refCategoryLightAttackBot) then if bDebugMessages == true then LOG(sFunctionRef..': Getting Land combat but not LAB') end return sBPIDToBuild
         end
     end
 
@@ -2488,10 +2493,12 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                             iCombatCategoryWanted = M28UnitInfo.refCategoryLandCombat
                         end
                         if iLifetimeEngineers > 15 or not(tLZTeamData[M28Map.subrefTbWantBP]) or not(bHaveLowPower) or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will get main combat category wanted as should have enough engineers') end
                             if ConsiderBuildingCategory(iCombatCategoryWanted) then return sBPIDToBuild end
                         else
                             local tEngisInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                             if M28Utilities.IsTableEmpty(tEngisInZone) == false and table.getn(tEngisInZone) > math.min(6, aiBrain[M28Economy.refiGrossMassBaseIncome] * 3) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have enough engineers to handle our mass so will get combat category') end
                                 if ConsiderBuildingCategory(iCombatCategoryWanted) then return sBPIDToBuild end
                             end
                         end
