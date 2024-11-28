@@ -5207,7 +5207,7 @@ function ManageGunships(iTeam, iAirSubteam)
         --If our gunshipAA exceeds enemy total AirAA force
         if iOurGunshipAA > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] and iOurGunshipAA > 200 then
             if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
-                iMaxEnemyAirAA = iOurGunshipAA * 0.75
+                iMaxEnemyAirAA = math.max(iOurGunshipAA * 0.75, iOurGunshipThreat * 0.05)
             else
                 iMaxEnemyAirAA = iOurGunshipAA
             end
