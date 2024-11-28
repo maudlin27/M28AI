@@ -2471,7 +2471,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
         --Early game - get combat units in proportion to engineers at T1 if enemy relatively nearby spawn and aren't close to overflowing, or are in t1 spam mode and already have several engineers being built in factories in this zone
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if bDebugMessages == true then LOG(sFunctionRef..': Compat proportionate to engineers if enemy near spawn, Time='..GetGameTimeSeconds()..'; Dist to enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint])..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Av mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Compat proportionate to engineers if enemy near spawn, Time='..GetGameTimeSeconds()..'; Dist to enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint])..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Av mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; refbAdjZonesWantEngiForUnbuiltMex='..tostring(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or false)) end
         if iFactoryTechLevel <= 2 and GetGameTimeSeconds() <= 480 and not(tLZTeamData[M28Map.refbBaseInSafePosition]) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and
                 (tLZTeamData[M28Map.subrefLZbCoreBase] and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 and aiBrain:GetEconomyStoredRatio('MASS') < 0.8)) and M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) < 450) or
                 (M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryEngineer, false) >= math.min(5, math.max(4, M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryLandFactory)) * 0.5)) then
@@ -2480,7 +2480,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 local iLifetimeLandCombat = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat)
                 if bDebugMessages == true then LOG(sFunctionRef..': Lifetime combat='..iLifetimeLandCombat..'; Lifetime engi='..iLifetimeEngineers) end
                 if GetGameTimeSeconds() >= 150 or iLifetimeEngineers >= 7 or M28Map.iMapSize < 512 or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer) >= 3 or M28UnitInfo.GetUnitLifetimeCount(oFactory) >= 3 then
-                    if iLifetimeLandCombat < math.max(5, iLifetimeEngineers) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat) < aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) then
+                    if iLifetimeLandCombat < math.max(5, iLifetimeEngineers) and (iLifetimeEngineers > 20 or not(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex]) or iLifetimeLandCombat < iLifetimeEngineers * 0.2 or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat) < aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) then
                         --Larger maps need to be careful we dont underbuild engineers early on
                         --If have fewer than 2 tanks for each t1 arti then restrict to only building tanks
                         local iCombatCategoryWanted
@@ -2515,7 +2515,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
 
-        --Engineers if we dont have low mass, and want more
+        --Engineers if we dont have low mass, and want more, or if have adj zones where can build mexes and are at T1
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         local bNeedCurTech = true
         for iCurTech = 1, iFactoryTechLevel do
@@ -2527,6 +2527,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if bDebugMessages == true then LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; about to consider getting engineers, do we have low mass=' .. tostring(bHaveLowMass) .. '; Highest team tech level=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; bHaveHighestLZTech=' .. tostring(bHaveHighestLZTech) .. '; bNeedCurTech=' .. tostring(bNeedCurTech) .. '; iFactoryTechLevel=' .. iFactoryTechLevel .. '; Lowest % mass stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
         if bNeedCurTech and not (bHaveLowMass) and (tLZTeamData[M28Map.subrefLZbCoreBase] or aiBrain:GetEconomyStoredRatio('MASS') >= 0.15) and (iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5) then
             if bDebugMessages == true then LOG(sFunctionRef .. ': Will try to build engineer') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        elseif iFactoryTechLevel == 1 and tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will get engineer for adjacent zones') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
 
@@ -2637,8 +2640,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and (iLandFactoriesInLZ >= 4 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 3) and (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not (bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 7)))
 
-            --AI brain specific adjustments
-            and (not(aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseLowTech] or aiBrain[M28Overseer.refbPrioritiseNavy]) or (not(bHaveLowMass) and iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech]) or iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] - 1 or iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestAirFactoryTech] - 1)
+                    --AI brain specific adjustments
+                    and (not(aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseLowTech] or aiBrain[M28Overseer.refbPrioritiseNavy]) or (not(bHaveLowMass) and iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech]) or iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] - 1 or iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestAirFactoryTech] - 1)
 
             then
                 --Dont upgrade to T2 if we have T1 mexes in the LZ, no upgrading mexes, and less than 35 gross mass per tick

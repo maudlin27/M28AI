@@ -203,11 +203,12 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
 
     if bDebugMessages == true then
         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-        LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil')..'; Is unit state moving='..tostring(oEngineer:IsUnitState('Moving'))..'; Engineer position='..repru(oEngineer:GetPosition())..'; Engineer assigned action='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Special micro active='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; oEngineer[refiEngineerStuckCheckCount]='..(oEngineer[refiEngineerStuckCheckCount] or 'nil'))
+        LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil')..'; Is unit state moving='..tostring(oEngineer:IsUnitState('Moving'))..'; Engineer position='..repru(oEngineer:GetPosition())..'; Engineer assigned action='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Special micro active='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; oEngineer[refiEngineerStuckCheckCount]='..(oEngineer[refiEngineerStuckCheckCount] or 'nil')..'; refiSequentialReclaimCount='..(oEngineer[M28Engineer.refiSequentialReclaimCount] or 'nil'))
     end
     if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionManageGameEnderTemplate) and not(oEngineer:IsUnitState('Capturing')) then
         --Spare engineers - always treat as available even if in the middle of something
         if oEngineer[M28Engineer.refbHasSpareAction] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Engineer given spare action so marking as available') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
         elseif not(oEngineer:IsUnitState('Building')) and not(oEngineer:IsUnitState('Repairing')) then
@@ -235,7 +236,22 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                     end
                     --if got here then havent flagged that have nothing to reclaim
                     if oEngineer[refiEngineerStuckCheckCount] then oEngineer[refiEngineerStuckCheckCount] = 0 end
+                elseif oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionAttackMoveToLandZone and (oEngineer[M28Engineer.refiSequentialReclaimCount] or 0) >= 30 then
+                    if oEngineer[M28Engineer.refiSequentialReclaimCount] >= 100 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engi has been reclaiming a long time, will make available') end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    else
+                        local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer on attack move has action to move to LZ, reftiPlateauAndLZToMoveTo='..reprs(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; Eng position iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
+                        if iCurPlateau == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1] and iCurLZ == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2] then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Engi is in its target zone and has reclaimed a reasonable amount so will make available again to check for new orders') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        end
+                    end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Engineer is reclaiming so will treat as unavailable') end
 
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false
@@ -277,8 +293,8 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
 
                         if iLastOrderType == M28Orders.refiOrderIssueMove then
                             if oEngineer[M28Engineer.refiAssignedAction] and (M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType or oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport) then
-                                --Engineer not available, unless its order was to move to a land or water zone, in which case check if it is now in that land or water zone
-                                if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone or  oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionAttackMoveToLandZone then
+                                --Engineer not available, unless its order was to move to a land or water zone, in which case check if it is now in that land or water zone (or if it has reclaimed 30+ things on route)
+                                if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone or (oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionAttackMoveToLandZone and (oEngineer[M28Engineer.refiSequentialReclaimCount] or 0) <= 30) then
                                     local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Engineer has action to move to LZ, reftiPlateauAndLZToMoveTo='..reprs(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; Eng position iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
                                     if iCurPlateau == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1] and iCurLZ == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2] then
@@ -450,53 +466,53 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                 end
             end
 
-                        --Below was to try and resolve issue with engi appearing to try and build somewhere and failing, but realised likely was just unit cap
-                        --if not(oEngineer[M28Engineer.refbHasSpareAction]) then
-                        --local tLastOrderPosition = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]
-                        --if M28Utilities.IsTableEmpty(tLastOrderPosition) == false then
+            --Below was to try and resolve issue with engi appearing to try and build somewhere and failing, but realised likely was just unit cap
+            --if not(oEngineer[M28Engineer.refbHasSpareAction]) then
+            --local tLastOrderPosition = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]
+            --if M28Utilities.IsTableEmpty(tLastOrderPosition) == false then
 
-                        --local sLastBlueprint = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint]
-                        --if sLastBlueprint then
-                        --local oOrderTarget = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefoOrderUnitTarget]
-                        --[[if not(M28UnitInfo.IsUnitValid(oOrderTarget)) then --i.e. make sure we werent trying to repair a building that is valid
-                            local tLZOrWZData = M28Map.GetLandOrWaterZoneData(tLastOrderPosition)
-                            if tLZOrWZData then
-                                M28Engineer.RecordBlacklistLocation(tLastOrderPosition, 1, 120, nil)
-                                local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLastOrderPosition)
-                                local tPotentialBuildLocations = M28Engineer.GetPotentialBuildLocationsNearLocation(oEngineer:GetAIBrain(), tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, M28UnitInfo.GetBuildingSize(sLastBlueprint), nil)
-                                if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
-                                    local tBestLocation = M28Engineer.GetBestBuildLocationForTarget(oEngineer, sLastBlueprint, tLastOrderPosition, tPotentialBuildLocations, 50, false, false)
-                                    if M28Utilities.IsTableEmpty(tBestLocation) == false then
-                                        local iPriority = (oEngineer[M28Engineer.refiAssignedActionPriority] or 1000)
-                                        local bIsPrimaryEngi = oEngineer[M28Engineer.refbPrimaryBuilder]
-                                        local iEngiAction = oEngineer[M28Engineer.refiAssignedAction]
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and get engi to redo building in a different location, have recorded blacklist, tBestLocation='..repru(tBestLocation)) end
-                                        M28Orders.IssueTrackedBuild(oEngineer, tBestLocation, sLastBlueprint, false, 'StuckBuild')
-                                        --TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCurPriority, tOptionalPlatAndLandToMoveTo, vOptionalOtherVariable, bMarkAsSpare)
-                                        M28Engineer.TrackEngineerAction(oEngineer, iEngiAction, bIsPrimaryEngi, iPriority, nil, nil, false)
-                                    end
-                                end
-                            end
+            --local sLastBlueprint = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint]
+            --if sLastBlueprint then
+            --local oOrderTarget = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefoOrderUnitTarget]
+            --[[if not(M28UnitInfo.IsUnitValid(oOrderTarget)) then --i.e. make sure we werent trying to repair a building that is valid
+                local tLZOrWZData = M28Map.GetLandOrWaterZoneData(tLastOrderPosition)
+                if tLZOrWZData then
+                    M28Engineer.RecordBlacklistLocation(tLastOrderPosition, 1, 120, nil)
+                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLastOrderPosition)
+                    local tPotentialBuildLocations = M28Engineer.GetPotentialBuildLocationsNearLocation(oEngineer:GetAIBrain(), tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, M28UnitInfo.GetBuildingSize(sLastBlueprint), nil)
+                    if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
+                        local tBestLocation = M28Engineer.GetBestBuildLocationForTarget(oEngineer, sLastBlueprint, tLastOrderPosition, tPotentialBuildLocations, 50, false, false)
+                        if M28Utilities.IsTableEmpty(tBestLocation) == false then
+                            local iPriority = (oEngineer[M28Engineer.refiAssignedActionPriority] or 1000)
+                            local bIsPrimaryEngi = oEngineer[M28Engineer.refbPrimaryBuilder]
+                            local iEngiAction = oEngineer[M28Engineer.refiAssignedAction]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get engi to redo building in a different location, have recorded blacklist, tBestLocation='..repru(tBestLocation)) end
+                            M28Orders.IssueTrackedBuild(oEngineer, tBestLocation, sLastBlueprint, false, 'StuckBuild')
+                            --TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCurPriority, tOptionalPlatAndLandToMoveTo, vOptionalOtherVariable, bMarkAsSpare)
+                            M28Engineer.TrackEngineerAction(oEngineer, iEngiAction, bIsPrimaryEngi, iPriority, nil, nil, false)
                         end
                     end
                 end
             end
+        end
+    end
+end
 
-            elseif oEngineer[refiEngineerBuildWithoutFocusUnitCount] >= 45 then
+elseif oEngineer[refiEngineerBuildWithoutFocusUnitCount] >= 45 then
 
-            oEngineer[refiEngineerBuildWithoutFocusUnitCount] = 0
-            if M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(),oEngineer[reftEngineerBuildWithoutFocusUnitPosition]) <= 0.01 then
-                --Engineer is stuck, clear its orders and treat as available
-                if bDebugMessages == true then LOG(sFunctionRef..': Engineer appears stuck, oEngineer[refiEngineerBuildWithoutFocusUnitCount]='..oEngineer[refiEngineerBuildWithoutFocusUnitCount]) end
-                M28Orders.IssueTrackedClearCommands(oEngineer)
-                oEngineer[reftEngineerBuildWithoutFocusUnitPosition] = nil
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return true
-            end
-            end
-            end
-            end
-            end--]]
+oEngineer[refiEngineerBuildWithoutFocusUnitCount] = 0
+if M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(),oEngineer[reftEngineerBuildWithoutFocusUnitPosition]) <= 0.01 then
+    --Engineer is stuck, clear its orders and treat as available
+    if bDebugMessages == true then LOG(sFunctionRef..': Engineer appears stuck, oEngineer[refiEngineerBuildWithoutFocusUnitCount]='..oEngineer[refiEngineerBuildWithoutFocusUnitCount]) end
+    M28Orders.IssueTrackedClearCommands(oEngineer)
+    oEngineer[reftEngineerBuildWithoutFocusUnitPosition] = nil
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return true
+end
+end
+end
+end
+end--]]
 
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false

@@ -2566,10 +2566,15 @@ function OnReclaimFinished(oEngineer, oReclaim)
         --M28 specific
         if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer:GetAIBrain().M28AI then
             --Was the engineer reclaiming an area? if so check if still nearby reclaim
-            if bDebugMessages == true then LOG(sFunctionRef..': oEngineer[M28Engineer.refiAssignedAction]='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Is table of units reclaiming the now reclaimed wreck empty='..tostring(M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]))) end
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oEngineer[M28Engineer.refiAssignedAction]='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Is table of units reclaiming the now reclaimed wreck empty='..tostring(M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]))..'; Eng seq count='..(oEngineer[M28Engineer.refiSequentialReclaimCount] or 0)) end
+            oEngineer[M28Engineer.refiSequentialReclaimCount] = (oEngineer[M28Engineer.refiSequentialReclaimCount] or 0) + 1
             if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionReclaimArea then
-                --Only keep reclaiming if we dont have lots of mass
-                if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= 0.7 then
+                --Only keep reclaiming if we dont have lots of mass, unless doing low value amounts and been a while since we got new orders
+                if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= 0.7 and (oEngineer[M28Engineer.refiSequentialReclaimCount] or 0) <= 20 then
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Engineer sequential reclaim count='..(oEngineer[M28Engineer.refiSequentialReclaimCount] or 'nil')) end
+
                     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
                     if (iLandZone or 0) > 0 then
                         local iTeam =  oEngineer:GetAIBrain().M28Team
