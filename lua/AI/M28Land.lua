@@ -5451,13 +5451,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         --if bCheckIfNearLocationToAvoid and EntityCategoryContains(categories.TECH1 + categories.TECH2 - categories.COMMAND, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and M28Conditions.HaveSentOrderToRunAwayFromLocationToAvoid(oUnit, tLZTeamData[M28Map.reftiLocationsToAvoid], 4) then
                         --if bDebugMessages == true then LOG(sFunctionRef..': Told unit to avoid a location to avoid') end
                         if oUnit[M28UnitInfo.refiDFRange] > iEnemyBestDFRange or (bAttackWithSameRange and oUnit[M28UnitInfo.refiDFRange] >= iEnemyBestDFRange) or (iDFRangeOverrideForScenario1 and (oUnit[M28UnitInfo.refiDFRange] or 0) >= iDFRangeOverrideForScenario1)
-                            --Experimental exception - even if enemy threat in adjacent zones such we dont want to attack with everything, still consider attacking with experimental units
-                        or ((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 and not(bAttackWithOutrangedDFUnits) and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < oUnit[M28UnitInfo.refiUnitMassCost] and not(M28Conditions.HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, iTeam, M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) + 15, oNearestEnemyToFriendlyBase:GetPosition(), math.min(oUnit[M28UnitInfo.refiUnitMassCost] * 0.75, M28UnitInfo.GetCombatThreatRating({ oUnit }) * 0.8), nil, nil, true, true)))
+                                --Experimental exception - even if enemy threat in adjacent zones such we dont want to attack with everything, still consider attacking with experimental units
+                                or ((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 and not(bAttackWithOutrangedDFUnits) and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < oUnit[M28UnitInfo.refiUnitMassCost] and not(M28Conditions.HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, iTeam, M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) + 15, oNearestEnemyToFriendlyBase:GetPosition(), math.min(oUnit[M28UnitInfo.refiUnitMassCost] * 0.75, M28UnitInfo.GetCombatThreatRating({ oUnit }) * 0.8), nil, nil, true, true)))
                         then
                             table.insert(tUnitsToSupport, oUnit)
                             if ProceedWithUnitOrder(oUnit, true) then
                                 --Consider kiting logic unless want to use shot blocked override logic
+                                if bDebugMessages == true then LOG(sFunctionRef..': We outrange enemy, considering if we want ot kite enemy or not, bMoveTowardsEngineers='..tostring(bMoveTowardsEngineers)..'; oUnit[M28UnitInfo.refbLastShotBlocked]='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; oUnit[M28UnitInfo.refbScoutCombatOverride]='..tostring(oUnit[M28UnitInfo.refbScoutCombatOverride] or false)..'; Is skirmisher category='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId))) end
                                 if bMoveBlockedNotAttackMove and ((oUnit[M28UnitInfo.refbLastShotBlocked] and (not(oUnit[M28UnitInfo.refiDFMinRange]) or oUnit[M28UnitInfo.refiDFRange] <= 120)) or M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId)) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Think we are blocked so will move to nearest enemy') end
                                     M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'BlckM'..iLandZone)
                                 else
                                     --Easy mode logic?
@@ -5475,6 +5477,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             bUseNormalLogic = false
                                         elseif bMoveTowardsEngineers and oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + categories.EXPERIMENTAL + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId)) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) then
                                             local oNearestEngineerToUnit = M28Utilities.GetNearestUnit(tEnemyEngineers, oUnit:GetPosition())
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering moving towards nearest enemy engineer, oNearestEngineerToUnit='..(oNearestEngineerToUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEngineerToUnit) or 'nil')) end
                                             if oNearestEngineerToUnit then
                                                 --Use normal logic if are almost in reclaim range of the engineer
                                                 local iDistToEngineer = M28Utilities.GetDistanceBetweenPositions(oNearestEngineerToUnit:GetPosition(), oUnit:GetPosition())
@@ -5830,6 +5833,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         else
                             if ProceedWithUnitOrder(oUnit) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': We dont outrange enemy, will consider if we want to be a SR support unit') end
                                 if oUnit[M28UnitInfo.refiDFRange] > 0 and ((oUnit[M28UnitInfo.refiIndirectRange] or 0) <= (oUnit[M28UnitInfo.refiDFRange] or 0)) then
                                     --We dont outrange the enemy, but we do have other units that do
 
