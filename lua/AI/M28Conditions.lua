@@ -2617,6 +2617,7 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
 
 
     local bWantMoreEngineers = false
+    oFactory[M28Factory.refbWantMoreEngineersBeforeUpgrading] = false
 
     if EntityCategoryContains(M28UnitInfo.refCategoryFactory,oFactory.UnitId) then
         local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
