@@ -1081,6 +1081,12 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueTo
                             iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 3
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMML * categories.TECH2, oRecordedTML.UnitId) then
                             iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 0.75
+                        elseif EntityCategoryContains(categories.EXPERIMENTAL, oRecordedTML.UnitId) then
+                            if oRecordedTML.UnitId == 'uese0001' then
+                                iTMLValueInRangeOfUnit = 5
+                            else
+                                iTMLValueInRangeOfUnit = 2.5
+                            end
                         else
                             iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 1
                         end

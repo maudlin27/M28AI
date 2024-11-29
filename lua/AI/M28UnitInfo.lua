@@ -677,225 +677,381 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
 
         local iBaseThreat = 0
 
-        for iUnit, oUnit in tUnits do
-            iCurThreat = 0
-            iBaseThreat = 0
-            --Get the base threat for the unit
-            if IsUnitValid(oUnit) then
-                iBaseThreat = (oUnit[refiDFMassThreatOverride] or tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef])
-                if oUnit[refiAntiNavyMassThreatOverride] and (bAntiNavyOnly or bAddAntiNavy or bSubmersibleOnly) then
-                    iBaseThreat = oUnit[refiAntiNavyMassThreatOverride]
+        if bBlueprintThreat then
+            local oUnit = tUnits[1]
+            local oBP = __blueprints[oUnit.UnitId]
+            local iMassCost = (oBP.Economy.BuildCostMass or 0)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit with ID='..(oUnit.UnitId or 'nil')..'; iMassCost='..iMassCost) end
+            --ACU override
+            if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                if bDebugMessages == true then LOG(sFunctionRef..': ACU threat adjustment, iMassCost pre adj='..iMassCost..'; iBaseACUThreat='..iBaseACUThreat..'; oBP.Defense.Health='..oBP.Defense.Health..'; iBaseACUExpectedHealth='..iBaseACUExpectedHealth) end
+                if iMassCost < iBaseACUThreat then iMassCost = iBaseACUThreat
+                else
+                    --Adjust mass cost if it is too high
+                    iMassCost = math.max(iBaseACUThreat, math.min(iMassCost, iBaseACUThreat * math.min(2, oBP.Defense.Health / iBaseACUExpectedHealth)))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considered limiting ACU threat/mass cost (i.e. ignoring blueprint notional mass cost), iMassCost post adjustment='..iMassCost) end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')) end
-                if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) and not(bBlueprintThreat) then
-                    iBaseThreat = GetCombatThreatRating({ { ['UnitId'] = oUnit.UnitId } }, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, true)
-                    if not(tUnitThreatByIDAndType[oUnit.UnitId]) then tUnitThreatByIDAndType[oUnit.UnitId] = {} end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will rerun the blueprint logic as it seems to have missed this unit '..oUnit.UnitId..'; iBaseThreat after this='..(iBaseThreat or 'nil')) end
-                    if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) then tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] = (iBaseThreat or 0) end
+            end
+            if bJustGetMassValue == true then iBaseThreat = iMassCost
+            else
+                local iMassMod = 0
+                --T3 and T4 arti - assign 0 combat value
+                if not(EntityCategoryContains(refCategoryFixedT3Arti + refCategoryExperimentalArti, oUnit.UnitId)) then
 
-                end
-                if iBaseThreat == 0 and bSubmersibleOnly and bEnemyUnits and EntityCategoryContains(refCategoryAmphibious, oUnit.UnitId) and IsUnitUnderwater(oUnit) then
-                    iBaseThreat = oUnit[refiUnitMassCost] * 0.35
-                end
-                if iBaseThreat > 0 then
-                    if bJustGetMassValue then iCurThreat = iBaseThreat
-                    else
-                        --Have got the base threat for this type of unit, now adjust threat for unit health if want to calculate actual threat
-                        iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit)
-                        iMaxHealth = oUnit:GetMaxHealth() + iMaxShield
-                        if iMaxHealth and iMaxHealth > 0 then
-                            --Increase threat for veterancy level
-                            if oUnit.Sync.VeteranLevel > 0 then iBaseThreat = iBaseThreat * (1 + oUnit.Sync.VeteranLevel * 0.1) end
-
-                            --Adjust threat for cur health %
-                            iOtherAdjustFactor = 1
-                            iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (iMaxHealth + iMaxShield)
-
-                            --Reduce threat by health, with the amount depending on if its an ACU and if its an enemy
-                            if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                                iHealthFactor = iHealthPercentage --threat will be mass * iHealthFactor
-                                --iMassCost = GetACUCombatMassRating(oUnit) --have already calculated this earlier
-                                if bEnemyUnits then
-                                    iOtherAdjustFactor = 1.10 --Want to allow for enemy ACU to be 10% higher threat due to potential of veterancy
-                                else
-                                    if iHealthPercentage < 0.5 then iHealthFactor = iHealthPercentage * iHealthPercentage
-                                    elseif iHealthPercentage < 0.9 then iHealthFactor = iHealthPercentage * (iHealthPercentage + 0.1) end
-                                end
-                            else
-                                if bEnemyUnits then
-                                    --For enemy damaged units treat them as still ahving high threat, since enemy likely could use them effectively still
-                                    if iHealthPercentage >= 1 then iHealthFactor = iHealthPercentage
+                    if not(bIndirectFireThreatOnly) then
+                        if bAntiNavyOnly or bSubmersibleOnly then
+                            iMassMod = 0
+                            if (bSubmersibleOnly and (EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) or oBP.Physics.MotionType == 'RULEUMT_Amphibious' or oUnit.UnitId == 'xrb2309')) or (not(bSubmersibleOnly) and bAntiNavyOnly and EntityCategoryContains(refCategoryAntiNavy+categories.OVERLAYANTINAVY + refCategoryBattleship, oUnit.UnitId)) then
+                                iMassMod = 0.25 --e.g. for overlayantinavy or submersibles with no attack
+                                if EntityCategoryContains(refCategoryAntiNavy, oUnit.UnitId) then
+                                    iMassMod = 1
+                                    if M28Utilities.bLoudModActive and not(EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId)) then iMassMod = 0.8 end --Destroyers dont seem sa good in a sub vs destroyer war mass for mass
+                                elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
+                                    iMassMod = 0.5 --brick, wagner etc
+                                    --UEF units (which are either really bad or good at antinavy)
+                                elseif EntityCategoryContains(categories.UEF * refCategoryAntiNavy, oUnit.UnitId) then
+                                    --Destroyer and battlecruiser
+                                    if EntityCategoryContains(categories.DIRECTFIRE * categories.TECH2, oUnit.UnitId) then iMassMod = 0.25 --valiant
+                                    elseif EntityCategoryContains(categories.DIRECTFIRE * categories.TECH3, oUnit.UnitId) then iMassMod = 0.15 --battlecruiser
+                                    elseif EntityCategoryContains(categories.TECH2 - categories.DIRECTFIRE, oUnit.UnitId) then iMassMod = 1.2 --Cooper
                                     else
-                                        iHealthFactor = math.max(0.25, iHealthPercentage * (1 + (1 - iHealthPercentage)))
+                                        --Unexpected category
+                                        iMassMod = 0.5
                                     end
-                                else
-                                    iHealthFactor = iHealthPercentage
+                                elseif EntityCategoryContains(categories.CYBRAN * refCategoryAntiNavy, oUnit.UnitId) then
+                                    iMassMod = 0.8
+                                elseif EntityCategoryContains(refCategoryMegalith, oUnit.UnitId) then
+                                    iMassMod = 0.5
+                                elseif EntityCategoryContains(refCategoryBattleship, oUnit.UnitId) then
+                                    iMassMod = 0.05 --battleships could ground fire, although theyre unlikely to and very inaccurate if the target is moving
                                 end
                             end
-                            if oUnit:GetFractionComplete() <= 0.75 then iOtherAdjustFactor = iOtherAdjustFactor * 0.1 end
-                        end
-                        iCurThreat = iBaseThreat * iOtherAdjustFactor * iHealthFactor
-                        if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' iCurThreat='..iCurThreat..'; iBaseThreat='..iBaseThreat..'; iOtherAdjustFactor='..iOtherAdjustFactor..'; iHealthFactor='..iHealthFactor) end
-                    end
-                end
-            else
-                --Are we calculating blueprint threat (per code at start of game)?
-                if bBlueprintThreat then
-                    local oBP = __blueprints[oUnit.UnitId]
-                    local iMassCost = (oBP.Economy.BuildCostMass or 0)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit with ID='..(oUnit.UnitId or 'nil')..'; iMassCost='..iMassCost) end
-                    --ACU override
-                    if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': ACU threat adjustment, iMassCost pre adj='..iMassCost..'; iBaseACUThreat='..iBaseACUThreat..'; oBP.Defense.Health='..oBP.Defense.Health..'; iBaseACUExpectedHealth='..iBaseACUExpectedHealth) end
-                        if iMassCost < iBaseACUThreat then iMassCost = iBaseACUThreat
-                        else
-                            --Adjust mass cost if it is too high
-                            iMassCost = math.max(iBaseACUThreat, math.min(iMassCost, iBaseACUThreat * math.min(2, oBP.Defense.Health / iBaseACUExpectedHealth)))
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considered limiting ACU threat/mass cost (i.e. ignoring blueprint notional mass cost), iMassCost post adjustment='..iMassCost) end
-                        end
-                    end
-                    if bJustGetMassValue == true then iBaseThreat = iMassCost
-                    else
-                        local iMassMod = 0
-                        --T3 and T4 arti - assign 0 combat value
-                        if not(EntityCategoryContains(refCategoryFixedT3Arti + refCategoryExperimentalArti, oUnit.UnitId)) then
-
-                            if not(bIndirectFireThreatOnly) then
-                                if bAntiNavyOnly or bSubmersibleOnly then
-                                    iMassMod = 0
-                                    if (bSubmersibleOnly and (EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) or oBP.Physics.MotionType == 'RULEUMT_Amphibious' or oUnit.UnitId == 'xrb2309')) or (not(bSubmersibleOnly) and bAntiNavyOnly and EntityCategoryContains(refCategoryAntiNavy+categories.OVERLAYANTINAVY + refCategoryBattleship, oUnit.UnitId)) then
-                                        iMassMod = 0.25 --e.g. for overlayantinavy or submersibles with no attack
-                                        if EntityCategoryContains(refCategoryAntiNavy, oUnit.UnitId) then
-                                            iMassMod = 1
-                                            if M28Utilities.bLoudModActive and not(EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId)) then iMassMod = 0.8 end --Destroyers dont seem sa good in a sub vs destroyer war mass for mass
-                                        elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
-                                            iMassMod = 0.5 --brick, wagner etc
-                                            --UEF units (which are either really bad or good at antinavy)
-                                        elseif EntityCategoryContains(categories.UEF * refCategoryAntiNavy, oUnit.UnitId) then
-                                            --Destroyer and battlecruiser
-                                            if EntityCategoryContains(categories.DIRECTFIRE * categories.TECH2, oUnit.UnitId) then iMassMod = 0.25 --valiant
-                                            elseif EntityCategoryContains(categories.DIRECTFIRE * categories.TECH3, oUnit.UnitId) then iMassMod = 0.15 --battlecruiser
-                                            elseif EntityCategoryContains(categories.TECH2 - categories.DIRECTFIRE, oUnit.UnitId) then iMassMod = 1.2 --Cooper
-                                            else
-                                                --Unexpected category
-                                                iMassMod = 0.5
-                                            end
-                                        elseif EntityCategoryContains(categories.CYBRAN * refCategoryAntiNavy, oUnit.UnitId) then
-                                            iMassMod = 0.8
-                                        elseif EntityCategoryContains(refCategoryMegalith, oUnit.UnitId) then
-                                            iMassMod = 0.5
-                                        elseif EntityCategoryContains(refCategoryBattleship, oUnit.UnitId) then
-                                            iMassMod = 0.05 --battleships could ground fire, although theyre unlikely to and very inaccurate if the target is moving
-                                        end
-                                    end
-                                elseif bLongRangeThreatOnly then
-                                    if EntityCategoryContains(categories.DIRECTFIRE + categories.INDIRECTFIRE, oUnit.UnitId) then
-                                        local iUnitRange = GetBlueprintMaxGroundRange(oBP)
-                                        if iUnitRange >= 55 then
-                                            if EntityCategoryContains(categories.SILO * categories.TECH3 * categories.SUBMERSIBLE, oUnit.UnitId) then
-                                                iMassMod = 0.25 --Missile sub
-                                            end
-                                        end
-                                    end
-                                else
-                                    if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then
-                                        if EntityCategoryContains(refCategoryLandScout, oUnit.UnitId) then
-                                            if EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId) then
-                                                iMassMod = 0.55 --Selen costs 20, so Selen ends up with a threat of 12; engineer logic will ignore threats <10 (so all other lands couts)
-                                            else iMassMod = 0.25
-                                            end
-                                        elseif EntityCategoryContains(refCategoryCruiserCarrier, oUnit.UnitId) then
-                                            if EntityCategoryContains(categories.CYBRAN * categories.TECH2, oUnit.UnitId) then iMassMod = 0.55
-                                            elseif EntityCategoryContains(categories.AEON, oUnit.UnitId) then
-                                                iMassMod = 0.2 --Aeon cruiser loses vs 2 UEF frigates in sandbox (it kills 1 just before it dies)
-                                            else
-                                                iMassMod = 0.15 --e.g. uef cruiser - 1 frigate can almost solo it if it dodges the missiles
-                                            end
-                                        elseif EntityCategoryContains(refCategoryLightAttackBot * categories.TECH1, oUnit.UnitId) then
-                                            iMassMod = 0.85
-                                        elseif EntityCategoryContains(categories.BATTLESHIP - refCategoryBattlecruiser, oUnit.UnitId) then
-                                            iMassMod = 0.85
-                                        elseif EntityCategoryContains(categories.DESTROYER, oUnit.UnitId) then
-                                            iMassMod = 0.95
-                                        elseif EntityCategoryContains(refCategoryFrigate * categories.CYBRAN, oUnit.UnitId) then
-                                            iMassMod = 1.05
-                                        else iMassMod = 1
-                                        end
-                                    elseif EntityCategoryContains(refCategoryFatboy, oUnit.UnitId) then
-                                        iMassMod = 0.55
-                                    elseif EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId) then iMassMod = 1 --SACUs dont have directfire category for some reason (they have subcommander and overlaydirectfire)
-                                    elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.STRUCTURE * categories.TECH2, oUnit.UnitId) then iMassMod = 0.1 --Gets doubled as its a structure
-                                    elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.MOBILE * categories.TECH1, oUnit.UnitId) then iMassMod = 0.9
-                                    elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.MOBILE * categories.TECH3, oUnit.UnitId) then iMassMod = 0.5
-                                    elseif EntityCategoryContains(refCategoryMobileLand * categories.INDIRECTFIRE * categories.SILO, oUnit.UnitId) then iMassMod = 0.1
-                                    elseif EntityCategoryContains(categories.SHIELD, oUnit.UnitId) then iMassMod = 0.75 --will be doubled for structures
-                                    elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iMassMod = 1 --Put in just in case - code was working before this, but dont want it to be affected yb more recenlty added engineer category
-                                    elseif EntityCategoryContains(categories.ENGINEER,oUnit.UnitId) then iMassMod = 0.01 --Engis can reclaim and capture so can't just e.g. beat with a scout, but also dont want a combat unit to run from engineers as they could still harm them; alot of logic uses a threshold of 10 for threats, which would be c.3 T3 engineers, so will go with this
-                                    end
-                                    if bAddAntiNavy and iMassMod < 1 and EntityCategoryContains(refCategoryAntiNavy  + categories.OVERLAYANTINAVY, oUnit.UnitId) then
-                                        --Increase mass mod for certain units
-                                        if iMassMod < 0.25 then iMassMod = 0.25 end
-                                        if EntityCategoryContains(categories.SUBMERSIBLE + refCategoryAntiNavy, oUnit.UnitId) then
-                                            iMassMod = 1 --Subs
-                                        elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
-                                            iMassMod = math.max(iMassMod, 0.5) --wagners, bricks etc.
-                                        elseif EntityCategoryContains(categories.SUBMERSIBLE * categories.SILO * categories.TECH3, oUnit.UnitId) then
-                                            iMassMod = math.max(iMassMod, 0.25) --missile ship
-                                        end
-                                    end
-                                end
-                            else
-                                if EntityCategoryContains(categories.INDIRECTFIRE, oUnit.UnitId) then
+                        elseif bLongRangeThreatOnly then
+                            if EntityCategoryContains(categories.DIRECTFIRE + categories.INDIRECTFIRE, oUnit.UnitId) then
+                                local iUnitRange = GetBlueprintMaxGroundRange(oBP)
+                                if iUnitRange >= 55 then
                                     if EntityCategoryContains(categories.SILO * categories.TECH3 * categories.SUBMERSIBLE, oUnit.UnitId) then
                                         iMassMod = 0.25 --Missile sub
-                                    else
-                                        iMassMod = 1
                                     end
-                                    if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then iMassMod = 0.5 end
-                                elseif EntityCategoryContains(categories.ANTIMISSILE, oUnit.UnitId) then iMassMod = 2 --Doubled for structures ontop of this, i.e. want 4xmass of TMD in indirect fire so can overwhelm it
-                                elseif EntityCategoryContains(categories.SHIELD, oUnit.UnitId) then iMassMod = 1
-                                elseif EntityCategoryContains(refCategoryLongRangeDFLand, oUnit.UnitId) then iMassMod = 0.5
                                 end
                             end
-                            if EntityCategoryContains(refCategoryStructure, oUnit.UnitId) then
-                                --T2 arti - reduce its value because it sucks
-                                if EntityCategoryContains(refCategoryFixedT2Arti, oUnit.UnitId) then
-                                    iMassMod = iMassMod * 0.6
-                                elseif EntityCategoryContains(refCategoryStructureAA * categories.TECH1, oUnit.UnitId) then
-                                    iMassMod = iMassMod * 1.5
-                                else
-                                    iMassMod = iMassMod * 2
-                                    if bAntiNavyOnly or (bAddAntiNavy and M28Utilities.bLoudModActive) then
+                        else
+                            if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then
+                                if EntityCategoryContains(refCategoryLandScout, oUnit.UnitId) then
+                                    if EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId) then
+                                        iMassMod = 0.55 --Selen costs 20, so Selen ends up with a threat of 12; engineer logic will ignore threats <10 (so all other lands couts)
+                                    else iMassMod = 0.25
+                                    end
+                                elseif EntityCategoryContains(refCategoryCruiserCarrier, oUnit.UnitId) then
+                                    if EntityCategoryContains(categories.CYBRAN * categories.TECH2, oUnit.UnitId) then iMassMod = 0.55
+                                    elseif EntityCategoryContains(categories.AEON, oUnit.UnitId) then
+                                        iMassMod = 0.2 --Aeon cruiser loses vs 2 UEF frigates in sandbox (it kills 1 just before it dies)
+                                    else
+                                        iMassMod = 0.15 --e.g. uef cruiser - 1 frigate can almost solo it if it dodges the missiles
+                                    end
+                                elseif EntityCategoryContains(refCategoryLightAttackBot * categories.TECH1, oUnit.UnitId) then
+                                    iMassMod = 0.85
+                                elseif EntityCategoryContains(categories.BATTLESHIP - refCategoryBattlecruiser, oUnit.UnitId) then
+                                    iMassMod = 0.85
+                                elseif EntityCategoryContains(categories.DESTROYER, oUnit.UnitId) then
+                                    iMassMod = 0.95
+                                elseif EntityCategoryContains(refCategoryFrigate * categories.CYBRAN, oUnit.UnitId) then
+                                    iMassMod = 1.05
+                                else iMassMod = 1
+                                end
+                            elseif EntityCategoryContains(refCategoryFatboy, oUnit.UnitId) then
+                                iMassMod = 0.55
+                            elseif EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId) then iMassMod = 1 --SACUs dont have directfire category for some reason (they have subcommander and overlaydirectfire)
+                            elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.STRUCTURE * categories.TECH2, oUnit.UnitId) then iMassMod = 0.1 --Gets doubled as its a structure
+                            elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.MOBILE * categories.TECH1, oUnit.UnitId) then iMassMod = 0.9
+                            elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.MOBILE * categories.TECH3, oUnit.UnitId) then iMassMod = 0.5
+                            elseif EntityCategoryContains(refCategoryMobileLand * categories.INDIRECTFIRE * categories.SILO, oUnit.UnitId) then iMassMod = 0.1
+                            elseif EntityCategoryContains(categories.SHIELD, oUnit.UnitId) then iMassMod = 0.75 --will be doubled for structures
+                            elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iMassMod = 1 --Put in just in case - code was working before this, but dont want it to be affected yb more recenlty added engineer category
+                            elseif EntityCategoryContains(categories.ENGINEER,oUnit.UnitId) then iMassMod = 0.01 --Engis can reclaim and capture so can't just e.g. beat with a scout, but also dont want a combat unit to run from engineers as they could still harm them; alot of logic uses a threshold of 10 for threats, which would be c.3 T3 engineers, so will go with this
+                            end
+                            if bAddAntiNavy and iMassMod < 1 and EntityCategoryContains(refCategoryAntiNavy  + categories.OVERLAYANTINAVY, oUnit.UnitId) then
+                                --Increase mass mod for certain units
+                                if iMassMod < 0.25 then iMassMod = 0.25 end
+                                if EntityCategoryContains(categories.SUBMERSIBLE + refCategoryAntiNavy, oUnit.UnitId) then
+                                    iMassMod = 1 --Subs
+                                elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
+                                    iMassMod = math.max(iMassMod, 0.5) --wagners, bricks etc.
+                                elseif EntityCategoryContains(categories.SUBMERSIBLE * categories.SILO * categories.TECH3, oUnit.UnitId) then
+                                    iMassMod = math.max(iMassMod, 0.25) --missile ship
+                                end
+                            end
+                        end
+                    else
+                        if EntityCategoryContains(categories.INDIRECTFIRE, oUnit.UnitId) then
+                            if EntityCategoryContains(categories.SILO * categories.TECH3 * categories.SUBMERSIBLE, oUnit.UnitId) then
+                                iMassMod = 0.25 --Missile sub
+                            else
+                                iMassMod = 1
+                            end
+                            if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then iMassMod = 0.5 end
+                        elseif EntityCategoryContains(categories.ANTIMISSILE, oUnit.UnitId) then iMassMod = 2 --Doubled for structures ontop of this, i.e. want 4xmass of TMD in indirect fire so can overwhelm it
+                        elseif EntityCategoryContains(categories.SHIELD, oUnit.UnitId) then iMassMod = 1
+                        elseif EntityCategoryContains(refCategoryLongRangeDFLand, oUnit.UnitId) then iMassMod = 0.5
+                        elseif categories.BOMBARDMENT and EntityCategoryContains(categories.BOMBARDMENT, oUnit.UnitId) then
+                            iMassMod = 1
+                        end
+                    end
+                    if EntityCategoryContains(refCategoryStructure, oUnit.UnitId) then
+                        --T2 arti - reduce its value because it sucks
+                        if EntityCategoryContains(refCategoryFixedT2Arti, oUnit.UnitId) then
+                            iMassMod = iMassMod * 0.6
+                        elseif EntityCategoryContains(refCategoryStructureAA * categories.TECH1, oUnit.UnitId) then
+                            iMassMod = iMassMod * 1.5
+                        else
+                            iMassMod = iMassMod * 2
+                            if bAntiNavyOnly or (bAddAntiNavy and M28Utilities.bLoudModActive) then
 
-                                        --LOUD - looks like T2 torp launcher has 300 DPS,1160 mass cost,5600 health, 68 range; in comparison, a t1 sera sub has540 health,390 mass cost,91 DPS; so justifies similar mod to this
-                                        --however, LOUD also crushed T2 destroyers (3 destroyers which cost c.twice as much individually) with a t2 torp launcher, so want to increase threat further; LOUD also has torp launchers outranging destroyers
-                                        if M28Utilities.bLoudModActive then
-                                            iMassMod = iMassMod * 2 --i.e. quadruple mass value
+                                --LOUD - looks like T2 torp launcher has 300 DPS,1160 mass cost,5600 health, 68 range; in comparison, a t1 sera sub has540 health,390 mass cost,91 DPS; so justifies similar mod to this
+                                --however, LOUD also crushed T2 destroyers (3 destroyers which cost c.twice as much individually) with a t2 torp launcher, so want to increase threat further; LOUD also has torp launchers outranging destroyers
+                                if M28Utilities.bLoudModActive then
+                                    iMassMod = iMassMod * 2 --i.e. quadruple mass value
+                                else
+                                    iMassMod = iMassMod * 1.25 --increased from 1.1 pre-v128 as if we cant overwhelm the launcher we likely lose every unit
+                                end
+                            end
+                        end
+                    end
+                end
+                --Experimenatls are weak in LOUD, so adjust their threat rating accordingly
+                if iMassMod > 0 and M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                    iMassMod = iMassMod * 0.75
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end
+                iBaseThreat = iMassCost * iMassMod
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return iBaseThreat
+        else
+            for iUnit, oUnit in tUnits do
+                iCurThreat = 0
+                iBaseThreat = 0
+                --Get the base threat for the unit
+                if IsUnitValid(oUnit) then
+                    iBaseThreat = (oUnit[refiDFMassThreatOverride] or tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef])
+                    if oUnit[refiAntiNavyMassThreatOverride] and (bAntiNavyOnly or bAddAntiNavy or bSubmersibleOnly) then
+                        iBaseThreat = oUnit[refiAntiNavyMassThreatOverride]
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')) end
+                    if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) and not(bBlueprintThreat) then
+                        iBaseThreat = GetCombatThreatRating({ { ['UnitId'] = oUnit.UnitId } }, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, true)
+                        if not(tUnitThreatByIDAndType[oUnit.UnitId]) then tUnitThreatByIDAndType[oUnit.UnitId] = {} end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will rerun the blueprint logic as it seems to have missed this unit '..oUnit.UnitId..'; iBaseThreat after this='..(iBaseThreat or 'nil')) end
+                        if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) then tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] = (iBaseThreat or 0) end
+
+                    end
+                    if iBaseThreat == 0 and bSubmersibleOnly and bEnemyUnits and EntityCategoryContains(refCategoryAmphibious, oUnit.UnitId) and IsUnitUnderwater(oUnit) then
+                        iBaseThreat = oUnit[refiUnitMassCost] * 0.35
+                    end
+                    if iBaseThreat > 0 then
+                        if bJustGetMassValue then iCurThreat = iBaseThreat
+                        elseif M28Utilities.bCPUPerformanceMode then
+                            if iBaseThreat <= 2000 then iCurThreat = iBaseThreat
+                            else iCurThreat = iBaseThreat * oUnit:GetHealth() / oUnit:GetMaxHealth()
+                            end
+                        else
+                            --Have got the base threat for this type of unit, now adjust threat for unit health if want to calculate actual threat
+                            iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit)
+                            iMaxHealth = oUnit:GetMaxHealth() + iMaxShield
+                            if iMaxHealth and iMaxHealth > 0 then
+                                --Increase threat for veterancy level
+                                if oUnit.Sync.VeteranLevel > 0 then iBaseThreat = iBaseThreat * (1 + oUnit.Sync.VeteranLevel * 0.1) end
+
+                                --Adjust threat for cur health %
+                                iOtherAdjustFactor = 1
+                                iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (iMaxHealth + iMaxShield)
+
+                                --Reduce threat by health, with the amount depending on if its an ACU and if its an enemy
+                                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                                    iHealthFactor = iHealthPercentage --threat will be mass * iHealthFactor
+                                    --iMassCost = GetACUCombatMassRating(oUnit) --have already calculated this earlier
+                                    if bEnemyUnits then
+                                        iOtherAdjustFactor = 1.10 --Want to allow for enemy ACU to be 10% higher threat due to potential of veterancy
+                                    else
+                                        if iHealthPercentage < 0.5 then iHealthFactor = iHealthPercentage * iHealthPercentage
+                                        elseif iHealthPercentage < 0.9 then iHealthFactor = iHealthPercentage * (iHealthPercentage + 0.1) end
+                                    end
+                                else
+                                    if bEnemyUnits then
+                                        --For enemy damaged units treat them as still ahving high threat, since enemy likely could use them effectively still
+                                        if iHealthPercentage >= 1 then iHealthFactor = iHealthPercentage
                                         else
-                                            iMassMod = iMassMod * 1.25 --increased from 1.1 pre-v128 as if we cant overwhelm the launcher we likely lose every unit
+                                            iHealthFactor = math.max(0.25, iHealthPercentage * (1 + (1 - iHealthPercentage)))
+                                        end
+                                    else
+                                        iHealthFactor = iHealthPercentage
+                                    end
+                                end
+                                if oUnit:GetFractionComplete() <= 0.75 then iOtherAdjustFactor = iOtherAdjustFactor * 0.1 end
+                            end
+                            iCurThreat = iBaseThreat * iOtherAdjustFactor * iHealthFactor
+                            if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' iCurThreat='..iCurThreat..'; iBaseThreat='..iBaseThreat..'; iOtherAdjustFactor='..iOtherAdjustFactor..'; iHealthFactor='..iHealthFactor) end
+                        end
+                    end
+                else
+                    --Are we calculating blueprint threat (per code at start of game)?
+                    if bBlueprintThreat then
+                        local oBP = __blueprints[oUnit.UnitId]
+                        local iMassCost = (oBP.Economy.BuildCostMass or 0)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit with ID='..(oUnit.UnitId or 'nil')..'; iMassCost='..iMassCost) end
+                        --ACU override
+                        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': ACU threat adjustment, iMassCost pre adj='..iMassCost..'; iBaseACUThreat='..iBaseACUThreat..'; oBP.Defense.Health='..oBP.Defense.Health..'; iBaseACUExpectedHealth='..iBaseACUExpectedHealth) end
+                            if iMassCost < iBaseACUThreat then iMassCost = iBaseACUThreat
+                            else
+                                --Adjust mass cost if it is too high
+                                iMassCost = math.max(iBaseACUThreat, math.min(iMassCost, iBaseACUThreat * math.min(2, oBP.Defense.Health / iBaseACUExpectedHealth)))
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considered limiting ACU threat/mass cost (i.e. ignoring blueprint notional mass cost), iMassCost post adjustment='..iMassCost) end
+                            end
+                        end
+                        if bJustGetMassValue == true then iBaseThreat = iMassCost
+                        else
+                            local iMassMod = 0
+                            --T3 and T4 arti - assign 0 combat value
+                            if not(EntityCategoryContains(refCategoryFixedT3Arti + refCategoryExperimentalArti, oUnit.UnitId)) then
+
+                                if not(bIndirectFireThreatOnly) then
+                                    if bAntiNavyOnly or bSubmersibleOnly then
+                                        iMassMod = 0
+                                        if (bSubmersibleOnly and (EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) or oBP.Physics.MotionType == 'RULEUMT_Amphibious' or oUnit.UnitId == 'xrb2309')) or (not(bSubmersibleOnly) and bAntiNavyOnly and EntityCategoryContains(refCategoryAntiNavy+categories.OVERLAYANTINAVY + refCategoryBattleship, oUnit.UnitId)) then
+                                            iMassMod = 0.25 --e.g. for overlayantinavy or submersibles with no attack
+                                            if EntityCategoryContains(refCategoryAntiNavy, oUnit.UnitId) then
+                                                iMassMod = 1
+                                                if M28Utilities.bLoudModActive and not(EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId)) then iMassMod = 0.8 end --Destroyers dont seem sa good in a sub vs destroyer war mass for mass
+                                            elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
+                                                iMassMod = 0.5 --brick, wagner etc
+                                                --UEF units (which are either really bad or good at antinavy)
+                                            elseif EntityCategoryContains(categories.UEF * refCategoryAntiNavy, oUnit.UnitId) then
+                                                --Destroyer and battlecruiser
+                                                if EntityCategoryContains(categories.DIRECTFIRE * categories.TECH2, oUnit.UnitId) then iMassMod = 0.25 --valiant
+                                                elseif EntityCategoryContains(categories.DIRECTFIRE * categories.TECH3, oUnit.UnitId) then iMassMod = 0.15 --battlecruiser
+                                                elseif EntityCategoryContains(categories.TECH2 - categories.DIRECTFIRE, oUnit.UnitId) then iMassMod = 1.2 --Cooper
+                                                else
+                                                    --Unexpected category
+                                                    iMassMod = 0.5
+                                                end
+                                            elseif EntityCategoryContains(categories.CYBRAN * refCategoryAntiNavy, oUnit.UnitId) then
+                                                iMassMod = 0.8
+                                            elseif EntityCategoryContains(refCategoryMegalith, oUnit.UnitId) then
+                                                iMassMod = 0.5
+                                            elseif EntityCategoryContains(refCategoryBattleship, oUnit.UnitId) then
+                                                iMassMod = 0.05 --battleships could ground fire, although theyre unlikely to and very inaccurate if the target is moving
+                                            end
+                                        end
+                                    elseif bLongRangeThreatOnly then
+                                        if EntityCategoryContains(categories.DIRECTFIRE + categories.INDIRECTFIRE, oUnit.UnitId) then
+                                            local iUnitRange = GetBlueprintMaxGroundRange(oBP)
+                                            if iUnitRange >= 55 then
+                                                if EntityCategoryContains(categories.SILO * categories.TECH3 * categories.SUBMERSIBLE, oUnit.UnitId) then
+                                                    iMassMod = 0.25 --Missile sub
+                                                end
+                                            end
+                                        end
+                                    else
+                                        if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then
+                                            if EntityCategoryContains(refCategoryLandScout, oUnit.UnitId) then
+                                                if EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId) then
+                                                    iMassMod = 0.55 --Selen costs 20, so Selen ends up with a threat of 12; engineer logic will ignore threats <10 (so all other lands couts)
+                                                else iMassMod = 0.25
+                                                end
+                                            elseif EntityCategoryContains(refCategoryCruiserCarrier, oUnit.UnitId) then
+                                                if EntityCategoryContains(categories.CYBRAN * categories.TECH2, oUnit.UnitId) then iMassMod = 0.55
+                                                elseif EntityCategoryContains(categories.AEON, oUnit.UnitId) then
+                                                    iMassMod = 0.2 --Aeon cruiser loses vs 2 UEF frigates in sandbox (it kills 1 just before it dies)
+                                                else
+                                                    iMassMod = 0.15 --e.g. uef cruiser - 1 frigate can almost solo it if it dodges the missiles
+                                                end
+                                            elseif EntityCategoryContains(refCategoryLightAttackBot * categories.TECH1, oUnit.UnitId) then
+                                                iMassMod = 0.85
+                                            elseif EntityCategoryContains(categories.BATTLESHIP - refCategoryBattlecruiser, oUnit.UnitId) then
+                                                iMassMod = 0.85
+                                            elseif EntityCategoryContains(categories.DESTROYER, oUnit.UnitId) then
+                                                iMassMod = 0.95
+                                            elseif EntityCategoryContains(refCategoryFrigate * categories.CYBRAN, oUnit.UnitId) then
+                                                iMassMod = 1.05
+                                            else iMassMod = 1
+                                            end
+                                        elseif EntityCategoryContains(refCategoryFatboy, oUnit.UnitId) then
+                                            iMassMod = 0.55
+                                        elseif EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId) then iMassMod = 1 --SACUs dont have directfire category for some reason (they have subcommander and overlaydirectfire)
+                                        elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.STRUCTURE * categories.TECH2, oUnit.UnitId) then iMassMod = 0.1 --Gets doubled as its a structure
+                                        elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.MOBILE * categories.TECH1, oUnit.UnitId) then iMassMod = 0.9
+                                        elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.MOBILE * categories.TECH3, oUnit.UnitId) then iMassMod = 0.5
+                                        elseif EntityCategoryContains(refCategoryMobileLand * categories.INDIRECTFIRE * categories.SILO, oUnit.UnitId) then iMassMod = 0.1
+                                        elseif EntityCategoryContains(categories.SHIELD, oUnit.UnitId) then iMassMod = 0.75 --will be doubled for structures
+                                        elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iMassMod = 1 --Put in just in case - code was working before this, but dont want it to be affected yb more recenlty added engineer category
+                                        elseif EntityCategoryContains(categories.ENGINEER,oUnit.UnitId) then iMassMod = 0.01 --Engis can reclaim and capture so can't just e.g. beat with a scout, but also dont want a combat unit to run from engineers as they could still harm them; alot of logic uses a threshold of 10 for threats, which would be c.3 T3 engineers, so will go with this
+                                        end
+                                        if bAddAntiNavy and iMassMod < 1 and EntityCategoryContains(refCategoryAntiNavy  + categories.OVERLAYANTINAVY, oUnit.UnitId) then
+                                            --Increase mass mod for certain units
+                                            if iMassMod < 0.25 then iMassMod = 0.25 end
+                                            if EntityCategoryContains(categories.SUBMERSIBLE + refCategoryAntiNavy, oUnit.UnitId) then
+                                                iMassMod = 1 --Subs
+                                            elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
+                                                iMassMod = math.max(iMassMod, 0.5) --wagners, bricks etc.
+                                            elseif EntityCategoryContains(categories.SUBMERSIBLE * categories.SILO * categories.TECH3, oUnit.UnitId) then
+                                                iMassMod = math.max(iMassMod, 0.25) --missile ship
+                                            end
+                                        end
+                                    end
+                                else
+                                    if EntityCategoryContains(categories.INDIRECTFIRE, oUnit.UnitId) then
+                                        if EntityCategoryContains(categories.SILO * categories.TECH3 * categories.SUBMERSIBLE, oUnit.UnitId) then
+                                            iMassMod = 0.25 --Missile sub
+                                        else
+                                            iMassMod = 1
+                                        end
+                                        if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then iMassMod = 0.5 end
+                                    elseif EntityCategoryContains(categories.ANTIMISSILE, oUnit.UnitId) then iMassMod = 2 --Doubled for structures ontop of this, i.e. want 4xmass of TMD in indirect fire so can overwhelm it
+                                    elseif EntityCategoryContains(categories.SHIELD, oUnit.UnitId) then iMassMod = 1
+                                    elseif EntityCategoryContains(refCategoryLongRangeDFLand, oUnit.UnitId) then iMassMod = 0.5
+                                    end
+                                end
+                                if EntityCategoryContains(refCategoryStructure, oUnit.UnitId) then
+                                    --T2 arti - reduce its value because it sucks
+                                    if EntityCategoryContains(refCategoryFixedT2Arti, oUnit.UnitId) then
+                                        iMassMod = iMassMod * 0.6
+                                    elseif EntityCategoryContains(refCategoryStructureAA * categories.TECH1, oUnit.UnitId) then
+                                        iMassMod = iMassMod * 1.5
+                                    else
+                                        iMassMod = iMassMod * 2
+                                        if bAntiNavyOnly or (bAddAntiNavy and M28Utilities.bLoudModActive) then
+
+                                            --LOUD - looks like T2 torp launcher has 300 DPS,1160 mass cost,5600 health, 68 range; in comparison, a t1 sera sub has540 health,390 mass cost,91 DPS; so justifies similar mod to this
+                                            --however, LOUD also crushed T2 destroyers (3 destroyers which cost c.twice as much individually) with a t2 torp launcher, so want to increase threat further; LOUD also has torp launchers outranging destroyers
+                                            if M28Utilities.bLoudModActive then
+                                                iMassMod = iMassMod * 2 --i.e. quadruple mass value
+                                            else
+                                                iMassMod = iMassMod * 1.25 --increased from 1.1 pre-v128 as if we cant overwhelm the launcher we likely lose every unit
+                                            end
                                         end
                                     end
                                 end
                             end
+                            --Experimenatls are weak in LOUD, so adjust their threat rating accordingly
+                            if iMassMod > 0 and M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                                iMassMod = iMassMod * 0.75
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end
+                            iBaseThreat = iMassCost * iMassMod
                         end
-                        --Experimenatls are weak in LOUD, so adjust their threat rating accordingly
-                        if iMassMod > 0 and M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
-                            iMassMod = iMassMod * 0.75
-                        end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end
-                        iBaseThreat = iMassCost * iMassMod
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' is not valid')
                     end
-                elseif bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' is not valid')
+
+                    iCurThreat = iBaseThreat
                 end
 
-                iCurThreat = iBaseThreat
+                iTotalThreat = iTotalThreat + iCurThreat
             end
-
-            iTotalThreat = iTotalThreat + iCurThreat
+            if bDebugMessages == true then LOG(sFunctionRef..': iTotalThreat='..iTotalThreat) end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return iTotalThreat
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': iTotalThreat='..iTotalThreat) end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return iTotalThreat
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -956,297 +1112,304 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
 
         local bAdjustExperimentalAirToGroundThreat = false
         if not(bEnemyUnits) and bIncludeAirToGround and not(bIncludeAirToAir) then bAdjustExperimentalAirToGroundThreat = true end
-
-        for iUnit, oUnit in tUnits do
-            iCurThreat = 0
-            iBaseThreat = 0
-            iGhettoGunshipAdjust = 0
-            if bDebugMessages == true then LOG(sFunctionRef..': About to check if unit is dead') end
-
-            if IsUnitValid(oUnit) then
-                --Get the base threat for the unit
-                iBaseThreat = (tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 0)
-                --Adjust threat for health
-                if iBaseThreat > 0 then
-                    --Increase for cargo of transports
-                    if bIncludeAirToGround and EntityCategoryContains(refCategoryTransport, oUnit.UnitId) and oUnit.GetCargo then --Use refcategoryTransport as Brewlan gives torp bombers the transportation category, and checking .GetCargo first doesnt prevent an error
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy transport, will get its cargo and see if it contains LABs') end
-                        --Include threat of cargo if cargo are LABs
-                        local tCargo = oUnit:GetCargo()
-                        --Filter to just LABs (note unfortunately it doesnt distinguish between mantis and LABs so matnis get treated as LABs to be prudent)
-                        if tCargo then
-                            tCargo = EntityCategoryFilterDown(refCategoryLightAttackBot, tCargo)
-                            if M28Utilities.IsTableEmpty(tCargo) == false then
-                                --Get mass value ignoring health:
-                                --GetCombatThreatRating(aiBrain, tUnits, bMustBeVisibleToIntelOrSight, iMassValueOfBlipsOverride, iSoloBlipMassOverride, bIndirectFireThreatOnly, bJustGetMassValue)
-                                iGhettoGunshipAdjust = GetCombatThreatRating(tCargo, bEnemyUnits)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Contains LABs so will increase threat by '..iGhettoGunshipAdjust) end
-                            end
-                        end
-                    end
-
-                    --Adjust threat for health
-                    iHealthThreatFactor = 1
-                    if iHealthFactor > 0 then
-                        --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
-                        if EntityCategoryContains(categories.EXPERIMENTAL, oUnit) then
-                            --Does unit have a shield?
-                            if EntityCategoryContains(refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and not(M28Utilities.bFAFActive)) then
-                                local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit, true)
-                                iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (oUnit:GetMaxHealth() + iMaxShield)
-                            else
-                                iHealthPercentage = GetUnitHealthPercent(oUnit)
-                                if iHealthPercentage < 1 and oUnit:GetFractionComplete() >= 0.2 then
-                                    if bEnemyUnits then iHealthPercentage = math.min(1, math.max(0.4, iHealthPercentage * 1.5))
-                                    else
-                                        iHealthPercentage = math.min(1, math.max(0.3, iHealthPercentage * 1.4))
-                                    end
-                                end
-                            end
-                        else
-                            iHealthPercentage = GetUnitHealthPercent(oUnit)
-                        end
-                        iHealthThreatFactor = (1 - (1-iHealthPercentage) * iHealthFactor) * iHealthThreatFactor
-                    elseif oUnit:GetFractionComplete() < 1 then
-                        if oUnit:GetFractionComplete() >= 0.5 and (bEnemyUnits or oUnit:GetFractionComplete() >= 0.95) then
-                            iHealthThreatFactor = oUnit:GetFractionComplete()
-                        else
-                            iHealthThreatFactor = 0
-                        end
-                    end
-                    if bAdjustExperimentalAirToGroundThreat and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
-                        if EntityCategoryContains(refCategoryCzar, oUnit.UnitId) then
-                            --Friendly czar
-                            iBaseThreat = iBaseThreat * 0.5
-                        else
-                            --e.g. friendly soulripper
-                            iBaseThreat = iBaseThreat * 0.75
-                        end
-                    end
-                    iCurThreat = iBaseThreat * iHealthThreatFactor + iGhettoGunshipAdjust
-                    if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit health%='..GetUnitHealthPercent(oUnit)) end
+        if bBlueprintThreat then
+            local oUnit = tUnits[1]
+            local oBP = __blueprints[oUnit.UnitId]
+            if bDebugMessages == true then LOG(sFunctionRef..': About to calculate threat using actual unit data, iThreatRef='..iThreatRef) end
+            --get actual threat calc
+            local iMassMod = 0 --For non-offensive structures
+            --Does the unit contain any of the categories of interest?
+            bUnitFitsDesiredCategory = false
+            --Exclude based on pathing type initially before considering more precisely:
+            local sCurUnitPathing = GetUnitPathingType(oUnit)
+            if sCurUnitPathing == M28Map.refPathingTypeAir then
+                if bIncludeAirToAir == true then bUnitFitsDesiredCategory = true
+                elseif bIncludeAirToGround == true then bUnitFitsDesiredCategory = true
+                elseif bIncludeAirTorpedo == true then bUnitFitsDesiredCategory = true
+                elseif bIncludeNonCombatAir == true then bUnitFitsDesiredCategory = true
                 end
-            else
-                --Calculate the base threat for hte blueprint (start of game)
-                if bBlueprintThreat then
-                    local oBP = __blueprints[oUnit.UnitId]
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to calculate threat using actual unit data, iThreatRef='..iThreatRef) end
-                    --get actual threat calc
-                    local iMassMod = 0 --For non-offensive structures
-                    --Does the unit contain any of the categories of interest?
-                    bUnitFitsDesiredCategory = false
-                    --Exclude based on pathing type initially before considering more precisely:
-                    local sCurUnitPathing = GetUnitPathingType(oUnit)
-                    if sCurUnitPathing == M28Map.refPathingTypeAir then
-                        if bIncludeAirToAir == true then bUnitFitsDesiredCategory = true
-                        elseif bIncludeAirToGround == true then bUnitFitsDesiredCategory = true
-                        elseif bIncludeAirTorpedo == true then bUnitFitsDesiredCategory = true
-                        elseif bIncludeNonCombatAir == true then bUnitFitsDesiredCategory = true
+            elseif bIncludeGroundToAir == true then bUnitFitsDesiredCategory = true end
+
+            --Is unit still valid? If so then consider its weapons/categories more precisely:
+            if bDebugMessages == true then LOG(sFunctionRef..': bUnitFitsDesiredCategory='..tostring(bUnitFitsDesiredCategory)..'; bIncludeAirToAir='..tostring(bIncludeAirToAir)..'; bIncludeAirToGround='..tostring(bIncludeAirToGround)..'; iThreatRef='..iThreatRef) end
+            if bUnitFitsDesiredCategory == true then
+
+                local sCurUnitBP = oBP.BlueprintId
+
+                --Get values for air units:
+                if sCurUnitPathing == M28Map.refPathingTypeAir then
+                    if bIncludeNonCombatAir == true then
+                        iMassMod = 1
+                        --Reduce to 25% for air scouts, as main concern is transports
+                        if EntityCategoryContains(refCategoryAirScout, sCurUnitBP) then iMassMod = 0.25 end
+
+                    else
+                        if bIncludeAirToGround == true then
+                            if EntityCategoryContains(categories.BOMBER + categories.GROUNDATTACK + categories.OVERLAYDIRECTFIRE + categories.DIRECTFIRE, sCurUnitBP) == true then iMassMod = 1
+                            elseif EntityCategoryContains(categories.TRANSPORTATION, sCurUnitBP) then iMassMod = 1 --might be a ghetto
+                            end
                         end
-                    elseif bIncludeGroundToAir == true then bUnitFitsDesiredCategory = true end
+                        if bIncludeAirTorpedo == true and EntityCategoryContains(refCategoryAntiNavy, sCurUnitBP) == true then iMassMod = 1 end
+                        if bDebugMessages == true then LOG(sFunctionRef..': bIncludeAirTorpedo='..tostring(bIncludeAirTorpedo)..'; iMassMod='..iMassMod) end
 
-                    --Is unit still valid? If so then consider its weapons/categories more precisely:
-                    if bDebugMessages == true then LOG(sFunctionRef..': bUnitFitsDesiredCategory='..tostring(bUnitFitsDesiredCategory)..'; bIncludeAirToAir='..tostring(bIncludeAirToAir)..'; bIncludeAirToGround='..tostring(bIncludeAirToGround)..'; iThreatRef='..iThreatRef) end
-                    if bUnitFitsDesiredCategory == true then
-
-                        local sCurUnitBP = oBP.BlueprintId
-
-                        --Get values for air units:
-                        if sCurUnitPathing == M28Map.refPathingTypeAir then
-                            if bIncludeNonCombatAir == true then
+                        if bIncludeAirToAir == true and iMassMod < 1 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': bIncludeAirToAir='..tostring(bIncludeAirToAir)..'; iMassMod='..iMassMod..'; does BP contain airaa category='..tostring(EntityCategoryContains(categories.ANTIAIR * categories.AIR, sCurUnitBP))) end
+                            if EntityCategoryContains(categories.ANTIAIR * categories.AIR, sCurUnitBP) == true then
                                 iMassMod = 1
-                                --Reduce to 25% for air scouts, as main concern is transports
-                                if EntityCategoryContains(refCategoryAirScout, sCurUnitBP) then iMassMod = 0.25 end
-
-                            else
-                                if bIncludeAirToGround == true then
-                                    if EntityCategoryContains(categories.BOMBER + categories.GROUNDATTACK + categories.OVERLAYDIRECTFIRE + categories.DIRECTFIRE, sCurUnitBP) == true then iMassMod = 1
-                                    elseif EntityCategoryContains(categories.TRANSPORTATION, sCurUnitBP) then iMassMod = 1 --might be a ghetto
+                                if EntityCategoryContains(categories.BOMBER + categories.GROUNDATTACK + categories.DIRECTFIRE, sCurUnitBP) then
+                                    iMassMod = 0.75 --e.g. t2 bombers
+                                    --Manual adjustments for units with good AA that also have direct fire
+                                    if sCurUnitBP == 'xaa0305' then iMassMod = 0.8 --Restorer
+                                    elseif sCurUnitBP == 'xea0306' then iMassMod = 0.7 --Continental
+                                    elseif sCurUnitBP == 'uaa0310' then iMassMod = 0.55 --Czar
+                                    elseif sCurUnitBP == 'xsa0402' then iMassMod = 0.3 --Sera experi bomber
                                     end
                                 end
-                                if bIncludeAirTorpedo == true and EntityCategoryContains(refCategoryAntiNavy, sCurUnitBP) == true then iMassMod = 1 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': bIncludeAirTorpedo='..tostring(bIncludeAirTorpedo)..'; iMassMod='..iMassMod) end
-
-                                if bIncludeAirToAir == true and iMassMod < 1 then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': bIncludeAirToAir='..tostring(bIncludeAirToAir)..'; iMassMod='..iMassMod..'; does BP contain airaa category='..tostring(EntityCategoryContains(categories.ANTIAIR * categories.AIR, sCurUnitBP))) end
-                                    if EntityCategoryContains(categories.ANTIAIR * categories.AIR, sCurUnitBP) == true then
-                                        iMassMod = 1
-                                        if EntityCategoryContains(categories.BOMBER + categories.GROUNDATTACK + categories.DIRECTFIRE, sCurUnitBP) then
-                                            iMassMod = 0.75 --e.g. t2 bombers
-                                            --Manual adjustments for units with good AA that also have direct fire
-                                            if sCurUnitBP == 'xaa0305' then iMassMod = 0.8 --Restorer
-                                            elseif sCurUnitBP == 'xea0306' then iMassMod = 0.7 --Continental
-                                            elseif sCurUnitBP == 'uaa0310' then iMassMod = 0.55 --Czar
-                                            elseif sCurUnitBP == 'xsa0402' then iMassMod = 0.3 --Sera experi bomber
-                                            end
-                                        end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': sCurUnitBP='..sCurUnitBP..': Mass mod after checking AirAA value='..iMassMod) end
-                                    elseif EntityCategoryContains(categories.OVERLAYANTIAIR * categories.AIR, sCurUnitBP) then
-                                        iMassMod = 0.05
-                                    end
-                                    --Backup logic (e.g. for LOUD that doesnt have the AA categories for units such as restoers)
-                                    --Calculate based on unit weapon values the approx threat the unit provides in DPS terms, ignoring health, and use this as a miniimum threat value, while also using a category approach per below if higher
-                                    local iAADPS = 0
-                                    local iBestAirAAAOE = 0
-                                    local iCurDPS, bCanShootAir
-                                    if oBP.Weapon then
-                                        for iWeapon, tWeapon in oBP.Weapon do
-                                            bCanShootAir = false
-                                            if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable then
-                                                for iType, sTargets in tWeapon.FireTargetLayerCapsTable do
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with sTargets='..repru(sTargets)) end
-                                                    if sTargets == 'Air' and tWeapon.CannotAttackGround then
-                                                        bCanShootAir = true
-                                                        break
-                                                    elseif sTargets == 'Air|Land|Water|Seabed' then
-                                                        bCanShootAir = true
-                                                        break
-                                                    end
-                                                end
-                                            end
-                                            if bDebugMessages == true then LOG(sFunctionRef..': AirAA bCanShootAir='..tostring(bCanShootAir or false)..'; MuzzleSalvoSize='..(tWeapon.MuzzleSalvoSize or 'nil')..'; MuzzleSalvoDelay='..(tWeapon.MuzzleSalvoDelay or 'nil')..'; Damage='..(tWeapon.Damage or 'nil')) end
-                                            if bCanShootAir then
-                                                iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
-                                                iCurDPS = math.min(tWeapon.Damage, 6000) * ((tWeapon.ProjectilesPerOnFire or 1) + (tWeapon.MuzzleSalvoSize or 1)) / (tWeapon.RateOfFire or 1) --Note: if muzzlesalvosize * muzzlesalvodelay doesnt conclude before the normal weapon rate of fire, then the weapon wont fire as often; for simplicity have assumed this isnt the case
-                                                iAADPS = iAADPS + iCurDPS
-                                                if bDebugMessages == true then LOG(sFunctionRef..': iCurDPS for this weapon='..iCurDPS) end
-                                            end
-                                        end
-                                        --Cap AA DPS at 200 for ACUs (i.e. for LOUD) as wont have all upgrades initially
-                                        if iAADPS > 200 and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iAADPS = 200 end
-                                    end
-
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iMassMod pre AA DPS adj='..iMassMod..'; iAADPS='..iAADPS) end
-                                    if iMassMod < 1 and iAADPS > 0 then
-                                        local iMassAAFactor = 2.1
-                                        --FAF - a sam costs 800 mass, and deals 343 dps, so 1 dps is worth about 2.3 mass; for an archer, its 26 dps for 55 mass, so 1 dps is worth about 2.1 mass; will therefore use threshold of 2.1 mass for no aoe (also about 2.1 in LOUD), and 2.3 mass for decent AOE
-                                        --For Air to Air - an asf deals 410 DPS, costs 660 mass, has 2300 health
-                                        if iBestAirAAAOE >= 1 then iMassAAFactor = 1.6 end
-                                        if sCurUnitPathing == M28Map.refPathingTypeNone then iMassAAFactor = iMassAAFactor * 0.5 end --needed as we double threat for structures later on
-
-                                        --Adjust AA factor further for high health units; a SAM has 5k health for 800 mass, so 6.25 health per mass; for an archer, its 5.6 health per mass
-                                        --For AirToAir, asf is giving 2300 health for 660 mass, so 3.5 health per mass
-                                        local iHealthPerMass = oBP.Defense.MaxHealth / oBP.Economy.BuildCostMass
-                                        if iHealthPerMass >= 6 then
-                                            iMassAAFactor = iMassAAFactor * math.min(4, (iHealthPerMass - 3.5) / 5 + 1)
-                                        end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': considienrg AirAA threat adjust for unit '..sCurUnitBP..'; iMassMod pre AA dps adj='..iMassMod..'; iMassAAFactor='..iMassAAFactor..'; iHealthPerMass='..iHealthPerMass) end
-
-                                        iMassMod = math.min(1, math.max(iMassMod, iMassAAFactor * iAADPS / (oBP.Economy.BuildCostMass or 1)))
-                                        --Add unit category to table of AA if doesnt contain AA and it is a decent AA unit - add to both refCategoryGroundAA and to refCategoryAntiAir
-
-                                        if iMassMod >= 0.4 then
-                                            if not(EntityCategoryContains(refCategoryAntiAir, sCurUnitBP)) then refCategoryAntiAir = refCategoryAntiAir + categories[sCurUnitBP] end
-                                        end
-                                    end
-                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': sCurUnitBP='..sCurUnitBP..': Mass mod after checking AirAA value='..iMassMod) end
+                            elseif EntityCategoryContains(categories.OVERLAYANTIAIR * categories.AIR, sCurUnitBP) then
+                                iMassMod = 0.05
                             end
-                        else
-                            --Non-air pathing type
-                            if bDebugMessages == true then LOG(sFunctionRef..': Unit doesnt have air pathing. bIncludeGroundToAir='..tostring(bIncludeGroundToAir)) end
-                            if bIncludeGroundToAir == true then
-                                --Calculate based on unit weapon values the approx threat the unit provides in DPS terms, ignoring health, and use this as a miniimum threat value, while also using a category approach per below if higher
-                                local iAADPS = 0
-                                local iBestAirAAAOE = 0
-                                local iCurDPS, bCanShootAir
-                                if oBP.Weapon then
-                                    for iWeapon, tWeapon in oBP.Weapon do
-                                        bCanShootAir = false
-                                        if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable then
-                                            for iType, sTargets in tWeapon.FireTargetLayerCapsTable do
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with sTargets='..repru(sTargets)) end
-                                                if sTargets == 'Air' then --and tWeapon.CannotAttackGround then
-                                                    bCanShootAir = true
-                                                    break
-                                                elseif sTargets == 'Air|Land|Water|Seabed' then
-                                                    bCanShootAir = true
-                                                    break
-                                                end
+                            --Backup logic (e.g. for LOUD that doesnt have the AA categories for units such as restoers)
+                            --Calculate based on unit weapon values the approx threat the unit provides in DPS terms, ignoring health, and use this as a miniimum threat value, while also using a category approach per below if higher
+                            local iAADPS = 0
+                            local iBestAirAAAOE = 0
+                            local iCurDPS, bCanShootAir
+                            if oBP.Weapon then
+                                for iWeapon, tWeapon in oBP.Weapon do
+                                    bCanShootAir = false
+                                    if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable then
+                                        for iType, sTargets in tWeapon.FireTargetLayerCapsTable do
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with sTargets='..repru(sTargets)) end
+                                            if sTargets == 'Air' and tWeapon.CannotAttackGround then
+                                                bCanShootAir = true
+                                                break
+                                            elseif sTargets == 'Air|Land|Water|Seabed' then
+                                                bCanShootAir = true
+                                                break
                                             end
                                         end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': GroundAA bCanShootAir='..tostring(bCanShootAir or false)..'; MuzzleSalvoSize='..(tWeapon.MuzzleSalvoSize or 'nil')..'; MuzzleSalvoDelay='..(tWeapon.MuzzleSalvoDelay or 'nil')..'; Damage='..(tWeapon.Damage or 'nil')) end
-                                        if bCanShootAir then
-                                            iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
-                                            iCurDPS = math.min(tWeapon.Damage, 6000) * ((tWeapon.ProjectilesPerOnFire or 1) + (tWeapon.MuzzleSalvoSize or 1)) / (tWeapon.RateOfFire or 1) --Note: if muzzlesalvosize * muzzlesalvodelay doesnt conclude before the normal weapon rate of fire, then the weapon wont fire as often; for simplicity have assumed this isnt the case
-                                            iAADPS = iAADPS + iCurDPS
-                                        end
                                     end
-                                    if iAADPS > 200 and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iAADPS = 200 end
-                                end
-
-                                if EntityCategoryContains(categories.ANTIAIR, sCurUnitBP) == true then
-                                    if EntityCategoryContains(categories.SUBMERSIBLE, sCurUnitBP) then
-                                        if EntityCategoryContains(categories.EXPERIMENTAL, sCurUnitBP) then
-                                            iMassMod = 1 --atlantis (if categorised correctly)
-                                        else
-                                            iMassMod = 0.5 --sera sub hunter
-                                        end
-                                    elseif EntityCategoryContains(categories.EXPERIMENTAL + refCategoryFrigate, sCurUnitBP) then
-                                        iMassMod = 0.1 --Cybran frigate and land experimentals misclassified as anti-air
-                                    else
-                                        iMassMod = 1 --Cruisers and T3 aircraft carriers have antiair as well as overlay antiair
-                                    end
-                                elseif EntityCategoryContains(categories.OVERLAYANTIAIR, sCurUnitBP) == true then
-                                    iMassMod = 0.04
-                                    if sCurUnitBP == 'ues0401' then iMassMod = 1 --atlantis misclassifiefd as not anti-air
-                                    elseif EntityCategoryContains(categories.FRIGATE, sCurUnitBP) then iMassMod = 0.18
-                                    elseif sCurUnitBP == 'url0402' then
-                                        iMassMod = 0.016 --monkeylord - it has half the dps of a t2 mobile flak with no aoe (although it has better range and health), so its threat will be equivalent to 2 mobile T2 MAA so that gunships are more likely to engage it
+                                    if bDebugMessages == true then LOG(sFunctionRef..': AirAA bCanShootAir='..tostring(bCanShootAir or false)..'; MuzzleSalvoSize='..(tWeapon.MuzzleSalvoSize or 'nil')..'; MuzzleSalvoDelay='..(tWeapon.MuzzleSalvoDelay or 'nil')..'; Damage='..(tWeapon.Damage or 'nil')) end
+                                    if bCanShootAir then
+                                        iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
+                                        iCurDPS = math.min(tWeapon.Damage, 6000) * ((tWeapon.ProjectilesPerOnFire or 1) + (tWeapon.MuzzleSalvoSize or 1)) / (tWeapon.RateOfFire or 1) --Note: if muzzlesalvosize * muzzlesalvodelay doesnt conclude before the normal weapon rate of fire, then the weapon wont fire as often; for simplicity have assumed this isnt the case
+                                        iAADPS = iAADPS + iCurDPS
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurDPS for this weapon='..iCurDPS) end
                                     end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': iMassMod pre AA DPS adj='..iMassMod..'; iAADPS='..iAADPS) end
-                                if iMassMod < 1 and iAADPS > 0 then
-                                    local iMassAAFactor = 2.1
-                                    --FAF - a sam costs 800 mass, and deals 343 dps, so 1 dps is worth about 2.3 mass; for an archer, its 26 dps for 55 mass, so 1 dps is worth about 2.1 mass; will therefore use threshold of 2.1 mass for no aoe (also about 2.1 in LOUD), and 2.3 mass for decent AOE
-                                    if iBestAirAAAOE >= 1 then iMassAAFactor = 2.3 end
-                                    if sCurUnitPathing == M28Map.refPathingTypeNone then iMassAAFactor = iMassAAFactor * 0.5 end --needed as we double threat for structures later on
+                                --Cap AA DPS at 200 for ACUs (i.e. for LOUD) as wont have all upgrades initially
+                                if iAADPS > 200 and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iAADPS = 200 end
+                            end
 
-                                    --Adjust AA factor further for high health units; a SAM has 5k health for 800 mass, so 6.25 health per mass; for an archer, its 5.6 health per mass
-                                    local iHealthPerMass = oBP.Defense.MaxHealth / oBP.Economy.BuildCostMass
-                                    if iHealthPerMass >= 6 then
-                                        local iMaxHealthFactor = 2.2
-                                        if M28Utilities.bLoudModActive then iMaxHealthFactor = 2.5 end
-                                        iMassAAFactor = iMassAAFactor * math.min(iMaxHealthFactor, (iHealthPerMass - 6) / 12 + 1) --Main threat of AA unit is the damage, not the health, so cap the amount threat is increased by unit health (e.g. dont want ythotha deterring air attacks just because its high health)
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': considienrg AA threat adjust for unit '..sCurUnitBP..'; iMassMod pre AA dps adj='..iMassMod..'; iMassAAFactor='..iMassAAFactor..'; iHealthPerMass='..iHealthPerMass) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iMassMod pre AA DPS adj='..iMassMod..'; iAADPS='..iAADPS) end
+                            if iMassMod < 1 and iAADPS > 0 then
+                                local iMassAAFactor = 2.1
+                                --FAF - a sam costs 800 mass, and deals 343 dps, so 1 dps is worth about 2.3 mass; for an archer, its 26 dps for 55 mass, so 1 dps is worth about 2.1 mass; will therefore use threshold of 2.1 mass for no aoe (also about 2.1 in LOUD), and 2.3 mass for decent AOE
+                                --For Air to Air - an asf deals 410 DPS, costs 660 mass, has 2300 health
+                                if iBestAirAAAOE >= 1 then iMassAAFactor = 1.6 end
+                                if sCurUnitPathing == M28Map.refPathingTypeNone then iMassAAFactor = iMassAAFactor * 0.5 end --needed as we double threat for structures later on
 
-                                    iMassMod = math.min(1.5, math.max(iMassMod, iMassAAFactor * iAADPS / (oBP.Economy.BuildCostMass or 1)))
-                                    --Add unit category to table of AA if doesnt contain AA and it is a decent AA unit - add to both refCategoryGroundAA and to refCategoryAntiAir
+                                --Adjust AA factor further for high health units; a SAM has 5k health for 800 mass, so 6.25 health per mass; for an archer, its 5.6 health per mass
+                                --For AirToAir, asf is giving 2300 health for 660 mass, so 3.5 health per mass
+                                local iHealthPerMass = oBP.Defense.MaxHealth / oBP.Economy.BuildCostMass
+                                if iHealthPerMass >= 6 then
+                                    iMassAAFactor = iMassAAFactor * math.min(4, (iHealthPerMass - 3.5) / 5 + 1)
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': considienrg AirAA threat adjust for unit '..sCurUnitBP..'; iMassMod pre AA dps adj='..iMassMod..'; iMassAAFactor='..iMassAAFactor..'; iHealthPerMass='..iHealthPerMass) end
 
-                                    if iMassMod >= 0.4 then
-                                        if not(EntityCategoryContains(refCategoryGroundAA, sCurUnitBP)) then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit didnt have groundAA category so are adding this now') end
-                                            refCategoryGroundAA = refCategoryGroundAA + categories[sCurUnitBP]
-                                        end
-                                        if EntityCategoryContains(categories.MOBILE * categories.NAVAL, sCurUnitBP) and not(EntityCategoryContains(refCategoryNavalAA, sCurUnitBP)) then
-                                            refCategoryNavalAA = refCategoryNavalAA + categories[sCurUnitBP]
-                                        end
-                                        if not(EntityCategoryContains(refCategoryAntiAir, sCurUnitBP)) then refCategoryAntiAir = refCategoryAntiAir + categories[sCurUnitBP] end
-                                    end
+                                iMassMod = math.min(1, math.max(iMassMod, iMassAAFactor * iAADPS / (oBP.Economy.BuildCostMass or 1)))
+                                --Add unit category to table of AA if doesnt contain AA and it is a decent AA unit - add to both refCategoryGroundAA and to refCategoryAntiAir
+
+                                if iMassMod >= 0.4 then
+                                    if not(EntityCategoryContains(refCategoryAntiAir, sCurUnitBP)) then refCategoryAntiAir = refCategoryAntiAir + categories[sCurUnitBP] end
                                 end
                             end
                         end
-                        --Increase AA threat for structures
-                        if bIncludeGroundToAir == true and sCurUnitPathing == M28Map.refPathingTypeNone then iMassMod = iMassMod * 2 end
                     end
-
-                    local iMassCost = (oBP.Economy.BuildCostMass or 0)
-                    if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end
-                    iBaseThreat = iMassCost * iMassMod
-                end
-                iCurThreat = iBaseThreat
-            end
-
-            if iCurThreat > 0 then
-                if bRecordByTeam then
-                    iCurTeam = (oUnit:GetAIBrain().M28Team or 0)
-                    iTotalByTeamThreat[iCurTeam] = (iTotalByTeamThreat[iCurTeam] or 0) + iCurThreat
-
                 else
-                    iTotalThreat = iTotalThreat + iCurThreat
+                    --Non-air pathing type
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit doesnt have air pathing. bIncludeGroundToAir='..tostring(bIncludeGroundToAir)) end
+                    if bIncludeGroundToAir == true then
+                        --Calculate based on unit weapon values the approx threat the unit provides in DPS terms, ignoring health, and use this as a miniimum threat value, while also using a category approach per below if higher
+                        local iAADPS = 0
+                        local iBestAirAAAOE = 0
+                        local iCurDPS, bCanShootAir
+                        if oBP.Weapon then
+                            for iWeapon, tWeapon in oBP.Weapon do
+                                bCanShootAir = false
+                                if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable then
+                                    for iType, sTargets in tWeapon.FireTargetLayerCapsTable do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with sTargets='..repru(sTargets)) end
+                                        if sTargets == 'Air' then --and tWeapon.CannotAttackGround then
+                                            bCanShootAir = true
+                                            break
+                                        elseif sTargets == 'Air|Land|Water|Seabed' then
+                                            bCanShootAir = true
+                                            break
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': GroundAA bCanShootAir='..tostring(bCanShootAir or false)..'; MuzzleSalvoSize='..(tWeapon.MuzzleSalvoSize or 'nil')..'; MuzzleSalvoDelay='..(tWeapon.MuzzleSalvoDelay or 'nil')..'; Damage='..(tWeapon.Damage or 'nil')) end
+                                if bCanShootAir then
+                                    iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
+                                    iCurDPS = math.min(tWeapon.Damage, 6000) * ((tWeapon.ProjectilesPerOnFire or 1) + (tWeapon.MuzzleSalvoSize or 1)) / (tWeapon.RateOfFire or 1) --Note: if muzzlesalvosize * muzzlesalvodelay doesnt conclude before the normal weapon rate of fire, then the weapon wont fire as often; for simplicity have assumed this isnt the case
+                                    iAADPS = iAADPS + iCurDPS
+                                end
+                            end
+                            if iAADPS > 200 and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iAADPS = 200 end
+                        end
+
+                        if EntityCategoryContains(categories.ANTIAIR, sCurUnitBP) == true then
+                            if EntityCategoryContains(categories.SUBMERSIBLE, sCurUnitBP) then
+                                if EntityCategoryContains(categories.EXPERIMENTAL, sCurUnitBP) then
+                                    iMassMod = 1 --atlantis (if categorised correctly)
+                                else
+                                    iMassMod = 0.5 --sera sub hunter
+                                end
+                            elseif EntityCategoryContains(categories.EXPERIMENTAL + refCategoryFrigate, sCurUnitBP) then
+                                iMassMod = 0.1 --Cybran frigate and land experimentals misclassified as anti-air
+                            else
+                                iMassMod = 1 --Cruisers and T3 aircraft carriers have antiair as well as overlay antiair
+                            end
+                        elseif EntityCategoryContains(categories.OVERLAYANTIAIR, sCurUnitBP) == true then
+                            iMassMod = 0.04
+                            if sCurUnitBP == 'ues0401' then iMassMod = 1 --atlantis misclassifiefd as not anti-air
+                            elseif EntityCategoryContains(categories.FRIGATE, sCurUnitBP) then iMassMod = 0.18
+                            elseif sCurUnitBP == 'url0402' then
+                                iMassMod = 0.016 --monkeylord - it has half the dps of a t2 mobile flak with no aoe (although it has better range and health), so its threat will be equivalent to 2 mobile T2 MAA so that gunships are more likely to engage it
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iMassMod pre AA DPS adj='..iMassMod..'; iAADPS='..iAADPS) end
+                        if iMassMod < 1 and iAADPS > 0 then
+                            local iMassAAFactor = 2.1
+                            --FAF - a sam costs 800 mass, and deals 343 dps, so 1 dps is worth about 2.3 mass; for an archer, its 26 dps for 55 mass, so 1 dps is worth about 2.1 mass; will therefore use threshold of 2.1 mass for no aoe (also about 2.1 in LOUD), and 2.3 mass for decent AOE
+                            if iBestAirAAAOE >= 1 then iMassAAFactor = 2.3 end
+                            if sCurUnitPathing == M28Map.refPathingTypeNone then iMassAAFactor = iMassAAFactor * 0.5 end --needed as we double threat for structures later on
+
+                            --Adjust AA factor further for high health units; a SAM has 5k health for 800 mass, so 6.25 health per mass; for an archer, its 5.6 health per mass
+                            local iHealthPerMass = oBP.Defense.MaxHealth / oBP.Economy.BuildCostMass
+                            if iHealthPerMass >= 6 then
+                                local iMaxHealthFactor = 2.2
+                                if M28Utilities.bLoudModActive then iMaxHealthFactor = 2.5 end
+                                iMassAAFactor = iMassAAFactor * math.min(iMaxHealthFactor, (iHealthPerMass - 6) / 12 + 1) --Main threat of AA unit is the damage, not the health, so cap the amount threat is increased by unit health (e.g. dont want ythotha deterring air attacks just because its high health)
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': considienrg AA threat adjust for unit '..sCurUnitBP..'; iMassMod pre AA dps adj='..iMassMod..'; iMassAAFactor='..iMassAAFactor..'; iHealthPerMass='..iHealthPerMass) end
+
+                            iMassMod = math.min(1.5, math.max(iMassMod, iMassAAFactor * iAADPS / (oBP.Economy.BuildCostMass or 1)))
+                            --Add unit category to table of AA if doesnt contain AA and it is a decent AA unit - add to both refCategoryGroundAA and to refCategoryAntiAir
+
+                            if iMassMod >= 0.4 then
+                                if not(EntityCategoryContains(refCategoryGroundAA, sCurUnitBP)) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit didnt have groundAA category so are adding this now') end
+                                    refCategoryGroundAA = refCategoryGroundAA + categories[sCurUnitBP]
+                                end
+                                if EntityCategoryContains(categories.MOBILE * categories.NAVAL, sCurUnitBP) and not(EntityCategoryContains(refCategoryNavalAA, sCurUnitBP)) then
+                                    refCategoryNavalAA = refCategoryNavalAA + categories[sCurUnitBP]
+                                end
+                                if not(EntityCategoryContains(refCategoryAntiAir, sCurUnitBP)) then refCategoryAntiAir = refCategoryAntiAir + categories[sCurUnitBP] end
+                            end
+                        end
+                    end
                 end
+                --Increase AA threat for structures
+                if bIncludeGroundToAir == true and sCurUnitPathing == M28Map.refPathingTypeNone then iMassMod = iMassMod * 2 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iCurThreat='..iCurThreat..'; iTotalThreat='..iTotalThreat) end
+
+            local iMassCost = (oBP.Economy.BuildCostMass or 0)
+            if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return iMassCost * iMassMod
+        else
+            for iUnit, oUnit in tUnits do
+                iCurThreat = 0
+                iBaseThreat = 0
+                iGhettoGunshipAdjust = 0
+                if bDebugMessages == true then LOG(sFunctionRef..': About to check if unit is dead') end
+
+                if IsUnitValid(oUnit) then
+                    --Get the base threat for the unit
+                    iBaseThreat = (tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 0)
+                    --Adjust threat for health
+                    if iBaseThreat > 0 then
+                        if M28Utilities.bCPUPerformanceMode then
+                            if iBaseThreat < 4000 then
+                                iCurThreat = iBaseThreat
+                            else
+                                iCurThreat = iBaseThreat * oUnit:GetHealth() / oUnit:GetMaxHealth()
+                            end
+                        else
+                            --Increase for cargo of transports
+                            if bIncludeAirToGround and EntityCategoryContains(refCategoryTransport, oUnit.UnitId) and oUnit.GetCargo then --Use refcategoryTransport as Brewlan gives torp bombers the transportation category, and checking .GetCargo first doesnt prevent an error
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy transport, will get its cargo and see if it contains LABs') end
+                                --Include threat of cargo if cargo are LABs
+                                local tCargo = oUnit:GetCargo()
+                                --Filter to just LABs (note unfortunately it doesnt distinguish between mantis and LABs so matnis get treated as LABs to be prudent)
+                                if tCargo then
+                                    tCargo = EntityCategoryFilterDown(refCategoryLightAttackBot, tCargo)
+                                    if M28Utilities.IsTableEmpty(tCargo) == false then
+                                        --Get mass value ignoring health:
+                                        --GetCombatThreatRating(aiBrain, tUnits, bMustBeVisibleToIntelOrSight, iMassValueOfBlipsOverride, iSoloBlipMassOverride, bIndirectFireThreatOnly, bJustGetMassValue)
+                                        iGhettoGunshipAdjust = GetCombatThreatRating(tCargo, bEnemyUnits)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Contains LABs so will increase threat by '..iGhettoGunshipAdjust) end
+                                    end
+                                end
+                            end
+
+                            --Adjust threat for health
+                            iHealthThreatFactor = 1
+                            if iHealthFactor > 0 then
+                                --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
+                                if EntityCategoryContains(categories.EXPERIMENTAL, oUnit) then
+                                    --Does unit have a shield?
+                                    if EntityCategoryContains(refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and not(M28Utilities.bFAFActive)) then
+                                        local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit, true)
+                                        iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (oUnit:GetMaxHealth() + iMaxShield)
+                                    else
+                                        iHealthPercentage = GetUnitHealthPercent(oUnit)
+                                        if iHealthPercentage < 1 and oUnit:GetFractionComplete() >= 0.2 then
+                                            if bEnemyUnits then iHealthPercentage = math.min(1, math.max(0.4, iHealthPercentage * 1.5))
+                                            else
+                                                iHealthPercentage = math.min(1, math.max(0.3, iHealthPercentage * 1.4))
+                                            end
+                                        end
+                                    end
+                                else
+                                    iHealthPercentage = GetUnitHealthPercent(oUnit)
+                                end
+                                iHealthThreatFactor = (1 - (1-iHealthPercentage) * iHealthFactor) * iHealthThreatFactor
+                            elseif oUnit:GetFractionComplete() < 1 then
+                                if oUnit:GetFractionComplete() >= 0.5 and (bEnemyUnits or oUnit:GetFractionComplete() >= 0.95) then
+                                    iHealthThreatFactor = oUnit:GetFractionComplete()
+                                else
+                                    iHealthThreatFactor = 0
+                                end
+                            end
+                            if bAdjustExperimentalAirToGroundThreat and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                                if EntityCategoryContains(refCategoryCzar, oUnit.UnitId) then
+                                    --Friendly czar
+                                    iBaseThreat = iBaseThreat * 0.5
+                                else
+                                    --e.g. friendly soulripper
+                                    iBaseThreat = iBaseThreat * 0.75
+                                end
+                            end
+                            iCurThreat = iBaseThreat * iHealthThreatFactor + iGhettoGunshipAdjust
+                            if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit health%='..GetUnitHealthPercent(oUnit)) end
+                        end
+                    end
+                end
+
+                if iCurThreat > 0 then
+                    if bRecordByTeam then
+                        iCurTeam = (oUnit:GetAIBrain().M28Team or 0)
+                        iTotalByTeamThreat[iCurTeam] = (iTotalByTeamThreat[iCurTeam] or 0) + iCurThreat
+
+                    else
+                        iTotalThreat = iTotalThreat + iCurThreat
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iCurThreat='..iCurThreat..'; iTotalThreat='..iTotalThreat) end
+            end
         end
 
 

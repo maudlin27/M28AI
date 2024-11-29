@@ -154,9 +154,8 @@ function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack, tAltMoveFirstT
     local sFunctionRef = 'IsShotBlocked'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     local bShotIsBlocked = false
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oFiringUnit='..oFiringUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFiringUnit)..'; oTargetUnit='..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)) end
     if oTargetUnit.CanBeKilled == false and oFiringUnit:GetAIBrain().M28AI then bShotIsBlocked = true
     else
         local tShotStartPosition = GetDirectFireWeaponPosition(oFiringUnit)
@@ -227,9 +226,9 @@ function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack, tAltMoveFirstT
                     if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find a bone to target for target unit, so using its position instaed='..repru(tShotEndPosition)) end
                 else
                     if tTargetUnitDefaultPosition[2] > tShotStartPosition[2] then
-                        tShotEndPosition = oTargetUnit:GetPosition(sLowestBone)
+                        tShotEndPosition = oTargetUnit:GetPosition(sHighestBone) --v148 and earlier - did the other way around; however could lead to a situation where a LAB was attacking an engineer, and the LAB got the lowest position of the engineer meaning it appeared to be missing, despite it being able to hit; i.e. this way around means sometimes our shot will be blocked but we wont incorrectly think that; the other way means sometimes our shot wont be blocked but we incorrectly think it is
                     else
-                        tShotEndPosition = oTargetUnit:GetPosition(sHighestBone)
+                        tShotEndPosition = oTargetUnit:GetPosition(sLowestBone)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': HighestBone='..sHighestBone..'; lowest bone='..sLowestBone..'; tShotEndPosition='..repru(tShotEndPosition)) end
                 end

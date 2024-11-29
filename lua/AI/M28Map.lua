@@ -521,6 +521,7 @@ tPondDetails = {}
             refbActiveRaiderLogic = 'WZActR' --true if are monitoring raider orders
             refoLastRaidTarget = 'WZRaidT' --Raid target building (used as backup for bombardment logic)
             refiRaidTechLevel = 'WZRadTL' --Tech level to use for raiding logic to estimate permissible ranges and enemy threat values
+            refiMAACombatRangeWithoutTarget = 'WZMAACmbR' --If have MAA with combat range, but no nearby enemy buildings, then this records that range
 
             subrefWZCombatThreatWanted = 'CombWant'
             subrefWZMAAThreatWanted = 'MAAWant'
