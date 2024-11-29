@@ -14775,7 +14775,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
     end
-    bDebugMessages = false
 
     --High priority reclaim if are low on mass or energy or is a very high value wreck in the zone
     iCurPriority = iCurPriority + 1

@@ -475,7 +475,6 @@ function M28BrainCreated(aiBrain)
         M28Chat.SendMessage(oChatBrain, 'LoadingMap', 'Analysing map (M28 v'..import('/mods/M28AI/mod_info.lua').version..'), wait a minute', 0, 10000, false)
 
         ForkThread(GameSettingWarningsChecksAndInitialChatMessages, oChatBrain)
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': oChatBrain='..oChatBrain.Nickname..'; ScenarioInfo.Options.M28CombinedArmy='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')..'; PerformanceMode='..tostring(M28Utilities.bCPUPerformanceMode)) end
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
