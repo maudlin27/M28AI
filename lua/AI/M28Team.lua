@@ -760,7 +760,7 @@ function CreateNewTeam(aiBrain)
                         if oBrain.CheatEnabled then
                             sAIxref = ' AIx Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
                         end
-                        LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; M28Easy='..tostring(oBrain.M28Easy or false)..'; M28AI='..tostring(oBrain.M28AI or false)) --Dont know the land and air subteams yet
+                        LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; M28Easy='..tostring(oBrain.M28Easy or false)..'; M28AI='..tostring(oBrain.M28AI or false)..'; Unit prioritisation='..(ScenarioInfo.Options.M28PrioritiseBPs or 'nil')) --Dont know the land and air subteams yet
                     end
                 end
             end
@@ -1547,7 +1547,7 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                             if bDebugMessages == true then LOG(sFunctionRef..': Are recording an underconstruction SMD so estimating when it was constructed,  oSMD='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname..'; Fraction complete='..oUnit:GetFractionComplete()..'; Time='..GetGameTimeSeconds()) end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Just registered oSMD='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for team '..iTeam..' at time='..GetGameTimeSeconds()..'; SMD fraction complete='..oUnit:GetFractionComplete()..'; oUnit[M28UnitInfo.refiTimeOfLastCheck]='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
-                    elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
+                    elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) or oUnit.UnitId == 'uese0001' then
                         --Unpause any paused SMD
                         for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                             local tSMD = oBrain:GetListOfUnits(M28UnitInfo.refCategorySMD, false, true)
@@ -2070,6 +2070,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
                     --Air units - always assign to air groups, and also to land zones if in one
                     if EntityCategoryContains(M28UnitInfo.refCategoryAllAir - M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a non-engineer air unit, will record as new air unit if not already considered, bPreviouslyConsidered='..tostring(bPreviouslyConsidered)) end
                         if not(bPreviouslyConsidered) then
                             M28Air.RecordNewAirUnitForTeam(aiBrain.M28Team, oUnit)
                         end
@@ -2098,6 +2099,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         end
                     else
                         if oUnit:IsUnitState('Attached') then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Unit state is attached so will try reassigning in a bit') end
                             --Try reassigning in a bit
                             ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 5, bAlreadyUpdatedPosition, true)
                         else
@@ -2228,6 +2230,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
                                 else
                                     --No valid plateau or land zone for unit so likely a pathing error; have unit move randomly if we are updating for the owner
+                                    if bDebugMessages == true then LOG(sFunctionRef..': No valid plateau for unit') end
                                     ForkThread(HaveGroundUnitWithNoPlateau, aiBrain, oUnit)
                                 end
                             end
@@ -2610,7 +2613,7 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                 for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
                     --Can we path to the nearest enemy with land, and we are behind enemy tech level with land or have lots of mass?
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain '..oBrain.Nickname..'; oBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(oBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]..'; tbBrainsWithActiveUpgradeByIndex='..tostring(tbBrainsWithActiveUpgradeByIndex[oBrain:GetArmyIndex()] or false)) end
-                    if not(tbBrainsWithActiveUpgradeByIndex[oBrain:GetArmyIndex()]) and not(oBrain[M28Overseer.refbPrioritiseLowTech]) and not(oBrain[M28Overseer.refbPrioritiseAir]) then
+                    if not(tbBrainsWithActiveUpgradeByIndex[oBrain:GetArmyIndex()]) and (not(oBrain[M28Overseer.refbPrioritiseLowTech]) or tTeamData[iM28Team][refiConstructedExperimentalCount] > 0 or oBrain[M28Economy.refiOurHighestLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] - 1 or M28Utilities.IsTableEmpty(tTeamData[iM28Team][reftEnemyLandExperimentals])) and not(oBrain[M28Overseer.refbPrioritiseAir]) then
 
                         if oBrain[M28Map.refbCanPathToEnemyBaseWithLand] and oBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 and (oBrain[M28Economy.refiOurHighestLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (bNearbyUpgradedEnemyACU and oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1) or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6.5 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) * 0.5) and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 50 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1)*0.5)) or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]))) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 15 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
                             --Do we have any active land factory upgrades?
@@ -3500,9 +3503,9 @@ function ConsiderNormalUpgrades(iM28Team)
         end
     end
 
-    --T2 land factory exception even if dont have eco to support upgrades - if have a lot of mass, then consider upgrading even if lack energy
+    --T2 land factory exception even if dont have eco to support upgrades - if have a lot of mass, then consider upgrading even if lack energy, provided not early game (subject to AIx modifier)
     if bDebugMessages == true then LOG(sFunctionRef..': Finished considering normal upgrades; will now consider if we want a T2 factory even if we have low energy. tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]..'; tTeamData[iM28Team][subrefiTeamGrossMass]='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; tTeamData[iM28Team][subrefiTeamGrossEnergy]='..tTeamData[iM28Team][subrefiTeamGrossEnergy]..'; tTeamData[iM28Team][subrefiTeamNetEnergy]='..tTeamData[iM28Team][subrefiTeamNetEnergy]..'; Stored mass='..tTeamData[iM28Team][subrefiTeamMassStored]..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))..'; tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]='..tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]..'; tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) end
-    if tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 and tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 and tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 25 and (tTeamData[iM28Team][subrefiTeamNetEnergy] > 0 or tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 40) and tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == 0 and (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or tTeamData[iM28Team][subrefiTeamMassStored] >= 500) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
+    if tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 and tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 and tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 25 and (tTeamData[iM28Team][subrefiTeamNetEnergy] > 0 or tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 40) and tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == 0 and (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or tTeamData[iM28Team][subrefiTeamMassStored] >= 500) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and (GetGameTimeSeconds() >= 390 or GetGameTimeSeconds() >= 390 / tTeamData[iM28Team][refiHighestBrainBuildMultiplier] or (tTeamData[iM28Team][subrefiActiveM28BrainCount] > 1 and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFactory, iM28Team) >= 4 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainResourceMultiplier]) then
         if bDebugMessages == true then LOG(sFunctionRef..': Dont have good eco but will get land fac upgrade anyway to help improve energy long term as are only at T1') end
         GetSafeHQUpgrade(iM28Team, true)
     end

@@ -1600,9 +1600,11 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                         table.insert(tAvailableSubmarines, oUnit)
                                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) then
                                         table.insert(tAvailableMAA, oUnit)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to available MAA') end
                                     elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0) and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface + categories.HOVER - M28UnitInfo.refCategoryLandExperimental * M28UnitInfo.refCategoryAmphibious - M28UnitInfo.refCategoryLandCombat * categories.AMPHIBIOUS + M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then
                                         table.insert(tAvailableCombatUnits, oUnit)
                                         table.insert(tWZTeamData[M28Map.subrefWZTAlliedCombatUnits], oUnit)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of available combat units') end
                                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Adding unit from this WZ to table of missile ships, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                         table.insert(tMissileShips, oUnit)
@@ -1727,6 +1729,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                         if not(oUnit.Dead) and not(oUnit[refbActiveRaider]) and ((oUnit[refiCurrentWZAssignmentValue] or 0) < iCurWZValue or (oUnit[refiCurrentAssignmentWaterZone] == iWaterZone)) then
                             --Combat unit related
                             if bConsiderAdjacentCombat and (oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiAntiNavyRange] > 0) and not(EntityCategoryContains(M28UnitInfo.refCategoryCruiser, oUnit.UnitId)) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit from adj WZ to available combat units') end
                                 table.insert(tAvailableCombatUnits, oUnit)
                                 RecordUnitAsReceivingWaterZoneAssignment(oUnit, iWaterZone, iCurWZValue)
 
@@ -1738,6 +1741,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                 end
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) then
                                 table.insert(tAvailableMAA, oUnit)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit from adj WZ to available MAA') end
                                 RecordUnitAsReceivingWaterZoneAssignment(oUnit, iWaterZone, iCurWZValue)
 
                                 iCurUnitThreat = M28UnitInfo.GetAirThreatLevel({ oUnit }, false, false, true)
@@ -1779,6 +1783,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of MAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableMAA))..'; Is table of entity filtered dow nto MAA empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMAA, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) end
+        if tWZTeamData[M28Map.refiMAACombatRangeWithoutTarget] then tWZTeamData[M28Map.refiMAACombatRangeWithoutTarget] = nil end
         if M28Utilities.IsTableEmpty(tAvailableMAA) == false then
             if tWZData[M28Map.subrefbPacifistArea] then
                 RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableMAA)
@@ -2281,7 +2286,12 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 5, false, 'PacifistRal', false)
         end
     else
+        local bGetDFRangeOfBombardmentUnits = false
         local iOurBestDFRange = tWZTeamData[M28Map.subrefWZBestAlliedDFRange]
+        if tWZTeamData[M28Map.refiMAACombatRangeWithoutTarget] and iOurBestDFRange <= tWZTeamData[M28Map.refiMAACombatRangeWithoutTarget] then
+            bGetDFRangeOfBombardmentUnits = true
+            iOurBestDFRange = 0
+        end
         local iOurBestIndirectRange = 0
         --Get nearest friendly DF/IF unit near enemy base, and record max indirect range
         local iCurUnitDist
@@ -2291,11 +2301,11 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
         local tOurBase = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
         local bConsiderGroundAttack = false
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Near Start of code at time '..GetGameTimeSeconds()..'; iPond='..iPond..'; iTeam='..iTeam..'; iOptionalRaidBaseWZ='..(iOptionalRaidBaseWZ or 'nil')) end
         for iUnit, oUnit in tPotentialBombardmentUnits do
             if not(oClosestFriendlyUnitToEnemyBase) then oClosestFriendlyUnitToEnemyBase = oUnit end --redundancy to make sure we always have a closest unit
             iOurBestIndirectRange = math.max(iOurBestIndirectRange, (oUnit[M28UnitInfo.refiIndirectRange] or 0))
             if (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 or (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                if bGetDFRangeOfBombardmentUnits then iOurBestDFRange = math.max(iOurBestDFRange,(oUnit[M28UnitInfo.refiDFRange] or 0)) end
                 iCurUnitDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tClosestEnemyBase)
                 if iCurUnitDist < iClosestUnitDist then
                     iClosestUnitDist = iCurUnitDist
@@ -2303,6 +2313,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Near Start of code at time '..GetGameTimeSeconds()..'; iPond='..iPond..'; iTeam='..iTeam..'; iOptionalRaidBaseWZ='..(iOptionalRaidBaseWZ or 'nil')..'; tWZTeamData[M28Map.refiMAACombatRangeWithoutTarget]='..(tWZTeamData[M28Map.refiMAACombatRangeWithoutTarget] or 'nil')..'; bGetDFRangeOfBombardmentUnits='..tostring(bGetDFRangeOfBombardmentUnits)..'; iOurBestDFRange='..iOurBestDFRange) end
         local tNonBombardmentRallyPoint = M28Utilities.MoveInDirection(oClosestFriendlyUnitToEnemyBase:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestFriendlyUnitToEnemyBase:GetPosition(), tWZTeamData[M28Map.reftClosestFriendlyBase]), 20, true, false, true)
         --Update the range to search for enemy units
         local iBombardmentSearchRange = math.max(22, (tWZTeamData[M28Map.refiLastBombardmentSearchRange] or 1))
@@ -2617,9 +2628,9 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                 end
             end
 
-            --Set the min range for units such as destroyers on high health to be treated as main bombardment units
+            --Set the min range for units such as destroyers on high health to be treated as main bombardment units - i.e. be more aggressive with them if have enemy buildings to attack, or are on our side of the map with no nearby enemies in water zones
             local iDFLowerMinRange =  iOurBestDFRange
-            if iOurBestDFRange > 60 and (bCheckForBuildingsToAttack or bCheckForDefences or (oClosestEnemyUnit and NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, M28Utilities.MoveInDirection(oClosestEnemyUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestEnemyUnit:GetPosition(), tWZData[M28Map.subrefMidpoint]), 60, true)) == iPond)) then
+            if iOurBestDFRange > 60 and (bCheckForBuildingsToAttack or bCheckForDefences or (not(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and tWZTeamData[M28Map.refiModDistancePercent] < 0.5) or (oClosestEnemyUnit and NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, M28Utilities.MoveInDirection(oClosestEnemyUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestEnemyUnit:GetPosition(), tWZData[M28Map.subrefMidpoint]), 60, true)) == iPond)) then
                 iDFLowerMinRange = 60
             end
 
@@ -2673,6 +2684,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
 
                         M28Orders.IssueTrackedMove(oUnit, tOurBase, 20, false, 'NBRetr')
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': bCheckForSurfaceUnits='..tostring(bCheckForSurfaceUnits)..'; iDFMinRange='..iDFMinRange..'; iIndirectMinRange='..iIndirectMinRange..'; iDFLowerMinRange='..iDFLowerMinRange..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; oUnit[M28UnitInfo.refiDFRange]='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
                         if (oUnit[M28UnitInfo.refiDFRange] or 0) >= iDFMinRange or (oUnit[M28UnitInfo.refiIndirectRange] or 0) >= iIndirectMinRange or ((oUnit[M28UnitInfo.refiDFRange] or 0) >= iDFLowerMinRange and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.5) then
                             --Attack-move to target, unless we already have a structure in range or our shot is blocked
                             if bDebugMessages == true then LOG(sFunctionRef .. ': Checking if shot blocked for unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '. tBlockedShotBaseMoveLocation=' .. repru(tBlockedShotBaseMoveLocation) .. '; oUnit[M28UnitInfo.refiDFRange]=' .. (oUnit[M28UnitInfo.refiDFRange] or 'nil') .. '; oUnit[M28UnitInfo.refiIndirectRange]=' .. (oUnit[M28UnitInfo.refiIndirectRange] or 'nil') .. '; oUnit[M28UnitInfo.refbLastShotBlocked]=' .. tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Time of last unblocked shot='..(GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100))..'; Time since last refiLastWeaponEvent='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or -100)) end
@@ -4199,6 +4211,29 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         end
     end
 
+    local bIgnoreT2ArtiIfOutrangedByIt = false
+    if bCheckForT2Arti then
+        --If our indirect threat of our MAA units is significant, and exceeds the enemy T2 arti, then want to consider attacking
+        if tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 200 then
+            local iOurIndirectThreat = M28UnitInfo.GetCombatThreatRating(tAvailableMAA, false, false, true, false, false, false, false)
+            local iEnemyT2ArtiCost = M28UnitInfo.GetMassCostOfUnits(tEnemyT2Arti)
+            if iOurIndirectThreat > 1.5 * iEnemyT2ArtiCost then
+                --Check the mass value of our units that have below 130 range (but more than 50) is at least as much as the t2 arti value - i.e. risk is we have lots of cruiers and 1 shorter range unit and we suicide shorter range unit
+                local iOurMediumRangeIndirectMassValue = 0
+                for iUnit, oUnit in tAvailableMAA do
+                    if oUnit[M28UnitInfo.refiCombatRange] > 50 and oUnit[M28UnitInfo.refiCombatRange] < 135 then
+                        iOurMediumRangeIndirectMassValue = iOurMediumRangeIndirectMassValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetMassCostOfUnits(oUnit))
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iOurMediumRangeIndirectMassValue='..iOurMediumRangeIndirectMassValue..'; iEnemyT2ArtiCost='..iEnemyT2ArtiCost) end
+                if iOurMediumRangeIndirectMassValue > iEnemyT2ArtiCost then
+                    bIgnoreT2ArtiIfOutrangedByIt = true
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iOurIndirectThreat='..iOurIndirectThreat..'; iEnemyT2ArtiCost='..iEnemyT2ArtiCost..'; bIgnoreT2ArtiIfOutrangedByIt='..tostring(bIgnoreT2ArtiIfOutrangedByIt or false)) end
+        end
+    end
+
     function RetreatUnitTowardsNavalOrAmphibiousRally(oUnit, sOrderDesc)
         if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then
             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iResisueOrderDistanceHover, false, (sOrderDesc or 'Run')..'A'..iWaterZone)
@@ -4230,7 +4265,11 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
     function DoesUnitWantToRunFromT2Arti(oUnit, iRunThreshold)
         if bCheckForT2Arti then --redundancy
             for iArti, oArti in tEnemyT2Arti do
-                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oArti:GetPosition()) <= iRunThreshold + (oArti[M28UnitInfo.refiCombatRange] or 0) then
+                if bIgnoreT2ArtiIfOutrangedByIt and (oArti[M28UnitInfo.refiCombatRange] or 0) + iRunThreshold >= (oUnit[M28UnitInfo.refiCombatRange] or 0) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has combat range='..(oUnit[M28UnitInfo.refiCombatRange] or 0)..'; oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..' has a combat range '..(oArti[M28UnitInfo.refiCombatRange] or 0)..' will ignore since we think we have enough indirect threat to take on the arti') end
+                    return false
+                elseif M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oArti:GetPosition()) <= iRunThreshold + (oArti[M28UnitInfo.refiCombatRange] or 0) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has combat range='..(oUnit[M28UnitInfo.refiCombatRange] or 0)..'; oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..' has a combat range '..(oArti[M28UnitInfo.refiCombatRange] or 0)..'; bIgnoreT2ArtiIfOutrangedByIt='..tostring(bIgnoreT2ArtiIfOutrangedByIt)..'; Dist to the arti='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oArti:GetPosition())..'; will run from the arti') end
                     return true
                 end
             end
@@ -4281,14 +4320,13 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
     if bDebugMessages == true then LOG(sFunctionRef..': is table of tAvailableSubjectToAA empty after running from DF threats='..tostring(M28Utilities.IsTableEmpty(tAvailableSubjectToAA))) end
     if M28Utilities.IsTableEmpty(tAvailableSubjectToAA) == false then
         --Retreat individual MAA units if in range of enemy air and enemy has high air to ground threat
-        local tMAAToRunFromAir = {}
         local iEnemyAirToGroundThreat = tWZTeamData[M28Map.refiEnemyAirToGroundThreat]
         local iOurAAThreat = tWZTeamData[M28Map.subrefWZThreatAlliedAA]
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
             for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do --include half of the 'excess' enemy air to ground threat in adjacent zones
                 local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                iEnemyAirToGroundThreat = iEnemyAirToGroundThreat + ((tAdjWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) -  (tAdjWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 3)*0.5
-                end
+                iEnemyAirToGroundThreat = iEnemyAirToGroundThreat + math.max(0, ((tAdjWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) -  (tAdjWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 3))*0.5
+            end
         end
 
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
@@ -4650,6 +4688,10 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         end
 
         if not(bGivenOrderToGoToEnemyAirUnit) and M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
+            --Flag we have MAA without orders with a combat range, if relevant, so bombardment mode doesnt take them into account when deciding at what range to bombard targets
+            if iBestRange > 20 then
+                tWZTeamData[M28Map.refiMAACombatRangeWithoutTarget] = iBestRange
+            end
 
             local tWZToReinforceModDistance = {}
             local iCurModDist
