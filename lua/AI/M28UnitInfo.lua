@@ -1164,6 +1164,11 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     elseif sCurUnitBP == 'uaa0310' then iMassMod = 0.55 --Czar
                                     elseif sCurUnitBP == 'xsa0402' then iMassMod = 0.3 --Sera experi bomber
                                     end
+                                elseif EntityCategoryContains(categories.HIGHALTAIR, sCurUnitBP) and M28Utilities.bLoudModActive then
+                                    --LOUD (and QCE) - asfs are much worse mass for mass than inties (need 2:1 mass advantage to roughly break even) and t2 fighters (need 1.5:1 mass advantage to roughly break even)
+                                    if EntityCategoryContains(categories.TECH1, sCurUnitBP) then iMassMod = 2
+                                    elseif EntityCategoryContains(categories.TECH2, sCurUnitBP) then iMassMod = 1.5
+                                    end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': sCurUnitBP='..sCurUnitBP..': Mass mod after checking AirAA value='..iMassMod) end
                             elseif EntityCategoryContains(categories.OVERLAYANTIAIR * categories.AIR, sCurUnitBP) then

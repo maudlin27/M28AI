@@ -2349,8 +2349,30 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
                                     iCurDist = M28Utilities.GetDistanceBetweenPositions(tSubtable[subrefoUnit]:GetPosition(), oAirUnit:GetPosition())
                                     if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..iCurDist..'; iClosestAirStagingDist='..(iClosestAirStagingDist or 'nil')) end
                                     if iCurDist < iClosestAirStagingDist then
-                                        iClosestAirStagingRef = iCurDist
-                                        iClosestAirStagingRef = iAirStagingRef
+                                        --Further adjustment - air staging that isn't in a decent direction vs nearest enemy base should have a distance increase
+                                        local tAirStagingLZOrWZData, tAirStagingLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tSubtable[subrefoUnit]:GetPosition(), true, iTeam)
+                                        if tAirStagingLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
+                                            iClosestAirStagingRef = iCurDist
+                                            iClosestAirStagingRef = iAirStagingRef
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Air staging is in a core zone, updating closest dist to this') end
+                                        else
+                                            iCurDist = iCurDist + 10
+                                            local iAngleFromAirUnitToStaging = M28Utilities.GetAngleFromAToB(oAirUnit:GetPosition(), tSubtable[subrefoUnit]:GetPosition())
+                                            local iAngleFromAirUnitToNearestEnemy = M28Utilities.GetAngleFromAToB(oAirUnit:GetPosition(), tAirStagingLZOrWZTeamData[M28Map.reftClosestEnemyBase])
+                                            local iAngleDif = M28Utilities.GetAngleDifference(iAngleFromAirUnitToStaging, iAngleFromAirUnitToNearestEnemy)
+                                            if iAngleDif <= 155 then
+                                                if iAngleDif <= 100 then
+                                                    iCurDist = iCurDist + 250
+                                                else
+                                                    iCurDist = iCurDist + 150
+                                                end
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Have air staging that is in a minor LZ, iCurDist after adjustments='..iCurDist..'; iAngleDif='..iAngleDif) end
+                                            if iCurDist < iClosestAirStagingDist then
+                                                iClosestAirStagingRef = iCurDist
+                                                iClosestAirStagingRef = iAirStagingRef
+                                            end
+                                        end
                                     end
                                 end
                             end
