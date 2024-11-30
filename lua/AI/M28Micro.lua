@@ -497,6 +497,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
         if oWeapon.GetCurrentTarget and (oWeaponBP.WeaponCategory == 'Direct Fire' or oWeaponBP.WeaponCategory == 'Direct Fire Naval' or oWeaponBP.WeaponCategory == 'Direct Fire Experimental' or (oWeaponBP.WeaponCategory == 'Artillery' and EntityCategoryContains(categories.TECH1, oUnit.UnitId)) or (oWeaponBP.WeaponCategory == 'Missile' and oWeaponBP.MaxRadius <= 80) or (not(M28Utilities.bFAFActive) and (oUnit[M28UnitInfo.refiCombatRange] or 0) > 0 and (oWeaponBP.RangeCategory == 'UWRC_IndirectFire' or oWeaponBP.RangeCategory == 'UWRC_DirectFire'))) or (oWeaponBP.WeaponCategory == 'Indirect Fire' and oWeaponBP.MuzzleVelocity <= 25) then
             if bDebugMessages == true then LOG(sFunctionRef..': Have a valid weapon category, will see if have targets to consider dodging') end
             local oWeaponTarget
+            local iRadiusSize = math.min(5, 1 + math.max(oWeaponBP.DamageRadius + 0.5 + 7 * (oWeaponBP.FiringRandomness or 0), 1))
+            local tWeaponTarget
             if oWeapon.GetCurrentTarget and not(oWeapon:BeenDestroyed()) then oWeaponTarget = oWeapon:GetCurrentTarget() end
             local bConsiderUnitsInArea = false
             if not(M28UnitInfo.IsUnitValid(oWeaponTarget)) or EntityCategoryContains(categories.NAVAL * categories.MOBILE, oWeaponTarget.UnitId) or ((oWeaponBP.DamageRadius or 0) >= 1 and ((oWeaponBP.FiringTolerance or 0) >= 0.5 or oWeapon.WeaponCategory == 'Artillery')) then bConsiderUnitsInArea = true end
@@ -536,7 +538,6 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                 if bDebugMessages == true then LOG(sFunctionRef..': oWeaponBP.DamageRadius='..(oWeaponBP.DamageRadius or 'nil')..'; will consider units in an area if it is an aoe attack, oWeaponTarget='..(oWeaponTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oWeaponTarget) or 'nil')) end
                 if (oWeaponBP.DamageRadius or 0) > 0.1 then
                     --Get all units in area
-                    local tWeaponTarget
                     if oWeaponTarget then
                         tWeaponTarget = oWeaponTarget:GetPosition()
                         --Add to list of locations in the zone to avoid if its an M28 unit  and we arent getting close to unit cap and early-mid game
@@ -561,7 +562,6 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                     end
 
                     if M28Utilities.IsTableEmpty(tWeaponTarget) == false then
-                        local iRadiusSize = math.min(5, 1 + math.max(oWeaponBP.DamageRadius + 0.5 + 7 * (oWeaponBP.FiringRandomness or 0), 1))
                         if bDebugMessages == true then LOG(sFunctionRef..': iRadiusSize='..iRadiusSize..'; based ond amage radius='..oWeaponBP.DamageRadius..'; and firing randomness='..(oWeaponBP.FiringRandomness or 'nil')..'; will draw weapon target')
                             M28Utilities.DrawLocation(tWeaponTarget, 1)
                         end
@@ -593,15 +593,19 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Is table of units to consider dodging empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToConsiderDodgeFor))..'; Weapon damage='..oWeaponBP.Damage) end
             if M28Utilities.IsTableEmpty(tUnitsToConsiderDodgeFor) == false then
+                local bOnlyDodgeIfNotMoving = false
                 --Calculate time to impact
                 local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oWeapon:GetCurrentTargetPos())
                 local iMaxTimeToRun = 3
                 if oWeaponBP.WeaponCategory == 'Artillery' or (M28Utilities.bLoudModActive and oWeaponBP.BallisticArc == 'RULEUBA_HighArc') then
                     iDistToTarget = iDistToTarget + 15
                     iMaxTimeToRun = 0.8
-                elseif oWeaponBP.WeaponCategory == 'Missile' or oWeaponBP.Label == 'MissileWeapon' then
+                elseif oWeaponBP.WeaponCategory == 'Missile' or oWeaponBP.Label == 'MissileWeapon' or oWeaponBP.Label == 'MissileRack' then
                     iDistToTarget = iDistToTarget + 10
                     iMaxTimeToRun = 0.8
+                    if tWeaponTarget and iRadiusSize then
+                        bOnlyDodgeIfNotMoving = true
+                    end
                 end
                 local iShotSpeed = oWeaponBP.MuzzleVelocity
                 local iTimeUntilImpact = iDistToTarget / iShotSpeed
@@ -609,76 +613,86 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                 local iHoverMaxTimeToRun
 
                 if iMaxTimeToRun < 1.1 then iHoverMaxTimeToRun = 1.1 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..'; Is weapon target a bot='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, (oWeaponTarget.UnitId or 'uel0001')))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..'; Is weapon target a bot='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, (oWeaponTarget.UnitId or 'uel0001')))..'; bOnlyDodgeIfNotMoving='..tostring(bOnlyDodgeIfNotMoving)..'; tWeaponTarget='..repru(tWeaponTarget)..'; iRadiusSize='..(iRadiusSize or 'nil')..'; oWeaponBP.WeaponCategory='..(oWeaponBP.WeaponCategory or 'nil')..'; oWeaponBP.Label='..(oWeaponBP.Label or 'nil')) end
                 if iTimeUntilImpact > 0.8 or (oWeaponTarget and EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, oWeaponTarget.UnitId) and iTimeUntilImpact >= 0.2) then
                     for iTarget, oTarget in tUnitsToConsiderDodgeFor do
                         bCancelDodge = false
                         if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Weapon damage='..oWeaponBP.Damage..'; Target health='..oTarget:GetHealth()) end
                         --Does the shot do enough damage that we want to try and dodge it? (experimentals - consider high damage shots like ythotha ball)
                         if ((oTarget[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oTarget)) < 12500 or oWeaponBP.Damage >= 3000) and (oWeaponBP.Damage / oTarget:GetHealth() >= 0.01 or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and ((oWeaponBP.WeaponCategory == 'Artillery' and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and (oWeaponBP.Damage / oTarget:GetHealth() >= 0.0035)) or (oWeaponBP.WeaponCategory == 'Missile' and EntityCategoryContains(categories.INDIRECTFIRE - categories.TECH3, oUnit.UnitId) and (oWeaponBP.Damage / oTarget:GetHealth() >= 0.006))))) then
-                            --Do we think we can dodge the shot?
-                            --If we are a large unit then only dodge if will be a while for the shot to hit
-                            local oBP = oTarget:GetBlueprint()
-                            local iAverageSize = (oBP.SizeX + oBP.SizeZ) * 0.5
-                            if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Unit speed='..oBP.Physics.MaxSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..';  math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)='.. math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)) end
-                            if iAverageSize < 0.89 or (iTimeUntilImpact > math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed) and (iTimeUntilImpact >= 2 or not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)))) then
-                                --Are we not underwater?
-                                if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
-                                    --If dealing with an ACU then drastically reduce the dodge time so we can overcharge if we havent recently and have enemies in range and enough power
-                                    if EntityCategoryContains(categories.COMMAND, oTarget.UnitId) then
-                                        if oTarget:IsUnitState('Teleporting') or (oTarget:IsUnitState('Upgrading') and M28UnitInfo.GetUnitHealthPercent(oTarget) >= 0.9 - oTarget:GetWorkProgress()) then
-                                            --Dont cancel upgrade/teleport
-                                            bCancelDodge = true
-                                            --Dont have ACU dodge missiles if it is retreating (since missiles arent homing)
-                                        elseif oTarget:IsUnitState('Moving') and GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or 0) <= 2 and oWeaponBP.WeaponCategory == 'Missile' and EntityCategoryContains(categories.INDIRECTFIRE - categories.STRUCTURE, oUnit.UnitId) and oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetDistanceBetweenPositions(oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition], oTarget:GetPosition()) >= 5 then
-                                            bCancelDodge = true
-                                        elseif M28Conditions.CanUnitUseOvercharge(oTarget:GetAIBrain(), oTarget) and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0)) > 5 then
-                                            --If we have units we can hit then cancel
-                                            if oTarget:GetHealth() >= 5000 and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 2 or M28Utilities.IsTableEmpty(oTarget:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oTarget:GetPosition(), oTarget[M28UnitInfo.refiDFRange], 'Enemy')) == false) then
+                            --Dont bother dodging if missile attack and we are moving away from it
+                            if bOnlyDodgeIfNotMoving then
+                                local tFirstOrder = oUnit[M28Orders.reftiLastOrders][1]
+                                if tFirstOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetDistanceBetweenPositions(tWeaponTarget, oUnit:GetPosition()) > 2 + iRadiusSize then
+                                    bCancelDodge = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Dodging missile - we are already planning on moving away from the missile') end
+                                end
+                            end
+                            if not(bCancelDodge) then
+                                --Do we think we can dodge the shot?
+                                --If we are a large unit then only dodge if will be a while for the shot to hit
+                                local oBP = oTarget:GetBlueprint()
+                                local iAverageSize = (oBP.SizeX + oBP.SizeZ) * 0.5
+                                if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Unit speed='..oBP.Physics.MaxSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..';  math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)='.. math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)) end
+                                if iAverageSize < 0.89 or (iTimeUntilImpact > math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed) and (iTimeUntilImpact >= 2 or not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)))) then
+                                    --Are we not underwater?
+                                    if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                                        --If dealing with an ACU then drastically reduce the dodge time so we can overcharge if we havent recently and have enemies in range and enough power
+                                        if EntityCategoryContains(categories.COMMAND, oTarget.UnitId) then
+                                            if oTarget:IsUnitState('Teleporting') or (oTarget:IsUnitState('Upgrading') and M28UnitInfo.GetUnitHealthPercent(oTarget) >= 0.9 - oTarget:GetWorkProgress()) then
+                                                --Dont cancel upgrade/teleport
                                                 bCancelDodge = true
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Will cancel dodge as we can overcharge instead, time since last overcharge='..(GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0))..'; Brain energy stored='..oTarget:GetAIBrain():GetEconomyStored('ENERGY')) end
-                                            else
-                                                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                                                local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
-                                                if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 200 then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Reducing dodge time drastically as have ACU that can overcharge enemies in range but it also wants to dodge a shot; will cancel if damage is very low that are dodging. oWeaponBP.Damage='..oWeaponBP.Damage) end
-                                                    if oWeaponBP.Damage <= 100 then
-                                                        bCancelDodge = true
-                                                    else
-                                                        iMaxTimeToRun = math.min(0.8, iMaxTimeToRun) --(M27 uses 0.9; if set too low then ACU may not actually move)
+                                                --Dont have ACU dodge missiles if it is retreating (since missiles arent homing)
+                                            elseif oTarget:IsUnitState('Moving') and GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or 0) <= 2 and oWeaponBP.WeaponCategory == 'Missile' and EntityCategoryContains(categories.INDIRECTFIRE - categories.STRUCTURE, oUnit.UnitId) and oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and M28Utilities.GetDistanceBetweenPositions(oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition], oTarget:GetPosition()) >= 5 then
+                                                bCancelDodge = true
+                                            elseif M28Conditions.CanUnitUseOvercharge(oTarget:GetAIBrain(), oTarget) and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0)) > 5 then
+                                                --If we have units we can hit then cancel
+                                                if oTarget:GetHealth() >= 5000 and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 2 or M28Utilities.IsTableEmpty(oTarget:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oTarget:GetPosition(), oTarget[M28UnitInfo.refiDFRange], 'Enemy')) == false) then
+                                                    bCancelDodge = true
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will cancel dodge as we can overcharge instead, time since last overcharge='..(GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0))..'; Brain energy stored='..oTarget:GetAIBrain():GetEconomyStored('ENERGY')) end
+                                                else
+                                                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                                                    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+                                                    if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 200 then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Reducing dodge time drastically as have ACU that can overcharge enemies in range but it also wants to dodge a shot; will cancel if damage is very low that are dodging. oWeaponBP.Damage='..oWeaponBP.Damage) end
+                                                        if oWeaponBP.Damage <= 100 then
+                                                            bCancelDodge = true
+                                                        else
+                                                            iMaxTimeToRun = math.min(0.8, iMaxTimeToRun) --(M27 uses 0.9; if set too low then ACU may not actually move)
+                                                        end
                                                     end
                                                 end
                                             end
-                                        end
-                                    elseif EntityCategoryContains(categories.EXPERIMENTAL, oTarget.UnitId) then
-                                        --If we are a GC, Monkey or Ythotha that has an enemy experimental nearby but not in range, then cancel dodging as want to get in range to be able to  fire
-                                        local oTargetBP = oTarget:GetBlueprint()
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if experimental wants to dodge shot, iDistToTarget='..iDistToTarget..'; Damage='..oWeaponBP.Damage..'; Experimental size='..math.max(oTargetBP.SizeX, oTargetBP.SizeZ)..'; Time since last weapon event='..GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0)) end
-                                        --Dont dodge at all if we have fired recently and the damage isn't massive
-                                        if GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 5 and oWeaponBP.Damage <= 4000 then
-                                            bCancelDodge = true
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Target is an experimental that has fired recently and the damage isnt massive so we dont want to dodge, weapon damage='..(oWeaponBP.Damage or 'nil')) end
-                                        elseif iDistToTarget <= 90 and math.max(oTargetBP.SizeX, oTargetBP.SizeZ) >= 7 and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 20 or oWeaponBP.Damage <= 4000) then --megalith and fatboy
-                                            bCancelDodge = true
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Megalith or fatboy in size so wont dodge shot') end
-                                        else
-                                            local tLastOrder = oTarget[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
-                                            if tLastOrder[M28Orders.refiOrderIssueAttack] and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId) and (not(EntityCategoryContains(M28UnitInfo.refCategoryYthotha, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId)) or oWeaponBP.Damage <= 4000) then
+                                        elseif EntityCategoryContains(categories.EXPERIMENTAL, oTarget.UnitId) then
+                                            --If we are a GC, Monkey or Ythotha that has an enemy experimental nearby but not in range, then cancel dodging as want to get in range to be able to  fire
+                                            local oTargetBP = oTarget:GetBlueprint()
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Deciding if experimental wants to dodge shot, iDistToTarget='..iDistToTarget..'; Damage='..oWeaponBP.Damage..'; Experimental size='..math.max(oTargetBP.SizeX, oTargetBP.SizeZ)..'; Time since last weapon event='..GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0)) end
+                                            --Dont dodge at all if we have fired recently and the damage isn't massive
+                                            if GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 5 and oWeaponBP.Damage <= 4000 then
                                                 bCancelDodge = true
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Target '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' was trying to attack an enemy exp or ACU, targets target='..tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget])..'; so will cancel dodge') end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Target is an experimental that has fired recently and the damage isnt massive so we dont want to dodge, weapon damage='..(oWeaponBP.Damage or 'nil')) end
+                                            elseif iDistToTarget <= 90 and math.max(oTargetBP.SizeX, oTargetBP.SizeZ) >= 7 and (GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 20 or oWeaponBP.Damage <= 4000) then --megalith and fatboy
+                                                bCancelDodge = true
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Megalith or fatboy in size so wont dodge shot') end
+                                            else
+                                                local tLastOrder = oTarget[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
+                                                if tLastOrder[M28Orders.refiOrderIssueAttack] and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId) and (not(EntityCategoryContains(M28UnitInfo.refCategoryYthotha, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId)) or oWeaponBP.Damage <= 4000) then
+                                                    bCancelDodge = true
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Target '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' was trying to attack an enemy exp or ACU, targets target='..tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget])..'; so will cancel dodge') end
+                                                end
                                             end
                                         end
-                                    end
 
-                                    if not(bCancelDodge) then
-                                        iMaxTimeToRun = math.min(2.5, iMaxTimeToRun)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will try to dodge shot. iTimeUntilImpact='..iTimeUntilImpact..'; iMaxTimeToRun='..iMaxTimeToRun..'; iAverageSize='..iAverageSize) end
-                                        if iHoverMaxTimeToRun and EntityCategoryContains(categories.HOVER, oTarget.UnitId) then
-                                            DodgeShot(oTarget, oUnit, oWeapon, math.min(math.max(0.95, iTimeUntilImpact), iHoverMaxTimeToRun))
-                                        elseif iAverageSize < 1 and iTimeUntilImpact <= 1.1 and oBP.Physics.MaxSpeed >= 3 then
-                                            AltDodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
-                                        else
-                                            DodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
+                                        if not(bCancelDodge) then
+                                            iMaxTimeToRun = math.min(2.5, iMaxTimeToRun)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will try to dodge shot. iTimeUntilImpact='..iTimeUntilImpact..'; iMaxTimeToRun='..iMaxTimeToRun..'; iAverageSize='..iAverageSize) end
+                                            if iHoverMaxTimeToRun and EntityCategoryContains(categories.HOVER, oTarget.UnitId) then
+                                                DodgeShot(oTarget, oUnit, oWeapon, math.min(math.max(0.95, iTimeUntilImpact), iHoverMaxTimeToRun))
+                                            elseif iAverageSize < 1 and iTimeUntilImpact <= 1.1 and oBP.Physics.MaxSpeed >= 3 then
+                                                AltDodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
+                                            else
+                                                DodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
+                                            end
                                         end
                                     end
                                 end
