@@ -524,8 +524,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             if not(bConsiderUnitsInArea) then
                 --Is it a unit with a shield?
                 if EntityCategoryContains(categories.SHIELD, oWeaponTarget.UnitId) then
-                    local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oWeaponTarget, true)
-                    if (iCurShield or 0) <= (iMaxShield or 0) * 0.05 then --was 0.2 pre-v130
+                    --local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oWeaponTarget, true)
+                    if oUnit.MyShield.GetHealth and oUnit.MyShield:GetHealth() > 0 then --was 0.2 pre-v130, and 0.05 pre v150
                         ConsiderAddingUnitToTable(oWeaponTarget, bIncludeBusyUnits)
                     end
                 else
@@ -584,7 +584,13 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                             end
                             if not(bUnderMobileShield) then
                                 for iNearbyUnit, oNearbyUnit in tAllUnitsInArea do
-                                    ConsiderAddingUnitToTable(oNearbyUnit, bIncludeBusyUnits)
+                                    if oUnit.UnitId == 'uel0307' or oUnit.UnitId == 'ual0307' then bDebugMessages = true else bDebugMessages = false end
+                                    --Exclude shields (note we also exclude shields that are directly targeted further above)
+                                    if oUnit.MyShield.GetHealth and oUnit.MyShield:GetHealth() > 0 and (oUnit:GetBlueprint().Defense.Shield.ShieldSize or 0) > 1.5 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Mobile shield that is still active so wont try and dodge') end
+                                    else
+                                        ConsiderAddingUnitToTable(oNearbyUnit, bIncludeBusyUnits)
+                                    end
                                 end
                             end
                         end
