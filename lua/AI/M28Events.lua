@@ -164,7 +164,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                             ForkThread(ConsiderRecordingStratBomberToSuicideInto, oKillerUnit, true)
                         end
 
-                        --T2 arti firebase tracking if they get lots of kills:
+                        --Tracking for certain units that are killed - T2 arti and gunships:
                         if oUnitKilled:GetAIBrain().M28AI then
                             local iTeam = oUnitKilled:GetAIBrain().M28Team
                             if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oKillerUnit.UnitId) then M28Land.ConsiderIfHaveEnemyFirebase(iTeam, oKillerUnit) end
@@ -174,6 +174,16 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                     M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
                                 else
                                     M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
+                                    --Adjust gunship retreat logic if killed by a ground unit
+                                    if oKillerUnit and M28Air.iBaseLowHealthThreshold < 0.75 and EntityCategoryContains(M28UnitInfo.refCategoryGroundAA, oKillerUnit.UnitId) and EntityCategoryContains(categories.TECH3, oUnitKilled.UnitId) then
+                                        if M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 0.7 then
+                                            M28Air.iBaseLowHealthThreshold = M28Air.iBaseLowHealthThreshold + 0.03
+                                            M28Air.iProjectileLowHealthThreshold = M28Air.iProjectileLowHealthThreshold + 0.03
+                                        else
+                                            M28Air.iBaseLowHealthThreshold = M28Air.iBaseLowHealthThreshold + 0.02
+                                            M28Air.iProjectileLowHealthThreshold = M28Air.iProjectileLowHealthThreshold + 0.02
+                                        end
+                                    end
                                 end
                             end
                         end

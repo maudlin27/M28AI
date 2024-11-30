@@ -4593,9 +4593,15 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                 iCurHealth = iCurHealth + iCurShield
                 iMaxHealth = iMaxHealth + iMaxShield
                 iHealthPercent = iCurHealth / iMaxHealth
-                if bDebugMessages == true then LOG(sFunctionRef..': Updated ACU target for shield, iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; iHealthPercent post update='..iHealthPercent) end
+                if M28Utilities.bLoudModActive then
+                    iBaseHealthThreshold = iBaseHealthThreshold * 0.4 --be much less likely to choose snipe target for a unit that has a shield, especially in LOUD due to the short shield recharge
+                else
+                    iBaseHealthThreshold = iBaseHealthThreshold * 0.7 --be less likely to choose snipe target for a unit that has a shield
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Updated ACU target for shield, iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; iHealthPercent post update='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
             end
-            if iMaxShield == 0 or iHealthPercent < iBaseHealthThreshold then
+            --Be very unlikely to choose a snipe target if
+            if iMaxShield == 0 or (iHealthPercent < iBaseHealthThreshold and (iHealthPercent < 0.4 or iCurShield / iMaxShield < 0.3)) then
                 --Very low health - attack
                 if (iHealthPercent < 0.175 or (iHealthPercent < 0.2 and oUnit[M28UnitInfo.refbIsSnipeTarget])) and (oUnit:GetHealth() <= 2000 or (oUnit[M28UnitInfo.refbIsSnipeTarget] and oUnit:GetHealth() <= 2500)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': So low health that we might kill just with air') end
@@ -4679,7 +4685,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                                     if iHealthPercent <= 0.3 then iMinThreatWanted = math.max(450, iACUCombatThreat + ((tACULZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - iACUCombatThreat) * 0.4)
                                     else iMinThreatWanted = math.max(600, M28UnitInfo.GetCombatThreatRating({oUnit}, true, false) + ((tACULZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - iACUCombatThreat) * 0.8)
                                     end
-                                    if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28ACU.refiUpgradeCount] >= 3 or oUnit:GetMaxHealth() >= 14000 or (oUnit.MyShield.GetHealth and oUnit.MyShield.GetHealth() > 0)) then
+                                    if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28ACU.refiUpgradeCount] >= 3 or oUnit:GetMaxHealth() >= 14000 or (oUnit.MyShield.GetHealth and oUnit.MyShield:GetHealth() > 0)) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Dealing with heavily upgraded ACU') end
                                         iMinThreatWanted = iMinThreatWanted * 1.75
                                     end
