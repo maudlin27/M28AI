@@ -584,7 +584,6 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                             end
                             if not(bUnderMobileShield) then
                                 for iNearbyUnit, oNearbyUnit in tAllUnitsInArea do
-                                    if oUnit.UnitId == 'uel0307' or oUnit.UnitId == 'ual0307' then bDebugMessages = true else bDebugMessages = false end
                                     --Exclude shields (note we also exclude shields that are directly targeted further above)
                                     if oUnit.MyShield.GetHealth and oUnit.MyShield:GetHealth() > 0 and (oUnit:GetBlueprint().Defense.Shield.ShieldSize or 0) > 1.5 then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Mobile shield that is still active so wont try and dodge') end
