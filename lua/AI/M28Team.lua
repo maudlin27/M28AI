@@ -4685,7 +4685,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                                     if iHealthPercent <= 0.3 then iMinThreatWanted = math.max(450, iACUCombatThreat + ((tACULZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - iACUCombatThreat) * 0.4)
                                     else iMinThreatWanted = math.max(600, M28UnitInfo.GetCombatThreatRating({oUnit}, true, false) + ((tACULZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - iACUCombatThreat) * 0.8)
                                     end
-                                    if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28ACU.refiUpgradeCount] >= 3 or oUnit:GetMaxHealth() >= 14000 or (oUnit.MyShield.GetHealth and oUnit.MyShield.GetHealth() > 0)) then
+                                    if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28ACU.refiUpgradeCount] >= 3 or oUnit:GetMaxHealth() >= 14000 or (oUnit.MyShield.GetHealth and oUnit.MyShield:GetHealth() > 0)) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Dealing with heavily upgraded ACU') end
                                         iMinThreatWanted = iMinThreatWanted * 1.75
                                     end
