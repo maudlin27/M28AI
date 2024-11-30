@@ -4572,7 +4572,7 @@ end
 
 function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
     local sFunctionRef = 'ConsiderAddingUnitAsSnipeTarget'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -4593,9 +4593,15 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                 iCurHealth = iCurHealth + iCurShield
                 iMaxHealth = iMaxHealth + iMaxShield
                 iHealthPercent = iCurHealth / iMaxHealth
-                if bDebugMessages == true then LOG(sFunctionRef..': Updated ACU target for shield, iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; iHealthPercent post update='..iHealthPercent) end
+                if M28Utilities.bLoudModActive then
+                    iBaseHealthThreshold = iBaseHealthThreshold * 0.4 --be much less likely to choose snipe target for a unit that has a shield, especially in LOUD due to the short shield recharge
+                else
+                    iBaseHealthThreshold = iBaseHealthThreshold * 0.7 --be less likely to choose snipe target for a unit that has a shield
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Updated ACU target for shield, iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; iHealthPercent post update='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
             end
-            if iMaxShield == 0 or iHealthPercent < iBaseHealthThreshold then
+            --Be very unlikely to choose a snipe target if
+            if iMaxShield == 0 or (iHealthPercent < iBaseHealthThreshold and (iHealthPercent < 0.4 or iCurShield / iMaxShield < 0.3)) then
                 --Very low health - attack
                 if (iHealthPercent < 0.175 or (iHealthPercent < 0.2 and oUnit[M28UnitInfo.refbIsSnipeTarget])) and (oUnit:GetHealth() <= 2000 or (oUnit[M28UnitInfo.refbIsSnipeTarget] and oUnit:GetHealth() <= 2500)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': So low health that we might kill just with air') end

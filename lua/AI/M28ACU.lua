@@ -1848,8 +1848,19 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                     else
 
                                         local iEnemyNearbyThreat = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
-                                        local iTeam = oACU:GetAIBrain().M28Team
-                                        local iAllyNearbyThreat = math.max(0, (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) - iACUThreat)
+                                        local aiBrain = oACU:GetAIBrain()
+                                        local iTeam = aiBrain.M28Team
+                                        local iAllyNearbyThreat
+                                        if aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 then
+                                            iAllyNearbyThreat = math.max(0, (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) - iACUThreat)
+                                        else
+                                            iAllyNearbyThreat = math.max(0, (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) - iACUThreat)
+                                            if tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] then
+                                                for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                                                    iAllyNearbyThreat = iAllyNearbyThreat + iThreat
+                                                end
+                                            end
+                                        end
                                         local iAllyAdjacentZoneThreat = 0
                                         local iBestEnemyDFRange = (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)
                                         local iMaxLRThreat = (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)
@@ -1878,8 +1889,9 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                 iEnemyNearbyThreat = iEnemyNearbyThreat + (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                                                 iMaxLRThreat = math.max(iMaxLRThreat, (tAdjLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0))
                                                 --Include adjacent enemies assuming ACU has enough health that they are likely to be able to arrive
-                                                if iHealthPercent >= 0.65 and (iHealthPercent >= 0.8 or oACU[refbUseACUAggressively] or (iHealthPercent >= 0.35 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1)) then
-                                                    iAllyAdjacentZoneThreat = iAllyAdjacentZoneThreat + ((tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) + (tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)) * 0.9
+                                                if iHealthPercent >= 0.65 and (iHealthPercent >= 0.8 or oACU[refbUseACUAggressively] or (iHealthPercent >= 0.35 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 and not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]))) then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Including mobile DF threat from adjacent zone in ally total force, tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..(tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')) end
+                                                    iAllyAdjacentZoneThreat = iAllyAdjacentZoneThreat + (tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) * 0.9
                                                 end
                                                 if iMaxLRThreat == 0 and oACU[refiUpgradeCount] > 0 and (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) <= 2500 and iBestEnemyDFRange < (oACU[M28UnitInfo.refiDFRange] or 0) then
                                                     --Exclude enemy ACU threat
@@ -5207,12 +5219,26 @@ end
 
 function DoWeStillWantToBeAggressiveWithACU(oACU)
     --Intended for early game mostly on smaller maps to make ACU more aggressive, or teamgames where we have 3+ ACUs alive
+    local sFunctionRef = 'DoWeStillWantToBeAggressiveWithACU'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local bStillBeAggressive = true
     local aiBrain = oACU:GetAIBrain()
     local iTeam = aiBrain.M28Team
 
     --Still be aggressive if are attempting a snipe
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
+    local bNotCloseToSnipeTarget = true
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false then
+        for iTarget, oTarget in M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
+            if M28Utilities.GetDistanceBetweenPositions(oTarget:GetPostion(), oACU:GetPosition()) <= 60 then
+                bNotCloseToSnipeTarget = false
+                break
+            end
+        end
+    end
+    if bNotCloseToSnipeTarget then
         if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] then
             bStillBeAggressive = false
         else
@@ -5249,7 +5275,7 @@ function DoWeStillWantToBeAggressiveWithACU(oACU)
             end
         end
     end
-
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bStillBeAggressive
 end
 
