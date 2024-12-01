@@ -5202,9 +5202,10 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                 --Do we have shot blocked on non-skirmisher units, no indirect fire units, and have signficantly more threat than the enemy or are on an island beachhead? If so then move instead of attakc-moving when attacking
                 local bMoveBlockedNotAttackMove = false
-                if (iFriendlyBestMobileIndirectRange == 0 or iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 3) and (iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 1.75 or tLZTeamData[M28Map.refbIslandBeachhead]) then
+                if (iFriendlyBestMobileIndirectRange == 0 or tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] < tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.2 or iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 3) and (iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 1.75 or tLZTeamData[M28Map.refbIslandBeachhead] or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) and iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 0.9)) then
                     bMoveBlockedNotAttackMove = true
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished deciding whether to move units whose shot is blocked, tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; Is table of nearby t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Adjacent zone enemy threat='..GetEnemyCombatThreatInAdjacentZones()) end
 
                 local bConsiderSpecialMMLLogic = false --if this is true then will consider synchronising MML shots and adjusting who they will target from the default
                 local tMMLForSynchronisation = {}
