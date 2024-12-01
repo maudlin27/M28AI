@@ -5296,24 +5296,38 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if bDebugMessages == true then LOG(sFunctionRef..': If are in scenario 1 will consider disabling if we cant see the nearest enemy, bAreInScenario1='..tostring(bAreInScenario1)..'; oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil'))
                     if oNearestEnemyToFriendlyBase then LOG(sFunctionRef..': Can see oNearestEnemyToFriendlyBase='..tostring(M28UnitInfo.CanSeeUnit(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]], oNearestEnemyToFriendlyBase, false))..'; tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]) end
                 end
-                if bAreInScenario1 and oNearestEnemyToFriendlyBase and not(M28UnitInfo.CanSeeUnit(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]], oNearestEnemyToFriendlyBase, false)) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': we dont have intel of the closest enemy so dont want to be in scenario 1 afterall (unless we have friendly ACU  or land scout in this zone or the zone with the nearest enemy, and not dealing with very long range units), will flag that we lack intel') end
+                if bAreInScenario1 and oNearestEnemyToFriendlyBase and not(M28UnitInfo.CanSeeUnit(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]], oNearestEnemyToFriendlyBase, false)) and not(EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemyToFriendlyBase.UnitId)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': we dont have intel of the closest enemy so dont want to be in scenario 1 afterall (unless we have friendly ACU  or land scout in this zone or the zone with the nearest enemy, and not dealing with very long range units), will flag that we lack intel, nearest enemy combat range='..(oNearestEnemyToFriendlyBase[M28UnitInfo.refiCombatRange] or 'nil')..'; Dist between last known position and actual position='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; iEnemyBestDFRange='..(iEnemyBestDFRange or 'nil')) end
                     bAreInScenario1 = false
                     if tLZTeamData[M28Map.refiRadarCoverage] < iIntelThresholdForPriorityScout then
                         tLZTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] = GetGameTimeSeconds()
                     end
-                    if oNearestEnemyToFriendlyBase[M28UnitInfo.refiCombatRange] <= 45 then
-
-                        local iNearestEnemyPlateau, iNearestEnemyZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oNearestEnemyToFriendlyBase:GetPosition())
-                        if not(iNearestEnemyZone == iLandZone) and iNearestEnemyPlateau == iPlateau then
-                            local tNearestEnemyTeamData = M28Map.tAllPlateaus[iNearestEnemyPlateau][M28Map.subrefPlateauLandZones][iNearestEnemyZone][M28Map.subrefLZTeamData][iTeam]
-                            if M28Utilities.IsTableEmpty(tNearestEnemyTeamData[M28Map.subrefAlliedACU]) == false then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have friendly ACU in the same zone as nearest enemy so will actually stick to being scenario 1') end
+                    if M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 3 then
+                        bAreInScenario1 = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit hasnt moved much from when we last had intel so reasonable to assume AI would infer roughly where it is') end
+                    else
+                        if iFriendlyBestMobileIndirectRange > (iEnemyBestDFRange or 0) then
+                            local iActualDistToMidpoint = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                            local iExpectedDistToMidpoint = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tLZData[M28Map.subrefMidpoint])
+                            if bDebugMessages == true then LOG(sFunctionRef..': iActualDistToMidpoint='..iActualDistToMidpoint..'; iExpectedDistToMidpoint='..iExpectedDistToMidpoint) end
+                            if iActualDistToMidpoint >= iExpectedDistToMidpoint then
                                 bAreInScenario1 = true
-                            end --subrefLZTAlliedCombatUnits
-                        elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false and iNearestEnemyZone == iLandZone then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have friendly ACU in this zone which enemy is in, so will actually stick to being scenario 1') end
-                            bAreInScenario1 = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': We have indirect fire units, and enemy isnt any closer to our midpoint than we would expect from the last known position, so a chance we can get some lucky hits on other units based on where we recalled them being since we outrange them') end
+                            end
+                        end
+                        if not(bAreInScenario1) and oNearestEnemyToFriendlyBase[M28UnitInfo.refiCombatRange] <= 45 then
+
+                            local iNearestEnemyPlateau, iNearestEnemyZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oNearestEnemyToFriendlyBase:GetPosition())
+                            if not(iNearestEnemyZone == iLandZone) and iNearestEnemyPlateau == iPlateau then
+                                local tNearestEnemyTeamData = M28Map.tAllPlateaus[iNearestEnemyPlateau][M28Map.subrefPlateauLandZones][iNearestEnemyZone][M28Map.subrefLZTeamData][iTeam]
+                                if M28Utilities.IsTableEmpty(tNearestEnemyTeamData[M28Map.subrefAlliedACU]) == false then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have friendly ACU in the same zone as nearest enemy so will actually stick to being scenario 1') end
+                                    bAreInScenario1 = true
+                                end --subrefLZTAlliedCombatUnits
+                            elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false and iNearestEnemyZone == iLandZone then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have friendly ACU in this zone which enemy is in, so will actually stick to being scenario 1') end
+                                bAreInScenario1 = true
+                            end
                         end
                     end
                 end
