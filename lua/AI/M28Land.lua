@@ -4781,6 +4781,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             bAdd = false
                             if oUnit:GetFractionComplete() >= 0.95 and M28UnitInfo.IsUnitValid(oUnit) then
                                 iDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) - math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0))
+                                if bDebugMessages == true then LOG(sFunctionRef..': AddUnitFromAdjacentZoneToTableIfCloseEnough: Deciding whether to add enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iDistUntilInRange of midpoint='..iDistUntilInRange) end
                                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
                                     if iDistUntilInRange  <= iAdjacentDistThreshold + iStructureFurtherDistAdjust + iAdjacentDistGeneralMod then
                                         if iDistUntilInRange <= iAdjacentDistGeneralMod then
@@ -5070,7 +5071,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 --tAvailableUnitOverride is so we can just send short range units here to calculate threat in scenario 1 to decide if we want to attack with them
                 local bUpdateEnemyCombatThreat = false
                 if not(iEnemyCombatThreat) then bUpdateEnemyCombatThreat = true end
-                iEnemyCombatThreat = math.max(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 0.5, tLZTeamData[M28Map.subrefThreatEnemyDFStructures] + tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]) --we end up only including nearby enemy threats in adj zones, not all adj zone threats
+                iEnemyCombatThreat = math.max((iEnemyCombatThreat or 0), tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 0.5, tLZTeamData[M28Map.subrefThreatEnemyDFStructures] + tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]) --we end up only including nearby enemy threats in adj zones, not all adj zone threats
                 local bAdjustStructureThreat = false
 
                 --First calculate our DF threat (recalulate if already done this, as may be dealing with SR units)
@@ -5096,6 +5097,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if bUpdateEnemyCombatThreat then
                     local tbZonesConsidered = {}
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Calculating enemy threat, iFirebaseThreatAdjust='..iFirebaseThreatAdjust) end
                         if iFirebaseThreatAdjust == 0 then
                             local iAdjacentDistThreshold = 0
                             local iCurDist
@@ -5122,6 +5124,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             --we adjust the distsances more generally based on the current zone size, so reduce the adj dist threshold based on this
                             if iAdjacentDistThreshold > 10 then iAdjacentDistThreshold = math.max(10, iAdjacentDistThreshold - iAdjacentDistGeneralMod) end
                             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy threat in adjacent zone '..iAdjLZ..'; tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ]='..tostring(tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ] or false)..'; tbZonesConsidered[iAdjLZ]='..tostring(tbZonesConsidered[iAdjLZ] or false)) end
                                 if not(tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ]) and not(tbZonesConsidered[iAdjLZ]) then
                                     tbZonesConsidered[iAdjLZ] = true
                                     --If dealing with a core base or an ACU that is in combat then include friendly ACUs
@@ -5141,6 +5144,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         end
                                     end
                                     AddUnitFromAdjacentZoneToTableIfCloseEnough(tAdjLZTeamData, tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureUnitDistThresholdAdjust, iAngleFromClosestFriendlyUnit)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Cumulative threat of tNearbyAdjacentEnemies after updating for iAdjLZ='..iAdjLZ..'='..M28UnitInfo.GetCombatThreatRating(tNearbyAdjacentEnemies, false)..'; Mass cost='..M28UnitInfo.GetMassCostOfUnits(tNearbyAdjacentEnemies)) end
                                 end
                             end
 
@@ -6029,14 +6033,46 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 CalculateNearbyEnemyCombatThreatFriendlyDFAndIfFriendlyACUInCombat(tOutrangedCombatUnits)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to attack with outranged units, iOurDFAndT1ArtiCombatThreat using only SR units='..(iOurDFAndT1ArtiCombatThreat or 'nil')..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Enemy combat in adj zones='..GetEnemyCombatThreatInAdjacentZones()..'; iOutrangedThreat='..M28UnitInfo.GetCombatThreatRating(tOutrangedCombatUnits, false, false)) end
                                 if iOurDFAndT1ArtiCombatThreat > iEnemyCombatThreat then
-                                    if iOurDFAndT1ArtiCombatThreat > iEnemyCombatThreat * 3 or (iOurDFAndT1ArtiCombatThreat >= 16000 and iOurDFAndT1ArtiCombatThreat > iEnemyCombatThreat * 1.1) then
+                                    if iOurDFAndT1ArtiCombatThreat > iEnemyCombatThreat * 5 or (iOurDFAndT1ArtiCombatThreat >= 16000 and iOurDFAndT1ArtiCombatThreat > iEnemyCombatThreat * 1.5) then
                                         bAttackWithOutrangedDFUnits = true
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering only enemy units nearby, we have enough to attack') end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering only enemy units nearby, we have enough to attack, iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurDFAndT1ArtiCombatThreat='..iOurDFAndT1ArtiCombatThreat) end
                                     else
                                         local iOutrangedThreat = M28UnitInfo.GetCombatThreatRating(tOutrangedCombatUnits, false, false)
-                                        if iOutrangedThreat / iAvailableCombatUnitThreat >= 0.7 then
+                                        if iOutrangedThreat / iAvailableCombatUnitThreat >= 0.8 then
                                             bAttackWithOutrangedDFUnits = true
                                             if bDebugMessages == true then LOG(sFunctionRef..': Our long ranged threat is only a small proportion of our total combat threat so we will attack with everything') end
+                                        elseif iOutrangedThreat > iEnemyCombatThreat * 1.5 then
+                                            if iOutrangedThreat > iEnemyCombatThreat * 3 or (iOutrangedThreat > iEnemyCombatThreat * 2.5 and iOutrangedThreat / iAvailableCombatUnitThreat >= 0.5) then
+                                                bAttackWithOutrangedDFUnits = true
+                                            else
+                                                --Get threat of SR units near the nearest enemy unit - if we have enough of a force with SR units alone then press attack
+                                                local oClosestSRUnitToEnemy
+                                                local iClosestSRUnitToEnemy = 100000
+                                                for iSRUnit, oSRUnit in tOutrangedCombatUnits do
+                                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oSRUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) - oSRUnit[M28UnitInfo.refiCombatRange]
+                                                    if iCurDist < iClosestSRUnitToEnemy then
+                                                        iClosestSRUnitToEnemy =  iCurDist
+                                                        oClosestSRUnitToEnemy = oSRUnit
+                                                    end
+                                                end
+                                                local iSRThreatNearFront = 0
+                                                for iCurSRUnit = table.getn(tOutrangedCombatUnits), 1, -1 do
+                                                    local oSRUnit = tOutrangedCombatUnits[iCurSRUnit]
+                                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oSRUnit:GetPosition(), oClosestSRUnitToEnemy:GetPosition()) + oClosestSRUnitToEnemy[M28UnitInfo.refiCombatRange] - oSRUnit[M28UnitInfo.refiCombatRange]
+                                                    if iCurDist <= 40 then
+                                                        iSRThreatNearFront = iSRThreatNearFront + (oSRUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oSRUnit))
+                                                    else
+                                                        --Consolidate further away SR Units
+                                                        M28Orders.IssueTrackedMove(oSRUnit, oClosestSRUnitToEnemy:GetPosition(), 5, false, 'SRConsol', false)
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Will consoliate further away SRUnit='..oSRUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSRUnit)) end
+                                                        table.remove(tOutrangedCombatUnits, iCurSRUnit)
+                                                    end
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iSRThreatNearFront='..iSRThreatNearFront..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iOutrangedThreat / iAvailableCombatUnitThreat='..iOutrangedThreat / iAvailableCombatUnitThreat) end
+                                                if iSRThreatNearFront > iEnemyCombatThreat and (iSRThreatNearFront > iEnemyCombatThreat * 1.5 or (iSRThreatNearFront > iEnemyCombatThreat * 1.2 and iOutrangedThreat / iAvailableCombatUnitThreat >= 0.55)) then
+                                                    bAttackWithOutrangedDFUnits = true
+                                                end
+                                            end
                                         end
                                     end
                                 end
@@ -6680,7 +6716,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                                 end
                                                             end
                                                         end
-                                                        else
+                                                    else
                                                         local oTargetToManuallyAttack, bMoveNotManualAttack = GetManualAttackTargetIfWantManualAttack(oUnit)
                                                         if oTargetToManuallyAttack and not(oTargetToManuallyAttack == oNearestEnemyToFriendlyBase) then
                                                             if bMoveNotManualAttack then M28Orders.IssueTrackedMove(oUnit, oTargetToManuallyAttack:GetPosition(), 2, false, 'Sc2ManM', false)
