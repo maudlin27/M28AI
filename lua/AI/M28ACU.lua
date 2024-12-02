@@ -4199,7 +4199,13 @@ function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU.Nickname='..aiBrain.Nickname..'; oACU.M28Active='..tostring(oACU.M28Active or false)..'; Brain type='..aiBrain.BrainType..'; bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy)) end
+
+    if oACU[refbUseACUAggressively] then
+        oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
+    end
+
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU.Nickname='..aiBrain.Nickname..'; oACU.M28Active='..tostring(oACU.M28Active or false)..'; Brain type='..aiBrain.BrainType..'; bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy)..'; Special micro active for ACU='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()) end
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
 
@@ -5232,7 +5238,7 @@ function DoWeStillWantToBeAggressiveWithACU(oACU)
     local bNotCloseToSnipeTarget = true
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false then
         for iTarget, oTarget in M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
-            if M28Utilities.GetDistanceBetweenPositions(oTarget:GetPostion(), oACU:GetPosition()) <= 60 then
+            if M28UnitInfo.IsUnitValid(oTarget) and M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), oACU:GetPosition()) <= 60 then
                 bNotCloseToSnipeTarget = false
                 break
             end
@@ -5390,9 +5396,6 @@ function ManageACU(aiBrain, oACUOverride)
 
         while M28UnitInfo.IsUnitValid(oACU) do
             oACU[refbTreatingAsACU] = true
-            if oACU[refbUseACUAggressively] then
-                oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
-            end
 
             ForkThread(GetACUOrder, aiBrain, oACU)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
