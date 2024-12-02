@@ -6290,13 +6290,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     --SCENARIO 2 - we dont outrange enemy with DF, but have slightly more threat than them, or have nowhere left to run
                     local bAttackWithEverything = false
                     if bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto then bAttackWithEverything = true
-                    elseif tLZTeamData[M28Map.subrefLZbCoreBase] and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false or M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits) >= 2500) then
+                    elseif tLZTeamData[M28Map.subrefLZbCoreBase] and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false or M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits) >= 2500) and ((tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 or (GetGameTimeSeconds() >= 600 or (GetGameTimeSeconds() >= 300 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] and not(M28Map.bIsCampaignMap)))) then
                         --Attack with everything if enemy has any units in core zone, or close to core zone
                         if bDebugMessages == true then LOG(sFunctionRef..': Core base, so attack if enemies here, is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))) end
                         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                             bAttackWithEverything = true
                         else
-                            if bDebugMessages == true then LOG(sFunctionRef..': No enemies in this zone, distance of nearest enemy to midpoint='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; Is nearest structure to midpoint valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyStructureToMidpoint))) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': No enemies in this zone, distance of nearest enemy to midpoint='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; Is nearest structure to midpoint valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyStructureToMidpoint))..'; tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]='..tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]) end
 
                             if oNearestEnemyToFriendlyBase then
                                 local iDistToNearestEnemy
