@@ -609,7 +609,7 @@ end
 
 
 function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
-    if bDontConsiderCombinedArmy or oUnit.M28Active then
+    if bDontConsiderCombinedArmy or (oUnit.M28Active and (oOrderTarget.M28Active or not(oOrderTarget:GetAIBrain() == oUnit:GetAIBrain()))) then
         UpdateRecordedOrders(oUnit)
         --Issue order if we arent already trying to attack them
         local tLastOrder
