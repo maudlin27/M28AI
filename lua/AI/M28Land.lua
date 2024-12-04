@@ -4398,6 +4398,192 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
 
     end
+    local oNearestEnemyToFriendlyBase
+    function GetManualAttackTargetIfWantManualAttack(oUnit, oOptionalPrimaryTarget)
+        if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - start of code') end
+        --Returns the unit, and returns true if should move towards it instead of a manual attack order (will want to move towards it if we are in range of a dangerous unit but we cant attack it yet)
+        local oManualAttackTarget
+        local bMoveTowardsTarget = false
+        if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering if want oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to pick a target for a manual attack, unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Is table of nearby enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; Can we see nearest enemy to midpoint='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyToFriendlyBase))..'; Dist to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition())..'; Is unit shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; refiTimeOfLastUnblockedShot='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)) end
+        --ACU snipe target that are in range of
+        if bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat, oUnit.UnitId))) then
+            --Are we almost 5 within range of the ACU/fatboy target, and it is an ACU (as for a fatboy t might be good to get close so we are under the shield)? if so then have as manual attack target
+            if bDebugMessages == true then LOG(sFunctionRef..': Dist to oClosestFatboyOrACUInIslandToSuicideInto='..M28Utilities.GetDistanceBetweenPositions(oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), oUnit:GetPosition())..'; Combat range='..oUnit[M28UnitInfo.refiCombatRange]) end
+            if M28Utilities.GetDistanceBetweenPositions(oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), oUnit:GetPosition()) < (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) - 5 then
+                return oClosestFatboyOrACUInIslandToSuicideInto, false
+            end
+        end
+
+        --Note - in some cases the nearest enemy unit to the midpoint may be much further away than our units, if our units are from an adjacent zone or have just entered the cur zone, therefore if dealing with an experimental friendly unit want to do more detailed check of all nearby enemy units
+        if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), (oOptionalPrimaryTarget or oNearestEnemyToFriendlyBase)) then --and (EntityCategoryContains(categories.EXPERIMENTAL + categories.TECH3, oUnit.UnitId) or M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()) < (oUnit[M28UnitInfo.refiDFRange] or 0)) then
+            --Nearest enemy is inside our range, is there another high value target that we should target?
+            if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, oUnit.UnitId) then
+
+                local iCategoryToSearch = M28UnitInfo.refCategoryLandExperimental + categories.COMMAND
+                --Ythotha - also consider enemy T3 land combat to try and avoid it constantly changing targets
+
+                --Below is if wanted to generalise, however concerned about riks of overkill
+                --[[
+                local iCategoryToSearch = M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryPD
+                local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
+                if iUnitTechLevel == 2 then
+                    iCategoryToSearch = iCategoryToSearch - categories.TECH1
+                elseif iUnitTechLevel == 3 then
+                    iCategoryToSearch = iCategoryToSearch - categories.TECH1 - categories.TECH2
+                elseif iUnitTechLevel == 4 then
+                    iCategoryToSearch = iCategoryToSearch * categories.EXPERIMENTAL
+                end--]]
+                local tNearbyEnemiesOfCategory = EntityCategoryFilterDown(iCategoryToSearch, tLZTeamData[M28Map.reftoNearestDFEnemies])
+                local iClosestEnemyOfCategory = 10000
+                local iCurDistOfCategory
+                local iCurHealth
+                local iLowestHealth = 10000000
+                local oEnemyWeAreInRangeOf
+                local iClosestEnemyWeAreInRangeOf = 100000
+                if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Is tNearbyEnemiesOfCategory empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemiesOfCategory))) end
+                if M28Utilities.IsTableEmpty(tNearbyEnemiesOfCategory) == false then
+                    for iEnemy, oEnemy in tNearbyEnemiesOfCategory do
+                        if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Is this the same as nearest enemy to midpoint='..tostring(oEnemy == oNearestEnemyToFriendlyBase)..'; Fraction complete='..oEnemy:GetFractionComplete()) end
+                        if oEnemy:GetFractionComplete() == 1 then
+                            iCurHealth = oEnemy:GetHealth()
+                            if oUnit.MyShield then
+                                iCurHealth = iCurHealth + oUnit.MyShield:GetHealth()
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack -  Considering if we want to manually attack enemy unit '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurHelath='..iCurHealth..'; iLowestHealth='..iLowestHealth..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy))..'; Distance ot unit='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())..'; iCurHealth < iLowestHealth ='..tostring(iCurHealth < iLowestHealth )..'; Both conditions='..tostring(iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy, true))) end
+                            --if iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy) then
+                            iCurDistOfCategory = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
+                            iClosestEnemyOfCategory = math.min(iClosestEnemyOfCategory, iCurDistOfCategory)
+                            if iCurDistOfCategory <= oUnit[M28UnitInfo.refiDFRange] + 2 and iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy) then
+                                iLowestHealth = iCurHealth
+                                oManualAttackTarget = oEnemy
+                                if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Setting manual attack target to this enemy') end
+                            elseif iCurDistOfCategory <= (oEnemy[M28UnitInfo.refiDFRange] or 0) and iCurDistOfCategory < iClosestEnemyWeAreInRangeOf and (oEnemy[M28UnitInfo.refiUnitMassCost] or GetUnitMassCost(oEnemy)) > 2000 then
+                                oEnemyWeAreInRangeOf = oEnemy
+                                iClosestEnemyWeAreInRangeOf = iCurDistOfCategory
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy unit can attack us and has a notable mass cost so will move towards it') end
+                            end
+                            --elseif bDebugMessages == true then LOG(sFunctionRef..': Enemy is too high health or we cant see it')
+                            --end
+                        end
+                    end
+                end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack -  Finished searhcing for oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')) end
+                if not(oManualAttackTarget) and oEnemyWeAreInRangeOf then oManualAttackTarget = oEnemyWeAreInRangeOf bMoveTowardsTarget = true end
+                --non-kiting experimental specific (i.e. GC, Ythotha, Megalith) - if are in a dif zone to the assigned zone then do getunitsaroundpoint to check no enemy experimentals or ACUs almost within range
+                if not(oManualAttackTarget) then
+                    if not(oUnit[M28UnitInfo.refbCanKite]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) and not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
+                        local tNearbyEnemyExperimentals = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange] + 2, 'Enemy')
+                        if M28Utilities.IsTableEmpty(tNearbyEnemyExperimentals) == false then
+                            for iEnemy, oEnemy in tNearbyEnemyExperimentals do
+                                if oEnemy:GetFractionComplete() == 1 then
+                                    iCurHealth = oEnemy:GetHealth()
+                                    if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack exp backup search -  Considering if we want to manually attack enemy unit '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurHelath='..iCurHealth..'; iLowestHealth='..iLowestHealth..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy))..'; Distance ot unit='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())..'; iCurHealth < iLowestHealth ='..tostring(iCurHealth < iLowestHealth )..'; Both conditions='..tostring(iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy, true))) end
+                                    if iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy) then
+                                        iCurDistOfCategory = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
+                                        iClosestEnemyOfCategory = math.min(iClosestEnemyOfCategory, iCurDistOfCategory)
+                                        if iCurDistOfCategory <= oUnit[M28UnitInfo.refiDFRange] + 2 then
+                                            iLowestHealth = iCurHealth
+                                            oManualAttackTarget = oEnemy
+                                            bMoveTowardsTarget = false
+                                            if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack exp backup search - Setting manual attack target to this enemy') end
+                                        elseif bDebugMessages == true then LOG(sFunctionRef..': exp backup Enemy is too far away')
+                                        end
+                                    elseif bDebugMessages == true then LOG(sFunctionRef..': exp backup Enemy is too high health or we cant see it')
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    --Consider targeting T3 land for ythotha - will do by doing attack move
+                    if not(oManualAttackTarget) and iClosestEnemyOfCategory >= math.max(oUnit[M28UnitInfo.refiDFRange] + 10, 70) and EntityCategoryContains(M28UnitInfo.refCategoryYthotha, oUnit.UnitId) then
+                        --If we alreayd have a target that is in range then stick with this if we are near it
+                        local iCurAngleDif
+                        local iClosestAngleDif = 1000
+                        local iYthothaAngle = M28UnitInfo.GetUnitFacingAngle(oUnit)
+
+                        local oExistingAttackTarget = oUnit[M28Orders.reftiLastOrders][M28Orders.refiOrderCount][M28Orders.subrefoOrderUnitTarget]
+                        if M28UnitInfo.IsUnitValid(oExistingAttackTarget) and M28Utilities.GetDistanceBetweenPositions(oExistingAttackTarget:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiDFRange] + 1 then
+                            --Record closest angle dif and reduce by 15 so we wont switch targets to another unit if it wouldnt be that much of an improvement
+                            iClosestAngleDif = math.max(0, M28Utilities.GetAngleDifference(iYthothaAngle, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oExistingAttackTarget:GetPosition())) - 15)
+                        end
+                        if iClosestAngleDif > 30 then --i.e. 45+ angle dif since we reduce it by 15 in the above step
+                            local tOtherPriorityTargets = EntityCategoryFilterDown(M28UnitInfo.refCategoryDFTank * categories.TECH3 - M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryT3PD, tLZTeamData[M28Map.reftoNearestDFEnemies])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is tOtherPriorityTargets empty='..tostring(M28Utilities.IsTableEmpty(  tOtherPriorityTargets))) end
+                            if M28Utilities.IsTableEmpty(  tOtherPriorityTargets) == false then
+                                for iEnemy, oEnemy in tOtherPriorityTargets do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering ythotha t3 oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Is this the same as nearest enemy to midpoint='..tostring(oEnemy == oNearestEnemyToFriendlyBase)..'; Fraction complete='..oEnemy:GetFractionComplete()..'; Unit max health='..oEnemy:GetMaxHealth()..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy))..'; Dist to us='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy:GetPosition())..'; Angle dif='..M28Utilities.GetAngleDifference(iYthothaAngle, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition()))..'; Closest dif='..iClosestAngleDif) end
+                                    if oEnemy:GetFractionComplete() == 1 then
+                                        if oEnemy:GetMaxHealth() >= 2000 and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy) then
+                                            iCurDistOfCategory = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
+                                            iClosestEnemyOfCategory = math.min(iClosestEnemyOfCategory, iCurDistOfCategory)
+                                            if iCurDistOfCategory <= oUnit[M28UnitInfo.refiDFRange] then
+                                                iCurAngleDif = M28Utilities.GetAngleDifference(iYthothaAngle, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition()))
+                                                if iCurAngleDif < iClosestAngleDif then
+                                                    iClosestAngleDif = iCurAngleDif
+                                                    oManualAttackTarget = oEnemy
+                                                    bMoveTowardsTarget = false
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Setting ythotha manual attack target to this enemy') end
+                                                end
+
+                                            elseif bDebugMessages == true then LOG(sFunctionRef..': Enemy is too far away for ythotha to target')
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        elseif bDebugMessages == true then LOG(sFunctionRef..': Will stick with existing manual attack target')
+                        end
+                    end
+                end
+                if oManualAttackTarget then
+                    --Is nearest enemy to midpoitn a better target?
+                    local aiBrain = oUnit:GetAIBrain()
+                    if not(oManualAttackTarget == oNearestEnemyToFriendlyBase) and EntityCategoryContains(iCategoryToSearch, oNearestEnemyToFriendlyBase.UnitId) and oNearestEnemyToFriendlyBase:GetFractionComplete() == 1 then
+                        if oNearestEnemyToFriendlyBase:GetHealth() < iLowestHealth and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiDFRange] + 2 then
+                            if M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemyToFriendlyBase) then
+                                oManualAttackTarget = oNearestEnemyToFriendlyBase
+                                bMoveTowardsTarget = false
+                            else
+                                oManualAttackTarget = nil
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..':GetManualAttackTargetIfWantManualAttack - Finished checking if nearest enemy to midpoint is better target, oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')..'; Nearest enemy to midpoint health='.. oNearestEnemyToFriendlyBase:GetHealth()) end
+                    end
+                    if oManualAttackTarget then
+                        --Look for shields that are covering this
+                        local tShieldsCoveringTarget = M28Logic.IsTargetUnderShield(aiBrain, oManualAttackTarget, 0, false, false, false, false, true)
+                        if M28Utilities.IsTableEmpty(tShieldsCoveringTarget) == false then
+                            local iLowestHealthShield = 1000000
+                            local oLowestHealthShield, iCurShieldHealth, iMaxShieldHealth
+
+                            for iShield, oShield in tShieldsCoveringTarget do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Is valid='..tostring(M28UnitInfo.IsUnitValid(oShield))..'; Can see unit='..tostring( M28UnitInfo.CanSeeUnit(aiBrain, oShield))) end
+                                if M28UnitInfo.IsUnitValid(oShield) and M28UnitInfo.CanSeeUnit(aiBrain, oShield) then
+                                    iCurShieldHealth, iMaxShieldHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurShieldHealth='..iCurShieldHealth..'; iMaxShieldHealth='..iMaxShieldHealth) end
+                                    if iMaxShieldHealth >= 5000 and iCurShieldHealth < iLowestHealthShield and not(M28UnitInfo.IsUnitUnderwater(oShield)) then
+                                        oLowestHealthShield = oShield
+                                        iLowestHealthShield = iCurShieldHealth
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': oLowestHealthShield='..(oLowestHealthShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLowestHealthShield) or 'nil')) end
+                            if oLowestHealthShield then
+                                --Switch target to the shield
+                                oManualAttackTarget = oLowestHealthShield
+                                if M28Utilities.GetDistanceBetweenPositions(oLowestHealthShield:GetPosition(), oUnit:GetPosition()) > oUnit[M28UnitInfo.refiDFRange] + 4 then
+                                    bMoveTowardsTarget = true
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return oManualAttackTarget, bMoveTowardsTarget
+    end
 
     local bGivenCombatUnitsOrders = false
 
@@ -4417,6 +4603,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
         end
     end
+
     if not(bGivenCombatUnitsOrders) then
 
         --If we have a fatboy in our available combat units, then do getunitsaroundpoint to check for signficant threats that might not be in an adjacent zone, and then add them as direct fire units against this zone so they get incorporated into checks for nearby enemies
@@ -4514,7 +4701,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearest enemy to midpoint, bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits)..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))) end
 
-            local oNearestEnemyToFriendlyBase
             local bConsiderAttackingACU = false
             local toEnemyACUsInZone = {}
             local oNearestEnemyStructureToMidpoint
@@ -4812,193 +4998,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': AddUnitFromAdjacentZoneToTableIfCloseEnough - Threat of all enemy units='..M28UnitInfo.GetCombatThreatRating(tAdjLZTeamData[M28Map.subrefTEnemyUnits], true)..'; Threat of tPotentialEnemyUnits='..M28UnitInfo.GetCombatThreatRating(tPotentialEnemyUnits, true)..'; Threat of tNearbyAdjacentEnemies (which includes cumulative htreat of other adj zones before this one)='..M28UnitInfo.GetCombatThreatRating(tNearbyAdjacentEnemies, true)) end
                 end
-            end
-
-
-
-            function GetManualAttackTargetIfWantManualAttack(oUnit, oOptionalPrimaryTarget)
-                --Returns the unit, and returns true if should move towards it instead of a manual attack order (will want to move towards it if we are in range of a dangerous unit but we cant attack it yet)
-                local oManualAttackTarget
-                local bMoveTowardsTarget = false
-                if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering if want oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to pick a target for a manual attack, unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Is table of nearby enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; Can we see nearest enemy to midpoint='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyToFriendlyBase))..'; Dist to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition())..'; Is unit shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; refiTimeOfLastUnblockedShot='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)) end
-                --ACU snipe target that are in range of
-                if bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat, oUnit.UnitId))) then
-                    --Are we almost 5 within range of the ACU/fatboy target, and it is an ACU (as for a fatboy t might be good to get close so we are under the shield)? if so then have as manual attack target
-                    if bDebugMessages == true then LOG(sFunctionRef..': Dist to oClosestFatboyOrACUInIslandToSuicideInto='..M28Utilities.GetDistanceBetweenPositions(oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), oUnit:GetPosition())..'; Combat range='..oUnit[M28UnitInfo.refiCombatRange]) end
-                    if M28Utilities.GetDistanceBetweenPositions(oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), oUnit:GetPosition()) < (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) - 5 then
-                        return oClosestFatboyOrACUInIslandToSuicideInto, false
-                    end
-                end
-
-                --Note - in some cases the nearest enemy unit to the midpoint may be much further away than our units, if our units are from an adjacent zone or have just entered the cur zone, therefore if dealing with an experimental friendly unit want to do more detailed check of all nearby enemy units
-                if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), (oOptionalPrimaryTarget or oNearestEnemyToFriendlyBase)) then --and (EntityCategoryContains(categories.EXPERIMENTAL + categories.TECH3, oUnit.UnitId) or M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()) < (oUnit[M28UnitInfo.refiDFRange] or 0)) then
-                    --Nearest enemy is inside our range, is there another high value target that we should target?
-                    if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, oUnit.UnitId) then
-
-                        local iCategoryToSearch = M28UnitInfo.refCategoryLandExperimental + categories.COMMAND
-                        --Ythotha - also consider enemy T3 land combat to try and avoid it constantly changing targets
-
-                        --Below is if wanted to generalise, however concerned about riks of overkill
-                        --[[
-                        local iCategoryToSearch = M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryPD
-                        local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
-                        if iUnitTechLevel == 2 then
-                            iCategoryToSearch = iCategoryToSearch - categories.TECH1
-                        elseif iUnitTechLevel == 3 then
-                            iCategoryToSearch = iCategoryToSearch - categories.TECH1 - categories.TECH2
-                        elseif iUnitTechLevel == 4 then
-                            iCategoryToSearch = iCategoryToSearch * categories.EXPERIMENTAL
-                        end--]]
-                        local tNearbyEnemiesOfCategory = EntityCategoryFilterDown(iCategoryToSearch, tLZTeamData[M28Map.reftoNearestDFEnemies])
-                        local iClosestEnemyOfCategory = 10000
-                        local iCurDistOfCategory
-                        local iCurHealth
-                        local iLowestHealth = 10000000
-                        local oEnemyWeAreInRangeOf
-                        local iClosestEnemyWeAreInRangeOf = 100000
-                        if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Is tNearbyEnemiesOfCategory empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemiesOfCategory))) end
-                        if M28Utilities.IsTableEmpty(tNearbyEnemiesOfCategory) == false then
-                            for iEnemy, oEnemy in tNearbyEnemiesOfCategory do
-                                if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Is this the same as nearest enemy to midpoint='..tostring(oEnemy == oNearestEnemyToFriendlyBase)..'; Fraction complete='..oEnemy:GetFractionComplete()) end
-                                if oEnemy:GetFractionComplete() == 1 then
-                                    iCurHealth = oEnemy:GetHealth()
-                                    if oUnit.MyShield then
-                                        iCurHealth = iCurHealth + oUnit.MyShield:GetHealth()
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack -  Considering if we want to manually attack enemy unit '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurHelath='..iCurHealth..'; iLowestHealth='..iLowestHealth..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy))..'; Distance ot unit='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())..'; iCurHealth < iLowestHealth ='..tostring(iCurHealth < iLowestHealth )..'; Both conditions='..tostring(iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy, true))) end
-                                    --if iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy) then
-                                    iCurDistOfCategory = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
-                                    iClosestEnemyOfCategory = math.min(iClosestEnemyOfCategory, iCurDistOfCategory)
-                                    if iCurDistOfCategory <= oUnit[M28UnitInfo.refiDFRange] + 2 and iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy) then
-                                        iLowestHealth = iCurHealth
-                                        oManualAttackTarget = oEnemy
-                                        if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Setting manual attack target to this enemy') end
-                                    elseif iCurDistOfCategory <= (oEnemy[M28UnitInfo.refiDFRange] or 0) and iCurDistOfCategory < iClosestEnemyWeAreInRangeOf and (oEnemy[M28UnitInfo.refiUnitMassCost] or GetUnitMassCost(oEnemy)) > 2000 then
-                                        oEnemyWeAreInRangeOf = oEnemy
-                                        iClosestEnemyWeAreInRangeOf = iCurDistOfCategory
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy unit can attack us and has a notable mass cost so will move towards it') end
-                                    end
-                                    --elseif bDebugMessages == true then LOG(sFunctionRef..': Enemy is too high health or we cant see it')
-                                    --end
-                                end
-                            end
-                        end
-
-                        if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack -  Finished searhcing for oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')) end
-                        if not(oManualAttackTarget) and oEnemyWeAreInRangeOf then oManualAttackTarget = oEnemyWeAreInRangeOf bMoveTowardsTarget = true end
-                        --non-kiting experimental specific (i.e. GC, Ythotha, Megalith) - if are in a dif zone to the assigned zone then do getunitsaroundpoint to check no enemy experimentals or ACUs almost within range
-                        if not(oManualAttackTarget) then
-                            if not(oUnit[M28UnitInfo.refbCanKite]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) and not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
-                                local tNearbyEnemyExperimentals = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange] + 2, 'Enemy')
-                                if M28Utilities.IsTableEmpty(tNearbyEnemyExperimentals) == false then
-                                    for iEnemy, oEnemy in tNearbyEnemyExperimentals do
-                                        if oEnemy:GetFractionComplete() == 1 then
-                                            iCurHealth = oEnemy:GetHealth()
-                                            if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack exp backup search -  Considering if we want to manually attack enemy unit '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurHelath='..iCurHealth..'; iLowestHealth='..iLowestHealth..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy))..'; Distance ot unit='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())..'; iCurHealth < iLowestHealth ='..tostring(iCurHealth < iLowestHealth )..'; Both conditions='..tostring(iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy, true))) end
-                                            if iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy) then
-                                                iCurDistOfCategory = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
-                                                iClosestEnemyOfCategory = math.min(iClosestEnemyOfCategory, iCurDistOfCategory)
-                                                if iCurDistOfCategory <= oUnit[M28UnitInfo.refiDFRange] + 2 then
-                                                    iLowestHealth = iCurHealth
-                                                    oManualAttackTarget = oEnemy
-                                                    bMoveTowardsTarget = false
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack exp backup search - Setting manual attack target to this enemy') end
-                                                elseif bDebugMessages == true then LOG(sFunctionRef..': exp backup Enemy is too far away')
-                                                end
-                                            elseif bDebugMessages == true then LOG(sFunctionRef..': exp backup Enemy is too high health or we cant see it')
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-
-                            --Consider targeting T3 land for ythotha - will do by doing attack move
-                            if not(oManualAttackTarget) and iClosestEnemyOfCategory >= math.max(oUnit[M28UnitInfo.refiDFRange] + 10, 70) and EntityCategoryContains(M28UnitInfo.refCategoryYthotha, oUnit.UnitId) then
-                                --If we alreayd have a target that is in range then stick with this if we are near it
-                                local iCurAngleDif
-                                local iClosestAngleDif = 1000
-                                local iYthothaAngle = M28UnitInfo.GetUnitFacingAngle(oUnit)
-
-                                local oExistingAttackTarget = oUnit[M28Orders.reftiLastOrders][M28Orders.refiOrderCount][M28Orders.subrefoOrderUnitTarget]
-                                if M28UnitInfo.IsUnitValid(oExistingAttackTarget) and M28Utilities.GetDistanceBetweenPositions(oExistingAttackTarget:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiDFRange] + 1 then
-                                    --Record closest angle dif and reduce by 15 so we wont switch targets to another unit if it wouldnt be that much of an improvement
-                                    iClosestAngleDif = math.max(0, M28Utilities.GetAngleDifference(iYthothaAngle, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oExistingAttackTarget:GetPosition())) - 15)
-                                end
-                                if iClosestAngleDif > 30 then --i.e. 45+ angle dif since we reduce it by 15 in the above step
-                                    local tOtherPriorityTargets = EntityCategoryFilterDown(M28UnitInfo.refCategoryDFTank * categories.TECH3 - M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryT3PD, tLZTeamData[M28Map.reftoNearestDFEnemies])
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Is tOtherPriorityTargets empty='..tostring(M28Utilities.IsTableEmpty(  tOtherPriorityTargets))) end
-                                    if M28Utilities.IsTableEmpty(  tOtherPriorityTargets) == false then
-                                        for iEnemy, oEnemy in tOtherPriorityTargets do
-                                            if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering ythotha t3 oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Is this the same as nearest enemy to midpoint='..tostring(oEnemy == oNearestEnemyToFriendlyBase)..'; Fraction complete='..oEnemy:GetFractionComplete()..'; Unit max health='..oEnemy:GetMaxHealth()..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy))..'; Dist to us='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy:GetPosition())..'; Angle dif='..M28Utilities.GetAngleDifference(iYthothaAngle, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition()))..'; Closest dif='..iClosestAngleDif) end
-                                            if oEnemy:GetFractionComplete() == 1 then
-                                                if oEnemy:GetMaxHealth() >= 2000 and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy) then
-                                                    iCurDistOfCategory = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
-                                                    iClosestEnemyOfCategory = math.min(iClosestEnemyOfCategory, iCurDistOfCategory)
-                                                    if iCurDistOfCategory <= oUnit[M28UnitInfo.refiDFRange] then
-                                                        iCurAngleDif = M28Utilities.GetAngleDifference(iYthothaAngle, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition()))
-                                                        if iCurAngleDif < iClosestAngleDif then
-                                                            iClosestAngleDif = iCurAngleDif
-                                                            oManualAttackTarget = oEnemy
-                                                            bMoveTowardsTarget = false
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Setting ythotha manual attack target to this enemy') end
-                                                        end
-
-                                                    elseif bDebugMessages == true then LOG(sFunctionRef..': Enemy is too far away for ythotha to target')
-                                                    end
-                                                end
-                                            end
-                                        end
-                                    end
-                                elseif bDebugMessages == true then LOG(sFunctionRef..': Will stick with existing manual attack target')
-                                end
-                            end
-                        end
-                        if oManualAttackTarget then
-                            --Is nearest enemy to midpoitn a better target?
-                            local aiBrain = oUnit:GetAIBrain()
-                            if not(oManualAttackTarget == oNearestEnemyToFriendlyBase) and EntityCategoryContains(iCategoryToSearch, oNearestEnemyToFriendlyBase.UnitId) and oNearestEnemyToFriendlyBase:GetFractionComplete() == 1 then
-                                if oNearestEnemyToFriendlyBase:GetHealth() < iLowestHealth and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiDFRange] + 2 then
-                                    if M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemyToFriendlyBase) then
-                                        oManualAttackTarget = oNearestEnemyToFriendlyBase
-                                        bMoveTowardsTarget = false
-                                    else
-                                        oManualAttackTarget = nil
-                                    end
-                                end
-                                if bDebugMessages == true then LOG(sFunctionRef..':GetManualAttackTargetIfWantManualAttack - Finished checking if nearest enemy to midpoint is better target, oManualAttackTarget='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')..'; Nearest enemy to midpoint health='.. oNearestEnemyToFriendlyBase:GetHealth()) end
-                            end
-                            if oManualAttackTarget then
-                                --Look for shields that are covering this
-                                local tShieldsCoveringTarget = M28Logic.IsTargetUnderShield(aiBrain, oManualAttackTarget, 0, false, false, false, false, true)
-                                if M28Utilities.IsTableEmpty(tShieldsCoveringTarget) == false then
-                                    local iLowestHealthShield = 1000000
-                                    local oLowestHealthShield, iCurShieldHealth, iMaxShieldHealth
-
-                                    for iShield, oShield in tShieldsCoveringTarget do
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Is valid='..tostring(M28UnitInfo.IsUnitValid(oShield))..'; Can see unit='..tostring( M28UnitInfo.CanSeeUnit(aiBrain, oShield))) end
-                                        if M28UnitInfo.IsUnitValid(oShield) and M28UnitInfo.CanSeeUnit(aiBrain, oShield) then
-                                            iCurShieldHealth, iMaxShieldHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
-                                            if bDebugMessages == true then LOG(sFunctionRef..': iCurShieldHealth='..iCurShieldHealth..'; iMaxShieldHealth='..iMaxShieldHealth) end
-                                            if iMaxShieldHealth >= 5000 and iCurShieldHealth < iLowestHealthShield and not(M28UnitInfo.IsUnitUnderwater(oShield)) then
-                                                oLowestHealthShield = oShield
-                                                iLowestHealthShield = iCurShieldHealth
-                                            end
-                                        end
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': oLowestHealthShield='..(oLowestHealthShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLowestHealthShield) or 'nil')) end
-                                    if oLowestHealthShield then
-                                        --Switch target to the shield
-                                        oManualAttackTarget = oLowestHealthShield
-                                        if M28Utilities.GetDistanceBetweenPositions(oLowestHealthShield:GetPosition(), oUnit:GetPosition()) > oUnit[M28UnitInfo.refiDFRange] + 4 then
-                                            bMoveTowardsTarget = true
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-                return oManualAttackTarget, bMoveTowardsTarget
             end
 
             function DoManualAttack(oUnit, oTargetToManuallyAttack, sOrderDesc)
@@ -7425,20 +7424,26 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     --Experimental units who are in range of an enemy experimental unit - dont retreat
                     bContinue = true
                     if (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 then
-                        local oTargetToManuallyAttack, bMoveNotManualAttack = GetManualAttackTargetIfWantManualAttack(oUnit)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Dealing with an experimental unit, will see if we want to do manual attack isntead of retreating, oTargetToManuallyAttack='..(oTargetToManuallyAttack.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTargetToManuallyAttack) or 'nil')..'; Target combaty range='..(oTargetToManuallyAttack[M28UnitInfo.refiCombatRange] or 'nil')..'; Our combat range='..(oUnit[M28UnitInfo.refiCombatRange] or 'nil')) end
-                        if oTargetToManuallyAttack and (not(oUnit[M28UnitInfo.refbCanKite]) or (oTargetToManuallyAttack[M28UnitInfo.refiCombatRange] or 0) >= (oUnit[M28UnitInfo.refiCombatRange] or 0)) then
-                            bContinue = false
-                            if bMoveNotManualAttack then
-                                M28Orders.IssueTrackedMove(oUnit, oTargetToManuallyAttack:GetPosition(), 3, false, 'ExpRetrSuicM')
-                            else
-                                M28Orders.IssueTrackedAttack(oUnit, oTargetToManuallyAttack, false, 'ExpRetrSuicA')
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to check for manual attack target, oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil')) end
+                        if not(oNearestEnemyToFriendlyBase) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                            oNearestEnemyToFriendlyBase = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], oUnit:GetPosition(), false, nil)
+                        end
+                        if oNearestEnemyToFriendlyBase then
+                            local oTargetToManuallyAttack, bMoveNotManualAttack = GetManualAttackTargetIfWantManualAttack(oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with an experimental unit, will see if we want to do manual attack isntead of retreating, oTargetToManuallyAttack='..(oTargetToManuallyAttack.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTargetToManuallyAttack) or 'nil')..'; Target combaty range='..(oTargetToManuallyAttack[M28UnitInfo.refiCombatRange] or 'nil')..'; Our combat range='..(oUnit[M28UnitInfo.refiCombatRange] or 'nil')) end
+                            if oTargetToManuallyAttack and (not(oUnit[M28UnitInfo.refbCanKite]) or (oTargetToManuallyAttack[M28UnitInfo.refiCombatRange] or 0) >= (oUnit[M28UnitInfo.refiCombatRange] or 0)) then
+                                bContinue = false
+                                if bMoveNotManualAttack then
+                                    M28Orders.IssueTrackedMove(oUnit, oTargetToManuallyAttack:GetPosition(), 3, false, 'ExpRetrSuicM')
+                                else
+                                    M28Orders.IssueTrackedAttack(oUnit, oTargetToManuallyAttack, false, 'ExpRetrSuicA')
+                                end
                             end
                         end
                     end
 
                     --If we have recently been given a short range target, or are almost in range of the target, then we may have moved into this zone temporarily, in which case continue with attacking the target
-                    if bDebugMessages == true then LOG(sFunctionRef..': is oUnit[refoSREnemyTarget] valid='..tostring(M28UnitInfo.IsUnitValid(oUnit[refoSREnemyTarget]))..'; refiTimeOfSREnemyTarget='..(oUnit[refiTimeOfSREnemyTarget] or 'nil')..'; unit df range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; time='..GetGameTimeSeconds()..'; bContinue='..tostring(bContinue)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': is oUnit[refoSREnemyTarget] valid='..tostring(M28UnitInfo.IsUnitValid(oUnit[refoSREnemyTarget]))..'; refiTimeOfSREnemyTarget='..(oUnit[refiTimeOfSREnemyTarget] or 'nil')..'; unit df range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; time='..GetGameTimeSeconds()..'; bContinue='..tostring(bContinue)..'; oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil')) end
                     if bContinue then
                         if M28UnitInfo.IsUnitValid(oUnit[refoSREnemyTarget]) and oUnit[refiTimeOfSREnemyTarget] and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId)) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and (GetGameTimeSeconds() - oUnit[refiTimeOfSREnemyTarget] <= 20 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoSREnemyTarget]:GetPosition()) <= (oUnit[M28UnitInfo.refiDFRange] or 0) + 10) then
                             if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoSREnemyTarget]:GetPosition()) <= (oUnit[M28UnitInfo.refiDFRange] or 0) - 10 then
