@@ -15,10 +15,10 @@ local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
---[[local SUtils
+local SUtils
 if file_exists('/lua/AI/sorianutilities.lua') then SUtils = import('/lua/AI/sorianutilities.lua')
 else SUtils = import('/mods/M28AI/lua/AI/Steam/sorianutilities.lua')
-end--]]
+end
 local SimSyncUtils
 if file_exists('/lua/simsyncutils.lua') then SimSyncUtils = import('/lua/simsyncutils.lua')
 else SimSyncUtils = import('/mods/M28AI/lua/AI/LOUD/M28SimSyncUtils.lua')
@@ -55,51 +55,6 @@ refbGivenUnitRelatedMessage = 'M28ChtUnitMs' --true if given unitspecific messag
 
 --Other global variables
 iNukeGloatingMessagesSent = 0
-
-
-----------------------------------------------------------------------------
---
---  Based on code originally written by Michael Robbins aka Sorian
-----------------------------------------------------------------------------
-
-function SyncAIChat(data)
-    local Sync = Sync
-    Sync.AIChat = Sync.AIChat or { }
-    table.insert(Sync.AIChat, data)
-end
-
---- Function to handle AI sending chat messages.
----@param aigroup string
----@param ainickname string
----@param aiaction string
----@param targetnickname string
----@param extrachat string
-function AISendChat(aigroup, ainickname, aiaction, targetnickname, extrachat)
-    LOG('TEMPCODE targetnickname='..(targetnickname or 'nil')..'; aiaction='..(aiaction or 'nil')..'; aigroup='..(aigroup or 'nil'))
-    if aigroup then
-        local aiBrain
-        for iBrain, oBrain in ArmyBrains do
-            if oBrain.Nickname == ainickname then
-                aiBrain = oBrain
-                break
-            end
-        end
-
-        if aiBrain and not(aiBrain:IsDefeated()) then
-            local chattext
-            if targetnickname then
-                chattext = string.gsub(aiaction,'%[target%]', targetnickname)
-            else
-                chattext = aiaction
-            end
-
-
-            --SyncAIChat({group=aigroup, text=chattext, sender=ainickname})
-            SyncAIChat({1, text=chattext, sender=ainickname})
-        end
-    end
-end
--------End of code based on sorian AIUtils
 
 function SendSuicideMessage(aiBrain)
     --See the taunt.lua for a full list of taunts; recommended to manually use these via soundcue and bank info so can avoid voice audio overlapping
@@ -167,7 +122,7 @@ function SendForkedGloatingMessage(aiBrain, iOptionalDelay, iOptionalTimeBetween
         if bDebugMessages == true then LOG(sFunctionRef..': Will send chat with taunt code '..sTauntChatCode) end
 
         LOG(sFunctionRef..': Sent chat message '..sTauntChatCode) --Log so in replays can see if this triggers since chat doesnt show properly
-        AISendChat('all', aiBrain.Nickname, '/'..sTauntChatCode)
+        SUtils.AISendChat('all', aiBrain.Nickname, '/'..sTauntChatCode)
 
         tiM28VoiceTauntByType[sFunctionRef] = GetGameTimeSeconds()
     end
@@ -529,14 +484,14 @@ function SendForkedMessageForSpecialUseOnly(aiBrain, sMessageType, sMessage, iOp
                     if oOptionalOnlyBrainToSendTo then
                         if not(oOptionalOnlyBrainToSendTo[reftiPersonalMessages]) then oOptionalOnlyBrainToSendTo[reftiPersonalMessages] = {} end
                         oOptionalOnlyBrainToSendTo[reftiPersonalMessages][sMessageType] = GetGameTimeSeconds()
-                        AISendChat(oOptionalOnlyBrainToSendTo.Nickname, aiBrain.Nickname, sMessage, oOptionalOnlyBrainToSendTo.Nickname)
+                        SUtils.AISendChat(oOptionalOnlyBrainToSendTo:GetArmyIndex(), aiBrain.Nickname, sMessage..'Index')
                     elseif bOnlySendToTeam then
-                        AISendChat('allies', aiBrain.Nickname, sMessage)
+                        SUtils.AISendChat('allies', aiBrain.Nickname, sMessage)
                         if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages]) then M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages] = {} end
                         M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages][sMessageType] = GetGameTimeSeconds()
                         if bDebugMessages == true then LOG(sFunctionRef..': Sent a team chat message') end
                     else
-                        AISendChat('all', aiBrain.Nickname, sMessage)
+                        SUtils.AISendChat('all', aiBrain.Nickname, sMessage)
                         tiM28VoiceTauntByType[sMessageType] = GetGameTimeSeconds()
                     end
                     if sOptionalSoundCue and sOptionalSoundBank then

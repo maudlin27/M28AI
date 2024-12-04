@@ -24,17 +24,8 @@ function AISendChat(aigroup, ainickname, aiaction, targetnickname, extrachat)
                 break
             end
         end
-
         if aiBrain and not(aiBrain:IsDefeated()) then
-            local chattext
-            if targetnickname then
-                chattext = string.gsub(aiaction,'%[target%]', targetnickname)
-            else
-                chattext = aiaction
-            end
-
-
-            SyncAIChat({group=aigroup, text=chattext, sender=ainickname})
+            SyncAIChat({group=aigroup, text=aiaction, sender=ainickname})
         end
     end
 end
