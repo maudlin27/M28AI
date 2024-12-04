@@ -12998,6 +12998,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 bDontReclaimYet = true
             end
         end
+        if not(M28Orders.bDontConsiderCombinedArmy) and not(bDontReclaimYet) then
+            bDontReclaimYet = true
+            for iUnit, oUnit in tLZTeamData[M28Map.subreftoUnitsToReclaim] do
+                if oUnit.M28Active or not(oUnit:GetAIBrain().M28Team == iTeam) then
+                    bDontReclaimYet = false
+                    break
+                end
+            end
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': About to reclaim a unit but still stop if have low power and we have pgens in the list of units to reclaim, bHaveLowPower='..tostring(bHaveLowPower)..'; Average% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]) end
         if not(bDontReclaimYet) then
             if bDebugMessages == true then LOG(sFunctionRef..': Want to try and reclaim, bObjectiveToReclaim='..tostring(bObjectiveToReclaim)) end
@@ -14815,6 +14824,15 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if not(bObjectiveToReclaim) and ((bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.98) then
             if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryPower, tLZTeamData[M28Map.subreftoUnitsToReclaim])) == false then
                 bDontReclaimYet = true
+            end
+        end
+        if not(M28Orders.bDontConsiderCombinedArmy) and not(bDontReclaimYet) then
+            bDontReclaimYet = true
+            for iUnit, oUnit in tLZTeamData[M28Map.subreftoUnitsToReclaim] do
+                if oUnit.M28Active or not(oUnit:GetAIBrain().M28Team == iTeam) then
+                    bDontReclaimYet = false
+                    break
+                end
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': About to reclaim a unit but still stop if have low power and we have pgens in the list of units to reclaim, bHaveLowPower='..tostring(bHaveLowPower)..'; Average% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]) end

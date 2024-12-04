@@ -1079,12 +1079,10 @@ end
 
 function UnitHasM28ActiveCargo(oUnit)
     --Intended for air staging buildings so they release M28 units (although will also apply to other units such as transports)
-    LOG('TEMPCODE checking if have unit with cargo')
     if oUnit.GetCargo then
         local tCargo = oUnit:GetCargo()
         if M28Utilities.IsTableEmpty(tCargo) == false then
             for iCargo, oCargo in tCargo do
-                LOG('TEMPCODE oCargo='..oCargo.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCargo)..'; .M28Active='..tostring(oCargo.M28Active or false))
                 if oCargo.M28Active then
                     return true
                 end
