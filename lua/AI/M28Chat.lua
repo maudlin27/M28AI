@@ -15,7 +15,10 @@ local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
-
+--[[local SUtils
+if file_exists('/lua/AI/sorianutilities.lua') then SUtils = import('/lua/AI/sorianutilities.lua')
+else SUtils = import('/mods/M28AI/lua/AI/Steam/sorianutilities.lua')
+end--]]
 local SimSyncUtils
 if file_exists('/lua/simsyncutils.lua') then SimSyncUtils = import('/lua/simsyncutils.lua')
 else SimSyncUtils = import('/mods/M28AI/lua/AI/LOUD/M28SimSyncUtils.lua')
