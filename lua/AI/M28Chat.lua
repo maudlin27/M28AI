@@ -65,54 +65,13 @@ function SyncAIChat(data)
     table.insert(Sync.AIChat, data)
 end
 
-function AISendChat(group, sender, text)
-    local ChatTo = import("/lua/lazyvar.lua").Create()
-    if text then
-        if import("/lua/ui/game/taunt.lua").CheckForAndHandleTaunt(text, sender) then
-            return
-        end
-        ChatTo:Set(group)
-        msg = { to = ChatTo(), Chat = true }
-        msg.text = text
-        msg.aisender = sender
-        local armynumber = GetArmyData(sender)
-        if ChatTo() == 'allies' then
-            AISendChatMessage(FindAllies(armynumber), msg)
-        elseif ChatTo() == 'enemies' then
-            AISendChatMessage(FindEnemies(armynumber), msg)
-        elseif type(ChatTo()) == 'number' then
-            AISendChatMessage({ChatTo()}, msg)
-        else
-            AISendChatMessage(nil, msg)
-        end
-    end
-end
-
-function AISendChatMessage(towho, msg)
-    local t = GetArmiesTable()
-    local focus = t.focusArmy
-    if msg.Chat then
-        if towho then
-            for k,v in towho do
-                if v == focus then
-                    import("/lua/ui/game/chat.lua").ReceiveChat(msg.aisender, msg)
-                end
-            end
-        else
-            import("/lua/ui/game/chat.lua").ReceiveChat(msg.aisender, msg)
-        end
-    elseif msg.Taunt then
-        import("/lua/ui/game/taunt.lua").RecieveAITaunt(msg.aisender, msg)
-    end
-end
-
 --- Function to handle AI sending chat messages.
 ---@param aigroup string
 ---@param ainickname string
 ---@param aiaction string
 ---@param targetnickname string
 ---@param extrachat string
-function AISendChatOld(aigroup, ainickname, aiaction, targetnickname, extrachat)
+function AISendChat(aigroup, ainickname, aiaction, targetnickname, extrachat)
     LOG('TEMPCODE targetnickname='..(targetnickname or 'nil')..'; aiaction='..(aiaction or 'nil')..'; aigroup='..(aigroup or 'nil'))
     if aigroup then
         local aiBrain
@@ -132,7 +91,8 @@ function AISendChatOld(aigroup, ainickname, aiaction, targetnickname, extrachat)
             end
 
 
-            SyncAIChat({group=aigroup, text=chattext, sender=ainickname})
+            --SyncAIChat({group=aigroup, text=chattext, sender=ainickname})
+            SyncAIChat({1, text=chattext, sender=ainickname})
         end
     end
 end
