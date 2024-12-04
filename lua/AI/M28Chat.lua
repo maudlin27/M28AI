@@ -72,6 +72,7 @@ end
 ---@param targetnickname string
 ---@param extrachat string
 function AISendChat(aigroup, ainickname, aiaction, targetnickname, extrachat)
+    LOG('TEMPCODE targetnickname='..(targetnickname or 'nil')..'; aiaction='..(aiaction or 'nil')..'; aigroup='..(aigroup or 'nil'))
     if aigroup then
         local aiBrain
         for iBrain, oBrain in ArmyBrains do
@@ -90,7 +91,8 @@ function AISendChat(aigroup, ainickname, aiaction, targetnickname, extrachat)
             end
 
 
-            SyncAIChat({group=aigroup, text=chattext, sender=ainickname})
+            --SyncAIChat({group=aigroup, text=chattext, sender=ainickname})
+            SyncAIChat({1, text=chattext, sender=ainickname})
         end
     end
 end
@@ -524,7 +526,7 @@ function SendForkedMessageForSpecialUseOnly(aiBrain, sMessageType, sMessage, iOp
                     if oOptionalOnlyBrainToSendTo then
                         if not(oOptionalOnlyBrainToSendTo[reftiPersonalMessages]) then oOptionalOnlyBrainToSendTo[reftiPersonalMessages] = {} end
                         oOptionalOnlyBrainToSendTo[reftiPersonalMessages][sMessageType] = GetGameTimeSeconds()
-                        AISendChat(oOptionalOnlyBrainToSendTo.Nickname, aiBrain.Nickname, sMessage)
+                        AISendChat(oOptionalOnlyBrainToSendTo.Nickname, aiBrain.Nickname, sMessage, oOptionalOnlyBrainToSendTo.Nickname)
                     elseif bOnlySendToTeam then
                         AISendChat('allies', aiBrain.Nickname, sMessage)
                         if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages]) then M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages] = {} end
