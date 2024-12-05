@@ -558,8 +558,8 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
             tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] = tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] + math.min(tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] * iShieldMaxFactor, iMaxShieldRating)
         end
         --If enemy has antinavy surface combat units then increase submersible threat
-        if iTorpDefenceSurfaceCount > 0 and tWZTeamData[M28Map.subrefWZThreatEnemySurface] > 50 then
-            tWZTeamData[M28Map.subrefWZThreatEnemySurface] = math.min(iBaseSubmersibleThreat * 3, tWZTeamData[M28Map.subrefWZThreatEnemySurface] + iTorpDefenceSurfaceCount * 200)
+        if iTorpDefenceSurfaceCount > 0 and tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > 50 then
+            tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] = math.max(tWZTeamData[M28Map.subrefWZThreatEnemySubmersible], math.min(iBaseSubmersibleThreat * 3, tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] + iTorpDefenceSurfaceCount * 200))
         end
     end
 
