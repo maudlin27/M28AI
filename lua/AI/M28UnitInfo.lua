@@ -672,6 +672,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
         if bAddAntiNavy then iThreatRef = iThreatRef .. '1' else iThreatRef = iThreatRef .. '0' end
         if bSubmersibleOnly then iThreatRef = iThreatRef .. '1' else iThreatRef = iThreatRef .. '0' end
         if bLongRangeThreatOnly then iThreatRef = iThreatRef..'1' else iThreatRef = iThreatRef .. '0' end
+        --E.g. if want combat (DF+IF) threat then would be 1000000
 
         if not(tiThreatRefsCalculated[iThreatRef]) then M28Utilities.ErrorHandler('Havent calculated threat values for iThreatRef='..iThreatRef..' refer to CalculateBlueprintThreatsByType') end
 

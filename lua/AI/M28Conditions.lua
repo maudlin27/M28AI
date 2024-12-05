@@ -3217,8 +3217,13 @@ end
 function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, iTeam, iSearchDistance, tStartPoint, iEnemyMassTotalThreshold, iOptionalSearchCategory, tOptionalAdditionalUnits, bOnlyIncludeDFUnits, bIncludeEnemyCombatRange)
     --Essentially a much more cpu intesnive version of getunitsaroundpoint, that will make use of M28's memory of where units are; will search current zone and adjacent zones; can also pass it tOptionalAdditionalUnits for further away units
     --iEnemyMassTotalThreshold - if >= this in mass then returns true, otherwise returns false
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'HaveSignificantEnemyThreatWithinRange'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iCumulativeUnitValue = 0
     local iCurDist
+    local bSignificantEnemyThreat = false
     function ConsiderUnitTable(tUnits)
         if M28Utilities.IsTableEmpty(tUnits) == false then
             local tUnitTable
@@ -3230,21 +3235,45 @@ function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, i
                     if M28UnitInfo.IsUnitValid(oUnit) and (not(bOnlyIncludeDFUnits) or oUnit[M28UnitInfo.refiDFRange] > 0) then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartPoint)
                         if iCurDist <= iSearchDistance or (bIncludeEnemyCombatRange and iCurDist - oUnit[M28UnitInfo.refiCombatRange] <= iSearchDistance) then
-                            iCumulativeUnitValue = iCumulativeUnitValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
-                            if iCumulativeUnitValue >= iEnemyMassTotalThreshold then return true end
+                            if true and GetGameTimeSeconds() >= 27*60 then
+                                iCumulativeUnitValue = iCumulativeUnitValue + math.max((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)), (M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]['1000000'] or 0))
+                            else
+                                iCumulativeUnitValue = iCumulativeUnitValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCumulativeUnitValue after considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'='..iCumulativeUnitValue..'; iEnemyMassTotalThreshold='..iEnemyMassTotalThreshold..'; M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]='..(M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]['1000000'] or 'nil')) end
+                            if iCumulativeUnitValue >= iEnemyMassTotalThreshold then
+                                bSignificantEnemyThreat = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enoguh targets of interest so will return true') end
+                                break
+                            end
                         end
                     end
                 end
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy units in the base LZ') end
     ConsiderUnitTable(tLZTeamData[M28Map.subrefTEnemyUnits])
+    if bSignificantEnemyThreat then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
+    end
     if tOptionalAdditionalUnits then  ConsiderUnitTable(tOptionalAdditionalUnits) end
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+        if bSignificantEnemyThreat then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy units in the adjacent landzone='..iAdjLZ) end
             ConsiderUnitTable(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
+            if bSignificantEnemyThreat then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 
