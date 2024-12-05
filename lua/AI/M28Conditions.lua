@@ -3235,11 +3235,7 @@ function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, i
                     if M28UnitInfo.IsUnitValid(oUnit) and (not(bOnlyIncludeDFUnits) or oUnit[M28UnitInfo.refiDFRange] > 0) then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartPoint)
                         if iCurDist <= iSearchDistance or (bIncludeEnemyCombatRange and iCurDist - oUnit[M28UnitInfo.refiCombatRange] <= iSearchDistance) then
-                            if true and GetGameTimeSeconds() >= 27*60 then
-                                iCumulativeUnitValue = iCumulativeUnitValue + math.max((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)), (M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]['1000000'] or 0))
-                            else
-                                iCumulativeUnitValue = iCumulativeUnitValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
-                            end
+                            iCumulativeUnitValue = iCumulativeUnitValue + math.max((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)), (M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]['1000000'] or 0))
                             if bDebugMessages == true then LOG(sFunctionRef..': iCumulativeUnitValue after considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'='..iCumulativeUnitValue..'; iEnemyMassTotalThreshold='..iEnemyMassTotalThreshold..'; M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]='..(M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]['1000000'] or 'nil')) end
                             if iCumulativeUnitValue >= iEnemyMassTotalThreshold then
                                 bSignificantEnemyThreat = true
