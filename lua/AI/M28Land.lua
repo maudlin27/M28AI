@@ -8217,6 +8217,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 600 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 2000 or tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) then iMobileShieldHigherMAAMassThreshold = iMobileShieldMassThreshold end
         local bConsiderMobileShieldsForT2Arti = false
         local bConsiderMobileShieldsForT2PD = false
+        local tMAAGuardsToRetreat
         if tLZTeamData[M28Map.subrefLZbCoreBase] then
             if (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0) then
                 bConsiderMobileShieldsForT2Arti = true
@@ -8228,18 +8229,13 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         end
 
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-            local bConsiderMobileShieldsForBuildingsDueToNovax = false
-            if M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 and tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] <= 2 then bConsiderMobileShieldsForBuildingsDueToNovax = true end
-            local bConsiderMobileShieldForGETemplate
-            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] then
-                bConsiderMobileShieldForGETemplate = true
-                bDebugMessages = true
-            end
+            local bConsiderMobileShieldsForBuildings = false
+            if M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 and tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] <= 2 then bConsiderMobileShieldsForBuildings = true end
             local bCurUnitWantsMobileShield
             local iSACUCategory = categories.SUBCOMMANDER --[[M28UnitInfo.refCategoryRASSACU
             if (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and not(bUseRASInCombat) then iSACUCategory = iSACUCategory + categories.SUBCOMMANDER end--]]
             for iUnit, oUnit in tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with fraction complete '..oUnit:GetFractionComplete()..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time until micro stopped='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0)..'; Arti ref table empty='..tostring(M28Utilities.IsTableEmpty(oUnit[M28Building.reftArtiTemplateRefs]))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with fraction complete '..oUnit:GetFractionComplete()..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time until micro stopped='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0)) end
                 bCurUnitWantsMobileShield = false
                 if oUnit[refbFlaggedForPriorityScout] then
                     if not(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]) then tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts] = {} end
@@ -8386,7 +8382,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                     end
                                 end
                             end
-                        elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then --redundancy as should already be filtered out by only looking for mobile units
+                        elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
                             --Structure logic - handled separately e.g. via M28Factory for factories
                         else
                             --Unexpected unit type - could e.g. be a naval unit on a location thought to be a land zone; only flag as error if unit has no orders
@@ -8394,15 +8390,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                             bLandZoneOrAdjHasUnitsWantingScout = true
                         end
                     else
-
-                        if bDebugMessages == true then LOG(sFunctionRef..': bConsiderMobileShieldsForBuildingsDueToNovax='..tostring(bConsiderMobileShieldsForBuildingsDueToNovax)..'; bConsiderMobileShieldForGETemplate='..tostring(bConsiderMobileShieldForGETemplate)) end
-                        if bConsiderMobileShieldForGETemplate and oUnit[M28Building.reftArtiTemplateRefs] and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
-                            bCurUnitWantsMobileShield = true
-                            if not(oUnit[refoAssignedMobileShield]) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units wanting mobile shields') end
-                                table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
-                            end
-                        elseif bConsiderMobileShieldsForBuildingsDueToNovax and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryStructure * categories.EXPERIMENTAL + M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
+                        if bConsiderMobileShieldsForBuildings and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) and EntityCategoryContains(M28UnitInfo.refCategoryPower - categories.TECH1 + M28UnitInfo.refCategoryEnergyStorage, oUnit.UnitId) then
                             bCurUnitWantsMobileShield = true
                             if not(oUnit[refoAssignedMobileShield]) then
                                 table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
@@ -8422,13 +8410,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                     end
                 else
                     --Under construction unit
-                    if bConsiderMobileShieldForGETemplate and oUnit[M28Building.reftArtiTemplateRefs] and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
-                        bCurUnitWantsMobileShield = true
-                        if not(oUnit[refoAssignedMobileShield]) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units wanting mobile shields') end
-                            table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
-                        end
-                    elseif bConsiderMobileShieldsForBuildingsDueToNovax and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryStructure * categories.EXPERIMENTAL + M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
+                    if bConsiderMobileShieldsForBuildings and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryStructure * categories.EXPERIMENTAL + M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
                         bCurUnitWantsMobileShield = true
                         if not(oUnit[refoAssignedMobileShield]) then
                             table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
