@@ -849,7 +849,7 @@ end
 
 function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
     --Sets up key values needed to divide the map up into segments (small squares) for both land zone segments and reclaim segments - should be called as one of the first pieces of code
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupPlayableAreaAndSegmentSizes'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)..'; rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; Sync.NewPlayableArea='..repru(Sync.NewPlayableArea)..'; bPlayableAreaSetup='..tostring(bPlayableAreaSetup)..'; ScenarioInfo='..reprs(ScenarioInfo)..'; MapData='..repru(ScenarioInfo.MapData)..'; OffMapAreas='..repru(ScenarioInfo.OffMapAreas)..'; ScenarioInfo.name='..(ScenarioInfo.name or 'nil')..'; bPlayableAreaSetup='..tostring(bPlayableAreaSetup)..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; ScenarioInfo.type='..(ScenarioInfo.type or 'nil')..'; ScenarioInfo.name='..(ScenarioInfo.name or 'nil')..'; Does this contain neroxis='..tostring(string.find('neroxis_map_generator', ScenarioInfo.name))..'; string.len='..string.len(ScenarioInfo.name)..'; string.sub='..string.sub(ScenarioInfo.name, 1, 21)..'; is string.sub neroxis='..tostring(string.sub(ScenarioInfo.name, 1, 21) == 'neroxis_map_generator')) end
@@ -3082,7 +3082,7 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData, tOptionalSt
             iMaxZ = math.max(tMex[3], iMaxZ)
             if not(iBaseIslandWanted) then iBaseIslandWanted = NavUtils.GetTerrainLabel(refPathingTypeLand, tMex) end
             --Record if can build on it:
-            if bDebugMessages == true then LOG(sFunctionRef..': About to check if can build on iMex='..iMex..'; tMex='..repru(tMex)..'; can we build on it='..tostring(M28Conditions.CanBuildOnMexLocation(tMex))..'; aiBrain check whether can build using brain '..(M28Overseer.tAllActiveM28Brains[1].Nickname or 'nil')..'='..tostring(M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('urb1103', tMex))..'; Result of is resource blocked='..tostring(M28Conditions.IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryMex, 'urb1103', tMex))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to check if can build on iMex='..iMex..'; tMex='..repru(tMex)..'; can we build on it='..tostring(M28Conditions.CanBuildOnMexLocation(tMex))..'; aiBrain check whether can build using brain '..(M28Overseer.GetFirstActiveBrain().Nickname or 'nil')..'='..tostring(M28Overseer.GetFirstActiveBrain():CanBuildStructureAt('urb1103', tMex))..'; Result of is resource blocked='..tostring(M28Conditions.IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryMex, 'urb1103', tMex))) end
             if M28Conditions.CanBuildOnMexLocation(tMex) then
                 table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefMexUnbuiltLocations], tMex)
             else
@@ -7770,8 +7770,15 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
 end
 
 function RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+    local sFunctionRef = 'RecordAvailableMassStorageLocationsForLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
     tLZData[subrefLZOrWZMassStorageLocationsAvailable] = {}
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, P'..iPlateau..'Z'..iLandZone..'; is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]))..'; Time='..GetGameTimeSeconds()) end
     if M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]) == false then
         local tiXZOffset = {{-2,0}, {0, -2}, {0, 2}, {2, 0}}
         local tCurPos
@@ -7779,12 +7786,22 @@ function RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
             for iOffset, tXZOffset in tiXZOffset do
                 tCurPos = {tMex[1] + tXZOffset[1], 0, tMex[3] + tXZOffset[2]}
                 tCurPos[2] = GetSurfaceHeight(tCurPos[1], tCurPos[3])
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Considering iMex='..iMex..'; iOffset='..iOffset..'; can we build storage here='..tostring(M28Conditions.CanBuildStorageAtLocation(tCurPos))..'; Can build structure here='..tostring(M28Overseer.GetFirstActiveBrain():CanBuildStructureAt('ueb1106', tCurPos))..'; Is resource blocked by building='..tostring(M28Conditions.IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryStructure, 'ueb1106', tCurPos)))
+                    if not(M28Conditions.CanBuildStorageAtLocation(tCurPos)) then
+                        M28Utilities.DrawLocation(tCurPos, 2)
+                    else
+                        M28Utilities.DrawLocation(tCurPos, 1)
+                    end
+                end
                 if M28Conditions.CanBuildStorageAtLocation(tCurPos) then
                     table.insert(tLZData[subrefLZOrWZMassStorageLocationsAvailable], tCurPos)
                 end
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZData[subrefLZOrWZMassStorageLocationsAvailable]='..repru(tLZData[subrefLZOrWZMassStorageLocationsAvailable])) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RecordAvailableMassStorageLocationsForWaterZone(iWaterZone, tWZData)
@@ -8945,7 +8962,7 @@ function AddGameEnderTemplateInfoToTable(tMidpoint, iPreferredSize)
 
     --tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment] = {[subrefiSize]=iPreferredSize, [subrefiSegX] = iPreferredSegX, [subrefiSegZ] = iPreferredSegZ, [subrefiSmallArtiLocationCount]=1,[subrefiSmallArtiMaxSize]=10,[subrefiSmallShieldLocationCount]=1,[subreftSmallArtiLocations]=0,[subreftSmallShieldLocations]=0,[subrefiLargeArtiLocationCount]=1,[subrefiLargeArtiMaxSize]=10,[subrefiLargeShieldLocationCount]=1,[subreftLargeArtiLocations]=0,[subreftLargeShieldLocations]=0}
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Adding game ender template info to table for midpoint='..repru(tMidpoint)..'; iPreferredSize='..iPreferredSize..'; Can we build a preferred size unit here='..tostring(M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt(import('/mods/M28AI/lua/AI/M28Engineer.lua').tsBlueprintsBySize[iPreferredSize], tMidpoint)))
+    if bDebugMessages == true then LOG(sFunctionRef..': Adding game ender template info to table for midpoint='..repru(tMidpoint)..'; iPreferredSize='..iPreferredSize..'; Can we build a preferred size unit here='..tostring(M28Overseer.GetFirstActiveBrain():CanBuildStructureAt(import('/mods/M28AI/lua/AI/M28Engineer.lua').tsBlueprintsBySize[iPreferredSize], tMidpoint)))
         M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tMidpoint, iPreferredSize*0.5), 5, 400)
     end
 

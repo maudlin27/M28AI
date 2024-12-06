@@ -2637,3 +2637,17 @@ function SetM28ActiveFlag()
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function GetFirstActiveBrain()
+    for iBrain, oBrain in tAllActiveM28Brains do
+        if oBrain.IsDefeated and not(oBrain:IsDefeated()) then
+            return oBrain
+        end
+    end
+    for iBrain, oBrain in ArmyBrains do
+        if oBrain.IsDefeated and not(oBrain:IsDefeated()) then
+            return oBrain
+        end
+    end
+    M28Utilities.ErrorHandler('Dont appear to have any active brains')
+end
