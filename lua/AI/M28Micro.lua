@@ -686,6 +686,16 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Target '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' was trying to attack an enemy exp or ACU, targets target='..tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget])..'; so will cancel dodge') end
                                                 end
                                             end
+                                            if not(bCancelDodge) and not(oUnit[M28UnitInfo.refbCanKite]) then
+                                                --Special case - if dealing with say a GC that is trying to dodge a shot from a ythotha, then get its facing to that unit, and dont dodge if angle dif is so large that it would likely cause it to stop firing at the unit if it was to dodge
+                                                if oTarget.UnitId == 'ual0401' and oUnit.UnitId and M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), oUnit:GetPosition()) <= oTarget[M28UnitInfo.refiDFRange] then
+                                                    local iCurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oTarget)
+                                                    local iAngleToAttacker = M28Utilities.GetAngleFromAToB(oTarget:GetPosition(), oUnit:GetPosition())
+                                                    local iAngleDif = M28Utilities.GetAngleDifference(iCurFacingAngle, iAngleToAttacker)
+                                                    if iAngleDif > 15 then bCancelDodge = true end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..'; Considering whether to abort dodge, iAngleDif='..iAngleDif..'; bCancelDodge='..tostring(bCancelDodge)) end
+                                                end
+                                            end
                                         end
 
                                         if not(bCancelDodge) then
@@ -718,7 +728,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     local sFunctionRef = 'DodgeShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' owned by brain '..oTarget:GetAIBrain().Nickname..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' owned by brain '..oTarget:GetAIBrain().Nickname..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; oAttacker='..(oAttacker.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAttacker) or 'nil')) end
 
     M28Orders.UpdateRecordedOrders(oTarget)
     local tCurDestination

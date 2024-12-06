@@ -849,15 +849,15 @@ end
 
 function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
     --Sets up key values needed to divide the map up into segments (small squares) for both land zone segments and reclaim segments - should be called as one of the first pieces of code
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupPlayableAreaAndSegmentSizes'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)..'; rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; Sync.NewPlayableArea='..repru(Sync.NewPlayableArea)..'; bPlayableAreaSetup='..tostring(bPlayableAreaSetup)..'; ScenarioInfo='..reprs(ScenarioInfo)..'; MapData='..repru(ScenarioInfo.MapData)..'; OffMapAreas='..repru(ScenarioInfo.OffMapAreas)..'; ScenarioInfo.name='..(ScenarioInfo.name or 'nil')..'; bPlayableAreaSetup='..tostring(bPlayableAreaSetup)..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; ScenarioInfo.type='..(ScenarioInfo.type or 'nil')..'; ScenarioInfo.name='..(ScenarioInfo.name or 'nil')..'; Does this contain neroxis='..tostring(string.find('neroxis_map_generator', ScenarioInfo.name))..'; string.len='..string.len(ScenarioInfo.name)..'; string.sub='..string.sub(ScenarioInfo.name, 1, 21)..'; is string.sub neroxis='..tostring(string.sub(ScenarioInfo.name, 1, 21) == 'neroxis_map_generator')) end
     if not(bPlayableAreaSetup) then
         --Check if this is an unexplored map type
         if not(bIsCampaignMap) and ScenarioInfo.type == 'skirmish' and string.len(ScenarioInfo.name) > 32 and string.sub(ScenarioInfo.name, 1, 21) == 'neroxis_map_generator' and ScenarioInfo.MapData.PlayableRect then
-            local iMapDataPlayableX = ScenarioInfo.MapData.PlayableRect[2] - ScenarioInfo.MapData.PlayableRect[1]
-            local iMapDataPlayableZ = ScenarioInfo.MapData.PlayableRect[4] - ScenarioInfo.MapData.PlayableRect[3]
+            local iMapDataPlayableX = ScenarioInfo.MapData.PlayableRect[3] - ScenarioInfo.MapData.PlayableRect[1]
+            local iMapDataPlayableZ = ScenarioInfo.MapData.PlayableRect[4] - ScenarioInfo.MapData.PlayableRect[2]
             local iMapDataFullX = ScenarioInfo.size[1]
             local iMapDataFullZ = ScenarioInfo.size[2]
             if iMapDataPlayableX + iMapDataPlayableZ < (iMapDataFullX + iMapDataFullZ) * 0.1 then --when tested on an uynexplored map playable area was tiny, so if it's less than 40% of map will assume we are in that scenario (as some maps like moon and dual gap might still have parts of map that arent in playable area)

@@ -4153,8 +4153,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
             local oACUToSnipe = M28Conditions.GetNearbyACUForAirFacBomberSnipe(oFactory, iTeam)
-            if oACUToSnipe then
+            if oACUToSnipe and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) or iFactoryTechLevel == 1 or oACUToSnipe[refiTotalMassForSnipe] < 250 * iFactoryTechLevel) then
                 if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
+                elseif iFactoryTechLevel == 2 and EntityCategoryContains(categories.UEF, oFactory.UnitId) and ConsiderBuildingCategory(iNormalBomberCategoryToBuild * categories.TECH1) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Low power will build T2 UEF bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
+                    oACUToSnipe[refiTotalMassForSnipe] = (oACUToSnipe[refiTotalMassForSnipe] or 0) + __blueprints[sBPIDToBuild].Economy.BuildCostMass
+                    return sBPIDToBuild
                 elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Low power sniper, will build bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
                     oACUToSnipe[refiTotalMassForSnipe] = (oACUToSnipe[refiTotalMassForSnipe] or 0) + __blueprints[sBPIDToBuild].Economy.BuildCostMass
@@ -4456,8 +4460,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false then
             local oACUToSnipe = M28Conditions.GetNearbyACUForAirFacBomberSnipe(oFactory, iTeam)
-            if oACUToSnipe then
+            if oACUToSnipe and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) or iFactoryTechLevel == 1 or oACUToSnipe[refiTotalMassForSnipe] < 250 * iFactoryTechLevel) then
                 if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
+                elseif iFactoryTechLevel == 2 and EntityCategoryContains(categories.UEF, oFactory.UnitId) and ConsiderBuildingCategory(iNormalBomberCategoryToBuild * categories.TECH1) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': will build T2 UEF bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
+                    oACUToSnipe[refiTotalMassForSnipe] = (oACUToSnipe[refiTotalMassForSnipe] or 0) + __blueprints[sBPIDToBuild].Economy.BuildCostMass
+                    return sBPIDToBuild
                 elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then
                     if bDebugMessages == true then LOG(sFunctionRef..': will build bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
                     oACUToSnipe[refiTotalMassForSnipe] = (oACUToSnipe[refiTotalMassForSnipe] or 0) + __blueprints[sBPIDToBuild].Economy.BuildCostMass
@@ -4688,7 +4696,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 --We dont want to build units in most cases as T3 versions are available
                 if bDebugMessages == true then LOG(sFunctionRef..': Below highest tech level so will hold off building in most cases, bHaveLowMass='..tostring(bHaveLowMass)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Factory lifetime count all categories='..M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true)) end
                 if (not(bHaveLowMass) or (iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 100 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 200 * iFactoryTechLevel * iFactoryTechLevel and M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= 25))
-                and (not(aiBrain[M28Overseer.refbPrioritiseLand] or aiBrain[M28Overseer.refbPrioritiseLowTech]) or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.3 and not(bHaveLowPower)))
+                        and (not(aiBrain[M28Overseer.refbPrioritiseLand] or aiBrain[M28Overseer.refbPrioritiseLowTech]) or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.3 and not(bHaveLowPower)))
                 then
                     --Consider upgrading if dont have active upgrade in this LZ
                     --Upgrade factory if this LZ is lagging behind tech wise
@@ -4805,7 +4813,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         if bDebugMessages == true then LOG(sFunctionRef..': Energy stored='..aiBrain:GetEconomyStored('ENERGY')..'; % E stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Team net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; brain gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Mass gross brain inc='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
                         if iFactoryTechLevel == 1 then
                             if (aiBrain:GetEconomyStored('ENERGY') >= 4950 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 8*aiBrain[M28Economy.refiBrainResourceMultiplier] or (aiBrain[M28Overseer.refbPrioritiseAir] and aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 4*aiBrain[M28Economy.refiBrainResourceMultiplier])) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 40*aiBrain[M28Economy.refiBrainResourceMultiplier] and (not(bHaveLowMass) or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2*aiBrain[M28Economy.refiBrainResourceMultiplier]))
-                            and (not(aiBrain[M28Overseer.refbPrioritiseLowTech] or aiBrain[M28Overseer.refbPrioritiseLand]) or aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 3)
+                                    and (not(aiBrain[M28Overseer.refbPrioritiseLowTech] or aiBrain[M28Overseer.refbPrioritiseLand]) or aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 3)
                             then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to get priority upgrade to T2 air for safe zone') end
                                 if ConsiderUpgrading() then return sBPIDToBuild end

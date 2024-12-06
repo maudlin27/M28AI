@@ -2397,12 +2397,24 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
         local iClosestDist = iDistThreshold + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of units to target empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToTarget))..'; Is tLZTeamData[M28Map.reftoNearestDFEnemies] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; iClosestDist='..iClosestDist) end
         if M28Utilities.IsTableEmpty(tUnitsToTarget) == false then
+            local bAbortDueToStartingPD = false
+            if tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] > oACU[M28UnitInfo.refiDFRange] and (GetGameTimeSeconds() <= 300 or (GetGameTimeSeconds() <= 600 and M28Map.bIsCampaignMap)) then
+                local tPDToTarget = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tUnitsToTarget)
+                if M28Utilities.IsTableEmpty(tUnitsToTarget) == false then
+                    bAbortDueToStartingPD = true
+                end
+            end
+            --refiTimeCreated
             local sPathing = M28Map.refPathingTypeAmphibious
             local iUnitPlateau, iUnitZone
             local bUnitInFurtherAwayZoneWeRanFrom
             local iStartPlateau, iStartZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLZTeamData[M28Map.reftClosestFriendlyBase])
             local iACUZoneTravelDistToBase
-            if bDebugMessages == true then LOG(sFunctionRef..': iStartPlateau='..(iStartPlateau or 'nil')..'; iStartZone='..(iStartZone or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iStartPlateau='..(iStartPlateau or 'nil')..'; iStartZone='..(iStartZone or 'nil')..'; bAbortDueToStartingPD='..tostring(bAbortDueToStartingPD or false)) end
+            if bAbortDueToStartingPD then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return false
+            end
             if iStartPlateau > 0 and iStartZone > 0 then
                 if iPlateau > 0 then
                     iACUZoneTravelDistToBase = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iStartZone)

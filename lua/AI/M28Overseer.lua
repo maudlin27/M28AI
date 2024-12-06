@@ -546,7 +546,7 @@ end
 
 
 function TestCustom(aiBrain)
-    ScenarioInfo.WeaponDialog = true
+    M28Map.DrawSpecificWaterZone(7)
 
 
     --[[local oHumanBrain

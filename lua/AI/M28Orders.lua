@@ -609,7 +609,7 @@ end
 
 
 function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
-    if bDontConsiderCombinedArmy or oUnit.M28Active then
+    if bDontConsiderCombinedArmy or (oUnit.M28Active and (oOrderTarget.M28Active or not(oOrderTarget:GetAIBrain() == oUnit:GetAIBrain()))) then
         UpdateRecordedOrders(oUnit)
         --Issue order if we arent already trying to attack them
         local tLastOrder
@@ -1036,7 +1036,7 @@ function IssueTrackedRefuel(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
 end
 
 function ReleaseStoredUnits(oUnit, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
-    if bDontConsiderCombinedArmy or oUnit.M28Active then
+    if bDontConsiderCombinedArmy or oUnit.M28Active or UnitHasM28ActiveCargo(oUnit) then
         --Use for air staging units
         UpdateRecordedOrders(oUnit)
         --Issue order if we arent already trying to attack them
@@ -1077,7 +1077,19 @@ function ReleaseStoredUnits(oUnit, bAddToExistingQueue, sOptionalOrderDesc, bOve
     end
 end
 
-
+function UnitHasM28ActiveCargo(oUnit)
+    --Intended for air staging buildings so they release M28 units (although will also apply to other units such as transports)
+    if oUnit.GetCargo then
+        local tCargo = oUnit:GetCargo()
+        if M28Utilities.IsTableEmpty(tCargo) == false then
+            for iCargo, oCargo in tCargo do
+                if oCargo.M28Active then
+                    return true
+                end
+            end
+        end
+    end
+end
 
 function IssueTrackedTransportUnload(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     if bDontConsiderCombinedArmy or oUnit.M28Active then
