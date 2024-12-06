@@ -7316,7 +7316,7 @@ end
 
 function GetPlateauAndZoneForEngineerSupport(iTeam, oUnit)
     --Returns island, plateau and land zone that we want to drop at (or nil if there are none)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetPlateauAndZoneForEngineerSupport'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iTargetIsland, iTargetPlateau, iTargetLandZone
@@ -7910,7 +7910,6 @@ function ManageTransports(iTeam, iAirSubteam)
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': want to do combat drop, iExtraEngisWanted='..iExtraEngisWanted) end
                         elseif bIsEngiSupportDrop then
-                            bDebugMessages = true
                             if iEngisHave >= 2 then iExtraEngisWanted = 0
                             else
                                 iExtraEngisWanted = 2 - iEngisHave
@@ -10110,7 +10109,7 @@ function ConsiderIfBomberTargetingACUShouldReassign(oUnit, oCurTarget)
 end
 
 function RecordPlateauForHighTechEngineerDrop(iPlateau, iLandZone, iTeam, iEngiTechLevelWanted)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordPlateauForHighTechEngineerDrop'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

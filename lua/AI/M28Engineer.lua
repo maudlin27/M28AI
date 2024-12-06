@@ -9338,7 +9338,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
     local sFunctionRef = 'GetBPToAssignToSMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 1 and iPlateau == 100 and GetGameTimeSeconds() >= 35*60 then bDebugMessages = true end
+
 
     local iBPWanted = 0
     local bAssistSMD = false
@@ -9489,7 +9489,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             else
                 bOptionalAvailableT3Engineers = not(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory * categories.TECH3 + M28UnitInfo.refCategoryEngineer * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))
             end
-            if not(bOptionalAvailableT3Engineers) then bDebugMessages = true end
+
             if bDebugMessages == true then LOG(sFunctionRef..': bOptionalAvailableT3Engineers='..tostring(bOptionalAvailableT3Engineers)..'; P'..iPlateau..'Z'..iLandZone) end
             if not(bOptionalAvailableT3Engineers) then
                 M28Air.RecordPlateauForHighTechEngineerDrop(iPlateau, iLandZone, iTeam, 3)
@@ -14877,7 +14877,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     end
 
     --SMD if very high value and enemy has nukes
-    if iPlateau == 100 and iLandZone == 1 and GetGameTimeSeconds() >= 35*60 then bDebugMessages = true end
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefLZSValue]='..tLZTeamData[M28Map.subrefLZSValue]..'; T3 mexes='..tLZTeamData[M28Map.subrefMexCountByTech][3]) end
     if (tLZTeamData[M28Map.subrefLZSValue] >= 60000 or (not(bTeammateHasBuiltHere) and tLZTeamData[M28Map.subrefLZSValue] >= 16000 and (tLZTeamData[M28Map.subrefLZSValue] >= 20000 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false) or tLZTeamData[M28Map.reftObjectiveSMDLocation]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
@@ -14918,7 +14917,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     else
         iCurPriority = iCurPriority + 3
     end
-    bDebugMessages = false
 
     --TML (will only trigger atm for core expansions)
     iCurPriority = iCurPriority + 1
