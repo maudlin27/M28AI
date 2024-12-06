@@ -44,6 +44,7 @@ iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to conside
     refoStrikeDamageAssigned = 'M28SDA' --against the bomber, records the unit against which its strike damage has been assigned
     reftScoutAssignedPlateauAndZoneRef = 'M28SPlLZRef' --against scout, returns {iPlateauOrZero, iLZOrWZRef} that the scout is assigned to,  iPlateauOrZero is 0 for water zone
     refiEngisWanted = 'M28TrnEWnt' --Number of engineers a transport wants
+    refiTransMinEngiTechLevel = 'M28MinETch' --min tech level of engineers wanted for transport
     refiCombatUnitsWanted = 'M28TrnCWnt' --Number of combat units a transport wants
     refiTransportTimeSpentWaiting = 'M28TrnTimW' --Time that transport has been waiting for engineers - so will go with fewer engineers for higher values
     refoTransportUnitTryingToLoad = 'M28TrUnLd' --When a unit is given an order to load into a transport directly,  it gets recorded against this for the transport
@@ -7313,6 +7314,57 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
     return iTargetIsland, iTargetPlateau, iTargetLandZone
 end
 
+function GetPlateauAndZoneForEngineerSupport(iTeam, oUnit)
+    --Returns island, plateau and land zone that we want to drop at (or nil if there are none)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetPlateauAndZoneForEngineerSupport'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local iTargetIsland, iTargetPlateau, iTargetLandZone
+    if not(oUnit[refbCombatDrop]) or M28Utilities.IsTableEmpty(oUnit:GetCargo()) then
+        local tShortlist = M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones]
+        if bDebugMessages == true then LOG(sFunctionRef..': Is the engineer support shortlist empty='..tostring(M28Utilities.IsTableEmpty(tShortlist))..'; repru of tShortlist='..repru(tShortlist)) end
+        if M28Utilities.IsTableEmpty(tShortlist) == false then
+            local iCurDist
+            local iClosestDist = 100000
+            local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
+            local iTimeSinceLastTransportDeath
+            local iCurUnitPlateau, iCurUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+
+            for iEntry, tiPlateauZoneAndTech in tShortlist do
+                local tCurLZOrWZData
+                if tiPlateauZoneAndTech[1] > 0 then
+                    tCurLZOrWZData = M28Map.tAllPlateaus[tiPlateauZoneAndTech[1]][M28Map.subrefPlateauLandZones][tiPlateauZoneAndTech[2]]
+                    --tCurLZOrWZTeamData = tCurLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                else
+                    tCurLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tiPlateauZoneAndTech[2]]][M28Map.subrefPondWaterZones][tiPlateauZoneAndTech[2]]
+                    --tCurLZOrWZTeamData = tCurLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                end
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurLZOrWZData[M28Map.subrefMidpoint], oUnit:GetPosition())
+                if iCurDist < iClosestDist then
+                    --Is it safe to travel here?
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; iCurDist='..iCurDist..'; P='..tiPlateauZoneAndTech[1]..'Z='..tiPlateauZoneAndTech[2]..'; tCurLZOrWZData[M28Map.subrefLZIslandRef]='..(tCurLZOrWZData[M28Map.subrefLZIslandRef] or 'nil')) end
+
+                    --Has a transport recently died trying to get here? then ignore
+
+                    if tCurLZOrWZData[M28Map.subrefLZIslandRef] then
+                        iTimeSinceLastTransportDeath = GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tCurLZOrWZData[M28Map.subrefLZIslandRef][2]][tiPlateauZoneAndTech[2]] or -1000)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iTimeSinceLastTransportDeath='..iTimeSinceLastTransportDeath) end
+                        if iTimeSinceLastTransportDeath > 180 and (iTimeSinceLastTransportDeath >= 300 or not(DoesEnemyHaveAAThreatAlongPath(iTeam, tiPlateauZoneAndTech[1], tiPlateauZoneAndTech[2], iCurUnitPlateau, iCurUnitZone, false, 100,          nil,                     false,         iAirSubteam,         true, nil, oUnit:GetPosition()))) then
+                            iClosestDist = iCurDist
+                            iTargetIsland = tCurLZOrWZData[M28Map.subrefLZIslandRef]
+                            iTargetPlateau = tiPlateauZoneAndTech[1]
+                            iTargetLandZone = tiPlateauZoneAndTech[2]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Recording as closest P and Z that wants support') end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': end of code, iTargetIsland='..(iTargetIsland or 'nil')..'; iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetLandZone='..(iTargetLandZone or 'nil')) end
+    return iTargetIsland, iTargetPlateau, iTargetLandZone
+end
+
 function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
     --Returns island, plateau and land zone that we want to drop at (or nil if there are none)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -7555,24 +7607,34 @@ function ManageTransports(iTeam, iAirSubteam)
 
     function RemoveDropFromShortlist(iTargetPlateau, iTargetIsland, iTargetZone)
         local bRemovedEntry = false
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false then
-            if bDebugMessages == true then LOG(sFunctionRef..': iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetZone='..(iTargetZone or 'nil')..'; iTargetIsland='..(iTargetIsland or 'nil')..'; will check if on island drop hsortlist') end
-            if iTargetIsland then
-                for iEntry, tPlateauAndIsland in M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist] do
-                    if tPlateauAndIsland[1] == iTargetPlateau and tPlateauAndIsland[2] == iTargetIsland then
-                        bRemovedEntry = true
-                        table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist], iEntry)
-                        break
-                    end
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones]) == false then
+            for iEntry, tPlateauZoneAndTech in M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones] do
+                if tPlateauZoneAndTech[1] == iTargetPlateau and tPlateauZoneAndTech[2] == iTargetZone then
+                    bRemovedEntry = true
+                    break
                 end
             end
         end
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false then
-            for iEntry, tPlateauAndLZ in M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist] do
-                if tPlateauAndLZ[1] == iTargetPlateau and tPlateauAndLZ[2] == iTargetZone then
-                    bRemovedEntry = true
-                    table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist], iEntry)
-                    break
+        if not(bRemovedEntry) then
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetZone='..(iTargetZone or 'nil')..'; iTargetIsland='..(iTargetIsland or 'nil')..'; will check if on island drop hsortlist') end
+                if iTargetIsland then
+                    for iEntry, tPlateauAndIsland in M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist] do
+                        if tPlateauAndIsland[1] == iTargetPlateau and tPlateauAndIsland[2] == iTargetIsland then
+                            bRemovedEntry = true
+                            table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist], iEntry)
+                            break
+                        end
+                    end
+                end
+            end
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false then
+                for iEntry, tPlateauAndLZ in M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist] do
+                    if tPlateauAndLZ[1] == iTargetPlateau and tPlateauAndLZ[2] == iTargetZone then
+                        bRemovedEntry = true
+                        table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist], iEntry)
+                        break
+                    end
                 end
             end
         end
@@ -7742,6 +7804,7 @@ function ManageTransports(iTeam, iAirSubteam)
 
 
             local tiTransportDistance = {}
+            local iMinUnitTechLevel, bIsEngiSupportDrop
             for iUnit, oUnit in tAvailableTransports do
                 tiTransportDistance[iUnit] = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)
                 oUnit[refiEngisWanted] = 0
@@ -7754,6 +7817,7 @@ function ManageTransports(iTeam, iAirSubteam)
                 local oUnit = tAvailableTransports[iUnitRef]
                 local bTravelToSameIsland = false
                 local iWaterZoneToTravelTo
+                iMinUnitTechLevel = nil
                 iIslandToTravelTo, iPlateauToTravelTo, iLandZoneToTravelTo = GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
                 if bDebugMessages == true then LOG(sFunctionRef..': iUnitRef='..iUnitRef..'; Considering transport '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; iDistance to rally point='..iDistance..'; iIslandToTravelTo='..(iIslandToTravelTo or 'nil')..'; iPlateauToTravelTo='..(iPlateauToTravelTo or 'nil')..'; iLandZoneToTravelTo='..(iLandZoneToTravelTo or 'nil')) end
                 if not(iIslandToTravelTo) then
@@ -7794,21 +7858,38 @@ function ManageTransports(iTeam, iAirSubteam)
                     end
                 end
                 if not(iIslandToTravelTo) and not(iWaterZoneToTravelTo) then
-                    if oUnit[refbCombatDrop] or M28Utilities.IsTableEmpty(oUnit:GetCargo()) then
-                        local iCombatEntryRef = GetCombatDropPlateauAndLandZoneEntryRefForTransport(iTeam, oUnit)
-                        if iCombatEntryRef then
-                            iPlateauToTravelTo = M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist][iCombatEntryRef][1]
-                            iLandZoneToTravelTo = M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist][iCombatEntryRef][2]
-                            iIslandToTravelTo = M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo][M28Map.subrefLZIslandRef]
+                    --Do we have any zones wanting engineer support?
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones]) == false then
+                        iIslandToTravelTo, iPlateauToTravelTo, iLandZoneToTravelTo = GetPlateauAndZoneForEngineerSupport(iTeam, oUnit)
+                        if iIslandToTravelTo or iLandZoneToTravelTo then
+                            bIsEngiSupportDrop = true
+                            --Set min engi tech level
+                            for iEntry, tPlateauZoneAndTech in M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones] do
+                                if tPlateauZoneAndTech[1] == iPlateauToTravelTo and tPlateauZoneAndTech[2] == iLandZoneToTravelTo then
+                                    iMinUnitTechLevel = tPlateauZoneAndTech[3]
+                                    break
+                                end
+                            end
                         end
-                        if iIslandToTravelTo then
-                            if bDebugMessages == true then LOG(sFunctionRef..'; Will try and do a combat drop for transport '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()) end
-                            oUnit[refbCombatDrop] = true
+                    end
+                    if not(iIslandToTravelTo) and not(iWaterZoneToTravelTo) then
+                        if oUnit[refbCombatDrop] or M28Utilities.IsTableEmpty(oUnit:GetCargo()) then
+                            local iCombatEntryRef = GetCombatDropPlateauAndLandZoneEntryRefForTransport(iTeam, oUnit)
+                            if iCombatEntryRef then
+                                iPlateauToTravelTo = M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist][iCombatEntryRef][1]
+                                iLandZoneToTravelTo = M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist][iCombatEntryRef][2]
+                                iIslandToTravelTo = M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo][M28Map.subrefLZIslandRef]
+                            end
+                            if iIslandToTravelTo then
+                                if bDebugMessages == true then LOG(sFunctionRef..'; Will try and do a combat drop for transport '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()) end
+                                oUnit[refbCombatDrop] = true
+                            end
                         end
                     end
                 else
                     oUnit[refbCombatDrop] = false
                 end
+                oUnit[refiTransMinEngiTechLevel] = iMinUnitTechLevel
                 if iIslandToTravelTo or iWaterZoneToTravelTo then
                     local tLZOrWZData
                     if iIslandToTravelTo then tLZOrWZData = M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
@@ -7828,6 +7909,16 @@ function ManageTransports(iTeam, iAirSubteam)
                             if (oUnit[refiTransportTimeSpentWaiting] or 0) >= 30 and iEngisHave >= 3 then iExtraEngisWanted = 0
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': want to do combat drop, iExtraEngisWanted='..iExtraEngisWanted) end
+                        elseif bIsEngiSupportDrop then
+                            bDebugMessages = true
+                            if iEngisHave >= 2 then iExtraEngisWanted = 0
+                            else
+                                iExtraEngisWanted = 2 - iEngisHave
+                                if (oUnit[refiTransportTimeSpentWaiting] or 0) >= 30 and iEngisHave >= 1 then
+                                    iExtraEngisWanted = 0
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Transport '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' iExtraEngisWanted='..iExtraEngisWanted..'; iEngisHave='..iEngisHave..'; Time spent waiting='..(oUnit[refiTransportTimeSpentWaiting] or 0)) end
                         else
                             --First calculate how many we want (ignoring ones we already have):
                             local iBuildRate = math.max(1, (oUnit:GetAIBrain()[M28Economy.refiBrainBuildRateMultiplier] or 1))
@@ -7862,7 +7953,7 @@ function ManageTransports(iTeam, iAirSubteam)
                                 end
                             end
                         end
-                    end
+                        end
                     local bGetMoreUnits = false
                     if bDebugMessages == true then LOG(sFunctionRef..': iExtraEngisWanted='..iExtraEngisWanted..'; iEngisHave='..iEngisHave..'; iTechLevel='..iTechLevel..'; Mex count of target island='..M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo]..'; iEngiRemainingCapacity='..iEngiRemainingCapacity) end
                     if iExtraEngisWanted == 0 and iEngisHave == 0 then
@@ -7911,7 +8002,7 @@ function ManageTransports(iTeam, iAirSubteam)
                                     if oUnit[refbCombatDrop] then iCategoryWanted = M28UnitInfo.refCategoryIndirect * categories.TECH1 else iCategoryWanted = M28UnitInfo.refCategoryEngineer end
                                     local tEngineersInZone = EntityCategoryFilterDown(iCategoryWanted, tCurLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     for iEngineer, oEngineer in tEngineersInZone do
-                                        if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport and not(oEngineer:IsUnitState('Attached')) then
+                                        if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport and not(oEngineer:IsUnitState('Attached')) and (not(iMinUnitTechLevel) or M28UnitInfo.GetUnitTechLevel(oEngineer) >= iMinUnitTechLevel) then
                                             local tEngineerLastOrder = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]]
                                             if not(M28UnitInfo.IsUnitValid(tEngineerLastOrder[M28Orders.subrefoOrderUnitTarget])) or tEngineerLastOrder[M28Orders.subrefoOrderUnitTarget] == oUnit or not(EntityCategoryContains(M28UnitInfo.refCategoryTransport, oUnit)) then
                                                 iCurEngiDist = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oUnit:GetPosition())
@@ -7999,6 +8090,8 @@ function ManageTransports(iTeam, iAirSubteam)
                                     break
                                 end
                             end
+                        elseif bIsEngiSupportDrop then
+                            RemoveDropFromShortlist(iPlateauToTravelTo, iIslandToTravelTo, iLandZoneToTravelTo)
                         else
                             for iEntry, tiPlateauAndIsland in M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist] do
                                 if tiPlateauAndIsland[1] == iPlateauToTravelTo and tiPlateauAndIsland[2] == iIslandToTravelTo then
@@ -10014,4 +10107,26 @@ function ConsiderIfBomberTargetingACUShouldReassign(oUnit, oCurTarget)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
+end
+
+function RecordPlateauForHighTechEngineerDrop(iPlateau, iLandZone, iTeam, iEngiTechLevelWanted)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordPlateauForHighTechEngineerDrop'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bAlreadyRecorded = false
+    if not(M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones]) then M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones] = {}
+    elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones]) == false then
+        for iEntry, tPlateauAndZone in M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones] do
+            if tPlateauAndZone[1] == iPlateau and tPlateauAndZone[2] == iLandZone and iEngiTechLevelWanted <= tPlateauAndZone[3] then
+                bAlreadyRecorded = true
+                break
+            end
+        end
+    end
+    if not(bAlreadyRecorded) then
+        table.insert(M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones], {iPlateau, iLandZone, iEngiTechLevelWanted})
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iEngiTechLevelWanted='..iEngiTechLevelWanted..'; Time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
