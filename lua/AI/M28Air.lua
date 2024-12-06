@@ -66,6 +66,8 @@ iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to conside
     refiAssignedSuicideASF = 'M28AsfSu' --againt a strategic bomber, records Number of asfs assigned to suciide into the bomber in its lifetime
     refbReassessingTarget = 'M28AReasTr' --Against a t1 bomber, true if are currently waiting and will reassess target in a moment
     refoGunshipAttackOrderTarget = 'M28AGsAOTg' --if gunship is being given an attack-move order to ensure it fires at a target, this records that target
+    refbGunshipViaPointReached = 'M28GsViaPR' --true if have recently reached the gunship via point
+    refbRallyViaPointReached = 'M28GsRalPR' --true if have recently reached the via point for the rally
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -5965,23 +5967,38 @@ function ManageGunships(iTeam, iAirSubteam)
             M28Utilities.DrawLocation(tViaFromFrontGunshipPoint, 2)
             end
             if M28Utilities.IsTableEmpty(tGunshipsNearFront) == false then
-            for iUnit, oUnit in tGunshipsNearFront do
-            if bDebugMessages == true then LOG(sFunctionRef..': sending gunship that is near front, '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' to front gunship via point='..repru(tViaFromFrontGunshipPoint)..' which is distance='..M28Utilities.GetDistanceBetweenPositions(tViaFromFrontGunshipPoint, oUnit:GetPosition())) end
-            M28Orders.IssueTrackedMove(oUnit, tViaFromFrontGunshipPoint, 10, false, 'GSViaG', false)
-            end
+                for iUnit, oUnit in tGunshipsNearFront do
+                    if not(oUnit[refbGunshipViaPointReached]) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': sending gunship that is near front, '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' to front gunship via point='..repru(tViaFromFrontGunshipPoint)..' which is distance='..M28Utilities.GetDistanceBetweenPositions(tViaFromFrontGunshipPoint, oUnit:GetPosition())) end
+                        M28Orders.IssueTrackedMove(oUnit, tViaFromFrontGunshipPoint, 10, false, 'GSViaG', false)
+                    elseif oUnit[refbRallyViaPointReached] then
+                        M28Orders.IssueTrackedMove(oUnit, tViaFromRallyPoint, 10, false, 'GSViaGRv', false)
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'GSViaGRP', false)
+                    end
+                end
             end
             if M28Utilities.IsTableEmpty(tGunshipsNotNearFront) == false then
-            local iCurAngleToVia, iCurAngleToRally
-            for iUnit, oUnit in tGunshipsNotNearFront do
-            iCurAngleToVia = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tViaFromRallyPoint)
-            iCurAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
-            if bDebugMessages == true then LOG(sFunctionRef..': Sending gunship that is not near front, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; tViaFromRallyPoint='..repru(tViaFromRallyPoint)..'; Dist from gunship to via='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tViaFromRallyPoint)..'; Angle to via point='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tViaFromRallyPoint)..'; Angle to rally point='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) end
-            if M28Utilities.GetAngleDifference(iCurAngleToVia, iCurAngleToRally) >= 150 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tViaFromRallyPoint) > 1.2 * M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) then
-            M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'GSViaXR', false)
-            else
-            M28Orders.IssueTrackedMove(oUnit, tViaFromRallyPoint, 10, false, 'GSViaR', false)
-            end
-            end
+                local iCurAngleToVia, iCurAngleToRally
+                for iUnit, oUnit in tGunshipsNotNearFront do
+                    if not(oUnit[refbGunshipViaPointReached]) then
+                        oUnit[refbGunshipViaPointReached] = true
+                        M28Utilities.DelayChangeVariable(oUnit, refbGunshipViaPointReached, false, 30)
+                    end
+
+                    iCurAngleToVia = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tViaFromRallyPoint)
+                    iCurAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Sending gunship that is not near front, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; tViaFromRallyPoint='..repru(tViaFromRallyPoint)..'; Dist from gunship to via='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tViaFromRallyPoint)..'; Angle to via point='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tViaFromRallyPoint)..'; Angle to rally point='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) end
+                    if M28Utilities.GetAngleDifference(iCurAngleToVia, iCurAngleToRally) >= 150 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tViaFromRallyPoint) > 1.2 * M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) then
+                        M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'GSViaXR', false)
+                        if not(oUnit[refbRallyViaPointReached]) then
+                            oUnit[refbRallyViaPointReached] = true
+                            M28Utilities.DelayChangeVariable(oUnit, refbRallyViaPointReached, false, 30)
+                        end
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, tViaFromRallyPoint, 10, false, 'GSViaR', false)
+                    end
+                end
             end
             else
             M28Team.tAirSubteamData[iAirSubteam][M28Team.reftLastViaFromFrontGunshipPoint] = nil
