@@ -156,6 +156,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftoEnemyT2Arti = 'M28LRArt' --Table of all enemy T2 arti (regardless of kills) - note firebase adj is used for those that are more dangerous
     refbStartedOnUnitWantingSpecialShielding = 'M28AGESt' --true if we have sent an order to build a gameender/unit wanting special shielding (currently used to decide if we need to be strict about blacklist locations)
     reftoAlliedQuantumOptics = 'M28QOU' --Table of M28 allied quanutm optics units
+    refbEnemyHasTeleport = 'M28TEnTl' --true if enemy team has teleport
 
     subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat

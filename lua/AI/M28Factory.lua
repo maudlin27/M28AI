@@ -1114,7 +1114,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     local iCategoryToBuild
     local iTeam = aiBrain.M28Team
@@ -1609,6 +1609,22 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
     end
+
+
+    --Priority shields for tele defence
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want mobile shields for tele defence, M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] or false)..'; Table of active GE templates empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))..'; LZ has units wanting mobile shield is empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]))..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)..'; Are we stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Are there fixed shields wanting mobile shields in the table of units wnating mobile shield? is table of fixed shield filters empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield])))) end
+        end
+    end
+    if bConsiderMobileShields and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield])) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want mobile shield to help protect from enemy teleport') end
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandShield) then return sBPIDToBuild end
+    end
+    bDebugMessages = false
+
 
     --Enemy has T3 air and we dont - get some MAA
     iCurrentConditionToTry = iCurrentConditionToTry + 1

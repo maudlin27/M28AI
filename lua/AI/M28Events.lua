@@ -821,6 +821,19 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 end
             end
 
+
+            --Teleport details
+            if sEnhancement == 'Teleporter' then
+                for iCurTeam = 1, M28Team.iTotalTeamCount do
+                    if not(iCurTeam == oUnit:GetAIBrain().M28Team) and M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                        bDebugMessages = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording for iCurTeam='..iCurTeam..' that enemy has teleport') end
+                        M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasTeleport] = true
+                    end
+                end
+            end
+
+
             if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3959,6 +3972,11 @@ function OnStartTeleport(self, teleporter, locationorbp, orientationorlocation, 
                         M28Team.tTeamData[iCurTeam][M28Team.reftRecentEnemyTeleportDetails] = {}
                     end
                     table.insert(M28Team.tTeamData[iCurTeam][M28Team.reftRecentEnemyTeleportDetails], {[M28Team.subrefoTeleportUnit] = self, [M28Team.subreftTeleportTarget] = {location[1], math.max(location[2], GetTerrainHeight(location[1], location[3])), location[3]}, [M28Team.subrefiTeleportTime] = GetGameTimeSeconds()})
+                    if not(iCurTeam == iTeleportTeam) and M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                        bDebugMessages = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording for iCurTeam='..iCurTeam..' that enemy has teleport') end
+                        M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasTeleport] = true
+                    end
                 end
             end
         end
