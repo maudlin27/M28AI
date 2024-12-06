@@ -539,7 +539,7 @@ function IsResourceBlockedByResourceBuilding(iResourceCategory, sResourceBluepri
 end
 
 function CanBuildStorageAtLocation(tLocation)
-    if M28Overseer.tAllActiveM28Brains[1].CanBuildStructureAt and M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1106', tLocation) == true then
+    if M28Overseer.GetFirstActiveBrain().CanBuildStructureAt and M28Overseer.GetFirstActiveBrain():CanBuildStructureAt('ueb1106', tLocation) == true then
         return true
     else
         return not(IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryStructure, 'ueb1106', tLocation))
@@ -549,7 +549,7 @@ end
 function CanBuildOnMexLocation(tMexLocation)
     --True if can build on mex location; will return true if aiBrain result is true
     --Want to use a function in case t urns out reclaim on a mex means aibrain canbuild returns false
-    if M28Overseer.tAllActiveM28Brains[1].CanBuildStructureAt and M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('urb1103', tMexLocation) == true then
+    if M28Overseer.GetFirstActiveBrain().CanBuildStructureAt and M28Overseer.GetFirstActiveBrain():CanBuildStructureAt('urb1103', tMexLocation) == true then
         return true
     else
         return not(IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryMex, 'urb1103', tMexLocation))
@@ -559,7 +559,7 @@ end
 function CanBuildOnHydroLocation(tHydroLocation)
     --True if can build on hydro; will return true if aiBrain result is true
     --Want to use a function in case t urns out reclaim on a hydro means aibrain canbuild returns false
-    if M28Overseer.tAllActiveM28Brains[1].CanBuildStructureAt and M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1102', tHydroLocation) == true then
+    if M28Overseer.GetFirstActiveBrain().CanBuildStructureAt and M28Overseer.GetFirstActiveBrain():CanBuildStructureAt('ueb1102', tHydroLocation) == true then
         return true
     else
         --local iPlateau, iLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tHydroLocation)

@@ -606,8 +606,8 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
 
             --Update mass storage locations
             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) == false then
-                if bDebugMessages == true then LOG(sFunctionRef..': About to update mass storage locations for iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..', tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]='..repru(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable])..'; Nickname of first aiBrain='..M28Overseer.tAllActiveM28Brains[1].Nickname) end
-                local aiBrain = M28Overseer.tAllActiveM28Brains[1]
+                if bDebugMessages == true then LOG(sFunctionRef..': About to update mass storage locations for iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..', tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]='..repru(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable])..'; Nickname of first aiBrain='..M28Overseer.GetFirstActiveBrain().Nickname) end
+                local aiBrain = M28Overseer.GetFirstActiveBrain()
                 local function WantToKeep(tArray, iEntry, aiBrain)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return aiBrain:CanBuildStructureAt('ueb1106', tArray[iEntry])
