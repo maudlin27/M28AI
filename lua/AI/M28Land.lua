@@ -8399,7 +8399,12 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                             bLandZoneOrAdjHasUnitsWantingScout = true
                         end
                     else
-                        if bConsiderMobileShieldsForBuildingsDueToNovax and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) and EntityCategoryContains(M28UnitInfo.refCategoryPower - categories.TECH1 + M28UnitInfo.refCategoryEnergyStorage, oUnit.UnitId) then
+                        if bConsiderMobileShieldForGETemplate and oUnit[M28Building.reftArtiTemplateRefs] and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
+                            bCurUnitWantsMobileShield = true
+                            if not(oUnit[refoAssignedMobileShield]) then
+                                table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                            end
+                        elseif bConsiderMobileShieldsForBuildingsDueToNovax and M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) and EntityCategoryContains(M28UnitInfo.refCategoryPower - categories.TECH1 + M28UnitInfo.refCategoryEnergyStorage, oUnit.UnitId) then
                             bCurUnitWantsMobileShield = true
                             if not(oUnit[refoAssignedMobileShield]) then
                                 table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
