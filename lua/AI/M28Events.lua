@@ -1042,6 +1042,7 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
 
                 --Logic specific to M28 units dealt damage
                 if self:GetAIBrain().M28AI then
+                    if bDebugMessages == true then LOG(sFunctionRef..': M28AI owned unit just taken damage, unit='..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..'; Is this a gunship that can refuel='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, self.UnitId) and not(self.MyShield) and not(self[M28UnitInfo.refbProjectilesMeanShouldRefuel]))..'; self.MyShield==nil='..tostring(self.MyShield == nil)..'; self[M28UnitInfo.refbProjectilesMeanShouldRefuel]='..tostring(self[M28UnitInfo.refbProjectilesMeanShouldRefuel] or false)) end
                     if EntityCategoryContains(categories.COMMAND, self.UnitId) then
                         if self:IsUnitState('Upgrading') then
                             --Do we want to cancel the upgrade? If were hit by a TML then want to
@@ -1059,6 +1060,18 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                     elseif oUnitCausingDamage.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, self.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryGunship * categories.CYBRAN * categories.EXPERIMENTAL, oUnitCausingDamage.UnitId) and self:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiFletcher then
                         if M28Orders.bDontConsiderCombinedArmy or oUnitCausingDamage.M28Active then
                             ForkThread(M28Chat.SendMessage, self:GetAIBrain(), 'SoulripperDmgFatboy', LOC('<LOC X05_M02_240_010>[{i Fletcher}]: Soul Rippers are tearing up my Fatboy! I need air cover, now!'), 1, 600, false, true, 'X05_Fletcher_M02_04945', 'X05_VO')
+                        end
+                        --Gunships - consider retreating early
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, self.UnitId) and not(self.MyShield) and not(self[M28UnitInfo.refbProjectilesMeanShouldRefuel]) then
+                        if M28UnitInfo.IsUnitValid(self) then
+                            local iCurHealth = self:GetHealth()
+                            local iMaxHealth = self:GetMaxHealth()
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; %='..iCurHealth / iMaxHealth..'; Projectile low health%='..M28Air.iProjectileLowHealthThreshold) end
+                            if iCurHealth <= iMaxHealth * M28Air.iProjectileLowHealthThreshold then
+                                self[M28UnitInfo.refbProjectilesMeanShouldRefuel] = true
+                                M28Air.SendUnitsForRefueling({ self }, self:GetAIBrain().M28Team, self:GetAIBrain().M28AirSubteam, true)
+                                if bDebugMessages == true then LOG(sFunctionRef..'; sent gunship '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..' for refueling due to existing damage taken') end
+                            end
                         end
                     end
                     --General - if enemy has non-long range direct fire structure that hit an M28 unit, then check if it is in the same or adjacen tzone, so can record if it isnt
