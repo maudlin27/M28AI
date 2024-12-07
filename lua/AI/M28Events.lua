@@ -2643,9 +2643,10 @@ function OnReclaimFinished(oEngineer, oReclaim)
     end
 end
 
-function OnCreateWreck(tPosition, iMass, iEnergy)
+function OnCreateWreck(tPosition, iMass, iEnergy, oOptionalWreck)
     --Dont check if M28brains are in game yet as can be called at start of game before we have recorded any aiBrain
     if M28Utilities.bM28AIInGame then
+        if oOptionalWreck then iMass = (oOptionalWreck.MaxMassReclaim or iMass) end --issue where iMass shows as being 1 when this is called in some cases
         if not(M28Map.bReclaimManagerActive) then
             if GetGameTimeSeconds() >= 20 then return nil
             else
@@ -2654,6 +2655,16 @@ function OnCreateWreck(tPosition, iMass, iEnergy)
                     WaitTicks(1)
                     iWaitCount = iWaitCount + 1
                     if iWaitCount >= 50 and (iWaitCount >= 60 or M28Utilities.bFAFActive) then M28Utilities.ErrorHandler('Map setup not complete') break end
+                end
+            end
+        end
+        --High value wrecks (experimentals) - activate special engi logic
+        LOG('TEMPCODE wreck created, iMass='..(iMass or 'nil')..'; oOptionalWreck.MaxMassReclaim='..(oOptionalWreck.MaxMassReclaim or 'nil'))
+        if iMass >= 8000 and oOptionalWreck then
+            for iCurTeam = 1, M28Team.iTotalTeamCount do
+                if M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                    LOG('TEMPCODE Starting high value reclaim order for team '..iCurTeam)
+                    ForkThread(M28Engineer.HighValueReclaimOrder, iCurTeam, oOptionalWreck, tPosition)
                 end
             end
         end

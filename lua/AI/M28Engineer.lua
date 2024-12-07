@@ -21,6 +21,7 @@ local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
+local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 
 
 
@@ -18652,6 +18653,139 @@ function CheckAndClearEngineersConstructingTargetUnit(oUnitBeingReclaimed, tLZTe
                         if ((oEngi:IsUnitState('Repairing') or oEngi:IsUnitState('Building')) and oEngi:GetFocusUnit() == oUnitBeingReclaimed) or (oEngi[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oUnitBeingReclaimed and (oEngi[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueRepair or oEngi[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGuard)) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Cleearing engineer from building a unit in unit zone since we are trying to reclaim that same unit, oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)) end
                             M28Orders.IssueTrackedClearCommands(oEngi)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function TrackEngineerWithHighReclaimOrder(oEngineer, oWreck, iMassAbortThreshold)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'TrackEngineerWithHighReclaimOrder'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Flag that special micro is active so we dont get given other orders
+    M28Micro.TrackTemporaryUnitMicro(oEngineer, 0)
+    local iTeam = oEngineer:GetAIBrain().M28Team
+    local bRunFromEnemy = false
+    local iEngiBuildRange = oEngineer:GetBlueprint().Economy.MaxBuildDistance or 5
+    if bDebugMessages == true then LOG(sFunctionRef..': Just before start of loop for oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oWreck.MaxMassReclaim='..(oWreck.MaxMassReclaim or 'nil')) end
+    while M28UnitInfo.IsUnitValid(oEngineer) and oWreck.MaxMassReclaim >= iMassAbortThreshold and not(oWreck:BeenDestroyed()) do
+        --If reclaiming then ignore everything
+        if not(oEngineer:IsUnitState('Reclaiming')) then
+            bRunFromEnemy = false
+            --Check for enemies that mean we want to abort
+            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oEngineer:GetPosition())
+            if iPlateauOrZero and iLandOrWaterZone then
+                local tLZOrWZData
+                local tLZOrWZTeamData
+                local tEnemiesToSearch
+                if iPlateauOrZero > 0 then
+                    tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                    tLZOrWZTeamData  = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                    tEnemiesToSearch = tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]
+                else
+                    --Water zone
+                    tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                    tEnemiesToSearch = tLZOrWZTeamData[M28Map.reftoNearestCombatEnemies]
+                end
+                if M28Utilities.IsTableEmpty(tEnemiesToSearch) == false then
+                    bRunFromEnemy = M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 3, iTeam, true, nil, nil, oEngineer)
+                    if bDebugMessages == true then LOG(sFunctionRef..': bRunFromEnemy='..tostring(bRunFromEnemy)..'; Dist to closest enemy='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())..'; Engi build rnage='..iEngiBuildRange) end
+                    if bRunFromEnemy and oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()) <= iEngiBuildRange then
+                        M28Orders.IssueTrackedReclaim(oEngineer, oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'SpReclEn', true)
+                    else
+                        M28Orders.IssueTrackedMove(oEngineer, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'SpReclRTB', true)
+                    end
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Proceeding with reclaim order') end
+                    M28Orders.IssueTrackedReclaim(oEngineer, oWreck, false, 'SpReclR', true)
+                end
+            else
+                M28Orders.UpdateRecordedOrders(oEngineer)
+                if oEngineer[M28Orders.refiOrderCount] == 0 then
+                    M28Orders.IssueTrackedReclaim(oEngineer, oWreck, false, 'SpReclBR', true)
+                end
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(M28Land.iTicksPerLandCycle)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': About to recheck, Is engineer valid='..tostring(M28UnitInfo.IsUnitValid(oEngineer)..'; Reclaim='..(oWreck.MaxMassReclaim or 'nil')..'; Id destroyed='..tostring(oWreck:IsDestroyed()))..'; Time='..GetGameTimeSeconds()) end
+    end
+    --Clear engi incase it is far away from the reclaim target
+    if M28UnitInfo.IsUnitValid(oEngineer) and not(oEngineer:IsUnitState('Reclaiming')) then
+        M28Orders.IssueTrackedClearCommands(oEngineer)
+        if oEngineer[M28UnitInfo.refbSpecialMicroActive] then
+            ForkThread(M28Micro.ForkedResetMicroFlag, oEngineer, 0.01)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function HighValueReclaimOrder(iTeam, oWreck, tPosition)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'HighValueReclaimOrder'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iTeam='..iTeam..'; tPosition='..repru(tPosition)..'; Wreck mass value='..(oWreck.MaxMassReclaim or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if iPlateauOrZero and iLandOrWaterZone then
+        local tLZOrWZData
+        local tLZOrWZTeamData
+        if iPlateauOrZero > 0 then
+            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+            tLZOrWZTeamData  = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+        else
+            --Water zone
+            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+        end
+        --Ignore if mod dist means it is close to enemy base
+        if bDebugMessages == true then LOG(sFunctionRef..': Mod dist%='..(tLZOrWZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Plateau of nearest friendly base='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) or 'nil')..'; Enemy combat='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Dist to friendly base='..M28Utilities.GetDistanceBetweenPositions(tPosition, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) end
+        if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.6 or (M28Map.iMapSize < 512 and tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.8) then
+            --Ignore if dif plateau to our closest base, or closest base is too far away
+            if NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) == iPlateauOrZero and tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 100000 and M28Utilities.GetDistanceBetweenPositions(tPosition, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= 500 then
+                --Check enemy doesnt still have a large army here (taking into account that the threat values may not have updated yet)
+                local iEnemyDFValue = 0
+                if iPlateauOrZero > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                    iEnemyDFValue = M28UnitInfo.GetMassCostOfUnits(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies])
+                elseif iPlateauOrZero == 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                    iEnemyDFValue = M28UnitInfo.GetMassCostOfUnits(tLZOrWZTeamData[M28Map.reftoNearestCombatEnemies])
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iEnemyDFValue='..iEnemyDFValue..'; Ally LZ combat='..(tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)..'; Ally WZ combat='..(tLZOrWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)) end
+                if iEnemyDFValue < 20000 or (tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) >= 10000 or (tLZOrWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0) >= 10000 then
+                    --Get an engineer from the nearest base
+                    local tNearestBaseLZData, tNearestBaseLZTeamData = M28Map.GetLandOrWaterZoneData(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], true, iTeam)
+                    if tNearestBaseLZTeamData and M28Utilities.IsTableEmpty(tNearestBaseLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                        local oEngineerToTryAndReclaim
+                        local tFriendlyEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tNearestBaseLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly engineers empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyEngineers))) end
+                        if M28Utilities.IsTableEmpty(tFriendlyEngineers) == false then
+                            local iHighestPriority = 0
+                            local iHighestTech = 0
+                            local iCurTech
+                            for iEngi, oEngi in tFriendlyEngineers do
+                                if bDebugMessages == true and M28UnitInfo.IsUnitValid(oEngi) then LOG(sFunctionRef..': Considering oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; Primary builder='..tostring(oEngi[refbPrimaryBuilder] or false)..'; % complete='..oEngi:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngi)..'; Special micro active='..tostring(oEngi[M28UnitInfo.refbSpecialMicroActive] or false)..'; Priority='..(oEngi[refiAssignedActionPriority] or 'nil')..'; Tech level='..M28UnitInfo.GetUnitTechLevel(oEngi)) end
+
+                                if M28UnitInfo.IsUnitValid(oEngi) and not(oEngi[refbPrimaryBuilder]) and oEngi:GetFractionComplete() == 1 and not(oEngi:IsUnitState('Attached')) and not(oEngi[M28UnitInfo.refbSpecialMicroActive]) then
+                                    --Get the highest tech engi, and then the highest number for priority
+                                    iCurTech = M28UnitInfo.GetUnitTechLevel(oEngi)
+                                    if iCurTech > iHighestTech then iHighestTech = iCurTech iHighestPriority = 0 end
+                                    if (oEngi[refiAssignedActionPriority] or 1000) > iHighestPriority then
+                                        iHighestPriority = (oEngi[refiAssignedActionPriority] or 1000)
+                                        oEngineerToTryAndReclaim = oEngi
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have a new highest priority engi to give the order to') end
+                                    end
+                                end
+                            end
+                        end
+                        if oEngineerToTryAndReclaim then
+                            TrackEngineerWithHighReclaimOrder(oEngineerToTryAndReclaim, oWreck, 1000)
                         end
                     end
                 end

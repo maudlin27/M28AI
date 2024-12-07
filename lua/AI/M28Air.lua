@@ -4780,7 +4780,7 @@ function GetUnitNearestEnemyBase(tUnitsToConsider, iTeam, tOptionalEnemyBaseOver
 end
 
 function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget, oOptionalTarget)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetGunshipsToMoveToTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -4943,7 +4943,7 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget, oOptionalTarget)
 end
 
 function ManageGunships(iTeam, iAirSubteam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageGunships'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
