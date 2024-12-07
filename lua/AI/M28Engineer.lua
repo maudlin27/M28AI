@@ -1026,7 +1026,7 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
     local iValidBuildingCount = 0
     local bHaveValidLocation = false
     local bDontCheckForNoRush = not(M28Overseer.bNoRushActive)
-    local function AddAdjacencyLocationsToPotentialLocations(tAdjacencyBuildingPosition, iAdjacencyBuildingRadius, iNewBuildingRadius)
+    local function AddAdjacencyLocationsToPotentialLocations(tAdjacencyBuildingPosition, iAdjacencyBuildingRadius, iNewBuildingRadius, tOptionalGETemplateToAvoid)
         local iCurZ, iCurX
         local iCycleSize = math.abs(iAdjacencyBuildingRadius - iNewBuildingRadius)
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tAdjacencyBuildingPosition)
@@ -1048,10 +1048,12 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
                         --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation)
                         if CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateauOrZero, iLandOrWaterZone,                     nil,                false,                              true,                   false,                          true,                           false) then
                             if bDontCheckForNoRush or M28Conditions.IsLocationInNoRushArea({iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}) then
-                                table.insert(tPotentialLocations, {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ})
-                                if bStopWhenHaveValidLocation then bAbort = true break end
-                                iValidLocationCount = iValidLocationCount + 1
-                                bHaveValidLocation = true
+                                if not(tOptionalGETemplateToAvoid) or iZFactor == -1 then --not(M28Conditions.IsBuildLocationInGETemplateArea(iCurX, iCurZ, iNewBuildingRadius, tLZOrWZTeamData[tOptionalGETemplateToAvoid[3]])) then --decided to leave out more complicated condition to check for this for now and just permit where building above
+                                    table.insert(tPotentialLocations, {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ})
+                                    if bStopWhenHaveValidLocation then bAbort = true break end
+                                    iValidLocationCount = iValidLocationCount + 1
+                                    bHaveValidLocation = true
+                                end
                             end
                         end
                     end
@@ -1065,10 +1067,12 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
                         for iCurZ = tAdjacencyBuildingPosition[3] - iCycleSize, tAdjacencyBuildingPosition[3] + iCycleSize, 1 do
                             if CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateauOrZero, iLandOrWaterZone, nil, false, true, false, true, false) then
                                 if bDontCheckForNoRush or M28Conditions.IsLocationInNoRushArea({iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}) then
-                                    table.insert(tPotentialLocations, {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ})
-                                    if bStopWhenHaveValidLocation then bAbort = true break end
-                                    iValidLocationCount = iValidLocationCount + 1
-                                    bHaveValidLocation = true
+                                    if not(tOptionalGETemplateToAvoid) then --or not(M28Conditions.IsBuildLocationInGETemplateArea(iCurX, iCurZ, iNewBuildingRadius, tLZOrWZTeamData[tOptionalGETemplateToAvoid[3]])) then
+                                        table.insert(tPotentialLocations, {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ})
+                                        if bStopWhenHaveValidLocation then bAbort = true break end
+                                        iValidLocationCount = iValidLocationCount + 1
+                                        bHaveValidLocation = true
+                                    end
                                 end
                             end
                         end
@@ -1085,7 +1089,7 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
         local iAdjacencyBuildingRadius
         for iBuilding, oBuilding in toPossibleBuildingsToBuildBy do
             iAdjacencyBuildingRadius = M28UnitInfo.GetBuildingSize(oBuilding.UnitId) * 0.5
-            AddAdjacencyLocationsToPotentialLocations(oBuilding:GetPosition(), iAdjacencyBuildingRadius, iNewBuildingRadius)
+            AddAdjacencyLocationsToPotentialLocations(oBuilding:GetPosition(), iAdjacencyBuildingRadius, iNewBuildingRadius, oBuilding[M28Building.reftArtiTemplateRefs])
             if bHaveValidLocation then
                 iValidBuildingCount = iValidBuildingCount + 1
                 if iValidBuildingCount >= 3 and iValidLocationCount >= 3 then break end
@@ -6628,7 +6632,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                 if M28Utilities.GetDistanceBetweenPositions(oEngineerToBuild:GetPosition(), tMoveLocation) <= 2 then oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] = (oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] or 0) + 1 end
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': GE Telling engineer '..(oEngineerToBuild.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild) or 'nil')..' to build '..sArtiToBuild..' at build location '..repru(tLocationToBuild)..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTableRef='..iTableRef) end
-                ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild)
+                ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild, tLocationToBuild, sArtiToBuild)
                 M28Orders.IssueTrackedBuild(oEngineerToBuild, tLocationToBuild, sArtiToBuild, false, 'GEBArt')
                 bTriedBuildingSomething = true
             end
@@ -6747,12 +6751,39 @@ function GETemplateAssistUnit(tAvailableEngineers, tAvailableT3EngineersByFactio
     return bClearAllEngineers
 end
 
-function ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild)
+function ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild, tLocationToBuild, sBPToBuild)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderResettingGEEngineerJustBeforeGivingNewOrder'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     oEngineerToBuild[refiGETemplateTimeTryingToBuild] = (oEngineerToBuild[refiGETemplateTimeTryingToBuild] or 0) + 1
     if oEngineerToBuild[refiGETemplateTimeTryingToBuild] >= 15 and (not(oEngineerToBuild[M28UnitInfo.refbSpecialMicroActive]) or oEngineerToBuild[refiGETemplateTimeTryingToBuild] >= 50) then
         M28Orders.IssueTrackedClearCommands(oEngineerToBuild)
         oEngineerToBuild[refiGETemplateTimeTryingToBuild] = 0
+    elseif oEngineerToBuild[refiGETemplateTimeTryingToBuild] >= 4 and (M28Orders.bDontConsiderCombinedArmy or oEngineerToBuild.M28Active) then
+        --Check for blocking mobile units where we are trying to build that are owend by a different M28AI so we can transfer ownership over
+        bDebugMessages = true
+        local rBuildArea = M28Utilities.GetRectAroundLocation(tLocationToBuild, M28UnitInfo.GetBuildingSize(sBPToBuild) * 0.5)
+        local tBlockingUnits = GetUnitsInRect(rBuildArea)
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking for units in blocking area, will draw, is table of blocking units empty='..tostring(M28Utilities.IsTableEmpty(tBlockingUnits))) M28Utilities.DrawRectangle(rBuildArea) end
+        if M28Utilities.IsTableEmpty(tBlockingUnits) == false then
+            local tMobileLandUnitsInRect = EntityCategoryFilterDown(categories.MOBILE * categories.LAND,tBlockingUnits)
+            if M28Utilities.IsTableEmpty(tMobileLandUnitsInRect) == false then
+                local oBrainWanted = oEngineerToBuild:GetAIBrain()
+                local tUnitsToTransfer = {}
+                for iUnit, oUnit in tMobileLandUnitsInRect do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering blocking mobile unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Brain wanted='..oBrainWanted.Nickname) end
+                    if not(oUnit:GetAIBrain() == oBrainWanted) and oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 and not(oUnit:IsUnitState('Attached')) and (M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active) then
+                        table.insert(tUnitsToTransfer, oUnit)
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tUnitsToTransfer) == false then
+                    M28Team.TransferUnitsToPlayer(tUnitsToTransfer, oBrainWanted:GetArmyIndex(), false)
+                end
+            end
+        end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZTeamData, iPlateau, iLandZone, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, iMaxShieldsToTryAndBuild, iOptionalMaxEngiPerAction, bOnlyGetT3)
@@ -6962,7 +6993,7 @@ function GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3Engineer
                         bTriedBuildingSomething = true
                     else
                         if bDebugMessages == true then LOG(sFunctionRef..': GE Extra Telling engineer '..tEngisOfDesiredFaction[iLastEngi].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngisOfDesiredFaction[iLastEngi])..' to build '..sShieldToBuild..' at build location '..repru(tLocationsToBuild[iLastLocation])) end
-                        ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild)
+                        ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild, tLocationsToBuild[iLastLocation], sShieldToBuild)
                         M28Orders.IssueTrackedBuild(tEngisOfDesiredFaction[iLastEngi], tLocationsToBuild[iLastLocation], sShieldToBuild, false, 'GEEBSh'..iTemplateRef)
                         bTriedBuildingSomething = true
                     end
