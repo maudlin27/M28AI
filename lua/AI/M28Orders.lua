@@ -262,11 +262,14 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
                         local oNavigator = oUnit:GetNavigator()
                         if oNavigator then
                             local tCurNavigatorTarget = oNavigator:GetCurrentTargetPos()
-                            if tCurNavigatorTarget and M28Utilities.GetDistanceBetweenPositions(tLastOrder[subreftOrderPosition], tCurNavigatorTarget) <= 3 then
+                            --if oUnit.UnitId == 'xra0105' and GetGameTimeSeconds() >= 360 then LOG('TEMPCODE Just got tCurNavigatorTarget='..repru(tCurNavigatorTarget)..'; Is unit state moving='..tostring(oUnit:IsUnitState('Moving'))..'; iDistanceToReissueOrder='..(iDistanceToReissueOrder or 'nil')..'; tLastOrder[subrefiOrderType]='..(tLastOrder[subrefiOrderType] or 'nil')) end
+                            --Had a strange bug where a gunship would show as its last order being IssueMove based on tracking, be given a new navigator goal, but would stay in attack-move mode; although setgoal resulted in getcurrenttargetpos being updated straight away, by the next cycle it would've reset (but tracking on other orders for attackmove and attack yielded nothing); changing to only change navigator if unit state is moving fixed the problem
+                            if tCurNavigatorTarget and M28Utilities.GetDistanceBetweenPositions(tLastOrder[subreftOrderPosition], tCurNavigatorTarget) <= 3 and oUnit:IsUnitState('Moving') then
                                 oNavigator:SetGoal(tOrderPosition)
                                 bChangedViaNavigator = true
                                 oUnit[reftiLastOrders] = {}
                                 oUnit[refiOrderCount] = 0
+                                --if oUnit.UnitId == 'xra0105' and GetGameTimeSeconds() >= 360 then LOG('TEMPCODE Just finished setting goal of navigator, cur navigator target='..repru(oNavigator:GetCurrentTargetPos())) end
                             end
                         end
                     end
@@ -280,8 +283,8 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
                 if not(bChangedViaNavigator) then
                     IssueMove({oUnit}, tOrderPosition)
                 end
-                --[[if oUnit.UnitId == 'xel0305' then
-                    LOG('Just sent issuemove order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea))
+                --[[if oUnit.UnitId == 'xra0105' and GetGameTimeSeconds() >= 360 then
+                    LOG('TEMPCODE Just sent issuemove order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; bChangedViaNavigator='..tostring(bChangedViaNavigator))
                     M28Utilities.DrawLocation(tOrderPosition)
                 end--]]
             else
@@ -448,6 +451,10 @@ function IssueTrackedAttackMove(oUnit, tOrderPosition, iDistanceToReissueOrder, 
             oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueAggressiveMove, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
             IssueAggressiveMove({oUnit}, tOrderPosition)
+            --[[if oUnit.UnitId == 'xra0105' and GetGameTimeSeconds() >= 360 then
+                LOG('TEMPCODE Just sent AggressiveMove order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea))
+                M28Utilities.DrawLocation(tOrderPosition)
+            end--]]
         end
         if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     end
@@ -473,7 +480,7 @@ function IssueTrackedAttack(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
             oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueAttack, [subrefoOrderUnitTarget] = oOrderTarget})
             IssueAttack({oUnit}, oOrderTarget)
-            --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uea020415' then LOG('Just issued attack order on oOrderTarget='..oOrderTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrderTarget)) end
+            --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'xra01051' and GetGameTimeSeconds() >= 360 then LOG('TEMPCODE Just issued attack order on oOrderTarget='..oOrderTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrderTarget)) end
         end
         if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     end
