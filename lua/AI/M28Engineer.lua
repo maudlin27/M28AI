@@ -18695,8 +18695,13 @@ function TrackEngineerWithHighReclaimOrder(oEngineer, oWreck, iMassAbortThreshol
                 end
                 if M28Utilities.IsTableEmpty(tEnemiesToSearch) == false then
                     bRunFromEnemy = M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 3, iTeam, true, nil, nil, oEngineer)
-                    if bDebugMessages == true then LOG(sFunctionRef..': bRunFromEnemy='..tostring(bRunFromEnemy)..'; Dist to closest enemy='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())..'; Engi build rnage='..iEngiBuildRange) end
-                    if bRunFromEnemy and oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()) <= iEngiBuildRange then
+                    if bDebugMessages == true then LOG(sFunctionRef..': bRunFromEnemy='..tostring(bRunFromEnemy))
+                        if bRunFromEnemy then LOG(sFunctionRef..': Dist to closest enemy='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())..'; Engi build rnage='..iEngiBuildRange) end
+                    end
+
+                end
+                if bRunFromEnemy then
+                    if oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()) <= iEngiBuildRange then
                         M28Orders.IssueTrackedReclaim(oEngineer, oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'SpReclEn', true)
                     else
                         M28Orders.IssueTrackedMove(oEngineer, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'SpReclRTB', true)
@@ -18715,14 +18720,16 @@ function TrackEngineerWithHighReclaimOrder(oEngineer, oWreck, iMassAbortThreshol
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(M28Land.iTicksPerLandCycle)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if bDebugMessages == true then LOG(sFunctionRef..': About to recheck, Is engineer valid='..tostring(M28UnitInfo.IsUnitValid(oEngineer)..'; Reclaim='..(oWreck.MaxMassReclaim or 'nil')..'; Id destroyed='..tostring(oWreck:IsDestroyed()))..'; Time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to recheck, Is engineer valid='..tostring(M28UnitInfo.IsUnitValid(oEngineer))..'; Reclaim='..(oWreck.MaxMassReclaim or 'nil')..'; oWreck.IsDestroyed==nil='..tostring(oWreck.IsDestroyed==nil)..'; Time='..GetGameTimeSeconds()) end
     end
     --Clear engi incase it is far away from the reclaim target
-    if M28UnitInfo.IsUnitValid(oEngineer) and not(oEngineer:IsUnitState('Reclaiming')) then
-        M28Orders.IssueTrackedClearCommands(oEngineer)
+    if M28UnitInfo.IsUnitValid(oEngineer) then
+        if not(oEngineer:IsUnitState('Reclaiming')) then M28Orders.IssueTrackedClearCommands(oEngineer) end
         if oEngineer[M28UnitInfo.refbSpecialMicroActive] then
-            ForkThread(M28Micro.ForkedResetMicroFlag, oEngineer, 0.01)
+            oEngineer[M28UnitInfo.refbSpecialMicroActive] = false
+            ForkThread(M28Micro.ForkedResetMicroFlag, oEngineer, 0.01) --redundancy
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished clearing commands and micro status from engineer, time='..GetGameTimeSeconds()) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -18747,7 +18754,7 @@ function HighValueReclaimOrder(iTeam, oWreck, tPosition)
         end
         --Ignore if mod dist means it is close to enemy base
         if bDebugMessages == true then LOG(sFunctionRef..': Mod dist%='..(tLZOrWZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Plateau of nearest friendly base='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) or 'nil')..'; Enemy combat='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Dist to friendly base='..M28Utilities.GetDistanceBetweenPositions(tPosition, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) end
-        if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.6 or (M28Map.iMapSize < 512 and tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.8) then
+        if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.6 or (M28Map.iMapSize <= 512 and tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.8) then
             --Ignore if dif plateau to our closest base, or closest base is too far away
             if NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) == iPlateauOrZero and tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 100000 and M28Utilities.GetDistanceBetweenPositions(tPosition, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= 500 then
                 --Check enemy doesnt still have a large army here (taking into account that the threat values may not have updated yet)

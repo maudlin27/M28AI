@@ -2659,11 +2659,11 @@ function OnCreateWreck(tPosition, iMass, iEnergy, oOptionalWreck)
             end
         end
         --High value wrecks (experimentals) - activate special engi logic
-        LOG('TEMPCODE wreck created, iMass='..(iMass or 'nil')..'; oOptionalWreck.MaxMassReclaim='..(oOptionalWreck.MaxMassReclaim or 'nil'))
+        --LOG('TEMPCODE wreck created, iMass='..(iMass or 'nil')..'; oOptionalWreck.MaxMassReclaim='..(oOptionalWreck.MaxMassReclaim or 'nil'))
         if iMass >= 8000 and oOptionalWreck then
             for iCurTeam = 1, M28Team.iTotalTeamCount do
                 if M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
-                    LOG('TEMPCODE Starting high value reclaim order for team '..iCurTeam)
+                    --LOG('TEMPCODE Starting high value reclaim order for team '..iCurTeam)
                     ForkThread(M28Engineer.HighValueReclaimOrder, iCurTeam, oOptionalWreck, tPosition)
                 end
             end
