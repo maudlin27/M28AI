@@ -6762,7 +6762,6 @@ function ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild, t
         oEngineerToBuild[refiGETemplateTimeTryingToBuild] = 0
     elseif oEngineerToBuild[refiGETemplateTimeTryingToBuild] >= 4 and (M28Orders.bDontConsiderCombinedArmy or oEngineerToBuild.M28Active) then
         --Check for blocking mobile units where we are trying to build that are owend by a different M28AI so we can transfer ownership over
-        bDebugMessages = true
         local rBuildArea = M28Utilities.GetRectAroundLocation(tLocationToBuild, M28UnitInfo.GetBuildingSize(sBPToBuild) * 0.5)
         local tBlockingUnits = GetUnitsInRect(rBuildArea)
         if bDebugMessages == true then LOG(sFunctionRef..': Checking for units in blocking area, will draw, is table of blocking units empty='..tostring(M28Utilities.IsTableEmpty(tBlockingUnits))) M28Utilities.DrawRectangle(rBuildArea) end
