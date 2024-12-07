@@ -35,7 +35,7 @@ else
             --LOG('M28OnCreate triggering from unit.lua')
             M28Wreckage.OnCreate(self)
             if self.CachePosition and (self.MaxMassReclaim or self.MaxEnergyReclaim) then
-                ForkThread(M28Events.OnCreateWreck, self.CachePosition, self.MaxMassReclaim or self.MaxEnergyReclaim)
+                ForkThread(M28Events.OnCreateWreck, self.CachePosition, self.MaxMassReclaim or self.MaxEnergyReclaim, self)
             end
         end,
     }

@@ -270,8 +270,8 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             M28OldUnit.OnWorkEnd(self, work)
         end,--]]
         OnDamage = function(self, instigator, amount, vector, damageType)
-            M28OldUnit.OnDamage(self, instigator, amount, vector, damageType)
-            if M28OldUnit.OnDamaged then M28Events.OnDamaged(self, instigator) end --Want this after just incase our code messes things up
+            if M28OldUnit.OnDamage then M28OldUnit.OnDamage(self, instigator, amount, vector, damageType) end
+            M28Events.OnDamaged(self, instigator) --Want this after just incase our code messes things up
         end,
         OnSiloBuildEnd = function(self, weapon)
             --LOG('OnSiloBuildEnd triggered')

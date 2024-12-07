@@ -864,7 +864,12 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                         end
                                     end
                                 end
-                                if iTotalDamage == 0 then oUnit[M28UnitInfo.refbProjectilesMeanShouldRefuel] = false end
+                                if iTotalDamage == 0 then
+                                    --Are we low health?
+                                    if M28UnitInfo.GetUnitHealthPercent(oUnit) > iProjectileLowHealthThreshold then
+                                        oUnit[M28UnitInfo.refbProjectilesMeanShouldRefuel] = false
+                                    end
+                                end
                             end
 
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs of tLastOrder='..reprs(tLastOrder)..'; Is oExistingValidAttackTarget valid='..tostring(M28UnitInfo.IsUnitValid(oExistingValidAttackTarget))) end
@@ -2455,6 +2460,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
                 end
             end
             for iUnit, oUnit in tUnitsUnableToRefuel do
+                if bDebugMessages == true then LOG(sFunctionRef..': Telling unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to move to refuel location, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Cur dist to tRefuelBase='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRefuelBase)) end
                 M28Orders.IssueTrackedMove(oUnit, tRefuelBase, 10, false, 'WntStgn', false)
                 if bConsiderKillingUnits and oUnit:GetFuelRatio() <= 0.1 and oUnit:GetFuelRatio() >= 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and (not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2)) then --(experimental condition is a redundancy)
                     ForkThread(M28Micro.MoveAndKillAirUnit,oUnit)
@@ -7125,7 +7131,8 @@ function UpdateTransportLocationShortlist(iTeam, bUpdateCombatDropShortlist)
                             bTooMuchThreatOrEngisTraveling = true
                             break
                         elseif tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 175 then
-                            if (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0) >= 100 then
+                            if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 250 or ((tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0) >= 100) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Significant threat in the zone') end
                                 iZonesWithSignificantThreat = iZonesWithSignificantThreat + 1
                             end
                         elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then

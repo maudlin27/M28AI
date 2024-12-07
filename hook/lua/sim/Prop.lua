@@ -15,7 +15,7 @@ Prop = Class(M28OldProp) {
     OnCreate = function(self)
         M28OldProp.OnCreate(self)
         if self.CachePosition then
-            ForkThread(M28Events.OnCreateWreck, self.CachePosition, self.MaxMassReclaim, self.MaxEnergyReclaim)
+            ForkThread(M28Events.OnCreateWreck, self.CachePosition, self.MaxMassReclaim, self.MaxEnergyReclaim, self)
         end
     end,
 }
