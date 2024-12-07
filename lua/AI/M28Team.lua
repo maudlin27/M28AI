@@ -156,6 +156,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftoEnemyT2Arti = 'M28LRArt' --Table of all enemy T2 arti (regardless of kills) - note firebase adj is used for those that are more dangerous
     refbStartedOnUnitWantingSpecialShielding = 'M28AGESt' --true if we have sent an order to build a gameender/unit wanting special shielding (currently used to decide if we need to be strict about blacklist locations)
     reftoAlliedQuantumOptics = 'M28QOU' --Table of M28 allied quanutm optics units
+    refbEnemyHasTeleport = 'M28EHsT' --True if we think enemy has or is getting teleport
 
     subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
@@ -225,6 +226,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftiPotentialCombatDropZonesByPlateau = 'M28TeamATrCmDZ' --[x] is plateau, [y]=1,2,...x, returns LZ ref for plateau to consider dropping if enemy has vulnerable mexes
     reftTransportCombatPlateauLandZoneDropShortlist = 'M28TeamATCurCmbShlst' --key is 1,2,...x, returns {iPlateau, iLandZone}, being locations where after evaluating enemy threat we want to send a combat drop
     reftiPotentialPondDropZones = 'M28TeamAirPotPondDrop' --[x] = 1,2,...x, returns the water zone
+    reftiHighTechEngiDropPlateauAndZones = 'M28TArTrEngPD' --[x] = 1,2,...x, returns {iPlateauOrZero, iLandOrWaterZone, iTechLevelWanted} - used to highlight zones wanting say a T3 engi to build SMD
     refiLastFailedIslandDropTime = 'M28TeamAirLastFailedDrop' --Gametimeseconds where we last had a transport die while trying to drop this plateau
     refiLastFailedIslandAndZoneDropTime = 'M28TeamTrLstFailDByIZ' --[x] is the island, [y] is the land zone, returns gametimeseconds where we last had a transport die while tryign to drop
     refiLastFailedWaterZoneDropTime = 'M28TeamTrLstFailWZ' --[x] is the water zone, returns gametimeseconds where we last had a transport die while traveling here
@@ -3116,11 +3118,15 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
             for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
                 if oBrain[M28Economy.refiOurHighestAirFactoryTech] == 2 and (not(bOnlyConsiderLandFactory) or oBrain[M28Overseer.refbPrioritiseAir]) and (not(oBrain[M28Overseer.refbPrioritiseLand]) or oBrain[M28Economy.refiOurHighestLandFactoryTech] > 2) then
                     if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ)) then
+                        --If we need torp bombers then be less likely to upgrade
                         tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirHQ * categories.TECH2, false, true)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Added table of air facs for brain '..oBrain.Nickname..'; is tPotentialUnits empty='..tostring(M28Utilities.IsTableEmpty(tPotentialUnits))) end
                         --Dont add factories that havent built much (for air fac will consider T1+ since may be building inties
+                        local iLifetimeThreshold = 5
+                        if tAirSubteamData[oBrain.M28SubteamData][refbNoAvailableTorpsForEnemies] then iLifetimeThreshold = 20 end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Added table of air facs for brain '..oBrain.Nickname..'; is tPotentialUnits empty='..tostring(M28Utilities.IsTableEmpty(tPotentialUnits))..'; iLifetimeThreshold='..iLifetimeThreshold..'; tAirSubteamData[oBrain.M28SubteamData][refbNoAvailableTorpsForEnemies]='..tostring(tAirSubteamData[oBrain.M28SubteamData][refbNoAvailableTorpsForEnemies] or false)) end
                         for iFactory, oFactory in tPotentialUnits do
-                            if M28Conditions.GetFactoryLifetimeCount(oFactory, categories.MOBILE - M28UnitInfo.refCategoryAirScout) > 5 or (oBrain[M28Economy.refiOurHighestAirFactoryTech] <= oBrain[M28Economy.refiOurHighestLandFactoryTech]) then
+                            if M28Conditions.GetFactoryLifetimeCount(oFactory, categories.MOBILE - M28UnitInfo.refCategoryAirScout) > iLifetimeThreshold or (oBrain[M28Economy.refiOurHighestAirFactoryTech] <= oBrain[M28Economy.refiOurHighestLandFactoryTech] and not(tAirSubteamData[oBrain.M28SubteamData][refbNoAvailableTorpsForEnemies])) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will add factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' with mobile lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, categories.MOBILE - M28UnitInfo.refCategoryAirScout)..' to the table') end
                                 AddPotentialUnitsToShortlist(toSafeUnitsToUpgrade, { oFactory })
                             end
                         end
