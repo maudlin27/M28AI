@@ -7255,7 +7255,7 @@ end
 
 function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
     --Returns island, plateau and land zone that we want to drop at (or nil if there are none)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetIslandPlateauAndLandZoneForTransportToTravelTo'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
