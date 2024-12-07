@@ -7131,7 +7131,8 @@ function UpdateTransportLocationShortlist(iTeam, bUpdateCombatDropShortlist)
                             bTooMuchThreatOrEngisTraveling = true
                             break
                         elseif tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 175 then
-                            if (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0) >= 100 then
+                            if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 250 or ((tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0) >= 100) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Significant threat in the zone') end
                                 iZonesWithSignificantThreat = iZonesWithSignificantThreat + 1
                             end
                         elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
