@@ -839,6 +839,7 @@ function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sOptionalAdditionalTr
     --Where we are doing all actions upfront can call this to enable micro and then turn the flag off after set period of time
     --Note that air logic currently doesnt make use of this
     --bLowerPriorityMicro - if this is true then this will be ignored by 'higher priority micro'
+    --if iSecondsActiveFor is 0 then treat as infinite and dont reset the flag
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TrackTemporaryUnitMicro'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -853,7 +854,11 @@ function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sOptionalAdditionalTr
     oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
     oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + iSecondsActiveFor
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; oUnit[M28UnitInfo.refiGameTimeMicroStarted]='..oUnit[M28UnitInfo.refiGameTimeMicroStarted]..'; oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]='..oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]..'; iSecondsActiveFor='..iSecondsActiveFor) end
-    ForkThread(ForkedResetMicroFlag, oUnit, iSecondsActiveFor - 0.01, sOptionalAdditionalTrackingVar)
+    if iSecondsActiveFor == 0 then
+        --Do nothing
+    else
+        ForkThread(ForkedResetMicroFlag, oUnit, iSecondsActiveFor - 0.01, sOptionalAdditionalTrackingVar)
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
