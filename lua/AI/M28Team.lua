@@ -265,11 +265,13 @@ tAirSubteamData = {}
     subreftoFriendlyM28Brains = 'M28Brains' --table of friendly M28 brains
     subrefiMaxScoutRadius = 'M28ASTMaxScoutRadius' --Search range for scouts for this AirSubteam
     refbFarBehindOnAir = 'M28ASTFarBehindOnAir' --true if we are far behind on air
+    refiFarBehindFactor = 'M28ASTFarBhAFc' --e.g. 0.75 means refbFarBehindOnAir is true if our AirAA threat is <75% of enemy
     refbHaveAirControl = 'M28ASTHaveAirControl'
     reftACUExpAndPriorityDefenceOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
 
     --NOTE: Some of below are used for team as well (AirAA, Gunship, and Bomber (non-torp) threats)
     subrefiOurAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat; also used as a team variable
+    refiOurGunshipAAThreat = 'M28ASTGshAA' --Our available gunship AA threat
     subrefiOurGunshipThreat = 'M28ASTOurGShip' --Our gunship threat; also used as a team variable
     subrefiOurTorpBomberThreat = 'M28ASTOurTBmbT' --Our torp bomber threat
     subrefiOurBomberThreat = 'M28ASTOurBomb' --Our bomber threat; also used as a team variable
