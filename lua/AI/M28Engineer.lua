@@ -6301,7 +6301,7 @@ function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLa
                     end
                 end
                 for iAirSubteam, bInclude in tiAirSubteams do
-                    if M28Team.tAirSubteamData[iTeam][M28Team.refbNoAvailableTorpsForEnemies] then bWantTorps = true break end
+                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] then bWantTorps = true break end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': We lack eco for game endero s, goet novax only if we want torps or we have as many T3 arti as novaxes, bWantTorps='..tostring(bWantTorps)) end
                 if bWantTorps or (iNovaxCount <= iT3ArtiCount and (iFurthestEnemyBaseDist >= iArtiThreshold or iNovaxCount >= 5 or not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]))) then
