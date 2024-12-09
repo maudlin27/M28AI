@@ -502,7 +502,7 @@ function SendForkedMessageForSpecialUseOnly(aiBrain, sMessageType, sMessage, iOp
                         SendAudioMessage(sOptionalSoundCue, sOptionalSoundBank, 0, iOptionalTeamArmyIndex)
                     end
                 end
-                LOG(sFunctionRef..': M28 Sent chat message from brain '..aiBrain.Nickname..'. bOnlySendToTeam='..tostring(bOnlySendToTeam)..'; sMessageType='..sMessageType..'; sMessage='..sMessage) --Log so in replays can see if this triggers since chat doesnt show properly
+                LOG(sFunctionRef..': M28 Sent chat message from brain '..aiBrain.Nickname..'. Is oOptionalOnlyBrainToSendTo nil='..tostring(oOptionalOnlyBrainToSendTo == nil)..'; bOnlySendToTeam='..tostring(bOnlySendToTeam)..'; sMessageType='..sMessageType..'; sMessage='..sMessage) --Log so in replays can see if this triggers since chat doesnt show properly
             end
             if bDebugMessages == true then LOG(sFunctionRef..': tiM28VoiceTauntByType='..repru(tiM28VoiceTauntByType)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages='..repru(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages])) end
         end
