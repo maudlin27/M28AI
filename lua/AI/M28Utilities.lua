@@ -289,7 +289,7 @@ function IsTableEmpty(tTable, bEmptyIfNonTableWithValue, iOptionalCycleCount)
         if next (tTable) == nil then return true --(could probably also use table.empty)
         else
             for i1, v1 in pairs(tTable) do
-                if iOptionalCycleCount and iOptionalCycleCount >= 3 then return true
+                if iOptionalCycleCount and iOptionalCycleCount >= 5 then return false --If table has this many entries then assume it isnt empty
                 elseif IsTableEmpty(v1, false, (iOptionalCycleCount or 0) + 1) == false then return false end
             end
             return true

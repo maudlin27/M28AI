@@ -4,6 +4,7 @@
 ----------------------------------------------------------------------------
 
 function SyncAIChat(data)
+    LOG('TEMPCODE Using SorianUtils SyncAIChat')
     local Sync = Sync
     Sync.AIChat = Sync.AIChat or { }
     table.insert(Sync.AIChat, data)
@@ -16,6 +17,7 @@ end
 ---@param targetnickname string
 ---@param extrachat string
 function AISendChat(aigroup, ainickname, aiaction, targetnickname, extrachat)
+    LOG('TEMPCODE Using SorianUtils AISendChat')
     if aigroup then
         local aiBrain
         for iBrain, oBrain in ArmyBrains do
