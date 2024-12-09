@@ -3464,43 +3464,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                             if not(toPriorityUnitsByPlateauAndZone[iPlateauOrZero]) then toPriorityUnitsByPlateauAndZone[iPlateauOrZero] = {} end
                             if not(toPriorityUnitsByPlateauAndZone[iPlateauOrZero][iLandOrWaterZone]) then toPriorityUnitsByPlateauAndZone[iPlateauOrZero][iLandOrWaterZone] = {} end
                             table.insert(toPriorityUnitsByPlateauAndZone[iPlateauOrZero][iLandOrWaterZone], oUnit)
-                            function TEMPCODEIsTableEmpty(tTable, bEmptyIfNonTableWithValue, iOptionalCycleCount)
-                            --bEmptyIfNonTableWithValue - Optional, defaults to true
-                            --E.g. if passed oUnit to a function that was expecting a table, then setting bEmptyIfNonTableWithValue = false means it will register the table isn't nil
-                                LOG('TEMPCODE iOptionalCycleCount='..(iOptionalCycleCount or 'nil')..'; type(tTable)==table='..tostring(type(tTable) == 'table')..'; tTable==nil='..tostring(tTable==nil)..'; table.empty='..tostring(table.empty(tTable)))
-                                if (type(tTable) == "table") then
-                                    if next (tTable) == nil then
-                                        LOG('next(tTable) is nil returning true')
-                                        return true --(could probably also use table.empty)
-                                    else
-                                        for i1, v1 in pairs(tTable) do
-                                            if iOptionalCycleCount and iOptionalCycleCount >= 3 then
-                                                LOG('Cycle count>=3 so returning true')
-                                                return true
-                                            elseif TEMPCODEIsTableEmpty(v1, false, (iOptionalCycleCount or 0) + 1) == false then
-                                                LOG('Table not empty so returning false')
-                                                return false
-                                            end
-                                        end
-                                        LOG('Gone through all pairs in table so returning true')
-                                        return true
-                                    end
-                                else
-                                    if tTable == nil then
-                                        LOG('tTable is nil')
-                                        return true
-                                    else
-                                        if bEmptyIfNonTableWithValue == nil then
-                                            LOG('Returning nil as emptyifnontablewithvalue is nil')
-                                            return true --tried to simplify this with return (bEmptyIfNonTableWithValue or true) but it caused errors
-                                        else
-                                            LOG('Returning bEmptyIfNonTableWithValue value')
-                                            return bEmptyIfNonTableWithValue
-                                        end
-                                    end
-                                end
-                            end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to toPriorityUnitsByPlateauAndZone, is toPriorityUnitsByPlateauAndZone empty='..tostring(M28Utilities.IsTableEmpty(toPriorityUnitsByPlateauAndZone))..'; Is toPriorityUnitsByPlateauAndZone[iPlateauOrZero] empty='..tostring(M28Utilities.IsTableEmpty(toPriorityUnitsByPlateauAndZone[iPlateauOrZero]))..'; Is toPriorityUnitsByPlateauAndZone nil='..tostring(toPriorityUnitsByPlateauAndZone == nil)..'; TEMPCODEIsTableEmpty='..tostring(TEMPCODEIsTableEmpty(toPriorityUnitsByPlateauAndZone))) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to toPriorityUnitsByPlateauAndZone, is toPriorityUnitsByPlateauAndZone empty='..tostring(M28Utilities.IsTableEmpty(toPriorityUnitsByPlateauAndZone))..'; Is toPriorityUnitsByPlateauAndZone[iPlateauOrZero] empty='..tostring(M28Utilities.IsTableEmpty(toPriorityUnitsByPlateauAndZone[iPlateauOrZero]))..'; Is toPriorityUnitsByPlateauAndZone nil='..tostring(toPriorityUnitsByPlateauAndZone == nil)) end
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Is toPriorityUnitsByPlateauAndZone empty='..tostring(M28Utilities.IsTableEmpty(toPriorityUnitsByPlateauAndZone))) end
