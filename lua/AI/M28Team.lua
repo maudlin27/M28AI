@@ -5028,9 +5028,9 @@ function ConsiderSpecialStrategyAssignment(iTeam)
         --Dont build LABs at all some of the time
         if not(ScenarioInfo.Options.M28PrioritiseBPs == 2) and math.random(1, 10) <= 4 then
             for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
-                oBrain[M28Factory.reftBlueprintPriorityOverride]['ual0106'] = -1 --LAB (so prioritise aurora instead)
-                oBrain[M28Factory.reftBlueprintPriorityOverride]['url0106'] = -1 --LAB (so prioritise mantis instead)
-                oBrain[M28Factory.reftBlueprintPriorityOverride]['uel0106'] = -1 --Mechmarine (so prioritise striker instead)
+                oBrain[M28Factory.reftBlueprintPriorityOverride]['ual0106'] = -1000 --LAB
+                oBrain[M28Factory.reftBlueprintPriorityOverride]['url0106'] = -1000 --LAB
+                oBrain[M28Factory.reftBlueprintPriorityOverride]['uel0106'] = -1000 --Mechmarine
             end
         end
     end
