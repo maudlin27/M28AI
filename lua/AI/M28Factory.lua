@@ -4107,6 +4107,21 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective = GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam, iFactoryTechLevel, iAirSubteam)
 
     --MAIN BUILDER LOGIC:
+    --Early bomber build order
+    if bDebugMessages == true then LOG(sFunctionRef..': First bomber logic check, iFactoryTechLevel='..iFactoryTechLevel..'; aiBrain[M28Overseer.refbFirstBomber]='..tostring(aiBrain[M28Overseer.refbFirstBomber] or false)..'; Factory LC='..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Bomber LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBomber)) end
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel == 1 and aiBrain[M28Overseer.refbFirstBomber] and M28UnitInfo.GetUnitLifetimeCount(oFactory) == 1 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBomber) == 0 then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then return sBPIDToBuild end
+    end
+
+    --Engineers for start of game (e.g. relevant for if gone first bomber)
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel == 1 and M28UnitInfo.GetUnitLifetimeCount(oFactory) == 1 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) < 7 and tLZTeamData[M28Map.subrefTbWantBP] then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will try and get early engi') end
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+    end
+
+
     --Extreme unit cap scenario - avoid building more air and just abort altogether - if we dont have low mass and are at -1 or worse unit cap, then suggests we may not be able to build any more units
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if aiBrain[M28Overseer.refbCloseToUnitCap] and iFactoryTechLevel >= 3 and not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= -1 and aiBrain[M28Overseer.refiExpectedRemainingCap] < 20 then
@@ -4273,7 +4288,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         --1-off bomber to hunt engineers (low power version)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': 1 bomber high prioerty builder, Lifetime build count='..M28Conditions.GetAirSubteamLifetimeBuildCount(iAirSubteam, M28UnitInfo.refCategoryBomber)) end
-        if iFactoryTechLevel == 1 and M28Map.iMapSize > 256 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) == 0 and M28Conditions.GetAirSubteamLifetimeBuildCount(iAirSubteam, M28UnitInfo.refCategoryBomber) == 0 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 24 then
+        if iFactoryTechLevel == 1 and M28Map.iMapSize > 256 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbDontBuildEngiHunterEngineers]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) == 0 and M28Conditions.GetAirSubteamLifetimeBuildCount(iAirSubteam, M28UnitInfo.refCategoryBomber) == 0 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 24 then
             if bDebugMessages == true then LOG(sFunctionRef..': Will get high priority bomber to hunt engis') end
             if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
         end
@@ -4620,7 +4635,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             --1-off bomber to hunt engineers (dont have low power)
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if bDebugMessages == true then LOG(sFunctionRef..': 1 bomber high prioerty builder, Lifetime build count='..M28Conditions.GetAirSubteamLifetimeBuildCount(iAirSubteam, M28UnitInfo.refCategoryBomber)) end
-            if iFactoryTechLevel == 1 and M28Map.iMapSize > 256 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) == 0 and M28Conditions.GetAirSubteamLifetimeBuildCount(iAirSubteam, M28UnitInfo.refCategoryBomber) <= math.max(0, math.min(1, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5)) then
+            if iFactoryTechLevel == 1 and M28Map.iMapSize > 256 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbDontBuildEngiHunterEngineers]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) == 0 and M28Conditions.GetAirSubteamLifetimeBuildCount(iAirSubteam, M28UnitInfo.refCategoryBomber) <= math.max(0, math.min(1, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Getting engi hunting bomber') end
                 if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
             end

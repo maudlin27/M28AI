@@ -298,6 +298,7 @@ tAirSubteamData = {}
     refoLastHumanGiftedASFs = 'M28ALstHumGifASF' --last human brain we gave asfs to
     reftiLastTransportDropByPlateauAndZone = 'M28TeamTrLstDpPZ' --[x] is the plateau (0 if water), [y] is the land/water zone; returns gametimeseconds that we last issued an unload order for that zone
     reftiTimeOfLastEngiHunterBomberOrder = 'M28ASTEHn' --Gametimeseconds that last sent a bomber for engi hunter assignment
+    refbDontBuildEngiHunterEngineers = 'M28ASTEbBr' --true if one of the air subteam has gone first bomber; also true if we dont want to get engi hunters at all
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -3802,6 +3803,7 @@ function TeamInitialisation(iM28Team)
         TeamEconomyRefresh(iM28Team)
         ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iM28Team)
         ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachWaterZone, iM28Team)
+        ForkThread(ConsiderSpecialStrategyAssignment, iM28Team)
         M28Air.AirTeamInitialisation(iM28Team)
         local iM28Count = 0
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
@@ -4952,4 +4954,79 @@ function SetIfLoseGameOnACUDeath(iTeam)
         bAssassinationOrSimilar = false
     end
     tTeamData[iTeam][refbAssassinationOrSimilar] = bAssassinationOrSimilar
+end
+
+function ConsiderSpecialStrategyAssignment(iTeam)
+    local sFunctionRef = 'ConsiderSpecialStrategyAssignment'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Ignore for campaign
+    if M28Map.bIsCampaignMap then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return nil
+    end
+    --Wait until map setup complete
+    while not(M28Map.bMapLandSetupComplete) or not(M28Map.bNearestEnemyBaseLZSetupComplete) do
+        WaitTicks(1)
+        if GetGameTimeSeconds() >= 6 then
+            M28Utilities.ErrorHandler('Aborting special strategy as land zones not setup yet')
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return nil
+        end
+    end
+    M28Map.CheckIfLowMexMap()
+    if not(M28Map.bIsLowMexMap) and not(M28Overseer.bNoRushActive) then
+        --Early bomber chance - lower if fewer enemies, lowest being 1v1 on small map
+        local iBomberChance
+        if M28Map.iMapSize <= 256 and iPlayersAtGameStart <= 4 then
+            iBomberChance = 0.1
+        elseif M28Map.iMapSize <= 512 and iPlayersAtGameStart <= 4 then
+            iBomberChance = 0.175
+        else
+            iBomberChance = math.max(0.1, (0.5 * math.min(10, iPlayersAtGameStart) / 10))
+        end
+            if iBomberChance * 100 >= math.random(1, 100) then
+                --Consider early bomber strategy for brain with closest enemy (unless in LOUD since bombers suck in LOUD)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to go first bomber, M28Utilities.bLCEActive='..tostring(M28Utilities.bLCEActive or false)..'; Time='..GetGameTimeSeconds()) end
+                if not(M28Utilities.bLoudModActive) or M28Utilities.bLCEActive then
+                    local iClosestEnemy = 700 --Dont want to consider if enemy is further away than this; e.g. burial mounds in LOUD players were 792 apart, and is probably at a borderline distnce for if want to
+                    local oM28BrainWithClosestEnemy, iCurDist, iCurPlateau, iCurZone
+
+                    for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                    --Ignore if have chosen a land AI, or cant build bombers or t1 air facs
+                        if not(oBrain[M28Overseer.refbPrioritiseLand]) and not(M28UnitInfo.IsUnitRestricted('uea0103', oBrain:GetArmyIndex())) and not(M28UnitInfo.IsUnitRestricted('ueb0102', oBrain:GetArmyIndex())) then
+                            --Get dist to closest enemy
+                            local tCurStart = M28Map.GetPlayerStartPosition(oBrain)
+                            iCurPlateau, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tCurStart)
+                            if iCurPlateau > 0 and iCurZone then
+                                local tLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurZone][M28Map.subrefLZTeamData][iTeam]
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurStart, tLZTeamData[M28Map.reftClosestEnemyBase])
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateau='..iCurPlateau..'; iCurZone='..iCurZone..'; tCurStart='..repru(tCurStart)..'; tLZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; iCurDist='..iCurDist..'; Time='..GetGameTimeSeconds()) end
+                                if iCurDist < iClosestEnemy then
+                                    iClosestEnemy = iCurDist
+                                    oM28BrainWithClosestEnemy = oBrain
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Flagging we want first bomber for oM28BrainWithClosestEnemy='..(oM28BrainWithClosestEnemy.Nickname or 'nil')) end
+                    if oM28BrainWithClosestEnemy then
+                        oM28BrainWithClosestEnemy[M28Overseer.refbFirstBomber] = true
+                        tAirSubteamData[oM28BrainWithClosestEnemy.M28AirSubteam][refbDontBuildEngiHunterEngineers] = true
+                    end
+                end
+            end
+            --Disable early bomber engineers some of the time
+            --[[if math.random(1,10) <= 3 then
+        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+        tAirSubteamData[oBrain.M28AirSubteam][refbDontBuildEngiHunterEngineers] = true
+        end
+            end
+            --Dont build LABs at all some of the time
+            if not(ScenarioInfo.Options.M28PrioritiseBPs == 2) and math.random(1, 10) <= 4 then
+            end--]]
+
+    end    
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

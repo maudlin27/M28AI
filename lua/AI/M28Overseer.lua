@@ -73,6 +73,8 @@ refbPrioritiseNavy = 'M28PersNavy'
 refbPrioritiseLowTech = 'M28PesLowTech'
 refbPrioritiseHighTech = 'M28PersHighTech'
 refbPrioritiseDefence = 'M28PersDef'
+--Special strategies:
+refbFirstBomber = 'M28FirstB'
 
 
 

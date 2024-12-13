@@ -19,6 +19,7 @@ local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 bPlayableAreaSetup = false
 bUnexploredMap = false --Mapgen map had some sort of 'unexplored' feature which messes up the playable area logic
 bMapLandSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
+bNearestEnemyBaseLZSetupComplete = false --set to true once recorded nearest enemy base for land zones
 bWaterZoneInitialCreation = false --set to true once have finished code for recording water zones (note WZ setup wont be fully complete yet)
 bWaterZoneFirstTeamInitialisation = false --set to true when the first team runs logic for creating team related variables for a water zone
 bRecordedIslands = false
@@ -3955,7 +3956,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
             end
         end
     end
-
+    bNearestEnemyBaseLZSetupComplete = true
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

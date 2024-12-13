@@ -631,7 +631,24 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 if M28Map.bIsLowMexMap and GetGameTimeSeconds() <= 1800 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] == 0 then
                     GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData)
                 else
-                    if iCurLandFactories == 0 then
+                    --First bomber mode - apply special build order
+                    if aiBrain[M28Overseer.refbFirstBomber] and iCurLandFactories == 0 then
+                        --If havent got pgen then build pgen
+                        local iCurPGens = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)
+                        local iCurAirFac = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)
+                        local iCurMex = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex)
+                        if iCurPGens == 0 or (iCurPGens < 3 and M28Utilities.bLCEActive) then
+                            ACUActionBuildPower(aiBrain, oACU)
+                        elseif iCurAirFac == 0 then
+                            ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory)
+                        elseif iCurPGens < 3 or (iCurPGens < 4 and M28Utilities.bLCEActive) then
+                            ACUActionBuildPower(aiBrain, oACU)
+                        elseif iCurMex < 4 and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+                            ACUActionBuildMex(aiBrain, oACU)
+                        else
+                            ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
+                        end
+                    elseif iCurLandFactories == 0 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build a land factory') end
                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
                         --Build more factories if we have 100% E, positive net energy, have a decent amount of mass stored, and we have at least 1 pgen or hydro
