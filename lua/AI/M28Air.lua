@@ -7579,24 +7579,47 @@ function GetPlateauAndZoneForEngineerSupport(iTeam, oUnit)
             local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
             local iTimeSinceLastTransportDeath
             local iCurUnitPlateau, iCurUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-
-            for iEntry, tiPlateauZoneAndTech in tShortlist do
-                local tCurLZOrWZData
+            local bRemoveCurEntry
+            for iEntry = table.getn(tShortlist), 1, -1 do
+                local tiPlateauZoneAndTech = tShortlist[iEntry]
+                bRemoveCurEntry = false
+                local tCurLZOrWZData, tCurLZOrWZTeamData
                 if tiPlateauZoneAndTech[1] > 0 then
                     tCurLZOrWZData = M28Map.tAllPlateaus[tiPlateauZoneAndTech[1]][M28Map.subrefPlateauLandZones][tiPlateauZoneAndTech[2]]
-                    --tCurLZOrWZTeamData = tCurLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                    tCurLZOrWZTeamData = tCurLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                 else
                     tCurLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tiPlateauZoneAndTech[2]]][M28Map.subrefPondWaterZones][tiPlateauZoneAndTech[2]]
-                    --tCurLZOrWZTeamData = tCurLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                    tCurLZOrWZTeamData = tCurLZOrWZData[M28Map.subrefWZTeamData][iTeam]
                 end
                 iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurLZOrWZData[M28Map.subrefMidpoint], oUnit:GetPosition())
                 if iCurDist < iClosestDist then
+                    --Do we have any t3 engis or factories in this zone already? If so then clear the flag
+                    if M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                        local tEngineersAndFactories = EntityCategoryFilterDown((M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory) * categories.TECH3, tCurLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tEngineersAndFactories) == false then
+                            bRemoveCurEntry = true
+                        end
+                    end
+                    --Check adjacent zones
+                    if not(bRemoveCurEntry) and M28Utilities.IsTableEmpty(tCurLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tCurLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZTeamData = M28Map.tAllPlateaus[tiPlateauZoneAndTech[1]][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                            if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                local tEngineersAndFactories = EntityCategoryFilterDown((M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory) * categories.TECH3, tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                if M28Utilities.IsTableEmpty(tEngineersAndFactories) == false then
+                                    bRemoveCurEntry = true
+                                    break
+                                end
+                            end
+                        end
+                    end
                     --Is it safe to travel here?
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; iCurDist='..iCurDist..'; P='..tiPlateauZoneAndTech[1]..'Z='..tiPlateauZoneAndTech[2]..'; tCurLZOrWZData[M28Map.subrefLZIslandRef]='..(tCurLZOrWZData[M28Map.subrefLZIslandRef] or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; iCurDist='..iCurDist..'; P='..tiPlateauZoneAndTech[1]..'Z='..tiPlateauZoneAndTech[2]..'; tCurLZOrWZData[M28Map.subrefLZIslandRef]='..(tCurLZOrWZData[M28Map.subrefLZIslandRef] or 'nil')..'; bRemoveCurEntry='..tostring(bRemoveCurEntry)) end
 
                     --Has a transport recently died trying to get here? then ignore
-
-                    if tCurLZOrWZData[M28Map.subrefLZIslandRef] then
+                    if bRemoveCurEntry then
+                        table.remove(tShortlist, iEntry)
+                    elseif tCurLZOrWZData[M28Map.subrefLZIslandRef] then
                         iTimeSinceLastTransportDeath = GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tCurLZOrWZData[M28Map.subrefLZIslandRef][2]][tiPlateauZoneAndTech[2]] or -1000)
                         if bDebugMessages == true then LOG(sFunctionRef..': iTimeSinceLastTransportDeath='..iTimeSinceLastTransportDeath) end
                         if iTimeSinceLastTransportDeath > 180 and (iTimeSinceLastTransportDeath >= 300 or not(DoesEnemyHaveAAThreatAlongPath(iTeam, tiPlateauZoneAndTech[1], tiPlateauZoneAndTech[2], iCurUnitPlateau, iCurUnitZone, false, 100,          nil,                     false,         iAirSubteam,         true, nil, oUnit:GetPosition()))) then
