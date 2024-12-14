@@ -7766,7 +7766,8 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                     end
 
                                     --If still have available engineers, then focus on getting more shielding if either we lack 3 completed shields, or enemy has T3 arti
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Do we still ahve available engineers? is table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))) end
+                                    if tTableRef[M28Map.subrefbHaveTooSmallShields] then bDebugMessages = true end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Do we still ahve available engineers? is table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; tTableRef[M28Map.subrefbHaveTooSmallShields]='..tostring(tTableRef[M28Map.subrefbHaveTooSmallShields] or false)) end
                                     if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
                                         --If are powerstalling then disband engineers and dont proceed with construction
                                         if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
@@ -7790,6 +7791,20 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                             else
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Dont want to build more shields unless we have better power')
                                                     bDisbandForPowerStall = true
+                                                end
+                                            end
+                                        elseif tTableRef[M28Map.subrefbHaveTooSmallShields] and iCompletedShields >= iShieldLocations and (oFirstSeraphim or oFirstUEF) then
+                                            local tUEFAndSeraEngis = EntityCategoryFilterDown((categories.UEF + categories.SERAPHIM) * categories.TECH3, tAvailableEngineers)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider destroying a shield to rebuild with a larger one if we have UEF or Sera engineers, is tUEFAndSeraEngis empty='..tostring(M28Utilities.IsTableEmpty(tUEFAndSeraEngis))) end
+                                            if M28Utilities.IsTableEmpty(tUEFAndSeraEngis) == false then
+                                                --Destroy one of the small shields
+                                                for iShield, oShield in tTableRef[M28Map.subrefGEShieldUnits] do
+                                                    if oShield[M28Building.refbProtectingAllArtiAndShieldLocations] == false then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Have shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' that is not protecting all arti and shield locations so will ctrlk it so can rebuild with larger shield') end
+                                                        M28Orders.IssueTrackedKillUnit(oShield)
+                                                        tTableRef[M28Map.subrefbHaveTooSmallShields] = nil
+                                                        break
+                                                    end
                                                 end
                                             end
                                         end

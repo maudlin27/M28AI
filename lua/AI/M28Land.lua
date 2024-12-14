@@ -8292,7 +8292,15 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU to table of units wanting mobile shield for this zone') end
                                 table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                             elseif M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 then --when assigning a mobile shield, we should do it to this table first, and to refoAssignedMobileShield last; that way, the below should only be relevant if previously assigned mobile shields have died or retreated; although not perfect since it means a smaller number assigned, hopefully it will be close enough and avoids the risk of inconsistent conditions leading to an infinite cycle of shield assignment (if changing then need to do an M28Conditions function)
-                                if not(M28Conditions.IsTableOfUnitsStillValid(oUnit[reftoAdditionalAssignedMobileShields])) then
+                                --If ACU is under fixed shield at core base then dont require mobile shields
+                                if tLZTeamData[M28Map.subrefLZbCoreBase] and M28Logic.IsTargetUnderShield(aiBrain, oUnit, 10000, false, true, false, false, false) then
+                                    if M28Conditions.IsTableOfUnitsStillValid(oUnit[reftoAdditionalAssignedMobileShields]) then
+                                        --Remove all extra assigned mobile shields if have ACU under fixed shield
+                                        for iCurMobileShield = table.getn(oUnit[reftoAdditionalAssignedMobileShields]), 1, -1 do
+                                            ClearCurrentShieldTarget(oUnit[reftoAdditionalAssignedMobileShields][iCurMobileShield])
+                                        end
+                                    end
+                                elseif not(M28Conditions.IsTableOfUnitsStillValid(oUnit[reftoAdditionalAssignedMobileShields])) then
                                     table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                                 end
                             end

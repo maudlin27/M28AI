@@ -83,7 +83,7 @@ refbRecentlyCheckedTMDOrTML = 'M28BRChTm' --true if we have recently checked thi
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
-refbProtectingAllArtiLocations = 'M28BuildShdProtAllArti' --true if a shield is covering the midpoint of all arti locations (or arti units) - used os we avoid including in shield cycling shields like aeon shields that are too far away
+refbProtectingAllArtiAndShieldLocations = 'M28BuildShdProtAllArti' --true if a shield is covering the midpoint of all arti and shield locations (or arti units) - used os we avoid including in shield cycling shields like aeon shields that are too far away
 refiLastTargetValue = 'M28ArtiTgVal' --value of the last target the arti targeted
 
 --Special buildings
@@ -4459,18 +4459,18 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
 
                 if oShield:GetFractionComplete() == 1 then
                     --Check we should include the shield (i.e. that it is covering the arti locations); assume UEF and seraphim T3+ are
-                    if oShield[refbProtectingAllArtiLocations] == nil then
-                        oShield[refbProtectingAllArtiLocations] = true --default
-                        if not(EntityCategoryContains(categories.SERAPHIM + categories.UEF - categories.TECH2, oShield.UnitId)) then
-
+                    if oShield[refbProtectingAllArtiAndShieldLocations] == nil or tTableRef[M28Map.subrefbHaveTooSmallShields] == nil then
+                        if EntityCategoryContains(categories.AEON, oShield.UnitId) then bDebugMessages = true end
+                        oShield[refbProtectingAllArtiAndShieldLocations] = true --default
+                        if not(EntityCategoryContains(categories.SERAPHIM + categories.UEF - categories.TECH2, oShield.UnitId)) and tTableRef[M28Map.subrefGESize] > 22 then
                             iCurShieldRadius = (oShield:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5
                             if iCurShieldRadius < 10 then
-                                oShield[refbProtectingAllArtiLocations] = false
+                                oShield[refbProtectingAllArtiAndShieldLocations] = false
                             else
                                 if M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEArtiUnits]) then
                                     for iArti, oArti in tTableRef[M28Map.subrefGEArtiUnits] do
                                         if M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oShield:GetPosition()) > iCurShieldRadius then
-                                            oShield[refbProtectingAllArtiLocations] = false
+                                            oShield[refbProtectingAllArtiAndShieldLocations] = false
                                             break
                                         end
                                     end
@@ -4478,16 +4478,40 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                                     --Use expected arti locations
                                     for iArti, tArti in tTableRef[M28Map.subrefGEArtiLocations] do
                                         if M28Utilities.GetDistanceBetweenPositions(tArti, oShield:GetPosition()) > iCurShieldRadius then
-                                            oShield[refbProtectingAllArtiLocations] = false
+                                            oShield[refbProtectingAllArtiAndShieldLocations] = false
+                                            break
+                                        end
+                                    end
+                                end
+                                if oShield[refbProtectingAllArtiAndShieldLocations] then
+                                    --Cycle through shield locations
+                                    for iShieldLocation, tShieldLocation in tTableRef[M28Map.subrefGEShieldLocations] do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' is covering all arti and shield locations, dist to tShieldLocation='..M28Utilities.GetDistanceBetweenPositions(tShieldLocation, oShield:GetPosition())..'; iCurShieldRadius='..iCurShieldRadius) end
+                                        if M28Utilities.GetDistanceBetweenPositions(tShieldLocation, oShield:GetPosition()) > iCurShieldRadius then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': We cant cover other shields from this location') end
+                                            oShield[refbProtectingAllArtiAndShieldLocations] = false
                                             break
                                         end
                                     end
                                 end
                             end
                         end
+                        if not(oShield[refbProtectingAllArtiAndShieldLocations]) then tTableRef[M28Map.subrefbHaveTooSmallShields] = true end
+                        if tTableRef[M28Map.subrefbHaveTooSmallShields] == nil then
+                            --Check every shield to see if any have this flagged
+                            for iRecordedShield, oRecordedShield in tTableRef[M28Map.subrefGEShieldUnits] do
+                                if oRecordedShield[refbProtectingAllArtiAndShieldLocations] == false then
+                                    tTableRef[M28Map.subrefbHaveTooSmallShields] = true
+                                end
+                            end
+                            if not(tTableRef[M28Map.subrefbHaveTooSmallShields]) then
+                                tTableRef[M28Map.subrefbHaveTooSmallShields] = false
+                            end
+                        end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; oShield[refbProtectingAllArtiLocations]='..tostring(oShield[refbProtectingAllArtiLocations] or false)) end
-                    if oShield[refbProtectingAllArtiLocations] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; oShield[refbProtectingAllArtiAndShieldLocations]='..tostring(oShield[refbProtectingAllArtiAndShieldLocations] or false)) end
+                    bDebugMessages = false
+                    if oShield[refbProtectingAllArtiAndShieldLocations] then
                         iCompletedShieldCount = iCompletedShieldCount + 1
                         iCurHealth, iMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' at time='..GetGameTimeSeconds()..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; Is shield enabled='..tostring(M28UnitInfo.IsUnitShieldEnabled(oShield))..'; Time since last discharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield paused='..tostring(oShield[M28UnitInfo.refbPaused] or false)) end

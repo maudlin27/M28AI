@@ -351,6 +351,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefGEDefenceBlockedFailureCount = 17
                 subrefGEAvailableDefenceLocations = 18 --i.e. 'size 4' locations that can be used for PD, SAMs etc.
                 subrefGEDefenceUnits = 19 --i.e. any 'size 4' units that have been built in defence locations
+                subrefbHaveTooSmallShields = 20 --true if we have a shield that is too small to cover other shields
 
 
 
