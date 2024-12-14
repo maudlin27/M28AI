@@ -2807,6 +2807,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     elseif M28Utilities.bLCEActive then  iGameEnderTemplateCategories = M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti
     else iGameEnderTemplateCategories = M28UnitInfo.refCategoryGameEnder
     end
+    local bGettingNonSeraphimAirExp = false
     if not(tbEngineersOfFactionOrNilIfAlreadyAssigned) then
         if bDebugMessages == true then LOG(sFunctionRef..': Already have unit under construction so will return experimentallevel') end
         iCategoryWanted = M28UnitInfo.refCategoryExperimentalLevel - categories.NAVAL --Already have the unit under construction
@@ -3477,6 +3478,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             local iUnderConstructionLandExp = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryLandExperimental)
                             if aiBrain[M28Overseer.refbPrioritiseAir] and not(bDontGetAirExp) then
                                 iCategoryWanted = (M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
+                                bGettingNonSeraphimAirExp = true
                             elseif bPrioritiseLand and bCanPathAmphibiously then
                                 if ScenarioInfo.Options.M28PrioritiseBPs == 2 then --dont want to prioritise certain units
                                     iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR --megalith has better torps
@@ -3491,6 +3493,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 --Consider building  then
                                 --Air exp
                                 if not(bDontGetAirExp) and iCurAirExperimentals == 0 and (bHaveAirControl or (not(bFarBehindOnAir) and (iDistToNearestEnemyBase >= 900 or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 2 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL) == 0))) then
+                                    bGettingNonSeraphimAirExp = true
                                     iCategoryWanted = M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                                     iFactionRequired = nil
                                     if bDebugMessages == true then LOG(sFunctionRef..': Cybr want exp air') end
@@ -3518,6 +3521,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     end
                                 end
                                 if bGetAirExperimentalInstead then
+                                    bGettingNonSeraphimAirExp = true
                                     iCategoryWanted = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                                     if bDebugMessages == true then LOG(sFunctionRef..': Cybr will get exp air') end
                                 elseif not(bCanPathByLand) then
@@ -3561,11 +3565,13 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering aeon specific experimental, iCurAirExperimentals='..iCurAirExperimentals..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Land exp='..iTeamLandExperimentals..'; iFriendlyGameEnderUnderConstruction='..iFriendlyGameEnderUnderConstruction..'; iEnemyT3ArtiEquivalent='..iEnemyT3ArtiEquivalent..'; refbDefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or false)..'; iEnemyLandExperimentalCount='..iEnemyLandExperimentalCount..'; Our gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iOur bomber threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]..'; iLifetimeAirExpCount='..iLifetimeAirExpCount..'; iLifetimeGroundExpCount='..iLifetimeGroundExpCount..'; bHaveLargeBuildAreaAvailable='..tostring(bHaveLargeBuildAreaAvailable)..'; iUnderConstructionLandExp='..iUnderConstructionLandExp) end
 
                             if aiBrain[M28Overseer.refbPrioritiseAir] and not(bDontGetAirExp) then
+                                bGettingNonSeraphimAirExp = true
                                 iCategoryWanted = (M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                             elseif bPrioritiseLand and bCanPathAmphibiously then
                                 iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
                             elseif not(bDontGetAirExp) and bHaveLargeBuildAreaAvailable and ((iLifetimeGroundExpCount >= 4 and iLifetimeAirExpCount < iLifetimeGroundExpCount / 5 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 4) or (not(bCanPathByLand) and iEnemyLandExperimentalCount <= iTeamLandExperimentals + iUnderConstructionLandExp)) and (bHaveAirControl or (not(bFarBehindOnAir) and M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] <= 20) or M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] <= 8) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have built lots of exp but havent tried many czars so will get some even if we lack air control') end
+                                bGettingNonSeraphimAirExp = true
                                 iCategoryWanted = M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                             elseif M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] and (iCurAirExperimentals + iTeamLandExperimentals > (iFriendlyGameEnderUnderConstruction + iCurT3ArtiCount) or iCurAirExperimentals + iTeamLandExperimentals > 0 and iEnemyT3ArtiEquivalent > 0) then
                                 iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
@@ -3580,6 +3586,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 --Consider building Czar
                                 if not(bDontGetAirExp) and bHaveLargeBuildAreaAvailable and iCurAirExperimentals <= iCurT3ArtiCount and (iEnemyT3ArtiEquivalent < 1 or iCurAirExperimentals == 0) and (not(M28Conditions.TeamIsFarBehindOnAir(iTeam)) or (iEnemyT3ArtiEquivalent == 0 and iCurAirExperimentals == 0 and iLifetimeAirExpCount <= 2) or (iCurT3ArtiCount >= 3 and iCurAirExperimentals == 0 and iLifetimeAirExpCount < iCurT3ArtiCount)) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want to get some Czars') end
+                                    bGettingNonSeraphimAirExp = true
                                     iCategoryWanted = M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                                 elseif iDistToNearestEnemyBase <= iArtiThreshold and (bDontConsiderGameEnderInMostCases or iFurthestEnemyBaseDist <= iArtiThreshold or iEnemyBasesWithinArtiThreshold >= 1 + 2 * iEnemyBasesOutsideArtiThreshold or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
                                     if iEnemyT3ArtiEquivalent < 4 then
@@ -3627,6 +3634,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': We can path to enemy amphibiously so will consider whether to get air or land, bGetAirExperimentalInstead='..tostring(bGetAirExperimentalInstead or false)) end
                                 if bGetAirExperimentalInstead then
+                                    bGettingNonSeraphimAirExp = true
                                     iCategoryWanted = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                                 else
                                     --Build GC or paragon or T3 arti (or Czar in some rare cases)
@@ -3683,6 +3691,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         else
                             --Not dealing with standard faction - basic choice between land and T3 arti/experimental structure, since unlikely to have hte logic in place for other units
                             if aiBrain[M28Overseer.refbPrioritiseAir] and not(bDontGetAirExp) then
+                                bGettingNonSeraphimAirExp = true
                                 iCategoryWanted = (M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                             elseif bPrioritiseLand and bCanPathAmphibiously then
                                 iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
@@ -3902,6 +3911,15 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder
             end
         end
+    elseif bGettingNonSeraphimAirExp and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= 0.6 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 2 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] > 0 and (not(M28Utilities.bLoudModActive) or M28Utilities.bLCEActive) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim on our team, and if so will hold off getting a general air experimental') end
+        local iTeam = aiBrain.M28Team
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            if oBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then
+                if bDebugMessages == true then LOG(sFunctionRef..': We have seraphim on our team so want to hold off on getting an experimental from this zone') end
+                iCategoryWanted = nil
+            end
+        end
     end
     --Flag if we need SACUs
     if iCategoryWanted and not(iCategoryWanted == refActionManageGameEnderTemplate) then
@@ -3919,7 +3937,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, will list out all blueprints meeting iCategoryWanted. iFactionRequired='..(iFactionRequired or 'nil')..'; iCategoryWanted=nil='..tostring(iCategoryWanted == nil))
         if iCategoryWanted then
-            if not(iCategoryWanted == refActionManageGameEnderTemplate)  then
+            if not(iCategoryWanted == refActionManageGameEnderTemplate) then
                 local tBlueprints = EntityCategoryGetUnitList(iCategoryWanted)
                 local tsBlueprintsAndName = {}
                 for _, sBlueprint in tBlueprints do
@@ -3927,7 +3945,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 end
                 LOG(sFunctionRef..': Blueprints='..repru(tsBlueprintsAndName))
             else
-                LOG(' Are applying GE tempalte logic')
+                LOG(' Are applying GE tempalte logic or want to hold off')
             end
         else
             LOG('Have no category')
@@ -7766,7 +7784,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                     end
 
                                     --If still have available engineers, then focus on getting more shielding if either we lack 3 completed shields, or enemy has T3 arti
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Do we still ahve available engineers? is table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Do we still ahve available engineers? is table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; tTableRef[M28Map.subrefbHaveTooSmallShields]='..tostring(tTableRef[M28Map.subrefbHaveTooSmallShields] or false)) end
                                     if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
                                         --If are powerstalling then disband engineers and dont proceed with construction
                                         if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
@@ -7790,6 +7808,20 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                             else
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Dont want to build more shields unless we have better power')
                                                     bDisbandForPowerStall = true
+                                                end
+                                            end
+                                        elseif tTableRef[M28Map.subrefbHaveTooSmallShields] and iCompletedShields >= iShieldLocations and (oFirstSeraphim or oFirstUEF) then
+                                            local tUEFAndSeraEngis = EntityCategoryFilterDown((categories.UEF + categories.SERAPHIM) * categories.TECH3, tAvailableEngineers)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider destroying a shield to rebuild with a larger one if we have UEF or Sera engineers, is tUEFAndSeraEngis empty='..tostring(M28Utilities.IsTableEmpty(tUEFAndSeraEngis))) end
+                                            if M28Utilities.IsTableEmpty(tUEFAndSeraEngis) == false then
+                                                --Destroy one of the small shields
+                                                for iShield, oShield in tTableRef[M28Map.subrefGEShieldUnits] do
+                                                    if oShield[M28Building.refbProtectingAllArtiAndShieldLocations] == false then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Have shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' that is not protecting all arti and shield locations so will ctrlk it so can rebuild with larger shield') end
+                                                        M28Orders.IssueTrackedKillUnit(oShield)
+                                                        tTableRef[M28Map.subrefbHaveTooSmallShields] = nil
+                                                        break
+                                                    end
                                                 end
                                             end
                                         end
@@ -9305,7 +9337,15 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
                         --Exception for experimentals where in low mass scenarios where we are building experimentals in another zone already we wont build in this zone
                         if not(iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental) or not(M28Conditions.TeamHasLowMass(iTeam)) then
-                            M28Utilities.ErrorHandler('Unrecognised order, need to add logic, iActionToAssign='..(iActionToAssign or 'nil'))
+                            local bMightBeWaitingForFriendlySeraExp = false
+                            if (iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental) and not(tbEngineersOfFaction[M28UnitInfo.refFactionSeraphim]) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                    if oBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then bMightBeWaitingForFriendlySeraExp = true break end
+                                end
+                            end
+                            if not(bMightBeWaitingForFriendlySeraExp) then
+                                M28Utilities.ErrorHandler('Unrecognised order, need to add logic, iActionToAssign='..(iActionToAssign or 'nil'))
+                            end
                         end
                     end
                     iTotalBuildPowerWanted = 0

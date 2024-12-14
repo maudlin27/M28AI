@@ -19,6 +19,7 @@ local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 bPlayableAreaSetup = false
 bUnexploredMap = false --Mapgen map had some sort of 'unexplored' feature which messes up the playable area logic
 bMapLandSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
+bNearestEnemyBaseLZSetupComplete = false --set to true once recorded nearest enemy base for land zones
 bWaterZoneInitialCreation = false --set to true once have finished code for recording water zones (note WZ setup wont be fully complete yet)
 bWaterZoneFirstTeamInitialisation = false --set to true when the first team runs logic for creating team related variables for a water zone
 bRecordedIslands = false
@@ -350,6 +351,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefGEDefenceBlockedFailureCount = 17
                 subrefGEAvailableDefenceLocations = 18 --i.e. 'size 4' locations that can be used for PD, SAMs etc.
                 subrefGEDefenceUnits = 19 --i.e. any 'size 4' units that have been built in defence locations
+                subrefbHaveTooSmallShields = 20 --true if we have a shield that is too small to cover other shields
 
 
 
@@ -3955,7 +3957,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
             end
         end
     end
-
+    bNearestEnemyBaseLZSetupComplete = true
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
