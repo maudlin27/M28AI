@@ -3911,7 +3911,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder
             end
         end
-    elseif bGettingNonSeraphimAirExp and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= 0.6 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 2 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] > 0 then
+    elseif bGettingNonSeraphimAirExp and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= 0.6 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 2 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] > 0 and (not(M28Utilities.bLoudModActive) or M28Utilities.bLCEActive) then
         if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim on our team, and if so will hold off getting a general air experimental') end
         local iTeam = aiBrain.M28Team
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
