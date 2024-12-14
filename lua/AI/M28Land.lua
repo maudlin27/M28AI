@@ -6481,16 +6481,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local bSuicideUnitsNearAMex = false
                     local tNearbyMexes
                     if not(bAttackWithEverything) and oNearestEnemyToFriendlyBase then
-                        if (tLZTeamData[M28Map.subrefLZbCoreBase] or tLZTeamData[M28Map.subrefLZCoreExpansion]) then
+                        if tLZTeamData[M28Map.subrefLZSValue] > 10 and (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or iOurDFAndT1ArtiCombatThreat > iEnemyCombatThreat * 0.9 or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] > math.max(1, tLZData[M28Map.subrefLZMexCount] or 0))))) then
                             --Is enemy almost in range of the midpoint for this zone such that we want to attack even though we will probably lose?
-
                             if M28Utilities.GetDistanceBetweenPositions(       tLZData[M28Map.subrefMidpoint], oNearestEnemyToFriendlyBase:GetPosition()) <= 15 + math.max((oNearestEnemyToFriendlyBase[M28UnitInfo.refiIndirectRange] or 0), (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0)) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Nearest enemy unit is almost in range of our midpoint') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Nearest enemy unit is almost in range of our midpoint and this is a high value location to defend') end
                                 bAttackWithEverything = true
                                 --CloseToEnemyUnit(tStartPosition,                  tUnitsToCheck,                              iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure)
                             elseif M28Conditions.CloseToEnemyUnit(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftoNearestDFEnemies],    10,             iTeam, true                  , nil,                  nil,                                nil,                                       nil) then
                                 bAttackWithEverything = true
-                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy DF units are almost in range of our midpoint') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy DF units are almost in range of our midpoint and this is a high value location to defend') end
                             end
                         end
                         --Suicide into mex logic
