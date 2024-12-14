@@ -4460,7 +4460,6 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                 if oShield:GetFractionComplete() == 1 then
                     --Check we should include the shield (i.e. that it is covering the arti locations); assume UEF and seraphim T3+ are
                     if oShield[refbProtectingAllArtiAndShieldLocations] == nil or tTableRef[M28Map.subrefbHaveTooSmallShields] == nil then
-                        if EntityCategoryContains(categories.AEON, oShield.UnitId) then bDebugMessages = true end
                         oShield[refbProtectingAllArtiAndShieldLocations] = true --default
                         if not(EntityCategoryContains(categories.SERAPHIM + categories.UEF - categories.TECH2, oShield.UnitId)) and tTableRef[M28Map.subrefGESize] > 22 then
                             iCurShieldRadius = (oShield:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5
@@ -4510,7 +4509,6 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; oShield[refbProtectingAllArtiAndShieldLocations]='..tostring(oShield[refbProtectingAllArtiAndShieldLocations] or false)) end
-                    bDebugMessages = false
                     if oShield[refbProtectingAllArtiAndShieldLocations] then
                         iCompletedShieldCount = iCompletedShieldCount + 1
                         iCurHealth, iMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)

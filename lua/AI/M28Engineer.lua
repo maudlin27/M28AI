@@ -7784,7 +7784,6 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                     end
 
                                     --If still have available engineers, then focus on getting more shielding if either we lack 3 completed shields, or enemy has T3 arti
-                                    if tTableRef[M28Map.subrefbHaveTooSmallShields] then bDebugMessages = true end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Do we still ahve available engineers? is table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; tTableRef[M28Map.subrefbHaveTooSmallShields]='..tostring(tTableRef[M28Map.subrefbHaveTooSmallShields] or false)) end
                                     if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
                                         --If are powerstalling then disband engineers and dont proceed with construction
