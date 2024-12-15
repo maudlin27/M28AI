@@ -4325,7 +4325,42 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         end
         return false
     end
-    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) then
+    local tNearbyEnemyLandToAvoid = {}
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
+        local iClosestDistLessRange
+        local iCurDistLessRange
+        subrefAdjacentLandZones = 'WZAdjLZ' --table of details for land zones adjacent to the water zone
+        subrefWPlatAndLZNumber = 1 --returns {Plateau, LandZone}
+        subrefALZDistance = 2 --Distance between midpoint from LZ to the WZ
+        for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
+
+            local tAdjLZTeamData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]][M28Map.subrefLZTeamData][iTeam]
+            local oClosestEnemyDFUnit
+            iClosestDistLessRange = 150 --No point including units further away than this
+            if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                --Record all units who are within 50 of being able to shoot at this WZ's midpoint, or (if no such units) the closest enemy unit
+                for iUnit, oUnit in tAdjLZTeamData[M28Map.reftoNearestDFEnemies] do
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        iCurDistLessRange = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZData[M28Map.subrefMidpoint])
+                        if iCurDistLessRange <= 50 then
+                            table.insert(tNearbyEnemyLandToAvoid, oUnit)
+                            if iCurDistLessRange < iClosestDistLessRange then
+                                if oClosestEnemyDFUnit and iClosestDistLessRange > 50 then oClosestEnemyDFUnit = nil end
+                                iClosestDistLessRange = iCurDistLessRange
+                            end
+                        elseif iCurDistLessRange < iClosestDistLessRange then
+                            iClosestDistLessRange = iCurDistLessRange
+                            oClosestEnemyDFUnit = oUnit
+                        end
+                    end
+                end
+            end
+            if oClosestEnemyDFUnit then table.insert(tNearbyEnemyLandToAvoid, oClosestEnemyDFUnit) end
+        end
+    end
+    local bHaveNearbyLandUnits = not(M28Utilities.IsTableEmpty(tNearbyEnemyLandToAvoid))
+
+    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) and not(bHaveNearbyLandUnits) then
         --No DF enemies so treat all MAA as being available
         if bDebugMessages == true then LOG(sFunctionRef..': No nearby combat enemies so treating all MAA as being available unless in range of T2 arti, bCheckForT2Arti='..tostring(bCheckForT2Arti)) end
         if bCheckForT2Arti then
@@ -4345,16 +4380,28 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then
             iRunThreshold = 15
         end
+        local bHaveNearbyWaterEnemies = not(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]))
         for iUnit, oUnit in tAvailableMAA do
             --Run if within 30 of being in range of enemy combat
             if bDebugMessages == true then
                 LOG(sFunctionRef..': MAA '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' - checking if is too close to enemy, is close='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], iRunThreshold, iTeam, true                    ,nil                        ,nil                            ,nil                                        ,nil                                    ,true))..'; iRunThreshold='..iRunThreshold..'; will run back if are too close; will list out enemy units and distance to us in a moment; Is unit too close to T2 arti='..tostring(DoesUnitWantToRunFromT2Arti(oUnit, 10)))
-                for iEnemy, oEnemy in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
-                    LOG('oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF r ange='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; Dist to this MAA unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Actual distance using actual position='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy:GetPosition()))
+                if bHaveNearbyWaterEnemies then
+                    for iEnemy, oEnemy in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
+                        LOG('oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF r ange='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; Dist to this MAA unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Actual distance using actual position='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy:GetPosition()))
+                    end
+                end
+                if bHaveNearbyLandUnits then
+                    for iEnemy, oEnemy in tNearbyEnemyLandToAvoid do
+                        LOG('oEnemy on land='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Dist to MAA='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())..'; Unit DF range='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil'))
+                        if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - (oEnemy[M28UnitInfo.refiDFRange] or 0) <= iRunThreshold then
+                            LOG('This enemy unit is close enough that it should cause the MAA to run')
+                        end
+                    end
                 end
             end
             --                      CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                             iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
-            if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], iRunThreshold, iTeam, true                    ,nil                        ,oUnit                            ,nil                                        ,nil                                    ,true) then
+            if (bHaveNearbyWaterEnemies and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], iRunThreshold, iTeam, true                    ,nil                        ,oUnit                            ,nil                                        ,nil                                    ,true))
+                    or (bHaveNearbyLandUnits and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyLandToAvoid, iRunThreshold, iTeam, true                    ,nil                        ,oUnit                            ,nil                                        ,nil                                    ,true)) then
                 RetreatUnitTowardsNavalOrAmphibiousRally(oUnit, 'RunDF')
             else
                 --Check not in range of T2 arti
