@@ -258,6 +258,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyShieldsFailedToArti = 'M28SFlArt' --[x] = 1,2,3...x; returns the fixed shield unit
     reftoVulnerableFatboys = 'M28FatB' --[x] = 1,2,3; returns the fatboy unit; fatboy gets recorded when it gets low on shields
     refbActiveVulnerableFatboyMonitor = 'M28FatVMon' --true if have active thread for the team for vulnerable fatboys
+    refbTMLForLongRangeThreatMonitorActive = 'M28TMLBatMon' --true if have active threat for TML battery
+    refbTMLBatteryMissedLots = 'M28TMBatMis' --true if TML battey has fired a lot of times and missed targets
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -1497,6 +1499,9 @@ function AddUnitToLongRangeThreatTable(oUnit, iTeam, bCheckifAlreadyInTable)
     end
     if bNotInTable then
         table.insert(tTeamData[iTeam][reftLongRangeEnemyDFUnits], oUnit)
+        if not(tTeamData[iTeam][refbTMLForLongRangeThreatMonitorActive]) then
+            ForkThread(ConsiderTMLForLongRangeEnemyThreat, iTeam)
+        end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code at time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Added to table of long range units and started a monitor if one wasnt already started. Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -5033,6 +5038,75 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                 oBrain[M28Factory.reftBlueprintPriorityOverride]['uel0106'] = -1000 --Mechmarine
             end
         end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderTMLForLongRangeEnemyThreat(iTeam)
+    local sFunctionRef = 'ConsiderTMLForLongRangeEnemyThreat'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(tTeamData[iTeam][refbTMLForLongRangeThreatMonitorActive]) then
+        tTeamData[iTeam][refbTMLForLongRangeThreatMonitorActive] = true
+        --Decide on key TML zone to counter enemy LR threats
+        local iClosestLREnemy = 100000
+        local oClosestLREnemy, iCurDist
+        local iCurPlateau
+        local iClosestPlateau, iClosestZone
+        if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftLongRangeEnemyDFUnits]) == false then
+            for iUnit, oUnit in tTeamData[iTeam][reftLongRangeEnemyDFUnits] do
+                iCurPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
+                if iCurPlateau > 0 and M28Utilities.IsTableEmpty(tTeamData[iTeam][reftiCoreZonesByPlateau][iCurPlateau]) == false then
+                    for iZone, bTrue in tTeamData[iTeam][reftiCoreZonesByPlateau][iCurPlateau] do
+                        local tLZData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iZone]
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateau='..iCurPlateau..'; iZone='..iZone..'; tLZData[M28Map.subrefMidpoint]='..repru(tLZData[M28Map.subrefMidpoint])..'; Unit position='..repru(oUnit:GetPosition())) end
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                        --Ignore if we have a TML battery near this zone
+                        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                        if not(tLZTeamData[M28Map.refbNearbyTMLBattery]) then
+                            --Reduce dist if we have TML battery flagged for this zone already (so e.g. when a 2nd long range enemy unit is detected we are less likely to build multiple tml batteries)
+                            if tLZTeamData[M28Map.refbGetTMLBattery] then iCurDist = iCurDist - 50 end
+                            if iCurDist < iClosestLREnemy and (iCurDist > 100 or tLZTeamData[M28Map.refbGetTMLBattery]) then --no point building at a core zone close to the enemy
+                                iClosestLREnemy = iCurDist
+                                iClosestPlateau = iCurPlateau
+                                iClosestZone = iZone
+                                oClosestLREnemy = oUnit
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for oClosestLREnemy, oClosestLREnemy='..(oClosestLREnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestLREnemy) or 'nil')) end
+        if oClosestLREnemy then
+            --Wait until it is enough of a threat to warrant a response
+            while M28UnitInfo.IsUnitValid(oClosestLREnemy) and oClosestLREnemy:GetFractionComplete() < 0.25 do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(10)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            if M28UnitInfo.IsUnitValid(oClosestLREnemy) then
+                --Flag this zone to get TMLs, and nearby zones that they dont need to
+                local tLZData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iClosestZone]
+                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+
+                tLZTeamData[M28Map.refbGetTMLBattery] = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Flagging primary TML battery iCurPlateau='..iCurPlateau..'; iClosestZone='..iClosestZone) end
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                    for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                        local tAdjLZTeamData = M28Map.tAllPlateaus[iClosestPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                        tAdjLZTeamData[M28Map.refbNearbyTMLBattery] = true
+                    end
+                end
+                while M28UnitInfo.IsUnitValid(oClosestLREnemy) do --i.e. if the unit we built TML in response to is dead, then dont consider others
+                    WaitTicks(M28Land.iTicksPerLandCycle)
+                end
+                --Clear the LZ flag if hte unit we built TML battery in response to is dead, and free up monitor so can build in another zone if needed
+                tLZTeamData[M28Map.refbGetTMLBattery] = false
+            end
+        end
+        tTeamData[iTeam][refbTMLForLongRangeThreatMonitorActive] = false
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

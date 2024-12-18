@@ -3425,7 +3425,7 @@ function DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOptionalAlli
 end
 
 function IsUnitLongRangeThreat(oUnit)
-    if (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) >= 72 or EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 then
+    if (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) >= 72 or EntityCategoryContains(M28UnitInfo.refCategoryPD , oUnit.UnitId) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] >= 60) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 then
         return true
     end
 end

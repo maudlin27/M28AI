@@ -322,6 +322,10 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefiTimeLastWantSACUForExp = 'sacuexp' --Gametimeseconds that we last failed to build an experimental in the zone due to trying with an engineer
             subrefiTimeLastWantSACUForSMD = 'sacusmd' --Gametimeseconds that we last failed to build an SMD in the zone due to trying with an engineer
             refoNearbyExperimentalResourceGen = 'nrexpr' --LOUD experimental resource generator (only LOUD) - since LOUD prevents them being built between each other
+            refbNearbyTMLBattery = 'nrtmlb' --true if we have a zone nearby that is getting a bunch of TMLs
+            refbGetTMLBattery = 'gttmlb' --true if we want to get a bunch of TMLs in this zone
+            refbActiveTMLMonitor = 'tmlbmn' --true if we have active monitoring of targets for TMLs
+            reftoTMLBatteryUnits = 'TMLBtU' --table of TMLs forming part of the TML battery
 
             refbIgnoreEmergencyPDReassignmentLogic = 'EmPDAtv' --true if have logic monitoring emergency PD builders active
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
