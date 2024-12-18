@@ -443,7 +443,19 @@ end
 function GetBuildingSize(sBlueprintID)
     --Similar to GetBuildingSizeTable but returns a single value for the highest size
     local oBlueprint = GetBlueprintFromID(sBlueprintID)
-    return math.max(oBlueprint.Physics.SkirtSizeX, oBlueprint.Physics.SkirtSizeZ)
+    if oBlueprint.Physics.SkirtSizeX then
+        return math.max(oBlueprint.Physics.SkirtSizeX, oBlueprint.Physics.SkirtSizeZ)
+    else
+        --Redundancy due to error in log for a replay I wasnt able to access
+        M28Utilities.ErrorHandler('Unit doesnt have a skirtsizex, will approximate building size')
+        if EntityCategoryContains(categories.SIZE4, sBlueprintID) then return 2
+        elseif EntityCategoryContains(categories.SIZE8, sBlueprintID) then return 3
+        elseif EntityCategoryContains(categories.SIZE12, sBlueprintID) then return 6
+        elseif EntityCategoryContains(categories.SIZE16, sBlueprintID) then return 8
+        elseif EntityCategoryContains(categories.SIZE20, sBlueprintID) then return 10
+        else return 10
+        end
+    end
 end
 
 function GetUnitState(oUnit)

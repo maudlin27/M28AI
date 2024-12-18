@@ -17390,37 +17390,40 @@ function CheckDestroyedBuildingLocations()
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iENtry='..iEntry..'; repru='..repru(tSubtable)) end
             if iLandOrWaterZone > 0 then
-                local iBuildingSize = M28UnitInfo.GetBuildingSize(tSubtable[subrefDestroyedBuildingBlueprint])
-                local iBaseSegmentX, iBaseSegmentZ = M28Map.GetPathingSegmentFromPosition(tSubtable[subrefDestroyedBuildingLocation])
-                --local iAffectedDistanceRadius = math.min(math.max(iBuildingSize, 8), iBuildingSize * 0.5 + iMaxBuildingSize * 0.5)
+                if not(tSubtable[subrefDestroyedBuildingBlueprint]) then M28Utilities.ErrorHandler('No destroyed building blueprint')
+                else
+                    local iBuildingSize = M28UnitInfo.GetBuildingSize(tSubtable[subrefDestroyedBuildingBlueprint])
+                    local iBaseSegmentX, iBaseSegmentZ = M28Map.GetPathingSegmentFromPosition(tSubtable[subrefDestroyedBuildingLocation])
+                    --local iAffectedDistanceRadius = math.min(math.max(iBuildingSize, 8), iBuildingSize * 0.5 + iMaxBuildingSize * 0.5)
 
-                if aiBrain then
-                    SearchForBuildableLocationsNearTarget(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iBuildingSize * 0.5)
+                    if aiBrain then
+                        SearchForBuildableLocationsNearTarget(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iBuildingSize * 0.5)
 
-                    --Record any mass storage locations
-                    if iPlateauOrZero > 0 then
-                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then
-                            local bHaveNearbyMex = false
-                            local iPotentialStorageDistance = iBuildingSize * 0.5 + 3
-                            for iMex, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do
-                                if M28Utilities.GetRoughDistanceBetweenPositions(tMex, tSubtable[subrefDestroyedBuildingLocation]) <= iPotentialStorageDistance then
-                                    bHaveNearbyMex = true
-                                    break
+                        --Record any mass storage locations
+                        if iPlateauOrZero > 0 then
+                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then
+                                local bHaveNearbyMex = false
+                                local iPotentialStorageDistance = iBuildingSize * 0.5 + 3
+                                for iMex, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do
+                                    if M28Utilities.GetRoughDistanceBetweenPositions(tMex, tSubtable[subrefDestroyedBuildingLocation]) <= iPotentialStorageDistance then
+                                        bHaveNearbyMex = true
+                                        break
+                                    end
+                                end
+                                if bHaveNearbyMex then
+                                    M28Map.RecordAvailableMassStorageLocationsForLandZone(iPlateauOrZero, iLandOrWaterZone)
                                 end
                             end
-                            if bHaveNearbyMex then
-                                M28Map.RecordAvailableMassStorageLocationsForLandZone(iPlateauOrZero, iLandOrWaterZone)
+                        end
+                    else
+                        M28Utilities.ErrorHandler('No longer have M28 brain')
+                        if bDebugMessages == true then
+                            for iBrain, oBrain in ArmyBrains do
+                                LOG(sFunctionRef..': Considering iBrain='..iBrain..'; oBrain='..(oBrain.Nickname or 'nil')..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)..'; .M28AI='..tostring(oBrain.M28AI or false)..'; Team='..(oBrain.M28Team or 'nil'))
                             end
-                        end
-                    end
-                else
-                    M28Utilities.ErrorHandler('No longer have M28 brain')
-                    if bDebugMessages == true then
-                        for iBrain, oBrain in ArmyBrains do
-                            LOG(sFunctionRef..': Considering iBrain='..iBrain..'; oBrain='..(oBrain.Nickname or 'nil')..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)..'; .M28AI='..tostring(oBrain.M28AI or false)..'; Team='..(oBrain.M28Team or 'nil'))
-                        end
-                        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
-                            LOG(sFunctionRef..': Cycling all active M28 Brains, iBrain='..iBrain..'; oBrain='..(oBrain.Nickname or 'nil')..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false))
+                            for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                                LOG(sFunctionRef..': Cycling all active M28 Brains, iBrain='..iBrain..'; oBrain='..(oBrain.Nickname or 'nil')..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false))
+                            end
                         end
                     end
                 end
