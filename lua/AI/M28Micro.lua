@@ -18,6 +18,7 @@ local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local NavUtils = M28Utilities.NavUtils
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
+local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 refbMicroResetChecker = 'M28MicChk' --True if we have an active thread checking if micro time has expired
 
@@ -1710,7 +1711,9 @@ function MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oLauncher, iTeam, bE
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         if aiBrain then
             if bDebugMessages == true then LOG(sFunctionRef..': Outer ring='..repru(oProjectile.OuterRing)..'; Inner ring='..repru(oProjectile.InnerRing)) end
+            --Record in friendly nuke table
             local tTarget = oProjectile:GetCurrentTargetPosition()
+            ForkThread(M28Building.RecordNukeTarget, iTeam, tTarget)
             local iSearchArea = math.min((oProjectile.OuterRing.Radius or 50), math.max(56, (oProjectile.InnerRing.Radius or 35) + 15)) + 4
             local iCategoriesToSearch = M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryAllNavy * categories.MOBILE - categories.TECH1 + categories.COMMAND + categories.SUBCOMMANDER
             local iSpeed = (oProjectile.Blueprint.Physics.MaxSpeed or 10)

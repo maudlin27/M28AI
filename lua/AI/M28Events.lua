@@ -929,14 +929,32 @@ function OnShieldBubbleDamaged(self, instigator)
                     end
                 else
                     --Fatboy specific; if changing threshold here then also change in team
-                    if EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oShield.UnitId) and oShield.MyShield:GetHealth() <= oShield.MyShield:GetMaxHealth() * 0.5 then
-                        local iTeam = instigator:GetAIBrain().M28Team
-                        local bRecordedAlready
-                        if oShield.MyShield:GetHealth() <= 1250 then
-                            if not(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti]) then
-                                M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] = {}
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oShield.UnitId) then
+                        if (oShield[M28Building.refiTMLShotsFired] or 0) > 0 and oUnitCausingDamage.GetAIBrain and oUnitCausingDamage:GetAIBrain().M28AI and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
+                            oShield[M28Building.refiTMLSnipeShotsHit] = (oShield[M28Building.refiTMLSnipeShotsHit] or 0) + 1
+                        end
+                        if oShield.MyShield:GetHealth() <= oShield.MyShield:GetMaxHealth() * 0.5 then
+                            local iTeam = instigator:GetAIBrain().M28Team
+                            local bRecordedAlready
+                            if oShield.MyShield:GetHealth() <= 1250 then
+                                if not(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti]) then
+                                    M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] = {}
+                                else
+                                    for iEntry, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] do
+                                        if oRecorded == oShield then
+                                            bRecordedAlready = true
+                                            break
+                                        end
+                                    end
+                                end
+                                if not(bRecordedAlready) then
+                                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti], oShield)
+                                end
+                            end
+                            bRecordedAlready = false
+                            if not(M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys]) then M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys] = {}
                             else
-                                for iEntry, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti] do
+                                for iEntry, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys] do
                                     if oRecorded == oShield then
                                         bRecordedAlready = true
                                         break
@@ -944,22 +962,9 @@ function OnShieldBubbleDamaged(self, instigator)
                                 end
                             end
                             if not(bRecordedAlready) then
-                                table.insert(M28Team.tTeamData[iTeam][M28Team.reftEnemyShieldsFailedToArti], oShield)
+                                table.insert(M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys], oShield)
+                                ForkThread(M28Team.MonitorVulnerableFatboys,iTeam)
                             end
-                        end
-                        bRecordedAlready = false
-                        if not(M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys]) then M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys] = {}
-                        else
-                            for iEntry, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys] do
-                                if oRecorded == oShield then
-                                    bRecordedAlready = true
-                                    break
-                                end
-                            end
-                        end
-                        if not(bRecordedAlready) then
-                            table.insert(M28Team.tTeamData[iTeam][M28Team.reftoVulnerableFatboys], oShield)
-                            ForkThread(M28Team.MonitorVulnerableFatboys,iTeam)
                         end
                     end
                 end
@@ -1032,6 +1037,8 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                                 tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = math.max(0, (tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) - iReductionValue)
                             end
                         end
+                    elseif self[M28Building.refiTMLShotsFired] or 0 > 0 and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
+                        self[M28Building.refiTMLSnipeShotsHit] = (self[M28Building.refiTMLSnipeShotsHit] or 0) + 1
                     end
                     if EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId) and self:GetFractionComplete() < 1 and self:GetFractionComplete() > 0.1 then
                         if (M28Orders.bDontConsiderCombinedArmy or oUnitCausingDamage.M28Active) then
@@ -1545,7 +1552,7 @@ function OnMissileBuilt(self, weapon)
                             M28UnitInfo.SetUnitMissileAutoBuildStatus(self, false)
                             --if self.SetAutoMode then self:SetAutoMode(false) end
 
-                            --Recheck every minute
+                            --Recheck every 10s
                             ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)
                         end
                     end

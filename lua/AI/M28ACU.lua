@@ -1202,7 +1202,7 @@ function RemovePreferredUpgradesThatWeAlreadyHave(oACU, oBP)
         local tObsoletePreRequisites = {}
         local bCheckForObsoletePrerequisites
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Considering upgrades already have for oACU ' .. oACU.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oACU) .. ' owned by ' .. aiBrain.Nickname .. '; Upgrade count=' .. (oACU[refiUpgradeCount] or 'nil'))
+            LOG(sFunctionRef .. ': Considering upgrades already have for oACU ' .. oACU.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oACU) .. ' owned by ' .. oACU:GetAIBrain().Nickname .. '; Upgrade count=' .. (oACU[refiUpgradeCount] or 'nil'))
         end
         if (oACU[refiUpgradeCount] or 0) > 0 then
             for iEntry, sEnhancement in oACU[reftPreferredUpgrades] do
@@ -1223,7 +1223,7 @@ function RemovePreferredUpgradesThatWeAlreadyHave(oACU, oBP)
         --First check if we have any upgrades that have prerequiites, in which case we want to remove those prerequisites first
         for iOrigIndex = 1, iTableSize do
             if oACU[reftPreferredUpgrades][iOrigIndex] then
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering if the upgrade index '..iOrigIndex..' which is '..repru(oACU[reftPreferredUpgrades][iOrigIndex])..' is obsolete; Does ACU have this enhancement='..tostring(oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex]))..'; bCheckForObsoletePrerequisites='..tostring(bCheckForObsoletePrerequisites)..'; oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete]='..repru((oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete] or 'nil'))..'; Time='..GetGameTimeSeconds()) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if the upgrade index '..iOrigIndex..' which is '..repru(oACU[reftPreferredUpgrades][iOrigIndex])..' is obsolete; Does ACU have this enhancement='..tostring(oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex]))..'; bCheckForObsoletePrerequisites='..tostring(bCheckForObsoletePrerequisites)..'; oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete]='..repru((oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete] or 'nil'))..'; oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][oACU[reftPreferredUpgrades[iOrigIndex]]]='..(oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][oACU[reftPreferredUpgrades[iOrigIndex]]] or 'nil')..'; Time='..GetGameTimeSeconds()) end
                 if not (oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex])) and (not (oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][oACU[reftPreferredUpgrades[iOrigIndex]]]) or GetGameTimeSeconds() - (oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][oACU[reftPreferredUpgrades[iOrigIndex]]] or -1) >= 0.5) then
                     --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
                     --We dont have this enhancement; however we might have one that supercedes this, in which case also want to remove it
@@ -1238,6 +1238,7 @@ function RemovePreferredUpgradesThatWeAlreadyHave(oACU, oBP)
                         end
                     end
                     if bUpgradeIsObsolete then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Upgrade is obsolete so will clear '..oACU[reftPreferredUpgrades][iOrigIndex]..'; iOrigIndex='..iOrigIndex..'; iRevisedIndex='..iRevisedIndex) end
                         oACU[reftPreferredUpgrades][iOrigIndex] = nil;
                     else
 
@@ -1247,19 +1248,21 @@ function RemovePreferredUpgradesThatWeAlreadyHave(oACU, oBP)
                             oACU[reftPreferredUpgrades][iOrigIndex] = nil;
                         end
                         iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+                        if bDebugMessages == true then LOG(sFunctionRef..': We dont have this upgrade yet so will retain it') end
                     end
                 else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Clearing the upgrade '..oACU[reftPreferredUpgrades][iOrigIndex]) end
                     oACU[reftPreferredUpgrades][iOrigIndex] = nil;
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': End of removal, iRevisedIndex='..iRevisedIndex..'; iTableSize='..iTableSize..'; repru='..repru(oACU[reftPreferredUpgrades])) end
         if iRevisedIndex < iTableSize then
             --table.setn(oACU[reftPreferredUpgrades], iRevisedIndex - 1)
-            for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
+            for iRemovalEntry = iTableSize, (iRevisedIndex + 1), -1 do
                 table.remove(oACU[reftPreferredUpgrades], iRemovalEntry)
             end
         end
-
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1451,15 +1454,19 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
                 bInvalidUpgrade = true
                 oACU[reftPreferredUpgrades] = {}
+                if bDebugMessages == true then LOG(sFunctionRef..': ACU doesnt have sUpgradeWanted='..sUpgradeWanted..' in its blueprint so aborting') end
                 break
             elseif bCheckForRestrictions then
                 --If we cant get the first upgrade, then cancel all upgrades; otherwise just remove the later upgrade that we cant get
                 if tRestrictedEnhancements[sUpgradeWanted] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted '..sUpgradeWanted..' is in the restricted enhancements table so cant get it yet') end
                     bInvalidUpgrade = true
                 end
             end
             if bInvalidUpgrade then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering restricted upgrade='..sUpgradeWanted..'; iUpgradeWanted='..iUpgradeWanted) end
                 if iUpgradeWanted <= 1 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We cant get the first planned upgrade so wont get any further upgrades') end
                     oACU[reftPreferredUpgrades] = {}
                     break
                 else
@@ -1470,13 +1477,15 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         if M28Utilities.IsTableEmpty(tiEntriesToRemove) == false then
             local iTotalEntriesToRemove = table.getn(tiEntriesToRemove)
             for iCurEntry = iTotalEntriesToRemove, 1, -1 do
+                if bDebugMessages == true then LOG(sFunctionRef..': Removing iCurEntry='..iCurEntry..' from preferred upgrades, Upgrade='..(oACU[reftPreferredUpgrades][iCurEntry] or 'nil')) end
                 table.remove(oACU[reftPreferredUpgrades], tiEntriesToRemove[iCurEntry])
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Is table of preferred upgrades empty='..tostring(M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of preferred upgrades empty='..tostring(M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]))..'; repru='..repru(oACU[reftPreferredUpgrades])) end
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) then
         --Find the cheapest upgrade that boosts either rate of fire or range (if didnt start underwater) or that boosts build power (if started underwater)
+        if bDebugMessages == true then LOG(sFunctionRef..': Have no preferred upgrades so will try finding a rate of fire or range boost') end
         oACU[reftPreferredUpgrades] = {}
         local iLowestMassCost = 1000000
         local sLowestUpgrade
@@ -1552,10 +1561,11 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Campaign specific - considering adding RAS upgrade; is preferred upgrades nil=' .. tostring(oACU[reftPreferredUpgrades]))
         if oACU[reftPreferredUpgrades] then
-            LOG(sFunctionRef .. ': Upgrade size=' .. table.getn(oACU[reftPreferredUpgrades]))
+            LOG(sFunctionRef .. ': Upgrade size=' .. table.getn(oACU[reftPreferredUpgrades])..'; repru='..repru(oACU[reftPreferredUpgrades]))
         end
     end
     if (oACU[refiUpgradeCount] or 0) > 0 and oACU[reftPreferredUpgrades] and table.getn(oACU[reftPreferredUpgrades]) <= 2 and (EntityCategoryContains(categories.AEON, oACU.UnitId) or table.getn(oACU[reftPreferredUpgrades]) <= 1) and oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Adding RAS to table of preferred upgrades') end
         table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocation')
     end
 
@@ -1563,7 +1573,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     RemovePreferredUpgradesThatWeAlreadyHave(oACU, oBP)
 
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': End of code, oACU[reftPreferredUpgrades]=' .. repru(oACU[reftPreferredUpgrades]))
+        LOG(sFunctionRef .. ': End of code, oACU[reftPreferredUpgrades] after removing upgrades we already have=' .. repru(oACU[reftPreferredUpgrades]))
     end
 end
 
@@ -1582,7 +1592,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
         local iTeam = aiBrain.M28Team
         local bDontConsiderAnyUpgrades = false
         --Norush - dont get if more than 1m until it ends (want to use resources for eco instead) unless are close to overflowing (with slight random element to reduce tendancy of multiple ACUs to ugprade at the same time)
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking if norush active first, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if norush active first, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; oACU[refbPlanningToGetTeleport]='..tostring(oACU[refbPlanningToGetTeleport] or false)) end
         if M28Overseer.bNoRushActive then
             local iTimeUntilNoRushEnds = M28Overseer.iNoRushTimer - GetGameTimeSeconds()
             local iDelayAdj = 0
@@ -1620,7 +1630,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                 GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             end
 
-            if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades]='..repru(oACU[reftPreferredUpgrades])..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades]='..repru(oACU[reftPreferredUpgrades])..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))..'; bWantToDoTeleSnipe='..tostring(bWantToDoTeleSnipe or false)) end
             if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false and (not(M28Conditions.HaveLowPower(iTeam)) or aiBrain[M28Economy.refbBuiltParagon] or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 7500 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
 
                 local sPotentialUpgrade = oACU[reftPreferredUpgrades][1]

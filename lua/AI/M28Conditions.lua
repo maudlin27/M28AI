@@ -2811,6 +2811,10 @@ function ApplyM28ToOtherAI(aiBrain)
         if bDebugMessages == true then LOG(sFunctionRef..': Have M28 in the name so will apply M28 logic to the brain') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
+    elseif not(M28Orders.bDontConsiderCombinedArmy) and aiBrain.BrainType == 'Human' then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have shared armies so treating brain as human') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
     else
         local iCampaignAISetting = ScenarioInfo.Options.CampAI
         local refiNone = 1
@@ -3425,7 +3429,7 @@ function DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOptionalAlli
 end
 
 function IsUnitLongRangeThreat(oUnit)
-    if (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) >= 72 or EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 then
+    if (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) >= 72 or EntityCategoryContains(M28UnitInfo.refCategoryPD , oUnit.UnitId) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] >= 60) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 then
         return true
     end
 end
