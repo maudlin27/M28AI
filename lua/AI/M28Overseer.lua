@@ -1502,7 +1502,7 @@ end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
     --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2000,7 +2000,7 @@ end
 
 function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
     --E.g. for Dawn M2 where order switches from enemy to ally of player team - clears all land and water zone details of enemy and allied units, and then re-records all the units
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateAllRecordedUnitsFollowingTeamChange'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
