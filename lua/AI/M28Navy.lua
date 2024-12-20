@@ -1461,9 +1461,8 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     --Record enemy threat
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-    bDebugMessages = true
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at gametime='..GetGameTimeSeconds()..'; About to update threat for iPond='..iPond..'; iWaterZone='..iWaterZone..'; iTeam='..iTeam..'; Is WZData empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData))..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Is table of enemy air empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]))) end
-    bDebugMessages = false
+
 
 
     --Update unit positions and if still valid
