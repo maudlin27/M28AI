@@ -484,11 +484,11 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = 0
         tWZTeamData[M28Map.subreftEnemyLongRangeUnits] = nil
     else
-        --function GetCombatThreatRating(tUnits,                                                                                    bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
         local iTorpDefenceSurfaceCount = 0
         tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits],  true,       false,              false,                      true,       false)
         tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits], true,     false,              false,                      false,      false,          true)
         local iBaseSubmersibleThreat = (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0)
+        --function                                                   GetCombatThreatRating(tUnits,                          bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
         tWZTeamData[M28Map.subrefWZThreatEnemySurface] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits],   true,       false,              false,                      false,      true,           false)
         --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
         tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false, false)
@@ -501,7 +501,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
             if oUnit:GetFractionComplete() >= 0.95 and oUnit[M28UnitInfo.refiCombatRange] > 0 then
                 if bDebugMessages == true then
                     local iUnitSegmentX, iUnitSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
-                    LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Anti navy range='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; Combat threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)..'; Submersible threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true,     false,              false,                      false,      false,          true)..'; Unit SegX='..(iUnitSegmentX or 'nil')..'Z='..(iUnitSegmentZ or 'nil')..'; WZ at this segment='..(M28Map.tWaterZoneBySegment[iUnitSegmentX][iUnitSegmentZ] or 'nil')..'; LZ at this segment='..(M28Map.tLandZoneBySegment[iUnitSegmentX][iUnitSegmentZ] or 'nil')..'; is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; unit position='..repru(oUnit:GetPosition())..'; water height='..M28Map.iMapWaterHeight..'; sizey='..(oUnit:GetBlueprint().SizeY or 0))
+                    LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Anti navy range='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; Combat threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)..'; Surface threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit },   true,       false,              false,                      false,      true,           false)..';  Submersible threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true,     false,              false,                      false,      false,          true)..'; Unit SegX='..(iUnitSegmentX or 'nil')..'Z='..(iUnitSegmentZ or 'nil')..'; WZ at this segment='..(M28Map.tWaterZoneBySegment[iUnitSegmentX][iUnitSegmentZ] or 'nil')..'; LZ at this segment='..(M28Map.tLandZoneBySegment[iUnitSegmentX][iUnitSegmentZ] or 'nil')..'; is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; unit position='..repru(oUnit:GetPosition())..'; water height='..M28Map.iMapWaterHeight..'; sizey='..(oUnit:GetBlueprint().SizeY or 0))
                 end
                 if oUnit[M28UnitInfo.refbHasTorpedoDefence] and not(EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then iTorpDefenceSurfaceCount = iTorpDefenceSurfaceCount + 1 end
                 --Simplification to approach taken for land zone logic - will ignore threat (since only relevant for aeon land scout)
@@ -2045,19 +2045,30 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
             for iEntry, iAdjWaterZone in tWZData[M28Map.subrefWZAdjacentWaterZones] do
                 iLowestDistUntilInRange = 10000
                 oLowestDFDistUntilInRange = nil
-                local tAltWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWaterZone][M28Map.subrefWZTeamData][iTeam]
+                local tAltWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWaterZone]
+                local tAltWZTeamData = tAltWZData[M28Map.subrefWZTeamData][iTeam]
                 iEnemyBestAntiNavyRange = math.max(iEnemyBestAntiNavyRange, (tAltWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0))
                 iEnemyBestCombatRange = math.max(iEnemyBestCombatRange, iEnemyBestAntiNavyRange, (tAltWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0))
                 iBestEnemyUnderwaterRange = math.max(iBestEnemyUnderwaterRange, (tAltWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] or 0))
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent WZ '..iAdjWaterZone..'; tAltWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]='..tAltWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]..'; tAltWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..tAltWZTeamData[M28Map.subrefWZBestEnemyDFRange]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent WZ '..iAdjWaterZone..'; tAltWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]='..tAltWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]..'; tAltWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..tAltWZTeamData[M28Map.subrefWZBestEnemyDFRange]..'; Enemy combat total='..(tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')) end
                 if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subrefTEnemyUnits]) == false and tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 10 then
+                    local iDistThresholdToAlwaysInclude = (tAltWZData[M28Map.subrefWZMaxSegX] - tAltWZData[M28Map.subrefWZMinSegX] + tAltWZData[M28Map.subrefWZMaxSegZ] - tAltWZData[M28Map.subrefWZMinSegZ] + tWZData[M28Map.subrefWZMaxSegX] - tWZData[M28Map.subrefWZMinSegX] + tWZData[M28Map.subrefWZMaxSegZ] - tWZData[M28Map.subrefWZMinSegZ])*M28Map.iLandZoneSegmentSize * 0.125 --i.e. average X and Z radius of both base zone and adjacent zone (i.e. are basixallyd doing 2X+2Z, when only want half (for radius), hence do /8
                     for iUnit, oUnit in tAltWZTeamData[M28Map.subrefTEnemyUnits] do
                         if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiAntiNavyRange] > 0) and oUnit:GetFractionComplete() >= 0.95 then
                             iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions((oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition()), tMidpoint) - math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiAntiNavyRange] or 0))
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit in adj zone='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDistUntilInRange='..iCurDistUntilInRange..'; iLowestDistUntilInRange='..iLowestDistUntilInRange..'; Actual dist to midpoint ignoring range='..M28Utilities.GetDistanceBetweenPositions((oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition()), tMidpoint)..'; AdjWZ X segment size='..(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWaterZone][M28Map.subrefWZMaxSegX] - M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWaterZone][M28Map.subrefWZMinSegX])*M28Map.iLandZoneSegmentSize..'; Base WZ Xsize='..(tWZData[M28Map.subrefWZMaxSegX] - tWZData[M28Map.subrefWZMinSegX])*M28Map.iLandZoneSegmentSize..'; iDistThresholdToAlwaysInclude='..iDistThresholdToAlwaysInclude ) end
                             if iCurDistUntilInRange < iLowestDistUntilInRange then
-                                oLowestDFDistUntilInRange = oUnit
-                                iLowestDistUntilInRange = iCurDistUntilInRange
+                                if iCurDistUntilInRange < iDistThresholdToAlwaysInclude then
+                                    if iLowestDistUntilInRange > iDistThresholdToAlwaysInclude then
+                                        iLowestDistUntilInRange = iDistThresholdToAlwaysInclude
+                                        oLowestDFDistUntilInRange = nil
+                                    end
+                                    table.insert(tWZTeamData[M28Map.reftoNearestCombatEnemies], oUnit)
+                                else
+                                    oLowestDFDistUntilInRange = oUnit
+                                    iLowestDistUntilInRange = iCurDistUntilInRange
+                                end
                             end
                         end
                     end
