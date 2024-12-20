@@ -2811,6 +2811,10 @@ function ApplyM28ToOtherAI(aiBrain)
         if bDebugMessages == true then LOG(sFunctionRef..': Have M28 in the name so will apply M28 logic to the brain') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
+    elseif not(M28Orders.bDontConsiderCombinedArmy) and aiBrain.BrainType == 'Human' then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have shared armies so treating brain as human') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
     else
         local iCampaignAISetting = ScenarioInfo.Options.CampAI
         local refiNone = 1
