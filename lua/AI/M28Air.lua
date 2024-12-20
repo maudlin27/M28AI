@@ -2269,7 +2269,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             end
 
             --Final adjustment - if have any recent nuke launch locations that are near either the rally point or support point,  then move away from here
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
                 local iTimeThreshold = math.max(10, 60 * M28Map.iMapSize / 1024) + 10
                 local iReassessCount = 0
                 local iAngleToBase
