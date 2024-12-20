@@ -1840,8 +1840,6 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 if bEnemyHasLoadedOrLotsOfSMD then
                                     --if any nuke target in the last 30s is currently covered by SMD, then remove min delay
                                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
-                                        local iTimeSinceFired
-                                        local iLoopCheck
                                         local iThresholdTime = GetGameTimeSeconds() - 30
                                         for iTime, tLocation in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
 
@@ -4628,8 +4626,19 @@ function RecordNukeTarget(iTeam, tLaunchLocation)
         end
     end
     M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] = { tLaunchLocation[1],tLaunchLocation[2], tLaunchLocation[3] }
+    ForkThread(RemoveOldNukeTarget, iTeam, iCurTime, math.max(180, 60*M28Map.iMapSize / 1024))
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iTeam='..iTeam..'; tLaunchLocation='..repru(tLaunchLocation)..'; Time='..GetGameTimeSeconds()..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RemoveOldNukeTarget(iTeam, iRecordedTime, iDelayInSeconds)
+    WaitSeconds(iDelayInSeconds)
+    for iTime, tLocation in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
+        if iRecordedTime == iTime then
+            M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = nil
+            break
+        end
+    end
 end
 
 function QuantumOpticsManager(aiBrain, oUnit)
