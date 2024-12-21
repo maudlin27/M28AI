@@ -7458,7 +7458,7 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateActiveShortlistForCombatDrops'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 7*60 then bDebugMessages = true end
+
     M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportCombatShortlistUpdate] = GetGameTimeSeconds()
     local iGroundAAThreshold = 160
     if bDebugMessages == true then LOG(sFunctionRef..': Considering active combat drop locations, is table of potential combat drop zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau]))) end
@@ -7526,10 +7526,21 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
                 local tLZData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ]
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering the start for enemy '..oBrain.Nickname..'; Transport unload count='..(tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 'nil')..'; tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; Best structure range='..tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Best mobile DF range='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Mex count='..tLZData[M28Map.subrefLZMexCount]..'; Time since last had visual='..(GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastHadVisual] or 0))) end
-                if (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) <= 1 and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0) <= 10 and tLZData[M28Map.subrefLZMexCount] >= 3 and GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastHadVisual] or 0) <= 300 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Including enemy base P'..iCurPlateau..'Z'..iCurLZ..' which is the core base for '..oBrain.Nickname..' in the combat drop shortlist') end
-                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iCurPlateau, iCurLZ})
-                    M28Team.tTeamData[iTeam][M28Team.refbEnemyBaseInCombatDropShortlist] = true
+                if (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) <= 1 and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0) <= 10 and tLZData[M28Map.subrefLZMexCount] >= 3 and GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastHadVisual] or 0) <= 300 and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 then
+                    local iEnemyLandFactories = 0
+                    local tEnemyLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefTEnemyUnits])
+                    if M28Utilities.IsTableEmpty(tEnemyLandFactories) == false then
+                        for iFactory, oFactory in tEnemyLandFactories do
+                            if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
+                                iEnemyLandFactories = iEnemyLandFactories + 1
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Including enemy base P'..iCurPlateau..'Z'..iCurLZ..' which is the core base for '..oBrain.Nickname..' in the combat drop shortlist unless it has 2+ land factories, iEnemyLandFactories='..iEnemyLandFactories) end
+                    if iEnemyLandFactories <= 1 then
+                        table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iCurPlateau, iCurLZ})
+                        M28Team.tTeamData[iTeam][M28Team.refbEnemyBaseInCombatDropShortlist] = true
+                    end
                 end
             end
         end
@@ -7747,7 +7758,7 @@ function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
 end
 
 function GetCombatDropPlateauAndLandZoneEntryRefForTransport(iTeam, oUnit)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCombatDropPlateauAndLandZoneEntryRefForTransport'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
