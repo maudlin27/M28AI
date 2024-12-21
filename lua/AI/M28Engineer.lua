@@ -17489,7 +17489,7 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
             if tLZTeamData[M28Map.refbGetTMLBattery] then iMaxTMLWanted = 9 end
             if bDebugMessages == true then LOG(sFunctionRef .. ': Do we already have TML in this LZ? Is table of TML empty=' .. tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTML, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))..'; iMaxTMLWanted='..iMaxTMLWanted) end
             local tTMLInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryTML, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-            if (iMaxTMLWanted == 1 and (M28Utilities.IsTableEmpty(tTMLInZone) or ((tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] or 0) <= 1 and DoesTableContainUnderConstructionUnits(tTMLInZone)))) or (iMaxTMLWanted > 1 and table.getn(tTMLInZone) < iMaxTMLWanted) then
+            if (iMaxTMLWanted == 1 and (M28Utilities.IsTableEmpty(tTMLInZone) or ((tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] or 0) <= 1 and M28Conditions.DoesTableContainUnderConstructionUnits(tTMLInZone)))) or (iMaxTMLWanted > 1 and table.getn(tTMLInZone) < iMaxTMLWanted) then
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': About to cycle through every land zone and consider targets, unless we want TML to defend against LR threat, iMaxTMLWanted='..iMaxTMLWanted)
                 end
