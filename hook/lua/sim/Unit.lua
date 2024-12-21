@@ -330,7 +330,7 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         end,
         OnMissileImpactTerrain = function(self, target, position)
             ForkThread(M28Events.OnMissileImpactTerrain, self, target, position)
-            if M28OldUnit.OnMissilbeImpactTerrain then return M28OldUnit.OnMissileImpactTerrain(self, target, position) end
+            if M28OldUnit.OnMissileImpactTerrain then return M28OldUnit.OnMissileImpactTerrain(self, target, position) end
         end,
         OnMissileIntercepted = function(self, target, defense, position)
             --LOG('OnMissileIntercepted triggered')
