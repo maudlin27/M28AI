@@ -3439,3 +3439,10 @@ function IsM28AIPersonality(aiBrain)
     if string.sub(sPersonality, 1, 3) == 'm28' then return true else return false end
     --Prev code: (ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aicheat' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aie' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aiecheat')
 end
+
+function DoesTableContainUnderConstructionUnits(tUnits)
+    for iUnit, oUnit in tUnits do
+        if oUnit:GetFractionComplete() < 1 then return true end
+    end
+    return false
+end
