@@ -225,6 +225,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftiPotentialDropZonesByPlateau = 'M28TeamAirPotDropZones' --[x] is plateau, [y] = 1,2,...x, returns land zone ref for that plateau that we are happy to try and drop with a transport
     reftiPotentialCombatDropZonesByPlateau = 'M28TeamATrCmDZ' --[x] is plateau, [y]=1,2,...x, returns LZ ref for plateau to consider dropping if enemy has vulnerable mexes
     reftTransportCombatPlateauLandZoneDropShortlist = 'M28TeamATCurCmbShlst' --key is 1,2,...x, returns {iPlateau, iLandZone}, being locations where after evaluating enemy threat we want to send a combat drop
+    refbEnemyBaseInCombatDropShortlist = 'M28TEnBCmSl' --true if enemy base is in the combat shortlist
     reftiPotentialPondDropZones = 'M28TeamAirPotPondDrop' --[x] = 1,2,...x, returns the water zone
     reftiHighTechEngiDropPlateauAndZones = 'M28TArTrEngPD' --[x] = 1,2,...x, returns {iPlateauOrZero, iLandOrWaterZone, iTechLevelWanted} - used to highlight zones wanting say a T3 engi to build SMD
     refiLastFailedIslandDropTime = 'M28TeamAirLastFailedDrop' --Gametimeseconds where we last had a transport die while trying to drop this plateau

@@ -7458,13 +7458,13 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateActiveShortlistForCombatDrops'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if GetGameTimeSeconds() >= 7*60 then bDebugMessages = true end
     M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportCombatShortlistUpdate] = GetGameTimeSeconds()
+    local iGroundAAThreshold = 160
     if bDebugMessages == true then LOG(sFunctionRef..': Considering active combat drop locations, is table of potential combat drop zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau]) == false then
         --Get start plateau and zone based on friendly base nearest rally point
         local iMobileDFThreshold = 60
-        local iGroundAAThreshold = 160
         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 then
             iMobileDFThreshold = 200
             iGroundAAThreshold = 400
@@ -7513,6 +7513,28 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
             table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iDangerousPlateau, iDangerousZone})
         end
     end
+    --Consider dropping enemy bases if theyre just ecoing and we arent far behind on air
+    M28Team.tTeamData[iTeam][M28Team.refbEnemyBaseInCombatDropShortlist] = false
+    if bDebugMessages == true then LOG(sFunctionRef..': If enemy isnt at T3 yet will consider dropping their base, M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]..'; Is our team far behind on air='..tostring(M28Conditions.TeamIsFarBehindOnAir(iTeam))) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 and not(M28Conditions.TeamIsFarBehindOnAir(iTeam)) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will consider enemy start zones to see if there are any vulnerable to a t1 arti drop (i.e. no PD and minimal groundAA, and no major threat)') end
+        local iCurPlateau, iCurLZ
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+            local tEnemyStart = M28Map.GetPlayerStartPosition(oBrain)
+            iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tEnemyStart)
+            if iCurPlateau and iCurLZ and iCurPlateau > 0 then
+                local tLZData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ]
+                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering the start for enemy '..oBrain.Nickname..'; Transport unload count='..(tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 'nil')..'; tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; Best structure range='..tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Best mobile DF range='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Mex count='..tLZData[M28Map.subrefLZMexCount]..'; Time since last had visual='..(GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastHadVisual] or 0))) end
+                if (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) <= 1 and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0) <= 10 and tLZData[M28Map.subrefLZMexCount] >= 3 and GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastHadVisual] or 0) <= 300 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Including enemy base P'..iCurPlateau..'Z'..iCurLZ..' which is the core base for '..oBrain.Nickname..' in the combat drop shortlist') end
+                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iCurPlateau, iCurLZ})
+                    M28Team.tTeamData[iTeam][M28Team.refbEnemyBaseInCombatDropShortlist] = true
+                end
+            end
+        end
+    end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -7725,25 +7747,48 @@ function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
 end
 
 function GetCombatDropPlateauAndLandZoneEntryRefForTransport(iTeam, oUnit)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCombatDropPlateauAndLandZoneEntryRefForTransport'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist]) == false then
         local iGroundAAThreshold = 150 * M28UnitInfo.GetUnitTechLevel(oUnit)
+        if M28Team.tTeamData[iTeam][M28Team.refbEnemyBaseInCombatDropShortlist] then iGroundAAThreshold = iGroundAAThreshold * 1.75 end --So we are more likely to drop core bases even if it means passing over some mAA first (as we wont havei ncluded the enemy base in the droplist if it had relatively modest AA)
         local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
         local iClosestDist = 10000
-        local iCurDist
+        local iModDist
         local iClosestEntryRef
 
 
         local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+        local tEnemyStartZonesByPlateau
+        if M28Team.tTeamData[iTeam][M28Team.refbEnemyBaseInCombatDropShortlist] then
+            tEnemyStartZonesByPlateau = {}
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+                local tEnemyStart = M28Map.GetPlayerStartPosition(oBrain)
+                local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tEnemyStart)
+                if iCurPlateau and iCurLZ and iCurPlateau > 0 then
+                    if not(tEnemyStartZonesByPlateau[iCurPlateau]) then tEnemyStartZonesByPlateau[iCurPlateau] = {} end
+                    tEnemyStartZonesByPlateau[iCurPlateau][iCurLZ] = true
+                end
+            end
+        end
         for iEntry, tiPlateauAndZone in M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist] do
-            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]][M28Map.subrefMidpoint])
-            if iCurDist < iClosestDist then
+            local tCurLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]]
+            iModDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tCurLZData[M28Map.subrefMidpoint])
+            if tCurLZData[M28Map.refiTransportRecentUnloadCount] then iModDist = iModDist + 100 * (tCurLZData[M28Map.refiTransportRecentUnloadCount] - 1) end
+            if tCurLZData[M28Map.subrefLZMexCount] >= 4 then
+                iModDist = iModDist - 50
+                if tEnemyStartZonesByPlateau and tEnemyStartZonesByPlateau[tiPlateauAndZone[1]][tiPlateauAndZone[2]] and (tCurLZData[M28Map.refiTransportRecentUnloadCount] or 0) <= 1 then
+                    iModDist = iModDist - 200
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..tiPlateauAndZone[1]..'Z'..tiPlateauAndZone[2]..'; Is this an enemy base='..tostring(tEnemyStartZonesByPlateau[tiPlateauAndZone[1]][tiPlateauAndZone[2]] or false)..'; iModDist='..iModDist..'; iClosestDist='..iClosestDist) end
+            if iModDist < iClosestDist then
                 CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2])
+                if bDebugMessages == true then LOG(sFunctionRef..': Does enemy ahve AA threat along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, iGroundAAThreshold, 0, false, iAirSubteam, true, false, oUnit:GetPosition(), false))) end
                 if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, iGroundAAThreshold, 0, false, iAirSubteam, true, false, oUnit:GetPosition(), false)) then
-                    iClosestDist = iCurDist
+                    iClosestDist = iModDist
                     iClosestEntryRef = iEntry
                 end
             end
