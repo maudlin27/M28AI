@@ -1344,7 +1344,14 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                     end
                 end
             end
-
+        elseif iOptionalEngineerAction == refActionBuildTML and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTMLBatteryUnits]) == false and EntityCategoryContains(M28UnitInfo.refCategoryTML, sBlueprintToBuild) then
+            for iTML, oTML in tLZTeamData[M28Map.reftoTMLBatteryUnits] do
+                if M28UnitInfo.IsUnitValid(oTML) then
+                    tTargetLocation = oTML:GetPosition()
+                    if not(iCatToBuildBy) then iCatToBuildBy = M28UnitInfo.refCategoryTML end
+                    break
+                end
+            end
         end
 
         if bDebugMessages == true then LOG(sFunctionRef..': sBlueprintToBuild='..(sBlueprintToBuild or 'nil')..'; Location to look from='..repru(tTargetLocation)) end
@@ -17383,37 +17390,40 @@ function CheckDestroyedBuildingLocations()
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iENtry='..iEntry..'; repru='..repru(tSubtable)) end
             if iLandOrWaterZone > 0 then
-                local iBuildingSize = M28UnitInfo.GetBuildingSize(tSubtable[subrefDestroyedBuildingBlueprint])
-                local iBaseSegmentX, iBaseSegmentZ = M28Map.GetPathingSegmentFromPosition(tSubtable[subrefDestroyedBuildingLocation])
-                --local iAffectedDistanceRadius = math.min(math.max(iBuildingSize, 8), iBuildingSize * 0.5 + iMaxBuildingSize * 0.5)
+                if not(tSubtable[subrefDestroyedBuildingBlueprint]) then M28Utilities.ErrorHandler('No destroyed building blueprint')
+                else
+                    local iBuildingSize = M28UnitInfo.GetBuildingSize(tSubtable[subrefDestroyedBuildingBlueprint])
+                    local iBaseSegmentX, iBaseSegmentZ = M28Map.GetPathingSegmentFromPosition(tSubtable[subrefDestroyedBuildingLocation])
+                    --local iAffectedDistanceRadius = math.min(math.max(iBuildingSize, 8), iBuildingSize * 0.5 + iMaxBuildingSize * 0.5)
 
-                if aiBrain then
-                    SearchForBuildableLocationsNearTarget(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iBuildingSize * 0.5)
+                    if aiBrain then
+                        SearchForBuildableLocationsNearTarget(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iBuildingSize * 0.5)
 
-                    --Record any mass storage locations
-                    if iPlateauOrZero > 0 then
-                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then
-                            local bHaveNearbyMex = false
-                            local iPotentialStorageDistance = iBuildingSize * 0.5 + 3
-                            for iMex, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do
-                                if M28Utilities.GetRoughDistanceBetweenPositions(tMex, tSubtable[subrefDestroyedBuildingLocation]) <= iPotentialStorageDistance then
-                                    bHaveNearbyMex = true
-                                    break
+                        --Record any mass storage locations
+                        if iPlateauOrZero > 0 then
+                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then
+                                local bHaveNearbyMex = false
+                                local iPotentialStorageDistance = iBuildingSize * 0.5 + 3
+                                for iMex, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do
+                                    if M28Utilities.GetRoughDistanceBetweenPositions(tMex, tSubtable[subrefDestroyedBuildingLocation]) <= iPotentialStorageDistance then
+                                        bHaveNearbyMex = true
+                                        break
+                                    end
+                                end
+                                if bHaveNearbyMex then
+                                    M28Map.RecordAvailableMassStorageLocationsForLandZone(iPlateauOrZero, iLandOrWaterZone)
                                 end
                             end
-                            if bHaveNearbyMex then
-                                M28Map.RecordAvailableMassStorageLocationsForLandZone(iPlateauOrZero, iLandOrWaterZone)
+                        end
+                    else
+                        M28Utilities.ErrorHandler('No longer have M28 brain')
+                        if bDebugMessages == true then
+                            for iBrain, oBrain in ArmyBrains do
+                                LOG(sFunctionRef..': Considering iBrain='..iBrain..'; oBrain='..(oBrain.Nickname or 'nil')..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)..'; .M28AI='..tostring(oBrain.M28AI or false)..'; Team='..(oBrain.M28Team or 'nil'))
                             end
-                        end
-                    end
-                else
-                    M28Utilities.ErrorHandler('No longer have M28 brain')
-                    if bDebugMessages == true then
-                        for iBrain, oBrain in ArmyBrains do
-                            LOG(sFunctionRef..': Considering iBrain='..iBrain..'; oBrain='..(oBrain.Nickname or 'nil')..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)..'; .M28AI='..tostring(oBrain.M28AI or false)..'; Team='..(oBrain.M28Team or 'nil'))
-                        end
-                        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
-                            LOG(sFunctionRef..': Cycling all active M28 Brains, iBrain='..iBrain..'; oBrain='..(oBrain.Nickname or 'nil')..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false))
+                            for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                                LOG(sFunctionRef..': Cycling all active M28 Brains, iBrain='..iBrain..'; oBrain='..(oBrain.Nickname or 'nil')..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false))
+                            end
                         end
                     end
                 end
@@ -17461,7 +17471,6 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPToAssignToBuildingTML'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     local iBPWanted = 0
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': TIme=' .. GetGameTimeSeconds() .. ' iPlateau=' .. iPlateau .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Is core base=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase]) .. '; is core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion]) .. '; iLandZone=' .. iLandZone)
@@ -17476,76 +17485,85 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
         --Decided to remove the check about max enemy tech, as they may have T2 mexes but T1 units, and performance isn't as big a concern early-game anyway
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
             --Do we have any TML in this LZ already?
-            if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Do we already have TML in this LZ? Is table of TML empty=' .. tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTML, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))))
-            end
-            if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTML, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) then
+            local iMaxTMLWanted = 1
+            if tLZTeamData[M28Map.refbGetTMLBattery] then iMaxTMLWanted = 9 end
+            if bDebugMessages == true then LOG(sFunctionRef .. ': Do we already have TML in this LZ? Is table of TML empty=' .. tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTML, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))..'; iMaxTMLWanted='..iMaxTMLWanted) end
+            local tTMLInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryTML, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if (iMaxTMLWanted == 1 and M28Utilities.IsTableEmpty(tTMLInZone)) or (iMaxTMLWanted > 1 and table.getn(tTMLInZone) < iMaxTMLWanted) then
                 if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': About to cycle through every land zone and consider targets')
+                    LOG(sFunctionRef .. ': About to cycle through every land zone and consider targets, unless we want TML to defend against LR threat, iMaxTMLWanted='..iMaxTMLWanted)
                 end
-                for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': Zone ' .. tSubtable[M28Map.subrefiLandOrWaterZoneRef] .. ' is distance ' .. tSubtable[M28Map.subrefiDistance] .. ' away')
+                if iMaxTMLWanted > 1 then
+                    iBPWanted = 50
+                    if not (bHaveLowMass) then
+                        iBPWanted = 100
                     end
-                    if tSubtable[M28Map.subrefiDistance] <= M28Building.iTMLMissileRange then
-                        if not (tSubtable[M28Map.subrefbIsWaterZone]) then
-                            local tAltLZTeamData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefLZTeamData][iTeam]
-                            if bDebugMessages == true then
-                                LOG(sFunctionRef .. ': Considering enemy zone ' .. tSubtable[M28Map.subrefiLandOrWaterZoneRef] .. '; Is table of enemy TMD empty=' .. tostring(M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD])) .. '; is talbe of enemy potential targets empty=' .. tostring(M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD])))
-                            end
-                            if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD]) == false then
-                                --Refresh the table
-                                local iLastEntry = table.getn(tAltLZTeamData[M28Map.subreftoEnemyTMD])
-                                for iCurEntry = iLastEntry, 1, -1 do
-                                    if not (M28UnitInfo.IsUnitValid(tAltLZTeamData[M28Map.subreftoEnemyTMD][iCurEntry])) then
-                                        table.remove(tAltLZTeamData[M28Map.subreftoEnemyTMD], iCurEntry)
-                                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want BP for TML defense') end
+                else
+                    for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef .. ': Zone ' .. tSubtable[M28Map.subrefiLandOrWaterZoneRef] .. ' is distance ' .. tSubtable[M28Map.subrefiDistance] .. ' away')
+                        end
+                        if tSubtable[M28Map.subrefiDistance] <= M28Building.iTMLMissileRange then
+                            if not (tSubtable[M28Map.subrefbIsWaterZone]) then
+                                local tAltLZTeamData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefLZTeamData][iTeam]
+                                if bDebugMessages == true then
+                                    LOG(sFunctionRef .. ': Considering enemy zone ' .. tSubtable[M28Map.subrefiLandOrWaterZoneRef] .. '; Is table of enemy TMD empty=' .. tostring(M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD])) .. '; is talbe of enemy potential targets empty=' .. tostring(M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD])))
                                 end
                                 if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD]) == false then
-                                    break
-                                end
-                            end
-                            if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) == false then
-                                --Refresh the list of potential targets
-                                local iLastEntry = table.getn(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets])
-                                for iCurEntry = iLastEntry, 1, -1 do
-                                    if not (M28UnitInfo.IsUnitValid(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets][iCurEntry])) then
-                                        table.remove(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets], iCurEntry)
-                                    end
-                                end
-                                if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) == false then
-                                    --Do we have >=50% complete T2+ mex, or 100% of a high value alt unit?
-                                    local iDecentTargetCount = 0
-                                    local bDontDoDistanceCheck = false
-                                    if table.getn(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) >= 5 then bDontDoDistanceCheck = true end
-                                    for iUnit, oUnit in tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets] do
-                                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Distance to midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
-                                        if oUnit:GetFractionComplete() >= 0.75 then
-                                            if bDontDoDistanceCheck or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= M28Building.iTMLMissileRange - 10 then
-                                                if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH1, oUnit.UnitId) then
-                                                    iDecentTargetCount = iDecentTargetCount + 1
-                                                else iDecentTargetCount = iDecentTargetCount + oUnit:GetFractionComplete() *  (oUnit:GetBlueprint().BuildCostMass or 0) / 1200
-                                                end
-                                                if iDecentTargetCount >= 1 then break end
-                                            end
+                                    --Refresh the table
+                                    local iLastEntry = table.getn(tAltLZTeamData[M28Map.subreftoEnemyTMD])
+                                    for iCurEntry = iLastEntry, 1, -1 do
+                                        if not (M28UnitInfo.IsUnitValid(tAltLZTeamData[M28Map.subreftoEnemyTMD][iCurEntry])) then
+                                            table.remove(tAltLZTeamData[M28Map.subreftoEnemyTMD], iCurEntry)
                                         end
                                     end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iDecentTargetCount='..iDecentTargetCount) end
-                                    if iDecentTargetCount >= 1 then
-                                        iBPWanted = 40
-                                        if not (bHaveLowMass) then
-                                            iBPWanted = 80
-                                        end
+                                    if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD]) == false then
                                         break
                                     end
                                 end
+                                if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) == false then
+                                    --Refresh the list of potential targets
+                                    local iLastEntry = table.getn(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets])
+                                    for iCurEntry = iLastEntry, 1, -1 do
+                                        if not (M28UnitInfo.IsUnitValid(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets][iCurEntry])) then
+                                            table.remove(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets], iCurEntry)
+                                        end
+                                    end
+                                    if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) == false then
+                                        --Do we have >=50% complete T2+ mex, or 100% of a high value alt unit?
+                                        local iDecentTargetCount = 0
+                                        local bDontDoDistanceCheck = false
+                                        if table.getn(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) >= 5 then bDontDoDistanceCheck = true end
+                                        for iUnit, oUnit in tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets] do
+                                            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Distance to midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
+                                            if oUnit:GetFractionComplete() >= 0.75 then
+                                                if bDontDoDistanceCheck or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= M28Building.iTMLMissileRange - 10 then
+                                                    if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH1, oUnit.UnitId) then
+                                                        iDecentTargetCount = iDecentTargetCount + 1
+                                                    else iDecentTargetCount = iDecentTargetCount + oUnit:GetFractionComplete() *  (oUnit:GetBlueprint().BuildCostMass or 0) / 1200
+                                                    end
+                                                    if iDecentTargetCount >= 1 then break end
+                                                end
+                                            end
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iDecentTargetCount='..iDecentTargetCount) end
+                                        if iDecentTargetCount >= 1 then
+                                            iBPWanted = 40
+                                            if not (bHaveLowMass) then
+                                                iBPWanted = 80
+                                            end
+                                            break
+                                        end
+                                    end
+                                end
                             end
+                        else
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef .. ': Remaining zones out of range so will abort')
+                            end
+                            break
                         end
-                    else
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef .. ': Remaining zones out of range so will abort')
-                        end
-                        break
                     end
                 end
             end
@@ -18326,7 +18344,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     end
                 end
             end
-            local iLongRangeFurtherAwayThreat = M28Land.GetFarAwayLandThreatOfLongRangeUnits(tLZData[M28Map.subrefMidpoint], iTeam, (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or tLZTeamData[M28Map.refbBaseInSafePosition])) --Will just consider mobile long range units
+            local iLongRangeFurtherAwayThreat = M28Land.GetFarAwayLandThreatOfLongRangeUnits(tLZData[M28Map.subrefMidpoint], iTeam, (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or tLZTeamData[M28Map.refbBaseInSafePosition]), true) --Will just consider mobile long range units; threat is reduced if we have TML
             if iLongRangeFurtherAwayThreat > 0 then
                 iBestEnemyRange = math.max(90, iBestEnemyRange) --assume enemy long range threat will be at least 90, e.g. fatboy
                 --If this is a safe base and the LR threat is sub-8k (or 12k if we have decent mobile force vs enemy) and we have low mass then ignore (we already reduce the threat for fractinocomplete in the above function)
@@ -18445,8 +18463,10 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     if tLZTeamData[M28Map.refbBaseInSafePosition] then iThreatWanted = iThreatWanted * 0.75 end
                     iThreatWanted = iThreatWanted - iT2ArtiThreat
                     iBPWanted = 240 --default
-                    local bAreBuildingShield = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; Threat rating of all nearby enemy T2 arti='..M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat) end
+                    local bAreBuildingShieldOrTML = false
+                    local iTMLBPWanted = 0
+                    if tLZTeamData[M28Map.refbGetTMLBattery] and (not(M28Team.tTeamData[iTeam][M28Team.refbTMLBatteryMissedLots]) or iT2ArtiCount >= 6 or (iT2ArtiCount >= 3 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTMLBatteryUnits]) or table.getn(tLZTeamData[M28Map.reftoTMLBatteryUnits]) <= iT2ArtiCount))) then iTMLBPWanted = GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, bHaveLowMass) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; Threat rating of all nearby enemy T2 arti='..M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; iTMLBPWanted='..(iTMLBPWanted or 'nil')) end
                     if iT2ArtiThreat > 0 and tLZTeamData[M28Map.refiRadarCoverage] <= math.min(60, M28UnitInfo.iT1RadarSize - 20) then
                         if tLZTeamData[M28Map.subrefLZbCoreBase] then
                             HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
@@ -18464,15 +18484,35 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             M28Utilities.ErrorHandler('Have arti for P'..iPlateau..'Z'..iLandZone..' that want shielding but werent able to get one to shield - shoudlnt be possible')
                             --HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted, tLZData[M28Map.subrefMidpoint])
                         else
-                            bAreBuildingShield = true
+                            bAreBuildingShieldOrTML = true
                             local iShieldTechLevelWanted = 2
                             if (tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] or 0) >= 8 then iShieldTechLevelWanted = 3 end --normal limit elsewhere is 5
                             HaveActionToAssign(refActionBuildShield, iShieldTechLevelWanted, iBPWanted, oArtiToShield)
                             if bDebugMessages == true then LOG(sFunctionRef..': Will build shield to cover arti isntead of more arti; however will still try more arti as slightly lower priority. iShieldTechLevelWanted='..iShieldTechLevelWanted) end
                         end
+                    elseif iTMLBPWanted > 0 then
+                        bAreBuildingShieldOrTML = true
+                        HaveActionToAssign(refActionBuildTML, 2, math.max(iBPWanted, iTMLBPWanted))
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and build TML') end
+                        --Also get shielding if we have lots of TML
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTMLBatteryUnits]) == false then
+                            local toTMLToShield = {}
+                            for iTML, oTML in tLZTeamData[M28Map.reftoTMLBatteryUnits] do
+                                if oTML[M28Building.refbUnitWantsShielding] and M28Utilities.IsTableEmpty(oTML[M28Building.reftoShieldsProvidingCoverage]) and (oTML[refiFailedShieldConstructionCount] or 0) <= 1 and M28UnitInfo.IsUnitValid(oTML) then
+                                    table.insert(toTMLToShield, oTML)
+                                end
+                            end
+                            if M28Utilities.IsTableEmpty(toTMLToShield) == false then
+                                local oTMLForShielding = M28Utilities.GetNearestUnit(toTMLToShield, tLZData[M28Map.subrefMidpoint])
+                                if table.getn(toTMLToShield) >= 3 then iBPWanted = iBPWanted * 0.5 else iBPWanted = iBPWanted * 0.25 end
+                                HaveActionToAssign(refActionBuildShield, 2, iBPWanted, oTMLForShielding)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will shield TML, oTMLForShielding='..oTMLForShielding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMLForShielding)) end
+                            end
+                        end
+                        if iT2ArtiCount > 0 then iBPWanted = 0 end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we already ahve enough T2 arti threat, iThreatWanted='..iThreatWanted..'; iT2ArtiThreat='..iT2ArtiThreat..'; HaveLowMass='..tostring(bHaveLowMass)) end
-                    if (iThreatWanted > iT2ArtiThreat or (iT2ArtiThreat <= 3000 and not(bHaveLowMass) and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (iT2ArtiThreat <= 1500 or iThreatWanted >= 800))) and (iThreatWanted >= 500 or (iThreatWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
+                    if iBPWanted > 0 and (iThreatWanted > iT2ArtiThreat or (iT2ArtiThreat <= 3000 and not(bHaveLowMass) and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (iT2ArtiThreat <= 1500 or iThreatWanted >= 800))) and (iThreatWanted >= 500 or (iThreatWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
                         if iThreatWanted <= 4000 and iT2ArtiThreat >= 1000 then
                             iBPWanted = math.min(120, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])
                             if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
@@ -18481,7 +18521,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             iBPWanted = math.min(240, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10)
                             if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.75 end
                         end
-                        if bAreBuildingShield then iBPWanted = iBPWanted * 0.25 end
+                        if bAreBuildingShieldOrTML then iBPWanted = iBPWanted * 0.25 end
 
                         local oFactoryToAssistInstead
                         local bEnemyHasFatboyOrMegalith = false

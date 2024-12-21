@@ -2267,11 +2267,35 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     end
                 end
             end
+
+            --Final adjustment - if have any recent nuke launch locations that are near either the rally point or support point,  then move away from here
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
+                local iTimeThreshold = math.max(10, 60 * M28Map.iMapSize / 1024) + 10
+                local iReassessCount = 0
+                local iAngleToBase
+                local iDistThreshold = 60
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if air rally or support points are near a recent nuke launch location, Rally='..tostring(M28Conditions.IsTargetNearActiveNukeTarget(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iTeam, iDistThreshold, iTimeThreshold))..'; Support='..tostring(M28Conditions.IsTargetNearActiveNukeTarget(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iTeam, iDistThreshold, iTimeThreshold))) end
+                while M28Conditions.IsTargetNearActiveNukeTarget(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iTeam, iDistThreshold, iTimeThreshold) do
+                    iReassessCount = iReassessCount + 1
+                    if not(iAngleToBase) then iAngleToBase = M28Utilities.GetAngleFromAToB(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], tStartMidpoint) end
+                    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iAngleToBase, iDistThreshold * iReassessCount, true, false, not(M28Map.bIsCampaignMap))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Moving rally point due to nuke, iReassessCount='..iReassessCount) end
+                    if iReassessCount >= 5 then break end
+                end
+                iAngleToBase = nil
+                while M28Conditions.IsTargetNearActiveNukeTarget(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iTeam, iDistThreshold, iTimeThreshold) do
+                    iReassessCount = iReassessCount + 1
+                    if not(iAngleToBase) then iAngleToBase = M28Utilities.GetAngleFromAToB(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], tStartMidpoint) end
+                    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iAngleToBase, iDistThreshold * iReassessCount, true, false, not(M28Map.bIsCampaignMap))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Moving support point due to nuke, iReassessCount='..iReassessCount) end
+                    if iReassessCount >= 5 then break end
+                end
+            end
             if bDebugMessages == true then LOG(sFunctionRef..'; Will draw air sub rally point') M28Utilities.DrawLocation(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], nil, 10, 10) end
-        else
+            else
             M28Utilities.ErrorHandler('No air support point for air subteam '..iAirSubteam)
+            end
         end
-    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

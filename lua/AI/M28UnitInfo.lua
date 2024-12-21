@@ -47,6 +47,7 @@ refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
 refiLastBombFired = 'M28LastBmb' --Gametimeseconds that last fired a bomb
 refiLastDodgeBombEvent = 'M28LastDodB' --gametimeseconds that last triggered the onbombfired logic
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
+reftRecentUnitPositions = 'M28RcUnP' --[x] = 1, 2, 3; based on previous recorded positions; used for TML targeting logic; note that this isnt by team to reduce tables required, since if have multiple M28 then only the first one will try and record this in MonitorUnitRecentPositions
 reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateau, iLandZoneRef}
 reftRecentPlateauAndZoneByTeam = 'M28UnitPrvPlatZ' --[x] is the preceding entry, returns {iPlateauOrZero, iLandOrWaterZoneRef}; will keep track of the last 8 changes (used to realise if a unit is stuck alternating between the same 2 zones)
 refiPatrolStuckCount = 'M28UStCn' --number of times unit has been stuck patrolling
@@ -442,7 +443,19 @@ end
 function GetBuildingSize(sBlueprintID)
     --Similar to GetBuildingSizeTable but returns a single value for the highest size
     local oBlueprint = GetBlueprintFromID(sBlueprintID)
-    return math.max(oBlueprint.Physics.SkirtSizeX, oBlueprint.Physics.SkirtSizeZ)
+    if oBlueprint.Physics.SkirtSizeX then
+        return math.max(oBlueprint.Physics.SkirtSizeX, oBlueprint.Physics.SkirtSizeZ)
+    else
+        --Redundancy due to error in log for a replay I wasnt able to access
+        M28Utilities.ErrorHandler('Unit doesnt have a skirtsizex, will approximate building size')
+        if EntityCategoryContains(categories.SIZE4, sBlueprintID) then return 2
+        elseif EntityCategoryContains(categories.SIZE8, sBlueprintID) then return 3
+        elseif EntityCategoryContains(categories.SIZE12, sBlueprintID) then return 6
+        elseif EntityCategoryContains(categories.SIZE16, sBlueprintID) then return 8
+        elseif EntityCategoryContains(categories.SIZE20, sBlueprintID) then return 10
+        else return 10
+        end
+    end
 end
 
 function GetUnitState(oUnit)

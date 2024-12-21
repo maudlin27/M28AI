@@ -609,7 +609,8 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         local iZoneDiameter = math.max(tLZData[M28Map.subrefLZMaxSegX] - tLZData[M28Map.subrefLZMinSegX], tLZData[M28Map.subrefLZMaxSegZ] - tLZData[M28Map.subrefLZMinSegZ]) * M28Map.iLandZoneSegmentSize
         local iRangeThreshold = math.max(iZoneDiameter * 0.8, 60)
         for iUnit, oUnit in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
-            if M28UnitInfo.IsUnitValid(oUnit) then
+            --Only include megalith if we lack similar DF or IF range
+            if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiCombatRange] > 70 or tLZTeamData[M28Map.subrefLZAllyBestCombatRange] < oUnit[M28UnitInfo.refiCombatRange]) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Long range threat unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; Unit range='..(oUnit[M28UnitInfo.refiCombatRange] or 0)..'; iRangeThreshold='..iRangeThreshold..'; iZoneDiameter='..iZoneDiameter) end
                 if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= (oUnit[M28UnitInfo.refiCombatRange] or 0) + iRangeThreshold then --tried 55 but proved too small
                     table.insert(tNearbyLongRangeThreats, oUnit)
@@ -618,7 +619,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         end
         if M28Utilities.IsTableEmpty(tNearbyLongRangeThreats) then tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] = 0
         else
-            tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] = M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats], true)
+            tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] = M28UnitInfo.GetCombatThreatRating(tNearbyLongRangeThreats, true)
         end
     else
         tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] = 0
@@ -9991,7 +9992,7 @@ function DontHaveJerichoAttackTarget(oJericho)
     return true
 end
 
-function GetFarAwayLandThreatOfLongRangeUnits(tStartPoint, iTeam, bMinorZoneAdjustment)
+function GetFarAwayLandThreatOfLongRangeUnits(tStartPoint, iTeam, bMinorZoneAdjustment, bAdjustForNearbyTML)
     local iLongRangeFurtherAwayThreat = 0
     local iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tStartPoint)
     if iPlateau and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) == false then
@@ -10021,6 +10022,24 @@ function GetFarAwayLandThreatOfLongRangeUnits(tStartPoint, iTeam, bMinorZoneAdju
                                 else
                                     iLongRangeFurtherAwayThreat = iLongRangeFurtherAwayThreat + iUnitBaseThreat * 0.25
                                 end
+                            end
+                        end
+                    end
+                end
+            end
+            --Halve threat if we have a nearby TML battery
+            if bAdjustForNearbyTML and iLongRangeFurtherAwayThreat > 2000 then
+                local iBasePlateau, iBaseLZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
+                if iBasePlateau and iBaseLZ  then
+                    local tLZTeamData = M28Map.tAllPlateaus[iBasePlateau][M28Map.subrefPlateauLandZones][iBaseLZ][M28Map.subrefLZTeamData][iTeam]
+                    if tLZTeamData[M28Map.refbNearbyTMLBattery] or tLZTeamData[M28Map.refbGetTMLBattery] then
+                        local tEnemyExperimental = EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMegalith, tMobileLandLRThreat)
+                        if M28Utilities.IsTableEmpty(tEnemyExperimental) == false then
+                            if M28Team.tTeamData[iTeam][M28Team.refbTMLBatteryMissedLots] then
+                                --Only reduce threat slightly
+                                iLongRangeFurtherAwayThreat = math.max(2000, iLongRangeFurtherAwayThreat * 0.8, iLongRangeFurtherAwayThreat - M28UnitInfo.GetMassCostOfUnits(tEnemyExperimental))
+                            else
+                                iLongRangeFurtherAwayThreat = math.max(2000, iLongRangeFurtherAwayThreat * 0.5, iLongRangeFurtherAwayThreat - M28UnitInfo.GetMassCostOfUnits(tEnemyExperimental))
                             end
                         end
                     end
