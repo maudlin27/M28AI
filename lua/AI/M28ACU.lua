@@ -2047,7 +2047,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                     --Enemy PD check - if enemy has T2+/long range PD and we lack 3 upgrades, then make it more likely we run
                                                     local bEnemyHasPDOrSignificantACUs = false
                                                     local iAggressiveFactor = 1
-                                                    if oACU[refbUseACUAggressively] and iPercentageToFriendlyBase >= 0.3 then iAggressiveFactor = 1.5 end
+                                                    if oACU[refbUseACUAggressively] and iPercentageToFriendlyBase <= 0.3 then iAggressiveFactor = 1.5 end
                                                     --Decrease ACU factor and aggressive factor if enemy has more ACUs than us that have similar range to us and arent close to our base, and has significant nearby threat
                                                     if tLZTeamData[M28Map.refiModDistancePercent] >= 0.25 and iEnemyNearbyThreat >= 1200 then
                                                         local iNearbyEnemyACUWithGoodRangeCount = 0
