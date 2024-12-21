@@ -17475,7 +17475,7 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': TIme=' .. GetGameTimeSeconds() .. ' iPlateau=' .. iPlateau .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Is core base=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase]) .. '; is core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion]) .. '; iLandZone=' .. iLandZone)
     end
-    if tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and not (bHaveLowMass)) then
+    if tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not (bHaveLowMass) or (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and ((tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] or 0) == 0 or (tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] == 1 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryTML, true) > 0)) and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiGrossMassBaseIncome] >= 3.5 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and (ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiGrossMassBaseIncome]>= 10 or tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))))  then
         --Make sure we have recorded pathing in a straight line for this zone (will only run if table is empty)
         M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
 
@@ -17489,7 +17489,7 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
             if tLZTeamData[M28Map.refbGetTMLBattery] then iMaxTMLWanted = 9 end
             if bDebugMessages == true then LOG(sFunctionRef .. ': Do we already have TML in this LZ? Is table of TML empty=' .. tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryTML, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))..'; iMaxTMLWanted='..iMaxTMLWanted) end
             local tTMLInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryTML, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-            if (iMaxTMLWanted == 1 and M28Utilities.IsTableEmpty(tTMLInZone)) or (iMaxTMLWanted > 1 and table.getn(tTMLInZone) < iMaxTMLWanted) then
+            if (iMaxTMLWanted == 1 and (M28Utilities.IsTableEmpty(tTMLInZone) or ((tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] or 0) <= 1 and DoesTableContainUnderConstructionUnits(tTMLInZone)))) or (iMaxTMLWanted > 1 and table.getn(tTMLInZone) < iMaxTMLWanted) then
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': About to cycle through every land zone and consider targets, unless we want TML to defend against LR threat, iMaxTMLWanted='..iMaxTMLWanted)
                 end
@@ -17571,6 +17571,7 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
             M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': end of code, iBPWanted='..iBPWanted) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iBPWanted
 end

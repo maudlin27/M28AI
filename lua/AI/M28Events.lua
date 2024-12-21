@@ -2864,6 +2864,12 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         ForkThread(M28Building.OnMexConstructionStarted, oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnit.UnitId) then
                         M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit, nil, true)
+                        if oUnit:GetAIBrain().M28AI then
+                            local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
+                            if tLZTeamData then
+                                tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] = (tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] or 0) + 1
+                            end
+                        end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                         M28Building.TMDJustBuilt(oUnit)
                     end
