@@ -2439,7 +2439,7 @@ function GiveOverchargeOrderIfRelevant(tLZData, tLZTeamData, oACU, iPlateauOrZer
                     oACU[M28UnitInfo.refbSpecialMicroActive] = false
                 else
                     M28Orders.IssueTrackedOvercharge(oACU, oUnitToOvercharge, false, 'OC', true)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have just told ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..' to overcharge '..oUnitToOvercharge.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToOvercharge)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have just told ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..' to overcharge '..oUnitToOvercharge.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToOvercharge)..'; Dist to this unit='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnitToOvercharge:GetPosition())..'; ACU DF range='..oACU[M28UnitInfo.refiDFRange]) end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true
                 end
