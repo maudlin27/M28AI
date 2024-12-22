@@ -3667,7 +3667,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             end
             local bAreInScenario1 = false
             if M28Utilities.IsTableEmpty(tCombatUnitsOfUse) == false and tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > iEnemyBestRange and (iEnemyNearbySubmersibleThreat < 500 or iEnemyBestSumbersibleRange < iAlliedBestAntiNavyRange or iOurAntiNavyThreat > iEnemyNearbySubmersibleThreat or tWZTeamData[M28Map.subrefWZThreatAlliedSurface] > 5 * iEnemyNearbySubmersibleThreat or ((tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > 100 and tWZTeamData[M28Map.subrefWZThreatAlliedSurface] > math.max(18000, iEnemyNearbySubmersibleThreat * 2))) or (tWZTeamData[M28Map.subrefWZBestAlliedDFRange] - 15 > iEnemyBestRange and oNearestEnemyToFriendlyBase and not(M28UnitInfo.IsUnitUnderwater(oNearestEnemyToFriendlyBase)) and tWZTeamData[M28Map.subrefWZThreatAlliedSurface] > iEnemyNearbySubmersibleThreat))
-            and (M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > 100 or tWZTeamData[M28Map.subrefWZThreatAlliedSurface] > 10000) then
+            and (M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) or tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > 100 or tWZTeamData[M28Map.subrefWZThreatAlliedSurface] > 10000) then
                 --Scenario 1 - our ships outrange enemy
                 bAreInScenario1 = true
                 local tOutrangedCombatUnits = {}
