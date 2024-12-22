@@ -164,9 +164,10 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                             ForkThread(ConsiderRecordingStratBomberToSuicideInto, oKillerUnit, true)
                         end
 
-                        --Tracking for certain units that are killed - T2 arti and gunships:
+                        --Logic specific to where M28 unit is killed:
                         if oUnitKilled:GetAIBrain().M28AI then
                             local iTeam = oUnitKilled:GetAIBrain().M28Team
+                            --Tracking for certain units that are killed - T2 arti and gunships:
                             if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oKillerUnit.UnitId) then M28Land.ConsiderIfHaveEnemyFirebase(iTeam, oKillerUnit) end
                             --Track non-experimental air units
                             if EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber - M28UnitInfo.refCategoryTorpBomber - categories.EXPERIMENTAL, oUnitKilled.UnitId) then
@@ -184,6 +185,12 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                             M28Air.iProjectileLowHealthThreshold = M28Air.iProjectileLowHealthThreshold + 0.02
                                         end
                                     end
+                                end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitKilled.UnitId) and not(iTeam == oKillerUnit:GetAIBrain().M28Team) then
+                                if oKillerUnit:GetAIBrain().M28Team then
+                                    --I.e. we have an M28 naval fac killed by a unit from another team
+                                    local tWZData, tWZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, iTeam)
+                                    if tWZTeamData then tWZTeamData[M28Map.subrefWZFactoryDestroyedCount] = (tWZTeamData[M28Map.subrefWZFactoryDestroyedCount] or 0) + 1 end
                                 end
                             end
                         end
