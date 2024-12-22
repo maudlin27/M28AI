@@ -480,6 +480,7 @@ tPondDetails = {}
             subrefWZbContainsUnderwaterStart = 'WZUndwSt' --true if an M28brain start position is in this water zone and is underwater
             subrefWZbContainsNavalBuildLocation = 'WZNavBL' --true if contains a naval build location for a friendly M28AI
             subrefWZTValue = 'WZVal' --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
+            subrefWZFactoryDestroyedCount = 'WZFacKil' --number of factories that have died in this WZ, used to decide whether to clear the core WZ flag
             --refiRadarCoverage - use same ref as for land zone
             --refiOmniCoverage - use same ref as land zone
             --refoBestRadar - use same ref as for land zone
@@ -512,6 +513,7 @@ tPondDetails = {}
             subreftEnemyLongRangeUnits = 'WEnLRU' --Table of enemy 'longer range' units (e.g. T2PD+ in range), based on iLongRangeThreshold
 
             subrefWZTThreatAllyCombatTotal = 'AlCom'
+            subrefWZTThreatAllyLauncherDefenceTotal = 'AlLnc' --Fixed combat threat (i.e. torp launchers, and in LOUD PD) in the water zone
             subrefWZThreatAlliedAntiNavy = 'AlANav'
             subrefWZThreatAlliedSubmersible = 'AlSub'
             subrefWZThreatAlliedSurface = 'AlSurf'

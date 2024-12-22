@@ -2349,6 +2349,7 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
     local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local bAreInScenario2 = false
     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then bAreInScenario2 = true
     else
