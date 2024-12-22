@@ -171,7 +171,7 @@ function UpdateUnitCategories()
         M28UnitInfo.refCategoryNavyThatCanBeTorpedoed = M28UnitInfo.refCategoryNavyThatCanBeTorpedoed + M28UnitInfo.refCategoryAmphibious
 
         --Naval based: LOUD specific issues so dont need for steam
-        --M28UnitInfo.refCategoryAntiNavy = M28UnitInfo.refCategoryAntiNavy + categories.DESTROYER + categories.SUBMARINE --Unlike LOUD, Steam has antinavy for subs and destroyers
+        --M28UnitInfo.refCategoryAntiNavy = M28UnitInfo.refCategoryAntiNavy + categories.DESTROYER + categories.SUBMARINE - categories.ues0201 --Unlike LOUD, Steam has antinavy for subs and destroyers
         --M28UnitInfo.refCategorySubmarine = M28UnitInfo.refCategorySubmarine + categories.SUBMARINE
         --M28UnitInfo.refCategoryGroundAA = M28UnitInfo.refCategoryGroundAA + categories.NAVALCARRIER --Unlike LOUD, Steam has antiair category for aircraft carriers
         --M28UnitInfo.refCategoryBattlecruiser = M28UnitInfo.refCategoryBattlecruiser + categories.CRUISER * categories.UEF * categories.TECH3 * categories.DIRECTFIRE + categories.xes0307 --Steam uses battleship (unlike LOUD) for battlecruiser
