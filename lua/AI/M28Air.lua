@@ -4757,7 +4757,6 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                     if M28Utilities.bLoudModActive then iAAThreatThreshold = iAAThreatThreshold * 0.6 end
                     --Be much more cautious of enemy AA if they ahve torp defence in the zone
                     if (tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 0) > 0 then
-                        bDebugMessages = true
                         if bDebugMessages == true then LOG(sFunctionRef..': Reducing AA Threat threshold due to enemy torpedo defence, iAAThreatThreshold before reduction='..iAAThreatThreshold) end
                         iAAThreatThreshold = iAAThreatThreshold * iAAThreatThreshold / (iAAThreatThreshold + math.min(iAAThreatThreshold * 4, math.min(30, tWZTeamData[M28Map.refiEnemyTorpDefenceCount]) * 500))
                     end
