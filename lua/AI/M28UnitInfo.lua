@@ -1896,6 +1896,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
     if oBP.Weapon then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
             if oCurWeapon.MaxRadius and not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit.HasEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with range category='..(oCurWeapon.RangeCategory or 'nil')..'; weapon category='..(oCurWeapon.WeaponCategory or 'nil')..' and label='..(oCurWeapon.Label or 'nil')..' for unit '..oUnit.UnitId) end
                 if oCurWeapon.ManualFire then
                     oUnit[refiManualRange] = math.max((oUnit[refiManualRange] or 0), oCurWeapon.MaxRadius)
                     oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.DamageRadius or 0)
@@ -1906,7 +1907,13 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                     else
                         oUnit[refiMissileDefenceRange] = math.max((oUnit[refiMissileDefenceRange] or 0), oCurWeapon.MaxRadius)
                     end
-                elseif oCurWeapon.RangeCategory == 'UWRC_DirectFire' or (oCurWeapon.RangeCategory == 'UWRC_IndirectFire' and oCurWeapon.WeaponCategory == 'Direct Fire') then --Sera sniper bots have an 'indirectfire' range category that is actually DF
+                elseif oCurWeapon.Label == 'Bomb' and EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) then
+                    oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
+                    if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenBombs] = math.max((oUnit[refiTimeBetweenBombs] or 0), 1 / oCurWeapon.RateOfFire) end
+                elseif (oCurWeapon.Label == 'Torpedo' or oCurWeapon.Label == 'ClusterTorpedo') and EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId) then
+                    oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
+                    if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenBombs] = math.max((oUnit[refiTimeBetweenBombs] or 0), 1 / oCurWeapon.RateOfFire) end
+                elseif (oCurWeapon.RangeCategory == 'UWRC_DirectFire' or (oCurWeapon.RangeCategory == 'UWRC_IndirectFire' and oCurWeapon.WeaponCategory == 'Direct Fire')) then --Sera sniper bots have an 'indirectfire' range category that is actually DF
                     bReplaceValues = false
                     bIgnoreValues = false
                     --Monkeylord special - use main laser weapon values only
@@ -2166,7 +2173,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
         end
     end
     oUnit[refiUnitMassCost] = iMassCost
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording range, mass value and other info for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[refiDFRange] or 'nil')..'; Indirect range='..(oUnit[refiIndirectRange] or 'nil')..'; Mass cost='..oUnit[refiUnitMassCost]..'; Can unit kite='..tostring(oUnit[refbCanKite] or false)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording range, mass value and other info for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[refiDFRange] or 'nil')..'; Indirect range='..(oUnit[refiIndirectRange] or 'nil')..'; AntiNavy range='..(oUnit[refiAntiNavyRange] or 'nil')..';Mass cost='..oUnit[refiUnitMassCost]..'; Can unit kite='..tostring(oUnit[refbCanKite] or false)..'; Bomber range='..(oUnit[refiBomberRange] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
