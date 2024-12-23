@@ -4649,10 +4649,12 @@ end
 
 function RemoveOldNukeTarget(iTeam, iRecordedTime, iDelayInSeconds)
     WaitSeconds(iDelayInSeconds)
-    for iTime, tLocation in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
-        if iRecordedTime == iTime then
-            M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = nil
-            break
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
+        for iTime, tLocation in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
+            if iRecordedTime == iTime then
+                M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = nil
+                break
+            end
         end
     end
 end
