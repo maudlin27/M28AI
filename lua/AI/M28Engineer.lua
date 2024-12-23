@@ -11775,6 +11775,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Priority TML to defend against enemy fatboy
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.refbGetTMLBattery] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTMLBatteryUnits]) == false and table.getn(tLZTeamData[M28Map.reftoTMLBatteryUnits]) < 8 then
+        iBPWanted = GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, bHaveLowMass)
+        if bDebugMessages == true then LOG(sFunctionRef..': High priority TML builder, iBPWanted='..iBPWanted) end
+        if iBPWanted > 0 then
+            HaveActionToAssign(refActionBuildTML, 2, iBPWanted)
+        end
+    end
+
     --1st experimental - Enemy has land experimental and we dont have one of our own yet (and havent completed one before), unless enemy has a fatboy (in which case we want to focus more on getting t2 arti)
     iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 1 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] < 12000 and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandExperimental, iTeam) == 0)) and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryFatboy, M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) == false then
@@ -11888,7 +11898,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bDebugMessages == true then LOG(sFunctionRef..': We have an active gameender template so will assign engis to this (unless we want to assist nearby teammate exp)') end
     end
 
-    --first every experimental to build - rush if have t3 mex
+    --first ever experimental to build - rush if have t3 mex
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': First experimental - consider rushing if have t3 mex, M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; T3 mexes='..tLZTeamData[M28Map.subrefMexCountByTech][3]) end
     if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14 + 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
