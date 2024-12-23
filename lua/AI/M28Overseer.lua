@@ -548,7 +548,33 @@ end
 
 
 function TestCustom(aiBrain)
-    M28Map.DrawSpecificWaterZone(7)
+    --[[local tBasePosition = {600.5,0,617.5}
+    tBasePosition[2] = GetTerrainHeight(tBasePosition[1], tBasePosition[3])
+    local NavUtils = M28Utilities.NavUtils
+    LOG('TestCustom plateau of tBasePosition='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tBasePosition) or 'nil'))
+    local iCurPlateau, tCurPosition
+    for iXAdjust = -20, 20, 1 do
+        for iZAdjust = -20, 20, 1 do
+            tCurPosition = {tBasePosition[1] + iXAdjust, 0, tBasePosition[3] + iZAdjust}
+            tCurPosition[2] = GetTerrainHeight(tCurPosition[1], tCurPosition[3])
+            iCurPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tCurPosition)
+            if not(iCurPlateau) then
+                M28Utilities.DrawLocation(tCurPosition)
+            end
+        end
+    end
+    local iStartPlateau, iStartZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tBasePosition)
+    local tStartLZOrWZData
+    if iStartPlateau and iStartZone then tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartZone] end
+    LOG('TestCustom iStartPlateau='..(iStartPlateau or 'nil')..'; iStartZone='..(iStartZone or 'nil')..'; midpoint of iStartLZOrWZ='..repru(tStartLZOrWZData[M28Map.subrefMidpoint])..'; Is tLZData empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZData)))
+    local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tBasePosition)
+    local tSegmentMidpoint = M28Map.GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
+    local iSegmentPlateau, iSegmentZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tSegmentMidpoint)
+    LOG('TestCustom iSegmentPlateau='..(iSegmentPlateau or 'nil')..'; iSegmentZone='..(iSegmentZone or 'nil'))
+    if iSegmentPlateau and not(iSegmentZone) then
+        M28Map.CreateNewLandZoneAtSegment(iSegmentX, iSegmentZ, iSegmentPlateau)
+    end--]]
+    --M28Map.DrawSpecificWaterZone(7)
 
 
     --[[local oHumanBrain

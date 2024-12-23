@@ -1531,7 +1531,6 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
     local sFunctionRef = 'UpdateAirRallyAndSupportPoints'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     RefreshPriorityAirDefenceTargets(iAirSubteam)
     --Get the land or water zone of the priority unit that is closest to the enemy base that is closest to the air rally point and determine if its safe as a rally point
 
@@ -2023,7 +2022,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             end
         else
             --Move the support rally point if not on a land or water zone
-            local iSupportPlateau, iSupportLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tSupportRallyPoint)
+            local iSupportPlateau, iSupportLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tSupportRallyPoint)
             local iRevisedSegmentX, iRevisedSegmentZ
             if not(iSupportPlateau) then
                 local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tSupportRallyPoint)
@@ -2108,7 +2107,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) then
                     bUsePreferredRallyInstead = true
                 else
-                    local iSupportPlateauOrZero, iSupportLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])
+                    local iSupportPlateauOrZero, iSupportLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])
                     if not(iSupportPlateauOrZero) or not(iSupportLandOrWaterZone) then
                         bUsePreferredRallyInstead = true
                     else
@@ -2133,12 +2132,39 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             else
                 M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][3]}
             end
-            local iSupportPlateau, iSupportLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])
-            if bDebugMessages == true then LOG(sFunctionRef..': Updated air support point to be the rally point as we didnt have a support point from before, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..'; Post change iSupportPlateau='..(iSupportPlateau or 'nil')..'; iSupportLZOrWZ='..(iSupportLZOrWZ or 'nil')) end
+            if bDebugMessages == true then
+                local iSupportPlateau, iSupportLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])
+                LOG(sFunctionRef..': Updated air support point to be the rally point as we didnt have a support point from before, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..'; Post change iSupportPlateau='..(iSupportPlateau or 'nil')..'; iSupportLZOrWZ='..(iSupportLZOrWZ or 'nil'))
+            end
         end
         local tStartMidpoint = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][3]}
         if M28Utilities.IsTableEmpty(tStartMidpoint) == false then
-            local iStartPlateau, iStartLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartMidpoint)
+            local iStartPlateau, iStartLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartMidpoint)
+            if not(iStartPlateau) or not(iStartLZOrWZ) then
+                --Record new land zone if we have a plateau, dont have a LZOrWZ, but do ahve an island (as e.g. we may have discounted it before due to being too small)
+                if iStartPlateau and NavUtils.GetLabel(M28Map.refPathingTypeLand, tStartMidpoint) then
+                    local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tStartMidpoint)
+                    local tSegmentMidpoint = M28Map.GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
+                    local iSegmentPlateau, iSegmentZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tSegmentMidpoint)
+                    if iSegmentPlateau and not(iSegmentZone) then
+                        M28Map.CreateNewLandZoneAtSegment(iSegmentX, iSegmentZ, iSegmentPlateau)
+                    end
+                end
+
+                --Need to adjust support point to a valid location
+                local iAngleToBase = M28Utilities.GetAngleFromAToB(tStartMidpoint, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                for iDistance = 10, 100, 10 do
+                    tStartMidpoint = M28Utilities.MoveInDirection(tStartMidpoint, iAngleToBase, iDistance, true, false, not(M28Map.bIsCampaignMap))
+                    iStartPlateau, iStartLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartMidpoint)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Trying to find a valid location, iDistance='..iDistance..'; iAngleToBase='..iAngleToBase..'; iStartPlateau='..(iStartPlateau or 'nil')..'; iStartLZOrWZ='..(iStartLZOrWZ or 'nil'))
+                        if iStartPlateau and iStartLZOrWZ then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will update air sub support point to the revised tStartMidpoint='..repru(tStartMidpoint)) end
+                            M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {tStartMidpoint[1], tStartMidpoint[2], tStartMidpoint[3]}
+                            break
+                        end
+                    end
+                end
+            end
             local tStartLZOrWZTeamData
             if (iStartPlateau or 0) > 0 and (iStartLZOrWZ or 0) == 0 then
                 iStartLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartMidpoint)
@@ -2212,6 +2238,9 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': About to record the land and water zones by order of distance to iStartPlateau '..(iStartPlateau or 'nil')..'; iStartLZOrWZ='..(iStartLZOrWZ or 'nil')) end
             if not(tStartLZOrWZData) then
+                --Update sub rally point to the actual rally point
+                if bDebugMessages == true then LOG(sFunctionRef..'; Dont have valid LZ or WZ for the sub rally point, so will make it the actual rally point') end
+                M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][3]}
                 if tStartMidpoint then
                     iStartPlateau, iStartLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartMidpoint)
                     if iStartPlateau == 0 and (iStartLZOrWZ or 0) > 0 then
@@ -2292,10 +2321,10 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..'; Will draw air sub rally point') M28Utilities.DrawLocation(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], nil, 10, 10) end
-            else
+        else
             M28Utilities.ErrorHandler('No air support point for air subteam '..iAirSubteam)
-            end
         end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -3127,7 +3156,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         local refiAvoidOnlyGroundAA = 1
         local refiIgnoreAllAA = 2
 
-        local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])
+        local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])
         if (iStartPlateauOrZero or 0) > 0 then
             if (iStartLandOrWaterZone or 0) == 0 then
                 iStartLandOrWaterZone = M28Map.GetWaterZoneFromPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])
@@ -5557,7 +5586,7 @@ function ManageGunships(iTeam, iAirSubteam)
                 local tEnemySoulrippers = EntityCategoryFilterDown(M28UnitInfo.refCategoryGunship * categories.CYBRAN * categories.EXPERIMENTAL, M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround])
                 if M28Utilities.IsTableEmpty(tEnemySoulrippers) == false then
                     for iUnit, oUnit in tEnemySoulrippers do
-                        local iCurExpPlat, iCurExpZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                        local iCurExpPlat, iCurExpZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
                         LOG(sFunctionRef..': Enemy soulripper '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' reftAssignedPlateauAndLandZoneByTeam='..repru(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam])..'; WZ='..repru(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam])..'; iCurExpPlat='..(iCurExpPlat or 'nil')..'; iCurExpZone='..(iCurExpZone or 'nil')..'; Soulripper airaa threat='..M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, true, false, false, false))
                     end
                 end
@@ -5797,7 +5826,7 @@ function ManageGunships(iTeam, iAirSubteam)
                 --Old code - left in as redundancy
                 for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
                     local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
-                    iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
+                    iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
                     if (iCurPlateauOrZero or 0) > 0 then
                         if (iCurLZOrWZ or 0) == 0 then
                             iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartPoint)
@@ -6666,7 +6695,7 @@ function ManageAirScouts(iTeam, iAirSubteam)
         if M28Utilities.IsTableEmpty(tScoutTable) == false then
             local iCurPlateauOrZero, iCurLZOrWZ
             for iUnit, oUnit in tScoutTable do
-                iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
                 if (iCurPlateauOrZero or 0) > 0 then
                     if (iCurLZOrWZ or 0) == 0 then
                         iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
@@ -9482,7 +9511,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                 --Emergency response - first include any ground threats in a start position
                 for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
                     local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
-                    iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
+                    iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
                     if (iCurPlateauOrZero or 0) > 0 then
                         if (iCurLZOrWZ or 0) == 0 then
                             iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartPoint)
@@ -9752,7 +9781,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                 bUseAOEForTargetIfNotTooClose = true
                                 --If only have 1 exp bomber and targeting a fixed unit be more cautious if significant enemy groundAA threat near the target
                             elseif not(bHaveTargetWhereShotIsBlocked) and iTotalExpBombers == 1 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) then
-                                local iTargetPlateau, iTargetZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oBestEnemyTarget:GetPosition())
+                                local iTargetPlateau, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oBestEnemyTarget:GetPosition())
                                 if (iTargetPlateau or 0) > 0 and iTargetZone then
                                     local tTargetLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetZone]
                                     local tTargetLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]

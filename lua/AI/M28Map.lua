@@ -612,17 +612,93 @@ function GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathab
         end
     end
     --Dont have an override for here - if we think it shoudl be pathable then create an override
-    if bOptionalShouldBePathable and oOptionalPathingUnit then
-        --if bDebugMessages == true then LOG(sFunctionRef..': No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight..'; about to run ConsiderAddingPlateauOverrideForUnit')
-        if M28Land.ConsiderAddingPlateauOverrideForUnit(oOptionalPathingUnit) then
-            if tPathingPlateauAndLZOverride[iX] then
-                local iZ = math.floor(tPosition[3])
-                if tPathingPlateauAndLZOverride[iX][iZ] then
-                    --if bDebugMessages == true then LOG(sFunctionRef..': GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
+    if bOptionalShouldBePathable then
+        if oOptionalPathingUnit then
+            --if bDebugMessages == true then LOG(sFunctionRef..': No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight..'; about to run ConsiderAddingPlateauOverrideForUnit')
+            if M28Land.ConsiderAddingPlateauOverrideForUnit(oOptionalPathingUnit) then
+                if tPathingPlateauAndLZOverride[iX] then
+                    local iZ = math.floor(tPosition[3])
+                    if tPathingPlateauAndLZOverride[iX][iZ] then
+                        --if bDebugMessages == true then LOG(sFunctionRef..': GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
+                    end
                 end
             end
+        else
+            --We think this locatino should be pathable, but lack a unit; will do a search in a small grid around the target for a valid land or water zone
+            --Below was copied and started modifying from the main logic fr if there is a unit, as was plannign on having this as an alterantve option; left commented out code below in case return to this
+            --[[local iDistAdjust, iPossiblePlateau, iPossibleLZ
+            for iBaseAdjust = 1, 1 do
+                iDistAdjust = math.max(2, iLandZoneSegmentSize) * iBaseAdjust
+                local tLocationAdjust = {{-iDistAdjust,0}, {-iDistAdjust, -iDistAdjust}, {-iDistAdjust, iDistAdjust}, {0, -iDistAdjust}, {0, iDistAdjust}, {iDistAdjust, -iDistAdjust}, {iDistAdjust, 0}, {iDistAdjust,iDistAdjust}}
+                if bDebugMessages == true then LOG(sFunctionRef..': Will look in a box around the unit to see if can find a valid plateau and zone, iDistAdjust='..iDistAdjust) end
+                for iEntry, tAdjustXZ in tLocationAdjust do
+                    iPossiblePlateau, iPossibleLZ = GetPlateauAndLandZoneReferenceFromPosition({ tPosition[1] + tAdjustXZ[1], tPosition[2], tPosition[3] + tAdjustXZ[2] })
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering tPosition='..repru(tPosition)..'; tAdjustXZ='..repru(tAdjustXZ)..'; iPossiblePlateau='..(iPossiblePlateau or 'nil')..'; iPossibleLZ='..(iPossibleLZ or 'nil')..'; NavUtils plateau for this position='..(NavUtils.GetLabel(refPathingTypeHover, { tPosition[1] + tAdjustXZ[1], tPosition[2], tPosition[3] + tAdjustXZ[2] }) or 'nil')) end
+                    if (iPossiblePlateau or 0) > 0 and (iPossibleLZ or 0) > 0 and tAllPlateaus[iPossiblePlateau][subrefPlateauLandZones][iPossibleLZ] then
+                        if bDebugMessages == true then LOG('Found a plateau override for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' and tAdjustXZ='..repru(tAdjustXZ)) end
+                        bFoundAlternative = true
+                        AddLocationToPlateauExceptions(oUnit:GetPosition(), iPossiblePlateau, iPossibleLZ)
+                        break
+                    end
+                end
+                if not(bFoundAlternative) then
+                    --Try in a 1x1 box around the unit to see if we can find a plateau that is land pathable, and if so, see if we can path to a land zone, and if so then update to record this as the closest land zone
+                    iDistAdjust = 1
+                    tLocationAdjust = {{0,0}, {-iDistAdjust,0}, {-iDistAdjust, -iDistAdjust}, {-iDistAdjust, iDistAdjust}, {0, -iDistAdjust}, {0, iDistAdjust}, {iDistAdjust, -iDistAdjust}, {iDistAdjust, 0}, {iDistAdjust,iDistAdjust}}
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will look in a smaller radius box around the unit to see if can find a valid plateau, iDistAdjust='..iDistAdjust) end
+                    for iEntry, tAdjustXZ in tLocationAdjust do
+                        local tAltLocation = { tPosition[1] + tAdjustXZ[1], tPosition[2], tPosition[3] + tAdjustXZ[2] }
+                        iPossiblePlateau = NavUtils.GetLabel(refPathingTypeHover, tAltLocation)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering tAltLocation='..repru(tAltLocation)..'; iPossiblePlateau='..(iPossiblePlateau or 'nil')..'; iPossibleLZ='..(iPossibleLZ or 'nil')..'; NavUtils land pathing label='..(NavUtils.GetLabel(refPathingTypeLand, tAltLocation) or 'nil')..'; Is table of land zones for this plateau empty='..tostring(M28Utilities.IsTableEmpty(tAllPlateaus[iPossiblePlateau][subrefPlateauLandZones]))) end
+                        if (iPossiblePlateau or 0) > 0 and (NavUtils.GetLabel(refPathingTypeLand, tAltLocation) or 0) > 0 then
+                            --We have a plateau, but dont have a land zone for this position even though it is pathable by land - is there a land zone for this plateau nearby that can path here?
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby LZs that might be able to path here, is table of LZs empty for plateau '..iPossiblePlateau..' = '..tostring(M28Utilities.IsTableEmpty(tAllPlateaus[iPossiblePlateau][subrefPlateauLandZones]))) end
+                            if M28Utilities.IsTableEmpty(tAllPlateaus[iPossiblePlateau][subrefPlateauLandZones]) == false then
+                                local iClosestLZDist = 100000
+                                local iClosestUnpathableLZDist = 100000
+                                local iClosestUnpathableLZRef
+                                local iCurLZDist
+                                for iLandZone, tAltLZData in tAllPlateaus[iPossiblePlateau][subrefPlateauLandZones] do
+                                    iCurLZDist = M28Utilities.GetDistanceBetweenPositions(tAltLocation, tAllPlateaus[iPossiblePlateau][subrefPlateauLandZones][iLandZone][subrefMidpoint])
+
+                                    if iCurLZDist < iClosestLZDist then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Can we path from alt location to midpoint of land zone '..iLandZone..' with iCurLZDist='..iCurLZDist..'='..tostring(NavUtils.CanPathTo(refPathingTypeLand, tAltLocation, tAllPlateaus[iPossiblePlateau][subrefPlateauLandZones][subrefMidpoint]))) end
+                                        if NavUtils.CanPathTo(refPathingTypeLand, tAltLocation, tAllPlateaus[iPossiblePlateau][subrefPlateauLandZones][subrefMidpoint]) then
+                                            if iCurLZDist < iClosestLZDist then
+                                                iClosestLZDist = iCurLZDist
+                                                iPossibleLZ = iLandZone
+                                            end
+                                        elseif not(iPossibleLZ) and iCurLZDist < iClosestUnpathableLZDist then
+                                            iClosestUnpathableLZDist = iCurLZDist
+                                            iClosestUnpathableLZRef = iLandZone
+                                        end
+                                    end
+                                end
+                                if not(iPossibleLZ) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find any LZs that are actually pathable, closest unpaathable dist='..iClosestUnpathableLZDist..'; if this is within 50 then will use this') end
+                                    if iClosestUnpathableLZDist < 50 then
+                                        iPossibleLZ = iClosestUnpathableLZRef
+                                    end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Finsihed considering alternative entries in 1x1 box, iPossiblePlateau='..(iPossiblePlateau or 'nil')..'; iPossibleLZ='..(iPossibleLZ or 'nil')..'; If couldnt find anywhere will draw this units position in red; plateau if use hover pathing='..(NavUtils.GetLabel('Hover', oUnit:GetPosition()) or 'nil'))
+                            if not(iPossibleLZ) then M28Utilities.DrawLocation(oUnit:GetPosition(), 2) end
+                        end
+                        if (iPossiblePlateau or 0) > 0 and (iPossibleLZ or 0) > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Identified a backup land zone override for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' and tAdjustXZ='..repru(tAdjustXZ)..'; will add to list of exceptions, iPossibleLZ='..(iPossibleLZ or 'nil')) end
+                            bFoundAlternative = true
+                            AddLocationToPlateauExceptions(oUnit:GetPosition(), iPossiblePlateau, iPossibleLZ)
+                            break
+                        end
+                    end
+                end
+                if bFoundAlternative then break end
+            end--]]
+
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of function, will return nil') end
@@ -642,6 +718,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
     --Returns the plateau reference of tPosition (where tPosition is {x,y,z}), and the Land zone reference for that position
     --returns nil if cant find valid plateau or land zone
     --bOptionalShouldBePathable - if e.g. have a unit at tPosition, then set this to true as it means somehow a unit could path in this area, and the code will then try backup options and give error messages
+    --local bDebugMessages = false --If want to enable logs then uncomment out this and below
 
     --Get the plateau reference and the land segment X and Z references:
     local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
@@ -650,13 +727,13 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
 
     if (iPlateau or 0) <= 0 or not(tAllPlateaus[iPlateau]) then
         --Check if we have previously recorded this location with a pathing override
-        --LOG('GetPlateauAndLandZoneReferenceFromPosition iPlateau='..(iPlateau or 'nil'))
+        --if bDebugMessages == true then LOG('GetPlateauAndLandZoneReferenceFromPosition iPlateau='..(iPlateau or 'nil')) end
         iPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
-        --LOG('GetPlateauAndLandZoneReferenceFromPosition iPlateau after getting override='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
+        --if bDebugMessages == true then LOG('GetPlateauAndLandZoneReferenceFromPosition iPlateau after getting override='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
         if not(tAllPlateaus[iPlateau]) then
             --Potential error - see if there is a plateau for the preicse position if it shoudl be pathable
 
-            --LOG('GetPlateauAndLandZoneReferenceFromPosition: tAllPlateaus is nil for iPlateau='..(iPlateau or 'nil')..'; if should be pathable will check the segment we are in/ bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false))
+            --if bDebugMessages == true then LOG('GetPlateauAndLandZoneReferenceFromPosition: tAllPlateaus is nil for iPlateau='..(iPlateau or 'nil')..'; if should be pathable will check the segment we are in/ bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)) end
             if bOptionalShouldBePathable then
                 iPlateau = NavUtils.GetLabel(refPathingTypeHover, tPosition)
 
@@ -683,13 +760,13 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
         --Have a valid plateau, get the land zone reference:
         --local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
         iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
-        --LOG('GetPlateauAndLandZoneReferenceFromPosition - iLandZOne based on segment='..(iLandZone or 'nil'))
+        --if bDebugMessages == true then LOG('GetPlateauAndLandZoneReferenceFromPosition - iLandZOne based on segment='..(iLandZone or 'nil')) end
         if not(iLandZone) then
             --Are we above water in height? If so check for override
             if tPosition[2] > iMapWaterHeight then
                 local iAltPlateau
                 iAltPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
-                --LOG('GetPlateauAndLandZoneReferenceFromPosition: iLandZone after checking for override='..(iLandZone or 'nil'))
+                --if bDebugMessages == true then LOG('GetPlateauAndLandZoneReferenceFromPosition: iLandZone after checking for override='..(iLandZone or 'nil')) end
                 if not(iLandZone) and bOptionalShouldBePathable then
                     --Possible explanation - engineer has traveled across water and reached a cliff
                     if EntityCategoryContains(categories.HOVER + M28UnitInfo.refCategoryAmphibious, oOptionalPathingUnit.UnitId) then
@@ -719,7 +796,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
             end
         end
     end
-    --LOG('GetPlateauAndLandZoneReferenceFromPosition - end of code, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
+    --if bDebugMessages == true then LOG('GetPlateauAndLandZoneReferenceFromPosition - end of code, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
 
 
     return iPlateau, iLandZone
@@ -758,7 +835,7 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
         local tLZData
         if iLandZone and iPlateau then tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone] end
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Position from segments='..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; iPlateau for this='..(iPlateau or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Position from segments='..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; iPlateau for this='..(iPlateau or 'nil')..'; Is tLZData nil='..tostring(tLZData == nil)..'; tWaterZoneBySegment[iSegmentX][iSegmentZ]='..(tWaterZoneBySegment[iSegmentX][iSegmentZ] or 'nil')) end
         if not(iPlateau) or (not(tLZData) and tWaterZoneBySegment[iSegmentX][iSegmentZ] == nil) then
             if (iSegmentX <= -30 or iSegmentZ <= -30 or iSegmentX >= iMaxLandSegmentX + 30 or iSegmentZ >= iMaxLandSegmentZ + 30) then
                 --E.g. RNG can sometimes send air units far outside the map area
@@ -818,6 +895,7 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
                     end
                     if iAdjust >= 100 then M28Utilities.ErrorHandler('Likely error locating valid segment for iSegmentX-Z='..iSegmentX..'-'..iSegmentZ..'; iMaxLandSegmentX='..iMaxLandSegmentX..'; iMaxLandSegmentZ='..iMaxLandSegmentZ..'; iLandZoneSegmentSize='..iLandZoneSegmentSize..'; iMapSize='..iMapSize) end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': End of loop, iFailureCount='..iFailureCount) end
             end
         else
             --Have a valid plateau and land or water zone
@@ -1426,7 +1504,7 @@ end
 
 ---@param iBaseSegmentX number
 ---@param iBaseSegmentZ number
-local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ, iOptionalPlateauBackup)
+local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ, iOptionalPlateauBackup, bRecordMidpointAndOtherData)
     --Creates a new land zone reference at the land segment given by iBaseSegmentX-iBaseSegmentZ (includes adding new land zone reference to the plateau group that these segments are part of)
     --iBaseSegmentX and Z are the land segment X and Z references
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1442,6 +1520,11 @@ local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ, iOptiona
             AddNewLandZoneReferenceToPlateau(iPlateau)
             --LOG('Have just created a new land zone reference for base segment XZ='..iBaseSegmentX..'-'..iBaseSegmentZ..' in the iPlateau='..iPlateau)
             RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateau, tAllPlateaus[iPlateau][subrefLandZoneCount])
+            if bRecordMidpointAndOtherData then
+                local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][tAllPlateaus[iPlateau][subrefLandZoneCount]]
+                if bDebugMessages == true then LOG(sFunctionRef..': Will record new LZData, iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; is LZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))) end
+                RecordMidpointAndOtherDataForZone(iPlateau, tAllPlateaus[iPlateau][subrefLandZoneCount], tLZData, nil)
+            end
         else
             M28Utilities.ErrorHandler('Tried creating new zone for '..iBaseSegmentX..'-'..iBaseSegmentZ..' but dont have valid plateau iPlateau='..(iPlateau or 'nil'))
         end
