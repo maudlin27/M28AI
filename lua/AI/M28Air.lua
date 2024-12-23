@@ -4721,8 +4721,14 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                         end
                     end
                     if M28Utilities.bLoudModActive then iAAThreatThreshold = iAAThreatThreshold * 0.6 end
+                    --Be much more cautious of enemy AA if they ahve torp defence in the zone
+                    if (tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 0) > 0 then
+                        bDebugMessages = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Reducing AA Threat threshold due to enemy torpedo defence, iAAThreatThreshold before reduction='..iAAThreatThreshold) end
+                        iAAThreatThreshold = iAAThreatThreshold * iAAThreatThreshold / (iAAThreatThreshold + math.min(iAAThreatThreshold * 4, math.min(30, tWZTeamData[M28Map.refiEnemyTorpDefenceCount]) * 500))
+                    end
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; iTorpBomberThreat='..iTorpBomberThreat..'; tWZTeamData[M28Map.refiModDistancePercent]='..tWZTeamData[M28Map.refiModDistancePercent]..'; iMassValueOfEnemyUnits='..iMassValueOfEnemyUnits) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; iTorpBomberThreat='..iTorpBomberThreat..'; tWZTeamData[M28Map.refiModDistancePercent]='..tWZTeamData[M28Map.refiModDistancePercent]..'; iMassValueOfEnemyUnits='..iMassValueOfEnemyUnits..'; tWZTeamData[M28Map.refiEnemyTorpDefenceCount]='..(tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 'nil')) end
                     if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                         if bDebugMessages == true then LOG(sFunctionRef..': Want to attack, enemy AA threat threshold='..iAAThreatThreshold..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false, iAAThreatThreshold, 0))) end
 
@@ -4886,12 +4892,14 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
         local aiBrain
         local bTorpBombers = false
         local bEnemyHasTorpDefence = false
+        local iUnitTorpDefenceCount
         if tAvailableBombers[1] then
             aiBrain = tAvailableBombers[1]:GetAIBrain()
             if EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, tAvailableBombers[1].UnitId) then
                 bTorpBombers = true
+                iUnitTorpDefenceCount = 0
                 for iUnit, oUnit in toEnemyUnitsByDistance do
-                    if oUnit[M28UnitInfo.refbHasTorpedoDefence] then bEnemyHasTorpDefence = true break end
+                    if oUnit[M28UnitInfo.refiTorpedoDefenceCount] then iUnitTorpDefenceCount = iUnitTorpDefenceCount + oUnit[M28UnitInfo.refiTorpedoDefenceCount] end
                 end
             end
         else
@@ -4903,6 +4911,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
         local bIssueAttackUnitOrder
         --Go through enemy units by distance to rally point (so target the nearest ones first)
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+        local iEnemyTorpDefenceCount
         for iCurEnemyUnit, iDistance in M28Utilities.SortTableByValue(toEnemyUnitsByDistance, false) do
             --for iCurEnemyUnit = iEnemyTargetSize, 1, -1 do
             iClosestUnitDist = 100000
@@ -4911,12 +4920,17 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                 iTotalStrikeDamageWanted = oEnemyUnit:GetMaxHealth()
                 if oEnemyUnit.MyShield.GetMaxHealth then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted + oEnemyUnit.MyShield:GetMaxHealth() end
                 if bTorpBombers then
-                    if bEnemyHasTorpDefence then
+                    if not(iEnemyTorpDefenceCount) then
+                        local tCurWZData, tCurWZTeamData = M28Map.GetLandOrWaterZoneData(oEnemyUnit:GetPosition(), true, aiBrain.M28Team)
+                        iEnemyTorpDefenceCount = math.max((iUnitTorpDefenceCount or 0), (tCurWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 0))
+                    end
+                    if iEnemyTorpDefenceCount > 0 then
+                        --Torp bombers seem weakiner in LOUD (particularly non-LCE version) so will be even more prudent re how many bombers we need
                         if M28Utilities.bLoudModActive then
-                            if M28Utilities.bLCEActive then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.625
-                            else iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.8
+                            if M28Utilities.bLCEActive then iTotalStrikeDamageWanted = math.max(math.min(iTotalStrikeDamageWanted * 3.5, iEnemyTorpDefenceCount * 325), iTotalStrikeDamageWanted * 1.5)
+                            else iTotalStrikeDamageWanted = math.max(math.min(iTotalStrikeDamageWanted * 4, iEnemyTorpDefenceCount * 400), iTotalStrikeDamageWanted * 1.8)
                             end
-                        else iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5
+                        else iTotalStrikeDamageWanted = math.max(math.min(iTotalStrikeDamageWanted * 3, iEnemyTorpDefenceCount * 250), iTotalStrikeDamageWanted * 1.25)
                         end
                     else
                         if M28Utilities.bLoudModActive then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.25 end

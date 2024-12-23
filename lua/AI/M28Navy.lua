@@ -483,6 +483,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] = 0
         tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = 0
         tWZTeamData[M28Map.subreftEnemyLongRangeUnits] = nil
+        tWZTeamData[M28Map.refiEnemyTorpDefenceCount] = 0
     else
         local iTorpDefenceSurfaceCount = 0
         tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits],  true,       false,              false,                      true,       false)
@@ -494,6 +495,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false, false)
         tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tWZTeamData[M28Map.subrefTEnemyUnits]))
         tWZTeamData[M28Map.subreftEnemyLongRangeUnits] = {}
+        local iTorpDefenceCount = 0
         local iLRThreshold = iLongRangeThreshold
         local iCurShield, iMaxShield, iThreatFactor
         for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
@@ -503,7 +505,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                     local iUnitSegmentX, iUnitSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
                     LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Anti navy range='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; Combat threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)..'; Surface threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit },   true,       false,              false,                      false,      true,           false)..';  Submersible threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true,     false,              false,                      false,      false,          true)..'; Unit SegX='..(iUnitSegmentX or 'nil')..'Z='..(iUnitSegmentZ or 'nil')..'; WZ at this segment='..(M28Map.tWaterZoneBySegment[iUnitSegmentX][iUnitSegmentZ] or 'nil')..'; LZ at this segment='..(M28Map.tLandZoneBySegment[iUnitSegmentX][iUnitSegmentZ] or 'nil')..'; is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; unit position='..repru(oUnit:GetPosition())..'; water height='..M28Map.iMapWaterHeight..'; sizey='..(oUnit:GetBlueprint().SizeY or 0))
                 end
-                if oUnit[M28UnitInfo.refbHasTorpedoDefence] and not(EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then iTorpDefenceSurfaceCount = iTorpDefenceSurfaceCount + 1 end
+                if oUnit[M28UnitInfo.refiTorpedoDefenceCount] then iTorpDefenceCount = iTorpDefenceCount + oUnit[M28UnitInfo.refiTorpedoDefenceCount] end
                 --Simplification to approach taken for land zone logic - will ignore threat (since only relevant for aeon land scout)
                 if (oUnit[M28UnitInfo.refiDFRange] or 0) >  tWZTeamData[M28Map.subrefWZBestEnemyDFRange] then  tWZTeamData[M28Map.subrefWZBestEnemyDFRange] = oUnit[M28UnitInfo.refiDFRange] end
                 if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) >  tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] then
@@ -528,6 +530,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                 tWZTeamData[M28Map.subrefThreatEnemyShield] = tWZTeamData[M28Map.subrefThreatEnemyShield] + iThreatFactor * (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
             end
         end
+        tWZTeamData[M28Map.refiEnemyTorpDefenceCount] = iTorpDefenceCount
         if (tWZTeamData[M28Map.subrefThreatEnemyShield] or 0) >= 50 then
             local iMaxShieldRating
             if tWZTeamData[M28Map.subrefThreatEnemyShield] >= 4000 then
@@ -723,7 +726,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bNearbyEnemies='..tostring(bNearbyEnemies)..'; Allied combat='..(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil')..'; tWZTeamData[M28Map.subrefWZMAAThreatWanted]='..tWZTeamData[M28Map.subrefWZMAAThreatWanted]..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tWZTeamData[M28Map.refiEnemyAirOtherThreat]='..tWZTeamData[M28Map.refiEnemyAirOtherThreat]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bNearbyEnemies='..tostring(bNearbyEnemies)..'; Allied combat='..(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil')..'; tWZTeamData[M28Map.subrefWZMAAThreatWanted]='..tWZTeamData[M28Map.subrefWZMAAThreatWanted]..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tWZTeamData[M28Map.refiEnemyAirOtherThreat]='..tWZTeamData[M28Map.refiEnemyAirOtherThreat]..'; tWZTeamData[M28Map.refiEnemyTorpDefenceCount]='..(tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 'nil')) end
     tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] = bNearbyEnemies
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
