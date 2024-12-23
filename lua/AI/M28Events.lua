@@ -309,9 +309,9 @@ function OnYthothaDeath(oUnit)
             local tNearbyUnits
             if bDebugMessages == true then LOG(sFunctionRef..': Ythotha has just died, will look for nearby units and tell them to run away') end
             local iTimeToRun
-            local iSearchRange = 70
+            local iSearchRange = 70 --at 50 distance a fatboy can end up dying to it
             for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
-                tNearbyUnits = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand, oUnit:GetPosition(), 50, 'Ally')
+                tNearbyUnits = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand, oUnit:GetPosition(), iSearchRange, 'Ally')
                 if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
                     for iFriendlyUnit, oFriendlyUnit in tNearbyUnits do
                         if bDebugMessages == true then LOG(sFunctionRef..': oFriendlyUnit='..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..'; if we own it then will make it run away') end
