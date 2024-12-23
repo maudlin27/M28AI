@@ -67,6 +67,7 @@ refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate i
 refbExpBomberShotBlocked = 'M28ULstExpBShtBlck' --true if an experimental bomber thinks a shot fired at this unit will be blocked
 refiTargetShotBlockedCount = 'M28UnitTrgSBlC' --Number of times a long range unit has failed to hit this (used for naval units targeting structures - change how this is increased if want to expand usage)
 refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds
+refiFailedOCCount = 'M28UFlOCC' --intneded for QUIET - if we have tried overcharging a unit that is in our range and are firing our main gun instead then this will increase by 1
 reftbInArmyIndexBigThreatTable = 'M28UnitInBigThreatTable' --[x] is army index; true if have added unit to table of big threats for that army index
 refbConstructionStart = 'M28UnitConStrt' --True if constructionstarted event logic has been run for this unit
 reftiTimeOfLastEnhancementComplete = 'M28TLstECmpl' --table, [x] = enhancement ID, gametimeseconds that the upgrade completed
@@ -120,7 +121,7 @@ refiMissileDefenceRange = 'M28UMDefR' --For SMD and TMD
 refiAARange = 'M28UAAR'
 refiBomberRange = 'M28UBR'
 refbWeaponUnpacks = 'M28WUP'
-refbHasTorpedoDefence = 'M28TDef' --true if unit has torpedo defence
+refiTorpedoDefenceCount = 'M28TDef' --true if unit has torpedo defence
 refiStrikeDamage = 'M28USD'
 refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
 refiTimeBetweenDFShots = 'M28DFTime'
@@ -1873,6 +1874,27 @@ function GetUnitStrikeDamage(oUnit, bReferenceIsATableWithUnitId)
     return iStrikeDamage
 end
 
+function GetTorpedoDefenceValue(oUnit, oCurWeapon)
+    LOG('TEMPCODE Returning torp defence value for unit '..oUnit.UnitId)
+    if GetUnitTechLevel(oUnit) == 1 then
+        return 1
+    else
+        local iBaseValue = 1
+        local iCurValue = oCurWeapon.RateOfFire or iBaseValue
+        local iValue = 1
+        if oCurWeapon.RateOfFire and oCurWeapon.RateOfFire >= 2/6 then
+            if oCurWeapon.RateOfFire >= 3/6 then iValue = 2.5
+            else iValue = 2
+            end
+        end
+
+        if (oCurWeapon.MuzzleSalvoSize or 1) > 1 then
+            iValue = iValue * oCurWeapon.MuzzleSalvoSize
+        end
+        return iValue
+    end
+end
+
 function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
     --Updates unit range variables - sets to nil if it has nothing with that range, otherwise records it as the highest range it has.  Factors in enhancements. Also records if unit unpacks for T3 mobile arti
     --Also updates if unit can kite
@@ -1896,17 +1918,24 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
     if oBP.Weapon then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
             if oCurWeapon.MaxRadius and not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit.HasEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with range category='..(oCurWeapon.RangeCategory or 'nil')..'; weapon category='..(oCurWeapon.WeaponCategory or 'nil')..' and label='..(oCurWeapon.Label or 'nil')..' for unit '..oUnit.UnitId) end
                 if oCurWeapon.ManualFire then
                     oUnit[refiManualRange] = math.max((oUnit[refiManualRange] or 0), oCurWeapon.MaxRadius)
                     oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.DamageRadius or 0)
                 elseif oCurWeapon.RangeCategory == 'UWRC_Countermeasure' then
                     --Target restriction should catch all cases, have but the most common labels as redundancy as well (doesnt cover mega? and fatboy? torpedo defence which have antitorpedoleft, left1, left2, right, etc. labels)
                     if oCurWeapon.TargetRestrictOnlyAllow == "TORPEDO" or oCurWeapon.Label == 'AntiTorpedo' or oCurWeapon.Label == 'AntiTorpedo01' or oCurWeapon.Label == 'AntiTorpedoF' then
-                        oUnit[refbHasTorpedoDefence] = true
+                        oUnit[refiTorpedoDefenceCount] = (oUnit[refiTorpedoDefenceCount] or 0) + GetTorpedoDefenceValue(oUnit, oCurWeapon)
                     else
                         oUnit[refiMissileDefenceRange] = math.max((oUnit[refiMissileDefenceRange] or 0), oCurWeapon.MaxRadius)
                     end
-                elseif oCurWeapon.RangeCategory == 'UWRC_DirectFire' or (oCurWeapon.RangeCategory == 'UWRC_IndirectFire' and oCurWeapon.WeaponCategory == 'Direct Fire') then --Sera sniper bots have an 'indirectfire' range category that is actually DF
+                elseif oCurWeapon.Label == 'Bomb' and EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) then
+                    oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
+                    if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenBombs] = math.max((oUnit[refiTimeBetweenBombs] or 0), 1 / oCurWeapon.RateOfFire) end
+                elseif (oCurWeapon.Label == 'Torpedo' or oCurWeapon.Label == 'ClusterTorpedo') and EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId) then
+                    oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
+                    if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenBombs] = math.max((oUnit[refiTimeBetweenBombs] or 0), 1 / oCurWeapon.RateOfFire) end
+                elseif (oCurWeapon.RangeCategory == 'UWRC_DirectFire' or (oCurWeapon.RangeCategory == 'UWRC_IndirectFire' and oCurWeapon.WeaponCategory == 'Direct Fire')) then --Sera sniper bots have an 'indirectfire' range category that is actually DF
                     bReplaceValues = false
                     bIgnoreValues = false
                     --Monkeylord special - use main laser weapon values only
@@ -2013,7 +2042,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                             oUnit[refiTimeBetweenAirAAShots] = math.min(oUnit[refiTimeBetweenAirAAShots], 1 / oCurWeapon.RateOfFire)
                         end
                     elseif oCurWeapon.Label == 'TorpedoDecoy' and not(M28Utilities.bFAFActive) then --LOUD - Cybran T2 destroyer has a weapon with no RangeCategory
-                        oUnit[refbHasTorpedoDefence] = true
+                        oUnit[refiTorpedoDefenceCount] = (oUnit[refiTorpedoDefenceCount] or 0) + GetTorpedoDefenceValue(oUnit, oCurWeapon)
                     elseif oCurWeapon.Label == 'DeckGuns' and not(M28Utilities.bFAFActive) then --LOUD - Frigate weapon is missing range category
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.Label == 'Flamer' or oCurWeapon.Label == 'EXFlameCannon01' or oCurWeapon.Label == 'EXFlameCannon02' or oCurWeapon.Label == 'EXEMPArray02' or oCurWeapon.Label == 'EXEMPArray03' or oCurWeapon.Label == 'EXEMPArray04' or oCurWeapon.Label == 'BolterLeft' or oCurWeapon.Label == 'Cannon' or oCurWeapon.Label == 'DeckGun' or oCurWeapon.Label == 'HeavyBolter' or oCurWeapon.Label == 'RiotGun' then
@@ -2027,7 +2056,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                     elseif oCurWeapon.DisplayName == 'Resonance Artillery' then
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.Label == 'AntiTorpedo' or oCurWeapon.Label == 'AntiTorpedo2' or oCurWeapon.Label == 'AntiTorpedo3' then
-                        oUnit[refbHasTorpedoDefence] = true
+                        oUnit[refiTorpedoDefenceCount] = (oUnit[refiTorpedoDefenceCount] or 0) + GetTorpedoDefenceValue(oUnit, oCurWeapon)
                     elseif oCurWeapon.Label == 'TargetPainter' or oCurWeapon.Label == 'EXChronoDampener01' or oCurWeapon.Label == 'EXChronoDampener02' then
                         --Do nothing - LOUD weapon labels where there is no or negligible damage
                     elseif oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water|Seabed' then
@@ -2166,7 +2195,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
         end
     end
     oUnit[refiUnitMassCost] = iMassCost
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording range, mass value and other info for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[refiDFRange] or 'nil')..'; Indirect range='..(oUnit[refiIndirectRange] or 'nil')..'; Mass cost='..oUnit[refiUnitMassCost]..'; Can unit kite='..tostring(oUnit[refbCanKite] or false)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording range, mass value and other info for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[refiDFRange] or 'nil')..'; Indirect range='..(oUnit[refiIndirectRange] or 'nil')..'; AntiNavy range='..(oUnit[refiAntiNavyRange] or 'nil')..';Mass cost='..oUnit[refiUnitMassCost]..'; Can unit kite='..tostring(oUnit[refbCanKite] or false)..'; Bomber range='..(oUnit[refiBomberRange] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

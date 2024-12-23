@@ -5239,8 +5239,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local bAttackWithSameRange = false
                 if ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 or iFriendlyBestMobileDFRange >= 100) and --No long range enemy threat (i.e. t2 arti); and
                         (iFirebaseThreatAdjust == 0 or (iFriendlyBestMobileDFRange >= 100 and iFirebaseThreatAdjust < 6000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 8000) or (not(bRunFromFirebase) and (iFriendlyBestMobileDFRange >= 60 or iFriendlyBestMobileIndirectRange >= 60))) and --No enemy firebase or we have large threat that should be able to overwhelm it; and
-                        ((iFriendlyBestMobileDFRange or 0) > (iEnemyBestDFRange or 0) or --we outrange enemy with our direct fire, or
-                                ((iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and ((iEnemyBestStructureDFRange or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) > 1.4 * (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)))) then --we have indirect fire with better range than enemy direct fire, and the enemy has structures in this LZ such that we want to attack
+                        ((iFriendlyBestMobileDFRange or 0) > (iEnemyBestDFRange or 0) + 2 or --we outrange enemy with our direct fire, or
+                                ((iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) + 4 and ((iEnemyBestStructureDFRange or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) > 1.4 * (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)))) then --we have indirect fire with better range than enemy direct fire, and the enemy has structures in this LZ such that we want to attack
 
                     bAreInScenario1 = true
                     if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0 or iFirebaseThreatAdjust > 0 then
@@ -5248,24 +5248,26 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Normal scenario 1 criteria satisfied') end
                 elseif iFirebaseThreatAdjust == 0 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and (iFriendlyBestMobileDFRange or 0) >= math.max(10, (iEnemyBestDFRange or 0) - 3) then
-                    if  iFriendlyBestMobileDFRange > (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) and iFriendlyBestMobileDFRange >= iEnemyBestDFRange then --e.g. gattling bots vs hoplites
+                    --If we significantly outrange the closest enemy unit then should try and kill it
+                    if  iFriendlyBestMobileDFRange > (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) + 5 and iFriendlyBestMobileDFRange >= iEnemyBestDFRange then --e.g. gattling bots vs hoplites
                         bAreInScenario1 = true
                         bAttackWithSameRange = true
-                        if bDebugMessages == true then LOG(sFunctionRef..': We outrange nearest enemy unit and have equivalent DF range overall so will act as though in scenario 1') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': We significantly outrange nearest enemy unit and have equivalent DF range overall so will act as though in scenario 1') end
                     elseif not(EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemyToFriendlyBase.UnitId)) then --i.e. nearest enemy is a mobile enemy with (likely) the same or slightly better range than us
                         --Do we have significantly more threat than enemy at the highest range?
                         local iEnemyBestRangeDFThreat = 0
                         local iOurBestRangeDFThreat = 0
+                        local iRangeThreshold = math.min(iFriendlyBestMobileDFRange, iEnemyBestDFRange)
                         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) == false then
                             for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] do
-                                if iRange >= iFriendlyBestMobileDFRange then
+                                if iRange >= iRangeThreshold then
                                     iOurBestRangeDFThreat = iThreat
                                 end
                             end
                         end
                         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
                             for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
-                                if iRange >= iFriendlyBestMobileDFRange then
+                                if iRange >= iRangeThreshold then
                                     iEnemyBestRangeDFThreat = iThreat
                                 end
                             end
@@ -5277,7 +5279,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                                     if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
                                         for iRange, iThreat in tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
-                                            if iRange >= iFriendlyBestMobileDFRange then
+                                            if iRange >= iRangeThreshold then
                                                 iEnemyBestRangeDFThreat = iEnemyBestRangeDFThreat + iThreat
                                             end
                                         end
@@ -5286,7 +5288,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                             if iOurBestRangeDFThreat > 1.5 * iEnemyBestRangeDFThreat then
                                 bAreInScenario1 = true
-                                if bDebugMessages == true then LOG(sFunctionRef..': We have significantly more threat than enemy at the longer rnage so will act as though are in scenario 1 so we just attack with our longer ranged units') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': We have significantly more threat than enemy at the longer rnage so will act as though are in scenario 1 so we just attack with our longer ranged units, iRangeThreshold='..iRangeThreshold) end
                                 iDFRangeOverrideForScenario1 = iFriendlyBestMobileDFRange
                                 bAttackWithSameRange = true
                             end
