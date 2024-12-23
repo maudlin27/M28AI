@@ -4649,10 +4649,12 @@ end
 
 function RemoveOldNukeTarget(iTeam, iRecordedTime, iDelayInSeconds)
     WaitSeconds(iDelayInSeconds)
-    for iTime, tLocation in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
-        if iRecordedTime == iTime then
-            M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = nil
-            break
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
+        for iTime, tLocation in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
+            if iRecordedTime == iTime then
+                M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = nil
+                break
+            end
         end
     end
 end
@@ -4802,7 +4804,7 @@ function MonitorUnitRecentPositions(oUnit, iTeam)
             oUnit[M28UnitInfo.reftRecentUnitPositions][3] = {oUnit[M28UnitInfo.reftRecentUnitPositions][2][1], oUnit[M28UnitInfo.reftRecentUnitPositions][2][2], oUnit[M28UnitInfo.reftRecentUnitPositions][2][3]}
             oUnit[M28UnitInfo.reftRecentUnitPositions][2] = {oUnit[M28UnitInfo.reftRecentUnitPositions][1][1], oUnit[M28UnitInfo.reftRecentUnitPositions][1][2], oUnit[M28UnitInfo.reftRecentUnitPositions][1][3]}
             oUnit[M28UnitInfo.reftRecentUnitPositions][1] = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
-            WaitSeconds(1)
+            WaitSeconds(2)
         end
     end
 end
@@ -4910,7 +4912,7 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                             end
                             --7 TMLs should be able to 1-shot a fatboy; for megalith will just have to do several salvos
                             if bDebugMessages == true then LOG(sFunctionRef..': iStrikeDamage * iLoadedTMLs='..iStrikeDamage * iLoadedTMLs..'; iEnemyHealth='..iEnemyHealth..'; iClosestEnemy='..iClosestEnemy..'; Enemy DF range='..(oClosestEnemy[M28UnitInfo.refiDFRange] or 0)) end
-                            if iLoadedTMLs >= 8 or iStrikeDamage * iLoadedTMLs > iEnemyHealth or iClosestEnemy < (oClosestEnemy[M28UnitInfo.refiDFRange] or 0) + 6 then
+                            if iLoadedTMLs >= 8 or iStrikeDamage * iLoadedTMLs > iEnemyHealth or iClosestEnemy < (oClosestEnemy[M28UnitInfo.refiDFRange] or 0) + 6 or (iLoadedTMLs >= 7 and oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4] and M28Utilities.GetDistanceBetweenPositions(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4], oClosestEnemy:GetPosition()) <= 1 and M28Utilities.GetDistanceBetweenPositions(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][2], oClosestEnemy:GetPosition()) <= 1) then
                                 --We should be able to 1-shot the enemy, so try and attack them if they are close enough to warrant firing
                                 --How many shots have we already attempted at this unit? If a lot, then wait for it to get really close
                                 local iMinDistWanted
@@ -4918,7 +4920,11 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                     iMinDistWanted = iMaxEffectiveRange
                                 else
                                     --Reduce range by up to 60% if we are missing all our shots
-                                    iMinDistWanted = math.max(iMaxEffectiveRange * (0.4 + 0.6 * math.max(iLoadedTMLs, (oClosestEnemy[refiTMLSnipeShotsHit] or iLoadedTMLs)) / oClosestEnemy[refiTMLShotsFired]), 60, math.min(iMaxEffectiveRange, (oClosestEnemy[M28UnitInfo.refiCombatRange] or 0) + 10))
+                                    local iFactorAffected = 0.6
+                                    if not(M28Team.tTeamData[iTeam][M28Team.refbTMLBatteryMissedLots]) and oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4] and M28Utilities.GetDistanceBetweenPositions(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4], oClosestEnemy:GetPosition()) <= 1 and not(oClosestEnemy:IsUnitState('Moving')) then
+                                        iFactorAffected = 0.3
+                                    end
+                                    iMinDistWanted = math.max(iMaxEffectiveRange * ((1 - iFactorAffected) + iFactorAffected * math.max(iLoadedTMLs, (oClosestEnemy[refiTMLSnipeShotsHit] or iLoadedTMLs)) / oClosestEnemy[refiTMLShotsFired]), 60, math.min(iMaxEffectiveRange, (oClosestEnemy[M28UnitInfo.refiCombatRange] or 0) + 10))
                                     if oClosestEnemy[refiTMLShotsFired] > 28 then --We have fired 28 TMLs at this enemy, so should switch to getting T2 arti
                                         M28Team.tTeamData[iTeam][M28Team.refbTMLBatteryMissedLots] = true
                                     end
@@ -4931,8 +4937,8 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                     local bMobileTarget = false
                                     if iCurSpeed <= 0.25 and not(oClosestEnemy:IsUnitState('Moving')) then
                                         --Have we not been moving for a while?
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Dist to postiion from 3s ago='..M28Utilities.GetDistanceBetweenPositions(oClosestEnemy:GetPosition(), oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4])) end
-                                        if M28Utilities.GetDistanceBetweenPositions(oClosestEnemy:GetPosition(), oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]) <= 1 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Dist to postiion from 2-4s ago='..M28Utilities.GetDistanceBetweenPositions(oClosestEnemy:GetPosition(), oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][2])) end
+                                        if M28Utilities.GetDistanceBetweenPositions(oClosestEnemy:GetPosition(), oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][2]) <= 1 then
                                             tPredictedPosition = oClosestEnemy:GetPosition()
                                         end
                                     elseif iCurSpeed >= 1 and (oClosestEnemy:IsUnitState('Moving') or oClosestEnemy:IsUnitState('Attacking')) and oClosestEnemy.GetNavigator then

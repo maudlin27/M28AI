@@ -1882,37 +1882,20 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                                 if iCurAngleDif > 15 then
                                     iReorderDist = 0.1
                                     --Turn towards target - decide which is closest way
-                                    if GetGameTimeSeconds() <= 34*60 then
-                                        if iCurAngleToTarget > iCurFacingAngle then
-                                            if iCurAngleToTarget - 180 <= iCurFacingAngle then
-                                                --We are a larger angle than enemy, and turning anti-clockwise would mean we become smaller than them, so should turn anti-clockwise
-                                                bTurnClockwise = false
-                                            else
-                                                bTurnClockwise = true
-                                            end
+
+                                    if iCurAngleToTarget > iCurFacingAngle then
+                                        if iCurAngleToTarget - iCurFacingAngle > 180 then
+                                            --Clockwise means increasing our cur facing angle; however if gap between the angles is more than 180 would be better to decrease our facing angle
+                                            bTurnClockwise = false
                                         else
-                                            if iCurAngleToTarget + 180 >= iCurFacingAngle then
-                                                --We are a smaller angle than enemy, and turning clockwise would mean we become larger than them sooner than if we had turned anti-clockwwise
-                                                bTurnClockwise = true
-                                            else
-                                                bTurnClockwise = false
-                                            end
+                                            bTurnClockwise = true
                                         end
-                                    else
-                                        if iCurAngleToTarget > iCurFacingAngle then
-                                            if iCurAngleToTarget - iCurFacingAngle > 180 then
-                                                --Clockwise means increasing our cur facing angle; however if gap between the angles is more than 180 would be better to decrease our facing angle
-                                                bTurnClockwise = false
-                                            else
-                                                bTurnClockwise = true
-                                            end
-                                        else --curfacingangle is >= angle to target
-                                            if iCurFacingAngle - iCurAngleToTarget > 180 then
-                                                --Gap between the two is so large, that increasing our facing angle should get us to the target quicker
-                                                bTurnClockwise = true
-                                            else
-                                                bTurnClockwise = false
-                                            end
+                                    else --curfacingangle is >= angle to target
+                                        if iCurFacingAngle - iCurAngleToTarget > 180 then
+                                            --Gap between the two is so large, that increasing our facing angle should get us to the target quicker
+                                            bTurnClockwise = true
+                                        else
+                                            bTurnClockwise = false
                                         end
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will turn towards target, bTurnClockwise='..tostring(bTurnClockwise)) end

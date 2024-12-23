@@ -528,16 +528,19 @@ function IssueTrackedOvercharge(oUnit, oOrderTarget, bAddToExistingQueue, sOptio
             end--]]
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderOvercharge, [subrefoOrderUnitTarget] = oOrderTarget})
             IssueOverCharge({oUnit}, oOrderTarget)
+            if oUnit[M28UnitInfo.refiFailedOCCount] then oUnit[M28UnitInfo.refiFailedOCCount] = 0 end
         else --OC - add to queue if we think we are already overcharging, as in some cases we dont
-            if (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+            LOG('TEMPCODE considering if we have likely failed OC, M28Utilities.bLCEActive='..tostring(M28Utilities.bLCEActive)..'; last order was OC='..tostring(tLastOrder[subrefiOrderType] == refiOrderOvercharge)..'; Last order taret was same as cur target='..tostring(oOrderTarget == tLastOrder[subrefoOrderUnitTarget])..'; Dist between unit and last order target='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition())..'; Unit range='..oUnit[M28UnitInfo.refiDFRange]..'; Time last fired weapon='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time since last OC='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0))
+            if M28Utilities.bLCEActive and tLastOrder[subrefiOrderType] == refiOrderOvercharge and oOrderTarget == tLastOrder[subrefoOrderUnitTarget] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition())  < oUnit[M28UnitInfo.refiDFRange] - 1 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) < 1 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0) >= 7 then
+                oUnit[M28UnitInfo.refiFailedOCCount] = (oUnit[M28UnitInfo.refiFailedOCCount] or 0) + 1
+                LOG('TEMPCODE oUnit[M28UnitInfo.refiFailedOCCount]='..oUnit[M28UnitInfo.refiFailedOCCount]..'; Time='..GetGameTimeSeconds())
+                M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refiFailedOCCount, -1, 5, nil, nil, 0, nil, true)
+            elseif (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
                 if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
                 oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
                 table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderOvercharge, [subrefoOrderUnitTarget] = oOrderTarget})
                 --LOG('TEMPCODE Issuing override OC for oUnit with owner '..oUnit:GetAIBrain().Nickname)
                 IssueOverCharge({oUnit}, oOrderTarget)
-            --[[elseif M28Utilities.bLCEActive and tLastOrder[subrefiOrderType] == refiOrderOvercharge and oOrderTarget == tLastOrder[subrefoOrderUnitTarget] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition())  < oUnit[M28UnitInfo.refiDFRange] - 3 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) < 1 then
-                LOG('TEMPCODE will try reissuing overcharge order via fork thread unless special micro active, is it active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false))
-                ForkThread(IssueTrackedOvercharge, oUnit, oOrderTarget, false, 'OcQUIET', bOverrideMicroOrder, true)--]]
             end
         end
         if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
