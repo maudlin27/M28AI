@@ -5056,7 +5056,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
             local bHaveSuitableBrain = false
             local toBrainsToConsiderSniping = {}
             for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
-                if oBrain[M28Overseer.refbPrioritiseAir] or not(oBrain[M28Overseer.refbPrioritiseLand] or oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Overseer.refbPrioritiseHighTech]) then
+                if not(oBrain.M28Easy) and oBrain[M28Overseer.refbPrioritiseAir] or not(oBrain[M28Overseer.refbPrioritiseLand] or oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Overseer.refbPrioritiseHighTech]) then
                     if oBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
                         bHaveSuitableBrain = true
                         table.insert(toBrainsToConsiderSniping, oBrain)
