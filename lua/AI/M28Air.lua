@@ -4379,7 +4379,6 @@ function ManageBombers(iTeam, iAirSubteam)
         end
 
         --Consider snipe targets
-        if iTeam == 2 then bDebugMessages = true end
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))..'; Is table of bomber snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets]))) end
         local tEnemySnipeTargets
         if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) then
@@ -4397,7 +4396,6 @@ function ManageBombers(iTeam, iAirSubteam)
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': is tEnemySnipeTargets nil='..tostring(tEnemySnipeTargets == nil)) end
-        bDebugMessages = false
         if tEnemySnipeTargets then
             --Get closest snipe target to our air rally point
             local iClosestSnipeTarget = 100000
@@ -4412,12 +4410,10 @@ function ManageBombers(iTeam, iAirSubteam)
                     end
                 end
             end
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': oClosestSnipeTarget='..(oClosestSnipeTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestSnipeTarget) or 'nil')) end
             if oClosestSnipeTarget then
                 ForkThread(PlanBomberSnipe, tAvailableBombers,  oClosestSnipeTarget, iTeam)
             end
-            bDebugMessages = false
         end
         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
             local bConsiderHigherTechUnitsFirst = false
@@ -10580,7 +10576,7 @@ end
 
 function PlanBomberSnipe(tAvailableBombers, oSnipeTarget, iTeam)
     --Holds bombers at rally point until they are ready to snipe the target
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'PlanBomberSnipe'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then
@@ -10731,7 +10727,7 @@ end
 
 function AssessPotentialBomberSnipeTargetsNowReachedT2Air(iTeam)
     --Decide if we want to consider doing a T2 air snipe; if not, then flag all brains on the team that we no longer want to have snipe mode enabled
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssessPotentialBomberSnipeTargetsNowReachedT2Air'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
