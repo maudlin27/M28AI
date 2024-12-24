@@ -4379,6 +4379,7 @@ function ManageBombers(iTeam, iAirSubteam)
         end
 
         --Consider snipe targets
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
         if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) then
             AssignTorpOrBomberTargets(tAvailableBombers, M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets], iAirSubteam, false, true)
         end

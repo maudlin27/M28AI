@@ -4599,7 +4599,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
         local iCurHealth = oUnit:GetHealth() oUnit:GetMaxHealth()
         local iMaxHealth = oUnit:GetMaxHealth()
         local iHealthPercent = iCurHealth / iMaxHealth
-        local iBaseHealthThreshold = 0.6
+        local iBaseHealthThreshold = 0.5
         if oUnit[M28UnitInfo.refbIsSnipeTarget] then iBaseHealthThreshold = iBaseHealthThreshold+ 0.1 end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
         if iHealthPercent < iBaseHealthThreshold then
@@ -4610,12 +4610,13 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                 iMaxHealth = iMaxHealth + iMaxShield
                 iHealthPercent = iCurHealth / iMaxHealth
                 if M28Utilities.bLoudModActive then
-                    iBaseHealthThreshold = iBaseHealthThreshold * 0.4 --be much less likely to choose snipe target for a unit that has a shield, especially in LOUD due to the short shield recharge
+                    iBaseHealthThreshold = iBaseHealthThreshold * 0.3 --be much less likely to choose snipe target for a unit that has a shield, especially in LOUD due to the short shield recharge
                 else
-                    iBaseHealthThreshold = iBaseHealthThreshold * 0.7 --be less likely to choose snipe target for a unit that has a shield
+                    iBaseHealthThreshold = iBaseHealthThreshold * 0.6 --be less likely to choose snipe target for a unit that has a shield
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated ACU target for shield, iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; iHealthPercent post update='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
             end
+
             --Be very unlikely to choose a snipe target if
             if iMaxShield == 0 or (iHealthPercent < iBaseHealthThreshold and (iHealthPercent < 0.4 or iCurShield / iMaxShield < 0.3)) then
                 --Very low health - attack
@@ -4718,20 +4719,19 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                 end
                 if bAddAsSnipeTarget then
                     --Does the target have fixed shield coverage?
-                    local bUnderFixedShield = false
                     local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether enemy target has fixed shield coverage, (tTargetLZTeamData[M28Map.subrefThreatEnemyShield]='..(tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0)) end
                     if (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
-                        local tFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                        local tFixedAndMobileShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
                         local iMaxDistanceToShield = 10
                         local iCurDist, iCurShield, iMaxShield
                         if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMaxDistanceToShield = 0 end
-                        if M28Utilities.IsTableEmpty(tFixedShields) == false then
-                            for iShield, oShield in tFixedShields do
+                        if M28Utilities.IsTableEmpty(tFixedAndMobileShields) == false then
+                            for iShield, oShield in tFixedAndMobileShields do
                                 if M28UnitInfo.IsUnitValid(oShield) then
                                     iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurShield='..iCurShield..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oUnit:GetPosition())..'; Shield radius='..(oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5) end
-                                    if iCurShield >= 4000 then
+                                    if iCurShield >= 4000 or (iCurShield >= 2000 and iCurShield / iMaxShield >= 0.4) then
                                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition())
                                         if iCurDist <= iMaxDistanceToShield then
                                             bAddAsSnipeTarget = false
@@ -4745,7 +4745,6 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                                 end
                             end
                         end
-
                     end
                 end
             end
