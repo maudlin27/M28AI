@@ -252,6 +252,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbUnableToBuildArtiOrGameEnders = 'M28GERest' --true if gameenders and t3 arti are restricted
     reftoCampaignNeutralUnitsNotRecorded = 'M28CamU' --If have a campaign map, and we choose not to record a unit as an ally or an enemy, then it should be recorded here, so if there is a faction change these units can be reassessed
     toActiveSnipeTargets = 'M28ActSnT' --E.g. if want to go all-out on attacking enemy ACU then the ACU would be added here
+    toBomberSnipeTargets = 'M28ActBSnT' --Bomber snipe targets - i.e. if we want to plan a bomber snipe, but dont want other units to go all-in attacking the unit
     refiTimeOfLastM28PlayerDefeat = 'M28TLstDth' --Gametimeseconds of the last M28 player defat (used to check if shield cycling should be paused)
     tPotentiallyActiveGETemplates = 'M28TGETA' --when a gameender template is created, it gets added to this table, to allow quick referencing of other templates
     reftiCoreZonesByPlateau = 'M28CZBPl' --[x] = plateau ref, [y] = LZ ref, returns true
@@ -4999,7 +5000,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                 local oM28BrainWithClosestEnemy, iCurDist, iCurPlateau, iCurZone
 
                 for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
-                --Ignore if have chosen a land AI, or cant build bombers or t1 air facs
+                    --Ignore if have chosen a land AI, or cant build bombers or t1 air facs
                     if not(oBrain[M28Overseer.refbPrioritiseLand]) and not(M28UnitInfo.IsUnitRestricted('uea0103', oBrain:GetArmyIndex())) and not(M28UnitInfo.IsUnitRestricted('ueb0102', oBrain:GetArmyIndex())) then
                         --Get dist to closest enemy
                         local tCurStart = M28Map.GetPlayerStartPosition(oBrain)
@@ -5036,6 +5037,40 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                 oBrain[M28Factory.reftBlueprintPriorityOverride]['ual0106'] = -1000 --LAB
                 oBrain[M28Factory.reftBlueprintPriorityOverride]['url0106'] = -1000 --LAB
                 oBrain[M28Factory.reftBlueprintPriorityOverride]['uel0106'] = -1000 --Mechmarine
+            end
+        end
+        --Non-LOUD - consider T2 bomber snipes as Cybran, and sometimes as Seraphim
+        local iRandBomberSnipe = math.random(1, 100)
+        local iThreshold = 5
+        if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then
+            iThreshold = 4
+        elseif M28Map.iMapSize <= 1024 and iPlayersAtGameStart >= 5 then
+            if not(M28Utilities.bLoudModActive) and tTeamData[iTeam][refbAssassinationOrSimilar] then
+                iThreshold = 18
+            else
+                iThreshold = 9
+            end
+        end
+        if iRandBomberSnipe <= iThreshold then
+            --Do we have cybran or seraphim on team? (only consider Seraphim some of the time though)
+            local bHaveSuitableBrain = false
+            local toBrainsToConsiderSniping = {}
+            for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                if oBrain[M28Overseer.refbPrioritiseAir] or not(oBrain[M28Overseer.refbPrioritiseLand] or oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Overseer.refbPrioritiseHighTech]) then
+                    if oBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
+                        bHaveSuitableBrain = true
+                        table.insert(toBrainsToConsiderSniping, oBrain)
+                    elseif iRandBomberSnipe <= iThreshold * 0.5 and oBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then
+                        bHaveSuitableBrain = true
+                        table.insert(toBrainsToConsiderSniping, oBrain)
+                    end
+                end
+            end
+            if bHaveSuitableBrain then
+                for iBrain, oBrain in toBrainsToConsiderSniping do
+                    oBrain[M28Overseer.refbBomberSnipe] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..' should consider doing a t2 bomber snipe') end
+                end
             end
         end
     end

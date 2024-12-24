@@ -75,6 +75,7 @@ refbPrioritiseHighTech = 'M28PersHighTech'
 refbPrioritiseDefence = 'M28PersDef'
 --Special strategies:
 refbFirstBomber = 'M28FirstB'
+refbBomberSnipe = 'M28BombS' --true if want to try and snipe enemy ACU (intended for Cybran and sometimes Seraphim, to try with a T2 bomber snipe)
 
 
 

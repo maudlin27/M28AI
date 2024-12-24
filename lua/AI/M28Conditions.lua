@@ -2600,10 +2600,8 @@ end
 function GetNearbyACUForAirFacBomberSnipe(oFactory, iTeam)
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false then
         for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
-            if M28UnitInfo.IsUnitValid(oACU) then
-                if (oACU[M28Factory.refiTotalMassForSnipe] or 0) < M28Factory.iMassForSnipePerLevel * M28UnitInfo.GetUnitTechLevel(oFactory) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oFactory:GetPosition()) <= math.min(750, math.max(400, M28Map.iMapSize)) then
-                    return oACU
-                end
+            if M28UnitInfo.IsUnitValid(oACU) and (oACU[M28UnitInfo.refiRecentBomberSnipeAttempts] or 0) == 0 then
+                return oACU
             end
         end
     end
@@ -2760,10 +2758,18 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 end
             end
         end
-        if not(bWantMoreEngineers) and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.toActiveSnipeTargets]) == false and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then
-            local oACUToSnipe = GetNearbyACUForAirFacBomberSnipe(oFactory, aiBrain.M28Team)
+        if not(bWantMoreEngineers) then
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.toActiveSnipeTargets]) == false and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then
+                local oACUToSnipe = GetNearbyACUForAirFacBomberSnipe(oFactory, aiBrain.M28Team)
 
-            if oACUToSnipe then
+                if oACUToSnipe then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want to do an ACU snipe') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
+            elseif aiBrain[M28Overseer.refbBomberSnipe] and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.toBomberSnipeTargets]) == false and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory - categories.UEF - categories.AEON - categories.TECH1, oFactory.UnitId) then
+                --Havea  T2+ cybran or sera factory and want to do a t2 air snipe
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to do a t2 air snipe') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
             end

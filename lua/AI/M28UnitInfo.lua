@@ -90,6 +90,8 @@ refbObjectiveUnit = 'M28ObjU' --true if unit is being used for an objective
 refbCampaignTriggerAdded = 'M28Trg' --true if a trigger has been recorded against the unit (may not be an objective unit, but will want to avoid e.g. ctrl-King if M28 owns it)
 refbTransferredUnit = 'M28Xfer' --true if unit has been captured/transferred from its original owner
 refbIsSnipeTarget = 'M28STrg' --true if is a snipe target
+refiRecentBomberSnipeAttempts = 'M28BmSnAt' --number of times we have launched bombers thinking we will kill the target (resets after a long period of time)
+toBombersPlanningSnipe = 'M28BmbSnT' --table of bombers that are building up in preparation for a snipe attempt on this unit
 reftiTeamsRecordedAsNonM28Ally = 'M28TRNmA' --[x] = 1,2,3...' returns the iTeam value
 refiUnitMassCost = 'M28UMCs' --for profiling testing
 refbNonM28ExpConstruction = 'M28UUcE' --true if unit has been recorded against the table of non-M28 experimentals being constructed
