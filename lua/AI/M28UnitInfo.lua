@@ -67,7 +67,7 @@ refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate i
 refbExpBomberShotBlocked = 'M28ULstExpBShtBlck' --true if an experimental bomber thinks a shot fired at this unit will be blocked
 refiTargetShotBlockedCount = 'M28UnitTrgSBlC' --Number of times a long range unit has failed to hit this (used for naval units targeting structures - change how this is increased if want to expand usage)
 refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds
-refiFailedOCCount = 'M28UFlOCC' --intneded for QUIET - if we have tried overcharging a unit that is in our range and are firing our main gun instead then this will increase by 1
+--refiFailedOCCount = 'M28UFlOCC' --intneded for QUIET - if we have tried overcharging a unit that is in our range and are firing our main gun instead then this will increase by 1
 reftbInArmyIndexBigThreatTable = 'M28UnitInBigThreatTable' --[x] is army index; true if have added unit to table of big threats for that army index
 refbConstructionStart = 'M28UnitConStrt' --True if constructionstarted event logic has been run for this unit
 reftiTimeOfLastEnhancementComplete = 'M28TLstECmpl' --table, [x] = enhancement ID, gametimeseconds that the upgrade completed
@@ -1877,7 +1877,6 @@ function GetUnitStrikeDamage(oUnit, bReferenceIsATableWithUnitId)
 end
 
 function GetTorpedoDefenceValue(oUnit, oCurWeapon)
-    LOG('TEMPCODE Returning torp defence value for unit '..oUnit.UnitId)
     if GetUnitTechLevel(oUnit) == 1 then
         return 1
     else

@@ -4175,7 +4175,6 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         end
 
         --Snipe target if not stalling power
-        if iFactoryTechLevel == 2 and EntityCategoryContains(categories.CYBRAN, oFactory.UnitId) then bDebugMessages = true end
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have any active snipe targets, is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))..'; Is table of bomber snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets]))..'; Are we stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
@@ -4195,7 +4194,6 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if bDebugMessages == true then LOG(sFunctionRef..': Will build bomber for low power special bomber snipe target') end
             if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
         end
-        bDebugMessages = false
 
         --High priority transport if a large map and we ought to have enough
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -4491,7 +4489,6 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         end
 
         --Snipe target
-        if iFactoryTechLevel == 2 and EntityCategoryContains(categories.CYBRAN, oFactory.UnitId) then bDebugMessages = true end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have any active snipe targets for non low power builder, is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))..'; Is table of bomber snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets]))..'; Are we stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; iTeam='..iTeam) end
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false then
@@ -4513,7 +4510,6 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(iNormalBomberCategoryToBuild * categories.TECH2) then return sBPIDToBuild end
             if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
         end
-        bDebugMessages = false
 
         --Priority engineers as we are being prevented from upgrading
         iCurrentConditionToTry = iCurrentConditionToTry + 1

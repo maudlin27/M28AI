@@ -1460,7 +1460,7 @@ function CanUnitUseOvercharge(aiBrain, oUnit, tLZTeamDataIfACU)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local bCanUseOC = false
-    if oUnit and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and (oUnit[M28UnitInfo.refiFailedOCCount] or 0) < 2 then
+    if oUnit and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then --and (oUnit[M28UnitInfo.refiFailedOCCount] or 0) < 2 then
         local oBP = oUnit:GetBlueprint()
         local iEnergyNeeded
         if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or -100) >= 5 then
