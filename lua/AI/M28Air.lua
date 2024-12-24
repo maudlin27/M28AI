@@ -5770,30 +5770,35 @@ function ManageGunships(iTeam, iAirSubteam)
         local iClosestSnipeTarget = 100000
         if not(bRetreatFromAhwassa) and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) and iOurGunshipThreat > 0 then
             local iAvailableGunshipThreat = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true)
+            local iTargetHealthPercent
             if not(tNewlyAddedEnemies) then tNewlyAddedEnemies = {} end
             for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
                 local iTargetPlateauOrZero, iTargetLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
                 local tbPlateauAndZoneAdded = {}
+                local iOrigMaxEnemyAirAA = iMaxEnemyAirAA
                 if (iTargetPlateauOrZero or 0) > 0 and (iTargetLZOrWZ or 0) > 0 then
                     if not(tbPlateauAndZoneAdded[iTargetPlateauOrZero]) then tbPlateauAndZoneAdded[iTargetPlateauOrZero] = {} end
                     if not(tbPlateauAndZoneAdded[iTargetPlateauOrZero][iTargetLZOrWZ]) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy snipe target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Will add all enemy ground units in P'..iTargetPlateauOrZero..'Z'..iTargetLZOrWZ..'; Unit health='..oUnit:GetHealth()..'; iAvailableGunshipThreat='..iAvailableGunshipThreat) end
-                        local iAvailableGunshipThreat = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true)
-                        if oUnit:GetHealth() < iOurGunshipThreat then
+                        local tTargetLZTeamData = M28Map.tAllPlateaus[iTargetPlateauOrZero][M28Map.subrefPlateauLandZones][iTargetLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+                        iTargetHealthPercent = M28UnitInfo.GetUnitHealthAndShieldPercent(oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy snipe target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Will add all enemy ground units in P'..iTargetPlateauOrZero..'Z'..iTargetLZOrWZ..'; Unit health='..oUnit:GetHealth()..'; iAvailableGunshipThreat='..iAvailableGunshipThreat..'; iAvailableGunshipThreat='..iAvailableGunshipThreat..'; Enemy AA threat in this zone='..(tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')) end
+                        if oUnit:GetHealth() < iAvailableGunshipThreat and ((iTargetHealthPercent <= 0.2 and iAvailableGunshipThreat >= math.min(5000, oUnit:GetHealth() * 2)) or (tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iAvailableGunshipThreat and iTargetHealthPercent < 0.3)) then
                             --Just add the ACU as a target
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will just add the enemy ACU as a snipe target') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will just add the enemy ACU as a snipe target as it is so low health') end
                             AddUnitToTargetsTable(oUnit, true)
-                        else
+                            --Make sure gunships will prioritise enemy ACU
+                            bUsingSnipePriority = true
+                        elseif tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iAvailableGunshipThreat then
                             tbPlateauAndZoneAdded[iTargetPlateauOrZero][iTargetLZOrWZ] = true
-                            AddEnemyGroundUnitsToTargetsSubjectToAA(iTargetPlateauOrZero, iTargetLZOrWZ, 0, false, nil,nil,true)
+                            iMaxEnemyAirAA = iOrigMaxEnemyAirAA * (0.25 + 0.25 * iTargetHealthPercent)
+                            AddEnemyGroundUnitsToTargetsSubjectToAA(iTargetPlateauOrZero, iTargetLZOrWZ, 0.75, true, nil,nil,true)
                         end
 
                         iClosestSnipeTarget = math.min(iClosestSnipeTarget, M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oFrontGunship:GetPosition()))
                     end
                 end
+                iMaxEnemyAirAA = iOrigMaxEnemyAirAA
             end
-            --Make sure gunships will prioritise enemy ACU
-            bUsingSnipePriority = true
         end
 
         --Emergency response - first include any ground threats in a core zone and (if none) adjacent to a core zone (v92 and earlier - used start positions instead)
