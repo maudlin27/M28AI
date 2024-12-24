@@ -492,6 +492,12 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
                 --Still consider updating subteam, as e.g. we may have T3 UEF HQ and have just built T3 Seraphim HQ
                 M28Team.CheckForSubteamFactoryChange(oUnitJustBuilt, true)
             end
+
+            --Special bomber snipe logic
+            if aiBrain[M28Overseer.refbBomberSnipe] and iUnitTechLevel >= 2 and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnitJustBuilt.UnitId) then
+                local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+                ForkThread(M28Air.AssessPotentialBomberSnipeTargetsNowReachedT2Air, aiBrain.M28Team)
+            end
         elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oUnitJustBuilt.UnitId) then
             if bDebugMessages == true then LOG(sFunctionRef..': Have built a gateway, will update subteam factory change') end
             M28Team.CheckForSubteamFactoryChange(oUnitJustBuilt, true)
