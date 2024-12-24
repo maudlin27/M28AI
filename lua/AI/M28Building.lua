@@ -4872,12 +4872,14 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                 local oClosestEnemy
                 iClosestEnemy = iMaxEffectiveRange
                 for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits] do
-                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tBasePosition, oUnit:GetPosition())
-                    if bDebugMessages == true then LOG(sFunctionRef..': Dist from oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tBasePosition='..iCurDist..'; oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]='..repru(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4])) end
-                    if iCurDist < iClosestEnemy then
-                         --oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]
-                        iClosestEnemy = iCurDist
-                        oClosestEnemy = oUnit
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tBasePosition, oUnit:GetPosition())
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist from oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tBasePosition='..iCurDist..'; oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]='..repru(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4])) end
+                        if iCurDist < iClosestEnemy then
+                            --oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]
+                            iClosestEnemy = iCurDist
+                            oClosestEnemy = oUnit
+                        end
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemy='..(oClosestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy) or 'nil')..'; iClosestEnemy='..iClosestEnemy) end
@@ -4930,6 +4932,7 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                     end
                                 end
                                 if iClosestEnemy <= iMinDistWanted then
+                                    local iCurFacingAngle, iAngleToTarget, iAngleDif
                                     --Is unit stationery? Or is it moving, at a decent speed, and is facing its current goal direction (or at an opposite to it, as it may be backing up)? If so then it is vulnerable to a missile attack
                                     local tPredictedPosition
                                     local iCurSpeed = M28UnitInfo.GetUnitSpeed(oClosestEnemy)
@@ -4945,10 +4948,10 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                         bMobileTarget = true
                                         local oNavigator = oClosestEnemy:GetNavigator()
                                         if oNavigator then
-                                            local iCurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oClosestEnemy)
+                                            iCurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oClosestEnemy)
                                             local tCurNavigatorTarget = oNavigator:GetCurrentTargetPos()
-                                            local iAngleToTarget = M28Utilities.GetAngleFromAToB(oClosestEnemy:GetPosition(), tCurNavigatorTarget)
-                                            local iAngleDif = M28Utilities.GetAngleDifference(iCurFacingAngle, iAngleToTarget)
+                                            iAngleToTarget = M28Utilities.GetAngleFromAToB(oClosestEnemy:GetPosition(), tCurNavigatorTarget)
+                                            iAngleDif = M28Utilities.GetAngleDifference(iCurFacingAngle, iAngleToTarget)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Enemy iCurFacingAngle='..iCurFacingAngle..'; iAngleToTarget='..iAngleToTarget..'; iAngleDif='..iAngleDif) end
                                             if iAngleDif >= 174 or iAngleDif <= 8 then
                                                 --Check we have moved in roughly this direction previously
@@ -5004,9 +5007,11 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                                     if iDistToTarget > iTMLMissileRange then
                                                         M28Orders.IssueTrackedTMLMissileLaunch(oTML, M28Utilities.MoveInDirection(oTML:GetPosition(), M28Utilities.GetAngleFromAToB(oTML:GetPosition(), tPredictedPosition), iTMLMissileRange, true, false, false), 1, false, 'TMLOutRSn')
                                                     else
-                                                        if not(oTML == oPrimaryTML) and not(oClosestEnemy.UnitId == 'xrl0403') and not(bMobileTarget) then
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will get position specific to the TML, iAngleDif='..(iAngleDif or 'nil')..'; iAngleToTarget='..(iAngleToTarget or 'nil')) end
-                                                            M28Orders.IssueTrackedTMLMissileLaunch(oTML, GetPredictedPositionForMobileTarget(oPrimaryTML, oClosestEnemy, true, iAngleDif, iAngleToTarget), 1, false, 'TMLSnipe')
+                                                        bDebugMessages = true
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': oTML='..(oTML.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTML) or 'nil')..'; oClosestEnemy='..(oClosestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy) or 'nil')..'; Is TML valid='..tostring(M28UnitInfo.IsUnitValid(oTML))..'; Is enemy valid='..tostring(M28UnitInfo.IsUnitValid(oClosestEnemy))..'; bMobileTarget='..tostring(bMobileTarget or false)) end
+                                                        if iAngleToTarget and not(oTML == oPrimaryTML) and not(oClosestEnemy.UnitId == 'xrl0403') and bMobileTarget then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will get position specific to the TML, iAngleDif='..(iAngleDif or 'nil')..'; iAngleToTarget='..(iAngleToTarget or 'nil')..'; iAngleDif='..(iAngleDif or 'nil')) end
+                                                            M28Orders.IssueTrackedTMLMissileLaunch(oTML, GetPredictedPositionForMobileTarget(oPrimaryTML, oClosestEnemy, true,  M28Utilities.GetAngleDifference((iCurFacingAngle or M28UnitInfo.GetUnitFacingAngle(oClosestEnemy)), iAngleToTarget), iAngleToTarget), 1, false, 'TMLSnipe')
                                                         else
                                                             M28Orders.IssueTrackedTMLMissileLaunch(oTML, tPredictedPosition, 1, false, 'TMLSnipe')
                                                         end
