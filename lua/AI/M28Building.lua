@@ -5007,7 +5007,6 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                                     if iDistToTarget > iTMLMissileRange then
                                                         M28Orders.IssueTrackedTMLMissileLaunch(oTML, M28Utilities.MoveInDirection(oTML:GetPosition(), M28Utilities.GetAngleFromAToB(oTML:GetPosition(), tPredictedPosition), iTMLMissileRange, true, false, false), 1, false, 'TMLOutRSn')
                                                     else
-                                                        bDebugMessages = true
                                                         if bDebugMessages == true then LOG(sFunctionRef..': oTML='..(oTML.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTML) or 'nil')..'; oClosestEnemy='..(oClosestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy) or 'nil')..'; Is TML valid='..tostring(M28UnitInfo.IsUnitValid(oTML))..'; Is enemy valid='..tostring(M28UnitInfo.IsUnitValid(oClosestEnemy))..'; bMobileTarget='..tostring(bMobileTarget or false)) end
                                                         if iAngleToTarget and not(oTML == oPrimaryTML) and not(oClosestEnemy.UnitId == 'xrl0403') and bMobileTarget then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Will get position specific to the TML, iAngleDif='..(iAngleDif or 'nil')..'; iAngleToTarget='..(iAngleToTarget or 'nil')..'; iAngleDif='..(iAngleDif or 'nil')) end
