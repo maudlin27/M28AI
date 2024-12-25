@@ -2327,13 +2327,38 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 end
                                 if iBestTargetValue > iBestValueOfDefensiveNuke then
                                     --GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
-                                    if tTarget then tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, tTarget,         iAOE, iDamage, bCheckForSMD,        oLauncher:GetPosition(), nil,                                       nil,                2,                                      2.5,                    nil,                            nil,                                        nil,                            iReclaimFactor) end
+
+                                    if tTarget then
+                                        local tOldTarget = {tTarget[1], tTarget[2], tTarget[3]}
+                                        local iOldTargetValue = iBestTargetValue
+                                        if bDebugMessages == true then
+                                            local iTargetPlateauOrZero, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tTarget)
+                                            LOG(sFunctionRef..': Have a best target, tTarget before getting best aoe target='..repru(tTarget)..'; iTargetPlateauOrZero='..(iTargetPlateauOrZero or 'nil')..'; iTargetZone='..(iTargetZone or 'nil'))
+                                        end
+                                                                    --function GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
+                                        tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, tTarget,         iAOE, iDamage, bCheckForSMD,        oLauncher:GetPosition(), nil,                                       nil,                2,                                      2.5,                    nil,                            nil,                                        nil,                            iReclaimFactor, true)
+                                        --Redundancy for cases where best AOE target actually gives a worse outcome (hopefully ahve fixed issue in getbestaoe target to avoid this, so below is to be safe
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue after getting best aoe target='..iBestTargetValue..'; iOldTargetValue='..iOldTargetValue) end
+                                        if iBestTargetValue < iOldTargetValue then
+                                            --Redundancy - make sure are comparing like with like
+                                            local iRevisedTargetSimpleValue = M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage,       nil,                                nil,                true,                           nil,                nil,                            nil,                                        false,              nil,                            true,                               nil,                                nil,                    nil)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Revised target simple value='..iRevisedTargetSimpleValue..'; iBestTargetValue='..iBestTargetValue) end
+                                            if iRevisedTargetSimpleValue < iBestTargetValue then
+                                                tTarget = {tOldTarget[1], tOldTarget[2], tOldTarget[3]}
+                                                iBestTargetValue = iOldTargetValue
+                                                if bDebugMessages == true then LOG(sFunctionRef..': have switched to old target') end
+                                            else
+                                                --Increase old value target (so more likely to fire)
+                                                iBestTargetValue = iOldTargetValue
+                                            end
+                                        end
+                                    end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue after getting best location='..iBestTargetValue..'; Best location for this target='..repru(tTarget)) end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': If value is <14k then will clear target unless have yolona; iBestTargetValue='..iBestTargetValue..'; tTarget='..repru(tTarget or {'nil'})) end
                             if iBestTargetValue < 20000 then --Mex is 4.6k base, with a 1.75 factor is 8050; with mass storage would be 9450; therefore if want to hit 3+ mex equivalents with a nuke, min value should be at least 19k (just over 2 capped T3 mexes)
-                                if iBestTargetValue < 2000 or not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
+                                if iBestTargetValue < 2000 or (not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) and (iBestTargetValue <= 15000 or not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]))) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': CLearing target as not valuable enough') end
                                     tTarget = nil
                                 end
