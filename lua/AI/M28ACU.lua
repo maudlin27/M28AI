@@ -3466,7 +3466,7 @@ function ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTea
                         --Are we not comfortably within the shield coverage?
                         if iNearestShieldWithHealthDist > (oNearestShieldWithHealth:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.45 - 4 then
                             M28Orders.IssueTrackedMove(oACU, oNearestShieldWithHealth:GetPosition(), 1, false, 'RetrCSh', false)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will retreat ACU to the nearest shield '..oNearestShieldWithHealth.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestShieldWithHealth)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will retreat ACU to the nearest shield '..oNearestShieldWithHealth.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestShieldWithHealth)..'; Special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         else

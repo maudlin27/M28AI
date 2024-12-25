@@ -2633,12 +2633,15 @@ function OnReclaimFinished(oEngineer, oReclaim)
                     end
                 end
             elseif EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
-                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-                if (iLandZone or 0) > 0 then
-                    local iTeam =  oEngineer:GetAIBrain().M28Team
-                    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                    M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
+                --Only try getting more reclaim if we havent wanted to run recently
+                if GetGameTimeSeconds() - (oEngineer[M28ACU.refiTimeLastWantedToRun] or 0) >= 2 or (M28UnitInfo.GetUnitHealthAndShieldPercent(oEngineer) >= 0.99 and M28Utilities.IsTableEmpty(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.reftEnemyLandExperimentals]) and M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.refiEnemyT3ArtiCount] <= 1) then
+                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+                    if (iLandZone or 0) > 0 then
+                        local iTeam =  oEngineer:GetAIBrain().M28Team
+                        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                        M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
+                    end
                 end
             elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
                 local tEngineersToClear = {}
