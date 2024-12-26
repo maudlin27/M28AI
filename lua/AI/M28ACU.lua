@@ -1294,9 +1294,9 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation'}
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', }
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization', 'DamageStabilizationAdvanced'}
         end
     elseif oACU[refbStartedUnderwater] then
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
