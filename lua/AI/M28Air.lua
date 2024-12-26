@@ -4433,7 +4433,7 @@ function ManageBombers(iTeam, iAirSubteam)
                 iAAPriorityThresholdFactor = 1
             elseif M28Map.iMapSize <=512 then
                 if tRallyLZOrWZTeamData[M28Map.refiModDistancePercent] > 0.05 then
-                    if tRallyLZOrWZTeamDatatRallyLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 then
+                    if tRallyLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 then
                         iAAPriorityThresholdFactor = 1
                     else
                         iAAPriorityThresholdFactor = 1.25
@@ -4504,7 +4504,7 @@ function ManageBombers(iTeam, iAirSubteam)
                     --Consider higher priority relatively nearby targets:
                     local iHighPriorityCategories = M28UnitInfo.refCategoryMobileLand * (categories.TECH3 + categories.EXPERIMENTAL) + M28UnitInfo.refCategoryStructure * (categories.TECH3 + categories.TECH2) + M28UnitInfo.refCategoryNavalSurface - categories.TECH1
 
-                    FilterToAvailableTargets(aiBrain:GetUnitsAroundPoint(iHighPriorityCategories, tRallyPoint, math.max(100, math.min(M28Map.iMapSize * 0.3, 200), 'Enemy')))
+                    FilterToAvailableTargets(aiBrain:GetUnitsAroundPoint(iHighPriorityCategories, tRallyPoint, math.max(100, math.min(M28Map.iMapSize * 0.3, 200)), 'Enemy'))
                     if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
                         local iCurPlateauOrZero, iCurZone
                         local toPriorityEnemiesToTarget = {}
