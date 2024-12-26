@@ -2021,6 +2021,14 @@ function OnConstructed(oEngineer, oJustBuilt)
                 if bDebugMessages == true then LOG(sFunctionRef..': First time calling for unit '..(oJustBuilt.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) or 'nil')..' owned by '..oJustBuilt:GetAIBrain().Nickname..', was this M28 brain='..tostring(oJustBuilt:GetAIBrain().M28AI or false)..'; Built at time='..GetGameTimeSeconds()) end
 
                 --Both M28 and Non-M28 where not already run onconstructioncalled:
+                --TML - flag to rerun logic for targeting as redundancy for cases where getunitsaroundpoint wont pickup under construction/upgrading units
+                if oJustBuilt[M28Building.refbRecheckTMLAndTMDWhenConstructedByTeam] then
+                    for iTMLTeam, bRecheck in oJustBuilt[M28Building.refbRecheckTMLAndTMDWhenConstructedByTeam] do
+                        ForkThread(M28Building.RecordTMLAndTMDForEnemyUnitTargetJustDetected, oJustBuilt, iTMLTeam)
+                    end
+                    oJustBuilt[M28Building.refbRecheckTMLAndTMDWhenConstructedByTeam] = nil
+                end
+
                 --SMD - update with more accurate estimate of time when built
                 if oJustBuilt[M28UnitInfo.refiTimeOfLastCheck] and EntityCategoryContains(M28UnitInfo.refCategorySMD, oJustBuilt.UnitId) then
 
