@@ -59,6 +59,7 @@ refiTimeOfLastLaunch = 'M28BuildTMLTimLstLnch' --Gametimeseconds that we last fi
 refiTimeLastFiredMissile = 'M28BuildTMLTmLstFir' --Gametimeseconds that the nuke last was given an order to fire a missile at something
 refiTimeLastGotBestArtiTarget = 'M28BuildArtTgCh' --Gametimeseconds that the arti unit last was given an order to attack a unit/location
 refiLastTMLMassKills = 'M28BuildTMLMssKil'
+refbRecheckTMLAndTMDWhenConstructedByTeam = 'M28BuildRechckTMDTML' --if a unit is part complete then getunitsaroundpoint may not accurately pick it up (e.g. mex upgrading), so this falg is to make sure we have recorded all TM and TMD
 refbPausedAsNoTargets = 'M28BuildPausNoT' --e.g. for SML use this to flag if we have paused it due to lack of targets
 reftTerrainBlockedTargets = 'M28BuildTerrainBLock' --If a TML missile impacts terrain then record the original target
 refbProtectedByTerrain = 'M28BuildUnitBlockByTer' --true if a target of a TML was protected by terrain
@@ -680,12 +681,14 @@ function RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, iTMLTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local oTMDBrain = oUnit:GetAIBrain()
-    local iTMDTeam = oTMDBrain.M28Team
     local tNearbyTMD = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oUnit:GetPosition(), iTMLMissileRange + 2, 'Ally')
 
+    if oUnit:GetFractionComplete() < 1 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
+        if not(oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam]) then oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] = {} end
+        oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam][iTMLTeam] = true
+    end
 
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Detected unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMLTeam='..iTMLTeam..'; Is table of active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]))..'; TimeOfGame='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Detected unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMLTeam='..iTMLTeam..'; Is table of active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; TimeOfGame='..GetGameTimeSeconds()) end
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
         local oTMLBrain
@@ -738,6 +741,38 @@ function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize)
 
 end
 
+function RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordThatTMDProtectsUnitFromTML'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --TMD can block the TML
+    local bAlreadyRecordedTMD = false
+    if not(oUnit[reftTMDCoveringThisUnit]) then oUnit[reftTMDCoveringThisUnit] = {}
+    else
+        for iRecordedTMD, oRecordedTMD in oUnit[reftTMDCoveringThisUnit] do
+            if oRecordedTMD == oTMD then bAlreadyRecordedTMD = true  break end
+        end
+    end
+    if not(bAlreadyRecordedTMD) then
+        table.insert(oUnit[reftTMDCoveringThisUnit], oTMD)
+        if not(oTMD[reftUnitsCoveredByThisTMD]) then oTMD[reftUnitsCoveredByThisTMD] = {} end
+        table.insert(oTMD[reftUnitsCoveredByThisTMD], oUnit)
+        if bDebugMessages == true then LOG(sFunctionRef..': TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' recorded against oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as covering it from TML') end
+    end
+
+
+    if M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]) == false then
+        for iExistingUnit, oExistingUnit in oTML[reftUnprotectedUnitTargetsForThisTML] do
+            if oExistingUnit == oUnit then
+                if bDebugMessages == true then LOG(sFunctionRef..': This unit was previously recorded as an unprotected target, will remove') end
+                table.remove(oTML[reftUnprotectedUnitTargetsForThisTML], iExistingUnit)
+                break
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
     --Updates the following variables: For TMD: reftUnitsCoveredByThisTMD; for TML: reftUnprotectedUnitTargetsForThisTML and reftUnitsInRangeOfThisTML; for units in range of TML: reftTMDCoveringThisUnit and reftTMLInRangeOfThisUnit
     --Assumes that oTML is in range of oUnit
@@ -766,7 +801,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
         table.insert(oUnit[reftTMLInRangeOfThisUnit], oTML)
     end
     local bIsBlockedByTMD
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..'; Considering if oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; is proitected from oTML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' by any of the TMD noted, is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tTMDInRange))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..'; Considering if oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; is proitected from oTML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' owned by player '..oTML:GetAIBrain().Nickname..' by any of the TMD noted, is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tTMDInRange))) end
     local iBuildingSize = M28UnitInfo.GetBuildingSize(oUnit.UnitId)
     if M28Utilities.IsTableEmpty(tTMDInRange) == false then
         --[[local iUnitToTMD
@@ -778,23 +813,9 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
 
         for iTMD, oTMD in tTMDInRange do
             if IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iBuildingSize) then
-
-                --TMD can block the TML
-                bAlreadyRecordedTMD = false
+                RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
                 bIsBlockedByTMD = true
                 if bDebugMessages == true then LOG(sFunctionRef..': oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' can block the TML so will record it') end
-                if not(oUnit[reftTMDCoveringThisUnit]) then oUnit[reftTMDCoveringThisUnit] = {}
-                else
-                    for iRecordedTMD, oRecordedTMD in oUnit[reftTMDCoveringThisUnit] do
-                        if oRecordedTMD == oTMD then bAlreadyRecordedTMD = true  break end
-                    end
-                end
-                if not(bAlreadyRecordedTMD) then
-                    table.insert(oUnit[reftTMDCoveringThisUnit], oTMD)
-                    if not(oTMD[reftUnitsCoveredByThisTMD]) then oTMD[reftUnitsCoveredByThisTMD] = {} end
-                    table.insert(oTMD[reftUnitsCoveredByThisTMD], oUnit)
-                    if bDebugMessages == true then LOG(sFunctionRef..': TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' recorded against oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as covering it from TML') end
-                end
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' doesnt block the TML') end
             end
@@ -813,10 +834,11 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
                             break
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': This unit has TMD recorded as covering it, oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..'; bConsideredAbove='..tostring(bConsideredAbove)..'; Does the TMD cover the unit from this TML='..tostring(IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iBuildingSize))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': This unit has TMD recorded as covering it, oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..'; bConsideredAbove='..tostring(bConsideredAbove)..'; Does the TMD cover the unit from this TML='..tostring(IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iBuildingSize))..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; TML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' owned by brain '..oTML:GetAIBrain().Nickname) end
                     if not(bConsideredAbove) then
                         if IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iBuildingSize) then
                             bIsBlockedByTMD = true
+                            RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
                             break
                         end
                     end
@@ -848,15 +870,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
         --is covered by TMD, make sure not listed in reftUnprotectedUnitTargetsForThisTML, and reassess if we want the unit flagged as wanting TMD
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is covered by TMD so will make sure not listed as an unprotected target against the TML, is table of unrptoected targets empty='..tostring(M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]))) end
         bUpdateZoneForUnitsWantingTMD = true
-        if M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]) == false then
-            for iExistingUnit, oExistingUnit in oTML[reftUnprotectedUnitTargetsForThisTML] do
-                if oExistingUnit == oUnit then
-                    if bDebugMessages == true then LOG(sFunctionRef..': This unit was previously recorded as an unprotected target, will remove') end
-                    table.remove(oTML[reftUnprotectedUnitTargetsForThisTML], iExistingUnit)
-                    break
-                end
-            end
-        end
+        --(we shouldave already updated to reflect no longer have an unprotected unit above)
     end
     --Either way record unit as being in range of TML
     local bAlreadyIncluded = false
@@ -1974,31 +1988,38 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                                 end
                                             end
                                         end
-                                        if iCurTargetValue > 0 and (oUnit[refiTMLShotsFired] or 0) > 0 then
-                                            --Reduce shots fired if we dealt damage with our last missile (as may have e.g. hit mass storage blocking us from reaching the target mex)
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Last TML target='..(oLauncher[refoLastTMLTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher[refoLastTMLTarget]) or 'nil')..'; Launcher mass killed='..(oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)..'; TML mass kills='..(oLauncher[refiLastTMLMassKills] or 0)) end
-                                            if oLauncher[refoLastTMLTarget] == oUnit and (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0) > (oLauncher[refiLastTMLMassKills] or 0) then
-                                                oLauncher[refiLastTMLMassKills] = (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)
-                                                oUnit[refiTMLShotsFired] = oUnit[refiTMLShotsFired] - 1
-                                            end
-                                            if oUnit[refiTMLShotsFired] > 0 or oUnit[refiTimeOfLastLaunch] then
-                                                local iUnitMaxHealth = oUnit:GetMaxHealth()
-                                                local iUnitCurShield, iUnitMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
-                                                if (iUnitMaxHealth + iUnitMaxShield <= iDamage and M28UnitInfo.IsUnitValid(oUnit[refoLastTMLLauncher])) and (not(oUnit[refoLastTMLLauncher] == oLauncher) or GetGameTimeSeconds() - (oUnit[refiTimeOfLastLaunch] or -100) <= 35) then
-                                                    iCurTargetValue = 0
-                                                else
-
-                                                    local iExpectedShots = math.ceil((iUnitMaxHealth + iUnitMaxShield) / iDamage)
-                                                    if oUnit[refiTMLShotsFired] > iExpectedShots then
-                                                        --Reduce by 50% for each time are over
-                                                        iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots)
-                                                        if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit[refiTMLShotsFired] - iExpectedShots >= 3 then
+                                        if iCurTargetValue > 0 then
+                                            if (oUnit[refiTMLShotsFired] or 0) > 0 then
+                                                --Reduce shots fired if we dealt damage with our last missile (as may have e.g. hit mass storage blocking us from reaching the target mex)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Last TML target='..(oLauncher[refoLastTMLTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher[refoLastTMLTarget]) or 'nil')..'; Launcher mass killed='..(oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)..'; TML mass kills='..(oLauncher[refiLastTMLMassKills] or 0)..'; is oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] nil='..tostring(oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] == nil)) end
+                                                if oLauncher[refoLastTMLTarget] == oUnit and (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0) > (oLauncher[refiLastTMLMassKills] or 0) then
+                                                    oLauncher[refiLastTMLMassKills] = (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)
+                                                    oUnit[refiTMLShotsFired] = oUnit[refiTMLShotsFired] - 1
+                                                end
+                                                if oUnit[refiTMLShotsFired] > 0 or oUnit[refiTimeOfLastLaunch] then
+                                                    if oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] then iCurTargetValue = 0
+                                                    else
+                                                        local iUnitMaxHealth = oUnit:GetMaxHealth()
+                                                        local iUnitCurShield, iUnitMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
+                                                        if (iUnitMaxHealth + iUnitMaxShield <= iDamage and M28UnitInfo.IsUnitValid(oUnit[refoLastTMLLauncher])) and (not(oUnit[refoLastTMLLauncher] == oLauncher) or GetGameTimeSeconds() - (oUnit[refiTimeOfLastLaunch] or -100) <= 35) then
                                                             iCurTargetValue = 0
+                                                        else
+
+                                                            local iExpectedShots = math.ceil((iUnitMaxHealth + iUnitMaxShield) / iDamage)
+                                                            if oUnit[refiTMLShotsFired] > iExpectedShots then
+                                                                --Reduce by 50% for each time are over
+                                                                iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots)
+                                                                if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit[refiTMLShotsFired] - iExpectedShots >= 3 then
+                                                                    iCurTargetValue = 0
+                                                                end
+                                                            end
                                                         end
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': iUnitMaxHealth='..iUnitMaxHealth..'; iUnitMaxShield='..iUnitMaxShield..'; oUnit[refiTMLShotsFired]='..oUnit[refiTMLShotsFired]..'; oUnit[refiTimeOfLastLaunch]='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; iCurTargetValue after adjusting for excess='..iCurTargetValue) end
                                                     end
                                                 end
-
-                                                if bDebugMessages == true then LOG(sFunctionRef..': iUnitMaxHealth='..iUnitMaxHealth..'; iUnitMaxShield='..iUnitMaxShield..'; oUnit[refiTMLShotsFired]='..oUnit[refiTMLShotsFired]..'; oUnit[refiTimeOfLastLaunch]='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; iCurTargetValue after adjusting for excess='..iCurTargetValue) end
+                                            elseif oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] then
+                                                iCurTargetValue = iCurTargetValue * 0.25
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Target was recorded when under construction, significantly decreasing value due to risk of enemy TMD as appears to be issue with logic not picking up tmd when unit is being upgraded') end
                                             end
                                         end
                                     end
@@ -2327,13 +2348,38 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 end
                                 if iBestTargetValue > iBestValueOfDefensiveNuke then
                                     --GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
-                                    if tTarget then tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, tTarget,         iAOE, iDamage, bCheckForSMD,        oLauncher:GetPosition(), nil,                                       nil,                2,                                      2.5,                    nil,                            nil,                                        nil,                            iReclaimFactor) end
+
+                                    if tTarget then
+                                        local tOldTarget = {tTarget[1], tTarget[2], tTarget[3]}
+                                        local iOldTargetValue = iBestTargetValue
+                                        if bDebugMessages == true then
+                                            local iTargetPlateauOrZero, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tTarget)
+                                            LOG(sFunctionRef..': Have a best target, tTarget before getting best aoe target='..repru(tTarget)..'; iTargetPlateauOrZero='..(iTargetPlateauOrZero or 'nil')..'; iTargetZone='..(iTargetZone or 'nil'))
+                                        end
+                                                                    --function GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
+                                        tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, tTarget,         iAOE, iDamage, bCheckForSMD,        oLauncher:GetPosition(), nil,                                       nil,                2,                                      2.5,                    nil,                            nil,                                        nil,                            iReclaimFactor, true)
+                                        --Redundancy for cases where best AOE target actually gives a worse outcome (hopefully ahve fixed issue in getbestaoe target to avoid this, so below is to be safe
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue after getting best aoe target='..iBestTargetValue..'; iOldTargetValue='..iOldTargetValue) end
+                                        if iBestTargetValue < iOldTargetValue then
+                                            --Redundancy - make sure are comparing like with like
+                                            local iRevisedTargetSimpleValue = M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage,       nil,                                nil,                true,                           nil,                nil,                            nil,                                        false,              nil,                            true,                               nil,                                nil,                    nil)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Revised target simple value='..iRevisedTargetSimpleValue..'; iBestTargetValue='..iBestTargetValue) end
+                                            if iRevisedTargetSimpleValue < iBestTargetValue then
+                                                tTarget = {tOldTarget[1], tOldTarget[2], tOldTarget[3]}
+                                                iBestTargetValue = iOldTargetValue
+                                                if bDebugMessages == true then LOG(sFunctionRef..': have switched to old target') end
+                                            else
+                                                --Increase old value target (so more likely to fire)
+                                                iBestTargetValue = iOldTargetValue
+                                            end
+                                        end
+                                    end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue after getting best location='..iBestTargetValue..'; Best location for this target='..repru(tTarget)) end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': If value is <14k then will clear target unless have yolona; iBestTargetValue='..iBestTargetValue..'; tTarget='..repru(tTarget or {'nil'})) end
                             if iBestTargetValue < 20000 then --Mex is 4.6k base, with a 1.75 factor is 8050; with mass storage would be 9450; therefore if want to hit 3+ mex equivalents with a nuke, min value should be at least 19k (just over 2 capped T3 mexes)
-                                if iBestTargetValue < 2000 or not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
+                                if iBestTargetValue < 2000 or (not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) and (iBestTargetValue <= 15000 or not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]))) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': CLearing target as not valuable enough') end
                                     tTarget = nil
                                 end

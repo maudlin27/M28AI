@@ -581,6 +581,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         if M28Utilities.IsTableEmpty(tFriendlyUnits) == false then
             for iUnit, oUnit in tFriendlyUnits do
                 if oUnit.GetBlueprint and not(oUnit.Dead) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have friendly unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')..' that will factor in to damage') end
                     if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                         if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
                             iTotalDamage = iTotalDamage - 100000
@@ -609,6 +610,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                             end
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Increasing damage for reclaim, iTotalReclaim='..iTotalReclaim..'; iOptionalReclaimFactor='..iOptionalReclaimFactor) end
                     iTotalDamage = iTotalDamage + iTotalReclaim * iOptionalReclaimFactor
                 end
             end
@@ -814,7 +816,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
     return iTotalDamage
 end
 
-function GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
+function GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor, bIncludePreviouslySeenEnemies)
     --Calcualtes the most damaging location for an aoe target; also returns the damage dealt
     --if bOptionalCheckForSMD is true then will ignore targest that are near an SMD
     --iOptionalMaxDistanceCheckOptions - can use to limit hte nubmer of distance options that will choose
@@ -824,34 +826,36 @@ function GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckF
     local sFunctionRef = 'GetBestAOETarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': About to find the best target for bomb, tBaseLocation='..repru(tBaseLocation)..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to find the best target for bomb, tBaseLocation='..repru(tBaseLocation)..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; bOptionalCheckForSMD='..tostring(bOptionalCheckForSMD or false)..'; iOptionalTimeSMDNeedsToHaveBeenBuiltFor='..(iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 'nil')..'; iFriendlyUnitAOEFactor='..(iFriendlyUnitAOEFactor or 'nil')..'; iOptionalMaxDistanceCheckOptions='..(iOptionalMaxDistanceCheckOptions or 'nil')..'; iMobileValueOverrideFactorWithin75Percent='..(iMobileValueOverrideFactorWithin75Percent or 'nil')..'; iOptionalShieldReductionFactor='..(iOptionalShieldReductionFactor or 'nil')..'; iOptionalReclaimFactor='..(iOptionalReclaimFactor or 'nil')) end
 
     local tBestTarget = {tBaseLocation[1], tBaseLocation[2], tBaseLocation[3]}
     local iMaxTargetDamage
     if aiBrain.M28Easy then
-        iMaxTargetDamage = GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor, nil, nil, nil, iOptionalReclaimFactor)
+        iMaxTargetDamage = GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, nil, nil, iOptionalReclaimFactor)
     else
         --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage)
         --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor)
-        local iCurTargetDamage = GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor, nil, nil, nil, iOptionalReclaimFactor)
+        local iCurTargetDamage = GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, nil, nil, iOptionalReclaimFactor)
         iMaxTargetDamage = iCurTargetDamage
         local iMaxDistanceChecks = math.min(4, math.ceil(iAOE / 2))
         if iOptionalMaxDistanceCheckOptions then iMaxDistanceChecks = math.min(iOptionalMaxDistanceCheckOptions, iMaxDistanceChecks) end
         local iDistanceFromBase = 0
         local tPossibleTarget
         if bOptionalCheckForSMD and M28Building.IsSMDBlockingTarget(aiBrain, tBaseLocation, tSMLLocationForSMDCheck, (iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 200), iSMDRangeAdjust) then iMaxTargetDamage = math.min(4000, iMaxTargetDamage) end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Base damage with no adjustment='..iCurTargetDamage) end
         for iCurDistanceCheck = iMaxDistanceChecks, 1, -1 do
             iDistanceFromBase = iAOE / iCurDistanceCheck
             for iAngle = 0, 360, 45 do
                 tPossibleTarget = M28Utilities.MoveInDirection(tBaseLocation, iAngle, iDistanceFromBase)
                 --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor)
-                iCurTargetDamage = GetDamageFromBomb(aiBrain, tPossibleTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor, nil, nil, nil, iOptionalReclaimFactor)
+                iCurTargetDamage = GetDamageFromBomb(aiBrain, tPossibleTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, nil, nil, iOptionalReclaimFactor)
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistanceCheck='..iCurDistanceCheck..'; iAngle='..iAngle..'; iCurTargetDamage='..iCurTargetDamage) end
                 if iCurTargetDamage > iMaxTargetDamage then
                     if bOptionalCheckForSMD and M28Building.IsSMDBlockingTarget(aiBrain, tPossibleTarget, tSMLLocationForSMDCheck, (iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 200), iSMDRangeAdjust) then iCurTargetDamage = math.min(4000, iCurTargetDamage) end
                     if iCurTargetDamage > iMaxTargetDamage then
                         tBestTarget = tPossibleTarget
                         iMaxTargetDamage = iCurTargetDamage
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording this as the new best target, tBestTarget='..repru(tBestTarget)..'; iMaxTargetDamage='..iMaxTargetDamage) end
                     end
                 end
             end
