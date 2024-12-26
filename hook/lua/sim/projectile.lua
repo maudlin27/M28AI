@@ -19,6 +19,22 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         OnCreate = function(self, inWater)
             M28OldProjectile.OnCreate(self, inWater)
             ForkThread(M28Events.ProjectileCreated,self, inWater)
-        end
+        end,
+        OnKilled = function(self, instigator, type, overkillRatio)
+            --Destructive hook
+            -- callbacks for launcher to have an idea what is going on for AIs
+            local launcher = self.Launcher
+            if not IsDestroyed(launcher) then
+                launcher:OnMissileIntercepted(self:GetCurrentTargetPosition(), instigator, self:GetPosition(), self)
+
+                -- keep track of the number of intercepted missiles
+                if not IsDestroyed(instigator) and instigator.GetStat then
+                    instigator:UpdateStat('KILLS', instigator:GetStat('KILLS', 0).Value + 1)
+                end
+            end
+
+            self:CreateImpactEffects(self.Army, self.FxOnKilled, self.FxOnKilledScale)
+            self:Destroy()
+        end,
     }
 end

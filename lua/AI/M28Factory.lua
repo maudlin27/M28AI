@@ -4350,7 +4350,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
         --Torp bomber if LC is <=2 and enemy has torp threat
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and iFactoryTechLevel >= 2 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] < 400 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTorpBomber) < 2 then
+        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] < 400 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTorpBomber) < 2 then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
         end
 
@@ -4539,7 +4539,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
         --Torp bomber if LC is <=2 and enemy has torp threat
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and iFactoryTechLevel >= 2 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] < 400 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTorpBomber) < 2 then
+        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] < 400 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTorpBomber) < 2 then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
         end
 
@@ -5015,7 +5015,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 --Do we lack enough torpedo bombers to target enemy navy?
                 if bDebugMessages == true then LOG(sFunctionRef..': About to consider getting torp bombers, iFactoryTechLevel='..iFactoryTechLevel..'; time='..GetGameTimeSeconds()..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] or false)..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers])..'; M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir]='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir])..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat]..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]) end
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if iFactoryTechLevel >= 2 and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]) then
+                if (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]) then
                     --Are we far behind on air?
                     if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] then
                         if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] then

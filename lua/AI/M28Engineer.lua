@@ -3077,9 +3077,9 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateauOrZero, iLandOrWaterZone, false, nil, M28UnitInfo.refCategoryGameEnder)
                 if iOtherLandZonesWithExperimental > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and iMassToComplete <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] * 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or iMassToComplete >= 90000 or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < math.max(5, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 2.25)) then
                     bDontConsiderGameEnderInMostCases = true
-                elseif not(M28Conditions.HaveEcoToSupportGETemplate(iTeam)) then
+                elseif not(M28Conditions.HaveEcoToSupportGETemplate(iTeam)) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 90 or M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] < 2) then
                     bDontConsiderGameEnderInMostCases = true
-                elseif bEnemyHasExperimentalShields and not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon]) and not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.min(400, 95 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                elseif bEnemyHasExperimentalShields and (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) or M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] == 0) and not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon]) and not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.min(400, 95 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
                     --Do we have Aeon or Searphim factories on team? If so then restrict game enders for now
                     if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon] >= 3
                             or M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeAir][M28UnitInfo.refFactionAeon] >= 3
@@ -3091,7 +3091,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 end
                 --Furhter cases where want to avoid GE template
                 if not(bDontConsiderGameEnderInMostCases) then
-                    if bPrioritiseLand or aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseLowTech] then
+                    if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 8 * (0.5 + M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5) and bPrioritiseLand or aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseLowTech] then
                         bDontConsiderGameEnderInMostCases = true
                     elseif not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Not defending against arti so decide if we want to have more land exp than enemy, iEnemyClosestLandExperimentalOnSamePlateau='..iEnemyClosestLandExperimentalOnSamePlateau..'; iEnemyExpOnSamePlateau='..iEnemyExpOnSamePlateau..'; iTeamLandExperimentals='..iTeamLandExperimentals..'; iEnemyLandExperimentalCount='..iEnemyLandExperimentalCount) end
@@ -3163,6 +3163,12 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     end
 
                     if not(iCategoryWanted) then
+                        local bGetGameEnderTemplate = false
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) and iEnemyClosestLandExperimentalOnSamePlateau >= 175 and not(M28Team.tTeamData[iTeam][M28Team.refbUnableToBuildArtiOrGameEnders]) and not(bDontConsiderGameEnderInMostCases) and M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] >= 1 and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] >= 1.5) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': want some sort of gameender template if our team doesnt have any active so we have somewhere for our ACU to shelter') end
+                            bGetGameEnderTemplate = true
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': deciding if want a gameender template due to enemy T3 arti, bGetGameEnderTemplate='..tostring(bGetGameEnderTemplate)..'; Is table of potential GE templates empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]))..'; iEnemyClosestLandExperimentalOnSamePlateau='..iEnemyClosestLandExperimentalOnSamePlateau..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount]) end
                         --LOUD specific - dont get air exp if already have one and can path to enemy by land and enemy has significant MAA threat
                         local bDontGetAirExp = false
                         if (M28Utilities.bLoudModActive or (M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] >= 20000 and not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim])))  and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 10000 + 5000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] >= 8000 and (bCanPathByLand or M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] >= 16000) then
@@ -3208,7 +3214,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             --Exclude experimental PD
                             iCategoryWanted = iCategoryWanted - M28UnitInfo.refCategoryPD
 
-                                --UEF EXPERIMENTAL CHOICE
+                            --UEF EXPERIMENTAL CHOICE
                         elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] then
                             --Decide between fatboy and novax, or (with v.high eco) mavor
                             iFactionRequired = M28UnitInfo.refFactionUEF
@@ -3734,6 +3740,11 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     end
                                 end
                             end
+                        end
+                        --Switch to GETemplate category if we have picked something else
+                        if bGetGameEnderTemplate and not(M28Utilities.DoesCategoryContainCategory(iCategoryWanted, M28UnitInfo.refCategoryGameEnder)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will switch to gameender template type category') end
+                            iCategoryWanted = M28UnitInfo.refCategoryGameEnder
                         end
                     end
                 end

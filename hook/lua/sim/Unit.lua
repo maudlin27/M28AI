@@ -332,10 +332,10 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             ForkThread(M28Events.OnMissileImpactTerrain, self, target, position)
             if M28OldUnit.OnMissileImpactTerrain then return M28OldUnit.OnMissileImpactTerrain(self, target, position) end
         end,
-        OnMissileIntercepted = function(self, target, defense, position)
+        OnMissileIntercepted = function(self, target, defense, position, projectile)
             --LOG('OnMissileIntercepted triggered')
-            ForkThread(M28Events.OnMissileIntercepted, self, target, defense, position)
-            if M28OldUnit.OnMissileIntercepted then return M28OldUnit.OnMissileIntercepted(self, target, defense, position) end
+            if M28OldUnit.OnMissileIntercepted then M28OldUnit.OnMissileIntercepted(self, target, defense, position, projectile) end
+            M28Events.OnMissileIntercepted(self, target, defense, position, projectile) --Cant do via forked thread if want to reference projectile values, so wont do as return, and wont do as forked thread
         end,
         OnTeleportUnit = function(self, teleporter, location, orientation)
             ForkThread(M28Events.OnTeleportComplete, self, teleporter, location, orientation)

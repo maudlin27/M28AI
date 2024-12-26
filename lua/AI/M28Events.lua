@@ -1487,6 +1487,14 @@ function ProjectileCreated(oProjectile, inWater)
                 end
 
             end
+            --TML targeting
+            if oProjectile.Launcher.UnitId and oProjectile.Launcher[M28Building.refoLastTMLTarget] and EntityCategoryContains(M28UnitInfo.refCategoryTML, oProjectile.Launcher.UnitId) then
+                local oLauncher = oProjectile.Launcher
+                if M28UnitInfo.IsUnitValid(oLauncher) and oLauncher:GetAIBrain().M28AI then
+                    --Track the missile target against the projectile
+                    oProjectile[M28Building.refoLastTMLTarget] = oLauncher[M28Building.refoLastTMLTarget]
+                end
+            end
         end
     end
 end
@@ -2021,6 +2029,14 @@ function OnConstructed(oEngineer, oJustBuilt)
                 if bDebugMessages == true then LOG(sFunctionRef..': First time calling for unit '..(oJustBuilt.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) or 'nil')..' owned by '..oJustBuilt:GetAIBrain().Nickname..', was this M28 brain='..tostring(oJustBuilt:GetAIBrain().M28AI or false)..'; Built at time='..GetGameTimeSeconds()) end
 
                 --Both M28 and Non-M28 where not already run onconstructioncalled:
+                --TML - flag to rerun logic for targeting as redundancy for cases where getunitsaroundpoint wont pickup under construction/upgrading units
+                if oJustBuilt[M28Building.refbRecheckTMLAndTMDWhenConstructedByTeam] then
+                    for iTMLTeam, bRecheck in oJustBuilt[M28Building.refbRecheckTMLAndTMDWhenConstructedByTeam] do
+                        ForkThread(M28Building.RecordTMLAndTMDForEnemyUnitTargetJustDetected, oJustBuilt, iTMLTeam)
+                    end
+                    oJustBuilt[M28Building.refbRecheckTMLAndTMDWhenConstructedByTeam] = nil
+                end
+
                 --SMD - update with more accurate estimate of time when built
                 if oJustBuilt[M28UnitInfo.refiTimeOfLastCheck] and EntityCategoryContains(M28UnitInfo.refCategorySMD, oJustBuilt.UnitId) then
 
@@ -2633,12 +2649,15 @@ function OnReclaimFinished(oEngineer, oReclaim)
                     end
                 end
             elseif EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
-                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-                if (iLandZone or 0) > 0 then
-                    local iTeam =  oEngineer:GetAIBrain().M28Team
-                    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                    M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
+                --Only try getting more reclaim if we havent wanted to run recently
+                if GetGameTimeSeconds() - (oEngineer[M28ACU.refiTimeLastWantedToRun] or 0) >= 2 or (M28UnitInfo.GetUnitHealthAndShieldPercent(oEngineer) >= 0.99 and M28Utilities.IsTableEmpty(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.reftEnemyLandExperimentals]) and M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.refiEnemyT3ArtiCount] <= 1) then
+                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+                    if (iLandZone or 0) > 0 then
+                        local iTeam =  oEngineer:GetAIBrain().M28Team
+                        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                        M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
+                    end
                 end
             elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
                 local tEngineersToClear = {}
@@ -3669,7 +3688,7 @@ function ReclaimTargetObjectiveAdded(Type, Complete, Title, Description, Target)
     end
 end
 
-function OnMissileIntercepted(oLauncher, target, oTMD, position)
+function OnMissileIntercepted(oLauncher, target, oTMD, position, oProjectile)
     --M28AI specific - also exclude if TMD is owned by the same team, as as of 24/09/2023 there's a bug with FAF where this callback triggers with oTMD being another or the same MML
     if M28Utilities.bM28AIInGame then
         if not(oLauncher.Dead) and M28UnitInfo.IsUnitValid(oTMD) and not(oLauncher:GetAIBrain().M28Team == oTMD:GetAIBrain().M28Team) then
@@ -3745,6 +3764,24 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position)
                             if bDebugMessages == true then LOG(sFunctionRef..': About to record oLauncher against TMD table of launchers intercepted if not already recorded, bRecordedAlready='..tostring(bRecordedAlready)..'; oTMD[M28Building.refiTimeTMDHitMissile]='..(oTMD[M28Building.refiTimeTMDHitMissile] or 'nil')..'; oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)) end
                             if not(bRecordedAlready) then table.insert(oTMD[M28Building.toLaunchersIntercepted], oLauncher) end
                         end
+                    end
+                end
+                if M28UnitInfo.IsUnitValid(oLauncher) and oLauncher:GetAIBrain().M28AI and M28Utilities.IsTableEmpty(target) == false then
+                    --Make sure we have recorded this TMD as a blogking TMD if not already for the launcher/unit
+                    local tUnitsNearTarget = oTMD:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, target, 3, 'Ally')
+                    if M28Utilities.IsTableEmpty(tUnitsNearTarget) == false then
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': TMD has intercepted TML missile, so will make sure all units near the target of the missile record that the TMD is protecting them, is tUnitsNearTarget empty='..tostring(M28Utilities.IsTableEmpty(tUnitsNearTarget))..'; target='..reprs(target)..'; oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..'; TMD position='..repru(oTMD:GetPosition())..'; position='..repru(position)..'; Is oProjectile[M28Building.refoLastTMLTarget] nil='..tostring(oProjectile[M28Building.refoLastTMLTarget] == nil)..'; oProjectile[M28Building.refoLastTMLTarget]='..(oProjectile[M28Building.refoLastTMLTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oProjectile[M28Building.refoLastTMLTarget]) or 'nil'))
+                        end
+                        for iUnit, oUnit in tUnitsNearTarget do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will record that the TMD is protecting oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' unless will already have covered via oProjectile[M28Building.refoLastTMLTarget]') end
+                            if not(oUnit == oProjectile[M28Building.refoLastTMLTarget]) then
+                                M28Building.RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oLauncher)
+                            end
+                        end
+                    end
+                    if M28UnitInfo.IsUnitValid(oProjectile[M28Building.refoLastTMLTarget]) then
+                        M28Building.RecordThatTMDProtectsUnitFromTML(oTMD, oProjectile[M28Building.refoLastTMLTarget], oLauncher)
                     end
                 end
             end
