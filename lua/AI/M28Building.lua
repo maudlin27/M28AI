@@ -741,6 +741,38 @@ function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize)
 
 end
 
+function RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordThatTMDProtectsUnitFromTML'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --TMD can block the TML
+    local bAlreadyRecordedTMD = false
+    if not(oUnit[reftTMDCoveringThisUnit]) then oUnit[reftTMDCoveringThisUnit] = {}
+    else
+        for iRecordedTMD, oRecordedTMD in oUnit[reftTMDCoveringThisUnit] do
+            if oRecordedTMD == oTMD then bAlreadyRecordedTMD = true  break end
+        end
+    end
+    if not(bAlreadyRecordedTMD) then
+        table.insert(oUnit[reftTMDCoveringThisUnit], oTMD)
+        if not(oTMD[reftUnitsCoveredByThisTMD]) then oTMD[reftUnitsCoveredByThisTMD] = {} end
+        table.insert(oTMD[reftUnitsCoveredByThisTMD], oUnit)
+        if bDebugMessages == true then LOG(sFunctionRef..': TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' recorded against oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as covering it from TML') end
+    end
+
+
+    if M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]) == false then
+        for iExistingUnit, oExistingUnit in oTML[reftUnprotectedUnitTargetsForThisTML] do
+            if oExistingUnit == oUnit then
+                if bDebugMessages == true then LOG(sFunctionRef..': This unit was previously recorded as an unprotected target, will remove') end
+                table.remove(oTML[reftUnprotectedUnitTargetsForThisTML], iExistingUnit)
+                break
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
     --Updates the following variables: For TMD: reftUnitsCoveredByThisTMD; for TML: reftUnprotectedUnitTargetsForThisTML and reftUnitsInRangeOfThisTML; for units in range of TML: reftTMDCoveringThisUnit and reftTMLInRangeOfThisUnit
     --Assumes that oTML is in range of oUnit
@@ -781,23 +813,9 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
 
         for iTMD, oTMD in tTMDInRange do
             if IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iBuildingSize) then
-
-                --TMD can block the TML
-                bAlreadyRecordedTMD = false
+                RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
                 bIsBlockedByTMD = true
                 if bDebugMessages == true then LOG(sFunctionRef..': oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' can block the TML so will record it') end
-                if not(oUnit[reftTMDCoveringThisUnit]) then oUnit[reftTMDCoveringThisUnit] = {}
-                else
-                    for iRecordedTMD, oRecordedTMD in oUnit[reftTMDCoveringThisUnit] do
-                        if oRecordedTMD == oTMD then bAlreadyRecordedTMD = true  break end
-                    end
-                end
-                if not(bAlreadyRecordedTMD) then
-                    table.insert(oUnit[reftTMDCoveringThisUnit], oTMD)
-                    if not(oTMD[reftUnitsCoveredByThisTMD]) then oTMD[reftUnitsCoveredByThisTMD] = {} end
-                    table.insert(oTMD[reftUnitsCoveredByThisTMD], oUnit)
-                    if bDebugMessages == true then LOG(sFunctionRef..': TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' recorded against oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as covering it from TML') end
-                end
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' doesnt block the TML') end
             end
@@ -820,6 +838,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
                     if not(bConsideredAbove) then
                         if IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iBuildingSize) then
                             bIsBlockedByTMD = true
+                            RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
                             break
                         end
                     end
@@ -851,15 +870,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
         --is covered by TMD, make sure not listed in reftUnprotectedUnitTargetsForThisTML, and reassess if we want the unit flagged as wanting TMD
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is covered by TMD so will make sure not listed as an unprotected target against the TML, is table of unrptoected targets empty='..tostring(M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]))) end
         bUpdateZoneForUnitsWantingTMD = true
-        if M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]) == false then
-            for iExistingUnit, oExistingUnit in oTML[reftUnprotectedUnitTargetsForThisTML] do
-                if oExistingUnit == oUnit then
-                    if bDebugMessages == true then LOG(sFunctionRef..': This unit was previously recorded as an unprotected target, will remove') end
-                    table.remove(oTML[reftUnprotectedUnitTargetsForThisTML], iExistingUnit)
-                    break
-                end
-            end
-        end
+        --(we shouldave already updated to reflect no longer have an unprotected unit above)
     end
     --Either way record unit as being in range of TML
     local bAlreadyIncluded = false

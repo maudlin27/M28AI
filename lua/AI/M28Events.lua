@@ -3758,6 +3758,17 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position)
                         end
                     end
                 end
+                if oLauncher:GetAIBrain().M28AI and M28Utilities.IsTableEmpty(target) == false then
+                    --Make sure we have recorded this TMD as a blogking TMD if not already for the launcher/unit
+                    local tUnitsNearTarget = oTMD:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, target, 3, 'Ally')
+                    if true and GetGameTimeSeconds() >= 18*60+20 and M28Utilities.IsTableEmpty(tUnitsNearTarget) == false then
+                        bDebugMessages = true
+                        for iUnit, oUnit in tUnitsNearTarget do
+                            if bDebugMessages == true then LOG(sFunctionRef..': TMD has intercepted TML missile, so will make sure all units near the target of the missile record that the TMD is protecting them, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            M28Building.RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oLauncher)
+                        end
+                    end
+                end
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         end
