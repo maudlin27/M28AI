@@ -2291,7 +2291,7 @@ end
 
 function DelayedM27M28BrainCheck(aiBrain)
     WaitSeconds(1)
-    LOG('Delayed brain check, brain nickname='..aiBrain.Nickname..'; .M27AI='..tostring(aiBrain.M27AI or false)..'; .M28AI='..tostring(aiBrain.M28AI or false))
+    --LOG('Delayed brain check, brain nickname='..aiBrain.Nickname..'; .M27AI='..tostring(aiBrain.M27AI or false)..'; .M28AI='..tostring(aiBrain.M28AI or false))
     if aiBrain.M27AI and aiBrain.M28AI then aiBrain.M28AI = false end
 end
 
