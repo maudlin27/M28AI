@@ -532,6 +532,7 @@ tPondDetails = {}
             refiRaidTechLevel = 'WZRadTL' --Tech level to use for raiding logic to estimate permissible ranges and enemy threat values
             refiMAACombatRangeWithoutTarget = 'WZMAACmbR' --If have MAA with combat range, but no nearby enemy buildings, then this records that range
             refiEnemyTorpDefenceCount = 'WZEnTDCn' --rough number of torpedo defence weapons in the zone (e.g. T2+ units might count as 2+)
+            refiTimeLastRunFromEnemyAir = 'WZTimRnA' --rounded gametime that we last had combat untis in this WZ and wanted them to retreat due to an enemy air htreat
 
             subrefWZCombatThreatWanted = 'CombWant'
             subrefWZMAAThreatWanted = 'MAAWant'

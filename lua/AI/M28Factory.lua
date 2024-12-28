@@ -5541,6 +5541,9 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         --Frigates should be a faster way of getting basic AA
         if bDebugMessages == true then LOG(sFunctionRef .. ': Immediate threat - want AA via frigate') end
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryFrigate) then return sBPIDToBuild end
+    elseif tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] and GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] <= 15 and (tWZTeamData[M28Map.subrefWZMAAThreatWanted] > 0 or tWZTeamData[M28Map.subrefLZThreatAllyMAA] == 0) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Recently had enemy air to ground threat and we lack any MAA so will get some MAA') end
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
     end
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -5760,7 +5763,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 end
 
                 --AA ratio basic value (note we also have a similar AA type test later on, this one is on global values though
-                if not(bHaveWantedAA) and iOurCumulativeCombatThreat >= 4000 and (tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or iOurCumulativeCombatThreat >= 6000*iFactoryTechLevel) and iOurCumulativeCombatThreat * iMinAARatioWanted > iOurCumulativeAAThreat then
+                if not(bHaveWantedAA) and ((tOtherWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] and GetGameTimeSeconds() - tOtherWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] <= 20) or (iOurCumulativeCombatThreat >= 4000 and (tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or iOurCumulativeCombatThreat >= 6000*iFactoryTechLevel) and iOurCumulativeCombatThreat * iMinAARatioWanted > iOurCumulativeAAThreat)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Want AA to maintain basic ratio to combat threat, iOurCumulativeCombatThreat='..iOurCumulativeCombatThreat..'; iOurCumulativeAAThreat='..iOurCumulativeAAThreat) end
                     bHaveWantedAA = true
                 end
