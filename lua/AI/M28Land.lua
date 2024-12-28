@@ -5095,6 +5095,20 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
 
                 if bUpdateEnemyCombatThreat then
+                    if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
+                        --If enemy LR threat is buildings rather than mobile units then increase enemy combat threat by this, so we are less likely to engage unless confident we will win
+                        local bHaveDFBuildingsInLRThreat = false
+                        for iUnit, oUnit in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
+                            if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
+                                bHaveDFBuildingsInLRThreat = true
+                                break
+                            end
+                        end
+                        if bHaveDFBuildingsInLRThreat then
+                            iEnemyCombatThreat = iEnemyCombatThreat + tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Increasing enemy LR threat for long range building threat, tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]..'; iEnemyCombatThreat after increase='..iEnemyCombatThreat) end
+                        end
+                    end
                     local tbZonesConsidered = {}
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                         if bDebugMessages == true then LOG(sFunctionRef..': Calculating enemy threat, iFirebaseThreatAdjust='..iFirebaseThreatAdjust) end

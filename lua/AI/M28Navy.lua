@@ -3099,16 +3099,37 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Relatively near start for iWaterZone='..iWaterZone..' at time='..GetGameTimeSeconds()..'; Checking if want to run from enemy AA iEnemyAdjacentAirToGroundThreat='..iEnemyAdjacentAirToGroundThreat..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat..'; tRallyPoint='..repru(tRallyPoint)) end
+
+    function RetreatAllUnits(tUnitsToRetreat) --intended for availablecoombatunits and/or availablesubmarines
+        local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+        for iUnit, oUnit in tUnitsToRetreat do
+            --Only retreat units from this WZ
+            if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
+                oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
+                if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect any subs to be amphibious or hover
+                    M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+                else
+                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': retreating unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to rally point or amphibious rally point') end
+            else
+                oUnit[refiCurrentWZAssignmentValue] = 0
+            end
+        end
+        tUnitsToRetreat = nil --doesnt seem to work so need to manually set the table to nil
+    end
     local iBestAvailableSubmarineRange = 0
     local bHaveRunFromAir = false
     if iEnemyAdjacentAirToGroundThreat > math.max(50, iFriendlyAdjacentAAThreat * 1.5) and iFriendlyAdjacentAAThreat < 1500 and not(M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea]) then
-        local iCurTime = math.floor(GetGameTimeSeconds())
         --Retreat to rally point
         if bDebugMessages == true then LOG(sFunctionRef..': Will retreat available combat units and subs to the rally point, si available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))) end
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
             if iEnemyAdjacentAirToGroundThreat - iFriendlyAdjacentAAThreat > 0 and iEnemyAdjacentAirToGroundThreat - iFriendlyAdjacentAAThreat > M28UnitInfo.GetMassCostOfUnits(tAvailableCombatUnits) * 0.05 then
                 bHaveRunFromAir = true
-                local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] = iCurTime
+                RetreatAllUnits(tAvailableCombatUnits)
+                tAvailableCombatUnits = nil
+                --[[local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
                 for iUnit, oUnit in tAvailableCombatUnits do
                     oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                     if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then
@@ -3116,7 +3137,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     else
                         M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WNRetrFrA'..iWaterZone)
                     end
-                end
+                end--]]
             end
         else
             tAvailableCombatUnits = nil
@@ -3127,8 +3148,11 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want our subs to run from enemy, will depend on if they ahve torps, enemy torp total threat='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0)..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat..'; Available sub mass value='..M28UnitInfo.GetCombatThreatRating(tAvailableSubmarines, false, true)) end
             if (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0) > iFriendlyAdjacentAAThreat * 1.5 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] - iFriendlyAdjacentAAThreat >= 0.1 * M28UnitInfo.GetMassCostOfUnits(tAvailableSubmarines) then
                 bHaveRunFromAir = true
+                tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] = iCurTime
                 if bDebugMessages == true then LOG(sFunctionRef..': Will retreat to closest friendly base for amphibious unit, or rally point for subs') end
-                local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                RetreatAllUnits(tAvailableSubmarines)
+                tAvailableSubmarines = nil
+                --[[local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
                 for iUnit, oUnit in tAvailableSubmarines do
                     --Only retreat units from this WZ
                     if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
@@ -3143,12 +3167,23 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         oUnit[refiCurrentWZAssignmentValue] = 0
                     end
                 end
-                tAvailableSubmarines = nil
+                tAvailableSubmarines = nil--]]
             elseif bDebugMessages == true then LOG(sFunctionRef..': Wont retreat subs as not enough for a torp bomber threat')
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Have told all units to run to tRallyPoint='..repru(tRallyPoint)) end
     end
+
+    if (not(bHaveRunFromAir) and tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] and GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] <= 20 and tWZTeamData[M28Map.subrefWZThreatAlliedMAA] < 500)
+    --Below is to be consistent so if we are retreating subs or surface from air we will do the same for the other
+    or (bHaveRunFromAir and (M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tMissileShips) == false)) then
+        bHaveRunFromAir = true
+        if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then RetreatAllUnits(tAvailableSubmarines) tAvailableSubmarines = nil end
+        if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then RetreatAllUnits(tAvailableCombatUnits) tAvailableCombatUnits = nil end
+        if M28Utilities.IsTableEmpty(tMissileShips) == false then RetreatAllUnits(tMissileShips) tMissileShips = nil end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering whether units should run from air, bHaveRunFromAir='..tostring(bHaveRunFromAir or false)..'; Time since last ran='..  GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] or 0)..'; tWZTeamData[M28Map.subrefWZThreatAlliedMAA]='..tWZTeamData[M28Map.subrefWZThreatAlliedMAA]..'; iEnemyAdjacentAirToGroundThreat='..iEnemyAdjacentAirToGroundThreat..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Is table of combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))) end
+
     if not(bHaveRunFromAir) or M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tMissileShips) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': About to get nearest enemy units to midpoint, tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
         --Have submarines consolidate to the one closest to the enemy if they are far away (factoring in range)
@@ -3689,7 +3724,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             end
             local bAreInScenario1 = false
             if M28Utilities.IsTableEmpty(tCombatUnitsOfUse) == false and tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > iEnemyBestRange and (iEnemyNearbySubmersibleThreat < 500 or iEnemyBestSumbersibleRange < iAlliedBestAntiNavyRange or iOurAntiNavyThreat > iEnemyNearbySubmersibleThreat or tWZTeamData[M28Map.subrefWZThreatAlliedSurface] > 5 * iEnemyNearbySubmersibleThreat or ((tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > 100 and tWZTeamData[M28Map.subrefWZThreatAlliedSurface] > math.max(18000, iEnemyNearbySubmersibleThreat * 2))) or (tWZTeamData[M28Map.subrefWZBestAlliedDFRange] - 15 > iEnemyBestRange and oNearestEnemyToFriendlyBase and not(M28UnitInfo.IsUnitUnderwater(oNearestEnemyToFriendlyBase)) and tWZTeamData[M28Map.subrefWZThreatAlliedSurface] > iEnemyNearbySubmersibleThreat))
-            and (M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) or tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > 100 or tWZTeamData[M28Map.subrefWZThreatAlliedSurface] > 10000) then
+                    and (M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) or tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > 100 or tWZTeamData[M28Map.subrefWZThreatAlliedSurface] > 10000) then
                 --Scenario 1 - our ships outrange enemy
                 bAreInScenario1 = true
                 local tOutrangedCombatUnits = {}

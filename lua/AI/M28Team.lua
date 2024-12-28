@@ -769,7 +769,7 @@ function CreateNewTeam(aiBrain)
                         if oBrain.CheatEnabled then
                             sAIxref = ' AIx Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
                         end
-                        LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; M28Easy='..tostring(oBrain.M28Easy or false)..'; M28AI='..tostring(oBrain.M28AI or false)..'; Unit prioritisation='..(ScenarioInfo.Options.M28PrioritiseBPs or 'nil')) --Dont know the land and air subteams yet
+                        LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; Land team='..(oBrain.M28LandSubteam or 'nil')..'; Air subteam='..(oBrain.M28AirSubteam or 'nil')..'; M28Easy='..tostring(oBrain.M28Easy or false)..'; M28AI='..tostring(oBrain.M28AI or false)..'; Unit prioritisation='..(ScenarioInfo.Options.M28PrioritiseBPs or 'nil')) --Dont know the land and air subteams yet
                     end
                 end
             end
@@ -866,8 +866,8 @@ function CreateNewTeam(aiBrain)
         end
     end
 
-    --List out every M28 brain on this team by subteam
-    if bHaveM28BrainInTeam then
+    --List out every M28 brain on this team by subteam if debug enabled
+    if bDebugMessages == true and bHaveM28BrainInTeam then
         for iBrain, oBrain in tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains] do
             LOG('M28 brain '..oBrain.Nickname..' land subteam='..(oBrain.M28LandSubteam or 'nil')..'; Air subteam='..(oBrain.M28AirSubteam or 'nil'))
         end

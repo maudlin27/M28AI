@@ -4474,7 +4474,7 @@ function ManageBombers(iTeam, iAirSubteam)
                 tbZonesConsideredByPlateau[iRallyPlateauOrZero] = {}
                 local iMaxEnemyGroundAAThreat
                 if M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] then
-                    iMaxEnemyGroundAAThreat = M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] * iMaxEnemyGroundAAThreat * 0.2
+                    iMaxEnemyGroundAAThreat = M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] * 0.2
                 else
                     iMaxEnemyGroundAAThreat = M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] * 0.15
                 end
@@ -8228,6 +8228,16 @@ function ManageTransports(iTeam, iAirSubteam)
         if bDebugMessages == true then LOG(sFunctionRef..': Finished cycling through unavailable units to decide if we should drop now') end
     end
 
+    --Campaign override - ignore transports in the first minute of the game if this is a campaign AI
+    if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(tAvailableTransports) == false and GetGameTimeSeconds() <= 60 then
+        for iCurEntry = table.getn(tAvailableTransports), 1, -1 do
+            local oTransport = tAvailableTransports[iCurEntry]
+            if oTransport:GetAIBrain().CampaignAI then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have campaign transport in the first minute so will abort orders') end
+                table.remove(tAvailableTransports, iCurEntry)
+            end
+        end
+    end
     if M28Utilities.IsTableEmpty(tAvailableTransports) == false then
         ConsiderEmergencyDrops(tAvailableTransports, true, false, false)
         if bDebugMessages == true then LOG(sFunctionRef..': Finsihed cycling through available transports to see if we should drop now, is table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableTransports))) end
@@ -8449,7 +8459,7 @@ function ManageTransports(iTeam, iAirSubteam)
                                 end
                             end
                         end
-                        end
+                    end
                     local bGetMoreUnits = false
                     if bDebugMessages == true then LOG(sFunctionRef..': iExtraEngisWanted='..iExtraEngisWanted..'; iEngisHave='..iEngisHave..'; iTechLevel='..iTechLevel..'; Mex count of target island='..M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo]..'; iEngiRemainingCapacity='..iEngiRemainingCapacity) end
                     if iExtraEngisWanted == 0 and iEngisHave == 0 then
@@ -9788,18 +9798,24 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                         --Get damage from a bomb - increase by 400% for AA targets so will prioritise taking out enemy groundAA
                                         --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies)
                                         iCurDamage = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurDamage='..iCurDamage..'; iHighestDamage='..iHighestDamage) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurDamage='..iCurDamage..'; iHighestDamage='..iHighestDamage..'; iModDist='..iModDist..'; iDistOfBestTarget='..iDistOfBestTarget) end
                                         if iModDist < iDistOfBestTarget - 25 or iCurDamage > iHighestDamage * 1.25 or (iModDist < iDistOfBestTarget and iCurDamage >= iHighestDamage) then
                                             --Do we think our  bomb will hit? if not, then reduce damage to 1% of current estimate
                                             local tEstFiringPosition
-                                            if iCurDist <= oBomber[M28UnitInfo.refiBomberRange] then tEstFiringPosition = oBomber:GetPosition() else tEstFiringPosition = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oUnit:GetPosition()), iCurDist - oBomber[M28UnitInfo.refiBomberRange]) end
+                                            if iCurDist <= oBomber[M28UnitInfo.refiBomberRange] then
+                                                tEstFiringPosition = oBomber:GetPosition()
+                                            else
+                                                tEstFiringPosition = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oUnit:GetPosition()), iCurDist - oBomber[M28UnitInfo.refiBomberRange])
+                                                tEstFiringPosition[2] = oBomber:GetPosition()[2]
+                                            end
                                             if M28Logic.IsLineBlocked(aiBrain, tEstFiringPosition, oUnit:GetPosition(), iAOE) then
                                                 oUnit[M28UnitInfo.refbExpBomberShotBlocked] = true
                                                 iCurDamage = iCurDamage * 0.01
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Shot blocked so reducing damage to 1%, Bomber position='..repru(oBomber:GetPosition())..'; Unit position='..repru(oUnit:GetPosition())..'; iCurDist='..iCurDist..'; Angle to unit='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oUnit:GetPosition())..'; Bomber range='..(oBomber[M28UnitInfo.refiBomberRange] or 'nil')) end
                                             else
                                                 oUnit[M28UnitInfo.refbExpBomberShotBlocked] = false
                                             end
-                                            if not(oUnit[M28UnitInfo.refbExpBomberShotBlocked]) or iCurDamage > iHighestDamage then
+                                            if iCurDamage > iHighestDamage then
                                                 iHighestDamage = iCurDamage
                                                 oBestEnemyTarget = oUnit
                                                 iDistOfBestTarget = iCurDist
@@ -9811,7 +9827,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if we have nearby dangerous groundAA that we want to target, is oBestEnemyTarget nil='..tostring(oBestEnemyTarget == nil)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if we have nearby dangerous groundAA that we want to target, is oBestEnemyTarget nil='..tostring(oBestEnemyTarget == nil)..'; iHighestDamage='..iHighestDamage) end
                     if not(oBestEnemyTarget) or iHighestDamage <= 2000 then --we are multiplying AA value by 4, so this is equivalent to 1 T2 flak
                         for iUnit, oUnit in tEnemyGroundTargets do
                             --Pick the target that will deal the most damage

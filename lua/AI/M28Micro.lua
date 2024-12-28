@@ -704,7 +704,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will try to dodge shot. iTimeUntilImpact='..iTimeUntilImpact..'; iMaxTimeToRun='..iMaxTimeToRun..'; iAverageSize='..iAverageSize) end
                                             if iHoverMaxTimeToRun and EntityCategoryContains(categories.HOVER, oTarget.UnitId) then
                                                 DodgeShot(oTarget, oUnit, oWeapon, math.min(math.max(0.95, iTimeUntilImpact), iHoverMaxTimeToRun))
-                                            elseif iAverageSize < 1 and iTimeUntilImpact <= 1.1 and oBP.Physics.MaxSpeed >= 3 then
+                                            elseif iAverageSize < 1 and iTimeUntilImpact <= 1.1 and oBP.Physics.MaxSpeed >= 3 and oBP.Physics.MaxAcceleration >= 3 and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) then
                                                 AltDodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
                                             else
                                                 DodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
