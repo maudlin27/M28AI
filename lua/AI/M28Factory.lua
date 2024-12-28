@@ -5491,13 +5491,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         end
     end
 
-    --High priority anti-air if we have a battleship and no cruiser, or alternatively if we have 3 destroyers and no cruiser
+    --High priority anti-air if we have a battleship and no cruiser, or alternatively if we have 3 destroyers and no cruiser, or enemy has torps and we havent built any cruisers yet
     local iCurCruiserCarrier = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryCruiserCarrier)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Checking if we want to get cruisers, iCurCruiserCarrier=' .. iCurCruiserCarrier)
+        LOG(sFunctionRef .. ': Checking if we want to get cruisers, iCurCruiserCarrier=' .. iCurCruiserCarrier..'; Cruiser LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryCruiser))
     end
     if iCurCruiserCarrier == 0 and iFactoryTechLevel >= 2 and (
+        (oFactory[refiTotalBuildCount] <= 5 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryCruiser) < M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] * 1500) or
             aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattlecruiser) > 0
                     or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDestroyer) >= 3) then
         if bDebugMessages == true then
@@ -5585,12 +5586,12 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         end
     end
 
-    --Upgrade naval fac as priority if enemy has better navy tech than us or we ahve lots of naval units; also in high mass scenarios where we already have T3 navy
+    --Upgrade naval fac as priority if enemy has better navy tech than us or we ahve lots of naval units, or are at T1 and enemy has torps; also in high mass scenarios where we already have T3 navy
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; About ot check if want to upgrade factory, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Is table of active upgrades for WZ empty=' .. tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades])))
     end
-    if iFactoryTechLevel < 3 and (oFactory[refiTotalBuildCount] >= 5 or iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestNavalFactoryTech] or (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or -10) <= 4.1)) then
+    if iFactoryTechLevel < 3 and (oFactory[refiTotalBuildCount] >= 5 or iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestNavalFactoryTech] or (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or -10) <= 4.1) or (iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0)) then
         local iActiveFactoryUpgrades = 0
         if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
             for iUnit, oUnit in tWZTeamData[M28Map.subreftoActiveUpgrades] do
