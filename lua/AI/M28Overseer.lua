@@ -1121,6 +1121,7 @@ function CheckIfScenarioMap()
     --Thanks to Hdt80bro for highlighting ScenarioInfo.type as a better way of figuring out if this is a campaign map
     if not(ScenarioInfo.type == "skirmish") then --M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers) == false then
         M28Map.bIsCampaignMap = true
+        LOG('Are in a campaign map, shared armies setting='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')..'; CampAI='..(ScenarioInfo.Options.CampAI or 'nil')..'; Apply M28AI Easy to campaign AI='..(ScenarioInfo.Options.CmM28Easy or 'nil')..'; CmApplyAIx='..(ScenarioInfo.Options.CmApplyAIx or 'nil')..'; Hostile delay='..(ScenarioInfo.Options.CmpAIDelay or 'nil'))
         --ForkThread(CheckForScenarioObjectives) --superceded by hook of addobjective
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1144,14 +1145,18 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
         local tNearbyStructures = {}
         local iWaitCount = 0
         local tHumanBrains = {}
+        local iM28SeparatePlayerCount = 0
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
             if bDebugMessages == true then LOG(sFunctionRef..': Creating list of human brains, oBrain.Nickanme='..oBrain.Nickname..'; brain type='..oBrain.BrainType) end
             if oBrain.BrainType == 'Human' then
                 table.insert(tHumanBrains, oBrain)
+            elseif oBrain.M28AI and not(oBrain.CampaignAI) then
+                iM28SeparatePlayerCount = iM28SeparatePlayerCount + 1
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': iM28SeparatePlayerCount='..iM28SeparatePlayerCount..'; Is table of human brains empty='..tostring(M28Utilities.IsTableEmpty(tHumanBrains))) end
         local iCategoriesOfInterest = M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryAllNavy + M28UnitInfo.refCategoryEngineer - categories.COMMAND - M28UnitInfo.refCategoryMassStorage
-        if M28Utilities.IsTableEmpty(tHumanBrains) == false then
+        if iM28SeparatePlayerCount > 0 and M28Utilities.IsTableEmpty(tHumanBrains) == false then
             while M28Utilities.IsTableEmpty(tNearbyStructures) do
                 if iWaitCount > 0 then
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

@@ -8228,6 +8228,16 @@ function ManageTransports(iTeam, iAirSubteam)
         if bDebugMessages == true then LOG(sFunctionRef..': Finished cycling through unavailable units to decide if we should drop now') end
     end
 
+    --Campaign override - ignore transports in the first minute of the game if this is a campaign AI
+    if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(tAvailableTransports) == false and GetGameTimeSeconds() <= 60 then
+        for iCurEntry = table.getn(tAvailableTransports), 1, -1 do
+            local oTransport = tAvailableTransports[iCurEntry]
+            if oTransport:GetAIBrain().CampaignAI then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have campaign transport in the first minute so will abort orders') end
+                table.remove(tAvailableTransports, iCurEntry)
+            end
+        end
+    end
     if M28Utilities.IsTableEmpty(tAvailableTransports) == false then
         ConsiderEmergencyDrops(tAvailableTransports, true, false, false)
         if bDebugMessages == true then LOG(sFunctionRef..': Finsihed cycling through available transports to see if we should drop now, is table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableTransports))) end
@@ -8449,7 +8459,7 @@ function ManageTransports(iTeam, iAirSubteam)
                                 end
                             end
                         end
-                        end
+                    end
                     local bGetMoreUnits = false
                     if bDebugMessages == true then LOG(sFunctionRef..': iExtraEngisWanted='..iExtraEngisWanted..'; iEngisHave='..iEngisHave..'; iTechLevel='..iTechLevel..'; Mex count of target island='..M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo]..'; iEngiRemainingCapacity='..iEngiRemainingCapacity) end
                     if iExtraEngisWanted == 0 and iEngisHave == 0 then
