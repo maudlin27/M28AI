@@ -5570,7 +5570,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryDestroyer) == 0 then
             local iCruiserLC = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryCruiserCarrier)
             if bDebugMessages == true then LOG(sFunctionRef..': High priority first destroyer unless want first cruiser more, iCruiserLC='..iCruiserLC) end
-            if M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] / 1500 >= iCruiserLC and not(M28Conditions.TeamHasAirControl(iTeam)) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFrigate) <= 10 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySubmarine) >= 10 then
+            if (iCruiserLC == 0 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond] or 0) <= 10) or (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] / 1500 >= iCruiserLC and not(M28Conditions.TeamHasAirControl(iTeam)) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFrigate) <= 10 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySubmarine) >= 10) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryCruiserCarrier) then return sBPIDToBuild end
             end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryDestroyer) then return sBPIDToBuild end
