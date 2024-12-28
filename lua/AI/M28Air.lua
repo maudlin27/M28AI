@@ -9793,7 +9793,12 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                         if iModDist < iDistOfBestTarget - 25 or iCurDamage > iHighestDamage * 1.25 or (iModDist < iDistOfBestTarget and iCurDamage >= iHighestDamage) then
                                             --Do we think our  bomb will hit? if not, then reduce damage to 1% of current estimate
                                             local tEstFiringPosition
-                                            if iCurDist <= oBomber[M28UnitInfo.refiBomberRange] then tEstFiringPosition = oBomber:GetPosition() else tEstFiringPosition = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oUnit:GetPosition()), iCurDist - oBomber[M28UnitInfo.refiBomberRange]) end
+                                            if iCurDist <= oBomber[M28UnitInfo.refiBomberRange] then
+                                                tEstFiringPosition = oBomber:GetPosition()
+                                            else
+                                                tEstFiringPosition = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oUnit:GetPosition()), iCurDist - oBomber[M28UnitInfo.refiBomberRange])
+                                                tEstFiringPosition[2] = oBomber:GetPosition()[2]
+                                            end
                                             if M28Logic.IsLineBlocked(aiBrain, tEstFiringPosition, oUnit:GetPosition(), iAOE) then
                                                 oUnit[M28UnitInfo.refbExpBomberShotBlocked] = true
                                                 iCurDamage = iCurDamage * 0.01
