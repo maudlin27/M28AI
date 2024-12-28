@@ -9471,7 +9471,6 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
 
         for iBomber, oBomber in tAvailableBombers do
             if M28UnitInfo.IsUnitValid(oBomber) then --needed as will spread out logic over a number of ticks
-                if oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber) == 'xsa04025' and GetGameTimeSeconds() >= 36*60+20 then bDebugMessages = true else bDebugMessages = false end
                 local tiZonesByPlateauConsidered = {}
                 local aiBrain = oBomber:GetAIBrain()
                 local iAOE, iDamage = M28UnitInfo.GetBomberAOEAndStrikeDamage(oBomber)
@@ -9802,10 +9801,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                             if M28Logic.IsLineBlocked(aiBrain, tEstFiringPosition, oUnit:GetPosition(), iAOE) then
                                                 oUnit[M28UnitInfo.refbExpBomberShotBlocked] = true
                                                 iCurDamage = iCurDamage * 0.01
-                                                if bDebugMessages == true then
-                                                    LOG(sFunctionRef..': Shot blocked so reducing damage to 1%, Bomber position='..repru(oBomber:GetPosition())..'; Unit position='..repru(oUnit:GetPosition())..'; iCurDist='..iCurDist..'; Angle to unit='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oUnit:GetPosition())..'; Bomber range='..(oBomber[M28UnitInfo.refiBomberRange] or 'nil'))
-                                                    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'xsb23044' then M28Utilities.DrawLocation(tEstFiringPosition) end
-                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Shot blocked so reducing damage to 1%, Bomber position='..repru(oBomber:GetPosition())..'; Unit position='..repru(oUnit:GetPosition())..'; iCurDist='..iCurDist..'; Angle to unit='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oUnit:GetPosition())..'; Bomber range='..(oBomber[M28UnitInfo.refiBomberRange] or 'nil')) end
                                             else
                                                 oUnit[M28UnitInfo.refbExpBomberShotBlocked] = false
                                             end
