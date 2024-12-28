@@ -15428,6 +15428,26 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
 
+    --Power spread out to help vs enemy t3 arti
+    iCurPriority = iCurPriority + 1
+    if bWantMorePower and not(bHaveLowMass) and tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and tLZTeamData[M28Map.refiModDistancePercent] <= 0.5 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] >= 2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 500 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= 9000 and (tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 or M28Map.iMapSize <= 512) then
+        --Do we have any T3 pgens in this zone already?
+        local iExistingT3Pgen = 0
+        local tExistingT3Pgen = EntityCategoryFilterDown(M28UnitInfo.refCategoryT3Power, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        if M28Utilities.IsTableEmpty(tExistingT3Pgen) == false then
+            for iPGen, oPGen in tExistingT3Pgen do
+                if oPGen:GetFractionComplete() == 1 then
+                    iExistingT3Pgen = iExistingT3Pgen + 1
+                end
+            end
+        end
+        if iExistingT3Pgen < 2 and (bHaveLowPower or iExistingT3Pgen == 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 4) then
+            iBPWanted = 60
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 then iBPWanted = 120 end
+            HaveActionToAssign(refActionBuildPower, 3, iBPWanted)
+        end
+    end
+
     --Higher priority T2 radar creep where we have large mass income or lots of experimentals, or priority units wanting land scouts in some cases
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': T2 radar creep - bHaveLowMass='..tostring(bHaveLowMass)..'; bWantMorePower='..tostring(bWantMorePower)..'; Radar coverage='..tLZTeamData[M28Map.refiRadarCoverage]..'; Map size='..M28Map.iMapSize..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
