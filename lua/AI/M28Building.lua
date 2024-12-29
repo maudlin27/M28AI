@@ -4949,6 +4949,9 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                     table.insert(toLoadedTMLs, oTML)
                                     iLoadedTMLs = iLoadedTMLs + 1
                                 end
+                            else
+                                --Make sure autobuild is enabled
+                                M28UnitInfo.SetUnitMissileAutoBuildStatus(oTML, true)
                             end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': iLoadedTMLs='..iLoadedTMLs) end
@@ -5033,6 +5036,12 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                             end
                                             if bDebugMessages == true then LOG(sFunctionRef..': iBlockingTMD='..iBlockingTMD) end
                                             if iBlockingTMD < math.min(iLoadedTMLs, 5) then
+                                                local iTMLsToFire = iLoadedTMLs
+                                                local iTMLsFired = 0
+                                                if iLoadedTMLs >= 3 and iBlockingTMD == 0 and iEnemyHealth < (iLoadedTMLs - 2) * iStrikeDamage then
+                                                    iTMLsToFire = math.floor(iEnemyHealth / iStrikeDamage) + 2
+                                                    if iTMLsToFire >= 5 then iTMLsToFire = iTMLsToFire + 1 end
+                                                end
                                                 --Megalith - adjust predicted position because if we hit at the midpoint of the megalith the shot does no damage, so we want to try and hit its back instead
                                                 if oClosestEnemy.UnitId == 'xrl0403' then
                                                     local iAngleToAdjust = M28UnitInfo.GetUnitFacingAngle(oClosestEnemy) - 180
@@ -5042,7 +5051,7 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                                 end
 
                                                 if bDebugMessages == true then
-                                                    LOG(sFunctionRef..': Will fire TMLs at tPredictedPosition='..repru(tPredictedPosition)..'; iLoadedTMLs='..iLoadedTMLs)
+                                                    LOG(sFunctionRef..': Will fire TMLs at tPredictedPosition='..repru(tPredictedPosition)..'; iLoadedTMLs='..iLoadedTMLs..'; iTMLsToFire='..iTMLsToFire..'; iLoadedTMLs='..iLoadedTMLs)
                                                     M28Utilities.DrawLocation(tPredictedPosition)
                                                 end
                                                 local iDistToTarget
@@ -5063,6 +5072,8 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                                         RecordTMLMissileTarget(oTML, oClosestEnemy)
 
                                                     end
+                                                    iTMLsFired = iTMLsFired + 1
+                                                    if iTMLsFired >= iTMLsToFire then break end
                                                 end
                                                 iTimeToWaitInTicks = iTimeToWaitBetweenLaunches * 10
                                             end
