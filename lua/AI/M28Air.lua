@@ -4124,7 +4124,6 @@ function EnemyBaseEarlyBomber(oBomber)
                                 --If fired recently but not really recently then presumably our bomb missed so we want to fire at this target again
                                     (GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] >= 3)) then
                                 --M28Micro.HoverBombTarget(oBomber, oNearestEnemy)
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will call hoverbomb logic') end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 M28Micro.T1HoverBombTarget(oBomber, oNearestEnemy, true, true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
