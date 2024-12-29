@@ -4092,12 +4092,50 @@ function EnemyBaseEarlyBomber(oBomber)
                                 break
                             end
                         else
-                            --Target enemies
-                            if bDebugMessages == true then LOG(sFunctionRef..': Targeting enemy units') end
-                            --Dont use assigntorporbombertargets, as we end up switching constantly between engineers due to strike damage assignment (since normally the bomber wouldn't be treated as available once it gets close to the enemy target)
-                            AssignTorpOrBomberTargets({ oBomber}, tEnemyTargets, iAirSubteam, false, false, true)
+                            --Target enemies, hover-bombing if the target is close
+                            local oNearestEnemy
+                            local oSecondNearestEnemy
+                            local iClosestDist = 10000
+                            local iSecondClosestDist = 10000
+                            local iModDist
+                            for iUnit, oUnit in tEnemyTargets do
+                                iModDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oBomber:GetPosition())
+                                if iModDist < iSecondClosestDist and oUnit:GetHealth() > oBomber[M28UnitInfo.refiStrikeDamage] then
+                                    if oUnit:GetHealth() > oBomber[M28UnitInfo.refiStrikeDamage] * 2 then
+                                        iModDist = iModDist + 22
+                                    else
+                                        iModDist = iModDist + 15
+                                    end
+                                end --Prioritise targets we think we can kill in 1-2 hits
+                                if iModDist < iClosestDist then
+                                    oSecondNearestEnemy = oNearestEnemy
+                                    iSecondClosestDist = iClosestDist
+                                    oNearestEnemy = oUnit
+                                    iClosestDist = iModDist
+                                elseif iModDist < iSecondClosestDist then
+                                    oSecondNearestEnemy = oUnit
+                                    iSecondClosestDist = iModDist
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Targeting enemy units, will consider if want to hover bomb, iClosestDist='..iClosestDist..'; Time since last fired a bomb='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0)..'; iSecondClosestDist='..iSecondClosestDist..'; oNearestEnemy='..(oNearestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemy) or 'nil')) end
+                            --Hover-bomb if we have fired relatively recently
+                            if (not(M28Utilities.bLoudModActive) or M28Utilities.bLCEActive) and oNearestEnemy and iClosestDist <= 70 and oBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] <= 10 and
+                                (oNearestEnemy:GetHealth() > oBomber[M28UnitInfo.refiStrikeDamage] or (iClosestDist < 50 and iSecondClosestDist < 50) or
+                                --If fired recently but not really recently then presumably our bomb missed so we want to fire at this target again
+                                    (GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] >= 3)) then
+                                --M28Micro.HoverBombTarget(oBomber, oNearestEnemy)
+                                bDebugMessages = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will call hoverbomb logic') end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                M28Micro.T1HoverBombTarget(oBomber, oNearestEnemy, true, true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                iTicksToWait = 1 --Just to avoid infinite loop risk
+                            else
+                                AssignTorpOrBomberTargets({ oBomber}, tEnemyTargets, iAirSubteam, false, false, true)
+                            end
                         end
                     end
+
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitTicks(iTicksToWait)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

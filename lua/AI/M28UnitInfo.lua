@@ -3212,3 +3212,15 @@ function CloakUnit(oUnit)
         end
     end
 end
+
+function DoesBomberFireSalvo(oUnit)
+    local oBP = oUnit:GetBlueprint()
+    for sWeaponRef, tWeapon in oBP.Weapon do
+        if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' or tWeapon.WeaponCategory == 'Anti Navy' then
+            if tWeapon.MuzzleSalvoSize == 1 then
+                return false
+            else return true
+            end
+        end
+    end
+end
