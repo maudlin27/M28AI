@@ -9814,16 +9814,32 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         --Only include if almost complete
                         local iCurDist, iModDist
                         local iDistOfBestTarget = 100000
-                        local bShotLikelyBlocked = false
                         local iAngleFromBomberToUnit
-
+                        local iDistThresholdForFurtherAwayAA = 25
+                        local iDamageThresholdForReducedDistance = 4000 --i.e. if cur target will deal at least this much damage value, then only consider other targets up to iReducedDistanceThreshold further away
+                        local iReducedDistanceThreshold
+                        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then iReducedDistanceThreshold = 15 --i.e. if we are far behind on air then want to focus more on damage from the bomb we fire, as we are unlikely to survive to fire lots of bombs
+                        else iReducedDistanceThreshold = 8
+                        end
+                        local iDamageFactorForFurtherAwayTarget = 1.5
+                        if iTotalExpBombers >= 3 then
+                            if iTotalExpBombers >= 4 then
+                                iDamageFactorForFurtherAwayTarget = 1.25
+                                iReducedDistanceThreshold = math.max(iReducedDistanceThreshold, math.min(iDistThresholdForFurtherAwayAA - 5, iReducedDistanceThreshold + 12))
+                                iDamageThresholdForReducedDistance = iDamageThresholdForReducedDistance * 1.5
+                            else
+                                iDamageFactorForFurtherAwayTarget = 1.35
+                                iReducedDistanceThreshold = math.max(iReducedDistanceThreshold, math.min(iDistThresholdForFurtherAwayAA - 4, iReducedDistanceThreshold + 8))
+                                iDamageThresholdForReducedDistance = iDamageThresholdForReducedDistance * 1.3
+                            end
+                        end
 
                         for iUnit, oUnit in tDangerousAATargets do
                             if oUnit:GetFractionComplete() >= 0.8 then
                                 --Add increase in distance if we arent facing the target
                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oBomber:GetPosition())
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to target AA oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..iCurDist..'; iDistOfBestTarget='..iDistOfBestTarget) end
-                                if iCurDist <= iDistOfBestTarget + 25 then
+                                if iCurDist <= iDistOfBestTarget + iDistThresholdForFurtherAwayAA then
                                     iModDist = iCurDist
                                     iAngleFromBomberToUnit = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oUnit:GetPosition())
                                     iAngleDif = M28Utilities.GetAngleDifference(iBomberFacingAngle, iAngleFromBomberToUnit)
@@ -9831,12 +9847,12 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                         iModDist = iCurDist + (iAngleDif / 180) * 90
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': iAngleDif='..iAngleDif..'; iCurDist after angle adjustment='..iCurDist) end
-                                    if iModDist <= iDistOfBestTarget + 25 then
+                                    if iModDist <= iDistOfBestTarget + iDistThresholdForFurtherAwayAA then
                                         --Get damage from a bomb - increase by 400% for AA targets so will prioritise taking out enemy groundAA
                                         --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies)
                                         iCurDamage = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA)
                                         if bDebugMessages == true then LOG(sFunctionRef..': iCurDamage='..iCurDamage..'; iHighestDamage='..iHighestDamage..'; iModDist='..iModDist..'; iDistOfBestTarget='..iDistOfBestTarget) end
-                                        if iModDist < iDistOfBestTarget - 25 or iCurDamage > iHighestDamage * 1.25 or (iModDist < iDistOfBestTarget and iCurDamage >= iHighestDamage) then
+                                        if iModDist < iDistOfBestTarget - iDistThresholdForFurtherAwayAA or (iModDist < iDistOfBestTarget and iCurDamage >= iHighestDamage) or ((iModDist < iDistOfBestTarget + iReducedDistanceThreshold or iHighestDamage < iDamageThresholdForReducedDistance) and iCurDamage > iHighestDamage * iDamageFactorForFurtherAwayTarget) then
                                             --Do we think our  bomb will hit? if not, then reduce damage to 1% of current estimate
                                             local tEstFiringPosition
                                             if iCurDist <= oBomber[M28UnitInfo.refiBomberRange] then
@@ -9852,7 +9868,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                             else
                                                 oUnit[M28UnitInfo.refbExpBomberShotBlocked] = false
                                             end
-                                            if iCurDamage > iHighestDamage then
+                                            if iCurDamage > iHighestDamage or (iModDist < iDistOfBestTarget and iCurDamage > iHighestDamage / iDamageFactorForFurtherAwayTarget) then
                                                 iHighestDamage = iCurDamage
                                                 oBestEnemyTarget = oUnit
                                                 iDistOfBestTarget = iCurDist
@@ -9928,7 +9944,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             if not(bHaveTargetWhereShotIsBlocked) and M28Logic.IsTargetUnderShield(aiBrain, oBestEnemyTarget, iDamageForIfUnderShield, false, true, false, false) then
                                 bUseAOEForTargetIfNotTooClose = true
                                 --If only have 1 exp bomber and targeting a fixed unit be more cautious if significant enemy groundAA threat near the target
-                            elseif not(bHaveTargetWhereShotIsBlocked) and iTotalExpBombers == 1 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) then
+                            elseif not(bHaveTargetWhereShotIsBlocked) and iTotalExpBombers <= 2 and (iTotalExpBombers <= 1 or iHighestDamage <= 20000) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) then
                                 local iTargetPlateau, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oBestEnemyTarget:GetPosition())
                                 if (iTargetPlateau or 0) > 0 and iTargetZone then
                                     local tTargetLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetZone]
@@ -9943,6 +9959,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             if bUseAOEForTargetIfNotTooClose then
                                 if iDistToTarget >= 40 then
                                     --Just try to target the unit with our aoe, provided there aren't friendly units near it
+
                                     local tTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition()), iDistToTarget - iAOE + math.max(iAOE * 0.1, 3), true, false, true)
                                     if M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA) > 0 then
                                         M28Orders.IssueTrackedGroundAttack(oBomber, tTarget, iAOE * 0.5, false, 'ExpAG', false)
