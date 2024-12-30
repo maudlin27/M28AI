@@ -1415,8 +1415,8 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function TurnAirUnitAndAttackTarget(oBomber, oTarget)
-    --Currently just used for ahwassa
+function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAttackingUntilTargetDead)
+    --Currently just used for ahwassa and T1 bomber
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TurnAirUnitAndAttackTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1435,6 +1435,8 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget)
         local iBombStraightLineDistance = 8.5 --i.e. will consider firing a bomb in bombers current facing direction by this distance, and seeing if the aoe will hit the target
         local iPotentialAbortDistance = iBombStraightLineDistance + iAOE - 1
         local tGroundTarget
+        --local iReloadTime = oBomber[M28UnitInfo.refiTimeBetweenBombs] + iDelayForHoverBomb
+        --local iTimeUntilCanFire = GetGameTimeSeconds() + math.max(0, iReloadTime - GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0))
 
         --Other variables:
         local iActualAngleToUse
@@ -1448,9 +1450,12 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget)
         local tTempTarget
 
         local iMaxMicroTime = 5 --will micro for up to 5 seconds
-        if EntityCategoryContains(categories.EXPERIMENTAL, oBomber.UnitId) then iMaxMicroTime = 10 end
+        if EntityCategoryContains(categories.EXPERIMENTAL, oBomber.UnitId) then
+            iMaxMicroTime = 10
+        elseif bContinueAttackingUntilTargetDead then iMaxMicroTime = 1000
+        end
 
-        TrackTemporaryUnitMicro(oBomber, 60) --60s is redundancy
+        if not(bDontAdjustMicroFlag) then TrackTemporaryUnitMicro(oBomber, 60) end --60s is redundancy
 
         while GetGameTimeSeconds() - iStartTime < iMaxMicroTime do
             iCurTick = iCurTick + 1
@@ -1503,7 +1508,7 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget)
                     iActualAngleToUse = iFacingDirection + iAngleAdjustToUse
                     tTempTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iActualAngleToUse, iDistanceAwayToMove, true, false, true)
                     M28Orders.IssueTrackedMove(oBomber, tTempTarget, 0, false, 'BMicrM', true)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order, iFacingDirection='..iFacingDirection..'; iCurAngleDif='..iCurAngleDif..'; iAngleAdjustToUse='..iAngleAdjustToUse..'; iActualAngleToUse='..iActualAngleToUse..'; angle from bomber to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order, iFacingDirection='..iFacingDirection..'; iCurAngleDif='..iCurAngleDif..'; iAngleAdjustToUse='..iAngleAdjustToUse..'; iActualAngleToUse='..iActualAngleToUse..'; angle from bomber to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tTempTarget)) end
                 elseif iCurTick >= iTicksBetweenOrders then iCurTick = 0
                 end
 
@@ -1518,10 +1523,26 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget)
 
         if tGroundTarget and M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) then
             --Fire the bomb
-            oBomber[M28UnitInfo.refbSpecialMicroActive] = false
-            oBomber[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()
+            if not(bDontAdjustMicroFlag) then
+                oBomber[M28UnitInfo.refbSpecialMicroActive] = false
+                oBomber[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()
+            end
             M28Orders.IssueTrackedGroundAttack(oBomber, tGroundTarget, 1, false, 'BMicGA', true, oTarget)
             if bDebugMessages == true then LOG(sFunctionRef..': Just cleared bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' commands and told it to attack tGroundTarget='..repru(tGroundTarget)..'which is expected to hit oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; GameTime='..GetGameTimeSeconds()) end
+            if bContinueAttackingUntilTargetDead then
+                local iDelayForHoverBomb = 0
+                if M28UnitInfo.DoesBomberFireSalvo(oBomber) then iDelayForHoverBomb = 2 end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(math.max(1, iDelayForHoverBomb))
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                --If we have fired recently then wait some more
+                if iDelayForHoverBomb > 0 and oBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] < iDelayForHoverBomb then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitSeconds(iDelayForHoverBomb - (GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired]))
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                end
+                TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAttackingUntilTargetDead)
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1963,6 +1984,237 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                     oUnit[M28UnitInfo.refbSpecialMicroActive] = false
                 end
             end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAttackingUntilTargetDead)
+    --Based on combination of ahwassa approach and hoverAA approach
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'TurnAirUnitAndAttackTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; GameTime='..GetGameTimeSeconds()) end
+    if M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) then
+        local iStartTime = GetGameTimeSeconds()
+        --local iAngleToTarget
+
+        --Config:
+        local iTicksBetweenOrders = 5
+        local iDistanceAwayToMove = 10
+        local iAngleAdjust = 50
+        local iMaxAcceptableAngleDif = 30
+        local iAOE, iDamage = M28UnitInfo.GetBomberAOEAndStrikeDamage(oBomber)
+        local iBombStraightLineDistance = 8.5 --i.e. will consider firing a bomb in bombers current facing direction by this distance, and seeing if the aoe will hit the target
+        local iPotentialAbortDistance = iBombStraightLineDistance + iAOE - 1
+        local tGroundTarget
+        --local iReloadTime = oBomber[M28UnitInfo.refiTimeBetweenBombs] + iDelayForHoverBomb
+        --local iTimeUntilCanFire = GetGameTimeSeconds() + math.max(0, iReloadTime - GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0))
+
+        --Other variables:
+        local iActualAngleToUse
+        local iCurAngleDif
+        local iAngleAdjustToUse
+        local iFacingDirection
+        local iAngleToTarget
+
+        --local iCurTick = 0
+        local iDistToTarget
+        local tTempTarget
+
+        local iMaxMicroTime = 5 --will micro for up to 5 seconds
+        if EntityCategoryContains(categories.EXPERIMENTAL, oBomber.UnitId) then
+            iMaxMicroTime = 10
+        elseif bContinueAttackingUntilTargetDead then iMaxMicroTime = 1000
+        end
+
+        if not(bDontAdjustMicroFlag) then TrackTemporaryUnitMicro(oBomber, 60) end --60s is redundancy
+        local iMaxTimeBetweenShotsWanted = oBomber[M28UnitInfo.refiTimeBetweenBombs]
+        local iCurAngleToTarget, iCurFacingAngle, iReorderDist, iCurDistToTarget, bTurnClockwise, iDistToMoveTowardsTarget, bManualAttack, iAngleToMove, tMoveViaPoint
+        local iHalfDistThreshold = (oBomber[M28UnitInfo.refiBomberRange] or 40) * 0.5
+        local iMinTimeAfterFiringBeforeGivingNewOrders = 0
+        if M28UnitInfo.DoesBomberFireSalvo(oBomber) then iMinTimeAfterFiringBeforeGivingNewOrders = 2 end
+        while GetGameTimeSeconds() - iStartTime < iMaxMicroTime and M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) do
+            --iCurTick = iCurTick + 1
+
+            --If have recently fired then dont want to give orders if have a salvo
+            if iMinTimeAfterFiringBeforeGivingNewOrders > 0 and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] then
+                --Just wait, dont give orders, so all our bombs can drop
+            else
+                iCurDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oTarget:GetPosition())
+                iCurAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oTarget:GetPosition())
+                iCurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
+                iCurAngleDif = M28Utilities.GetAngleDifference(iCurAngleToTarget, iCurFacingAngle)
+                bManualAttack = false
+
+                --Are we facing the target? if not, then turn towards them
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToTarget='..iCurDistToTarget..'; iCurAngleToTarget='..iCurAngleToTarget..'; iCurFacingAngle='..iCurFacingAngle..'; iCurAngleDif='..iCurAngleDif..'; Target unit state='..M28UnitInfo.GetUnitState(oTarget)..'; Dist from ground='..(oTarget:GetPosition()[2] - GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3]))..'; Time since last fired weapon='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0)) end
+                if iCurAngleDif > 15 then
+                    iReorderDist = 0.1
+                    --Turn towards target - decide which is closest way
+
+                    if iCurAngleToTarget > iCurFacingAngle then
+                        if iCurAngleToTarget - iCurFacingAngle > 180 then
+                            --Clockwise means increasing our cur facing angle; however if gap between the angles is more than 180 would be better to decrease our facing angle
+                            bTurnClockwise = false
+                        else
+                            bTurnClockwise = true
+                        end
+                    else --curfacingangle is >= angle to target
+                        if iCurFacingAngle - iCurAngleToTarget > 180 then
+                            --Gap between the two is so large, that increasing our facing angle should get us to the target quicker
+                            bTurnClockwise = true
+                        else
+                            bTurnClockwise = false
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will turn towards target, bTurnClockwise='..tostring(bTurnClockwise)) end
+
+                    if GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0) > iMaxTimeBetweenShotsWanted then
+                        if iCurDistToTarget >= 10 then
+                            iDistToMoveTowardsTarget = math.max(2, iCurDistToTarget * 0.3)
+                        else
+                            bManualAttack = true --issues with asfs not turning properly when facing a target when they have got too close, so if we are close to a taret and facing the wrong direction, will switch to a manual attack
+                        end
+                        iAngleToMove = 15
+                    else
+                        iDistToMoveTowardsTarget = 0.1
+                        iAngleToMove = 15
+                    end
+                    if bManualAttack then
+                        tMoveViaPoint = nil
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will switch to manual attack as been a while since we have moved') end
+                    else
+                        if bTurnClockwise then
+                            tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurFacingAngle + iAngleToMove, iDistToMoveTowardsTarget, true, false, false)
+                        else
+                            tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurFacingAngle - iAngleToMove, iDistToMoveTowardsTarget, true, false, false)
+                        end
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Dist to tMoveViaPoint='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tMoveViaPoint)..'; Angle='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tMoveViaPoint)..'; Time between shots='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0)..'; iMaxTimeBetweenShotsWanted='..iMaxTimeBetweenShotsWanted..'; iDistToMoveTowardsTarget='..iDistToMoveTowardsTarget)
+                            M28Utilities.DrawLocation(oBomber:GetPosition(), 2)
+                            M28Utilities.DrawLocation(tMoveViaPoint, 1)
+                        end
+                    end
+                --We are facing the target, if we are able to fire then drop a bomb, otherwise slowly approach
+                elseif GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0) > iMaxTimeBetweenShotsWanted then
+                    --Are facing the right direction and able to fire
+                    bManualAttack = true
+                else
+                    --Facing the right direction but unable to fire, so move closer
+                    if iCurDistToTarget > oBomber[M28UnitInfo.refiBomberRange] then
+                        bManualAttack = true
+                    elseif iCurDistToTarget < iHalfDistThreshold then
+                        --Move a fraction of the way towards target
+                        iReorderDist = 0.1
+                        tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurAngleToTarget, 0.1, true, false, false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will move towards unti by 0.1 distance but with the correct angle') end
+                    else
+                        --Move 25% towards target
+                        iReorderDist = math.min(iCurDistToTarget * 0.25, iCurDistToTarget - iHalfDistThreshold)
+                        tMoveViaPoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), iCurAngleToTarget, iReorderDist, true, false, false)
+                        if iReorderDist > 5 then iReorderDist = 5 end
+                        if bDebugMessages == true then LOG(sFunctionRef..': will move 25% of the way towards the target') end
+                    end
+                end
+                if bManualAttack then
+                    M28Orders.IssueTrackedAttack(oBomber, oTarget, false, 'HoverBmA', true)
+                elseif tMoveViaPoint then
+                    M28Orders.IssueTrackedMove(oBomber, tMoveViaPoint, iReorderDist, false, 'HverBmM', true)
+                else
+                    M28Utilities.ErrorHandler('Made mistake have nil move via point')
+                end
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
+            --[[iFacingDirection = M28UnitInfo.GetUnitFacingAngle(oBomber)
+            iAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oTarget:GetPosition())
+            iCurAngleDif = iFacingDirection - iAngleToTarget
+            iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oTarget:GetPosition())
+            --e.g. if bomber is facing 350 degrees, and the target is at 10 degrees, then it means there's only a dif of 20 degrees, but we want the bomber to go 350+50, rather than 350-50.  Facing - Angle would result in a positive value
+            --if instead bomber was facing 10 degrees, and the target was 30 degrees, then would get -20 as the result, and so want to also increase
+            --the effect of the below is that when bomber is facing 350 degrees and target 10 degrees, it will treat the difference as being 350 - 10 - 360 = -20, and want the bomber to go 350+50; if insteadbomber 10 and target 30, then dif = -20 and no adjustment made
+            if math.abs(iCurAngleDif) > 180 then
+                if iCurAngleDif > 180 then
+                    --iFacingDirection is too high so decrease the angle difference
+                    iCurAngleDif = iCurAngleDif - 360
+                else --Curangledif must be < -180, so angletotarget is too high
+                    iCurAngleDif = iCurAngleDif + 360
+                end
+            end
+
+            if iCurAngleDif < 0 then
+                iAngleAdjustToUse = iAngleAdjust
+            else iAngleAdjustToUse = -iAngleAdjust
+            end
+
+            --Are we close enough to the direction wanted?
+            iCurAngleDif = math.abs(iCurAngleDif)
+            if iCurAngleDif <= (iMaxAcceptableAngleDif or 15) or iDistToTarget <= iPotentialAbortDistance then
+                --Are close enough in angle so can stop the micro
+                if iDistToTarget <= iPotentialAbortDistance then
+                    local tPotentialTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iFacingDirection, iBombStraightLineDistance, true, false, true)
+                    if tPotentialTarget and M28Utilities.GetDistanceBetweenPositions(tPotentialTarget, oTarget:GetPosition()) <= iAOE - 1 then
+                        tGroundTarget = {tPotentialTarget[1], tPotentialTarget[2], tPotentialTarget[3]}
+                    elseif iCurAngleDif <= (iMaxAcceptableAngleDif or 15) * 0.6 then
+                        --We are fairly close and aiming in the right direction so just attack rather than trying aoe attack to reduce the risk we just stay hovering in the air never attacking
+                        tGroundTarget = oTarget:GetPosition()
+                    end
+                else
+                    tGroundTarget = oTarget:GetPosition()
+                end
+            end
+            if tGroundTarget and M28UnitInfo.GetTimeUntilReadyToFireBomb(oBomber) > 0 then
+                --If we cant fire yet then clear the ground target and keep microing
+                tGroundTarget = nil
+            end
+            if tGroundTarget then
+                break
+            else
+                if iCurTick == 1 then
+                    iActualAngleToUse = iFacingDirection + iAngleAdjustToUse
+                    tTempTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iActualAngleToUse, iDistanceAwayToMove, true, false, true)
+                    M28Orders.IssueTrackedMove(oBomber, tTempTarget, 0, false, 'BMicrM', true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order, iFacingDirection='..iFacingDirection..'; iCurAngleDif='..iCurAngleDif..'; iAngleAdjustToUse='..iAngleAdjustToUse..'; iActualAngleToUse='..iActualAngleToUse..'; angle from bomber to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tTempTarget)) end
+                elseif iCurTick >= iTicksBetweenOrders then iCurTick = 0
+                end
+
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                if not(M28UnitInfo.IsUnitValid(oBomber)) or not(M28UnitInfo.IsUnitValid(oTarget)) then
+                    break
+                end
+            end
+        end
+
+        if tGroundTarget and M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) then
+            --Fire the bomb
+            if not(bDontAdjustMicroFlag) then
+                oBomber[M28UnitInfo.refbSpecialMicroActive] = false
+                oBomber[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()
+            end
+            M28Orders.IssueTrackedGroundAttack(oBomber, tGroundTarget, 1, false, 'BMicGA', true, oTarget)
+            if bDebugMessages == true then LOG(sFunctionRef..': Just cleared bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' commands and told it to attack tGroundTarget='..repru(tGroundTarget)..'which is expected to hit oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; GameTime='..GetGameTimeSeconds()) end
+            if bContinueAttackingUntilTargetDead then
+                local iDelayForHoverBomb = 0
+                if M28UnitInfo.DoesBomberFireSalvo(oBomber) then iDelayForHoverBomb = 2 end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(math.max(1, iDelayForHoverBomb))
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                --If we have fired recently then wait some more
+                if iDelayForHoverBomb > 0 and oBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] < iDelayForHoverBomb then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitSeconds(iDelayForHoverBomb - (GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired]))
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                end
+                TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAttackingUntilTargetDead)
+            end --]]
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

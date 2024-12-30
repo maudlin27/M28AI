@@ -3304,6 +3304,8 @@ function OnMissileImpactTerrain(self, target, position)
     if M28Utilities.bM28AIInGame then
         --LOG('Missile impact terrain at time '..GetGameTimeSeconds()..'; self='..reprs(self))
         --Was this an M28 unit?
+        --Wait 1 tick to give a chance for damage to process
+        WaitTicks(1)
         if M28UnitInfo.IsUnitValid(self) and self:GetAIBrain().M28AI then
             local sFunctionRef = 'OnMissileImpactTerrain'
             local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -3314,12 +3316,15 @@ function OnMissileImpactTerrain(self, target, position)
             if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueTMLMissile or M28Utilities.IsTableEmpty(target) == false then
                 --Did we not gain any mass kills (e.g. mightve hit the ground deliberately for aoe)
                 if (self[M28Building.refiLastTMLMassKills] or 0) == (self.VetExperience or self.Sync.totalMassKilled or 0) then
-                    if not(self[M28Building.reftTerrainBlockedTargets]) then self[M28Building.reftTerrainBlockedTargets] = {} end
-                    local tLastTarget = tLastOrder[M28Orders.subreftOrderPosition]
+                    --Have we dealt damage via the ondamaged callback recently?
+                    if not(self[M28UnitInfo.refiTimeOfLastUnblockedShot]) or GetGameTimeSeconds() - self[M28UnitInfo.refiTimeOfLastUnblockedShot] >= 1.5 then
+                        if not(self[M28Building.reftTerrainBlockedTargets]) then self[M28Building.reftTerrainBlockedTargets] = {} end
+                        local tLastTarget = tLastOrder[M28Orders.subreftOrderPosition]
 
-                    if M28Utilities.IsTableEmpty(tLastTarget) == false then table.insert(self[M28Building.reftTerrainBlockedTargets], {tLastTarget[1], tLastTarget[2], tLastTarget[3]}) end
-                    if M28Utilities.IsTableEmpty(tLastTarget) or M28Utilities.GetDistanceBetweenPositions(tLastTarget, target) >= 1 then table.insert(self[M28Building.reftTerrainBlockedTargets], {target[1], target[2], target[3]}) end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Added locations to blackist, repru of blacklist='..repru(self[M28Building.reftTerrainBlockedTargets])) end
+                        if M28Utilities.IsTableEmpty(tLastTarget) == false then table.insert(self[M28Building.reftTerrainBlockedTargets], {tLastTarget[1], tLastTarget[2], tLastTarget[3]}) end
+                        if M28Utilities.IsTableEmpty(tLastTarget) or M28Utilities.GetDistanceBetweenPositions(tLastTarget, target) >= 1 then table.insert(self[M28Building.reftTerrainBlockedTargets], {target[1], target[2], target[3]}) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Added locations to blackist, repru of blacklist='..repru(self[M28Building.reftTerrainBlockedTargets])) end
+                    end
                 end
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
