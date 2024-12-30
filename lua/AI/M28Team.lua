@@ -4999,6 +4999,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
             if not(M28Utilities.bLoudModActive) or M28Utilities.bLCEActive then
                 local iClosestEnemy = 700 --Dont want to consider if enemy is further away than this; e.g. burial mounds in LOUD players were 792 apart, and is probably at a borderline distnce for if want to
                 local oM28BrainWithClosestEnemy, iCurDist, iCurPlateau, iCurZone
+                local tFirstClosestEnemyBase
 
                 for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                     --Ignore if have chosen a land AI, or cant build bombers or t1 air facs
@@ -5013,6 +5014,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                             if iCurDist < iClosestEnemy then
                                 iClosestEnemy = iCurDist
                                 oM28BrainWithClosestEnemy = oBrain
+                                tFirstClosestEnemyBase = {tLZTeamData[M28Map.reftClosestEnemyBase][1], tLZTeamData[M28Map.reftClosestEnemyBase][2], tLZTeamData[M28Map.reftClosestEnemyBase][3]}
                             end
                         end
                     end
@@ -5021,6 +5023,34 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                 if oM28BrainWithClosestEnemy then
                     oM28BrainWithClosestEnemy[M28Overseer.refbFirstBomber] = true
                     tAirSubteamData[oM28BrainWithClosestEnemy.M28AirSubteam][refbDontBuildEngiHunterEngineers] = true
+                    --Chance of having 2nd brain go first bomber if they have a different base they are closest to
+                    if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and math.random(1, 2) == 1 then
+                        local tSecondClosestEnemyBase
+                        local oSecondClosestBrain
+                        local iSecondClosestEnemy = 700
+                        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                            --Ignore if have chosen a land AI, or cant build bombers or t1 air facs
+                            if not(oBrain[M28Overseer.refbPrioritiseLand]) and not(oBrain == oM28BrainWithClosestEnemy) and not(M28UnitInfo.IsUnitRestricted('uea0103', oBrain:GetArmyIndex())) and not(M28UnitInfo.IsUnitRestricted('ueb0102', oBrain:GetArmyIndex())) then
+                                --Get dist to closest enemy
+                                local tCurStart = M28Map.GetPlayerStartPosition(oBrain)
+                                iCurPlateau, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tCurStart)
+                                if iCurPlateau > 0 and iCurZone then
+                                    local tLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurZone][M28Map.subrefLZTeamData][iTeam]
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurStart, tLZTeamData[M28Map.reftClosestEnemyBase])
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateau='..iCurPlateau..'; iCurZone='..iCurZone..'; tCurStart='..repru(tCurStart)..'; tLZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; iCurDist='..iCurDist..'; Time='..GetGameTimeSeconds()) end
+                                    if iCurDist < iSecondClosestEnemy then
+                                        iSecondClosestEnemy = iCurDist
+                                        oSecondClosestBrain = oBrain
+                                        tSecondClosestEnemyBase = {tLZTeamData[M28Map.reftClosestEnemyBase][1], tLZTeamData[M28Map.reftClosestEnemyBase][2], tLZTeamData[M28Map.reftClosestEnemyBase][3]}
+                                    end
+                                end
+                            end
+                        end
+                        if oSecondClosestBrain and tSecondClosestEnemyBase and M28Utilities.GetDistanceBetweenPositions(tSecondClosestEnemyBase, tFirstClosestEnemyBase) >= 30 then
+                            oSecondClosestBrain[M28Overseer.refbFirstBomber] = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Flagging a second player ot go early bomber, oSecondClosestBrain='..oSecondClosestBrain.Nickname) end
+                        end
+                    end
                 end
             end
         end

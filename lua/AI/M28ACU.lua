@@ -770,7 +770,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     --e.g. if went 3 mex hydro then want to get 4th mex before factory
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want up to 4 mexes') end
                                     ACUActionBuildMex(aiBrain, oACU)
-                                elseif iCurLandFactories < 2 and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 3 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ) then
+                                elseif iCurLandFactories < 2 and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 3 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0 then
                                     if bGoSecondAir then
                                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Want to go second air') end
