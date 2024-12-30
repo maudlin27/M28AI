@@ -42,7 +42,6 @@ tWZRefreshCountByTeam = {}
 iLongRangeThreshold = 50 --I.e. units with this or better range get recorded in table of long range threats
 iTicksPerNavyCycle = 11
 iCurTime = 0 --used due to local variable limit - will be updated with math.floor(getgametimeseconds())
-iRetreatFromAirDuration = 60 --number of seconds units should be wary of a zone due to an enemy air threat
 
 tbBlueprintsAddedToTempTable = {} --[x] is the blueprintID, returns true if have shown a waraning message about the unit being in the temp unit table (so we dont fill up the log)
 
@@ -3174,26 +3173,10 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Have told all units to run to tRallyPoint='..repru(tRallyPoint)) end
     end
-    if bHaveRunFromAir then
-        --Record adjacent WZs that lack any AA as well that they should run from air, but make it expire sooner
-        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
-            local iTimeForRetreat = iCurTime - iRetreatFromAirDuration * 0.35
-            for _, iAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZAdjacentWaterZones] do
-                local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                if tAdjWZTeamData[M28Map.subrefLZThreatAllyGroundAA] <= 100 then
-                    if not(tAdjWZTeamData[M28Map.refiTimeLastRunFromEnemyAir]) then
-                        tAdjWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] = iTimeForRetreat
-                    else
-                        tAdjWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] = math.max(iTimeForRetreat, tAdjWZTeamData[M28Map.refiTimeLastRunFromEnemyAir])
-                    end
-                end
-            end
-        end
-    end
 
-    if (not(bHaveRunFromAir) and tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] and GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] <= iRetreatFromAirDuration and tWZTeamData[M28Map.subrefWZThreatAlliedMAA] < 500)
-            --Below is to be consistent so if we are retreating subs or surface from air we will do the same for the other
-            or (bHaveRunFromAir and (M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tMissileShips) == false)) then
+    if (not(bHaveRunFromAir) and tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] and GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] <= 20 and tWZTeamData[M28Map.subrefWZThreatAlliedMAA] < 500)
+    --Below is to be consistent so if we are retreating subs or surface from air we will do the same for the other
+    or (bHaveRunFromAir and (M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tMissileShips) == false)) then
         bHaveRunFromAir = true
         if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then RetreatAllUnits(tAvailableSubmarines) tAvailableSubmarines = nil end
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then RetreatAllUnits(tAvailableCombatUnits) tAvailableCombatUnits = nil end

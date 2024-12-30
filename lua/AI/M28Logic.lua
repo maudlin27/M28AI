@@ -370,8 +370,8 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCur
                                     if bDebugMessages == true then LOG(sFunctionRef..': Shield health more than threshold so unit is under a shield') end
                                     if bReturnShieldsCovringTargetInstead then table.insert(tShieldsCoveringTarget, oUnit)
                                     elseif not(bReturnShieldHealthInstead) then break
-                                    end
-                                end
+                                    end                                
+                                end                                
                             end
                         elseif bDebugMessages == true then LOG(sFunctionRef..': Shield radius isnt >0')
                         end
@@ -386,7 +386,7 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCur
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         if bReturnShieldHealthInstead then
-            return (iTotalShieldCurHealth or 0), (iTotalShieldMaxHealth or 0)
+            return iTotalShieldCurHealth, iTotalShieldMaxHealth
         elseif bReturnShieldsCovringTargetInstead then  return tShieldsCoveringTarget
         else
             if not(oTarget[reftiTimeOfLastShieldCheck]) then oTarget[reftiTimeOfLastShieldCheck] = {} oTarget[reftbLastShieldCheckResult] = {} end
@@ -395,7 +395,6 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCur
             if bDebugMessages == true then LOG(sFunctionRef..': Returning '..tostring(bUnderShield)) end
             return bUnderShield
         end
-    elseif bReturnShieldHealthInstead then return 0, 0
     end
 end
 

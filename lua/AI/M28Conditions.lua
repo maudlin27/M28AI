@@ -2647,25 +2647,7 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 end
             end
             if aiBrain[M28Overseer.refbPrioritiseLowTech] then iBuildCountAdjust = iBuildCountAdjust + math.max(10, iBuildCountAdjust * 0.5)
-            elseif aiBrain[M28Overseer.refbPrioritiseHighTech] then iBuildCountAdjust = iBuildCountAdjust - math.max(5, math.min(10, iBuildCountAdjust * 0.5))
-            end
-            --Naval fac and this brain doesnt have any upgrading to T2 yet, and enemy has torps
-            if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and iFactoryTechLevel == 1 then
-                local bUpgradingHQForBrain = false
-                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
-                    for iHQ, oHQ in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
-                        if M28UnitInfo.IsUnitValid(oHQ) and oHQ:GetAIBrain() == aiBrain then
-                            bUpgradingHQForBrain = true
-                        end
-                    end
-                end
-                if not(bUpgradingHQForBrain) then
-                    if M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 then
-                        iBuildCountAdjust = iBuildCountAdjust - math.max(20, iBuildCountAdjust * 0.5)
-                    else
-                        iBuildCountAdjust = iBuildCountAdjust - math.max(10, iBuildCountAdjust * 0.25)
-                    end
-                end
+            elseif aiBrain[M28Overseer.refbPrioritiseHighTech] then iBuildCountAdjust = iBuildCountAdjust - math.min(10, iBuildCountAdjust * 0.5)
             end
 
             if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 25 - iFactoryTechLevel * 5 + iBuildCountAdjust or ((oFactory[M28Factory.refiTotalBuildCount] or 0) <= 30 + iBuildCountAdjust and GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= math.max(5, aiBrain[M28Economy.refiGrossMassBaseIncome] * 3 / iFactoryTechLevel) + iBuildCountAdjust) then
@@ -3454,7 +3436,7 @@ function DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOptionalAlli
 end
 
 function IsUnitLongRangeThreat(oUnit)
-    if (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) >= 72 or EntityCategoryContains(M28UnitInfo.refCategoryPD , oUnit.UnitId) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] >= 60) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 and not(oUnit.UnitId == 'url0402') then
+    if (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) >= 72 or EntityCategoryContains(M28UnitInfo.refCategoryPD , oUnit.UnitId) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] >= 60) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 then
         return true
     end
 end

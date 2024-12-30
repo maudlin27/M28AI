@@ -1575,7 +1575,6 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                         if bDebugMessages == true then LOG(sFunctionRef..': Have a nuke launcher, have finished checking if want to unpause our SMD') end
                     elseif M28Conditions.IsUnitLongRangeThreat(oUnit) then
                         if bDebugMessages == true then LOG(sFunctionRef..': have a long ranged DF big threat unit so adding to long range threat table as well') end
-                        if bDebugMessages == true then LOG(sFunctionRef..': have a long ranged DF big threat unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so adding to long range threat table as well, unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
                         AddUnitToLongRangeThreatTable(oUnit, iTeam)
                     end
 
