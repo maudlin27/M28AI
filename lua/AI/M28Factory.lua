@@ -5377,7 +5377,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
 
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3))
+        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; Pond='..iPond..'; WZ='..iWaterZone..'; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3))
     end
 
     local bConsiderBuildingShieldOrStealthBoats = true
@@ -5387,8 +5387,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     else
         if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldBoatTargetsByPond][iPond] or -100) <= 5 and EntityCategoryContains(categories.UEF, oFactory.UnitId) then
             bConsiderBuildingShieldOrStealthBoats = false
-        elseif EntityCategoryContains(categories.CYBRAN, oFactory.UnitId) and (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoStealthBoatTargetsByPond][iPond] or -100) <= 30 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont want shield or stealth as UEF navla fac and pond has recently had no targets for shield boats') end
+        elseif EntityCategoryContains(categories.CYBRAN, oFactory.UnitId) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoStealthBoatTargetsByPond][iPond] or -100) <= 30 then
             bConsiderBuildingShieldOrStealthBoats = false
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont want stealth as cybran naval fac and pond recently had no targets for stealth boats') end
         else
             local iCurShieldAndStealthBoats = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryStealthBoat)
             local iEnergyMod = 1
@@ -5410,7 +5412,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     end
     local bUseFrigatesAsScouts = M28Team.tTeamData[iTeam][M28Team.subrefbUseFrigatesAsScoutsByPond][iPond]
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Finished checking if we want to consider building shield/stealth boats, bConsiderBuildingShieldOrStealthBoats=' .. tostring(bConsiderBuildingShieldOrStealthBoats) .. '; Cur shield and stealth boats=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryStealthBoat) .. '; bHaveLowPower=' .. tostring(bHaveLowPower) .. '; Cur T3 navy and destroyer+cruiser=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3 + M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryCruiser))
+        LOG(sFunctionRef .. ': Finished checking if we want to consider building shield/stealth boats, bConsiderBuildingShieldOrStealthBoats=' .. tostring(bConsiderBuildingShieldOrStealthBoats) .. '; Cur shield and stealth boats=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryStealthBoat) .. '; bHaveLowPower=' .. tostring(bHaveLowPower) .. '; Cur T3 navy and destroyer+cruiser=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3 + M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryCruiser)..'; Time since last had no shield targets='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldBoatTargetsByPond][iPond] or -100)..'; Time since last wanted no stealth in this poind='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoStealthBoatTargetsByPond][iPond] or -100))
     end
 
     iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
@@ -5531,8 +5533,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         LOG(sFunctionRef .. ': Checking if we want to get cruisers, iCurCruiserCarrier=' .. iCurCruiserCarrier..'; Cruiser LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryCruiser))
     end
     if iCurCruiserCarrier == 0 and iFactoryTechLevel >= 2 and (
-        (oFactory[refiTotalBuildCount] <= 5 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryCruiser) < M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] * 1500) or
-            aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattlecruiser) > 0
+            (oFactory[refiTotalBuildCount] <= 5 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryCruiser) < M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] * 1500) or
+                    aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattlecruiser) > 0
                     or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDestroyer) >= 3) then
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Will try get High priority cruiser')
@@ -5589,6 +5591,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     end
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to build stealth boat for this WZ, tWZTeamData[M28Map.refbWZWantsMobileStealth]='..tostring(tWZTeamData[M28Map.refbWZWantsMobileStealth] or false)..'; bConsiderBuildingShieldOrStealthBoats='..tostring(bConsiderBuildingShieldOrStealthBoats or false)) end
     if bConsiderBuildingShieldOrStealthBoats and tWZTeamData[M28Map.refbWZWantsMobileStealth] then
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Want stealth for core WZ')
