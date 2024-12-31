@@ -3471,3 +3471,23 @@ function DoesTableContainUnderConstructionUnits(tUnits)
     end
     return false
 end
+
+function BuildingWasBeingBuiltButCanBeReclaimedNow(oUnit)
+    --Crude way of estimating if a building is no longer being constructed, and hence can be
+    if oUnit:GetFractionComplete() < 1 and EntityCategoryContains(M28UnitInfo.refCategoryStructure * M28UnitInfo.refCategoryReclaimable, oUnit.UnitId) then
+        local aiBrain = oUnit:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        local rRect = M28Utilities.GetRectAroundLocation(oUnit:GetPosition(), 25) --A hive can build from 25 away
+        local tUnitsInRect = GetUnitsInRect(rRect)
+        if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+            for iRectUnit, oRectUnit in tUnitsInRect do
+                if oRectUnit:GetAIBrain().M28Team == iTeam and oRectUnit:GetFractionComplete() == 1 then
+                    if oRectUnit:IsUnitState('Repairing') or oRectUnit:IsUnitState('Building') then
+                        return false
+                    end
+                end
+            end
+        end
+    end
+    return true
+end

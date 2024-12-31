@@ -1555,6 +1555,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
             if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
                 table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileShield], oUnit)
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if this unit wants mobile stealth, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iUnitMassCost='..iUnitMassCost..'; iMobileStealthHigherMassThreshold='..iMobileStealthHigherMassThreshold..'; Is this T2+ IF or skirmisher='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId))) end
             if iEnemyOmniCoverage <= 20 then
                 if iUnitMassCost >= iMobileStealthHigherMassThreshold then
                     table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileStealth], oUnit)
@@ -1689,7 +1690,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of tMobileShields empty='..tostring(M28Utilities.IsTableEmpty(tMobileShields))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of tMobileShields empty='..tostring(M28Utilities.IsTableEmpty(tMobileShields))..'; Is table of units wanting mobile stealth empty='..tostring(tWZTeamData[M28Map.reftoWZUnitsWantingMobileStealth])..'; iEnemyOmniCoverage='..iEnemyOmniCoverage) end
         if M28Utilities.IsTableEmpty(tMobileShields) == false then
             ManageMobileShieldsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tMobileShields)
         end
