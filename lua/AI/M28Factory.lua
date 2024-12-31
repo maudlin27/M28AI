@@ -1588,6 +1588,39 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+    --Core expansion with singificant reclaim in this or an adjacent zone that has no enemies, and we havent yet built an engineer - get a T1 engineer to try and get the reclaim
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': High reclaim nearby engi builder - are we in a core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; Dangerous enemies in this LZ='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Factory tech='..iFactoryTechLevel..'; Buidl count='..oFactory[refiTotalBuildCount]..'; Does this zone want BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP] or false)..'; Ally combat in this zone='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) end
+    if tLZTeamData[M28Map.subrefLZCoreExpansion] and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and oFactory[refiTotalBuildCount] > 0 and (iFactoryTechLevel >= 2 or oFactory[refiTotalBuildCount] >= 4) and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 100 and oFactory[refiTotalBuildCount] <= 50 then
+        local bHaveHighReclaimSafeZoneNearby = false
+        if bDebugMessages == true then LOG(sFunctionRef..': checking if have high value reclaim zone nearby so can build an engineer to increase chances of getting it, mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oFactory:GetPosition())) end
+        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 400 * iFactoryTechLevel and tLZTeamData[M28Map.subrefTbWantBP] then
+            bHaveHighReclaimSafeZoneNearby = true
+        elseif M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; Air to ground threat='..(tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Signif Reclaim='..tAdjLZData[M28Map.subrefTotalSignificantMassReclaim]..'; Dangerous enemies='..tostring(tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestEnemyBase], tAdjLZData[M28Map.subrefMidpoint])..'; Mod dist%='..tAdjLZTeamData[M28Map.refiModDistancePercent]..'; Wants BP='..tostring(tAdjLZTeamData[M28Map.subrefTbWantBP])) end
+                if tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then break end
+                if tAdjLZTeamData[M28Map.refiModDistancePercent] <= tLZTeamData[M28Map.refiModDistancePercent] and tAdjLZData[M28Map.subrefTotalSignificantMassReclaim] >= 400 * iFactoryTechLevel and (tAdjLZTeamData[M28Map.subrefTbWantBP] or tAdjLZData[M28Map.subrefTotalSignificantMassReclaim] >= 2000) then
+                    if not(tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+                        if tAdjLZData[M28Map.subrefTotalSignificantMassReclaim] >= 2500 or M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) then
+                            bHaveHighReclaimSafeZoneNearby = true
+                            break
+                        end
+                    end
+                end
+            end
+        end
+        if bHaveHighReclaimSafeZoneNearby then
+            local iEngiLC = M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to try getting t1 engi for the reclaim, iEngiLC='..iEngiLC) end
+            if iEngiLC <= 3 and iEngiLC < oFactory[refiTotalBuildCount] * 0.2 then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer * categories.TECH1) then return sBPIDToBuild end
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+            end
+        end
+    end
     --core expansion and enemies nearby - build tank
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (oFactory[refiTotalBuildCount] <= 6 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) then
