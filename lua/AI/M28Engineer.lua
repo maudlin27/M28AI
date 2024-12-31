@@ -4206,7 +4206,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                     if M28Utilities.IsTableEmpty(tNearbyEnemiesByZone) == false then
                                         for iUnit, oUnit in tNearbyEnemiesByZone do
                                             --It's not possible to reclaim an under construction building
-                                            if not(oUnit.Dead) and (oUnit:GetFractionComplete() == 1 or not(oUnit:IsBeingBuilt()) or EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
+                                            if not(oUnit.Dead) and (oUnit:GetFractionComplete() == 1 or not(oUnit:IsBeingBuilt()) or M28Conditions.BuildingWasBeingBuiltButCanBeReclaimedNow(oUnit)) then
                                                 if (not(bCheckIfEnemyIsActuallyEnemy) or (IsEnemy(oEngineer:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) and not(oUnit:IsUnitState('Attached')) then
                                                     if not(bIgnoreIfEnemyUnderwater) or not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                                                         iCurUnitRange = (oUnit[M28UnitInfo.refiDFRange] or 0) + (oUnit[M28UnitInfo.refiIndirectRange] or 0)
