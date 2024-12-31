@@ -2782,7 +2782,8 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     local tBasePathingTable = tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone]
     if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..', iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; iEndPlateauOrZero='..iEndPlateauOrZero..'; iEndLandOrWaterZone='..iEndLandOrWaterZone..'; bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; iGroundAAThreatThreshold='..(iGroundAAThreatThreshold or 'nil')..'; Is table of land azones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) or false)..'; Is table of water zones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) or false)..'; iAirAAThreatThreshold='..(iAirAAThreatThreshold or 'nil')..'; tOptionalStartMidpointAdjustForDetailedCheck='..repru(tOptionalStartMidpointAdjustForDetailedCheck)) end
     local iAngleToDestination, iDistanceToDestination, iAngleToInterim, iDistanceToInterim, iInterimBestRange, tStartZoneMidpoint
-    local tDestinationMidpoint
+    local tDestinationMidpoint, iDistanceFromInterimToDestination
+
     if tOptionalEndMidpointAdjustForDetailedCheck then
         tDestinationMidpoint = tOptionalEndMidpointAdjustForDetailedCheck
     elseif iEndPlateauOrZero == 0 then
@@ -2791,7 +2792,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
         tDestinationMidpoint = M28Map.tAllPlateaus[iEndPlateauOrZero][M28Map.subrefPlateauLandZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
     end
 
-    local iDistFromOptionalStartToEnd
+    local iDistFromOptionalStartToEnd, iCurUnitThreat
     if tOptionalStartMidpointAdjustForDetailedCheck then iDistFromOptionalStartToEnd = M28Utilities.GetDistanceBetweenPositions(tOptionalStartMidpointAdjustForDetailedCheck, tDestinationMidpoint) end
     function DetailedCheckIfTooMuchAAInInterimZone(tInterimLZOrWZData, tInterimLZOrWZTeamData, iInterimPlateauOrZero, iInterimZone, bUseMidpointAdjustPosition)
         local bTooMuchAA = false
@@ -2823,7 +2824,9 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
             --Work ont values specific to this interim zone
             iAngleToInterim = M28Utilities.GetAngleFromAToB(tStartZoneMidpoint, tInterimLZOrWZData[M28Map.subrefMidpoint])
             iDistanceToInterim = M28Utilities.GetDistanceBetweenPositions(tStartZoneMidpoint, tInterimLZOrWZData[M28Map.subrefMidpoint])
-            if iDistanceToInterim + 70 <= iDistanceToDestination and (M28Utilities.GetAngleDifference(iAngleToInterim, iAngleToDestination) <= 15 or iDistanceToInterim *0.5 + 30 <= iDistanceToDestination) then
+            iDistanceFromInterimToDestination = M28Utilities.GetDistanceBetweenPositions(tInterimLZOrWZData[M28Map.subrefMidpoint], tDestinationMidpoint)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to analyse interim zone P'..iInterimPlateauOrZero..'Z'..iInterimZone..' further, iDistanceToInterim='..iDistanceToInterim..'; iAngleToInterim='..iAngleToInterim..'; Angle dif='..M28Utilities.GetAngleDifference(iAngleToInterim, iAngleToDestination)..'; iDistanceToDestination='..iDistanceToDestination..'; Interim zone distance to destination='..M28Utilities.GetDistanceBetweenPositions(tInterimLZOrWZData[M28Map.subrefMidpoint], tDestinationMidpoint)) end
+            if (iDistanceToInterim + 70 <= iDistanceToDestination and (M28Utilities.GetAngleDifference(iAngleToInterim, iAngleToDestination) <= 15 or iDistanceToInterim *0.5 + 30 <= iDistanceToDestination)) or iDistanceFromInterimToDestination <= 110 then
                 iInterimBestRange = 0
                 local tEnemyAAUnits
                 if M28Utilities.IsTableEmpty(tInterimLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
@@ -2836,7 +2839,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy AA units empty='..tostring(M28Utilities.IsTableEmpty(tEnemyAAUnits))..'; iInterimBestRange='..iInterimBestRange..'; iDistanceToInterim='..iDistanceToInterim..'; iDistanceToDestination='..iDistanceToDestination) end
-                    if iInterimBestRange > 0 and iDistanceToInterim + iInterimBestRange + 5 <= iDistanceToDestination then
+                    if iInterimBestRange > 0 and (iDistanceToInterim + iInterimBestRange + 5 <= iDistanceToDestination or iDistanceFromInterimToDestination - iInterimBestRange <= 50) then
                         --More detailed check; dont know what part in the zone we are targeting so want a margin of error
                         local iDistToUnit, iAngleToUnit, iDistFromUnitToTarget
                         for iUnit, oUnit in tEnemyAAUnits do
@@ -2850,11 +2853,13 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                                 if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iDistanceToDestination, iDistToUnit, iDistFromUnitToTarget, iAngleToDestination, iAngleToUnit, oUnit[M28UnitInfo.refiAARange] + 35) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have too much AA when checking if in range of enemy, iGroundAAThreat before increase='..iGroundAAThreat)
                                         --Draw line
-                                        ForkThread(M28Utilities.ForkedDrawLine, tStartZoneMidpoint, tDestinationMidpoint, math.random(1, 8))
+                                        --ForkThread(M28Utilities.ForkedDrawLine, tStartZoneMidpoint, tDestinationMidpoint, math.random(1, 8))
                                     end
                                     bTooMuchAA = true
                                     if bReturnGroundAAThreatInstead then
-                                        iGroundAAThreat = iGroundAAThreat + M28UnitInfo.GetAirThreatLevel({ oUnit }, true, false, true)
+                                        iCurUnitThreat = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, false, true)
+                                        if M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) == false then iCurUnitThreat = iCurUnitThreat * 2 end
+                                        iGroundAAThreat = iGroundAAThreat + iCurUnitThreat
                                         if bReturnGroundAAUnitsAlongsideAAThreat then
                                             table.insert(toGroundAAUnits, oUnit)
                                         end
@@ -5818,8 +5823,33 @@ function ManageGunships(iTeam, iAirSubteam)
                         bTooMuchAA = false
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy doesnt have any groundAA and we arent checking for AirAA') end
                     else
-                        --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat,         iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA)
-                        bTooMuchAA = DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, iPlateauOrZero, iLandOrWaterZone, not(bCheckForAirAA), iMaxEnemyGroundAA, iSpecificAirAAThreatLimit, false, iAirSubteam, bDoDetailedGroundAACheck)
+                        local tMidpointForDetailedAACheck
+                        if bDoDetailedGroundAACheck and M28Conditions.IsTableOfUnitsStillValid(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) then
+                            local tEnemyAAUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryGroundAA, tLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+                            local oClosestEnemyUnit
+                            local iClosestDist = 10000
+                            if M28Utilities.IsTableEmpty(tEnemyAAUnits) == false then
+                                for iUnit, oUnit in tEnemyAAUnits do
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oFrontGunship:GetPosition())
+                                    if iCurDist < iClosestDist and (iPlateauOrZero > 0 or not(M28UnitInfo.IsUnitUnderwater(oUnit))) then
+                                        oClosestEnemyUnit = oUnit
+                                        iClosestDist = iCurDist
+                                    end
+                                end
+                            else
+                                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oFrontGunship:GetPosition())
+                                    if iCurDist < iClosestDist and (iPlateauOrZero > 0 or not(M28UnitInfo.IsUnitUnderwater(oUnit))) then
+                                        oClosestEnemyUnit = oUnit
+                                        iClosestDist = iCurDist
+                                    end
+                                end
+                            end
+                            if oClosestEnemyUnit then tMidpointForDetailedAACheck = oClosestEnemyUnit:GetPosition() end
+                            if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyUnit (or closest AA if enemy has groudnAA)='..(oClosestEnemyUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyUnit) or 'nil')..'; will set this as the position to use for detailed AA check, tMidpointForDetailedAACheck='..repru(tMidpointForDetailedAACheck)) end
+                        end
+                                    --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck)
+                        bTooMuchAA = DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, iPlateauOrZero, iLandOrWaterZone, not(bCheckForAirAA), iMaxEnemyGroundAA, iSpecificAirAAThreatLimit, false, iAirSubteam, bDoDetailedGroundAACheck, nil, nil,nil, tMidpointForDetailedAACheck)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..iLandOrWaterZone..'; iPlateauOrZero='..iPlateauOrZero..'; bTooMuchAA='..tostring(bTooMuchAA)..'; bCheckForAirAA='..tostring(bCheckForAirAA or false)..'; iMaxEnemyGroundAA='..(iMaxEnemyGroundAA or 'nil')..'; iSpecificAirAAThreatLimit='..iSpecificAirAAThreatLimit..'; iOurGunshipThreat='..iOurGunshipThreat..'; iGunshipThreatFactorWanted='..iGunshipThreatFactorWanted..'; bDoDetailedGroundAACheck='..tostring(bDoDetailedGroundAACheck)) end
 
@@ -9941,6 +9971,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             ForkThread(M28Micro.TurnAirUnitAndAttackTarget, oBomber, oBestEnemyTarget)
                             bGivenOrderAlready = true
                         else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to make use of bomber AOE, bHaveTargetWhereShotIsBlocked='..tostring(bHaveTargetWhereShotIsBlocked or false)..'; Is target under shield='..tostring(M28Logic.IsTargetUnderShield(aiBrain, oBestEnemyTarget, iDamageForIfUnderShield, false, true, false, false))..'; iTotalExpBombers='..iTotalExpBombers..'; [M28UnitInfo.refbExpBomberShotBlocked]='..tostring(oBestEnemyTarget[M28UnitInfo.refbExpBomberShotBlocked] or false)) end
                             if not(bHaveTargetWhereShotIsBlocked) and M28Logic.IsTargetUnderShield(aiBrain, oBestEnemyTarget, iDamageForIfUnderShield, false, true, false, false) then
                                 bUseAOEForTargetIfNotTooClose = true
                                 --If only have 1 exp bomber and targeting a fixed unit be more cautious if significant enemy groundAA threat near the target
@@ -9956,16 +9987,71 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                     end
                                 end
                             end
+                            if not(bUseAOEForTargetIfNotTooClose) and bHaveTargetWhereShotIsBlocked and not(oBestEnemyTarget[M28UnitInfo.refbExpBomberShotBlocked]) and M28Utilities.IsTableEmpty(oBestEnemyTarget[M28Building.reftoShieldsProvidingCoverage]) == false and iTotalExpBombers <= 2 and EntityCategoryContains(M28UnitInfo.refCategoryStructureAA, oBestEnemyTarget.UnitId) then
+                                bUseAOEForTargetIfNotTooClose = true
+                            end
                             if bUseAOEForTargetIfNotTooClose then
                                 if iDistToTarget >= 40 then
                                     --Just try to target the unit with our aoe, provided there aren't friendly units near it
+                                    local iMinValueWanted = 0
+                                    local tTarget
+                                    --If only have 1 bomber and target is a SAM under fixed shields, then consider choosing a ground fire location that damages the shield but is further away from the AA
+                                    if iTotalExpBombers <= 2 and EntityCategoryContains(M28UnitInfo.refCategoryStructureAA * categories.TECH3, oBestEnemyTarget.UnitId) and M28Utilities.IsTableEmpty(oBestEnemyTarget[M28Building.reftoShieldsProvidingCoverage]) == false then
+                                        local iMinShieldExtendDistance = 1000
+                                        local iAngleFromTargetToBomber = M28Utilities.GetAngleFromAToB(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())
+                                        local iAngleFromTargetToShield, iDistFromTargetToShield
+                                        local iRadianAngleA, iRadianAngleB, iRadianAngleC
+                                        local iShieldRadius, iDistFromShieldToBomberPath
+                                        local oFurthestShieldForDebug
+                                        for iShield, oShield in oBestEnemyTarget[M28Building.reftoShieldsProvidingCoverage] do
+                                            if M28UnitInfo.IsUnitValid(oShield) and oShield.MyShield.GetHealth and oShield.MyShield:GetHealth() >= iDamage - 500 then
+                                                --Enemy shield can likely absorb our full bomb blast, so no point getting too close to the enemy; want to do a triangle between the shield, the target, and the bomber, so if move along the line from the target to the bomber we find the point at which we need the aoe to hit, and then we increase the dist to travel a bit more than this
+                                                iAngleFromTargetToShield = M28Utilities.GetAngleFromAToB(oBestEnemyTarget:GetPosition(), oShield:GetPosition())
+                                                iDistFromTargetToShield = M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oShield:GetPosition())
+                                                iShieldRadius = (oShield:GetBlueprint().Defense.Shield.ShieldSize or 13) * 0.5
+                                                if iAngleFromTargetToShield > iAngleFromTargetToBomber then iRadianAngleA = M28Utilities.ConvertAngleToRadians(iAngleFromTargetToShield - iAngleFromTargetToBomber)
+                                                else iRadianAngleA = M28Utilities.ConvertAngleToRadians(iAngleFromTargetToBomber - iAngleFromTargetToShield)
+                                                end
+                                                iRadianAngleB = math.asin(iDistFromTargetToShield * math.sin(iRadianAngleA)/iShieldRadius)
+                                                iRadianAngleC = 180 - M28Utilities.ConvertRadiansToAngle(iRadianAngleA) - M28Utilities.ConvertRadiansToAngle(iRadianAngleB)
+                                                iDistFromShieldToBomberPath = math.sqrt(iShieldRadius * iShieldRadius + iDistFromTargetToShield * iDistFromTargetToShield - 2 * iDistFromTargetToShield * iShieldRadius * math.cos(iRadianAngleC))
+                                                if iMinShieldExtendDistance > iDistFromShieldToBomberPath then
+                                                    iMinShieldExtendDistance = iDistFromShieldToBomberPath
+                                                    if bDebugMessages == true then oFurthestShieldForDebug = oShield end
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Shield health='..oShield.MyShield:GetHealth()..'; iShieldRadius='..iShieldRadius..'; iDistFromTargetToShield='..iDistFromTargetToShield..'; iAngleFromTargetToShield='..iAngleFromTargetToShield..'; AngleA='..M28Utilities.ConvertRadiansToAngle(iRadianAngleA)..'; AngleB='..M28Utilities.ConvertRadiansToAngle(iRadianAngleB)..'; AngleC='..M28Utilities.ConvertRadiansToAngle(iRadianAngleC)..'; iDistFromShieldToBomberPath='..iDistFromShieldToBomberPath) end
+                                            end
+                                        end
+                                        if iMinShieldExtendDistance >= 2 and iMinShieldExtendDistance <= 50 then
+                                            tTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition()), math.max(1, iDistToTarget - iAOE + math.max(iAOE * 0.1, 3) -math.max(0, math.min(iMinShieldExtendDistance - 3, iMinShieldExtendDistance * 0.8, 12))), true, false, true)
+                                            if iTotalExpBombers == 1 then iMinValueWanted = -300 end --i.e. we will be damaging an enemy shield, which may well be covering significant enemy forces, so we can accept a small amount of friendly fire (as the bomb itself could register as 0 damage since in theory it is hitting nothing - only the shield bubble)
 
-                                    local tTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition()), iDistToTarget - iAOE + math.max(iAOE * 0.1, 3), true, false, true)
-                                    if M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA) > 0 then
+                                            if bDebugMessages == true then
+                                                LOG(sFunctionRef..': tTarget to try and hit the shield aoe='..repru(tTarget)..'; oFurthestShieldForDebug='..oFurthestShieldForDebug.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFurthestShieldForDebug)..'; Dist from target to shield='..M28Utilities.GetDistanceBetweenPositions(oFurthestShieldForDebug:GetPosition(), tTarget)..'; Dist from tTarget to enemy target='..M28Utilities.GetDistanceBetweenPositions(tTarget, oBestEnemyTarget:GetPosition()))
+                                                --M28Utilities.DrawPath({ oFurthestShieldForDebug:GetPosition(), oBestEnemyTarget:GetPosition(), M28Utilities.MoveInDirection(oBestEnemyTarget:GetPosition(), M28Utilities.GetAngleFromAToB(oBestEnemyTarget:GetPosition(), oBomber:GetPosition()), iMinShieldExtendDistance, true, false, true) })
+                                            end
+                                            --Check shot not blocked
+                                            local tEstFiringPosition
+                                            local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tTarget, oBomber:GetPosition())
+                                            if iDistToTarget <= oBomber[M28UnitInfo.refiBomberRange] then
+                                                tEstFiringPosition = oBomber:GetPosition()
+                                            else
+                                                tEstFiringPosition = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tTarget), iDistToTarget - oBomber[M28UnitInfo.refiBomberRange])
+                                                tEstFiringPosition[2] = oBomber:GetPosition()[2]
+                                            end
+                                            if M28Logic.IsLineBlocked(aiBrain, tEstFiringPosition, tTarget, iAOE) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Planned shield AOE position is blocked, will just target the enemy directly') end
+                                                tTarget = oBestEnemyTarget:GetPosition()
+                                            end
+                                        end
+                                    end
+                                    if not(tTarget) then tTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition()), iDistToTarget - iAOE + math.max(iAOE * 0.1, 3), true, false, true) end
+                                    --Double-check we wont damage friendly units as a result (have done >= 0 in case we dont think we are dealing any damage due to only damage being to shields)
+                                    if M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA) >= iMinValueWanted then
                                         M28Orders.IssueTrackedGroundAttack(oBomber, tTarget, iAOE * 0.5, false, 'ExpAG', false)
                                         bGivenOrderAlready = true
                                     end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to ground fire near the shielded target, tTarget='..repru(tTarget)..'; bUseAOEForTargetIfNotTooClose='..tostring(bUseAOEForTargetIfNotTooClose)..'; Damage from bomb='..M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA)) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to ground fire near the shielded target, tTarget='..repru(tTarget)..'; bUseAOEForTargetIfNotTooClose='..tostring(bUseAOEForTargetIfNotTooClose)..'; Damage from bomb='..M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA)..'; iMinValueWanted='..iMinValueWanted) end
                                 else
                                     bUseAOEForTargetIfNotTooClose = false
                                     if bDebugMessages == true then LOG(sFunctionRef..': Target is too close to bomber so wont use aoe attack') end
