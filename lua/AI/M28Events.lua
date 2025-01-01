@@ -1160,7 +1160,7 @@ function OnBombFired(oWeapon, projectile)
                 --Logic relating to the bomber itself:
                 if not(oUnit.Dead) then
                     --Ahwassa and strats - micro the bomber so they turn around and retreat to rally point/nearest base, but dont micro the first couple of strats as the enemy is less likely to have T3 AA (and slowing down to micro could cause them to die to flak)
-                    if EntityCategoryContains(categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.TECH3, sUnitID) and (M28UnitInfo.GetUnitLifetimeCount(oUnit) >= 3 or EntityCategoryContains(categories.EXPERIMENTAL, sUnitID)) then
+                    if EntityCategoryContains(categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.TECH3, sUnitID) then
                         --Experimental bomber - micro to turn around and go to rally point
                         if oUnit:GetAIBrain().M28AI then
                             if not(oUnit[M28UnitInfo.refbEasyBrain]) then
