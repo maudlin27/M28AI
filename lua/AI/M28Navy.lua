@@ -4744,7 +4744,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
             end
             --end
         else
-            M28Air.RecordOtherLandAndWaterZonesByDistance(tWZData, tWZData[M28Map.subrefMidpoint])
+            M28Air.RecordOtherLandAndWaterZonesByDistance(tWZData)
         end
         function AttackWithCombatAA(bOptionalOnlyAttackIfInRange)
             --Assign any remaining combatAA to attack the nearest structure to them
