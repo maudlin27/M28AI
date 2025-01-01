@@ -1991,7 +1991,7 @@ end
 
 function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAttackingUntilTargetDead, bAbortForGroundAAUnlessTargetIsEngineer)
     --Based on combination of ahwassa approach and hoverAA approach
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TurnAirUnitAndAttackTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2023,7 +2023,7 @@ function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAtta
                 --Do we want to abort  micro?
                 if bAbortForGroundAA then
                     local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oTarget:GetPosition(), true, iTeam)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to abort due to enemy groundAA='..tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; Does the zone have too much AA for base bomber='..tostring(M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to abort due to enemy groundAA='..tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; Does the zone have too much AA for base bomber='..tostring(M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData) or false)) end
                     if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData) then
                         --Return to nearest base
                         if oBomber[rebEarlyBomberTargetBase] then oBomber[rebEarlyBomberTargetBase] = false end
