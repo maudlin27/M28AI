@@ -3383,7 +3383,7 @@ function AdjacentToPacifistZone(iPlateauOrZero, iLandOrWaterZone)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     else
-        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint])
+        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData)
         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
             for iEntry, tSubtable in tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                 if tSubtable[M28Map.subrefiDistance] > 200 then break end

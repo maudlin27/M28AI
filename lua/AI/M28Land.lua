@@ -1548,7 +1548,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
     tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] = false
     if bDebugMessages == true then LOG(sFunctionRef..': Will check for nearby enemy structures if no enemies in this LZ, iPlateau='..iPlateau..'; iLandZOne='..iLandZone..'; Enemies in this or adj LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Total segment count='..tLZData[M28Map.subrefLZTotalSegmentCount]..'; Segment size='..M28Map.iLandZoneSegmentSize..'; is table of other land and water zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
     if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and tLZData[M28Map.subrefLZTotalSegmentCount] >= 150 / M28Map.iLandZoneSegmentSize then
-        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
             local iClosestEnemyDist = 10000
             local oClosestEnemy
@@ -3156,7 +3156,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                                 end
                             end
                             --Consider sending MAA to all zones (i.e. land and water, and other islands)
-                            M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+                            M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
                             if M28Utilities.IsTableEmpty(tHoverMAA) == false and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                 local iZoneMAAWanted
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering sending MAA to further away islands') end
@@ -3766,7 +3766,7 @@ function GetNearestEnemyInOtherPlateau(iPlateau, tLZData, iTeam, bGetIndirectThr
     local sFunctionRef = 'GetNearestEnemyInOtherPlateau'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint]) --redundancy
+    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData) --redundancy
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
         local iClosestEnemyDist = 10000
         local oClosestEnemy
@@ -4411,7 +4411,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         --Returns the unit, and returns true if should move towards it instead of a manual attack order (will want to move towards it if we are in range of a dangerous unit but we cant attack it yet)
         local oManualAttackTarget
         local bMoveTowardsTarget = false
-        if oUnit[M28UnitInfo.refiUnitMassCost] >= 15000 then bDebugMessages = true else bDebugMessages = false end
         if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering if want oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to pick a target for a manual attack, unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Is table of nearby enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; Can we see nearest enemy to midpoint='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyToFriendlyBase))..'; Dist to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition())..'; Is unit shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; refiTimeOfLastUnblockedShot='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')) end
 
         --Monkeylord, GC and Ythotha - prioritise enemy ACUs that we are clsoe to being in range of, unless the ACU is very powerful
@@ -9575,7 +9574,7 @@ function UpdateRecordedAllPlayerOmni(oRadar, bDestroyed)
                 end
 
                 UpdateOmniCoverageForZone(iPlateau, iLandZone, false)
-                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                     for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                         if tSubtable[M28Map.subrefiDistance] > iMaxZoneDistance then break end
@@ -9953,7 +9952,7 @@ function RecordEnemyFirebase(iTeam, iPlateau, iLandZone)
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
 
-    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
         local iLandLZThreshold = 163
         local iWaterLZThreshold = 200

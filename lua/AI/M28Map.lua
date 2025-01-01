@@ -327,6 +327,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refbGetTMLBattery = 'gttmlb' --true if we want to get a bunch of TMLs in this zone
             refbActiveTMLMonitor = 'tmlbmn' --true if we have active monitoring of targets for TMLs
             reftoTMLBatteryUnits = 'TMLBtU' --table of TMLs forming part of the TML battery
+            refiDetailedTMLTargetWithoutTMDCheckByPlateauAndZone = 'DetTrgt' --[x] = target plateau, [y] = target zone, returns number of potential TML targets that didnt appear to have a TMD that would cover them from a shot from a TML at the base zone's midpoint
+            refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone = 'DetTMDt' --[x] = target plateau, [y] = target zone, returns gametimeseconds that we did a detailed TMD check
 
             refbIgnoreEmergencyPDReassignmentLogic = 'EmPDAtv' --true if have logic monitoring emergency PD builders active
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted

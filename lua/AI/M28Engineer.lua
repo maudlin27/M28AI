@@ -13952,7 +13952,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     end
                 end
             else
-                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
             end
         end
 
@@ -15029,7 +15029,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --TML (will only trigger atm for core expansions)
     iCurPriority = iCurPriority + 1
-    if tLZTeamData[M28Map.subrefLZCoreExpansion] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then --Redundancy - getbptoassign function also includes this condition; however might be faster by having ith ere as an excluding factor?
+    if bDebugMessages == true then LOG(sFunctionRef..': Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; Table of enemy firebases in range is empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Enemies in this or adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; tLZData[M28Map.subrefLZMexCount]='..tLZData[M28Map.subrefLZMexCount]..'; T2 mex count='..(tLZTeamData[M28Map.subrefMexCountByTech][2] or 'nil')..'; Is table of storage empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]))..'; Closest enemy base plateau='..NavUtils.GetLabel(M28Map.refPathingTypeHover, tLZTeamData[M28Map.reftClosestEnemyBase])..'; iPlateau='..iPlateau) end
+    if (tLZTeamData[M28Map.subrefLZCoreExpansion] or (tLZTeamData[M28Map.refiModDistancePercent] >= 0.1 and tLZData[M28Map.subrefLZMexCount] >= 1 and tLZTeamData[M28Map.subrefMexCountByTech][3] + tLZTeamData[M28Map.subrefMexCountByTech][2] == tLZData[M28Map.subrefLZMexCount] and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and (tLZData[M28Map.subrefLZMexCount] >= 2 or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) and not(iPlateau == NavUtils.GetLabel(M28Map.refPathingTypeHover, tLZTeamData[M28Map.reftClosestEnemyBase]))))))) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then --Redundancy - getbptoassign function also includes this condition; however might be faster by having ith ere as an excluding factor?
         iBPWanted = GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, bHaveLowMass)
         if iBPWanted > 0 then
             HaveActionToAssign(refActionBuildTML, 2, iBPWanted)
@@ -15310,7 +15311,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         local iGroundAAWanted = 150 * (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 4)
         if bHaveLowMass then iGroundAAWanted = iGroundAAWanted * 0.5 end
         local iNearbyEnemyAirToGroundThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
-        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
         for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
             if tSubtable[M28Map.subrefiDistance] >= 200 then break end
             local tAltLZOrWZTeamData
@@ -16005,7 +16006,7 @@ end--]]
                         end
                     end
                 else
-                    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+                    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
                 end
 
                 --Reclaim area if is any reclaim
@@ -16247,7 +16248,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     if bDebugMessages == true then LOG(sFunctionRef..': High priority AA builder, iExistingWaterFactory='..iExistingWaterFactory..'; Enemy air to ground threat='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Allied AA threat='..(tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 'nil')) end
     if iExistingWaterFactory > 0 then
         local iAdjacentEnemyAirToGroundThreat = (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)
-        M28Air.RecordOtherLandAndWaterZonesByDistance(tWZData, tWZData[M28Map.subrefMidpoint])
+        M28Air.RecordOtherLandAndWaterZonesByDistance(tWZData)
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
             for iEntry, tSubtable in tWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                 if tSubtable[M28Map.subrefiDistance] >= 190 then
@@ -17526,9 +17527,9 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': TIme=' .. GetGameTimeSeconds() .. ' iPlateau=' .. iPlateau .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Is core base=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase]) .. '; is core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion]) .. '; iLandZone=' .. iLandZone)
     end
-    if tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not (bHaveLowMass) or (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and ((tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] or 0) == 0 or (tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] == 1 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryTML, true) > 0)) and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiGrossMassBaseIncome] >= 3.5 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and (ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiGrossMassBaseIncome]>= 10 or tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))))  then
+    if tLZTeamData[M28Map.subrefLZbCoreBase] or ((tLZTeamData[M28Map.subrefLZCoreExpansion] or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 3 or (tLZTeamData[M28Map.subrefMexCountByTech][2] == tLZData[M28Map.subrefLZMexCount] and tLZData[M28Map.subrefLZMexCount] > 0 and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))) and (not (bHaveLowMass) or (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and ((tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] or 0) == 0 or (tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] == 1 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryTML, true) > 0)) and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiGrossMassBaseIncome] >= 3.5 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and (ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiGrossMassBaseIncome]>= 10 or tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))))  then
         --Make sure we have recorded pathing in a straight line for this zone (will only run if table is empty)
-        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
 
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] .. '; Is table of pathing to other LZ and WZ empty=' .. tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance])))
@@ -17553,23 +17554,18 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
                 else
                     for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                         if bDebugMessages == true then
-                            LOG(sFunctionRef .. ': Zone ' .. tSubtable[M28Map.subrefiLandOrWaterZoneRef] .. ' is distance ' .. tSubtable[M28Map.subrefiDistance] .. ' away')
+                            LOG(sFunctionRef .. ': Zone ' .. tSubtable[M28Map.subrefiLandOrWaterZoneRef] .. ' with Plateau/Pond '..tSubtable[M28Map.subrefiPlateauOrPond]..' is distance ' .. tSubtable[M28Map.subrefiDistance] .. ' away')
                         end
-                        if tSubtable[M28Map.subrefiDistance] <= M28Building.iTMLMissileRange then
+                        if tSubtable[M28Map.subrefiDistance] <= M28Building.iTMLMissileRange + 10 then --Increase from TML range, as zones can be large so likely some units in the zone we can still reach
                             if not (tSubtable[M28Map.subrefbIsWaterZone]) then
                                 local tAltLZTeamData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefLZTeamData][iTeam]
                                 if bDebugMessages == true then
-                                    LOG(sFunctionRef .. ': Considering enemy zone ' .. tSubtable[M28Map.subrefiLandOrWaterZoneRef] .. '; Is table of enemy TMD empty=' .. tostring(M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD])) .. '; is talbe of enemy potential targets empty=' .. tostring(M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD])))
+                                    LOG(sFunctionRef .. ': Considering enemy zone ' .. tSubtable[M28Map.subrefiLandOrWaterZoneRef] .. ', PlateauOrPond='..tSubtable[M28Map.subrefiPlateauOrPond]..'; Is tAltLZTeamData nil='..tostring(tAltLZTeamData == nil)..'; Is table of enemy TMD empty=' .. tostring(M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD])) .. '; is talbe of enemy potential targets empty=' .. tostring(M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD])))
                                 end
                                 if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD]) == false then
-                                    --Refresh the table
-                                    local iLastEntry = table.getn(tAltLZTeamData[M28Map.subreftoEnemyTMD])
-                                    for iCurEntry = iLastEntry, 1, -1 do
-                                        if not (M28UnitInfo.IsUnitValid(tAltLZTeamData[M28Map.subreftoEnemyTMD][iCurEntry])) then
-                                            table.remove(tAltLZTeamData[M28Map.subreftoEnemyTMD], iCurEntry)
-                                        end
-                                    end
-                                    if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyTMD]) == false then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Target zone has TMD, Targets based on more detailed check='..M28Building.GetTargetsWithoutTMDCoverageBasedOnZoneMidpoint(tLZTeamData, tAltLZTeamData, tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef], tLZData[M28Map.subrefMidpoint])) end
+                                    --GetTargetsWithoutTMDCoverageBasedOnZoneMidpoint(tTMLLZTeamData, tTargetLZTeamData, iTargetPlateauOrZero, iTargetZone, tPlannedTMLLocation, iOptionalTMDRequiredToBlock)
+                                    if M28Building.GetTargetsWithoutTMDCoverageBasedOnZoneMidpoint(tLZTeamData, tAltLZTeamData, tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef], tLZData[M28Map.subrefMidpoint]) == 0 then
                                         break
                                     end
                                 end
@@ -17612,14 +17608,16 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
                         else
                             if bDebugMessages == true then
                                 LOG(sFunctionRef .. ': Remaining zones out of range so will abort')
+                            else
+                                break --so we can see distances for other zones that we arent including
                             end
-                            break
+
                         end
                     end
                 end
             end
         else
-            M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+            M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': end of code, iBPWanted='..iBPWanted) end

@@ -550,6 +550,14 @@ end
 
 
 function TestCustom(aiBrain)
+    --[[local tStartLZData = M28Map.tAllPlateaus[64][M28Map.subrefPlateauLandZones][2]
+    local tTargetLZData = M28Map.tAllPlateaus[69][M28Map.subrefPlateauLandZones][4]
+    LOG('TESTCUSTOM dist between LZ midpoints='..M28Utilities.GetDistanceBetweenPositions(tStartLZData[M28Map.subrefMidpoint], tTargetLZData[M28Map.subrefMidpoint]))
+    M28Utilities.DrawPath({ tStartLZData[M28Map.subrefMidpoint], tTargetLZData[M28Map.subrefMidpoint] })
+    M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZData)
+    for iEntry, tSubtable in tStartLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+        LOG('TESTCUSTOM Zone ' .. tSubtable[M28Map.subrefiLandOrWaterZoneRef] .. ' with Plateau/Pond '..tSubtable[M28Map.subrefiPlateauOrPond]..' is distance ' .. tSubtable[M28Map.subrefiDistance] .. ' away')
+    end--]]
     --[[local tBasePosition = {600.5,0,617.5}
     tBasePosition[2] = GetTerrainHeight(tBasePosition[1], tBasePosition[3])
     local NavUtils = M28Utilities.NavUtils
