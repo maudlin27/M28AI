@@ -1485,11 +1485,13 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
     return false
 end
 
-function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
+function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
     --Records all other land and water zones in order of straight line distance to tStartLZOrWZData, if not already recorded
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordOtherLandAndWaterZonesByDistance'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local tStartMidpoint = tStartLZOrWZData[M28Map.subrefMidpoint]
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start time='..GetGameTimeSeconds()..'; Is table of other land and water zones empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
     if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
         if M28Utilities.IsTableEmpty(tStartLZOrWZData) then M28Utilities.ErrorHandler('Trying to record other land and water zones when we dont have valid LZOrWZData entry')
@@ -1627,7 +1629,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] = oUnitAsRallyPoint:GetPosition()
                     else
                         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] = true
-                        RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
+                        RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
                         if bDebugMessages == true then LOG(sFunctionRef..': Is table of other Land and water zones by distance empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
                         if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                             for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
@@ -2256,7 +2258,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 end
             end
             if tStartLZOrWZData then
-                RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
+                RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
             end
 
 
@@ -4208,7 +4210,7 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
             if bDontCheckForPacifism or not(tStartLZOrWZTeamData[M28Map.subrefbPacifistArea]) then FilterToAvailableTargets(tStartLZOrWZTeamData[M28Map.subrefTEnemyUnits], iEngiHunterCategories) end
             local bDontCheckForEnemyThreats = false
             if (tStartLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) > 0 then bDontCheckForEnemyThreats = true end
-            RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
+            RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
 
             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for targets in starting zone, is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyTargets))) end
             if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
@@ -6269,7 +6271,7 @@ function ManageGunships(iTeam, iAirSubteam)
 
                                 if bDebugMessages == true then LOG(sFunctionRef..': oFrontGunship='..oFrontGunship.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFrontGunship)..'; iGunshipPlateauOrZero='..(iGunshipPlateauOrZero or 'nil')..'; iGunshipLandOrWaterZone='..(iGunshipLandOrWaterZone or 'nil')..'; tGunshipMidpoint='..repru(tGunshipMidpoint)..'; bUseDefensively='..tostring(bUseDefensively)) end
 
-                                RecordOtherLandAndWaterZonesByDistance(tGunshipLandOrWaterZoneData, tGunshipMidpoint)
+                                RecordOtherLandAndWaterZonesByDistance(tGunshipLandOrWaterZoneData)
                                 if M28Utilities.IsTableEmpty(tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                     local iGunshipThreatFactorWanted
                                     local iPostFirstTargetCount = 0 --used so once we have a target we will still consider a few extra zones in case they are more important
@@ -8709,7 +8711,7 @@ function ManageTransports(iTeam, iAirSubteam)
                                 else
                                     --Find the nearest zone wanting engineers (or unload at rally point if cant find any
                                     local tMidpointToUnloadAt
-                                    RecordOtherLandAndWaterZonesByDistance(tTransportLZOrWZData, tTransportLZOrWZData[M28Map.subrefMidpoint])
+                                    RecordOtherLandAndWaterZonesByDistance(tTransportLZOrWZData)
                                     if M28Utilities.IsTableEmpty(tTransportLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                         local tTargetLZOrWZData, tTargetLZOrWZTeamData
                                         for iEntry, tSubtable in tTransportLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
@@ -9730,7 +9732,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             else
 
                                 if bDebugMessages == true then LOG(sFunctionRef..': oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; iBomberPlateauOrZero='..(iBomberPlateauOrZero or 'nil')..'; iBomberLandOrWaterZone='..(iBomberLandOrWaterZone or 'nil')..'; tBomberZoneMidpoint='..repru(tBomberZoneMidpoint)) end
-                                RecordOtherLandAndWaterZonesByDistance(tBomberLandOrWaterZoneData, tBomberZoneMidpoint)
+                                RecordOtherLandAndWaterZonesByDistance(tBomberLandOrWaterZoneData)
                                 if M28Utilities.IsTableEmpty(tBomberLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                     if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each other zone by distance and consider the best target, tFirstZoneWithTargetsMidpoint='..repru(tFirstZoneWithTargetsMidpoint)) end
                                     local bZoneIsCloseToFirstTargetZone
@@ -10133,7 +10135,7 @@ function GiveOrderToSpaceship(iTeam, oUnit)
             bConsiderBackupOrder = true
         else
             --Find nearest significant enemy building that isnt underwater and attack it:
-            RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
+            RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
             if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                 if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each other zone by distance and consider the best target') end
                 local tGroundTarget

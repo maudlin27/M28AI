@@ -2221,7 +2221,7 @@ function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAtta
 end
 
 function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SuicideExperimentalIntoEnemyACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Time='..GetGameTimeSeconds()) end
