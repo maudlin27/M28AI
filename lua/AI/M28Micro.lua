@@ -2219,3 +2219,40 @@ function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAtta
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SuicideExperimentalIntoEnemyACU'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Time='..GetGameTimeSeconds()) end
+    if M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oClosestACUNearUnit) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+        EnableUnitMicroUntilManuallyTurnOff(oUnit, false)
+        --Set weapon prioritisation
+        M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityExpSnipeACU, false)
+        local iCurDist
+        local bLastOrderWasManualAttack
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, oUnit (experimental)='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; oClosestACUNearUnit='..oClosestACUNearUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestACUNearUnit)..' owned by '..oClosestACUNearUnit:GetAIBrain().Nickname..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUNearUnit:GetPosition())) end
+        while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oClosestACUNearUnit) and not(oClosestACUNearUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oClosestACUNearUnit)) do
+            --Move towards the ACU
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUNearUnit:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; bLastOrderWasManualAttack='..tostring(bLastOrderWasManualAttack)..'; Time='..GetGameTimeSeconds()) end
+            if iCurDist >= 8 or (iCurDist >= 5 and not(bLastOrderWasManualAttack)) then
+                M28Orders.IssueTrackedMove(oUnit, oClosestACUNearUnit:GetPosition(), 0.5, false, 'ExpKACUM', true)
+                bLastOrderWasManualAttack = false
+            else
+                --Manual attack
+                bLastOrderWasManualAttack = true
+                M28Orders.IssueTrackedAttack(oUnit, oClosestACUNearUnit, false, 'ExpKACUA', true)
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+        if M28UnitInfo.IsUnitValid(oUnit) then
+            oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+            --Use megalith weapon prioritisation as a proxy for what we are likely to want
+            M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMegalith, false)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
