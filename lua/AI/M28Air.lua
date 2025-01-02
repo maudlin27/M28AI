@@ -5809,7 +5809,7 @@ function ManageGunships(iTeam, iAirSubteam)
                     if iGroundAAThresholdAdjust and iMaxEnemyGroundAA >= 0 then iMaxEnemyGroundAA = math.max(0, iMaxEnemyGroundAA + iGroundAAThresholdAdjust) end
                     --decrease max groundAA for higher values (since the more MAA/SAMs in one place, the harder it will be for low health gunships to heal, instead they just die
                     if iOurGunshipThreat >= 10000 then
-                        if M28Utilities.bLoudModActive or M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= math.max(10000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills])) then
+                        if M28Utilities.bLoudModActive or M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= math.max(10000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]) then
                             iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.1, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 10000) / (iGunshipThreatFactorWanted * 0.5))
                             if iOurGunshipThreat >= 20000 then
                                 iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 20000) / (iGunshipThreatFactorWanted * 0.25))
