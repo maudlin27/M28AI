@@ -571,7 +571,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if (tLZTeamData[M28Map.subrefThreatEnemyShield] or 0) >= 50 then
             local iMaxShieldRating
             if tLZTeamData[M28Map.subrefThreatEnemyShield] >= 4000 then
-                if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then --QCE now has logic for overlapping shields to take damage and has increased recharge times
+                if M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive) then --QCE now has logic for overlapping shields to take damage and has increased recharge times
                     iMaxShieldRating = tLZTeamData[M28Map.subrefThreatEnemyShield]
                 else
                     iMaxShieldRating = math.min(3200 + (tLZTeamData[M28Map.subrefThreatEnemyShield] - 4000) * 0.4, 7000) --shields wont be able to cover everywhere, and more than one shield has lower value due to FAF anti-shield stacking
@@ -579,14 +579,14 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             else
                 iMaxShieldRating = tLZTeamData[M28Map.subrefThreatEnemyShield]
             end
-            if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then
+            if M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive) then
                 iMaxShieldRating = iMaxShieldRating + 0.5 * math.min(5000, tLZTeamData[M28Map.subrefThreatEnemyShield]) --shields are really good in LOUD
             end
             local iShieldMaxFactor = 1
             if M28Utilities.bLoudModActive then
-                if M28Utilities.bLCEActive then iShieldMaxFactor = 1.25 --Az: Static shields nerfed to FAF values in QCE; mobile shields not; since shield threat includes both will do 1.25 as a rough approximation/allowance for there potentially being mobile shields that are good for their mass cost
-                else iShieldMaxFactor = 4
-                end
+                iShieldMaxFactor = 4
+            elseif M28Utilities.bQuietModActive then 
+                iShieldMaxFactor = 1.25 --Az: Static shields nerfed to FAF values in QCE; mobile shields not; since shield threat includes both will do 1.25 as a rough approximation/allowance for there potentially being mobile shields that are good for their mass cost
             end
             if not(iMaxShieldRating) then
                 M28Utilities.ErrorHandler('Dont have a max shield rating for P'..iPlateau..'LZ'..iLandZone..'; tLZTeamData[M28Map.subrefThreatEnemyShield]='..(tLZTeamData[M28Map.subrefThreatEnemyShield] or 'nil')..'; will use gross LZ value')
@@ -3322,7 +3322,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     end
 
     --If have any SACUs without RAS upgrade that could get it, then get RAS upgrade, provided no enemies in the zone (LOUD - only doe this if close to unit cap or defending against t3 arti since that will stop us building mass fabs, due to how bad ras is)
-    if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] and (not(M28Utilities.bLoudModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) <= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) then
+    if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) <= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) then
         local tSACUsToUpgrade = {}
         local tSACUsUpgrading = {}
         local bFlaggedForBuildPower = false --If we have flagged an SACU to get a build power upgrade, then wont flag any more this cycle
@@ -3611,7 +3611,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             local oGateway
             local bNotAssistingGateway = true
             local bHaveRASGateway = false
-            if not(M28Utilities.bLoudModActive) or M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 then
+            if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 then
                 local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of quantum gateways empty='..tostring(M28Utilities.IsTableEmpty( tQuantumGateways))) end
                 if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
@@ -5873,7 +5873,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                                                         --LOUD specific - some units (e.g. hoplites) can't kite as well as they can in FAF
                                                         local bAttackMove = false
-                                                        if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) > (oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 100) + 2 and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategorySniperBot, oUnit.UnitId) then
+                                                        if M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) > (oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 100) + 2 and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategorySniperBot, oUnit.UnitId) then
                                                             bAttackMove = true
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Will use attack move for skirmisher '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()) end
                                                         end
@@ -9285,7 +9285,7 @@ function LandZoneOverseer(iTeam)
         ForkThread(AssignValuesToLandZones, iTeam)
 
         local iWaitCount = 0
-        while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 5.1 or ((M28Utilities.bLoudModActive or M28Utilities.bSteamActive) and GetGameTimeSeconds() <= 6) do
+        while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 5.1 or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or M28Utilities.bSteamActive) and GetGameTimeSeconds() <= 6) do
             iWaitCount = iWaitCount + 1
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)
@@ -10025,7 +10025,7 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of all T2 arti for this zone empty='..tostring(M28Utilities.IsTableEmpty(tAllT2Arti))) end
         if M28Utilities.IsTableEmpty(tAllT2Arti) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': Table size='.. table.getn(tAllT2Arti)) end
-            if (M28Utilities.bLCEActive and table.getn(tAllT2Arti) >= 4) or (not(M28Utilities.bLCEActive) and table.getn(tAllT2Arti) >= 3) then
+            if (M28Utilities.bQuietModActive and table.getn(tAllT2Arti) >= 4) or (not(M28Utilities.bQuietModActive) and table.getn(tAllT2Arti) >= 3) then
                 bHaveFirebase = true
             else
                 local iConstructedT2Arti = 0

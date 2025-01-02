@@ -57,7 +57,7 @@ function AddReprCommands()
 
                     end --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
                 end
-        if M28Utilities.bLoudModActive or M28Utilities.bSteamActive then
+        if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or M28Utilities.bSteamActive then
             _G.repr = function(tTable)
                 if tTable == nil then
                     return 'nil'
@@ -176,7 +176,7 @@ function UpdateUnitCategories()
 
         --Az further changes for LCE
         local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
-        if M28Utilities.bLCEActive then
+        if M28Utilities.bQuietModActive then
             --(LCE removes the base exclusion of certain unit categories from lAB/addition to indirect fire, due to these being considered T0.5 units)
             M28UnitInfo.refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
             M28UnitInfo.refCategoryLightAttackBot = categories.LAND * categories.DIRECTFIRE * categories.TECH1 * categories.MOBILE

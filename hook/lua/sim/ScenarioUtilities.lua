@@ -77,7 +77,7 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
         local sFunctionRef = 'InitializeSkirmishSystems' --Limited usage - wont do profiling
 
         if bDebugMessages == true then LOG(sFunctionRef..': Hook active for InitializeSkirmishSystems') end
-        if M28Utilities.bLoudModActive then
+        if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
             import('/mods/M28AI/lua/AI/M28Overseer.lua').bBeginSessionTriggered = true --needed for M28 code to run and not get stuck in a loop
             local LoudCompatibility = import('/mods/M28AI/lua/AI/LOUD/M28OtherLOUDCompatibility.lua')
             LoudCompatibility.UpdateUnitCategories()

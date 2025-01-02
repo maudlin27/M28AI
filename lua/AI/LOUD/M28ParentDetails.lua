@@ -14,5 +14,6 @@ function BrainBeginSession()
     --FAF specific function so we know FAF is active
     M28Utilities.bFAFActive = true
     M28Utilities.bLoudModActive = false
+    M28Utilities.bQuietModActive = false
     M28Utilities.bSteamActive = false
 end

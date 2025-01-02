@@ -754,7 +754,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             local iDFRangePreUpgrade = (oUnit[M28UnitInfo.refiDFRange] or 0)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
             --LOUD specific - manually reflect weapon ranges for the basic gun upgrades as arent recorded against the blueprint
-            if M28Utilities.bLoudModActive and (oUnit[M28UnitInfo.refiDFRange] or 0) < 30 then
+            if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (oUnit[M28UnitInfo.refiDFRange] or 0) < 30 then
                 local tsOtherUpgradeNames = {
                     'EXRipperBooster',
                     'EXZephyrBooster',
@@ -1782,7 +1782,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
                     local bCancelBuilding = false
                     --LOUD specific - cant build resource gens near each other
-                    if M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oConstruction.UnitId) then
+                    if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oConstruction.UnitId) then
                         ForkThread(M28Building.RecordExperimentalResourceGen, oConstruction)
                     end
                     if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) and not(oConstruction[M28Building.reftArtiTemplateRefs]) and not(oEngineer[M28Building.reftArtiTemplateRefs]) then
@@ -2092,7 +2092,7 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oJustBuilt.UnitId) then M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] = (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) + 1 end
                         --Loud T2 sniperbots - consider enhancement
-                    elseif M28Utilities.bLoudModActive and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
+                    elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
                         ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
                     end
 
@@ -2882,7 +2882,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     if EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId) or (oUnit.HasEnhancement and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and (oUnit:HasEnhancement('ResourceAllocation') or oUnit:HasEnhancement('ResourceAllocationAdvanced'))) then
                         M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) --Will check if unit has enhancements as part of this
                         if oUnit:GetAIBrain().CheatEnabled then ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit) end
-                    elseif oUnit:GetAIBrain().CheatEnabled and (M28Utilities.bLoudModActive or (not(tonumber(ScenarioInfo.Options.M28OvwR or tostring(0)) == 0) and ScenarioInfo.Options.M28OvwT)) then
+                    elseif oUnit:GetAIBrain().CheatEnabled and ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or (not(tonumber(ScenarioInfo.Options.M28OvwR or tostring(0)) == 0) and ScenarioInfo.Options.M28OvwT)) then
                         ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit)
                     end
 
@@ -2925,7 +2925,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
                             M28Navy.UpdateZoneIntelForSonar(oUnit)
                         elseif EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oUnit.UnitId) then
-                            if M28Utilities.bLoudModActive then
+                            if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
                                 ForkThread(M28Building.RecordExperimentalResourceGen, oUnit)
                             end
                         end
@@ -3284,7 +3284,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
                     if bDebugMessages == true then LOG(sFunctionRef..': M28 brain created, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')) end
 
                     --Copy of parts of aiBrain OnCreateAI that still want to retain
-                    if planName and (not(M28Utilities.bLoudModActive) or aiBrain.CreateBrainShared) then
+                    if planName and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or aiBrain.CreateBrainShared) then
                         aiBrain:CreateBrainShared(planName)
                     end
                     --aiBrain:InitializeEconomyState()
@@ -3292,7 +3292,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
                     local per = ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality
                     local cheatPos = string.find(per, 'cheat')
                     if cheatPos then
-                        if not(M28Utilities.bLoudModActive) then
+                        if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) then
                             local AIUtils = import('/lua/ai/aiutilities.lua')
                             AIUtils.SetupCheat(aiBrain, true)
                             ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality = string.sub(per, 1, cheatPos - 1)
@@ -4052,7 +4052,7 @@ function OnStartTeleport(self, teleporter, locationorbp, orientationorlocation, 
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         local location
-        if M28Utilities.bLoudModActive then location = orientationorlocation
+        if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then location = orientationorlocation
         else location = locationorbp
         end
 

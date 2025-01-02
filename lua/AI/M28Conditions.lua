@@ -994,6 +994,7 @@ function WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
         --LOUD specific - more likely to have lower % stored due to higher E storage
+        --QUIET has lowered the E Maintenance on Mass Extractors so no longer need to prefer energy
         elseif M28Utilities.bLoudModActive and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= math.min(0.25, M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] * 3) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 40 then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
@@ -1678,12 +1679,12 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                     return true
                 else
                     --Late game - get lots of air facs
-                    if iLandFactoriesHave >= 1 and (not(M28Utilities.bLoudModActive) or (M28Utilities.bLCEActive and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2))) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) >= 2))) then
+                    if iLandFactoriesHave >= 1 and (not(M28Utilities.bLoudModActive) or (M28Utilities.bQuietModActive and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2))) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) >= 2))) then
                         if bDebugMessages == true then LOG(sFunctionRef..': In late game, enemy has experimentals or we do, and we already have al and fac, so want to focus on air') end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                         --Also get lots of air facs if we have high gunship/bomber threat and lack air control
-                    elseif iLandFactoriesHave >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= 15000 and not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or iLandFactoriesHave >= 3) and (not(M28Utilities.bLoudModActive) or iLandFactoriesHave >= 4 or M28Utilities.bLCEActive) then
+                    elseif iLandFactoriesHave >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= 15000 and not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or iLandFactoriesHave >= 3) and (not(M28Utilities.bLoudModActive) or iLandFactoriesHave >= 4 or M28Utilities.bQuietModActive) then
                         if bDebugMessages == true then LOG(sFunctionRef..': T3 air, lack air contorl, and have isgnificant gunship/bomber threat, so want more air facs') end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
@@ -1810,7 +1811,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                             end
                                         end
                                     end
-                                    if iAirFactoriesForEveryLandFactory > 0.5 and M28Utilities.bLoudModActive and (not(M28Utilities.bLCEActive) or M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2)) then
+                                    if iAirFactoriesForEveryLandFactory > 0.5 and M28Utilities.bLoudModActive and (not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2)) then
                                         if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] then
                                             --If enemy has significant AA threat then want to get land more than air, so apply more of a reduction
                                             local iEnemyNearbyAA = (M28Team.tLandSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] or 0)
@@ -1823,7 +1824,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                         else
                                             iAirFactoriesForEveryLandFactory = math.min(iAirFactoriesForEveryLandFactory, 2)
                                         end
-                                        if M28Utilities.bLCEActive then
+                                        if M28Utilities.bQuietModActive then
                                             --If we have seraphim on team will want more air to support bombers
                                             local bHaveSeraphimOnTeam = false
                                             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -1860,7 +1861,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                         iAirFactoriesForEveryLandFactory = math.max(iAirFactoriesForEveryLandFactory, 1)
                                         iLandFactoriesWantedBeforeAir = math.min(iLandFactoriesWantedBeforeAir, 3)
                                     end
-                                    if (not(M28Utilities.bLoudModActive) or (M28Utilities.bLCEActive and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2))) and iLandFactoriesWantedBeforeAir > 3 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 and (M28Map.iMapSize > 256 or iLandFactoriesWantedBeforeAir > 4 or M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 3) then
+                                    if (not(M28Utilities.bLoudModActive) or (M28Utilities.bQuietModActive and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2))) and iLandFactoriesWantedBeforeAir > 3 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 and (M28Map.iMapSize > 256 or iLandFactoriesWantedBeforeAir > 4 or M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 3) then
                                         iLandFactoriesWantedBeforeAir = math.max(3, iLandFactoriesWantedBeforeAir * 0.5)
                                         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 1 then
                                             iAirFactoriesForEveryLandFactory = math.max(iAirFactoriesForEveryLandFactory, 0.75)
@@ -2744,7 +2745,7 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': For larger maps on LOUD will consider override to delay upgrade, bWantMoreEngineers='..tostring(bWantMoreEngineers)..'; LOUD active='..tostring(M28Utilities.bLoudModActive)..'; Map size='..M28Map.iMapSize) end
-            if not(bWantMoreEngineers) and M28Utilities.bLoudModActive and not(aiBrain[M28Overseer.refbPrioritiseHighTech]) then
+            if not(bWantMoreEngineers) and (M28Utilities.bLoudModActive or M28Utilities.bQUIETModActive) and not(aiBrain[M28Overseer.refbPrioritiseHighTech]) then
                 --LOUD favours slightly slower upgrades in favour of getting more mexes, so aim to have at least 3 mexes of a higher tech level first
                 local bWantMoreMexes = true
                 local iLifetimeCount = math.min(4, M28UnitInfo.GetUnitLifetimeCount(oFactory))
@@ -3406,7 +3407,7 @@ function DoesAINicknameContainM28(sNickname, bOnlyM28Easy)
 end
 
 function HaveEcoToSupportGETemplate(iTeam)
-    if M28Utilities.bLoudModActive then
+    if M28Utilities.bLoudModActive or M28Utilities.bQUIETModActive then
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250*math.min(10, (2* M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 4)) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
             return true
         end
@@ -3421,7 +3422,7 @@ end
 function GiveAttackMoveAsWeaponStuck(oUnit)
     --Currently intended for DF units such as ACU (battleships manually added some logic already before did this so at some poitn could look to combine if wanted to be consistent, e.g. in event is an issue with below approach)
     --For LOUD games due to LOUD changes making it much harder for units to kite
-    if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and (oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] or (oUnit[M28UnitInfo.refiTimeBetweenDFShots] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= 4 + oUnit[M28UnitInfo.refiTimeBetweenDFShots])) then
+    if M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive) and (oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] or (oUnit[M28UnitInfo.refiTimeBetweenDFShots] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= 4 + oUnit[M28UnitInfo.refiTimeBetweenDFShots])) then
         if not(oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting]) then
             oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] = true
             M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbAttackMoveInsteadOfKiting, false, 25)
