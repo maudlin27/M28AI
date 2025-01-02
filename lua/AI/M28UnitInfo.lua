@@ -308,7 +308,7 @@ if categories.bal0403 then
     refCategorySkirmisher = refCategorySkirmisher + categories.bal0403
     refCategoryLandCombat = refCategoryLandCombat + categories.bal0403
 end
-if M28Utilities.bSteamActive or M28Utilities.bLoudModActive then
+if M28Utilities.bSteamActive or M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
     refCategorySkirmisher = refCategorySkirmisher + categories.del0204 + categories.drl0204 - refCategoryMobileBomb
 else
     refCategorySkirmisher = refCategorySkirmisher +  refCategoryDFTank * categories.UEF * categories.TECH2 * categories.BOT + refCategoryDFTank * categories.CYBRAN * categories.TECH2 * categories.BOT - refCategoryMobileBomb
@@ -725,7 +725,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                 iMassMod = 0.25 --e.g. for overlayantinavy or submersibles with no attack
                                 if EntityCategoryContains(refCategoryAntiNavy, oUnit.UnitId) then
                                     iMassMod = 1
-                                    if M28Utilities.bLoudModActive and not(EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId)) then iMassMod = 0.8 end --Destroyers dont seem sa good in a sub vs destroyer war mass for mass
+                                    if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId)) then iMassMod = 0.8 end --Destroyers dont seem sa good in a sub vs destroyer war mass for mass
                                 elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
                                     iMassMod = 0.5 --brick, wagner etc
                                     --UEF units (which are either really bad or good at antinavy)
@@ -825,6 +825,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                             iMassMod = iMassMod * 1.5
                         else
                             iMassMod = iMassMod * 2
+                            -- QUIET - Naval Got a Complete Rebalance so should be fine now
                             if bAntiNavyOnly or (bAddAntiNavy and M28Utilities.bLoudModActive) then
 
                                 --LOUD - looks like T2 torp launcher has 300 DPS,1160 mass cost,5600 health, 68 range; in comparison, a t1 sera sub has540 health,390 mass cost,91 DPS; so justifies similar mod to this
@@ -839,7 +840,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                     end
                 end
                 --Experimenatls are weak in LOUD, so adjust their threat rating accordingly
-                if iMassMod > 0 and M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                if iMassMod > 0 and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
                     iMassMod = iMassMod * 0.75
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end
@@ -942,7 +943,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                             iMassMod = 0.25 --e.g. for overlayantinavy or submersibles with no attack
                                             if EntityCategoryContains(refCategoryAntiNavy, oUnit.UnitId) then
                                                 iMassMod = 1
-                                                if M28Utilities.bLoudModActive and not(EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId)) then iMassMod = 0.8 end --Destroyers dont seem sa good in a sub vs destroyer war mass for mass
+                                                if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId)) then iMassMod = 0.8 end --Destroyers dont seem sa good in a sub vs destroyer war mass for mass
                                             elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
                                                 iMassMod = 0.5 --brick, wagner etc
                                                 --UEF units (which are either really bad or good at antinavy)
@@ -1040,6 +1041,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                         iMassMod = iMassMod * 1.5
                                     else
                                         iMassMod = iMassMod * 2
+                                        -- QUIET - Naval Got a Complete Rebalance so it's fine
                                         if bAntiNavyOnly or (bAddAntiNavy and M28Utilities.bLoudModActive) then
 
                                             --LOUD - looks like T2 torp launcher has 300 DPS,1160 mass cost,5600 health, 68 range; in comparison, a t1 sera sub has540 health,390 mass cost,91 DPS; so justifies similar mod to this
@@ -1054,7 +1056,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                 end
                             end
                             --Experimenatls are weak in LOUD, so adjust their threat rating accordingly
-                            if iMassMod > 0 and M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                            if iMassMod > 0 and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
                                 iMassMod = iMassMod * 0.75
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end
@@ -1185,7 +1187,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     elseif sCurUnitBP == 'xsa0402' then iMassMod = 0.3 --Sera experi bomber
                                     end
                                 elseif EntityCategoryContains(categories.HIGHALTAIR, sCurUnitBP) and M28Utilities.bLoudModActive then
-                                    --LOUD (and QCE) - asfs are much worse mass for mass than inties (need 2:1 mass advantage to roughly break even) and t2 fighters (need 1.5:1 mass advantage to roughly break even)
+                                    --LOUD - asfs are much worse mass for mass than inties (need 2:1 mass advantage to roughly break even) and t2 fighters (need 1.5:1 mass advantage to roughly break even)
                                     if EntityCategoryContains(categories.TECH1, sCurUnitBP) then iMassMod = 2
                                     elseif EntityCategoryContains(categories.TECH2, sCurUnitBP) then iMassMod = 1.5
                                     end
@@ -1584,6 +1586,8 @@ function CalculateBlueprintThreatsByType()
                     if iT3RadarSize <= 1 then
                         if M28Utilities.bLoudModActive then
                             iT3RadarSize = 320
+                        elseif M28Utilities.bQuietModActive then
+                            iT3RadarSize = 512
                         else
                             iT3RadarSize = 600
                         end
@@ -1609,7 +1613,7 @@ function CalculateBlueprintThreatsByType()
                     --If is amphibious then record accordingly (e.g. for LOUD) - FAF doesnt have BuildOnLayerCaps recorded
                     if oBP.Physics.BuildOnLayerCaps then
                         if bDebugMessages == true then LOG(sFunctionRef..': oBP.Physics.BuildOnLayerCaps[LAYER_Land]='..tostring(oBP.Physics.BuildOnLayerCaps['LAYER_Land'] or false)..'; LAYER_water='..tostring(oBP.Physics.BuildOnLayerCaps['LAYER_Water'] or false)..'; repru of oBP.Physics.BuildOnLayerCaps='..repru(oBP.Physics.BuildOnLayerCaps)..'; oBP.General.Icon='..(oBP.General.Icon or 'nil')) end
-                        if oBP.Physics.BuildOnLayerCaps['LAYER_Water'] or (oBP.General.Icon == 'amph' and M28Utilities.bLoudModActive) then
+                        if oBP.Physics.BuildOnLayerCaps['LAYER_Water'] or (oBP.General.Icon == 'amph' and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive)) then
                             if refCategoryHoverPD == refCategoryPD * categories.HOVER then refCategoryHoverPD = categories[sUnitId]
                             else refCategoryHoverPD = refCategoryHoverPD + categories[sUnitId]
                             end
@@ -2170,7 +2174,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
         --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
     end
     --LOUD - doesnt record whether weapons for ACU are enabled by enhancement or not.  As a very simplistic measure, if the unit has an enhancement count of 0 then treat its range as being 30, or 36 with 1 enhancement, or the max DF range otherwise
-    if M28Utilities.bLoudModActive and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+    if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
         local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
         if (oUnit[M28ACU.refiUpgradeCount] or 0) == 0 then
             oUnit[refiDFRange] = math.min(30, (oUnit[refiDFRange] or 0))
@@ -2474,7 +2478,7 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPauseP
                 if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' Unit state='..GetUnitState(oUnit))
                     if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
                 end
-                if M28Utilities.bLoudModActive then
+                if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
                     ForkThread(ForkedPauseUnit, oUnit, bPauseNotUnpause)
                 else
                     oUnit:SetPaused(bPauseNotUnpause)
@@ -2527,7 +2531,7 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
                     if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; Unit state='..GetUnitState(oUnit))
                         if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
                     end
-                    if M28Utilities.bLoudModActive then
+                    if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
                         ForkThread(ForkedPauseUnit, oUnit, bPauseNotUnpause)
                     else
                         oUnit:SetPaused(bPauseNotUnpause)
@@ -2589,7 +2593,7 @@ function PauseOrUnpauseUnitWithoutTracking(oUnit, bPauseNotUnpause)
     --WARNING - see above
     if bDontConsiderCombinedArmy or oUnit.M28Active then
         oUnit[refbPaused] = bPauseNotUnpause
-        if M28Utilities.bLoudModActive then
+        if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
             ForkThread(ForkedPauseUnit, oUnit, bPauseNotUnpause)
         else
             oUnit:SetPaused(bPauseNotUnpause)
@@ -3187,7 +3191,7 @@ IsUnitRestricted = function(sUnitID, iArmyIndex)
 end
 
 --if not(M28Utilities.bLoudModActive) and not(M28Utilities.bFAFActive) and not(M28Utilities.bSteamActive) then M28Utilities.
-if M28Utilities.bLoudModActive then
+if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
     IsUnitRestricted = function(sUnitID)
         return import('/lua/game.lua').UnitRestricted(nil, sUnitID)
     end
