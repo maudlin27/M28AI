@@ -603,7 +603,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                 --Calculate time to impact
                 local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oWeapon:GetCurrentTargetPos())
                 local iMaxTimeToRun = 3
-                if oWeaponBP.WeaponCategory == 'Artillery' or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive)) and oWeaponBP.BallisticArc == 'RULEUBA_HighArc') then
+                if oWeaponBP.WeaponCategory == 'Artillery' or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and oWeaponBP.BallisticArc == 'RULEUBA_HighArc') then
                     iDistToTarget = iDistToTarget + 15
                     iMaxTimeToRun = 0.8
                 elseif oWeaponBP.WeaponCategory == 'Missile' or oWeaponBP.Label == 'MissileWeapon' or oWeaponBP.Label == 'MissileRack' then
