@@ -4845,16 +4845,16 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                     iMassValueOfEnemyUnits = M28UnitInfo.GetMassCostOfUnits(tWZTeamData[M28Map.subrefTEnemyUnits])
                 end
                 if iMassValueOfEnemyUnits > 0 then
-                    if iTorpBomberThreat >= 6000 or (iTorpBomberThreat >= 4000 and GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 3) then --Have so many torp bombers that dont want to worry about enemy groundAA threat unless massively more than us
-                        if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 then iAAThreatThreshold = iTorpBomberThreat * 3
-                        elseif tWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iAAThreatThreshold = iTorpBomberThreat * 2
-                        elseif tWZTeamData[M28Map.refiModDistancePercent]  <= 0.75 then iAAThreatThreshold = iTorpBomberThreat * 1.25
-                        else iAAThreatThreshold = iTorpBomberThreat
+                    if iTorpBomberThreat >= 6000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (iTorpBomberThreat >= 4000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 3) then --Have so many torp bombers that dont want to worry about enemy groundAA threat quite as much
+                        if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 then iAAThreatThreshold = iTorpBomberThreat * 0.8
+                        elseif tWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iAAThreatThreshold = iTorpBomberThreat * 0.45
+                        elseif tWZTeamData[M28Map.refiModDistancePercent]  <= 0.75 then iAAThreatThreshold = iTorpBomberThreat * 0.25
+                        else iAAThreatThreshold = iTorpBomberThreat * 0.2
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': We have a large torp bomber threat so setting a higher enemy AA threshold as even if we will lose the torps we may want to suicide them') end
                     elseif GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 5 then
                         --Havnet attacked for a while, so want more threat than enemy
-                        iAAThreatThreshold = iTorpBomberThreat / 1.5
+                        iAAThreatThreshold = iTorpBomberThreat * 0.4
                         if iDistance >= 200 then
                             if tWZTeamData[M28Map.subrefWZbCoreBase] then iAAThreatThreshold = iAAThreatThreshold * 0.75
                             else
@@ -4864,12 +4864,14 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                         if bDebugMessages == true then LOG(sFunctionRef..': Havent attacked for a while, so want to delay an attack until we think we have enough threat, i.e. want more mass in torps than enemy has in AA') end
                     else
                         --Recently chose to attack here
-                        iAAThreatThreshold = iTorpBomberThreat
+                        if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 and tWZTeamData[M28Map.subrefWZbCoreBase] then
+                            iAAThreatThreshold = math.min(iTorpBomberThreat * 1.2, math.max(iTorpBomberThreat * 0.8, iAAThreatThreshold * 1.25))
+                        else
+                            iAAThreatThreshold = math.min(iTorpBomberThreat, math.max(iTorpBomberThreat * 0.5, iAAThreatThreshold * 1.2))
+                        end
                         if bDebugMessages == true then LOG(sFunctionRef..': We recently chose to attack this zone, so will be much more likely to attack with torps') end
                     end
-                    if tWZTeamData[M28Map.subrefWZbCoreBase] or iDistance <= 150 then
-                        iAAThreatThreshold = iAAThreatThreshold * 0.8
-                    elseif iDistance >= 300 then
+                    if iDistance >= 300 then
                         iAAThreatThreshold = iAAThreatThreshold * (1 + (iDistance - 300) / 300)
                     end
                     --Be less liekly to send torp bombers if enemy has significantly more AA covering the target than the damage we would do attacking the target
