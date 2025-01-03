@@ -3313,7 +3313,6 @@ function ACULikelyToWantCombatUpgradeOrShield(oACU)
         if bDebugMessages == true then LOG(sFunctionRef..': ACU damaged so returning true to use in combat') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
-
     else
         local aiBrain = oACU:GetAIBrain()
         local iTeam = aiBrain.M28Team
@@ -3321,10 +3320,22 @@ function ACULikelyToWantCombatUpgradeOrShield(oACU)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
         elseif GetGameTimeSeconds() <= 1200 then
-
             if aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
-                local iTeam = aiBrain.M28Team
                 if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) then
+                    --If enemy has dangerous ACU that is on the same plateau as us then go defensive
+                    if M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+                        local iOurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition())
+                        local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+                        for iEnemyACU, oEnemyACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+                            if iOurPlateau == NavUtils.GetLabel(M28Map.refPathingTypeHover, oEnemyACU:GetPosition()) and oEnemyACU[M28ACU.refiUpgradeCount] >= 2 then
+                                bDebugMessages = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has dangerous ACU on the team, and one of the ACUs on this plateau has 2+ upgrades so assuming it is dangerous') end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
+                            end
+                        end
+                    end
+
                     --How close is nearest enemy base to our nearest friendly base (dont want to do based on ACU position as ACU might retreat to get upgrade then the upgrade changes as a result of htis flag
                     local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, iTeam)
                     if not(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) then
@@ -3349,9 +3360,9 @@ function ACULikelyToWantCombatUpgradeOrShield(oACU)
 
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Unlikely we will want to use ACU in combat, returning false') end
+        if bDebugMessages == true then LOG(sFunctionRef..': Unlikely we will want to use ACU in combat, returning false') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return false
+        return false
 end
 
 function AdjacentToPacifistZone(iPlateauOrZero, iLandOrWaterZone)

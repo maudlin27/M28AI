@@ -740,8 +740,9 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnEnhancementComplete'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+        if oUnit:GetAIBrain():GetArmyIndex() == 9 then bDebugMessages = true end
         --Check we haven't just run this
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time we last completed sEnhancmeent '..sEnhancement..' for oUnit owned by player '..oUnit:GetAIBrain().Nickname..'='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100)..'; Upgrade count before update='..(oUnit[M28ACU.refiUpgradeCount] or 'nil')) end
         if GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100) >= 0.5 then
             --Clear micro flag as we set it to true for some units to avoid orders overriding
             if oUnit[M28UnitInfo.refbSpecialMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = nil end
@@ -799,6 +800,19 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     --Consider being more aggressive with ACU again (mainly relevant for team games)
                     oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
                 end
+                --Flag that enemy has a dangerous ACU if they have multiple combat upgrades
+                if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28UnitInfo.refiDFMassThreatOverride] or 0) - M28UnitInfo.iBaseACUThreat >= 1600 and (oUnit:GetMaxHealth() >= M28UnitInfo.iBaseACUExpectedHealth + 2000 or (oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0)) then
+                    local iTeamToIgnore = oUnit:GetAIBrain().M28Team
+                    for iCurTeam = 1, M28Team.iTotalTeamCount do
+                        if (M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+                            bDebugMessages = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Flagging that the enemy has a dangerous ACU for team '..iCurTeam..'; due to ACU owned by '..oUnit:GetAIBrain().Nickname..' with upgrade count='..oUnit[M28ACU.refiUpgradeCount]) end
+                            M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasDangerousACU] = true
+                        end
+                    end
+                end
+
+
             elseif EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId) then
                 oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true --makes sure we dont pause this factory in a mass stall now it has enhancements
             end
