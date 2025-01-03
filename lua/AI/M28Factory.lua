@@ -293,7 +293,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
         if not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then
             if M28Utilities.bQuietModActive then
                 local iTeam = aiBrain.M28Team
-                -- Special cases -- LCE Edition we want lighter units produced before heavier .5 or even more expensive t3/t2/t1
+                -- Special cases -- for QUIET we want lighter units produced before heavier .5 or even more expensive t3/t2/t1
                 -- In the future we should also check if our economy is good enough to switch over to HeavyLandT3 to counter Human HeavyLandT3
                 -- We should also check if we have a large number of factories to switch over to HeavyLandT3 to counter Human HeavyLandT3
                 if sBPIDToBuild == 'url0107' then --CybranLightT1DF
@@ -429,7 +429,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 end
             else
 
-                --Normal (non-LCE) overrides
+                --Normal (non-QUIET) overrides
                 --Special case - Cybran and UEF - if building loyalists or titans, then check if want to switch to bricks/percies
                 if sBPIDToBuild == 'url0303' and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --Loyalist
                     if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasPerciesOrBricks] or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2 then
@@ -458,7 +458,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
 
                 end
             end
-            --Overrides applicable to both LCE and normal (FAF/LOUD)
+            --Overrides applicable to both QUIET and normal (FAF/LOUD)
             if bDebugMessages == true then LOG(sFunctionRef..': Is this a LB BP='..tostring((sBPIDToBuild == 'ual0106' or sBPIDToBuild == 'url0106' or sBPIDToBuild == 'uel0106'))..'; ScenarioInfo.Options.M28PrioritiseBPs='..(ScenarioInfo.Options.M28PrioritiseBPs or 'nil')..'; LAB lifetime count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)) end
             if (sBPIDToBuild == 'ual0106' or sBPIDToBuild == 'url0106' or sBPIDToBuild == 'uel0106') and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then --light assault bots - disable after the first couple
                 --Redundancy for cases where LABs get built far more than wanted (most of the time they get avoided by choosing the slowest T1 land unit)
@@ -938,7 +938,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                             end
                         end
                     end
-                    --LOUD/LCE - Prioritise T2 Aeon sniperbots
+                    --LOUD/QUIET - Prioritise T2 Aeon sniperbots
                     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to prioritise T2 aeon sniperbots in loud, Factory techlevel='..iFactoryTechLevel..'; is aeon sniperbot category nil='..tostring(categories.ual0204 == nil)..'; Is factory Aeon='..tostring(EntityCategoryContains(categories.AEON, oFactory.UnitId))..'; Factory build count='..oFactory[refiTotalBuildCount]) end
 
                     if M28Utilities.bLoudModActive and iFactoryTechLevel >= 2 and categories.ual0204 and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
@@ -947,7 +947,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                             iAltCategoryWanted = M28UnitInfo.refCategorySniperBot * iTechCategory
                             if GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAltCategoryWanted, oFactory) then iBaseCategoryWanted = iAltCategoryWanted end
                         elseif not(M28Utilities.bQuietModActive) and iFactoryTechLevel == 3 and (oFactory[refiTotalBuildCount] <= 10 or math.random(1,3) == 1) then
-                            --LOUD only - still build T2 sniperbots at T3 for a bit in non-LCE LOUD as they're so good
+                            --LOUD only - still build T2 sniperbots at T3 for a bit as they're so good
                             iAltCategoryWanted = categories.ual0204
                             if bDebugMessages == true then LOG(sFunctionRef..': can we build a blueprint with t2 sniperbot blueprint? Is the blueprint nil='..tostring(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAltCategoryWanted, oFactory) == nil)) end
                             if GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAltCategoryWanted, oFactory) then iBaseCategoryWanted = iAltCategoryWanted end
@@ -2915,7 +2915,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                                 if M28Utilities.bLoudModActive and iFactoryTechLevel >= 2 and categories.ual0204 and (not(M28Utilities.bQuietModActive) or iFactoryTechLevel == 2 or oFactory[refiTotalBuildCount] <= 5) and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
                                     if iFactoryTechLevel == 2 then
                                         if GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), M28UnitInfo.refCategorySniperBot * categories.TECH2, oFactory) then return sBPIDToBuild end
-                                        --LOUD non-LCE - keep building t2 sniperbots at t3 stage for a bit due to how good they are
+                                        --LOUD - keep building t2 sniperbots at t3 stage for a bit due to how good they are
                                     elseif not(M28Utilities.bQuietModActive) and iFactoryTechLevel == 3 and (oFactory[refiTotalBuildCount] <= 10 or math.random(1,3) == 1) then
                                         if ConsiderBuildingCategory(M28UnitInfo.refCategorySniperBot * categories.TECH2) then return sBPIDToBuild end
                                     end
@@ -3888,16 +3888,16 @@ function SetPriorityPreferredUnitsByCategory(aiBrain)
         aiBrain[reftBlueprintPriorityOverride]['srs0219'] = -1 --Engineer ship (can get built and used as naval scouts instead of frigate)
 
 
-        --LOUD and LCE - Eliash (Aeon shorter range DF experimental that has a shield); also include experimental mobile arti
+        --LOUD and QUIET - Eliash (Aeon shorter range DF experimental that has a shield); also include experimental mobile arti
         aiBrain[reftBlueprintPriorityOverride]['brot3ncm'] = 1
         if categories.brot3ncm then aiBrain[reftBlueprintPriorityOverride]['sal0401'] = 1 end
 
         aiBrain[reftBlueprintPriorityOverride]['sel0324'] = -1000 --mobile omni (that also has AA so gets misused as an AA unit when
 
-        --AZ Orig LOUD unit mod suggestions (nonLCE), and other LOUD adjustments
+        --AZ Orig LOUD unit mod suggestions (non-QUIET), and other LOUD adjustments
         if not(M28Utilities.bQuietModActive) then
-            aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = 1 --Thaams are stronger than protector bots per LCE discord
-            --aiBrain[reftBlueprintPriorityOverride]['brpt1exm1'] = 1 --Looks like a T1.5 type unit - better range than thaam although a bit slower; probably longer to build though; for LCE will adjust prioritisation separately for this based on lifetime count
+            aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = 1 --Thaams are stronger than protector bots per QUIET discord
+            --aiBrain[reftBlueprintPriorityOverride]['brpt1exm1'] = 1 --Looks like a T1.5 type unit - better range than thaam although a bit slower; probably longer to build though; for QUIET will adjust prioritisation separately for this based on lifetime count
 
             --Seraphim T2:
             aiBrain[reftBlueprintPriorityOverride]['bsl0206'] = 1
@@ -3943,7 +3943,7 @@ function SetPriorityPreferredUnitsByCategory(aiBrain)
             --LOUD - sniperbots at t3+ and T1 are weak
             if M28Utilities.bLoudModActive then
                 aiBrain[reftBlueprintPriorityOverride]['bal0110'] = -1000 --t1 sniperbot - cant kite so very weak as gets overrun, tries retreating, ends up dying doing nothing
-                --Disable T3 sniperbots since not in LCE just LOUD and they are terrible
+                --Disable T3 sniperbots since in LOUD and QUIET they are terrible
                 aiBrain[reftBlueprintPriorityOverride]['wrl0305'] = -1000
                 aiBrain[reftBlueprintPriorityOverride]['xal0305'] = -1000
                 aiBrain[reftBlueprintPriorityOverride]['xsl0305'] = -1000
@@ -3959,11 +3959,11 @@ function SetPriorityPreferredUnitsByCategory(aiBrain)
             aiBrain[reftBlueprintPriorityOverride]['uaa0303'] = 1
             aiBrain[reftBlueprintPriorityOverride]['xsa0303'] = 1
 
-        else --LCE Active:
-            --Az chosen unit mod prioritisations - LCE
+        else --QUIET Active:
+            --Az chosen unit mod prioritisations - QUIET
             --Seraphim T1:
             --aiBrain[reftBlueprintPriorityOverride]['bsl0106'] = -1 --protector bot - not as good as thaams
-            aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = 1 --Thaams are stronger than protector bots per LCE discord
+            aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = 1 --Thaams are stronger than protector bots per QUIET discord
             aiBrain[reftBlueprintPriorityOverride]['brpt1exm1'] = 1 --Looks like a T1.5 type unit - better range than thaam although a bit slower; however takes much longer to build
             --Aeon T1:
             aiBrain[reftBlueprintPriorityOverride]['ual0108'] = 1
@@ -4015,7 +4015,7 @@ function SetPriorityPreferredUnitsByCategory(aiBrain)
 
             aiBrain[reftBlueprintPriorityOverride]['bal0110'] = -1000 --t1 sniperbot - cant kite so very weak as gets overrun, tries retreating, ends up dying doing nothing
 
-            --Hoplites and gattling meant to have been fixed/buffed in LCE so they are able to kite
+            --Hoplites and gattling meant to have been fixed/buffed in QUIET so they are able to kite
             aiBrain[reftBlueprintPriorityOverride]['drl0204'] = 1
             aiBrain[reftBlueprintPriorityOverride]['del0204'] = 1
 

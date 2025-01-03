@@ -35,7 +35,7 @@
 bFAFActive = false
 bLoudModActive = false
 bSteamActive = false
-bQuietModActive = false --LOUD community edition
+bQuietModActive = false --QUIET community edition
 
 --General game options to more quickly refer to
 bCPUPerformanceMode = false
@@ -80,7 +80,7 @@ function ConsiderIfLoudActive()
                 LOG('M28AI: Flagging that QUIET mod is active')
             elseif file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') and import('/lua/AI/CustomAIs_v2/ExtrasAI.lua').AI.Version then
                 bLoudModActive = true
-                --Backwards compatibility for initial versions of LCE and QCE which were done as mods to LOUD (not relevant going forwards as its standalone)
+                --Backwards compatibility for initial versions of LCE and QUIET which were done as mods to LOUD (not relevant going forwards as its standalone)
                 if file_exists('/mods/LOUD-Community-Edition/mod_info.lua') or file_exists('/mods/QUIET-Community-Edition/mod_info.lua') then
                     --Make sure by checking active SIM mods
                     local tSimMods = __active_mods or {}

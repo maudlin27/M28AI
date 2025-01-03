@@ -5086,7 +5086,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                         iEnemyTorpDefenceCount = math.max((iUnitTorpDefenceCount or 0), (tCurWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 0))
                     end
                     if iEnemyTorpDefenceCount > 0 then
-                        --Torp bombers seem weakiner in LOUD (particularly non-LCE version) so will be even more prudent re how many bombers we need
+                        --Torp bombers seem weakiner in LOUD (and to lesser extent QUIET) so will be even more prudent re how many bombers we need
                         if M28Utilities.bLoudModActive then
                             if M28Utilities.bQuietModActive then iTotalStrikeDamageWanted = math.max(math.min(iTotalStrikeDamageWanted * 3.5, iEnemyTorpDefenceCount * 325), iTotalStrikeDamageWanted * 1.5)
                             else iTotalStrikeDamageWanted = math.max(math.min(iTotalStrikeDamageWanted * 4, iEnemyTorpDefenceCount * 400), iTotalStrikeDamageWanted * 1.8)
@@ -5328,7 +5328,7 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget, oOptionalTarget)
     end
 
     local bConsiderAttackIfCloseToTarget
-    if oOptionalTarget and M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive) then --(LCE meant to have fixed LOUD's issues with gunships not being able to fire at nearby units)
+    if oOptionalTarget and M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive) then --(QUIET meant to have fixed LOUD's issues with gunships not being able to fire at nearby units)
         bConsiderAttackIfCloseToTarget = true
     end
 
@@ -6147,7 +6147,7 @@ function ManageGunships(iTeam, iAirSubteam)
                     iGunshipThreatFactorForSameZone = 1.6
                     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iGunshipThreatFactorForSameZone = 0.01 end
                 elseif M28Utilities.bLoudModActive then
-                    if M28Utilities.bQuietModActive then --Gunships no longer get slowed down/lose fuel when taking damage, so won't be quite as bad in QCE; Az also mentioned their damage should be similar to FAF levels, although concern from replays seen so far is effective DPS is significantly lower due to targeting
+                    if M28Utilities.bQuietModActive then --Gunships no longer get slowed down/lose fuel when taking damage, so won't be quite as bad in QUIET; Az also mentioned their damage should be similar to FAF levels, although concern from replays seen so far is effective DPS is significantly lower due to targeting
                         iGunshipThreatFactorForSameZone = 1.9
                     else
                         iGunshipThreatFactorForSameZone = 3 --gunships are much weaker in LOUD; we will also increase the % threshold later as well by a further %
@@ -6305,7 +6305,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                     end
                                                     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iGunshipThreatFactorWanted = 0.01 end
                                                 elseif M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive) then
-                                                    --iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.1 --Prev used for LCE
+                                                    --iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.1 --Prev used for QUIET
 
                                                     iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 --We already have a higher base factor in LOUD, so this is essentially multiplying any further mods above
                                                 end

@@ -252,7 +252,7 @@ refCategoryEngineerStation = refCategoryRover + refCategoryHive + refCategoryKen
 refCategoryAntiAir = categories.ANTIAIR --used so we can identify units with decent AA threat
 refCategoryMAA = categories.LAND * categories.MOBILE * categories.ANTIAIR - categories.EXPERIMENTAL
 refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - refCategoryLandExperimental - refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
-refCategoryLightAttackBot = categories.LAND * categories.DIRECTFIRE * categories.TECH1 * categories.MOBILE --Adjusted further in LCE (see M28OtherLOUDCompatibility)
+refCategoryLightAttackBot = categories.LAND * categories.DIRECTFIRE * categories.TECH1 * categories.MOBILE --Adjusted further in QUIET (see M28OtherLOUDCompatibility)
 if categories.uel0106 and categories.url0106 and categories.ual0106 then
     refCategoryLightAttackBot = categories.uel0106 + categories.url0106 + categories.ual0106
 else
@@ -1184,7 +1184,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     elseif sCurUnitBP == 'xsa0402' then iMassMod = 0.3 --Sera experi bomber
                                     end
                                 elseif EntityCategoryContains(categories.HIGHALTAIR, sCurUnitBP) and M28Utilities.bLoudModActive then
-                                    --LOUD (and QCE) - asfs are much worse mass for mass than inties (need 2:1 mass advantage to roughly break even) and t2 fighters (need 1.5:1 mass advantage to roughly break even)
+                                    --LOUD (and QUIET) - asfs are much worse mass for mass than inties (need 2:1 mass advantage to roughly break even) and t2 fighters (need 1.5:1 mass advantage to roughly break even)
                                     if EntityCategoryContains(categories.TECH1, sCurUnitBP) then iMassMod = 2
                                     elseif EntityCategoryContains(categories.TECH2, sCurUnitBP) then iMassMod = 1.5
                                     end

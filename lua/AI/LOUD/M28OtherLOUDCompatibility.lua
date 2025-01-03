@@ -174,10 +174,10 @@ function UpdateUnitCategories()
         --Amphibious - in LOUD engineers and ACUs lack the amphibious category
         M28UnitInfo.refCategoryAmphibious = M28UnitInfo.refCategoryAmphibious + categories.ENGINEER * categories.MOBILE * categories.LAND - categories.AEON * categories.HOVER
 
-        --Az further changes for LCE
+        --Az further changes for QUIET
         local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
         if M28Utilities.bQuietModActive then
-            --(LCE removes the base exclusion of certain unit categories from lAB/addition to indirect fire, due to these being considered T0.5 units)
+            --(QUIET removes the base exclusion of certain unit categories from lAB/addition to indirect fire, due to these being considered T0.5 units)
             M28UnitInfo.refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
             M28UnitInfo.refCategoryLightAttackBot = categories.LAND * categories.DIRECTFIRE * categories.TECH1 * categories.MOBILE
             if categories.uel0106 and categories.url0106 and categories.ual0106 then
