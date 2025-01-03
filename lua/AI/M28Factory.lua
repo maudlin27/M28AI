@@ -1518,7 +1518,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Engineers for transport - build engineers as high priority if no enemies in this zone
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
         local bTransportWaitingForEngi = false
         local iCombatUnitsWanted = 0
         for iTransport, oTransport in tLZTeamData[M28Map.reftoTransportsWaitingForUnits] do
@@ -1664,7 +1664,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --No engineers in this zone and want BP and have some mass
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if tLZTeamData[M28Map.subrefTbWantBP] and aiBrain:GetEconomyStored('MASS') >= 50 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+    if tLZTeamData[M28Map.subrefTbWantBP] and aiBrain:GetEconomyStored('MASS') >= 50 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) or tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) then
         local bHaveEngiInZone = false
         for iUnit, oUnit in tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
             if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
@@ -2197,7 +2197,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --Early game - more engineers if are on a large map where unlikely to have enemies nearby for a while
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef .. ': Considering engineer for maps where enemy far away or not pathable, time=' .. GetGameTimeSeconds() .. '; Factory tehc=' .. iFactoryTechLevel .. '; Core base=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase]) .. '; Path to enemy base iwth land=' .. tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) .. '; Dist to closest enemy base from this LZ=' .. M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint])) end
-        if iFactoryTechLevel == 1 and GetGameTimeSeconds() <= 480 and tLZTeamData[M28Map.subrefLZbCoreBase] and not(M28Map.bIsLowMexMap) and (not (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) >= 450) then
+        if iFactoryTechLevel == 1 and GetGameTimeSeconds() <= 480 and tLZTeamData[M28Map.subrefLZbCoreBase] and not(M28Map.bIsLowMexMap) and (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) or (oFactory[refiTotalBuildCount] <= 4 and M28UnitInfo.GetUnitLifetimeCount(oFactory) <= 2)) and (not (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) >= 450) then
             --Do we have a low lifetime engineer build count?
             local iLCWanted = 12
             if M28Map.iMapSize <= 512 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
@@ -2205,6 +2205,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
             if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then iLCWanted = iLCWanted - 2 end
             local iLifetimeEngiCount = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)
+            if tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] then iLCWanted = iLCWanted * 0.5 end
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': iLifetimeEngiCount=' .. iLifetimeEngiCount .. '; iLCWanted=' .. iLCWanted)
             end
