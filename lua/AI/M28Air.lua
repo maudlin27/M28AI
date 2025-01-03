@@ -4879,6 +4879,11 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Havent attacked for a while, so want to delay an attack until we think we have enough threat, i.e. want more mass in torps than enemy has in AA') end
                     else
+                        if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 then iAAThreatThreshold = iTorpBomberThreat * 0.8
+                        elseif tWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iAAThreatThreshold = iTorpBomberThreat * 0.45
+                        elseif tWZTeamData[M28Map.refiModDistancePercent]  <= 0.75 then iAAThreatThreshold = iTorpBomberThreat * 0.25
+                        else iAAThreatThreshold = iTorpBomberThreat * 0.2
+                        end
                         --Recently chose to attack here
                         if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 and tWZTeamData[M28Map.subrefWZbCoreBase] then
                             iAAThreatThreshold = math.min(iTorpBomberThreat * 1.2, math.max(iTorpBomberThreat * 0.8, iAAThreatThreshold * 1.25))
