@@ -2253,6 +2253,7 @@ end
 
 function MoveToShieldTarget(oShield, tEnemyBase, tOptionalShieldLZTeamData, tOptionalEnemyDFUnits, tOptionalRallyPoint)
     --If tOptionalShieldLZTeamData is specified, then will check if safe to try and shield the unit
+
     if EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oShield.UnitId) then M28Utilities.ErrorHandler('Fatboy is being given orders as though it is a shielded unit') end
     local bMoveToUnit = true
     if tOptionalShieldLZTeamData and tOptionalEnemyDFUnits and tOptionalRallyPoint and (tOptionalShieldLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) >= 180 then
@@ -2308,34 +2309,43 @@ function MoveToShieldTarget(oShield, tEnemyBase, tOptionalShieldLZTeamData, tOpt
 end
 
 function MoveToStealthTarget(oStealth, tEnemyBase, tOptionalStealthLZTeamData, tOptionalEnemyDFUnits, tOptionalRallyPoint)
-    local bMoveToUnit = true
-    if tOptionalStealthLZTeamData and tOptionalEnemyDFUnits and tOptionalRallyPoint and (tOptionalStealthLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) >= 180 then
-        local iDistToStealthTarget = M28Utilities.GetDistanceBetweenPositions(oStealth[refoMobileStealthTarget]:GetPosition(), oStealth:GetPosition())
-        if iDistToStealthTarget >= 50 then
-            local tStealthTargetLZData, tStealthTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oStealth[refoMobileStealthTarget]:GetPosition(), true, oStealth:GetAIBrain().M28Team)
-            if not(tStealthTargetLZTeamData ==  tOptionalStealthLZTeamData) then
-                if M28Utilities.GetDistanceBetweenPositions(oStealth[refoMobileStealthTarget]:GetPosition(), tOptionalRallyPoint) >= M28Utilities.GetDistanceBetweenPositions(oStealth:GetPosition(), tOptionalRallyPoint) then
-                    --Are we almost in range of an enemy unit in this zone?
-                    if M28Utilities.IsTableEmpty(tOptionalEnemyDFUnits) == false then
-                        if M28Conditions.CloseToEnemyUnit(oStealth:GetPosition(), tOptionalEnemyDFUnits, 5, oStealth:GetAIBrain().M28Team, true) then
-                            --LOG('MoveToStealthTarget: Stealth '..oStealth.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth)..' is in a dangerous zone and target '..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget])..' is far away so will retreat; Does Stealth have active micro='..tostring(oStealth[M28UnitInfo.refbSpecialMicroActive] or false)..'; Closest friendly base='..repru(tOptionalStealthLZTeamData[M28Map.reftClosestFriendlyBase]))
-                            --M28Utilities.DrawLocation(oStealth:GetPosition())
-                            bMoveToUnit = false
-                            --IssueTrackedMove(oUnit, tOrderPosition,                       iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc,                                                                                       bOverrideMicroOrder)
-                            M28Orders.IssueTrackedMove(oStealth, tOptionalRallyPoint, 5, false,                'StBl'..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]), false)
-                        end
-                    end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MoveToStealthTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local bMoveToUnit = true
+    if tOptionalStealthLZTeamData and M28Utilities.IsTableEmpty(tOptionalEnemyDFUnits) == false and tOptionalRallyPoint then
+        --Retreat if close to enemies
+        if M28Conditions.CloseToEnemyUnit(oStealth:GetPosition(), tOptionalEnemyDFUnits, 5, oStealth:GetAIBrain().M28Team, true,    nil,        nil,                                oStealth) then
+            if M28UnitInfo.IsUnitValid(oStealth[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+                local iAngleToEnemy = M28Utilities.GetAngleFromAToB(oStealth:GetPosition(), oStealth[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
+                local iAngleToRally = M28Utilities.GetAngleFromAToB(oStealth:GetPosition(), tOptionalRallyPoint)
+                local tTemporaryRetreatLocation
+                if M28Utilities.GetAngleDifference(iAngleToEnemy, iAngleToRally) <= 50 then
+                    tTemporaryRetreatLocation = M28Utilities.MoveInDirection(oStealth:GetPosition(), iAngleToEnemy - 180, 10, true, false, M28Map.bIsCampaignMap)
+                    if not(M28Utilities.IsTableEmpty(tTemporaryRetreatLocation) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tTemporaryRetreatLocation) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tOptionalRallyPoint)) then
+                        --We cant reach this location so will revert to rally point
+                        tTemporaryRetreatLocation = tOptionalRallyPoint
+                    end
+                else
+                    tTemporaryRetreatLocation = tOptionalRallyPoint
+                end
+
+                if M28Utilities.IsTableEmpty(tTemporaryRetreatLocation) == false then
+                    oStealth[M28UnitInfo.refiTimeLastTriedRetreating] = math.floor(GetGameTimeSeconds())
+                    M28Orders.IssueTrackedMove(oStealth, tTemporaryRetreatLocation, 4, false, 'StealthRn')
+                    bMoveToUnit = false
                 end
             end
         end
-
     end
+
     if bMoveToUnit then
         local oBP = oStealth:GetBlueprint()
         local iStealthDistanceWanted = math.max(8, oBP.Intel.RadarStealthFieldRadius - 1 - oBP.Physics.MaxSpeed - (oStealth[refoMobileStealthTarget]:GetBlueprint().Physics.MaxSpeed or 0))
         M28Orders.IssueTrackedMove(oStealth, M28Utilities.MoveInDirection(oStealth[refoMobileStealthTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oStealth[refoMobileStealthTarget]:GetPosition()), iStealthDistanceWanted, true, false, true), math.min(5, iStealthDistanceWanted - 1), false, 'StU'..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]))
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileShields)
@@ -2631,7 +2641,7 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ManageMobileStealthsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iLandZone == 21 and GetGameTimeSeconds() >= 13*60+50 then bDebugMessages = true end
 
     if bDebugMessages == true then
         local iEnemyOmniCoverage = M28Conditions.GetEnemyOmniCoverageOfZone(iPlateau, iLandZone, iTeam)
@@ -2654,10 +2664,9 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
         end
         tEnemyBase = M28Map.PlayerStartPoints[oClosestBrain:GetArmyIndex()]
     end
-    local tEnemyDFUnits
+    local tEnemyDFUnits = tLZTeamData[M28Map.reftoNearestDFEnemies]
     local tRallyPoint
-    if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 200 then
-        tEnemyDFUnits = EntityCategoryFilterDown(categories.DIRECTFIRE, tLZTeamData[M28Map.subrefTEnemyUnits])
+    if M28Utilities.IsTableEmpty(tEnemyDFUnits) == false then
         tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 1, false)
     end
 
@@ -2670,7 +2679,7 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
                 if oUnit[refoMobileStealthTarget][refoAssignedMobileStealth] then oUnit[refoMobileStealthTarget][refoAssignedMobileStealth] = nil end
                 oUnit[refoMobileStealthTarget] = nil
             end
-            table.insert(tStealthsToAssign, oUnit)
+            table.insert(tStealthsToAssign, oUnit) --We decide whether ot run from enemies in MoveToStealthTarget
         end
     else
         for iUnit, oUnit in tMobileStealths do
@@ -2678,13 +2687,14 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
                 table.insert(tOriginallyAssignedMobileStealths, oUnit)
 
             else
-                table.insert(tStealthsToAssign, oUnit)
+                table.insert(tStealthsToAssign, oUnit) --We decide whether ot run from enemies in MoveToStealthTarget
             end
         end
     end
 
 
     if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
+        --First check none of our mobile stealth units are almost in range of an enemy that can see them
         --Stealth units in this zone first
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth]) == false then
             StealthUnitsInLandZone(tLZTeamData, tStealthsToAssign)
