@@ -2811,7 +2811,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     local iGameEnderTemplateCategory
     local iGameEnderTemplateCategories
     if not(M28Utilities.bLoudModActive) then iGameEnderTemplateCategories = M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre
-    elseif M28Utilities.bLCEActive then  iGameEnderTemplateCategories = M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti
+    elseif M28Utilities.bQuietModActive then  iGameEnderTemplateCategories = M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti
     else iGameEnderTemplateCategories = M28UnitInfo.refCategoryGameEnder
     end
     local bGettingNonSeraphimAirExp = false
@@ -3134,7 +3134,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 else
                     --LOUD specific (but not LCE) - t3 arti are cheap enough that want to consider if no significant enemy threats
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a T3 arti in LOUD, M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]='..(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
-                    if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) and not(bPrioritiseLand) and not(aiBrain[M28Overseer.refbPrioritiseAir]) and not(aiBrain[M28Overseer.refbPrioritiseNavy]) and not(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] <= math.min(8000, M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] * 0.25)))  and M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] < 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                    if M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive) and not(bPrioritiseLand) and not(aiBrain[M28Overseer.refbPrioritiseAir]) and not(aiBrain[M28Overseer.refbPrioritiseNavy]) and not(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] <= math.min(8000, M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] * 0.25)))  and M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] < 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                         local iCurT3Arti = 0
                         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                             iCurT3Arti = iCurT3Arti + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti)
@@ -3172,7 +3172,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         --LOUD specific - dont get air exp if already have one and can path to enemy by land and enemy has significant MAA threat
                         local bDontGetAirExp = false
                         if (M28Utilities.bLoudModActive or (M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] >= 20000 and not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim])))  and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 10000 + 5000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] >= 8000 and (bCanPathByLand or M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] >= 16000) then
-                            if not(M28Utilities.bLCEActive) or not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim]) then
+                            if not(M28Utilities.bQuietModActive) or not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim]) then
                                 if not(aiBrain[M28Overseer.refbPrioritiseAir]) then
                                     bDontGetAirExp = true
                                 end
@@ -3376,7 +3376,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             local iGameEnderCount = 0
                             local iAhwassaCount = 0
                             local iCurT3ArtiCount = 0 --mavor treated as 3 t3 arti
-                            local bDontGetAhwassa = (M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive)) or bDontGetAirExp --LOUD has made ahwassa lmost impossible to drop bombs, making it a very weak anti-air unit, hence dont want to build (but want via flag so if LOUD fixes ahwassa then can switch back)
+                            local bDontGetAhwassa = (M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive)) or bDontGetAirExp --LOUD has made ahwassa lmost impossible to drop bombs, making it a very weak anti-air unit, hence dont want to build (but want via flag so if LOUD fixes ahwassa then can switch back)
 
 
 
@@ -3929,7 +3929,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder
             end
         end
-    elseif bGettingNonSeraphimAirExp and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= 0.6 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 2 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] > 0 and (not(M28Utilities.bLoudModActive) or M28Utilities.bLCEActive) then
+    elseif bGettingNonSeraphimAirExp and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= 0.6 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 2 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] > 0 and (not(M28Utilities.bLoudModActive) or M28Utilities.bQuietModActive) then
         if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim on our team, and if so will hold off getting a general air experimental') end
         local iTeam = aiBrain.M28Team
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do

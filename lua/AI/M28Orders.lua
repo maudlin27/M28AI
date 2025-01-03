@@ -530,7 +530,7 @@ function IssueTrackedOvercharge(oUnit, oOrderTarget, bAddToExistingQueue, sOptio
             IssueOverCharge({oUnit}, oOrderTarget)
             --if oUnit[M28UnitInfo.refiFailedOCCount] then oUnit[M28UnitInfo.refiFailedOCCount] = 0 end
         else --OC - add to queue if we think we are already overcharging, as in some cases we dont
-            --[[if M28Utilities.bLCEActive and tLastOrder[subrefiOrderType] == refiOrderOvercharge and oOrderTarget == tLastOrder[subrefoOrderUnitTarget] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition())  < oUnit[M28UnitInfo.refiDFRange] - 1 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) < 1 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0) >= 7 then
+            --[[if M28Utilities.bQuietModActive and tLastOrder[subrefiOrderType] == refiOrderOvercharge and oOrderTarget == tLastOrder[subrefoOrderUnitTarget] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition())  < oUnit[M28UnitInfo.refiDFRange] - 1 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) < 1 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0) >= 7 then
                 oUnit[M28UnitInfo.refiFailedOCCount] = (oUnit[M28UnitInfo.refiFailedOCCount] or 0) + 1
                 M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refiFailedOCCount, -1, 5, nil, nil, 0, nil, true)--]]
             --elseif....

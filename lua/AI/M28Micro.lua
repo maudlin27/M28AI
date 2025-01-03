@@ -324,7 +324,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
     local tBombTarget = GetBombTarget(oWeapon, projectile)
     if bDebugMessages == true then LOG(sFunctionRef..': Start fo code for bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; is tBombTarget nil='..tostring(tBombTarget == nil)..'; Time='..GetGameTimeSeconds()) end
     --LOUD - recall Sprouto saying that bombs home in on target, so dont try and dodge
-    if tBombTarget and (not(M28Utilities.bLoudModActive) or M28Utilities.bLCEActive) then
+    if tBombTarget and (not(M28Utilities.bLoudModActive) or M28Utilities.bQuietModActive) then
         oBomber[M28UnitInfo.refiLastDodgeBombEvent] = GetGameTimeSeconds()
         local iBombSize = 2.5
         if oWeapon.GetBlueprint then iBombSize = math.max(iBombSize, (oWeapon:GetBlueprint().DamageRadius or iBombSize)) end

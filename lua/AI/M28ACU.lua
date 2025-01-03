@@ -637,11 +637,11 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         local iCurPGens = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)
                         local iCurAirFac = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)
                         local iCurMex = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex)
-                        if iCurPGens == 0 or (iCurPGens < 3 and M28Utilities.bLCEActive) then
+                        if iCurPGens == 0 or (iCurPGens < 3 and M28Utilities.bQuietModActive) then
                             ACUActionBuildPower(aiBrain, oACU)
                         elseif iCurAirFac == 0 then
                             ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory)
-                        elseif iCurPGens < 3 or (iCurPGens < 4 and M28Utilities.bLCEActive) then
+                        elseif iCurPGens < 3 or (iCurPGens < 4 and M28Utilities.bQuietModActive) then
                             ACUActionBuildPower(aiBrain, oACU)
                         elseif iCurMex < 4 and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
                             ACUActionBuildMex(aiBrain, oACU)

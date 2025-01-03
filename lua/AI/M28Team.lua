@@ -3942,15 +3942,15 @@ function UpdateEnemyTechTracking(iM28Team, oUnit)
             if not(tTeamData[iM28Team][refbEnemyHasPerciesOrBricks]) then
                 if oUnit.UnitId == 'xel0305' or oUnit.UnitId == 'xrl0305' then tTeamData[iM28Team][refbEnemyHasPerciesOrBricks] = true end
             end
-            if M28Utilities.bLCEActive and not(tTeamData[iM28Team][refbEnemyHasHeavyLandT3]) then
+            if M28Utilities.bQuietModActive and not(tTeamData[iM28Team][refbEnemyHasHeavyLandT3]) then
                 if oUnit.UnitId == 'xel0305' or oUnit.UnitId == 'xrl0305' or oUnit.UnitId == 'sal0311' or oUnit.UnitId == 'bsl0310' then tTeamData[iM28Team][refbEnemyHasHeavyLandT3] = true end
             end
         elseif iUnitTechLevel == 2 then
-            if M28Utilities.bLCEActive and not(tTeamData[iM28Team][refbEnemyHasHeavyLandT2]) then
+            if M28Utilities.bQuietModActive and not(tTeamData[iM28Team][refbEnemyHasHeavyLandT2]) then
                 if oUnit.UnitId == 'wel0304' or oUnit.UnitId == 'brmt2medm' or oUnit.UnitId == 'brot2asb' or oUnit.UnitId == 'brpt2btbot' then tTeamData[iM28Team][refbEnemyHasHeavyLandT2] = true end
             end
         elseif iUnitTechLevel == 1 then
-            if M28Utilities.bLCEActive and not(tTeamData[iM28Team][refbEnemyHasHeavyLandT1]) then
+            if M28Utilities.bQuietModActive and not(tTeamData[iM28Team][refbEnemyHasHeavyLandT1]) then
                 if oUnit.UnitId == 'uel0108' or oUnit.UnitId == 'brmt1exm1' or oUnit.UnitId == 'brot1exm1' or oUnit.UnitId == 'brpt1exm1' then tTeamData[iM28Team][refbEnemyHasHeavyLandT1] = true end
             end
         end
@@ -4996,8 +4996,8 @@ function ConsiderSpecialStrategyAssignment(iTeam)
         end
         if iBomberChance * 100 >= math.random(1, 100) then
             --Consider early bomber strategy for brain with closest enemy (unless in LOUD since bombers suck in LOUD)
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to go first bomber, M28Utilities.bLCEActive='..tostring(M28Utilities.bLCEActive or false)..'; Time='..GetGameTimeSeconds()) end
-            if not(M28Utilities.bLoudModActive) or M28Utilities.bLCEActive then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to go first bomber, M28Utilities.bQuietModActive='..tostring(M28Utilities.bQuietModActive or false)..'; Time='..GetGameTimeSeconds()) end
+            if not(M28Utilities.bLoudModActive) or M28Utilities.bQuietModActive then
                 local iClosestEnemy = 700 --Dont want to consider if enemy is further away than this; e.g. burial mounds in LOUD players were 792 apart, and is probably at a borderline distnce for if want to
                 local oM28BrainWithClosestEnemy, iCurDist, iCurPlateau, iCurZone
                 local tFirstClosestEnemyBase
@@ -5074,7 +5074,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
         --Non-LOUD - consider T2 bomber snipes as Cybran, and sometimes as Seraphim
         local iRandBomberSnipe = math.random(1, 100)
         local iThreshold = 5
-        if M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then
+        if M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive) then
             iThreshold = 4
         elseif M28Map.iMapSize <= 1024 and iPlayersAtGameStart >= 5 then
             if not(M28Utilities.bLoudModActive) and tTeamData[iTeam][refbAssassinationOrSimilar] then
