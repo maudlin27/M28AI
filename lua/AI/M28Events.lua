@@ -2185,9 +2185,15 @@ function OnConstructed(oEngineer, oJustBuilt)
                                         end
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to gift T1 mex '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' to a teammate, iClosestNonM28BrainDistBase='..iClosestNonM28BrainDistBase..'; iClosestM28BrainDistBase='..iClosestM28BrainDistBase) end
                                         if iClosestNonM28BrainDistBase <= 200 and (bInSameZoneAsNonM28AIStart or iClosestNonM28BrainDistBase + 50 <= iClosestM28BrainDistBase) then
-                                            if M28Orders.bDontConsiderCombinedArmy or oJustBuilt.M28Active then
-                                                ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
-                                                M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'GiveT1Mex', 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time', 1, 90, true, true)
+                                            --Dont gift a human player's mexes in shared army mode, even if M28 logic is active
+                                            if M28Orders.bDontConsiderCombinedArmy or (oJustBuilt.M28Active and not(oJustBuilt:GetAIBrain().BrainType == 'Human')) then
+                                                --Check we have enough mexes to be able to gift
+                                                local iOurMexes = oJustBuilt:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMex)
+                                                local iTeammateMexes = oJustBuilt:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMex)
+                                                if iOurMexes >= iTeammateMexes * 0.6 and iOurMexes >= 2 then
+                                                    ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
+                                                    M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'GiveT1Mex', 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time', 1, 90, true, true)
+                                                end
                                             end
                                             bGiftingToTeammate = true
                                         end
@@ -2499,7 +2505,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                         --Consider gifting power and mexes to a teammate
                         local aiBrain = oJustBuilt:GetAIBrain()
-                        if aiBrain[M28Economy.refbBuiltParagon] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= math.min(1000, 900 * aiBrain[M28Economy.refiBrainResourceMultiplier]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >=  math.min(100000, 90000 * aiBrain[M28Economy.refiBrainResourceMultiplier]) then
+                        if aiBrain[M28Economy.refbBuiltParagon] and not(aiBrain.BrainType == 'Human') and aiBrain[M28Economy.refiGrossMassBaseIncome] >= math.min(1000, 900 * aiBrain[M28Economy.refiBrainResourceMultiplier]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >=  math.min(100000, 90000 * aiBrain[M28Economy.refiBrainResourceMultiplier]) then
                             local oParagonBrain = oJustBuilt:GetAIBrain()
                             if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
                                 for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
