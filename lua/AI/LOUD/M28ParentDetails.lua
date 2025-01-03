@@ -15,4 +15,5 @@ function BrainBeginSession()
     M28Utilities.bFAFActive = true
     M28Utilities.bLoudModActive = false
     M28Utilities.bSteamActive = false
+    M28Utilities.bQuietModActive = false
 end

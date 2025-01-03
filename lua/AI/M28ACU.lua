@@ -741,8 +741,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             --ACU:      Landfac - 2 PG - 2 Mex - 1 PG - 2 Mex - 3 PG - Landfac - PG - Landfac
                             if bDebugMessages == true then LOG(sFunctionRef..': No hydro locations so will build power or mex depending on income') end
                             --LOUD special build order
-                            if M28Utilities.bLoudModActive and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) < math.min(4, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)) and aiBrain:GetEconomyStored('MASS') <= math.min(200, aiBrain:GetEconomyStored('ENERGY') * 4) and ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 50) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': LOUD build order = want to get mex sooner than normal') end
+                            if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) < math.min(4, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)) and aiBrain:GetEconomyStored('MASS') <= math.min(200, aiBrain:GetEconomyStored('ENERGY') * 4) and ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 50) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': LOUD/QUIET build order = want to get mex sooner than normal') end
                             elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(6, 2 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 9)) * iResourceMod then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build initial PGens') end
                                 ACUActionBuildPower(aiBrain, oACU)
@@ -826,7 +826,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 end
                             end
                             local iMexCap = 4
-                            if iHydroDistToStart >= 50 and not(M28Utilities.bLoudModActive) then iMexCap = 3 end --e.g. Verdant Valley - dist is c.95, and we power-stall if going for 4 mexes (even after getting 4 trees).  Theta passage dist is 32; Canis river is 61 travel dist and 58 straight line and we also stall E for a while by getting 4 mexes
+                            if iHydroDistToStart >= 50 and not(M28Utilities.bLoudModActive) and not(M28Utilities.bQuietModActive) then iMexCap = 3 end --e.g. Verdant Valley - dist is c.95, and we power-stall if going for 4 mexes (even after getting 4 trees).  Theta passage dist is 32; Canis river is 61 travel dist and 58 straight line and we also stall E for a while by getting 4 mexes
                             local bHaveUnbuiltMexNearHydro = false
                             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
                                 local iDistanceThreshold = 80 - 5 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
@@ -837,9 +837,9 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     end
                                 end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Loud early pgen builder check - cur pgens='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)..'; Mass stored='..aiBrain:GetEconomyStored('MASS')..'; Energy stored='..aiBrain:GetEconomyStored('ENERGY')) end
-                            if M28Utilities.bLoudModActive and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) <= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) >= aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) and aiBrain:GetEconomyStored('ENERGY') <= math.min(2000, aiBrain:GetEconomyStored('MASS') * 20) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': LOUD build order = want to get a pgen before hydro to avoid stalling') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Loud/QUIET early pgen builder check - cur pgens='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)..'; Mass stored='..aiBrain:GetEconomyStored('MASS')..'; Energy stored='..aiBrain:GetEconomyStored('ENERGY')) end
+                            if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) <= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) >= aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) and aiBrain:GetEconomyStored('ENERGY') <= math.min(2000, aiBrain:GetEconomyStored('MASS') * 20) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': LOUD/QUIET build order = want to get a pgen before hydro to avoid stalling') end
                                 ACUActionBuildPower(aiBrain, oACU)
                             elseif bHaveUnderConstructionFirstHydro and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.2 * iResourceMod or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] >= math.min(3, iMexInLandZone)) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have underconstruction hydro and equiv of 3 mexes or every mex in zone so will try and assist it') end
@@ -852,7 +852,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     ACUActionBuildPower(aiBrain, oACU)
                                 end
 
-                            elseif bHaveUnbuiltMexNearHydro and aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(iMexCap, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) and (not(M28Utilities.bLoudModActive) or not(bHaveUnderConstructionFirstHydro) or not(oOptionalUnderConstructionHydro) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) <= 3) then
+                            elseif bHaveUnbuiltMexNearHydro and aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(iMexCap, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) and (not(M28Overseer.bNoRushActive) or not(M28Conditions.NoRushPreventingHydroOrMex(tLZOrWZData, true))) and ((not(M28Utilities.bLoudModActive) and not(M28Utilities.bQuietModActive)) or not(bHaveUnderConstructionFirstHydro) or not(oOptionalUnderConstructionHydro) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) <= 3) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': We ahve mexes in land zone and we havent built on all of them so will build a mex') end
                                 ACUActionBuildMex(aiBrain, oACU)
                                 if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
@@ -2926,7 +2926,7 @@ function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iOptionalMaxDis
                 end
 
                 if bDebugMessages == true then LOG(sFunctionRef..': bHaveMexWithinACUBuildRange='..tostring(bHaveMexWithinACUBuildRange)..'; bHaveEngineersAssignedAlready='..tostring(bHaveEngineersAssignedAlready)) end
-                if not(bHaveEngineersAssignedAlready) or bHaveMexWithinACUBuildRange or (M28Utilities.bLoudModActive and aiBrain[M28Economy.refiGrossMassBaseIncome] < aiBrain[M28Economy.refiGrossEnergyBaseIncome] / 8) then
+                if not(bHaveEngineersAssignedAlready) or bHaveMexWithinACUBuildRange or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and aiBrain[M28Economy.refiGrossMassBaseIncome] < aiBrain[M28Economy.refiGrossEnergyBaseIncome] / 8) then
                     ACUActionBuildMex(oACU:GetAIBrain(), oACU, iSearchRange)
                     local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
                     if bDebugMessages == true then LOG(sFunctionRef..': Have tried telling ACU to build mex, tLastOrder='..reprs(tLastOrder)) end

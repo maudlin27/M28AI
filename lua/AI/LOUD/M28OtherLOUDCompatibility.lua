@@ -57,7 +57,7 @@ function AddReprCommands()
 
                     end --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
                 end
-        if M28Utilities.bLoudModActive or M28Utilities.bSteamActive then
+        if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or M28Utilities.bSteamActive then
             _G.repr = function(tTable)
                 if tTable == nil then
                     return 'nil'

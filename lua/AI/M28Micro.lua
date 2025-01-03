@@ -324,7 +324,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
     local tBombTarget = GetBombTarget(oWeapon, projectile)
     if bDebugMessages == true then LOG(sFunctionRef..': Start fo code for bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; is tBombTarget nil='..tostring(tBombTarget == nil)..'; Time='..GetGameTimeSeconds()) end
     --LOUD - recall Sprouto saying that bombs home in on target, so dont try and dodge
-    if tBombTarget and (not(M28Utilities.bLoudModActive) or M28Utilities.bQuietModActive) then
+    if tBombTarget and not(M28Utilities.bLoudModActive) then
         oBomber[M28UnitInfo.refiLastDodgeBombEvent] = GetGameTimeSeconds()
         local iBombSize = 2.5
         if oWeapon.GetBlueprint then iBombSize = math.max(iBombSize, (oWeapon:GetBlueprint().DamageRadius or iBombSize)) end
@@ -603,7 +603,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                 --Calculate time to impact
                 local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oWeapon:GetCurrentTargetPos())
                 local iMaxTimeToRun = 3
-                if oWeaponBP.WeaponCategory == 'Artillery' or (M28Utilities.bLoudModActive and oWeaponBP.BallisticArc == 'RULEUBA_HighArc') then
+                if oWeaponBP.WeaponCategory == 'Artillery' or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and oWeaponBP.BallisticArc == 'RULEUBA_HighArc') then
                     iDistToTarget = iDistToTarget + 15
                     iMaxTimeToRun = 0.8
                 elseif oWeaponBP.WeaponCategory == 'Missile' or oWeaponBP.Label == 'MissileWeapon' or oWeaponBP.Label == 'MissileRack' then
@@ -1836,7 +1836,7 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
     if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetFractionComplete() == 1 then
         --LOUD - check unit isn't on ground
         local bProceedWithMicro = true
-        if M28Utilities.bLoudModActive and not(oTarget:IsUnitState('Moving')) and not(oTarget:IsUnitState('Attacking')) then
+        if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(oTarget:IsUnitState('Moving')) and not(oTarget:IsUnitState('Attacking')) then
             local tTargetPosition = oTarget:GetPosition()
             if tTargetPosition[2] - GetSurfaceHeight(tTargetPosition[1], tTargetPosition[3]) < 1 then
                 bProceedWithMicro = false
@@ -1969,7 +1969,7 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                             M28Orders.IssueTrackedMove(oUnit, tMoveViaPoint, iReorderDist, false, 'AAHvM', true)
                         elseif bManualAttack then
                             --LOUD - abort as cant actually target air units on the ground
-                            if M28Utilities.bLoudModActive then break end
+                            if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then break end
                             M28Orders.IssueTrackedAttack(oUnit, oTarget, false, 'AMAHvM', true)
                         else
                             M28Utilities.ErrorHandler('Made mistake have nil move via point')

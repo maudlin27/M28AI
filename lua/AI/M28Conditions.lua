@@ -994,7 +994,7 @@ function WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
         --LOUD specific - more likely to have lower % stored due to higher E storage
-        elseif M28Utilities.bLoudModActive and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= math.min(0.25, M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] * 3) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 40 then
+        elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= math.min(0.25, M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] * 3) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 40 then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
         end
@@ -1678,12 +1678,12 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                     return true
                 else
                     --Late game - get lots of air facs
-                    if iLandFactoriesHave >= 1 and (not(M28Utilities.bLoudModActive) or (M28Utilities.bQuietModActive and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2))) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) >= 2))) then
+                    if iLandFactoriesHave >= 1 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or (M28Utilities.bQuietModActive and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2))) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) >= 2))) then
                         if bDebugMessages == true then LOG(sFunctionRef..': In late game, enemy has experimentals or we do, and we already have al and fac, so want to focus on air') end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                         --Also get lots of air facs if we have high gunship/bomber threat and lack air control
-                    elseif iLandFactoriesHave >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= 15000 and not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or iLandFactoriesHave >= 3) and (not(M28Utilities.bLoudModActive) or iLandFactoriesHave >= 4 or M28Utilities.bQuietModActive) then
+                    elseif iLandFactoriesHave >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= 15000 and not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or iLandFactoriesHave >= 3) and (not(M28Utilities.bLoudModActive) or iLandFactoriesHave >= 4) then
                         if bDebugMessages == true then LOG(sFunctionRef..': T3 air, lack air contorl, and have isgnificant gunship/bomber threat, so want more air facs') end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
@@ -1810,7 +1810,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                             end
                                         end
                                     end
-                                    if iAirFactoriesForEveryLandFactory > 0.5 and M28Utilities.bLoudModActive and (not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2)) then
+                                    if iAirFactoriesForEveryLandFactory > 0.5 and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2)) then
                                         if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] then
                                             --If enemy has significant AA threat then want to get land more than air, so apply more of a reduction
                                             local iEnemyNearbyAA = (M28Team.tLandSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] or 0)
@@ -1860,7 +1860,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                         iAirFactoriesForEveryLandFactory = math.max(iAirFactoriesForEveryLandFactory, 1)
                                         iLandFactoriesWantedBeforeAir = math.min(iLandFactoriesWantedBeforeAir, 3)
                                     end
-                                    if (not(M28Utilities.bLoudModActive) or (M28Utilities.bQuietModActive and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2))) and iLandFactoriesWantedBeforeAir > 3 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 and (M28Map.iMapSize > 256 or iLandFactoriesWantedBeforeAir > 4 or M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 3) then
+                                    if (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or (M28Utilities.bQuietModActive and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2))) and iLandFactoriesWantedBeforeAir > 3 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 and (M28Map.iMapSize > 256 or iLandFactoriesWantedBeforeAir > 4 or M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 3) then
                                         iLandFactoriesWantedBeforeAir = math.max(3, iLandFactoriesWantedBeforeAir * 0.5)
                                         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 1 then
                                             iAirFactoriesForEveryLandFactory = math.max(iAirFactoriesForEveryLandFactory, 0.75)
@@ -2743,8 +2743,8 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': For larger maps on LOUD will consider override to delay upgrade, bWantMoreEngineers='..tostring(bWantMoreEngineers)..'; LOUD active='..tostring(M28Utilities.bLoudModActive)..'; Map size='..M28Map.iMapSize) end
-            if not(bWantMoreEngineers) and M28Utilities.bLoudModActive and not(aiBrain[M28Overseer.refbPrioritiseHighTech]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': For larger maps on LOUD/QUIET will consider override to delay upgrade, bWantMoreEngineers='..tostring(bWantMoreEngineers)..'; LOUD active='..tostring(M28Utilities.bLoudModActive)..'; Map size='..M28Map.iMapSize) end
+            if not(bWantMoreEngineers) and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(aiBrain[M28Overseer.refbPrioritiseHighTech]) then
                 --LOUD favours slightly slower upgrades in favour of getting more mexes, so aim to have at least 3 mexes of a higher tech level first
                 local bWantMoreMexes = true
                 local iLifetimeCount = math.min(4, M28UnitInfo.GetUnitLifetimeCount(oFactory))
@@ -2769,7 +2769,7 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': LOUD - considering if want to hold off  on factory upgrade until we have more mexes, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; bWantMoreMexes='..tostring(bWantMoreMexes)..'; tLZOrWZData[M28Map.subrefWZMexCount]='..(tLZOrWZData[M28Map.subrefWZMexCount] or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': LOUD/QUIET - considering if want to hold off  on factory upgrade until we have more mexes, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; bWantMoreMexes='..tostring(bWantMoreMexes)..'; tLZOrWZData[M28Map.subrefWZMexCount]='..(tLZOrWZData[M28Map.subrefWZMexCount] or 'nil')) end
                 if bWantMoreMexes then
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true
@@ -3406,7 +3406,7 @@ function DoesAINicknameContainM28(sNickname, bOnlyM28Easy)
 end
 
 function HaveEcoToSupportGETemplate(iTeam)
-    if M28Utilities.bLoudModActive then
+    if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250*math.min(10, (2* M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 4)) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
             return true
         end
@@ -3421,7 +3421,7 @@ end
 function GiveAttackMoveAsWeaponStuck(oUnit)
     --Currently intended for DF units such as ACU (battleships manually added some logic already before did this so at some poitn could look to combine if wanted to be consistent, e.g. in event is an issue with below approach)
     --For LOUD games due to LOUD changes making it much harder for units to kite
-    if M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive) and (oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] or (oUnit[M28UnitInfo.refiTimeBetweenDFShots] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= 4 + oUnit[M28UnitInfo.refiTimeBetweenDFShots])) then
+    if M28Utilities.bLoudModActive and (oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] or (oUnit[M28UnitInfo.refiTimeBetweenDFShots] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= 4 + oUnit[M28UnitInfo.refiTimeBetweenDFShots])) then
         if not(oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting]) then
             oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] = true
             M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbAttackMoveInsteadOfKiting, false, 25)
@@ -3431,7 +3431,7 @@ function GiveAttackMoveAsWeaponStuck(oUnit)
 end
 
 function GroundAttackTargetUnitInsteadOfAttackMove(oUnit, oEnemyToFocusOn)
-    if M28Utilities.bLoudModActive and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 and ((oEnemyToFocusOn:GetFractionComplete() < 1 and EntityCategoryContains(categories.AEON, oEnemyToFocusOn.UnitId)) or EntityCategoryContains(M28UnitInfo.refCategoryTorpedoLauncher, oEnemyToFocusOn.UnitId)) and M28Utilities.GetDistanceBetweenPositions(oEnemyToFocusOn:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] then
+    if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 and ((oEnemyToFocusOn:GetFractionComplete() < 1 and EntityCategoryContains(categories.AEON, oEnemyToFocusOn.UnitId)) or EntityCategoryContains(M28UnitInfo.refCategoryTorpedoLauncher, oEnemyToFocusOn.UnitId)) and M28Utilities.GetDistanceBetweenPositions(oEnemyToFocusOn:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] then
         return true
     end
 end
@@ -3439,14 +3439,14 @@ end
 function DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOptionalAlliedCumulativeCombatThreatToReturn)
     if iOptionalAlliedCumulativeCombatThreatToReturn then iOptionalAlliedCumulativeCombatThreatToReturn = iOptionalAlliedCumulativeCombatThreatToReturn + (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0) end
     local bEnemyHasLongRangeOrHover = false
-    if tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or (((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 or (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50) and (not(M28Utilities.bLoudModActive) or math.max((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0), (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)) >= 64)) then
+    if tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or (((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 or (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50) and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or math.max((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0), (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)) >= 64)) then
         bEnemyHasLongRangeOrHover = true
     else
         local iEnemyCombatThreat = (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
         if iEnemyCombatThreat > 15 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
             local tEnemyHover = EntityCategoryFilterDown(categories.HOVER - categories.ENGINEER, tWZTeamData[M28Map.subrefTEnemyUnits])
             if M28Utilities.IsTableEmpty(tEnemyHover) == false then
-                if not(M28Utilities.bLoudModActive) then
+                if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) then
                     bEnemyHasLongRangeOrHover = true
                 elseif tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] == 0 then
                     --More detailed check due to how much better torp launchers are

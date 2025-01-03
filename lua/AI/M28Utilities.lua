@@ -62,12 +62,14 @@ function ConsiderIfLoudActive()
                 bFAFActive = true
                 bLoudModActive = false --redundancy
                 bSteamActive = false --redundancy
+                bQuietModActive = false --redundancy
             else
                 --Mod that has some FAF characteristics - want to apply FAF balance, but also add non-faf functions
                 bAddNonFafFunctions = true
                 bFAFActive = true
                 bLoudModActive = false --redundancy
                 bSteamActive = false --redundancy
+                bQuietModActive = false --redundancy
             end
         else
             bAddNonFafFunctions = true
@@ -75,7 +77,6 @@ function ConsiderIfLoudActive()
         if bAddNonFafFunctions then
             --Either steam or LOUD is active
             if file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') and import('/lua/AI/CustomAIs_v2/ExtrasAI.lua').AI.Name == 'QUIET Patch' then
-                bLoudModActive = true --will want to remove this line once other references/conmditions updated to remove the assumption that Quiet is only active where loud is active
                 bQuietModActive = true
                 LOG('M28AI: Flagging that QUIET mod is active')
             elseif file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') and import('/lua/AI/CustomAIs_v2/ExtrasAI.lua').AI.Version then
@@ -89,6 +90,7 @@ function ConsiderIfLoudActive()
                         if tModData.enabled and not (tModData.ui_only) then --Note: pre-v1.52 of QUIET there was a bug where the mod wouldn't have .enabled set to true, Azraeel mentioned this should be fixed as of v1.52
                             if tModData.name == 'LOUD Community Edition' or tModData.name == 'QUIET' then
                                 bQuietModActive = true
+                                bLoudModActive = false
                                 break
                             end
                         end
