@@ -469,6 +469,8 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
                         oUnitJustBuilt[M28Factory.refbPrimaryFactoryForIslandOrPond] = true
                     end
                 end
+                --If owned by M28Navy and LC is <=2 then also make primary factory
+                if oUnitJustBuilt:GetAIBrain()[M28Overseer.refbPrioritiseNavy] then oUnitJustBuilt[M28Factory.refbPrimaryFactoryForIslandOrPond] = true end
             end
         end
 
