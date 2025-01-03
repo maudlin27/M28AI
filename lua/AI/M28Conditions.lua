@@ -3331,7 +3331,6 @@ function ACULikelyToWantCombatUpgradeOrShield(oACU)
                         local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
                         for iEnemyACU, oEnemyACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
                             if iOurPlateau == NavUtils.GetLabel(M28Map.refPathingTypeHover, oEnemyACU:GetPosition()) and oEnemyACU[M28ACU.refiUpgradeCount] >= 2 then
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy has dangerous ACU on the team, and one of the ACUs on this plateau has 2+ upgrades so assuming it is dangerous') end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return true

@@ -740,7 +740,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnEnhancementComplete'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if oUnit:GetAIBrain():GetArmyIndex() == 9 then bDebugMessages = true end
+
         --Check we haven't just run this
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time we last completed sEnhancmeent '..sEnhancement..' for oUnit owned by player '..oUnit:GetAIBrain().Nickname..'='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100)..'; Upgrade count before update='..(oUnit[M28ACU.refiUpgradeCount] or 'nil')) end
         if GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100) >= 0.5 then
@@ -805,7 +805,6 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     local iTeamToIgnore = oUnit:GetAIBrain().M28Team
                     for iCurTeam = 1, M28Team.iTotalTeamCount do
                         if (M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
-                            bDebugMessages = true
                             if bDebugMessages == true then LOG(sFunctionRef..': Flagging that the enemy has a dangerous ACU for team '..iCurTeam..'; due to ACU owned by '..oUnit:GetAIBrain().Nickname..' with upgrade count='..oUnit[M28ACU.refiUpgradeCount]) end
                             M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasDangerousACU] = true
                         end

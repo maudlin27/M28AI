@@ -2641,7 +2641,7 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ManageMobileStealthsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 21 and GetGameTimeSeconds() >= 13*60+50 then bDebugMessages = true end
+
 
     if bDebugMessages == true then
         local iEnemyOmniCoverage = M28Conditions.GetEnemyOmniCoverageOfZone(iPlateau, iLandZone, iTeam)
