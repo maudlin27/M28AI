@@ -3381,7 +3381,7 @@ function AdjacentToPacifistZone(iPlateauOrZero, iLandOrWaterZone)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     else
-        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint])
+        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData)
         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
             for iEntry, tSubtable in tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                 if tSubtable[M28Map.subrefiDistance] > 200 then break end
@@ -3502,4 +3502,21 @@ function BuildingWasBeingBuiltButCanBeReclaimedNow(oUnit)
         end
     end
     return true
+end
+
+function EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData)
+    if tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] >= 15 then return true
+    elseif M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+        local tEnemyGroundAA = EntityCategoryFilterDown(M28UnitInfo.refCategoryGroundAA, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+        if M28Utilities.IsTableEmpty(tEnemyGroundAA) == false then
+            for iAA, oAA in tEnemyGroundAA do
+                if M28UnitInfo.IsUnitValid(oAA) then
+                    if oAA:GetFractionComplete() >= 0.75 or (oAA:GetFractionComplete() >= 0.6 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oAA.UnitId)) then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
 end

@@ -5255,7 +5255,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 --Bombers if have enemies in adjacent water zone and no enemy air units in cur zone, or AirAA if enemy air units are there, up to a distance of 250
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) then
-                    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, oFactory:GetPosition())
+                    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                         for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                             if tSubtable[M28Map.subrefiDistance] >= math.min(M28Map.iMapSize * 0.5, 250) then break end

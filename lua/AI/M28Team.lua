@@ -914,7 +914,7 @@ function CheckForBrainsWithoutLandSubteam(iTeam, tbBrainsWithLandSubteam, bDontW
                     --Non-campaign map, or campaign map where no factories - Find the nearest land area to the brain's start position
                     local tStartLZOrWZData = M28Map.GetLandOrWaterZoneData(tStartPoint)
                     if bDebugMessages == true then LOG(sFunctionRef..': tStartPoint='..repru(tStartPoint)..'; Is LZOrWZData empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZData))..'; Water zone setup started='..tostring(M28Map.bWaterZoneInitialCreation)) end
-                    M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartPoint)
+                    M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
                     if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                         for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                             if not(tSubtable[M28Map.subrefbIsWaterZone]) then
@@ -1640,7 +1640,7 @@ function RecordEnemyT2ArtiAgainstNearbyZones(iTeam, oUnit, bUnitIsDead)
         else
             M28Conditions.IsTableOfUnitsStillValid(tStartLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], false)
         end
-        M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, oUnit:GetPosition())
+        M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
         if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
             if oUnit[M28UnitInfo.refiCombatRange] then
                 local iDistanceThreshold = oUnit[M28UnitInfo.refiCombatRange] + 80
@@ -4905,7 +4905,7 @@ function EnemyNovaxSatelliteMonitor(oNovax, iTeam)
         local tStartLZOrWZData, tStartLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oNovax:GetPosition(), true, iTeam)
         if tStartLZOrWZData then
             tStartLZOrWZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] = GetGameTimeSeconds()
-            M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
+            M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
             if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                 for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                     if tSubtable[M28Map.subrefiDistance] > iNearbyZoneMidpointDistThreshold then break end

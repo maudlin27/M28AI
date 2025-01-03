@@ -709,7 +709,8 @@ function RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, iTMLTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize)
+function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize, tTMLPositionOverride)
+    --Dont need to have oTML existing if use tTMLPositionOverride, so e.g. can use for planning if a TML built at a certain position will be able to hit targets
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsTMDProtectingUnitFromTML'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -730,12 +731,12 @@ function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize)
     iTMDRange = iTMDRange - iBuildingSize
 
 
-    local iUnitToTML = M28Utilities.GetDistanceBetweenPositions(oTML:GetPosition(), oUnit:GetPosition())
-    local iTMDToTML = M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oTML:GetPosition())
+    local iUnitToTML = M28Utilities.GetDistanceBetweenPositions(tTMLPositionOverride or oTML:GetPosition(), oUnit:GetPosition())
+    local iTMDToTML = M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), tTMLPositionOverride or oTML:GetPosition())
 
-    local iAngleTMLToUnit = M28Utilities.GetAngleFromAToB(oTML:GetPosition(), oUnit:GetPosition())
-    local iAngleTMLToTMD = M28Utilities.GetAngleFromAToB(oTML:GetPosition(), oTMD:GetPosition())
-    if bDebugMessages == true then LOG(sFunctionRef..': Checking if TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' is able to block the TML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iUnitToTMD='..iUnitToTMD..'; iTMDRange reduced by building size='..iTMDRange..'; TMD recorded range='..(oUnit[M28UnitInfo.refiMissileDefenceRange] or 'nil')..'; iUnitToTML='..iUnitToTML..'; iTMDToTML='..iTMDToTML..'; iAngleTMLToUnit='..iAngleTMLToUnit..'; iAngleTMLToTMD='..iAngleTMLToTMD..'; Is line result='..tostring(M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iUnitToTML, iTMDToTML, iUnitToTMD, iAngleTMLToUnit, iAngleTMLToTMD, iTMDRange))) end
+    local iAngleTMLToUnit = M28Utilities.GetAngleFromAToB(tTMLPositionOverride or oTML:GetPosition(), oUnit:GetPosition())
+    local iAngleTMLToTMD = M28Utilities.GetAngleFromAToB(tTMLPositionOverride or oTML:GetPosition(), oTMD:GetPosition())
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' is able to block the TML '..(oTML.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTML) or 'nil')..' for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tTMLPositionOverride='..repru(tTMLPositionOverride)..'; iUnitToTMD='..iUnitToTMD..'; iTMDRange reduced by building size='..iTMDRange..'; TMD recorded range='..(oUnit[M28UnitInfo.refiMissileDefenceRange] or 'nil')..'; iUnitToTML='..iUnitToTML..'; iTMDToTML='..iTMDToTML..'; iAngleTMLToUnit='..iAngleTMLToUnit..'; iAngleTMLToTMD='..iAngleTMLToTMD..'; Is line result='..tostring(M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iUnitToTML, iTMDToTML, iUnitToTMD, iAngleTMLToUnit, iAngleTMLToTMD, iTMDRange))) end
     if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iUnitToTML, iTMDToTML, iUnitToTMD, iAngleTMLToUnit, iAngleTMLToTMD, iTMDRange) then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
@@ -2748,7 +2749,7 @@ function GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, iTeam)
                 --Do full calculation
                 tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones] = {}
                 --Make sure we have recorded pathing in a straight line for this zone (will only run if table is empty)
-                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint])
+                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData)
                 if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
                     M28Utilities.ErrorHandler('No other zones found')
                 else
@@ -2987,7 +2988,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
             --First make sure pathing is setup
             if M28Utilities.IsTableEmpty(oArti[reftiPlateauAndZonesInRange]) then
                 oArti[reftiPlateauAndZonesInRange] = {}
-                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
                     M28Utilities.ErrorHandler('No other zones located for oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti))
                 else
@@ -4820,7 +4821,7 @@ function RecordExperimentalResourceGen(oUnit)
                 tStartLZOrWZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone]
                 tStartLZOrWZTeamData = tStartLZOrWZData[M28Map.subrefLZTeamData][iTeam]
             end
-            M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
+            M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
             tStartLZOrWZTeamData[M28Map.refoNearbyExperimentalResourceGen] = oUnit
             if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                 for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
@@ -5311,4 +5312,69 @@ function RemoveUnitFromTMLTargetsInRange(oTML, oUnit)
             end
         end
     end
+end
+
+function GetTargetsWithoutTMDCoverageBasedOnZoneMidpoint(tTMLLZTeamData, tTargetLZTeamData, iTargetPlateauOrZero, iTargetZone, tPlannedTMLLocation, iOptionalTMDRequiredToBlock)
+    --Only refresh once every 60s for performance reasons (or 10s if we have targets, since those targets may well die and would expect we cancel TML builder logic if we have a TML already)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'TMLBatteryMonitor'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bRefresh = false
+    if not(tTMLLZTeamData[M28Map.refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone][iTargetPlateauOrZero][iTargetZone]) then
+        bRefresh = true
+        if not(tTMLLZTeamData[M28Map.refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone][iTargetPlateauOrZero]) then
+            if not(tTMLLZTeamData[M28Map.refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone]) then
+                tTMLLZTeamData[M28Map.refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone] = {}
+                tTMLLZTeamData[M28Map.refiDetailedTMLTargetWithoutTMDCheckByPlateauAndZone] = {}
+            end
+            tTMLLZTeamData[M28Map.refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone][iTargetPlateauOrZero] = {}
+            tTMLLZTeamData[M28Map.refiDetailedTMLTargetWithoutTMDCheckByPlateauAndZone][iTargetPlateauOrZero] = {}
+        end
+    else
+        local iTimeSinceLastUpdate = GetGameTimeSeconds() - tTMLLZTeamData[M28Map.refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone][iTargetPlateauOrZero][iTargetZone]
+        if iTimeSinceLastUpdate >= 60 or (iTimeSinceLastUpdate >= 10 and tTMLLZTeamData[M28Map.refiDetailedTMLTargetWithoutTMDCheckByPlateauAndZone][iTargetPlateauOrZero][iTargetZone] > 0) then
+            bRefresh = true
+        end
+    end
+    if bRefresh then
+        local iTargetsWithoutTMD = 0
+        local iTMDRequiredToBlock = iOptionalTMDRequiredToBlock or 1
+        local iBlockingTMD
+        if M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) == false then
+            for iTarget, oTarget in tTargetLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets] do
+                iBlockingTMD = 0
+                if M28UnitInfo.IsUnitValid(oTarget) and M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), tPlannedTMLLocation) <= iTMLMissileRange then
+                    if M28Utilities.IsTableEmpty(oTarget[reftTMDCoveringThisUnit]) == false then
+                        for iTMD, oTMD in oTarget[reftTMDCoveringThisUnit] do
+                            if M28UnitInfo.IsUnitValid(oTMD) then
+                                if IsTMDProtectingUnitFromTML(oTMD, oTarget, nil, nil, tPlannedTMLLocation) then
+                                    iBlockingTMD = iBlockingTMD + 1
+                                    if iBlockingTMD >= iTMDRequiredToBlock then
+                                        break
+                                    else
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryAeon, oTMD.UnitId) then
+                                            if M28Utilities.bFAFActive then
+                                                iBlockingTMD = iBlockingTMD + 2
+                                            else
+                                                iBlockingTMD = iBlockingTMD + 100
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if iBlockingTMD < iTMDRequiredToBlock then
+                        iTargetsWithoutTMD = iTargetsWithoutTMD + 1
+                    end
+                end
+            end
+        end
+        tTMLLZTeamData[M28Map.refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone][iTargetPlateauOrZero][iTargetZone] = GetGameTimeSeconds()
+        tTMLLZTeamData[M28Map.refiDetailedTMLTargetWithoutTMDCheckByPlateauAndZone][iTargetPlateauOrZero][iTargetZone] = iTargetsWithoutTMD
+        if bDebugMessages == true then LOG(sFunctionRef..': Done detailed refresh for target P'..iTargetPlateauOrZero..'Z'..iTargetZone..'; iTargetsWithoutTMD='..iTargetsWithoutTMD) end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return tTMLLZTeamData[M28Map.refiDetailedTMLTargetWithoutTMDCheckByPlateauAndZone][iTargetPlateauOrZero][iTargetZone]
 end
