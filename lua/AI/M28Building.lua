@@ -1539,7 +1539,7 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
         M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) - 1
     else
         if not(oOwnerBrain) or not(M28Conditions.IsCivilianBrain(oOwnerBrain)) then
-            if GetGameTimeSeconds() - M28Overseer.iTimeLastPlayerDefeat > 5 and (not(M28Utilities.bLoudModActive) or GetGameTimeSeconds() - M28Overseer.iTimeLastPlayerDefeat > 40) then
+            if GetGameTimeSeconds() - M28Overseer.iTimeLastPlayerDefeat > 5 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or GetGameTimeSeconds() - M28Overseer.iTimeLastPlayerDefeat > 40) then
                 M28Utilities.ErrorHandler('Mex death for a brain that doesnt have a team, oOwnerBrain='..(oOwnerBrain.Nickname or 'nil'))
             end
         end

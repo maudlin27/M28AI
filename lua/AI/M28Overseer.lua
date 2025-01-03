@@ -76,6 +76,7 @@ refbPrioritiseDefence = 'M28PersDef'
 --Special strategies:
 refbFirstBomber = 'M28FirstB'
 refbBomberSnipe = 'M28BombS' --true if want to try and snipe enemy ACU (intended for Cybran and sometimes Seraphim, to try with a T2 bomber snipe)
+refbStratsOverGunships = 'M28GtStrt' --true if want to try going heavy on strats instead of gunships first
 
 
 
@@ -283,7 +284,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         if not (tModIsOk[tModData.name]) and tModData.enabled and not (tModData.ui_only) then
             iSimModCount = iSimModCount + 1
             bNonAISimModsActive = true
-            if not(M28Utilities.bLoudModActive) then
+            if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) then
                 bIncompatible = true
                 if iSimModCount == 1 then
                     sIncompatibleMessage = sIncompatibleMessage .. ' SIM mods '
@@ -412,7 +413,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         end
         sMessage = sMessage..'  See https://github.com/maudlin27/M28AI for the latest version; play M28AI on FAF For the best experience.  If you come across issues playing in steam please send maudlin27 a message on discord along with the replay.'
         M28Chat.SendMessage(aiBrain, 'SteamCompatibility', sMessage, 2, 10)
-    elseif M28Utilities.bLoudModActive then
+    elseif M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
         --Probably done enough testing that can drop the warning now
         --M28Chat.SendMessage(aiBrain, 'LOUDCompatibility', 'M28AI was originally developed for FAF.  It should be compatible with LOUD but less testing has been done - message maudlin27 on discord with the replay if you come across issues', 2, 10)
     end
@@ -433,13 +434,13 @@ function M28BrainCreated(aiBrain)
 
     --Set cheat mult if this is campaign (which doesnt allow in game options)
     if aiBrain.CheatEnabled then
-        if M28Utilities.bLoudModActive or aiBrain.CheatValue then
+        if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or aiBrain.CheatValue then
             if bDebugMessages == true then LOG(sFunctionRef..': Setting build and resource cheat modifiers based on aiBrain.CheatValue='..aiBrain.CheatValue) end
             SetBuildAndResourceCheatModifiers(aiBrain, (aiBrain.CheatValue or 1), (aiBrain.CheatValue or 1), false)
         elseif not(ScenarioInfo.Options.CheatMult) then
             if bDebugMessages == true then LOG(sFunctionRef..': No cheat mult in scenario options so will set to 1.5 for build and resource') end
             SetBuildAndResourceCheatModifiers(aiBrain, 1.5, 1.5)
-        elseif aiBrain.CheatEnabled and (aiBrain.CampaignAI or M28Utilities.bLoudModActive) and ScenarioInfo.Options.CmApplyAIx == 1 then
+        elseif aiBrain.CheatEnabled and (aiBrain.CampaignAI or M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and ScenarioInfo.Options.CmApplyAIx == 1 then
             if bDebugMessages == true then LOG(sFunctionRef..': Will apply AIx modifiers to brain '..aiBrain.Nickname) end
             SetBuildAndResourceCheatModifiers(aiBrain, tonumber(ScenarioInfo.Options.CheatMult), tonumber(ScenarioInfo.Options.BuildMult), true)
         elseif aiBrain.CheatEnabled then
@@ -1348,7 +1349,7 @@ function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceMod
         }
     end
     if bUpdateCheatValue then aiBrain.CheatValue = math.min(iBuildModifier, iResourceModifier) end
-    if M28Utilities.bLoudModActive then
+    if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
         Buffs[sCheatBuildRate].EntityCategory = 'ALLUNITS'
         Buffs[sCheatIncome].EntityCategory = 'ALLUNITS'
         Buffs[sCheatBuildRate].ParsedEntityCategory = categories.ALLUNITS

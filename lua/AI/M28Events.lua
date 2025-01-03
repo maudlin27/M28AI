@@ -742,6 +742,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
         --Check we haven't just run this
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time we last completed sEnhancmeent '..sEnhancement..' for oUnit owned by player '..oUnit:GetAIBrain().Nickname..'='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100)..'; Upgrade count before update='..(oUnit[M28ACU.refiUpgradeCount] or 'nil')) end
         if GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100) >= 0.5 then
             --Clear micro flag as we set it to true for some units to avoid orders overriding
             if oUnit[M28UnitInfo.refbSpecialMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = nil end
@@ -753,7 +754,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             local iDFRangePreUpgrade = (oUnit[M28UnitInfo.refiDFRange] or 0)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
             --LOUD specific - manually reflect weapon ranges for the basic gun upgrades as arent recorded against the blueprint
-            if M28Utilities.bLoudModActive and (oUnit[M28UnitInfo.refiDFRange] or 0) < 30 then
+            if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (oUnit[M28UnitInfo.refiDFRange] or 0) < 30 then
                 local tsOtherUpgradeNames = {
                     'EXRipperBooster',
                     'EXZephyrBooster',
@@ -762,7 +763,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 }
                 for iUpgrade, sUpgrade in tsOtherUpgradeNames do
                     if oUnit:HasEnhancement(sUpgrade) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adjusting unit range for LOUD enhancement, DFRange pre increase='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iDFRangePreUpgrade='..iDFRangePreUpgrade) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adjusting unit range for LOUD/QUIET enhancement, DFRange pre increase='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iDFRangePreUpgrade='..iDFRangePreUpgrade) end
                         oUnit[M28UnitInfo.refiDFRange] = (oUnit[M28UnitInfo.refiDFRange] or 0) + 5
                         break
                     end
@@ -799,6 +800,18 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     --Consider being more aggressive with ACU again (mainly relevant for team games)
                     oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
                 end
+                --Flag that enemy has a dangerous ACU if they have multiple combat upgrades
+                if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28UnitInfo.refiDFMassThreatOverride] or 0) - M28UnitInfo.iBaseACUThreat >= 1600 and (oUnit:GetMaxHealth() >= M28UnitInfo.iBaseACUExpectedHealth + 2000 or (oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0)) then
+                    local iTeamToIgnore = oUnit:GetAIBrain().M28Team
+                    for iCurTeam = 1, M28Team.iTotalTeamCount do
+                        if (M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Flagging that the enemy has a dangerous ACU for team '..iCurTeam..'; due to ACU owned by '..oUnit:GetAIBrain().Nickname..' with upgrade count='..oUnit[M28ACU.refiUpgradeCount]) end
+                            M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasDangerousACU] = true
+                        end
+                    end
+                end
+
+
             elseif EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId) then
                 oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true --makes sure we dont pause this factory in a mass stall now it has enhancements
             end
@@ -1768,7 +1781,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
                     local bCancelBuilding = false
                     --LOUD specific - cant build resource gens near each other
-                    if M28Utilities.bLoudModActive and EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oConstruction.UnitId) then
+                    if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oConstruction.UnitId) then
                         ForkThread(M28Building.RecordExperimentalResourceGen, oConstruction)
                     end
                     if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) and not(oConstruction[M28Building.reftArtiTemplateRefs]) and not(oEngineer[M28Building.reftArtiTemplateRefs]) then
@@ -2078,7 +2091,7 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oJustBuilt.UnitId) then M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] = (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) + 1 end
                         --Loud T2 sniperbots - consider enhancement
-                    elseif M28Utilities.bLoudModActive and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
+                    elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
                         ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
                     end
 
@@ -2171,9 +2184,15 @@ function OnConstructed(oEngineer, oJustBuilt)
                                         end
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to gift T1 mex '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' to a teammate, iClosestNonM28BrainDistBase='..iClosestNonM28BrainDistBase..'; iClosestM28BrainDistBase='..iClosestM28BrainDistBase) end
                                         if iClosestNonM28BrainDistBase <= 200 and (bInSameZoneAsNonM28AIStart or iClosestNonM28BrainDistBase + 50 <= iClosestM28BrainDistBase) then
-                                            if M28Orders.bDontConsiderCombinedArmy or oJustBuilt.M28Active then
-                                                ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
-                                                M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'GiveT1Mex', 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time', 1, 90, true, true)
+                                            --Dont gift a human player's mexes in shared army mode, even if M28 logic is active
+                                            if M28Orders.bDontConsiderCombinedArmy or (oJustBuilt.M28Active and not(oJustBuilt:GetAIBrain().BrainType == 'Human')) then
+                                                --Check we have enough mexes to be able to gift
+                                                local iOurMexes = oJustBuilt:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMex)
+                                                local iTeammateMexes = oJustBuilt:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMex)
+                                                if iOurMexes >= iTeammateMexes * 0.6 and iOurMexes >= 2 then
+                                                    ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
+                                                    M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'GiveT1Mex', 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time', 1, 90, true, true)
+                                                end
                                             end
                                             bGiftingToTeammate = true
                                         end
@@ -2485,7 +2504,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                         --Consider gifting power and mexes to a teammate
                         local aiBrain = oJustBuilt:GetAIBrain()
-                        if aiBrain[M28Economy.refbBuiltParagon] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= math.min(1000, 900 * aiBrain[M28Economy.refiBrainResourceMultiplier]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >=  math.min(100000, 90000 * aiBrain[M28Economy.refiBrainResourceMultiplier]) then
+                        if aiBrain[M28Economy.refbBuiltParagon] and not(aiBrain.BrainType == 'Human') and aiBrain[M28Economy.refiGrossMassBaseIncome] >= math.min(1000, 900 * aiBrain[M28Economy.refiBrainResourceMultiplier]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >=  math.min(100000, 90000 * aiBrain[M28Economy.refiBrainResourceMultiplier]) then
                             local oParagonBrain = oJustBuilt:GetAIBrain()
                             if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
                                 for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -2868,7 +2887,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     if EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId) or (oUnit.HasEnhancement and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and (oUnit:HasEnhancement('ResourceAllocation') or oUnit:HasEnhancement('ResourceAllocationAdvanced'))) then
                         M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) --Will check if unit has enhancements as part of this
                         if oUnit:GetAIBrain().CheatEnabled then ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit) end
-                    elseif oUnit:GetAIBrain().CheatEnabled and (M28Utilities.bLoudModActive or (not(tonumber(ScenarioInfo.Options.M28OvwR or tostring(0)) == 0) and ScenarioInfo.Options.M28OvwT)) then
+                    elseif oUnit:GetAIBrain().CheatEnabled and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or (not(tonumber(ScenarioInfo.Options.M28OvwR or tostring(0)) == 0) and ScenarioInfo.Options.M28OvwT)) then
                         ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit)
                     end
 
@@ -2911,7 +2930,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
                             M28Navy.UpdateZoneIntelForSonar(oUnit)
                         elseif EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oUnit.UnitId) then
-                            if M28Utilities.bLoudModActive then
+                            if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
                                 ForkThread(M28Building.RecordExperimentalResourceGen, oUnit)
                             end
                         end
@@ -3270,7 +3289,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
                     if bDebugMessages == true then LOG(sFunctionRef..': M28 brain created, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')) end
 
                     --Copy of parts of aiBrain OnCreateAI that still want to retain
-                    if planName and (not(M28Utilities.bLoudModActive) or aiBrain.CreateBrainShared) then
+                    if planName and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or aiBrain.CreateBrainShared) then
                         aiBrain:CreateBrainShared(planName)
                     end
                     --aiBrain:InitializeEconomyState()
@@ -3278,7 +3297,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
                     local per = ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality
                     local cheatPos = string.find(per, 'cheat')
                     if cheatPos then
-                        if not(M28Utilities.bLoudModActive) then
+                        if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) then
                             local AIUtils = import('/lua/ai/aiutilities.lua')
                             AIUtils.SetupCheat(aiBrain, true)
                             ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality = string.sub(per, 1, cheatPos - 1)
@@ -4038,7 +4057,7 @@ function OnStartTeleport(self, teleporter, locationorbp, orientationorlocation, 
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         local location
-        if M28Utilities.bLoudModActive then location = orientationorlocation
+        if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then location = orientationorlocation
         else location = locationorbp
         end
 
