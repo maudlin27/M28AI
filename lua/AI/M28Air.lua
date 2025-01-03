@@ -4038,7 +4038,7 @@ function EnemyBaseEarlyBomber(oBomber)
                     end
                     iTicksToWait = 10
                     --If enemy base has MAA in it, then abort logic
-                    if (tEnemyBaseLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) > 20 then
+                    if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tEnemyBaseLZTeamData) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy has MAA to abort logic') end
                         oBomber[rebEarlyBomberTargetBase] = false
                         --Return to base as temporary order (normal engi hunter logic should take over shortly)
@@ -4071,7 +4071,7 @@ function EnemyBaseEarlyBomber(oBomber)
                                     if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                                         table.insert(tEnemyTargets, oUnit)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to enemy targets table') end
-                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryT1Power, oUnit.UnitId) then
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryT1Power - M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
                                         if not(tEnemyPGens) then tEnemyPGens = {} end
                                         table.insert(tEnemyPGens, oUnit)
                                     end
@@ -4126,14 +4126,14 @@ function EnemyBaseEarlyBomber(oBomber)
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Targeting enemy units, will consider if want to hover bomb, iClosestDist='..iClosestDist..'; Time since last fired a bomb='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0)..'; iSecondClosestDist='..iSecondClosestDist..'; oNearestEnemy='..(oNearestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemy) or 'nil')) end
                             --Hover-bomb if we have fired relatively recently
-                            if not(M28Utilities.bLoudModActive) and oNearestEnemy and iClosestDist <= 70 and oBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] <= 10 and
-                                (oNearestEnemy:GetHealth() > oBomber[M28UnitInfo.refiStrikeDamage] or (iClosestDist < 50 and iSecondClosestDist < 50) or
-                                --If fired recently but not really recently then presumably our bomb missed so we want to fire at this target again
-                                    (GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] >= 3)) then
+                            if (not(M28Utilities.bLoudModActive) or M28Utilities.bLCEActive) and oNearestEnemy and iClosestDist <= 70 and oBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] <= 10 and
+                                    (oNearestEnemy:GetHealth() > oBomber[M28UnitInfo.refiStrikeDamage] or (iClosestDist < 50 and iSecondClosestDist < 50) or
+                                            --If fired recently but not really recently then presumably our bomb missed so we want to fire at this target again
+                                            (GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] >= 3)) then
                                 --M28Micro.HoverBombTarget(oBomber, oNearestEnemy)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will call hoverbomb logic') end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                M28Micro.T1HoverBombTarget(oBomber, oNearestEnemy, true, true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
+                                M28Micro.T1HoverBombTarget(oBomber, oNearestEnemy, true, true, true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                                 iTicksToWait = 1 --Just to avoid infinite loop risk
                             else
