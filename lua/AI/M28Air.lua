@@ -6315,7 +6315,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                         iGunshipThreatFactorWanted = math.max(2.05, iGunshipThreatFactorWanted)
                                                     end
                                                     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iGunshipThreatFactorWanted = 0.01 end
-                                                elseif M28Utilities.bLoudModActive and not(M28Utilities.bLCEActive) then
+                                                elseif M28Utilities.bLoudModActive then
                                                     --iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.1 --Prev used for LCE
 
                                                     iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 --We already have a higher base factor in LOUD, so this is essentially multiplying any further mods above
@@ -6326,16 +6326,16 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 else
                                                     iGunshipThreatFactorWanted = 4.5
                                                 end
-                                                if M28Utilities.bLCEActive then --make gunships less likely to attack
+                                                if M28Utilities.bQuietModActive then --make gunships less likely to attack
                                                     iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.1
-                                                else
+                                                elseif M28Utilities.bLoudModActive then
                                                     iGunshipThreatFactorWanted = iGunshipThreatFactorWanted * 1.3 --We already have a higher base factor in LOUD, so this is essentially multiplying any further mods above
                                                 end
                                             end
                                             --Reduce threat factor if we have air control
                                             if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iGunshipThreatFactorWanted = math.max(math.min(2.7, iGunshipThreatFactorWanted), iGunshipThreatFactorWanted * 0.8) end
                                             --Non-LOUD - Reduce gunship threat factor if we have T3 gunships and our overall threat factor means enemy wouldnt have more than 3 SAMs (even 4 SAMs shouldnt do enough damage to 1-shot a gunship)
-                                            if (not(M28Utilities.bLoudModActive) or (M28Utilities.bLCEActive and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(10000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]))) and bHaveT3Gunships and iGunshipThreatFactorWanted > 2.05 and (iOurGunshipThreat / iGunshipThreatFactorWanted <= 5000 or tSubtable[M28Map.subrefiDistance] <= 60) then --3 sams is 4800
+                                            if (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or (M28Utilities.bQuietModActive and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(10000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]))) and bHaveT3Gunships and iGunshipThreatFactorWanted > 2.05 and (iOurGunshipThreat / iGunshipThreatFactorWanted <= 5000 or tSubtable[M28Map.subrefiDistance] <= 60) then --3 sams is 4800
                                                 if M28Map.bIsCampaignMap then
                                                     iGunshipThreatFactorWanted = math.max(2.05, iGunshipThreatFactorWanted * 0.6)
                                                 else
