@@ -1583,7 +1583,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
     local sFunctionRef = 'GetACUUpgradeWanted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU:GetAIBrain():GetArmyIndex() == 9 and (oACU[refiUpgradeCount] >= 2 or GetGameTimeSeconds() >= 10*60+50) then bDebugMessages = true end
 
     local sUpgradeWanted
 
@@ -1661,7 +1661,10 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                             if M28Conditions.HaveLowPower(aiBrain.M28Team) then iResourceFactor = iResourceFactor * 2 end
                         end
 
-                        if (oACU[refiUpgradeCount] or 0) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 then iResourceFactor = iResourceFactor * 1.3
+                        --If enemy has dangerous ACU and the upgrade is combat related and is a T1-T2 stage upgrade (e.g. first nano, shield) then decrease resource requirements
+                        if M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade) >= 1 and tEnhancement.BuildCostMass <= 2500 and tEnhancement.BuildCostEnergy <= 125000 then
+                            iResourceFactor = iResourceFactor * 0.7
+                        elseif (oACU[refiUpgradeCount] or 0) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 then iResourceFactor = iResourceFactor * 1.3
                         elseif (oACU[refiUpgradeCount] or 0) == 0 and GetGameTimeSeconds() >= 600 then iResourceFactor = iResourceFactor * 0.5
                         end
                         if M28Map.bIsCampaignMap and GetGameTimeSeconds() >= 480 then
@@ -1726,13 +1729,18 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                             if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross energy, do we have enough gross mass?') end
                             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 2.5 * iMassCostPerTick * 2) * iResourceFactor then
                                 --Do we have enough net energy?
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross mass, do we have enough net energy?') end
-                                if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 100 * iEnergyCostPerTick * 2) * iResourceFactor and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 5 * iResourceFactor) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyCostPerTick * math.min(2.5, iResourceFactor * 0.4) or (iActiveACUUpgrades == 0 and oACU[refiUpgradeCount] == 0 and iEnergyCostPerTick <= 50 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 100 * aiBrain[M28Economy.refiBrainResourceMultiplier] and (aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.9 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1)) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross mass, do we have enough net energy? iActiveACUUpgrades='..iActiveACUUpgrades..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Brain gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; enhancement combat factor='..M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade)..'; enemy has dangerous ACU='..tostring(M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU])) end
+                                if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 100 * iEnergyCostPerTick * 2) * iResourceFactor and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 5 * iResourceFactor) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyCostPerTick * math.min(2.5, iResourceFactor * 0.4) or (iActiveACUUpgrades == 0 and oACU[refiUpgradeCount] == 0 and iEnergyCostPerTick <= 50 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 100 * aiBrain[M28Economy.refiBrainResourceMultiplier] and (aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.9 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1))
+                                or (iActiveACUUpgrades <= 1 and (iActiveACUUpgrades == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 4) and oACU[refiUpgradeCount] > 0 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade) >= 1 and (iActiveACUUpgrades == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3) and (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= iEnergyCostPerTick * 2 * iResourceFactor) then
                                     --Do we have enoguh net mass?
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Have enough net energy, do we have enough net mass or so much gross mass that we can still proceed?') end
-                                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 3.5 * iMassCostPerTick * 3) * iResourceFactor or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassCostPerTick * math.min(2.5, iResourceFactor * 0.4) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= math.min(3, iResourceFactor) * tEnhancement.BuildCostMass * 0.5 or (M28Map.bIsCampaignMap and aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 30) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have enough net energy, do we have enough net mass or so much gross mass that we can still proceed? Brain gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
+                                    if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 3.5 * iMassCostPerTick * 3) * iResourceFactor or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassCostPerTick * math.min(2.5, iResourceFactor * 0.4) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= math.min(3, iResourceFactor) * tEnhancement.BuildCostMass * 0.5 or (M28Map.bIsCampaignMap and aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 30))
+                                            --e.g. Cybran nano is 1500 mass; if want to start such an upgrade when ahve 40 mass income (if enemy has nano guncom), then means doing roughly a total mass / 375 calculation
+                                            or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 16 and iActiveACUUpgrades == 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= tEnhancement.BuildCostMass <= tEnhancement.BuildCostMass / 375 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade) >= 1)
+                                    then
                                         --Require T3 mex if 3rd+ upgrade and the upgrade has a significant cost
-                                        if (oACU[refiUpgradeCount] or 0) < 2 or tEnhancement.BuildCostMass <= 800 or aiBrain[M28Economy.refbBuiltParagon] or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) > 1 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': T3 mex count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex)..'; T2 mex count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Mex)) end
+                                        if (oACU[refiUpgradeCount] or 0) < 2 or tEnhancement.BuildCostMass <= 800 or aiBrain[M28Economy.refbBuiltParagon] or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) > 1 or (tEnhancement.BuildCostMass <= 2000 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and (oACU[refiUpgradeCount] or 0) == 2 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade) >= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Mex) >= 6 * (tEnhancement.BuildCostMass - 1000) / 1000) then
                                             sUpgradeWanted = sPotentialUpgrade
                                         end
                                     end
@@ -2509,7 +2517,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU:GetAIBrain():GetArmyIndex() == 9 and (oACU[refiUpgradeCount] >= 2 or GetGameTimeSeconds() >= 10*60+50) then bDebugMessages = true end
 
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
@@ -4390,13 +4398,13 @@ function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if oACU:GetAIBrain():GetArmyIndex() == 9 and (oACU[refiUpgradeCount] >= 2 or GetGameTimeSeconds() >= 10*60+50) then bDebugMessages = true end
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
     end
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU.Nickname='..aiBrain.Nickname..'; oACU.M28Active='..tostring(oACU.M28Active or false)..'; Brain type='..aiBrain.BrainType..'; bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy)..'; Special micro active for ACU='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU.Nickname='..aiBrain.Nickname..'; oACU.M28Active='..tostring(oACU.M28Active or false)..'; Brain type='..aiBrain.BrainType..'; bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy)..'; Special micro active for ACU='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; ACU upgrade count='..(oACU[refiUpgradeCount] or 'nil')..'; Time='..GetGameTimeSeconds()) end
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
 

@@ -150,6 +150,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyACUs = 'M28EnemyACUs' --Table of all enemy ACUs
     reftM28ACUs = 'M28FriendlyACUs' --table of M28 ACUs on the team
     refbEnemyHasUpgradedACU = 'M28TeamEnUpgACU' --true if enemy has an ACU that is upgrading or upgraded
+    refbEnemyHasDangerousACU = 'M28TeamEnUpgACU' --true if enemy has 2+ upgrades, and looks likely they ahve gun+nano or gun+shield
     reftCoreLZsTimeOfApproachingACUByPlateauAndZone = 'M28TApprACULZ' --table, entry [iPlateau][iLandZoneRef], returns gametimeseconds that flagged as having an approaching ACU
     reftCloakedEnemyUnits = 'M28CloakedE' --long range mobile units like fatboy, and long ranged PD like ravagers
     reftLongRangeEnemyDFUnits = 'M28LREUn'
