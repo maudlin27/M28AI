@@ -3520,4 +3520,5 @@ function EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData)
             end
         end
     end
+    return false
 end
