@@ -1516,9 +1516,17 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH3) then return sBPIDToBuild end
     end
 
-    --Engineers for transport - build engineers as high priority if no enemies in this zone
+    -- Determine if the enemy has significantly more land forces
+    local iEnemyLandThreat = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0
+    local iOurLandThreat = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] or 0
+    local bEnemyHasSignificantlyMoreLandForces = false
+    if M28Utilities.bQuietModActive then
+        bEnemyHasSignificantlyMoreLandForces = iEnemyLandThreat > iOurLandThreat * 1.1
+    end
+
+    --Engineers for transport - build engineers as high priority if no enemies in this zone or enemy doesnt have significantly more land forces
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and not(bEnemyHasSignificantlyMoreLandForces) then
         local bTransportWaitingForEngi = false
         local iCombatUnitsWanted = 0
         for iTransport, oTransport in tLZTeamData[M28Map.reftoTransportsWaitingForUnits] do
@@ -1591,7 +1599,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --Core expansion with singificant reclaim in this or an adjacent zone that has no enemies, and we havent yet built an engineer - get a T1 engineer to try and get the reclaim
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': High reclaim nearby engi builder - are we in a core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; Dangerous enemies in this LZ='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Factory tech='..iFactoryTechLevel..'; Buidl count='..oFactory[refiTotalBuildCount]..'; Does this zone want BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP] or false)..'; Ally combat in this zone='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) end
-    if tLZTeamData[M28Map.subrefLZCoreExpansion] and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and oFactory[refiTotalBuildCount] > 0 and (iFactoryTechLevel >= 2 or oFactory[refiTotalBuildCount] >= 4) and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 100 and oFactory[refiTotalBuildCount] <= 50 then
+    if tLZTeamData[M28Map.subrefLZCoreExpansion] and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and oFactory[refiTotalBuildCount] > 0 and (iFactoryTechLevel >= 2 or oFactory[refiTotalBuildCount] >= 4) and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 100 and oFactory[refiTotalBuildCount] <= 50 and not(bEnemyHasSignificantlyMoreLandForces) then
         local bHaveHighReclaimSafeZoneNearby = false
         if bDebugMessages == true then LOG(sFunctionRef..': checking if have high value reclaim zone nearby so can build an engineer to increase chances of getting it, mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oFactory:GetPosition())) end
         if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 400 * iFactoryTechLevel and tLZTeamData[M28Map.subrefTbWantBP] then
@@ -1664,7 +1672,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --No engineers in this zone and want BP and have some mass
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if tLZTeamData[M28Map.subrefTbWantBP] and aiBrain:GetEconomyStored('MASS') >= 50 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+    if tLZTeamData[M28Map.subrefTbWantBP] and aiBrain:GetEconomyStored('MASS') >= 50 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(bEnemyHasSignificantlyMoreLandForces) then
         local bHaveEngiInZone = false
         for iUnit, oUnit in tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
             if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
@@ -1719,7 +1727,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Priority engineers as we are being prevented from upgrading
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory) then
+    if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory) and not(bEnemyHasSignificantlyMoreLandForces) then
         if bDebugMessages == true then LOG(sFunctionRef..': We want more engineers in order to upgrade') end
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
     end
@@ -2184,7 +2192,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --Engineers if overflowing and at T3 (or early game in core base with far away enemy base) and no ground enemies in this zone
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef .. ': Engineers when about to overflow, [M28Map.subrefTbWantBP]='..tostring(tLZTeamData[M28Map.subrefTbWantBP])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]=' .. tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Want more BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; iFactoryTechLevel=' .. iFactoryTechLevel .. '; Mass percent stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] .. '; Gross mass=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
-        if not (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not (bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] and (iFactoryTechLevel >= 3 or (tLZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) >= 500)) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 or (GetGameTimeSeconds() <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.45)) and (iFactoryTechLevel < 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 7) then
+        if not (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not (bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] and (iFactoryTechLevel >= 3 or (tLZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) >= 500)) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 or (GetGameTimeSeconds() <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.45)) and (iFactoryTechLevel < 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 7) and not(bEnemyHasSignificantlyMoreLandForces) then
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': Will try and get more engieners to avoid overflow')
             end
@@ -2197,7 +2205,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --Early game - more engineers if are on a large map where unlikely to have enemies nearby for a while
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef .. ': Considering engineer for maps where enemy far away or not pathable, time=' .. GetGameTimeSeconds() .. '; Factory tehc=' .. iFactoryTechLevel .. '; Core base=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase]) .. '; Path to enemy base iwth land=' .. tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) .. '; Dist to closest enemy base from this LZ=' .. M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint])) end
-        if iFactoryTechLevel == 1 and GetGameTimeSeconds() <= 480 and tLZTeamData[M28Map.subrefLZbCoreBase] and not(M28Map.bIsLowMexMap) and (not (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) >= 450) then
+        if iFactoryTechLevel == 1 and GetGameTimeSeconds() <= 480 and tLZTeamData[M28Map.subrefLZbCoreBase] and not(M28Map.bIsLowMexMap) and (not (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) >= 450) and not(bEnemyHasSignificantlyMoreLandForces) then
             --Do we have a low lifetime engineer build count?
             local iLCWanted = 12
             if M28Map.iMapSize <= 512 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
