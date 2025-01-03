@@ -4134,7 +4134,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     --Unit counts
     local iBrainAirScouts --nil if havent got the value yet
 
-    local iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective = GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam, iFactoryTechLevel, iAirSubteam)
+    local iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective = GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam, iFactoryTechLevel, iAirSubteam, aiBrain)
 
     --MAIN BUILDER LOGIC:
     --Early bomber build order
@@ -6551,7 +6551,7 @@ function GetBlueprintToBuildForAircraftCarrier(aiBrain, oFactory)
             end
         end
 
-        local iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective = GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam, iFactoryTechLevel, iAirSubteam)
+        local iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective = GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam, iFactoryTechLevel, iAirSubteam, aiBrain)
 
 
         --Only consider building if we have very high resources (e.g. paragon or loads of other resources, or getting close to overflowing), or if we have decent air to ground threat and lack air control
@@ -6671,12 +6671,17 @@ function GetBlueprintToBuildForTempest(aiBrain, oFactory)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam, iFactoryTechLevel, iAirSubteam)
+function GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam, iFactoryTechLevel, iAirSubteam, aiBrain)
     local iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective
     iNormalBomberCategoryToBuild = M28UnitInfo.refCategoryBomber
-    if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
-
-    if M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] <= 75000 or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 10000 then --i.e. c.50 broadswords in losses before consider switching to bombers; also want minimum level of gunships to deal with raids
+    if M28Utilities.bLoudModActive then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
+    --Are we prioritising bombers over gunships?
+    if aiBrain[M28Overseer.refbStratsOverGunships] and iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] <= 20000 or (M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 0.5 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] > 0 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] / M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 1.2 * M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses])) then
+        if M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] < M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] * 0.35 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] < M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 0.35 then
+            bAirToGroundIsIneffective = true
+        end
+        iGunshipCategoryUnlessBombersBetter = iNormalBomberCategoryToBuild
+    elseif M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] <= 75000 or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 10000 then --i.e. c.50 broadswords in losses before consider switching to bombers; also want minimum level of gunships to deal with raids
         iGunshipCategoryUnlessBombersBetter = M28UnitInfo.refCategoryGunship
     elseif (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] > 10000 or M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] >= 20000) and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 then
         --Pick whichever of gunships nd bombers has the better kill:loss ratio; we know that losses are > 0 so can divide by this

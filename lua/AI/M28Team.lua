@@ -5105,6 +5105,13 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                 end
             end
         end
+        --Strats over gunships
+        local iStratRNG = math.random(1,100)
+        if not(M28Utilities.bLoudModActive) and (iStratRNG <= 10 or (M28Utilities.bQuietModActive and iStratRNG <= 50)) then
+            for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                oBrain[M28Overseer.refbStratsOverGunships] = true
+            end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
