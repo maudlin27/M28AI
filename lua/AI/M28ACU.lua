@@ -20,6 +20,7 @@ local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 
 --ACU specific variables against the ACU
 refbTreatingAsACU = 'M28ACUTreatACU' --true if are running ACU logic on this unit - e.g. for campagins where are given SACU but not an ACU
@@ -49,6 +50,7 @@ refbWantsPriorityUpgrade = 'M28ACUPrU' --true if want to get upgrade asap (e.g. 
 --ACU related variables against the ACU's brain
 refoPrimaryACU = 'M28PrimACU' --ACU unit for the brain; recorded against aibrain
 refbACUHasBeenGivenABuildOrderRecently = 'M28ACUBuildR' --true if ACU has been given a build order recently
+refbACUSnipeModeActive = 'M28ACUSnipA' --true if are trying to kill enemy ACU (via all-in ACU push)
 
 function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iMaxAreaToSearchForBuildLocation, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild, tOptionalSearchLocation)
     local sFunctionRef = 'ACUBuildUnit'
@@ -1583,7 +1585,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
     local sFunctionRef = 'GetACUUpgradeWanted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 9 and (oACU[refiUpgradeCount] >= 2 or GetGameTimeSeconds() >= 10*60+50) then bDebugMessages = true end
+
 
     local sUpgradeWanted
 
@@ -2517,7 +2519,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 9 and (oACU[refiUpgradeCount] >= 2 or GetGameTimeSeconds() >= 10*60+50) then bDebugMessages = true end
+
 
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
@@ -4398,7 +4400,7 @@ function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oACU:GetAIBrain():GetArmyIndex() == 9 and (oACU[refiUpgradeCount] >= 2 or GetGameTimeSeconds() >= 10*60+50) then bDebugMessages = true end
+
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
     end
@@ -4831,8 +4833,11 @@ function GetACUOrder(aiBrain, oACU)
                     if bDebugMessages == true then LOG(sFunctionRef..': ACU is proceeding with a telesnipe action') end
                 else
                     oACU[refbACUAvailableToDoSnipeAttack] = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if ACU wants to run, Does it want to return to core base='..tostring(DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) or false)..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Is this core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])..'; Does ACU want to run='..tostring(DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) or false)) end
-                    if not(oACU:IsUnitState('Building')) and DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if ACU wants to run, Does it want to return to core base='..tostring(DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) or false)..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Is this core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])..'; Does ACU want to run='..tostring(DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) or false)..'; Is Enemy snipe target table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
+                    --Potential snipe target if we are in range of an enemy ACU and it is low enough health that we can just go for a kill
+                    if oACU[refbACUSnipeModeActive] or DoesACUWantToSuicideIntoEnemyACU(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and kill enemy ACU (via special micro logic)') end
+                    elseif not(oACU:IsUnitState('Building')) and DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
                         ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
                         if not(ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero)) then
                             if bDebugMessages == true then LOG(sFunctionRef..': ACU more than 10 from core base midpoint so will retreat there, ACU dist to this midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])..'; Is this core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
@@ -6149,4 +6154,114 @@ function HaveNearbyVulnerableEnemyACUToAttack(oACU, iTeam, tLZData, tLZTeamData,
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, bAttackNearestACU='..tostring(bAttackNearestACU)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bAttackNearestACU
+end
+
+function IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, iOurACUPlateauOrZero, iDistanceThreshold)
+    --Returns true/false if the target is suitable for an all-in ACU attack, and if returns how close the unit is
+    local sFunctionRef = 'IsTargetSuitableSnipeTarget'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iClosestDist
+    local bIsSuitable
+    if M28UnitInfo.IsUnitValid(oSnipeTarget) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering oSnipeTarget='..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..' owned by '..oSnipeTarget:GetAIBrain().Nickname..'; iOurACUPlateauOrZero='..iOurACUPlateauOrZero..'; iDistanceThreshold='..iDistanceThreshold..'; Enemy plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, oSnipeTarget:GetPosition()) or 'nil')..'; iCurDist='..M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), oACU:GetPosition())..'; oACU[refbACUSnipeModeActive]='..tostring(oACU[refbACUSnipeModeActive] or false)) end
+        if NavUtils.GetLabel(M28Map.refPathingTypeHover, oSnipeTarget:GetPosition()) == iOurACUPlateauOrZero then
+            local iCurDist = M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), oACU:GetPosition())
+            if iCurDist <= iDistanceThreshold then
+                --We are in range of enemy ACU, check how many ACUs we have in range
+                local iACUsInRange = 1
+                local aiBrain = oACU:GetAIBrain()
+                local tFriendlyACUs = aiBrain:GetUnitsAroundPoint(categories.COMMAND, oSnipeTarget:GetPosition(), 40, 'Ally')
+                if M28Utilities.IsTableEmpty(tFriendlyACUs) == false then
+                    for iFriendlyACU, oFriendlyACU in tFriendlyACUs do
+                        if not(oFriendlyACU == oACU) and M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oSnipeTarget:GetPosition()) <= oFriendlyACU[M28UnitInfo.refiDFRange] then
+                            if oFriendlyACU[refbACUSnipeModeActive] or M28UnitInfo.GetUnitCurHealthAndShield(oFriendlyACU) >= 4000 then
+                                if iACUsInRange >= 2 then
+                                    iACUsInRange = iACUsInRange + 0.5
+                                else
+                                    iACUsInRange = iACUsInRange + 1
+                                end
+                            else
+                                iACUsInRange = iACUsInRange + 0.1
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Is tFriendlyACUs empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyACUs))..'; iACUsInRange='..iACUsInRange..'; Snipe target health='..M28UnitInfo.GetUnitCurHealthAndShield(oSnipeTarget)..'; Nearby shield value='..M28Logic.IsTargetUnderShield(aiBrain, oSnipeTarget, 0, true, false, false, true, false)) end
+                --Check enemy doesnt have mobile or fixed shield
+                if M28UnitInfo.GetUnitCurHealthAndShield(oSnipeTarget) + M28Logic.IsTargetUnderShield(aiBrain, oSnipeTarget, 0, true, false, false, true, false) < iACUsInRange * 3000 and not(M28UnitInfo.IsUnitUnderwater(oSnipeTarget)) then
+                    iClosestDist = iCurDist
+                    bIsSuitable = true
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bIsSuitable='..tostring(bIsSuitable)..'; iClosestDist='..(iClosestDist or 'nil')) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bIsSuitable, iClosestDist
+end
+
+function DoesACUWantToSuicideIntoEnemyACU(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone)
+    local sFunctionRef = 'HaveNearbyVulnerableEnemyACUToAttack'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU[refbACUSnipeModeActive]='..tostring(oACU[refbACUSnipeModeActive])..'; oACU brain='..oACU:GetAIBrain().Nickname..'; iPlateauOrZero='..iPlateauOrZero..'; Cur health='..M28UnitInfo.GetUnitCurHealthAndShield(oACU)) end
+    local oClosestEnemyACU
+    if not(oACU[refbACUSnipeModeActive]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false and iPlateauOrZero > 0 and M28UnitInfo.GetUnitCurHealthAndShield(oACU) >= 4000 then
+        local iClosestEnemyACUDist = oACU[M28UnitInfo.refiDFRange]
+        local iCurDist, aiBrain, bIsSuitableForSnipe
+        for iSnipeTarget, oSnipeTarget in  M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
+            bIsSuitableForSnipe, iCurDist = IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, iPlateauOrZero, iClosestEnemyACUDist)
+            if bIsSuitableForSnipe and iCurDist <= iClosestEnemyACUDist then
+                iClosestEnemyACUDist = iCurDist
+                oClosestEnemyACU = oSnipeTarget
+                if bDebugMessages == true then LOG(sFunctionRef..': Updating oClosestEnemyACU to oSnipeTarget='..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..' owned by '..oSnipeTarget:GetAIBrain().Nickname..'; iClosestEnemyACUDist='..iClosestEnemyACUDist) end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for potential enemy snipe targets, is oClosestEnemyACU valid='..tostring(oClosestEnemyACU)) end
+        if oClosestEnemyACU then
+            oACU[refbACUSnipeModeActive] = true
+            ForkThread(SuicideACUIntoSnipeTarget, oACU, oClosestEnemyACU)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will suicide ACU into this target (via forked thread') end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, is oClosestEnemyACU valid='..tostring(M28UnitInfo.IsUnitValid(oClosestEnemyACU))) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if oClosestEnemyACU then return true end
+end
+
+function SuicideACUIntoSnipeTarget(oACU, oSnipeTarget)
+    local sFunctionRef = 'SuicideACUIntoSnipeTarget'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    oACU[refbACUSnipeModeActive] = true
+    M28Micro.EnableUnitMicroUntilManuallyTurnOff(oACU, false)
+    M28UnitInfo.SetUnitWeaponTargetPriorities(oACU, M28UnitInfo.refWeaponPriorityACUSnipe, false)
+    local iCurDist
+    if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, is oACU valid='..tostring(M28UnitInfo.IsUnitValid(oACU))..'; Time='..GetGameTimeSeconds()) end
+    while M28UnitInfo.IsUnitValid(oACU) and IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition()), oACU[M28UnitInfo.refiDFRange]) do
+        --Move towards enemy unless well within range
+        iCurDist = M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), oACU:GetPosition())
+        if iCurDist <= 10 and not(M28Logic.IsShotBlocked(oACU, oSnipeTarget, false, nil)) then
+            --Attack target
+            M28Orders.IssueTrackedAggressiveMove(oACU, oSnipeTarget:GetPosition(), 3, false, 'ACUSnipAM', true)
+
+        else
+            --Move to target
+            M28Orders.IssueTrackedMove(oACU, oSnipeTarget:GetPosition(), 3, false, 'ACUSnipM', true)
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true and M28UnitInfo.IsUnitValid(oACU) and M28UnitInfo.IsUnitValid(oSnipeTarget) then LOG(sFunctionRef..': About to start new loop at time='..GetGameTimeSeconds()..'; oACU owner='..oACU:GetAIBrain().Nickname..'; oSnipeTarget owner='..oSnipeTarget:GetAIBrain().Nickname) end
+    end
+    if M28UnitInfo.IsUnitValid(oACU) then
+        oACU[refbACUSnipeModeActive] = false
+        oACU[M28UnitInfo.refbSpecialMicroActive] = false
+        M28UnitInfo.SetUnitWeaponTargetPriorities(oACU, M28UnitInfo.refWeaponPriorityACU, false)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
