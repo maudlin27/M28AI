@@ -4852,6 +4852,67 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
             end
 
+            function SuicideUnitIntoEnemyStructure(oUnit)
+                --Get closest unit of preferred category
+                local tBuildingsOfInterestInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefTEnemyUnits])
+                local oUnitToAttack
+                if M28Utilities.IsTableEmpty(tBuildingsOfInterestInZone) == false then
+                    --Get units iwthin range, and then pick the preferred one
+                    local iCurValue, iValueFactor
+                    local iBestValue = 0
+                    for iEnemy, oEnemy in tBuildingsOfInterestInZone do
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
+                        if iCurDist <= oUnit[M28UnitInfo.refiCombatRange] + 6 then
+                            iValueFactor = 1
+                            --Adjust value based on category
+                            if EntityCategoryContains(categories.VOLATILE - M28UnitInfo.refCategoryT1Power, oEnemy.UnitId) then
+                                iValueFactor = 4
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, oEnemy.UnitId) then
+                                iValueFactor = 1.5
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPower - M28UnitInfo.refCategoryT1Power, oEnemy.UnitId) then
+                                iValueFactor = 2.1 --so a T1 mex should have more value than a T1 pgen
+                                if oEnemy:GetWorkProgress() >= 0.05 then --Reason for htis is that a human palyer will usually be able ot use intuition to target upgraidng mexes, since players typically upgrade mexes in order, and are likely to have engineers near an upgrading mex, as well as some being at T2 some at T1, but want to avoid the significant cpu load from trying to mathematically approximate such intuition
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oEnemy.UnitId) then
+                                        iValueFactor = 2 + 40 * oEnemy:GetWorkProgress() --T2 mex costs roughly 25 times a t1 mex, but we are treating eco damage as worth twice as much
+                                        if bDebugMessages == true then LOG(sFunctionRef..': T1 mex upgrading to t2 so greater priority, oEnemy:GetWorkProgress()='..oEnemy:GetWorkProgress()) end
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oEnemy.UnitId) then
+                                        iValueFactor = 2 + 7 * oEnemy:GetWorkProgress() --T3 mex costs 5 times t2 mex, but we are valuing eco damage at double rate
+                                    else
+                                        iValueFactor = 2 + 3 * oEnemy:GetWorkProgress() --e.g. support for mods with upgradable pgens
+                                    end
+                                end
+                            end
+                            --Reduce value if not actually in range
+                            if iCurDist > oUnit[M28UnitInfo.refiCombatRange] then
+                                iValueFactor = iValueFactor * 0.25
+                            end
+                            --Reduce value if covered by shields
+                            if M28Utilities.IsTableEmpty(oEnemy[M28Building.reftoShieldsProvidingCoverage]) == false then
+                                iValueFactor = iValueFactor * 0.05
+                            end
+
+                            iCurValue = iValueFactor * oEnemy:GetFractionComplete() * (oEnemy[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oEnemy))
+                            --Now figure out how quickly we can kill the unit, and adjust the value by that
+                            local iShotsToKill = math.floor(oEnemy:GetHealth() / (oUnit[M28UnitInfo.refiStrikeDamage] or 200)) + 1
+                            iCurValue = iCurValue / math.max(2, iShotsToKill) --2 shots to kill min since likely we have multiple t1 arti in the zone, so want to avoid e.g. all of them trying to focus down an enemy t1 radar
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurValue='..iCurValue..'; iValueFactor='..iValueFactor..'; Mass cost='..oEnemy[M28UnitInfo.refiUnitMassCost]..'; iShotsToKill='..iShotsToKill..'; ICurDist='..iCurDist..'; Unit combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Work progress='..(oEnemy:GetWorkProgress() or 'nil')..'; Fraction complete='..oEnemy:GetFractionComplete()..'; Is table of shields providing coverage empty='..tostring(M28Utilities.IsTableEmpty(oEnemy[M28Building.reftoShieldsProvidingCoverage]))) end
+                            if iCurValue > iBestValue then
+                                iBestValue = iCurValue
+                                oUnitToAttack = oEnemy
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finsihed considering all buildings in zone, iBestValue='..iBestValue) end
+                end
+                if not(oUnitToAttack) then oUnitToAttack = oNearestEnemyStructureToMidpoint end
+                if M28Utilities.GetDistanceBetweenPositions(oUnitToAttack:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] + 2 then
+                    M28Orders.IssueTrackedAttack(oUnit, oUnitToAttack, false, 'ISDrAtc'..iLandZone, false)
+                else
+                    M28Orders.IssueTrackedAggressiveMove(oUnit, oUnitToAttack[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 15, false, 'IKADrMve'..iLandZone)
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': T1 arti drop or similar, oUnitToAttack='..(oUnitToAttack.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToAttack) or 'nil')) end
+            end
+
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to search adjacent land zones for enemies closer to the midpoint; bOnlyCheckForStructure='..tostring(bOnlyCheckForStructure)..'; oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil')..'; oNearestEnemyStructureToMidpoint='..(oNearestEnemyStructureToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyStructureToMidpoint) or 'nil')) end
             local bEnemyHasFixedShieldsInThisOrAdjacentZone = false
             if (tLZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then bEnemyHasFixedShieldsInThisOrAdjacentZone = true end
@@ -5559,7 +5620,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local bFiringAtNegligibleThreatInLRExperimentalRange = false --used for megalith and fatboy so won't attack-move towards enemy
                     for iUnit, oUnit in tAvailableCombatUnits do
                         if bDebugMessages == true then
-                            LOG(sFunctionRef..': Considering orders to give for scenario 1, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iEnemyBestDFRange='..(iEnemyBestDFRange or 'nil')..'; bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits or false)..'; Close to enemy unit (DF only) ='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], (oUnit[M28UnitInfo.refiDFRange] or 0) * 0.94, iTeam, false))..'; Was last shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Is unit underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Can unit kite='..tostring(oUnit[M28UnitInfo.refbCanKite] or false)..'; Is table of enemy engineers empty='..tostring(M28Utilities.IsTableEmpty(tEnemyEngineers))..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time between DF shots='..(oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')..'; IF range='..(oUnit[M28UnitInfo.refiIndirectRange] or 0))
+                            LOG(sFunctionRef..': Considering orders to give for scenario 1, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iEnemyBestDFRange='..(iEnemyBestDFRange or 'nil')..'; bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits or false)..'; Close to enemy unit (DF only) ='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], (oUnit[M28UnitInfo.refiDFRange] or 0) * 0.94, iTeam, false))..'; Was last shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Is unit underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Can unit kite='..tostring(oUnit[M28UnitInfo.refbCanKite] or false)..'; Is table of enemy engineers empty='..tostring(M28Utilities.IsTableEmpty(tEnemyEngineers))..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time between DF shots='..(oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')..'; IF range='..(oUnit[M28UnitInfo.refiIndirectRange] or 0)..'; Time since last dropped='..'Time since last dropped='..(GetGameTimeSeconds() - (oUnit[M28Air.refiTimeLastDropped] or 0)))
                             if oUnit[M28UnitInfo.refiUnitMassCost] >= 10000 then LOG(sFunctionRef..': Have high value unit, does it have significant enemy threat if it was to attack the nearest enemy unit even if it is outranged? signif threat='..tostring(M28Conditions.HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, iTeam, M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) + 15, oNearestEnemyToFriendlyBase:GetPosition(), math.min(oUnit[M28UnitInfo.refiUnitMassCost] * 0.75, M28UnitInfo.GetCombatThreatRating({ oUnit }) * 0.8), nil, nil, true, true))..'; Unit threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit })..'; Dist to nearest enemy unit (actual dist)='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())) end
                         end
 
@@ -6072,6 +6133,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         else
                                             if (bConsiderSpecialMMLLogic or bEnemyHasFixedShieldsInThisOrAdjacentZone) and EntityCategoryContains(M28UnitInfo.refCategoryMML, oUnit.UnitId) then
                                                 table.insert(tMMLForSynchronisation, oUnit)
+                                                --T1 arti drops - suicide into enemy buildings
+                                            elseif oUnit[M28Air.refiTimeLastDropped] and GetGameTimeSeconds() - oUnit[M28Air.refiTimeLastDropped] <= 60 and oNearestEnemyStructureToMidpoint then
+                                                SuicideUnitIntoEnemyStructure(oUnit)
                                             else
                                                 iIndirectDistanceInsideRangeThreshold = iIndirectRunFigureNormal
                                                 if oUnit[M28UnitInfo.refbWeaponUnpacks] then iIndirectDistanceInsideRangeThreshold = iIndirectDistanceInsideRangeThreshold + iIndirectRunFigureDeployedAdjust end
@@ -6079,7 +6143,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
 
                                                 if bDebugMessages == true then
-                                                    LOG(sFunctionRef..': Have Indirect unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that outranges the enemy (our IF range='..oUnit[M28UnitInfo.refiIndirectRange]..'; Enemy best DF range='..iEnemyBestDFRange..'), WIll list every unit in the nearest DF enemies and their distance to us; our position='..repru(oUnit:GetPosition())..'; Do we have a valid shield assigned='..tostring(oUnit[refoAssignedMobileShield] or false)..'; Time since last dropped='..GetGameTimeSeconds() - (oUnit[M28Air.refiTimeLastDropped] or 0))
+                                                    LOG(sFunctionRef..': Have Indirect unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that outranges the enemy (our IF range='..oUnit[M28UnitInfo.refiIndirectRange]..'; Enemy best DF range='..iEnemyBestDFRange..'), WIll list every unit in the nearest DF enemies and their distance to us; our position='..repru(oUnit:GetPosition())..'; Do we have a valid shield assigned='..tostring(oUnit[refoAssignedMobileShield] or false))
                                                     for iEnemy, oEnemy in tLZTeamData[M28Map.reftoNearestDFEnemies] do
                                                         LOG(sFunctionRef..': oEnemy '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..' is '..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())..'; distance based on last known position='..M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit:GetPosition())..'; oEnemy DF range='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; Enemy Indirect range='..(oEnemy[M28UnitInfo.refiIndirectRange] or 'nil'))
                                                     end
@@ -6102,66 +6166,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             LOG(sFunctionRef..': Not too close but dont have a nearest enemy structure to midpoint so will just to attack move (or gorund attack in some cases)')
                                                         end
                                                     end
-                                                    if oUnit[M28Air.refiTimeLastDropped] and GetGameTimeSeconds() - oUnit[M28Air.refiTimeLastDropped] <= 60 and oNearestEnemyStructureToMidpoint then
-                                                        --Get closest unit of preferred category
-                                                        local tBuildingsOfInterestInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefTEnemyUnits])
-                                                        local oUnitToAttack
-                                                        if M28Utilities.IsTableEmpty(tBuildingsOfInterestInZone) == false then
-                                                            --Get units iwthin range, and then pick the preferred one
-                                                            local iCurValue, iValueFactor
-                                                            local iBestValue = 0
-                                                            for iEnemy, oEnemy in tBuildingsOfInterestInZone do
-                                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
-                                                                if iCurDist <= oUnit[M28UnitInfo.refiCombatRange] + 6 then
-                                                                    iValueFactor = 1
-                                                                    --Adjust value based on category
-                                                                    if EntityCategoryContains(categories.VOLATILE, oEnemy.UnitId) then
-                                                                        iValueFactor = 4
-                                                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, oEnemy.UnitId) then
-                                                                        iValueFactor = 1.5
-                                                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPower, oEnemy.UnitId) then
-                                                                        iValueFactor = 2
-                                                                        if oEnemy:GetWorkProgress() >= 0.05 then --Reason for htis is that a human palyer will usually be able ot use intuition to target upgraidng mexes, since players typically upgrade mexes in order, and are likely to have engineers near an upgrading mex, as well as some being at T2 some at T1, but want to avoid the significant cpu load from trying to mathematically approximate such intuition
-                                                                            if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oEnemy.UnitId) then
-                                                                                iValueFactor = 2 + 40 * oEnemy:GetWorkProgress() --T2 mex costs roughly 25 times a t1 mex, but we are treating eco damage as worth twice as much
-                                                                                if bDebugMessages == true then LOG(sFunctionRef..': T1 mex upgrading to t2 so greater priority, oEnemy:GetWorkProgress()='..oEnemy:GetWorkProgress()) end
-                                                                            elseif EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oEnemy.UnitId) then
-                                                                                iValueFactor = 2 + 7 * oEnemy:GetWorkProgress() --T3 mex costs 5 times t2 mex, but we are valuing eco damage at double rate
-                                                                            else
-                                                                                iValueFactor = 2 + 3 * oEnemy:GetWorkProgress() --e.g. support for mods with upgradable pgens
-                                                                            end
-                                                                        end
-                                                                    end
-                                                                    --Reduce value if not actually in range
-                                                                    if iCurDist > oUnit[M28UnitInfo.refiCombatRange] then
-                                                                        iValueFactor = iValueFactor * 0.25
-                                                                    end
-                                                                    --Reduce value if covered by shields
-                                                                    if M28Utilities.IsTableEmpty(oEnemy[M28Building.reftoShieldsProvidingCoverage]) == false then
-                                                                        iValueFactor = iValueFactor * 0.05
-                                                                    end
 
-                                                                    iCurValue = iValueFactor * oEnemy:GetFractionComplete() * (oEnemy[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oEnemy))
-                                                                    --Now figure out how quickly we can kill the unit, and adjust the value by that
-                                                                    local iShotsToKill = math.floor(oEnemy:GetHealth() / (oUnit[M28UnitInfo.refiStrikeDamage] or 200)) + 1
-                                                                    iCurValue = iCurValue / math.max(2, iShotsToKill) --2 shots to kill min since likely we have multiple t1 arti in the zone, so want to avoid e.g. all of them trying to focus down an enemy t1 radar
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurValue='..iCurValue..'; ICurDist='..iCurDist..'; Work progress='..(oEnemy:GetWorkProgress() or 'nil')) end
-                                                                    if iCurValue > iBestValue then
-                                                                        iBestValue = iCurValue
-                                                                        oUnitToAttack = oEnemy
-                                                                    end
-                                                                end
-                                                            end
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': Finsihed considering all buildings in zone, iBestValue='..iBestValue) end
-                                                        end
-                                                        if not(oUnitToAttack) then oUnitToAttack = oNearestEnemyStructureToMidpoint end
-                                                        if M28Utilities.GetDistanceBetweenPositions(oUnitToAttack:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] + 2 then
-                                                            M28Orders.IssueTrackedAttack(oUnit, oUnitToAttack, false, 'ISDrAtc'..iLandZone, false)
-                                                        else
-                                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oUnitToAttack[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(15, iIndirectDistanceInsideRangeThreshold), false, 'IKADrMve'..iLandZone)
-                                                        end
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': T1 arti drop or similar, oUnitToAttack='..(oUnitToAttack.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToAttack) or 'nil')) end
-                                                    elseif (oNearestEnemyStructureToMidpoint and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyStructureToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) < oUnit[M28UnitInfo.refiIndirectRange]) then
+                                                    if (oNearestEnemyStructureToMidpoint and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyStructureToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) < oUnit[M28UnitInfo.refiIndirectRange]) then
                                                         M28Orders.IssueTrackedAttack(oUnit, oNearestEnemyStructureToMidpoint, false, 'ISAtc'..iLandZone, false)
                                                     elseif M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()) < oUnit[M28UnitInfo.refiIndirectRange] then
                                                         M28Orders.IssueTrackedAttack(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'INSAtc'..iLandZone, false)
@@ -6306,6 +6312,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             if bDebugMessages == true then LOG(sFunctionRef..': Want to attack ACU with experimental') end
                                             GetUnitToAttackNearestACU(oUnit)
                                             --Attackmove (unless we have far more threat in this zone)
+
+                                        elseif oUnit[M28Air.refiTimeLastDropped] and oUnit[M28UnitInfo.refiIndirectRange] > 0 and GetGameTimeSeconds() - oUnit[M28Air.refiTimeLastDropped] <= 60 and oNearestEnemyStructureToMidpoint then
+                                            SuicideUnitIntoEnemyStructure(oUnit)
                                         else
                                             local oTargetToManuallyAttack, bMoveNotManualAttack = GetManualAttackTargetIfWantManualAttack(oUnit)
                                             oUnit[refoSREnemyTarget] = oTargetToManuallyAttack
@@ -6453,6 +6462,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     if oSRUnit[M28UnitInfo.refbEasyBrain] then
                                         oSRUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                         M28Orders.IssueTrackedAttackMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), (tSRRallyOverride or tRallyPoint)), iDistToRetreat, true, false, true), 4, false, 'SReASup'..iLandZone)
+                                    elseif oSRUnit[M28Air.refiTimeLastDropped] and oSRUnit[M28UnitInfo.refiIndirectRange] > 0 and GetGameTimeSeconds() - oSRUnit[M28Air.refiTimeLastDropped] <= 60 and oNearestEnemyStructureToMidpoint then
+                                        SuicideUnitIntoEnemyStructure(oSRUnit)
                                     else
                                         if bConsiderAttackingACU and not(oSRUnit[M28UnitInfo.refbLastShotBlocked]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oSRUnit.UnitId) and not(oSRUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oSRUnit:GetPosition(), toEnemyACUsInZone, 6 + oSRUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Have an experimental we want to attack enemy ACU with') end
@@ -6833,7 +6844,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     --if bCheckIfNearLocationToAvoid and EntityCategoryContains(categories.TECH1 + categories.TECH2 - categories.COMMAND, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and M28Conditions.HaveSentOrderToRunAwayFromLocationToAvoid(oUnit, tLZTeamData[M28Map.reftiLocationsToAvoid], 4) then
                                     --if bDebugMessages == true then LOG(sFunctionRef..': Unit will run away from location to avoid') end
                                     if oUnit[M28UnitInfo.refiIndirectRange] > 0 then
-                                        if oUnit[M28UnitInfo.refiIndirectRange] >= iEnemyBestDFRange then
+                                        if oUnit[M28Air.refiTimeLastDropped] and oUnit[M28UnitInfo.refiIndirectRange] > 0 and GetGameTimeSeconds() - oUnit[M28Air.refiTimeLastDropped] <= 60 and oNearestEnemyStructureToMidpoint then
+                                            SuicideUnitIntoEnemyStructure(oUnit)
+                                        elseif oUnit[M28UnitInfo.refiIndirectRange] >= iEnemyBestDFRange then
                                             if bConsiderSpecialMMLLogic and EntityCategoryContains(M28UnitInfo.refCategoryMML, oUnit.UnitId) then table.insert(tMMLForSynchronisation, oUnit)
                                             else
                                                 iIndirectDistanceInsideRangeThreshold = iIndirectRunFigureNormal
@@ -7268,6 +7281,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 M28Orders.IssueTrackedAggressiveMove(oUnit, tTargetToMoveTowards, 6, false, 'ExpA'..iLandZone)
                                             end
                                         end
+                                    elseif oUnit[M28Air.refiTimeLastDropped] and oUnit[M28UnitInfo.refiIndirectRange] > 0 and GetGameTimeSeconds() - oUnit[M28Air.refiTimeLastDropped] <= 60 and oNearestEnemyStructureToMidpoint then
+                                        SuicideUnitIntoEnemyStructure(oUnit)
                                     else
                                         if bSuicideUnitsNearAMex and M28Utilities.IsTableEmpty(tNearbyMexes) == false then
                                             bUnitIsSuicidingIntoMex = false
