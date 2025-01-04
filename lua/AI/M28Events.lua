@@ -2864,8 +2864,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         end
                     end
 
-
-                    if bDebugMessages == true then LOG(sFunctionRef..': First time M28OnCreate has run, just recorded unit ranges for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': First time M28OnCreate has run, just recorded unit ranges for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
                     if M28Config.M28ShowEnemyUnitNames then
                         local sWZOrLZRef = ''
                         if EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
@@ -2916,9 +2915,11 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             end
                         end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': will call TMDJustBuilt for tmd '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', time='..GetGameTimeSeconds()) end
                         M28Building.TMDJustBuilt(oUnit)
                     end
                     if EntityCategoryContains(M28UnitInfo.refCategoryProtectFromTML, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will call RecordTMLAndTMDForUnitJustBuilt, time='..GetGameTimeSeconds()) end
                         M28Building.RecordTMLAndTMDForUnitJustBuilt(oUnit)
                     end
 
@@ -3720,6 +3721,7 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position, oProjectile)
             local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             local oLauncherBrain = oLauncher:GetAIBrain()
+
             --MML - record time that were last intercepted if dealing with non-aeo TMD (used to build more MML) for both the MML and the TMD land zones
             if bDebugMessages == true then LOG('Missile intercepted, oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; is launcher a nuke='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId))..'; is launcher valid='..tostring(M28UnitInfo.IsUnitValid(oLauncher))) end
             if EntityCategoryContains(M28UnitInfo.refCategoryMML, oLauncher.UnitId) then --and not(EntityCategoryContains(categories.AEON, oTMD.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryTMD, oTMD.UnitId) then
@@ -3767,6 +3769,8 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position, oProjectile)
                 if bDebugMessages == true then LOG('Will call nuke missile death logic') end
                 M28Building.UpdateForNukeMissileDeath(oLauncher)
             elseif EntityCategoryContains(M28UnitInfo.refCategoryTMD, oTMD.UnitId) then
+                if oProjectile[M28Building.refoLastTMLTarget] then oProjectile[M28Building.refoLastTMLTarget][M28Building.refbRecheckTMLAndTMDWhenConstructedByTeam] = nil end
+
                 local oBrainTMD = oTMD:GetAIBrain()
                 if oBrainTMD.M28AI then
                     local iTMDPlateau, iTMDLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oTMD:GetPosition())
@@ -3804,6 +3808,7 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position, oProjectile)
                             end
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is the last TML target valid='..tostring(M28UnitInfo.IsUnitValid(oProjectile[M28Building.refoLastTMLTarget]))..'; Last target='..(oProjectile[M28Building.refoLastTMLTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oProjectile[M28Building.refoLastTMLTarget]) or 'nil')) end
                     if M28UnitInfo.IsUnitValid(oProjectile[M28Building.refoLastTMLTarget]) then
                         M28Building.RecordThatTMDProtectsUnitFromTML(oTMD, oProjectile[M28Building.refoLastTMLTarget], oLauncher)
                     end

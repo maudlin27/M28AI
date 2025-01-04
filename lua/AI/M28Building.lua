@@ -573,7 +573,7 @@ function TMDJustBuilt(oTMD)
     local tbUnitRefsConsideredByTML
     local tbUnitRefsConsideredAllTML = {}
     local sCurUnitRef
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' owned by '..oTMD:GetAIBrain().Nickname..'; TMD fraction complete='..oTMD:GetFractionComplete()..'; Time='..GetGameTimeSeconds()) end
     for iTMLTeam = 1, M28Team.iTotalTeamCount do
         --Get all TML in range of this TMD
         if not(iTMDTeam == iTMLTeam) then
@@ -597,7 +597,7 @@ function TMDJustBuilt(oTMD)
                                 tbUnitRefsConsideredByTML[sCurUnitRef] = true
                                 tbUnitRefsConsideredAllTML[sCurUnitRef] = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will check if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in range of TML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)) end
-                                RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, { oTMD }) --This will do a distance check from the unit to the TMD
+                                RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, { oTMD }, true) --This will do a distance check from the unit to the TMD
                             end
                         end
                         --Also check for any units wanting TMD coverage in the TMD zone (redundancy in case there are issues with getunitsaroundpoint not picking up upgrading units)
@@ -607,7 +607,7 @@ function TMDJustBuilt(oTMD)
                                     sCurUnitRef = GetUnitRef(oUnit)
                                     if not(tbUnitRefsConsideredByTML[sCurUnitRef]) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Have unit in zone wanting TMD coverage that we havent considered with getunitsaroundpoint, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
-                                        RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, { oTMD })
+                                        RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, { oTMD }, true)
                                         tbUnitRefsConsideredAllTML[sCurUnitRef] = true
                                     end
                                 end
@@ -626,7 +626,7 @@ function TMDJustBuilt(oTMD)
                     sCurUnitRef = GetUnitRef(oRecorded)
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering oMobileTML '..oMobileTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMobileTML)..'; oRecorded='..oRecorded.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecorded)..'; is tbUnitRefsConsideredAllTML nil for this unit='..tostring(tbUnitRefsConsideredAllTML[sCurUnitRef] == nil)) end
                     if not(tbUnitRefsConsideredAllTML[sCurUnitRef]) then
-                        RecordIfUnitIsProtectedFromTMLByTMD(oRecorded, oMobileTML, { oTMD })
+                        RecordIfUnitIsProtectedFromTMLByTMD(oRecorded, oMobileTML, { oTMD }, true)
                         tbUnitRefsConsideredAllTML[sCurUnitRef] = true
                     end
                 end
@@ -637,8 +637,10 @@ function TMDJustBuilt(oTMD)
 
     --Reevaluate all units in the zone flagged as wanting TMD, due to issue where in some cases the unit would be recorded against the LZ despite loads of TMD covering it
     if M28Utilities.IsTableEmpty(tTMDZoneTeamData[M28Map.reftUnitsWantingTMD]) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will update tTMDZoneTeamData[M28Map.reftUnitsWantingTMD], iTMDTeam='..iTMDTeam) end
         RecordIfUnitsWantTMDCoverageAgainstLandZone(iTMDTeam, tTMDZoneTeamData[M28Map.reftUnitsWantingTMD], true)
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -727,8 +729,12 @@ function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize, tT
     if not(oTMD[M28UnitInfo.refiMissileDefenceRange]) then M28UnitInfo.RecordUnitRange(oTMD) end
     local iTMDRange = (oTMD[M28UnitInfo.refiMissileDefenceRange] or 12.5)
 
-    --Reduce TMDRange to the effective range
-    iTMDRange = iTMDRange - iBuildingSize
+
+    if EntityCategoryContains(categories.AEON, oTMD.UnitId) then iTMDRange = iTMDRange + 0.5 end --to be prudent, may not be required as when made change (v169) there was a separate TMD issue (below reduction for building size) that was likely causing the issue of incorrectly thinking TMD didnt cover a target
+    --Reduce range based on building size if we are considering whether we should build TMD to protect a target, if our TMD is further away than the unit in question (meaning we are more likely to be behind the unit, such that enemy could more easily 'edge-TML' the unit)
+    if oUnit:GetAIBrain().M28AI and not(oTML:GetAIBrain().M28AI) and M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oTML:GetPosition()) >= M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTML:GetPosition()) then
+        iTMDRange = iTMDRange - iBuildingSize
+    end
 
 
     local iUnitToTML = M28Utilities.GetDistanceBetweenPositions(tTMLPositionOverride or oTML:GetPosition(), oUnit:GetPosition())
@@ -750,6 +756,7 @@ function RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordThatTMDProtectsUnitFromTML'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     --TMD can block the TML
     local bAlreadyRecordedTMD = false
     if not(oUnit[reftTMDCoveringThisUnit]) then oUnit[reftTMDCoveringThisUnit] = {}
@@ -762,7 +769,7 @@ function RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
         table.insert(oUnit[reftTMDCoveringThisUnit], oTMD)
         if not(oTMD[reftUnitsCoveredByThisTMD]) then oTMD[reftUnitsCoveredByThisTMD] = {} end
         table.insert(oTMD[reftUnitsCoveredByThisTMD], oUnit)
-        if bDebugMessages == true then LOG(sFunctionRef..': TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' recorded against oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as covering it from TML') end
+        if bDebugMessages == true then LOG(sFunctionRef..': TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' owned by '..oTMD:GetAIBrain().Nickname..' with % complete='..oTMD:GetFractionComplete()..' recorded against oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' as covering it from TML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' owned by '..oTML:GetAIBrain().Nickname) end
     end
 
 
@@ -778,9 +785,10 @@ function RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
+function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange, bOnlyIncludingSpecificTMD)
     --Updates the following variables: For TMD: reftUnitsCoveredByThisTMD; for TML: reftUnprotectedUnitTargetsForThisTML and reftUnitsInRangeOfThisTML; for units in range of TML: reftTMDCoveringThisUnit and reftTMLInRangeOfThisUnit
     --Assumes that oTML is in range of oUnit
+    --bOnlyIncludingSpecificTMD - true if we are calling this function to just check a specific TMD (so we should be more careful about adding the unit as an unprotected target)
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordIfUnitIsProtectedFromTMLByTMD'
@@ -806,7 +814,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
         table.insert(oUnit[reftTMLInRangeOfThisUnit], oTML)
     end
     local bIsBlockedByTMD
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..'; Considering if oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; is proitected from oTML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' owned by player '..oTML:GetAIBrain().Nickname..' by any of the TMD noted, is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tTMDInRange))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..'; Considering if oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; is proitected from oTML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' owned by player '..oTML:GetAIBrain().Nickname..' by any of the TMD noted, is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tTMDInRange))..'; First TMD='..(tTMDInRange[1].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tTMDInRange[1]) or 'nil')) end
     local iBuildingSize = M28UnitInfo.GetBuildingSize(oUnit.UnitId)
     if M28Utilities.IsTableEmpty(tTMDInRange) == false then
         --[[local iUnitToTMD
@@ -866,7 +874,20 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Will record this unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' against table of unprotected units for TML as it isnt blocked by any of the TMD, bAlreadyIncluded='..tostring(bAlreadyIncluded or false)) end
         if not(bAlreadyIncluded) then
-            table.insert(oTML[reftUnprotectedUnitTargetsForThisTML], oUnit)
+            --Check if this is unprotected by other TMD as well, if we called this from just a single TMD event
+            local bIsDefinitelyUnprotected = true
+            if bOnlyIncludingSpecificTMD and M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then
+                for iTMD, oTMD in oUnit[reftTMDCoveringThisUnit] do
+                    if not(oTMD == tTMDInRange[1]) and M28UnitInfo.IsUnitValid(oTMD) then
+                        bIsDefinitelyUnprotected = false
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bIsDefinitelyUnprotected after checking if we have other TMD likely covering this unit='..tostring(bIsDefinitelyUnprotected)) end
+            if bIsDefinitelyUnprotected then
+                table.insert(oTML[reftUnprotectedUnitTargetsForThisTML], oUnit)
+            end
+            --Below function will factor in number of enemy TML vs number of friendly TMD so less that can go wrong if re-run when just called this for a single TMD
             if oUnit:GetAIBrain().M28AI then
                 RecordIfUnitsWantTMDCoverageAgainstLandZone(oUnit:GetAIBrain().M28Team, { oUnit }, true)
             end
@@ -897,6 +918,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
     if bUpdateZoneForUnitsWantingTMD and oUnit:GetAIBrain().M28AI then
         RecordIfUnitsWantTMDCoverageAgainstLandZone(oUnit:GetAIBrain().M28Team, { oUnit }, not(bAlreadyIncluded))
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
