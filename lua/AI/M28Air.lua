@@ -4474,6 +4474,10 @@ function ManageBombers(iTeam, iAirSubteam)
             end
         end
         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+            local bHaveT3Bombers = false
+            for iUnit, oUnit in tAvailableBombers do
+                if M28UnitInfo.GetUnitTechLevel(oUnit) == 3 then bHaveT3Bombers = true end
+            end
             --Consider nearby defence
             local iRallyPlateauOrZero, iRallyLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyPoint)
             local tRallyLZOrWZData
@@ -4546,6 +4550,10 @@ function ManageBombers(iTeam, iAirSubteam)
                 else
                     iMaxEnemyGroundAAThreat = math.max(0.25, (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) /  (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0))
                 end
+                --If have strat bombers then have a higher minimum ground AA threshold
+                if true and GetGameTimeSeconds() >= 18*60 + 50 and bHaveT3Bombers then
+                    iMaxEnemyGroundAAThreat = math.max(1100, iMaxEnemyGroundAAThreat + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] * 0.1) --T2 flak is 160, T3 MAA is 600
+                end
                 --If have large number of available bombers then increase
                 if iAvailableBombers >= 20 then
                     iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * (1.1 + math.min(0.6, 0.4 * iAvailableBombers / 50))
@@ -4556,7 +4564,7 @@ function ManageBombers(iTeam, iAirSubteam)
                     bConsiderHigherTechUnitsFirst = true
                 end
 
-                if bDebugMessages == true then LOG(sFunctionRef..': bConsiderHigherTechUnitsFirst='..tostring(bConsiderHigherTechUnitsFirst or false)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': bConsiderHigherTechUnitsFirst='..tostring(bConsiderHigherTechUnitsFirst or false)..'; bHaveT3Bombers='..tostring(bHaveT3Bombers)..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
                 local tbZoneByPlateauHasTooMuchAA = {}
                 if bConsiderHigherTechUnitsFirst then
                     --Consider higher priority relatively nearby targets:
@@ -4573,7 +4581,7 @@ function ManageBombers(iTeam, iAirSubteam)
                                     if tbZoneByPlateauHasTooMuchAA[iCurPlateauOrZero] == nil then tbZoneByPlateauHasTooMuchAA[iCurPlateauOrZero] = {} end
                                     tbZoneByPlateauHasTooMuchAA[iCurPlateauOrZero][iCurZone] = DoesEnemyHaveAAThreatAlongPath(iTeam, iRallyPlateauOrZero, iRallyLZOrWZ, iCurPlateauOrZero, iCurZone, M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl], iMaxEnemyGroundAAThreat * iAAPriorityThresholdFactor, nil, false, iAirSubteam, true, false, nil, false)
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering priority enemy target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in P'..iCurPlateauOrZero..'Z'..iCurZone..'; Too much AA in this zone='..tostring(tbZoneByPlateauHasTooMuchAA[iCurPlateauOrZero][iCurZone])) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering priority enemy target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in P'..iCurPlateauOrZero..'Z'..iCurZone..'; Too much AA in this zone='..tostring(tbZoneByPlateauHasTooMuchAA[iCurPlateauOrZero][iCurZone])..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat..'; iAAPriorityThresholdFactor='..iAAPriorityThresholdFactor) end
                                 if not(tbZoneByPlateauHasTooMuchAA[iCurPlateauOrZero][iCurZone]) then
                                     table.insert(toPriorityEnemiesToTarget, oUnit)
                                 end
