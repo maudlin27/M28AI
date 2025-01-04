@@ -1213,6 +1213,13 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                                 break
                                             end
                                         end
+                                        if bCanShootAir and tWeapon.TargetRestrictDisallow then
+                                            --E.g. gunships will have air targets included so they can shoot other gunships, but they cant shoot high altitude air
+                                            if string.find(tWeapon.TargetRestrictDisallow, 'HIGHALTAIR') or tWeapon.RangeCategory == 'UWRC_DirectFire' then
+                                                bCanShootAir = false
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Dont think we can shoot air afterall (except gunships)') end
+                                            end
+                                        end
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': AirAA bCanShootAir='..tostring(bCanShootAir or false)..'; MuzzleSalvoSize='..(tWeapon.MuzzleSalvoSize or 'nil')..'; MuzzleSalvoDelay='..(tWeapon.MuzzleSalvoDelay or 'nil')..'; Damage='..(tWeapon.Damage or 'nil')) end
                                     if bCanShootAir then
