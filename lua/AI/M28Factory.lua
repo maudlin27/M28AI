@@ -3776,8 +3776,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                         if bDebugMessages == true then
                             LOG(sFunctionRef .. ': Considering at time ' .. GetGameTimeSeconds() .. ' whether to ctrlk factory tech level ' .. M28UnitInfo.GetUnitTechLevel(oFactory) .. ' when bHaveLowMass=' .. tostring(M28Conditions.HaveLowMass(aiBrain)) .. ' and highest tech=' .. M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] .. '; factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; bConsiderDestroyingForMass=' .. tostring(bConsiderDestroyingForMass or false))
                         end
-                        if bConsiderDestroyingForMass and M28UnitInfo.GetUnitTechLevel(oFactory) < 3 and M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] == 3 then
-                            --Do we have a factory of the same type but of a higher tech level in this LZ?
+                        if bConsiderDestroyingForMass and M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] == 3 and (M28UnitInfo.GetUnitTechLevel(oFactory) < 3 or (not(oFactory[refbPrimaryFactoryForIslandOrPond]) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) and (not(M28Utilities.bFAFActive) or not(EntityCategoryContains(M28UnitInfo.refCategoryLandHQ, oFactory.UnitId))) and (M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.refiConstructedExperimentalCount] >= 2 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat) >= 30))) then
                             local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
                             if iPlateauOrZero > 0 then
                                 local oBrain = oFactory:GetAIBrain()
