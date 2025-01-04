@@ -3088,7 +3088,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 10*60 then bDebugMessages = true end
+
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; iAirSubteam='..iAirSubteam..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])) end
@@ -3408,7 +3408,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 
             --First search for air near priority defence targets - look for enemies near priority defensive targets and core bases
             local iAASearchType
-            if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] or (M28Team.tAirSubteam[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirAA] and (M28Team.tAirSubteam[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= 700 or M28Team.tAirSubteam[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirAA] * 0.9))) then
+            if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] or (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] and (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= 700 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.9))) then
                 iAASearchType = refiAvoidOnlyGroundAA
             else
                 iAASearchType = refiIgnoreAllAA
@@ -4550,7 +4550,7 @@ function ManageBombers(iTeam, iAirSubteam)
                     iMaxEnemyGroundAAThreat = math.max(0.25, (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) /  (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0))
                 end
                 --If have strat bombers then have a higher minimum ground AA threshold
-                if true and GetGameTimeSeconds() >= 18*60 + 50 and bHaveT3Bombers then
+                if bHaveT3Bombers then
                     iMaxEnemyGroundAAThreat = math.max(1100, iMaxEnemyGroundAAThreat + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] * 0.1) --T2 flak is 160, T3 MAA is 600
                 end
                 --If have large number of available bombers then increase
