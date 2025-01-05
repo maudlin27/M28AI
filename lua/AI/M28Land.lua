@@ -2873,7 +2873,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
     local sFunctionRef = 'ManageMAAInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iLandZone == 44 and GetGameTimeSeconds() >= 6*60 then bDebugMessages = true end
 
     local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) --Get a LZ up to 3 land zones away to retreat to (i.e. will pick rally point and then move 2 towards it)
     local tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true)
@@ -2981,19 +2981,20 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                     end
                     iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
                     iAngleToNearestUnit = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
-                    if M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestUnit) <= 45 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': iAngleToRally='..iAngleToRally..'; iAngleToNearestUnit='..iAngleToNearestUnit..'; Angle dif='..M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestUnit)) end
+                    if M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestUnit) <= 60 then --tried with lower value of 45 and led to MAA moving closer to enemy
                         bMovingTowardsEnemy = true
                         --Can we move in the opposite direction to the enemy?
                         tTempRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestUnit + 180, 20, true, false, bCampaignMap)
                         if M28Utilities.IsTableEmpty(tTempRetreatLocation) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Island ref for tempretreatlocation='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tTempRetreatLocation) or 'nil')..'; LZData island ref='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')) end
                             if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tTempRetreatLocation) == tLZData[M28Map.subrefLZIslandRef]) then
                                 tTempRetreatLocation = nil
                             end
                         end
-
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': MAA will retreat') end
+                if bDebugMessages == true then LOG(sFunctionRef..': MAA will retreat, tTempRetreatLocation='..repru(tTempRetreatLocation)) end
                 if M28Utilities.IsTableEmpty(tTempRetreatLocation) == false then
                     M28Orders.IssueTrackedMove(oUnit, tTempRetreatLocation, 6, 'ORun'..iLandZone)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
@@ -3045,7 +3046,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
             local tOrderPosition = oNearestEnemyToMidpoint:GetPosition()
             if bDebugMessages == true then
                 LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..' Will order every MAA to move to oNearestEnemyToMidpoint='..oNearestEnemyToMidpoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint)..' at position '..repru(oNearestEnemyToMidpoint:GetPosition()))
-                M28Utilities.DrawLocation(tOrderPosition)
+                --M28Utilities.DrawLocation(tOrderPosition) --this will desync the replay so only manually enable
             end
             --local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, false)
 
