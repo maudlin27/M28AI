@@ -10700,6 +10700,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
     local iAttackThresholdDist = oScout[M28UnitInfo.refiCombatRange] + 5
     local iMinAttackDist = oScout[M28UnitInfo.refiCombatRange] - 10
     local aiBrain = oScout:GetAIBrain()
+    if bDebugMessages == true then LOG(sFunctionRef..': About to start main lurker loop, oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' for P'..iPlateau..'Z'..iZone..' on taem '..iTeam) end
 
     while M28UnitInfo.IsUnitValid(oScout) do
         --Decide whether want to move towards zone; stay still; run from enemies; or attack engineer
@@ -10736,8 +10737,10 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                                 if bInCloakMode and M28Utilities.IsTableEmpty(tEnemiesToRunFrom) then bGivenOrder = true end
                             end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy combat total='..tTargetLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Enemy DF range='..tTargetLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; bGivenOrder='..tostring(bGivenOrder)..'; Is tEnemiesToRunFrom empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesToRunFrom))) end
                         if not(bGivenOrder) and not(M28Conditions.IsTableOfUnitsStillValid(tEnemiesToRunFrom)) then
                             tEnemiesToAttack = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryRadar, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy engineers and radar empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesToAttack))) end
                             if M28Utilities.IsTableEmpty(tEnemiesToAttack) then
                                 --Does the enemy have mexes for us to attack?
                                 tEnemiesToAttack = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
@@ -10755,6 +10758,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
 
             --Process what we have decided to do
             if not(bGivenOrder) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Not given order yet so deciding whether to run or attack, is tEnemiesToRunFrom empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesToRunFrom))..'; is tEnemiesToAttack empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesToAttack))) end
                 if M28Utilities.IsTableEmpty(tEnemiesToRunFrom) == false then
                     --Get the closest and run from here in opposite direction, or towards rally point, unless we are really far away in which case consider just being assigned to a different zone
                     bInCloakMode = false
@@ -10765,6 +10769,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition())
                             if iCurDist < iClosestEnemyDist then
                                 oClosestEnemy = oUnit
+                                iClosestEnemyDist = iCurDist
                             end
                         end
 
@@ -10785,6 +10790,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition())
                             if iCurDist < iClosestEnemyDist then
                                 oClosestEnemy = oUnit
+                                iClosestEnemyDist = iCurDist
                             end
                         end
 
@@ -10792,12 +10798,12 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                     if oClosestEnemy then
                         bInCloakMode = false
                         --Attack
-                        if bDebugMessages == true then LOG(sFunctionRef..': Attacking oClosestEnemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)..'; iClosestEnemyDist='..iClosestEnemyDist..'; iMinAttackDist='..iMinAttackDist) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to attack oClosestEnemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)..'; iClosestEnemyDist='..iClosestEnemyDist..'; iMinAttackDist='..iMinAttackDist) end
                         if iClosestEnemyDist <= iAttackThresholdDist then
                             if iClosestEnemyDist <= iMinAttackDist and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oClosestEnemy.UnitId) then
                                 --Dont want to be reclaimed by the engineer, so move back slightly
                                 local tMovePoint, tPotentialMovePoint
-                                local iAngleFromEngi = GetAngleFromAToB(oClosestEnemy:GetPosition(), oScout:GetPosition())
+                                local iAngleFromEngi = M28Utilities.GetAngleFromAToB(oClosestEnemy:GetPosition(), oScout:GetPosition())
 
                                 for iAngleAdjust = 0, 90, 45 do
                                     for iFactor = -1, 1, 2 do
@@ -10822,6 +10828,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                                 bGivenOrder = true
                             end
                         else
+                            if bDebugMessages == true then LOG(sFunctionRef..': want to move to enemy to attack them') end
                             --Move to enemy
                             M28Orders.IssueTrackedMove(oScout, oClosestEnemy:GetPosition(), 3, false, 'LurkMvEn', oScout[M28UnitInfo.refbLowerPriorityMicroActive])
                             bGivenOrder = true
