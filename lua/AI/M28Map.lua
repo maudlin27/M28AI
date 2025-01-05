@@ -4850,14 +4850,14 @@ function RecordIslands()
                                                 tiTopThreeZonesByDistance[iCurPosition] = iIslandLZ
                                                 tiDistanceOfTopThreeZones[iCurPosition] = iCurDistance
                                             end
-                                            if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist='..repru(iClosestTravelDist)) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Recording top 3 zones, iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist so far='..repru(iClosestTravelDist)) end
                                         end
                                         --Get the closest of these
-                                        local iClosestTravelDist = 100000
+                                        iClosestTravelDist = 100000
 
                                         for iEntry, iIslandLZ in tiTopThreeZonesByDistance do
                                             iCurTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefMidpoint], refPathingTypeHover)
-                                            if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist='..repru(iClosestTravelDist)) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Going through top 3 zones, iIslandLZ='..iIslandLZ..'; iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist='..repru(iClosestTravelDist)..'; Amphibious travel dist (intead of hover)='..(M28Utilities.GetTravelDistanceBetweenPositions(tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefMidpoint], refPathingTypeAmphibious) or 'nil')..'; Hover label for LZData midpoint='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tLZData[subrefMidpoint]) or 'nil')..'; Hover label for the LZ that are checking='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefMidpoint]) or 'nil')..'; iClosestTravelDist before updating for this='..iClosestTravelDist) end
                                             if iCurTravelDistance and iCurTravelDistance < iClosestTravelDist then
                                                 iClosestTravelDist = iCurTravelDistance
                                                 iClosestLZRef = iIslandLZ
@@ -4875,6 +4875,7 @@ function RecordIslands()
                                         end
                                     end
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Finished determining the LZ on the island closest to this zone by travel dist, iClosestLZRef='..(iClosestLZRef or 'nil')..'; iClosestTravelDist='..(iClosestTravelDist or 'nil')..'; bActuallyIgnoreTravelDistForShortlist='..tostring(bActuallyIgnoreTravelDistForShortlist or false)) end
 
                                 --Get the position in the current table
                                 local iPosition = 1
@@ -4922,6 +4923,7 @@ function RecordIslands()
                                                 table.insert(tPathingLZFromStartToTarget, iClosestLZRef)
 
                                                 table.insert(tLZData[subrefLZPathingToOtherIslands], iPosition, {[subrefIslandNumber] = iIsland, [subrefIslandClosestLZRef] = iClosestLZRef, [subrefLZTravelDist] = iClosestTravelDist, [subrefIslandLZPath] = { } })
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Adding entry iPosition='..iPosition..'; iIsland='..iIsland..'; iClosestLZRef='..iClosestLZRef..'; Travel dist='..iClosestTravelDist) end
                                                 --Add in the LZ path
                                                 for iEntry, iLZ in tPathingLZFromStartToTarget do
                                                     table.insert(tLZData[subrefLZPathingToOtherIslands][iPosition][subrefIslandLZPath], iLZ)
@@ -4933,7 +4935,7 @@ function RecordIslands()
                                 end
                                 if M28Utilities.IsTableEmpty(tPathingLZFromStartToTarget) then
                                     local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeHover, tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint], nil)
-
+                                    if bDebugMessages == true then LOG(sFunctionRef..': About to get the detailed pathing, is tFullPath nil='..tostring(tFullPath == nil)) end
                                     --Reduce tFullPath to a table of land zones
                                     if tFullPath then
                                         local iPathingPlateau, iPathingLandZone
@@ -4960,6 +4962,7 @@ function RecordIslands()
                                             tPathingLZConsidered[iClosestLZRef] = true
                                         end
                                         table.insert(tLZData[subrefLZPathingToOtherIslands], iPosition, {[subrefIslandNumber] = iIsland, [subrefIslandClosestLZRef] = iClosestLZRef, [subrefLZTravelDist] = iClosestTravelDist, [subrefIslandLZPath] = { } })
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Recording entry to table based on detailed pathing, iPosition='..iPosition..'; iIsland='..iIsland..'; iClosestLZRef='..iClosestLZRef..'; iClosestTravelDist='..iClosestTravelDist) end
                                         --Add in the LZ path
                                         for iEntry, iLZ in tPathingLZFromStartToTarget do
                                             table.insert(tLZData[subrefLZPathingToOtherIslands][iPosition][subrefIslandLZPath], iLZ)
