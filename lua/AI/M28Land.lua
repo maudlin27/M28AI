@@ -10722,8 +10722,8 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
             end
             if M28Utilities.IsTableEmpty(tEnemiesToRunFrom) then
                 --Does enemy have ACU in zone? if so then run; otherwise if enemy has combat units then stay hidden
-                if M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                    tEnemiesToRunFrom = EntityCategoryFilterDown(categories.COMMAND, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                if M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                    tEnemiesToRunFrom = EntityCategoryFilterDown(categories.COMMAND, tTargetLZTeamData[M28Map.reftoNearestDFEnemies])
                     if M28Conditions.IsTableOfUnitsStillValid(tEnemiesToRunFrom) then
                         --Want to run
                         if bDebugMessages == true then LOG(sFunctionRef..': ACU in target zone so want to run') end
@@ -10734,7 +10734,16 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                                 bGivenOrder = true --i.e. order is to do nothing if in cloak mode
                             else
                                 tEnemiesToRunFrom = EntityCategoryFilterDown(categories.DIRECTFIRE + categories.INDIRECTFIRE, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
-                                if bInCloakMode and M28Utilities.IsTableEmpty(tEnemiesToRunFrom) then bGivenOrder = true end
+                                if bInCloakMode and M28Utilities.IsTableEmpty(tEnemiesToRunFrom) == false then bGivenOrder = true end
+                            end
+                            --Also stay hidden if enemies are in adjacent zone that are near to us
+                        elseif bInCloakMode and M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                            --Check any nearby enemy DF units not assigned to this zone
+                            for iEnemy, oEnemy in tTargetLZTeamData[M28Map.reftoNearestDFEnemies] do
+                                if not(oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] == iZone) and M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oEnemy[M28UnitInfo.refiDFRange] or 0) <= 5 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to stay cloaked due to nearby enemy in adjacent zone') end
+                                    bGivenOrder = true
+                                end
                             end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy combat total='..tTargetLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Enemy DF range='..tTargetLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; bGivenOrder='..tostring(bGivenOrder)..'; Is tEnemiesToRunFrom empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesToRunFrom))) end
