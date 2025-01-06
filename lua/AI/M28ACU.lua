@@ -3060,7 +3060,7 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
     local sFunctionRef = 'MoveToOtherLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 2 then bDebugMessages = true end
+
 
     local iLZToMoveTo
     local iTeam = oACU:GetAIBrain().M28Team
@@ -4492,7 +4492,7 @@ function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if aiBrain:GetArmyIndex() == 2 then bDebugMessages = true end
+
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
     end

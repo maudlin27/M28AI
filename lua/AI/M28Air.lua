@@ -10020,7 +10020,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         local iBomberFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
                         local iAngleDifToTarget = M28Utilities.GetAngleDifference(iBomberFacingAngle, iAngleToTarget)
                         local iTimeUntilReadyToFire = M28UnitInfo.GetTimeUntilReadyToFireBomb(oBomber)
-                        if oBestEnemyTarget.UnitId == 'ues0202' then bDebugMessages = true end
+
                         if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())..'; Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oBomber)..'; Angle to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())..'; oBomber[refiTimeBetweenBombs]='..(oBomber[M28UnitInfo.refiTimeBetweenBombs] or 'nil')) end
 
                         --If bomber is facing the wrong direction and isnt that far from the target, and is ready to fire, then consider using micro to turn around and fire at it
