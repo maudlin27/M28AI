@@ -2981,19 +2981,20 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                     end
                     iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
                     iAngleToNearestUnit = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
-                    if M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestUnit) <= 45 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': iAngleToRally='..iAngleToRally..'; iAngleToNearestUnit='..iAngleToNearestUnit..'; Angle dif='..M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestUnit)) end
+                    if M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestUnit) <= 60 then --tried with lower value of 45 and led to MAA moving closer to enemy
                         bMovingTowardsEnemy = true
                         --Can we move in the opposite direction to the enemy?
                         tTempRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestUnit + 180, 20, true, false, bCampaignMap)
                         if M28Utilities.IsTableEmpty(tTempRetreatLocation) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Island ref for tempretreatlocation='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tTempRetreatLocation) or 'nil')..'; LZData island ref='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')) end
                             if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tTempRetreatLocation) == tLZData[M28Map.subrefLZIslandRef]) then
                                 tTempRetreatLocation = nil
                             end
                         end
-
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': MAA will retreat') end
+                if bDebugMessages == true then LOG(sFunctionRef..': MAA will retreat, tTempRetreatLocation='..repru(tTempRetreatLocation)) end
                 if M28Utilities.IsTableEmpty(tTempRetreatLocation) == false then
                     M28Orders.IssueTrackedMove(oUnit, tTempRetreatLocation, 6, 'ORun'..iLandZone)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
@@ -3045,7 +3046,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
             local tOrderPosition = oNearestEnemyToMidpoint:GetPosition()
             if bDebugMessages == true then
                 LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..' Will order every MAA to move to oNearestEnemyToMidpoint='..oNearestEnemyToMidpoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint)..' at position '..repru(oNearestEnemyToMidpoint:GetPosition()))
-                M28Utilities.DrawLocation(tOrderPosition)
+                --M28Utilities.DrawLocation(tOrderPosition) --this will desync the replay so only manually enable
             end
             --local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, false)
 
@@ -4373,7 +4374,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
             for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                 local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                iNetEnemyAirToGroundThreat = iNetEnemyAirToGroundThreat + math.max(0, tLZTeamData[M28Map.refiEnemyAirToGroundThreat] - tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] * 2) - tLZTeamData[M28Map.subrefLZThreatAllyMAA] * 4
+                iNetEnemyAirToGroundThreat = iNetEnemyAirToGroundThreat + math.max(0, tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat] - tAdjLZTeamData[M28Map.subrefLZThreatAllyGroundAA] * 2) - tAdjLZTeamData[M28Map.subrefLZThreatAllyMAA] * 4
             end
         end
         if iNetEnemyAirToGroundThreat >= math.max(200, iAvailableCombatUnitThreat * 0.1) then
@@ -4780,7 +4781,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearest enemy to midpoint, bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits)..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))) end
 
             local bConsiderAttackingACU = false
-            local toEnemyACUsInZone = {}
+            local toEnemyACUsNearZone = EntityCategoryFilterDown(categories.COMMAND, tLZTeamData[M28Map.reftoNearestDFEnemies])
             local oNearestEnemyStructureToMidpoint
             local iClosestDist = 100000
             local iClosestStructureDist = 100000
@@ -4837,11 +4838,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 tEnemyEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefTEnemyUnits])
                 if not(tEnemyEngineers) then tEnemyEngineers = {} end
                 for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
-                    --Add ACUs as potential high priority targets if they are on land
-                    if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and M28UnitInfo.CanSeeUnit(M28Team.GetFirstActiveM28Brain(iTeam), oUnit) then
-                        table.insert(toEnemyACUsInZone, oUnit)
-                        if not(oNearestEnemyToFriendlyBase) then oNearestEnemyToFriendlyBase = oUnit iClosestDist = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], (oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition())) end
-                    end
                     if not(bIgnoreEnemiesInThisZone) then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], (oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition()))
                         if iCurDist < iClosestDist and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
@@ -4858,10 +4854,59 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                     end
                 end
+                if not(oNearestEnemyToFriendlyBase) and M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false then
+                    for iACU, oACU in toEnemyACUsNearZone do
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
+                        if iCurDist < iClosestDist then
+                            iClosestDist = iCurDist
+                            oNearestEnemyToFriendlyBase = oACU
+                        end
+                    end
+                end
             end
-            if M28Utilities.IsTableEmpty(toEnemyACUsInZone) == false and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= 3000 then
-                bConsiderAttackingACU = true
+            if M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= 3000 then
+                if iEnemyBestDFRange >= 30 then
+                    local iMobileDFWanted = math.min(M28UnitInfo.GetCombatThreatRating(toEnemyACUsNearZone, true), 7500)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Threat of enemy ACUs in zone (or nearest ACU to the zone that is in adj zone)='..M28UnitInfo.GetCombatThreatRating(toEnemyACUsNearZone, true)..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
+                    if iMobileDFWanted <= 3000 or tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > iMobileDFWanted then
+                        --Check that the threat of our forces near the enemy ACU is high enough to handle it as well
+                        local oClosestACUToMidpoint
+                        local iClosestACUDist = 200
+                        for iACU, oACU in toEnemyACUsNearZone do
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
+                            if iCurDist < iClosestACUDist then
+                                iClosestACUDist = iCurDist
+                                oClosestACUToMidpoint = oACU
+                            end
+                        end
+                        if oClosestACUToMidpoint then
+                            --Include T1 arti in the threat calculation
+                            local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+                            --Get the closest friendly combat unit to this
+                            iClosestACUDist = 1000
+                            local oClosestCombatUnitToEnemyACU
+                            for iUnit, oUnit in tAvailableCombatUnits do
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUToMidpoint:GetPosition())
+                                if iCurDist < iClosestACUDist then
+                                    iClosestACUDist = iCurDist
+                                    oClosestCombatUnitToEnemyACU = oUnit
+                                end
+                            end
+                            if oClosestCombatUnitToEnemyACU then
+                                local tFriendlyCombatNearACU = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oClosestCombatUnitToEnemyACU:GetPosition(), 40, 'Ally')
+                                local iFriendlyFrontlineCombatThreat = M28UnitInfo.GetCombatThreatRating(tFriendlyCombatNearACU, true)
+                                if iFriendlyFrontlineCombatThreat >= iMobileDFWanted * 0.95 then
+                                    bConsiderAttackingACU = true
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iFriendlyFrontlineCombatThreat='..iFriendlyFrontlineCombatThreat..'; iClosestACUDist='..iClosestACUDist..'; oClosestCombatUnitToEnemyACU='..oClosestCombatUnitToEnemyACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestCombatUnitToEnemyACU)..'; Closest enemy ACU is owned by '..oClosestACUToMidpoint:GetAIBrain().Nickname) end
+                            end
+                        end
+                    end
+                else
+                    bConsiderAttackingACU = true
+                end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished deciding if we want to try and attack enemy ACU, bConsiderAttackingACU='..tostring(bConsiderAttackingACU or false)) end
 
             local bOnlyCheckForStructure = true
             if not(oNearestEnemyToFriendlyBase) then bOnlyCheckForStructure = false end
@@ -4872,7 +4917,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local oClosestACUToAttack
                 local iClosestACU = 100000
                 local iCurACUDist
-                for iACU, oACU in toEnemyACUsInZone do
+                for iACU, oACU in toEnemyACUsNearZone do
                     iCurACUDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())
                     if iCurACUDist < iClosestACU then
                         iClosestACU = iCurACUDist
@@ -5134,6 +5179,32 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 end
                                 if bAdd then
                                     table.insert(tNearbyAdjacentEnemies, oUnit)
+                                    --If this is an ACU then consider adding to table of ACUs
+                                    if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                                        --Is it already in the table?
+                                        local bAlreadyInTable = false
+                                        if M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false then
+                                            for iACU, oACU in toEnemyACUsNearZone do
+                                                if oACU == oUnit then
+                                                    bAlreadyInTable = true
+                                                    break
+                                                end
+                                            end
+                                        end
+                                        if not(bAlreadyInTable) then
+                                            table.insert(toEnemyACUsNearZone, oUnit)
+                                            if bConsiderAttackingACU then
+                                                --Do we still want to do this?
+                                                local iMobileDFWanted = math.min(7500, M28UnitInfo.GetCombatThreatRating(toEnemyACUsNearZone, true))
+                                                if iMobileDFWanted <= 3000 or tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > iMobileDFWanted then
+                                                    --Will continue attacking
+                                                else
+                                                    bConsiderAttackingACU = false
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Have ACU in an adjacent zone that is near enough to include, iMobileDFWanted to consider attacking it='..iMobileDFWanted..'; bConsiderAttackingACU after update='..tostring(bConsiderAttackingACU)) end
+                                            end
+                                        end
+                                    end
                                 end
                             end
                         end
@@ -5688,7 +5759,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     else
                                         --Experimental specific - attack ACU if in-range
                                         local bUseNormalLogic = true
-                                        if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsInZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
+                                        if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsNearZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Want to attack ACU with our experimental') end
                                             GetUnitToAttackNearestACU(oUnit)
                                             bUseNormalLogic = false
@@ -6333,6 +6404,23 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 end
                             end
                         end
+                        --Override for if enemy ACU nearby
+                        if bAttackWithOutrangedDFUnits and M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false and not(bConsiderAttackingACU) then
+                            --If enemy ACU is within 30 of the closest enemy unit then dont attack with outranged DF units
+                            local iDistThresholdForACU = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) - 30
+                            local iDistToNearestEnemyThreshold = 30
+                            if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemyToFriendlyBase.UnitId) and (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) <= 10 then
+                                iDistThresholdForACU = iDistThresholdForACU + 7
+                                iDistToNearestEnemyThreshold = iDistToNearestEnemyThreshold - 7
+                            end
+                            for iACU, oACU in toEnemyACUsNearZone do
+                                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= iDistThresholdForACU or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) <= iDistToNearestEnemyThreshold then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy ACU is too close to nearest enemy unit so wont have our SR DF units attack') end
+                                    bAttackWithOutrangedDFUnits = false
+                                    break
+                                end
+                            end
+                        end
                         if bAttackWithOutrangedDFUnits then
                             for iUnit, oUnit in tOutrangedCombatUnits do
                                 if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
@@ -6346,7 +6434,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             M28Orders.IssueTrackedAttackMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'EsySRAM'..iLandZone)
                                         end
                                     else
-                                        if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsInZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
+                                        if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsNearZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Want to attack ACU with experimental') end
                                             GetUnitToAttackNearestACU(oUnit)
                                             --Attackmove (unless we have far more threat in this zone)
@@ -6503,7 +6591,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     elseif oSRUnit[M28Air.refiTimeLastDropped] and oSRUnit[M28UnitInfo.refiIndirectRange] > 0 and GetGameTimeSeconds() - oSRUnit[M28Air.refiTimeLastDropped] <= 60 and oNearestEnemyStructureToMidpoint then
                                         SuicideUnitIntoEnemyStructure(oSRUnit)
                                     else
-                                        if bConsiderAttackingACU and not(oSRUnit[M28UnitInfo.refbLastShotBlocked]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oSRUnit.UnitId) and not(oSRUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oSRUnit:GetPosition(), toEnemyACUsInZone, 6 + oSRUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
+                                        if bConsiderAttackingACU and not(oSRUnit[M28UnitInfo.refbLastShotBlocked]) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oSRUnit.UnitId) and not(oSRUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oSRUnit:GetPosition(), toEnemyACUsNearZone, 6 + oSRUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Have an experimental we want to attack enemy ACU with') end
                                             GetUnitToAttackNearestACU(oSRUnit)
                                             --Non-fatboy experimental - if we are almost in range of enemy experimental unit then attack
@@ -6632,6 +6720,28 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     bAttackWithEverything = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have enough threat to attack, and non earby enemy firebase, so will attack with everything') end
                                 end
+                                --Extra check if enemy has ACU, to avoid feeding it mass if we only have a slight combat advantage
+                                if bAttackWithEverything and not(bConsiderAttackingACU) and M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false and iOurDFAndT1ArtiCombatThreat < math.max(iEnemyCombatThreat * 2, iEnemyCombatThreat + 2000) and iFirebaseThreatAdjust == 0 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': enemy has ACU so want to be more cautious, is the closest enemy an ACU='..tostring(EntityCategoryContains(categories.COMMAND, oNearestEnemyToFriendlyBase.UnitId))) end
+                                    if EntityCategoryContains(categories.COMMAND, oNearestEnemyToFriendlyBase.UnitId) then
+                                        bAttackWithEverything = false
+                                    else
+                                        --Exception - enemy ACU isnt the closest enemy unit, and is far enough away from the closest enemy unit that we can potentially attack to do some damage to it
+                                        local iDistThresholdForACU = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) - 30
+                                        local iDistToNearestEnemyThreshold = 30
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemyToFriendlyBase.UnitId) and (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) <= 10 then
+                                            iDistThresholdForACU = iDistThresholdForACU + 7
+                                            iDistToNearestEnemyThreshold = iDistToNearestEnemyThreshold - 7
+                                        end
+                                        for iACU, oACU in toEnemyACUsNearZone do
+                                            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= iDistThresholdForACU or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) <= iDistToNearestEnemyThreshold then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy ACU is too close to nearest enemy unit so wont have our units attack') end
+                                                bAttackWithEverything = false
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
                             end
                             --NOTE: We have "suicide into mex logic" later on; however htis also does a similar thing but is intended to mean units like microbots will be more aggressive early on to target engis and mexes
                             if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to try attacking exposed enemy unit, iOurDFAndT1ArtiCombatThreat='..iOurDFAndT1ArtiCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; oNearestEnemyToFriendlyBase.UnitId='..oNearestEnemyToFriendlyBase.UnitId..'; is table of shields covering empty='..tostring(M28Utilities.IsTableEmpty(oNearestEnemyToFriendlyBase[M28Building.reftoShieldsProvidingCoverage]))) end
@@ -6669,10 +6779,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 end
                             end
                             local iNearbyCombatThreat = math.max(iOurDFAndT1ArtiCombatThreat, M28UnitInfo.GetCombatThreatRating(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains][1]:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oClosestFriendlyToEnemy:GetPosition(), iSearchRange, 'Ally'), false))
-                            if iNearbyCombatThreat > iEnemyCombatThreat then
-                                bAttackWithEverything = true
-                            elseif iNearbyCombatThreat > 1.2 * math.max(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 0.5, tLZTeamData[M28Map.subrefThreatEnemyDFStructures] + tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]) and tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] then
-                                bAttackWithEverything = true
+                            --Are there significant units left out of the normal threat calculation e.g. due to an amphibious assault with friendly units nearby in the water? If so then consider attacking
+                            if iOurDFAndT1ArtiCombatThreat < iNearbyCombatThreat * 1.25 then
+                                if iNearbyCombatThreat > iEnemyCombatThreat then
+                                    bAttackWithEverything = true
+                                elseif iNearbyCombatThreat > 1.2 * math.max(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 0.5, tLZTeamData[M28Map.subrefThreatEnemyDFStructures] + tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]) and tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] then
+                                    bAttackWithEverything = true
+                                end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Island beachhead Nearby combat threat='..iNearbyCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.subrefThreatEnemyDFStructures]='..tLZTeamData[M28Map.subrefThreatEnemyDFStructures]..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; bAttackWithEverythign='..tostring(bAttackWithEverything)..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])) end
                         end
@@ -6719,7 +6832,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': We dont outrange enemy, considering if we have much more threat than them, iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurDFAndT1ArtiCombatThreat='..iOurDFAndT1ArtiCombatThreat..'; bWantReinforcements='..tostring(bWantReinforcements)..'; bAttackWithEverything='..tostring(bAttackWithEverything)..'; iClosestFriendlyUnitToAnEnemyFirebase='..iClosestFriendlyUnitToAnEnemyFirebase..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveACUInTroubleAndRecentlyInCombat='..tostring(bHaveACUInTroubleAndRecentlyInCombat or false)..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]..'; bAttackWithEverything='..tostring(bAttackWithEverything)) end
                         --Early game where enemy might outrange us slightly e.g. unupgraded ACU vs t1 tanks
-                        if not(bAttackWithEverything) and tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] <= 22 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 and iOurDFAndT1ArtiCombatThreat > math.max(900, iEnemyCombatThreat * 1.2) then
+                        if not(bAttackWithEverything) and iEnemyBestDFRange <= 22 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 and iOurDFAndT1ArtiCombatThreat > math.max(900, iEnemyCombatThreat * 1.2) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Enemy still is relatively short range so press attack') end
                             bAttackWithEverything = true
                         end
@@ -6949,7 +7062,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         elseif bMoveBlockedNotAttackMove and (oUnit[M28UnitInfo.refbLastShotBlocked] or M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride])) then
                                             M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'BAWE'..iLandZone)
                                         else
-                                            if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsInZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
+                                            if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsNearZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will attack ACU with experimental') end
                                                 GetUnitToAttackNearestACU(oUnit)
 
@@ -7266,7 +7379,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     --if bDebugMessages == true then LOG(sFunctionRef..': Unit will run away from location to avoid') end
 
                                     --Shot not blocked - consider attackign ACU with experimentals
-                                    if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsInZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
+                                    if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsNearZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Experimental - attack nearest ACU') end
                                         GetUnitToAttackNearestACU(oUnit)
                                         --CloseToEnemyUnit(tStartPosition,       tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
@@ -7568,8 +7681,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         --Still a bit of distance until we are in range; attack move if we are far away, but do a normal move if we are almost in range
                                         --First check if another target (e.g. upgrading ACU) we should focus fire on first though, if it's significnatly closer than the nearest shield or TMD
                                         local oInRangeUpgradingACU
-                                        if M28Utilities.IsTableEmpty(toEnemyACUsInZone) == false and iClosestPotentialTarget - 10 > oUnit[M28UnitInfo.refiIndirectRange] then
-                                            for iACU, oACU in toEnemyACUsInZone do
+                                        if M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false and iClosestPotentialTarget - 10 > oUnit[M28UnitInfo.refiIndirectRange] then
+                                            for iACU, oACU in toEnemyACUsNearZone do
                                                 if oACU:IsUnitState('Upgrading') and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiIndirectRange] then
                                                     oInRangeUpgradingACU = oACU
                                                     break
@@ -10587,6 +10700,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
     local iAttackThresholdDist = oScout[M28UnitInfo.refiCombatRange] + 5
     local iMinAttackDist = oScout[M28UnitInfo.refiCombatRange] - 10
     local aiBrain = oScout:GetAIBrain()
+    if bDebugMessages == true then LOG(sFunctionRef..': About to start main lurker loop, oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' for P'..iPlateau..'Z'..iZone..' on taem '..iTeam) end
 
     while M28UnitInfo.IsUnitValid(oScout) do
         --Decide whether want to move towards zone; stay still; run from enemies; or attack engineer
@@ -10608,8 +10722,8 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
             end
             if M28Utilities.IsTableEmpty(tEnemiesToRunFrom) then
                 --Does enemy have ACU in zone? if so then run; otherwise if enemy has combat units then stay hidden
-                if M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                    tEnemiesToRunFrom = EntityCategoryFilterDown(categories.COMMAND, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                if M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                    tEnemiesToRunFrom = EntityCategoryFilterDown(categories.COMMAND, tTargetLZTeamData[M28Map.reftoNearestDFEnemies])
                     if M28Conditions.IsTableOfUnitsStillValid(tEnemiesToRunFrom) then
                         --Want to run
                         if bDebugMessages == true then LOG(sFunctionRef..': ACU in target zone so want to run') end
@@ -10620,11 +10734,22 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                                 bGivenOrder = true --i.e. order is to do nothing if in cloak mode
                             else
                                 tEnemiesToRunFrom = EntityCategoryFilterDown(categories.DIRECTFIRE + categories.INDIRECTFIRE, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
-                                if bInCloakMode and M28Utilities.IsTableEmpty(tEnemiesToRunFrom) then bGivenOrder = true end
+                                if bInCloakMode and M28Utilities.IsTableEmpty(tEnemiesToRunFrom) == false then bGivenOrder = true end
+                            end
+                            --Also stay hidden if enemies are in adjacent zone that are near to us
+                        elseif bInCloakMode and M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                            --Check any nearby enemy DF units not assigned to this zone
+                            for iEnemy, oEnemy in tTargetLZTeamData[M28Map.reftoNearestDFEnemies] do
+                                if not(oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] == iZone) and M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oEnemy[M28UnitInfo.refiDFRange] or 0) <= 5 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to stay cloaked due to nearby enemy in adjacent zone') end
+                                    bGivenOrder = true
+                                end
                             end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy combat total='..tTargetLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Enemy DF range='..tTargetLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; bGivenOrder='..tostring(bGivenOrder)..'; Is tEnemiesToRunFrom empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesToRunFrom))) end
                         if not(bGivenOrder) and not(M28Conditions.IsTableOfUnitsStillValid(tEnemiesToRunFrom)) then
                             tEnemiesToAttack = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryRadar, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy engineers and radar empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesToAttack))) end
                             if M28Utilities.IsTableEmpty(tEnemiesToAttack) then
                                 --Does the enemy have mexes for us to attack?
                                 tEnemiesToAttack = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
@@ -10642,6 +10767,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
 
             --Process what we have decided to do
             if not(bGivenOrder) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Not given order yet so deciding whether to run or attack, is tEnemiesToRunFrom empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesToRunFrom))..'; is tEnemiesToAttack empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesToAttack))) end
                 if M28Utilities.IsTableEmpty(tEnemiesToRunFrom) == false then
                     --Get the closest and run from here in opposite direction, or towards rally point, unless we are really far away in which case consider just being assigned to a different zone
                     bInCloakMode = false
@@ -10652,6 +10778,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition())
                             if iCurDist < iClosestEnemyDist then
                                 oClosestEnemy = oUnit
+                                iClosestEnemyDist = iCurDist
                             end
                         end
 
@@ -10672,6 +10799,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition())
                             if iCurDist < iClosestEnemyDist then
                                 oClosestEnemy = oUnit
+                                iClosestEnemyDist = iCurDist
                             end
                         end
 
@@ -10679,12 +10807,12 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                     if oClosestEnemy then
                         bInCloakMode = false
                         --Attack
-                        if bDebugMessages == true then LOG(sFunctionRef..': Attacking oClosestEnemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)..'; iClosestEnemyDist='..iClosestEnemyDist..'; iMinAttackDist='..iMinAttackDist) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to attack oClosestEnemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)..'; iClosestEnemyDist='..iClosestEnemyDist..'; iMinAttackDist='..iMinAttackDist) end
                         if iClosestEnemyDist <= iAttackThresholdDist then
                             if iClosestEnemyDist <= iMinAttackDist and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oClosestEnemy.UnitId) then
                                 --Dont want to be reclaimed by the engineer, so move back slightly
                                 local tMovePoint, tPotentialMovePoint
-                                local iAngleFromEngi = GetAngleFromAToB(oClosestEnemy:GetPosition(), oScout:GetPosition())
+                                local iAngleFromEngi = M28Utilities.GetAngleFromAToB(oClosestEnemy:GetPosition(), oScout:GetPosition())
 
                                 for iAngleAdjust = 0, 90, 45 do
                                     for iFactor = -1, 1, 2 do
@@ -10709,6 +10837,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                                 bGivenOrder = true
                             end
                         else
+                            if bDebugMessages == true then LOG(sFunctionRef..': want to move to enemy to attack them') end
                             --Move to enemy
                             M28Orders.IssueTrackedMove(oScout, oClosestEnemy:GetPosition(), 3, false, 'LurkMvEn', oScout[M28UnitInfo.refbLowerPriorityMicroActive])
                             bGivenOrder = true

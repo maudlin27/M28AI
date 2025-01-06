@@ -146,7 +146,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyMobileSatellites = 'M28TeamESat' --table of novax satellites; done to avoid double-counting threat if include in reftEnemyArtiAndExpStructure (which has the centre)
     refbEnemySMDBuiltSinceLastNukeCheck = 'M28TeamESMDBuilt' --True when enemy SMD is detected, used to decide to rerun logic for identifying nuke land zone targets for deciding whether to build nuke
     refbEnemySMDDiedSinceLastNukeCheck = 'M28TeamESMDDied' --True when enemy SMD is dies, used to decide to rerun logic for identifying nuke land zone targets for deciding whether to build nuke
-    refbEnemyHasSub = 'M28EnemyHasSub' --true if enemy has sub - used to be more cautious with ACU
+    refiEnemySubCount = 'M28EnemyHasSub' --number of enemy subs detected, tech adjusted so e.g. t3 unit will be treated as 3
     reftEnemyACUs = 'M28EnemyACUs' --Table of all enemy ACUs
     reftM28ACUs = 'M28FriendlyACUs' --table of M28 ACUs on the team
     refbEnemyHasUpgradedACU = 'M28TeamEnUpgACU' --true if enemy has an ACU that is upgrading or upgraded
@@ -222,7 +222,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastTransportCombatShortlistUpdate = 'M28TmAirCmTrSL' --Gametimeseconds we last updated list of potential combat drop locations
     reftTransportIslandDropShortlist = 'M28TeamAirTransportShortlist' --key is 1,2....x, returns {iPlateau, iIsland} - shortlist of plateau and island references that want to consider a transport drop for
     reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist = 'M28TeamAirTransCurIslShortlist' --key is 1,2,...x, returns {iPlateau, iLandZone}, being locations on the same island as a base that want a drop due to how far away they are
-    reftiPotentialDropIslandsByPlateau = 'M28TeamAirPotentialDropIslands' --List of islands by plateau that have mexes in them and no enemy start position
+    reftiPotentialDropIslandsByPlateau = 'M28TeamAirPotentialDropIslands' --[x] is plateau, [y] = 1,2,...x returning the island ref; List of islands by plateau that have mexes in them and no enemy start position
     reftiPotentialDropZonesByPlateau = 'M28TeamAirPotDropZones' --[x] is plateau, [y] = 1,2,...x, returns land zone ref for that plateau that we are happy to try and drop with a transport
     reftiPotentialCombatDropZonesByPlateau = 'M28TeamATrCmDZ' --[x] is plateau, [y]=1,2,...x, returns LZ ref for plateau to consider dropping if enemy has vulnerable mexes
     reftTransportCombatPlateauLandZoneDropShortlist = 'M28TeamATCurCmbShlst' --key is 1,2,...x, returns {iPlateau, iLandZone}, being locations where after evaluating enemy threat we want to send a combat drop
@@ -1209,7 +1209,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
             end
             --Record if enemy has sub
             if EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId) then
-                tTeamData[aiBrain.M28Team][refbEnemyHasSub] = true
+                tTeamData[aiBrain.M28Team][refiEnemySubCount] = (tTeamData[aiBrain.M28Team][refiEnemySubCount] or 0) + M28UnitInfo.GetUnitTechLevel(oUnit)
             end
         elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --dont want to retain orders in case it was from an adjacent zone

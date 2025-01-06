@@ -69,6 +69,7 @@ iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to conside
     refbGunshipViaPointReached = 'M28GsViaPR' --true if have recently reached the gunship via point
     refbRallyViaPointReached = 'M28GsRalPR' --true if have recently reached the via point for the rally
     rebEarlyBomberTargetBase = 'M28ErBTrB' --true if have a bomber that we want to target enemy base (used when went early bomber mode)
+    refiExpBomberShotCount = 'M28ExpBCn' --If using our aoe to ground fire mobile AA targets, then we should track the exp bomber target, and then increase this count by 1 so we dont continue to try if the unit survived the first attempt
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -10033,13 +10034,21 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             if not(bHaveTargetWhereShotIsBlocked) and M28Logic.IsTargetUnderShield(aiBrain, oBestEnemyTarget, iDamageForIfUnderShield, false, true, false, false) then
                                 bUseAOEForTargetIfNotTooClose = true
                                 --If only have 1 exp bomber and targeting a fixed unit be more cautious if significant enemy groundAA threat near the target
-                            elseif not(bHaveTargetWhereShotIsBlocked) and iTotalExpBombers <= 2 and (iTotalExpBombers <= 1 or iHighestDamage <= 20000) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) then
+                            elseif not(bHaveTargetWhereShotIsBlocked) and iTotalExpBombers <= 2 and (iTotalExpBombers <= 1 or iHighestDamage <= 20000) and (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) or (oBestEnemyTarget[refiExpBomberShotCount] or 0) <= 1) then
                                 local iTargetPlateau, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oBestEnemyTarget:GetPosition())
-                                if (iTargetPlateau or 0) > 0 and iTargetZone then
-                                    local tTargetLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetZone]
-                                    local tTargetLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Only have 1 exp bomber, target is unshielded, but will consider if ground AA threat so great we want to do aoe attack on the AOE, (tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)='..(tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)) end
-                                    if (tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) >= 8000 then --Equiv of 5 SAMs
+                                if iTargetZone then
+                                    local tTargetLZOrWZData
+                                    local tTargetLZOrWZTeamData
+                                    if (iTargetPlateau or 0) == 0 then
+                                        tTargetLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iTargetZone]][M28Map.subrefPondWaterZones][iTargetZone]
+                                        tTargetLZOrWZTeamData = tTargetLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                    else
+                                        tTargetLZOrWZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetZone]
+                                        tTargetLZOrWZTeamData = tTargetLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                                    end
+
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Only have 1 exp bomber, target is unshielded, but will consider if ground AA threat so great we want to do aoe attack on the AOE, (tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)='..(tTargetLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)..'; iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetZone='..(iTargetZone or 'nil')) end
+                                    if (tTargetLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) >= 4500 * iTotalExpBombers then --Equiv of x.3 SAMs per bomber
                                         bUseAOEForTargetIfNotTooClose = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will use aoe to attack target due to significant enemy ground threat') end
                                     end
@@ -10103,13 +10112,17 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                             end
                                         end
                                     end
-                                    if not(tTarget) then tTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition()), iDistToTarget - iAOE + math.max(iAOE * 0.1, 3), true, false, true) end
+                                    local iInsideAOEWanted
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) then iInsideAOEWanted = math.max(iAOE * 0.1, 3)
+                                    else iInsideAOEWanted = math.max(iAOE * 0.2, 6) * (1 + (oBestEnemyTarget[refiExpBomberShotCount] or 0))
+                                    end
+                                    if not(tTarget) then tTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition()), iDistToTarget - iAOE + iInsideAOEWanted, true, false, true) end
                                     --Double-check we wont damage friendly units as a result (have done >= 0 in case we dont think we are dealing any damage due to only damage being to shields)
                                     if M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA) >= iMinValueWanted then
-                                        M28Orders.IssueTrackedGroundAttack(oBomber, tTarget, iAOE * 0.5, false, 'ExpAG', false)
+                                        M28Orders.IssueTrackedGroundAttack(oBomber, tTarget, iAOE * 0.5, false, 'ExpAG', false, oBestEnemyTarget)
                                         bGivenOrderAlready = true
                                     end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to ground fire near the shielded target, tTarget='..repru(tTarget)..'; bUseAOEForTargetIfNotTooClose='..tostring(bUseAOEForTargetIfNotTooClose)..'; Damage from bomb='..M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA)..'; iMinValueWanted='..iMinValueWanted) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to ground fire near the shielded target, tTarget='..repru(tTarget)..'; bUseAOEForTargetIfNotTooClose='..tostring(bUseAOEForTargetIfNotTooClose)..'; Damage from bomb='..M28Logic.GetDamageFromBomb(aiBrain, tTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA)..'; iMinValueWanted='..iMinValueWanted..'; iInsideAOEWanted='..iInsideAOEWanted..'; oBestEnemyTarget[refiExpBomberShotCount]='..(oBestEnemyTarget[refiExpBomberShotCount] or 'nil')) end
                                 else
                                     bUseAOEForTargetIfNotTooClose = false
                                     if bDebugMessages == true then LOG(sFunctionRef..': Target is too close to bomber so wont use aoe attack') end
