@@ -7481,15 +7481,17 @@ function RecordPotentialCombatDropShortlist(iTeam)
     --Now cycle through every plateau and identify any zone with 2+ mexes in it
     M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau] = {}
     for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
-        if (tPlateauSubtable[M28Map.subrefPlateauTotalMexCount] or 0) >= 2 then
+        local iTotalMexThreshold = 2
+        if table.getn(M28Map.tMassPoints) / M28Team.iPlayersAtGameStart <= 15 then iTotalMexThreshold = 1 end
+        if (tPlateauSubtable[M28Map.subrefPlateauTotalMexCount] or 0) >= iTotalMexThreshold then
             for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
-                if (tLZData[M28Map.subrefLZMexCount] or 0) >= 2 then
+                if (tLZData[M28Map.subrefLZMexCount] or 0) >= iTotalMexThreshold then
                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                     --Ignore zones that can path to with land from a friendly base, or which are in a friendly or enemy base
                     if (tbFriendlyPlateaus[iPlateau] and tLZTeamData[M28Map.refiModDistancePercent] <= 0.2) or tbPlayerStartByPlateauAndZone[iPlateau][iLandZone] then
                         --Ignore
                     else
-                        --Have a land zone, with 2+ mexes, so shoudl consider dropping it for the main combat drop logic
+                        --Have a land zone, with 2+ mexes (unless iTotalMexThreshold is 1), so shoudl consider dropping it for the main combat drop logic
                         if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau][iPlateau] = {} end
                         table.insert(M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau][iPlateau], iLandZone)
                     end
@@ -7811,6 +7813,7 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
         local iLowestGeneralDangerousZoneThreat = 100000
         local iDangerousPlateau, iCurDangerousZoneThreat
         local iDangerousZone
+        local iBestEnemyZoneSafeMexCount = 0
         for iPlateau, tiLandZones in M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau] do
             for iEntry, iLandZone in tiLandZones do
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -7824,14 +7827,21 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
                     if M28Utilities.IsTableEmpty(toEnemyMexCount) == false then
                         iCurMexCount = table.getn(toEnemyMexCount)
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy mex count='..iCurMexCount..'; LZ mex count='..(tLZData[M28Map.subrefLZMexCount] or 'nil')) end
-                        if iCurMexCount >= math.min(4, math.max(2, tLZData[M28Map.subrefLZMexCount] * 0.5)) then
+                        if iCurMexCount >= math.min(4, math.max(1, tLZData[M28Map.subrefLZMexCount] * 0.5)) then
                             --Check whether its safe to travel here for each individual transport
-                            if (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iMobileDFThreshold and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 40 then
+                            --Ignore if 1 mex unless enemy has significant building mass value invested here and not dangerous
+                            if iCurMexCount <= 1 and (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or 0) <= 1 and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <= 1000 and iCurMexCount < iBestEnemyZoneSafeMexCount then
+                                --Ignore if already have a better target
+                                if bDebugMessages == true then LOG(sFunctionRef..': Not enoguh mexes to be worth adding to the shortlist') end
+                            elseif (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iMobileDFThreshold and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 40 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Adding to combat drop shortlist') end
                                 table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iPlateau, iLandZone})
                                 bHaveSafeTarget = true
+                                iBestEnemyZoneSafeMexCount = math.max(iCurMexCount, iBestEnemyZoneSafeMexCount)
                             elseif not(bHaveSafeTarget) and (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= iDangerousGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iDangerousMobileDFThreshold and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 200 then
                                 iCurDangerousZoneThreat = (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 2 + (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
+                                --Increase threat by 50% if this is a 1 mex location so we are less likely to pick it
+                                if iCurMexCount <= 1 and (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or 0) <= 1 and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <= 1000 then iCurDangerousZoneThreat = iCurDangerousZoneThreat * 1.5 end
                                 if iCurDangerousZoneThreat < iLowestGeneralDangerousZoneThreat then
                                     iLowestGeneralDangerousZoneThreat = iCurDangerousZoneThreat
                                     iDangerousPlateau = iPlateau
@@ -8768,11 +8778,24 @@ function ManageTransports(iTeam, iAirSubteam)
                         M28Orders.IssueTrackedTransportUnload(oUnit, tLZOrWZData[M28Map.subrefMidpoint], 10, false, 'TRLZUnlI'..(iIslandToTravelTo or 0)..'Z'..(iLandZoneToTravelTo or iWaterZoneToTravelTo), false)
                         --Set this as an expansion zone if it is in same isalnd (as normal logic wont flag it as an expansion)
                         if bDebugMessages == true then LOG(sFunctionRef..': Just tried to send order for transport to go to iIslandToTravelTo='..iIslandToTravelTo..'; iLandZoneToTravelTo='..iLandZoneToTravelTo..'; LZ midpoint='..repru(tLZOrWZData[M28Map.subrefMidpoint])) end
-                        if bTravelToSameIsland then
-                            local tTargetLZData =  M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
-                            local tLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
+                        local tTargetLZData =  M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
+                        local tLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
+                        if bTravelToSameIsland and tLZTeamData then
                             if not(tLZTeamData[M28Map.subrefLZCoreExpansion]) and (tLZOrWZData[M28Map.subrefLZMexCount] >= 3 or (M28Map.bIsCampaignMap and (M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) == false or M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false))) then
                                 tLZTeamData[M28Map.subrefLZExpansionOverride] = true
+                            end
+                        end
+
+                        --Also set expansion flag for 1-2 mex land zone locations where we are dropping engineers if not many mexes on map and it's not too close to enemy (so not just throwing away mass by trying to fortify more)
+                        if tLZTeamData and not(tLZTeamData[M28Map.subrefLZExpansionOverride]) and (tLZOrWZData[M28Map.subrefLZMexCount] or 0) >= 1 and tLZOrWZData[M28Map.refiModDistancePercent] <= 0.6 then
+                            --Decide if we want to treat a low mex location as still valuable - consider for lowish mex maps
+                            local iMapMexCount = table.getn(M28Map.tMassPoints)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to also set expansion override for P'..iPlateauToTravelTo..'; iIslandToTravelTo='..iIslandToTravelTo..'; iLandZoneToTravelTo='..(iLandZoneToTravelTo or 'nil')..'; iMapMexCount='..iMapMexCount..'; Players at game tsart='..M28Team.iPlayersAtGameStart..'; Island mex count='..(M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 0)) end
+                            if iMapMexCount / M28Team.iPlayersAtGameStart <= 13 then --13 or less mexes per player, so 2 mex islands will be of more value
+                                if (tLZOrWZData[M28Map.subrefLZMexCount] >= 2 or M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 0) >= 2 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Setting expansion override flag to true') end
+                                    tLZTeamData[M28Map.subrefLZExpansionOverride] = true
+                                end
                             end
                         end
 
@@ -8922,13 +8945,25 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
 
                     --Check for nearby enemy airaa units by distance
                     local iClosestEnemyAirAA = 10000
+                    local iDistanceThreshold = 10
+                    local iAirAAWithinThresholdMassValue = 0
+                    local iCurDist
                     for iEnemy, oEnemy in tCurZoneTeamData[M28Map.reftLZEnemyAirUnits] do
-                        if M28UnitInfo.IsUnitValid(oEnemy) and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oEnemy.UnitId) then
-                            iClosestEnemyAirAA = math.min(iClosestEnemyAirAA, M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()))
+                        if M28UnitInfo.IsUnitValid(oEnemy) and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oEnemy.UnitId) and oEnemy:GetFractionComplete() == 1 then
+                            --Is enemy off the ground?
+                            if oEnemy:IsUnitState('Moving') or (not(oEnemy:IsUnitState('Attached')) and oEnemy:GetPosition()[2] - GetTerrainHeight(oEnemy:GetPosition()[1], oEnemy:GetPosition()[3]) >= 2) then
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - (oEnemy[M28UnitInfo.refiAARange] or 20)
+                                if iCurDist < iClosestEnemyAirAA then
+                                    iClosestEnemyAirAA = iCurDist
+                                end
+                                if iCurDist <= iDistanceThreshold then
+                                    iAirAAWithinThresholdMassValue = iAirAAWithinThresholdMassValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
+                                end
+                            end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider dropping transport early, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Dist to cur unload destination='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; Last order detsination pre update='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; iClosestEnemyAirAA='..iClosestEnemyAirAA..'; Unit position='..repru(oUnit:GetPosition())..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                    if iClosestEnemyAirAA <= 35 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider dropping transport early, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Dist to cur unload destination='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; Last order detsination pre update='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; iClosestEnemyAirAA='..iClosestEnemyAirAA..'; Unit position='..repru(oUnit:GetPosition())..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; iAirAAWithinThresholdMassValue='..iAirAAWithinThresholdMassValue) end
+                    if iClosestEnemyAirAA <= 10 and (iAirAAWithinThresholdMassValue >= 100 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.7) then --i.e. air unit is 10 away from being in range of us (or less)
                         --If combat drop then require us to be dropping on land
                         if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater({oUnit:GetPosition()[1], GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]), oUnit:GetPosition()[3]}))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Dropping early as enemy has AirAA') end
@@ -8945,25 +8980,31 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
         if M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.35 and (iDistToTarget <= 50 or oUnit[refbCombatDrop]) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.GetUnitHealthPercent] or 0) <= 8 then
             if bDebugMessages == true then LOG(sFunctionRef..': Transport is low health so want to drop immediately unless it isnt likely to be a valid drop location') end
             if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater(GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3])))) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will drop') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true, false
             elseif iDistToTarget <= 40 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Target within 40 so will proceed to drop') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false, true --i.e. carry on to destination
             else
+                if bDebugMessages == true then LOG(sFunctionRef..': Returning false') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false, false --i.e. consider retreating or changing targets if called this as part of retreat to rally logic
             end
         elseif iDistToTarget <= 30 or (iDistToTarget <= 60 and oUnit[refbCombatDrop]) then
             --Might as well proceed to destination and unload - significant risk we just die if we return by this stage anyway, while a combat drop loses its effectiveness if keep changing our mind
+            if bDebugMessages == true then LOG(sFunctionRef..': Will proceed to destination') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false, true
         elseif iDistToTarget <= 250 then
             local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tLastOrder[M28Orders.subreftOrderPosition], true, iTeam)
             local tCargo = oUnit:GetCargo()
             local iCargoSize = table.getn(tCargo)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will cnosider proceeding to destination, tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; oUnit[refbCombatDrop]='..tostring(oUnit[refbCombatDrop] or false)) end
             if (tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) < iCargoSize * 30 or oUnit[refbCombatDrop] then
                 --Might as well proceed to destination and unload given minimal enemy combat threat
+                if bDebugMessages == true then LOG(sFunctionRef..': Minimal combat threat so will proceed to destination') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false, true
             end

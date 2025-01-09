@@ -13110,7 +13110,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Reclaim specific units
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if have units to reclaim, is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]))) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
+    if tLZTeamData[M28Map.subreftoUnitsToReclaim] and M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoUnitsToReclaim]) then
         local bObjectiveToReclaim = false
         if M28Map.bIsCampaignMap then
             for iUnit, oUnit in tLZTeamData[M28Map.subreftoUnitsToReclaim] do
@@ -14938,7 +14938,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Reclaim specific units
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if have units to reclaim, is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]))) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
+    if tLZTeamData[M28Map.subreftoUnitsToReclaim] and M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoUnitsToReclaim]) then
         local bObjectiveToReclaim = false
         if M28Map.bIsCampaignMap then
             for iUnit, oUnit in tLZTeamData[M28Map.subreftoUnitsToReclaim] do

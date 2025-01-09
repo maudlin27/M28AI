@@ -84,6 +84,7 @@ refoGameEnderBeingShielded = 'M28BuildSpecShdlTarg' --against a shield, records 
 reftArtiTemplateRefs = 'M28ArtiTemplateRef' --returns {iPlateau, iLandZone, iTemplateRef}, with tempalteref being the index for tLZTeamData[reftActiveGameEnderTemplates], assigned to any units that form part of it
 refiTimeOfLastDischarge = 'M28ShLastDisc' --gametime that we gave a discharge order, so can check for redundancies
 refbRecentlyCheckedTMDOrTML = 'M28BRChTm' --true if we have recently checked this unit for if it has tml/tmd coverage etc. against land zone
+refiManuallyEnabledTime = 'M28ShLstMnEn' --gametimeseconds that we ran enableshield due to a potential bug
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
@@ -1941,7 +1942,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         end
                     end
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider missile target. iMinRange='..(iMinRange or 'nil')..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; bSML='..tostring((bSML or false))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider missile target. iMinRange='..(iMinRange or 'nil')..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; bSML='..tostring((bSML or false))..'; bTML='..tostring(bTML or false)..'; Is laucher valid='..tostring(M28UnitInfo.IsUnitValid(oLauncher))..'; Time='..GetGameTimeSeconds()) end
                     if M28UnitInfo.IsUnitValid(oLauncher) then
                         local bHaveBlockingSMD = false
                         if bTML then
@@ -1954,6 +1955,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             local iTMLRange = (oLauncher[M28UnitInfo.refiManualRange] or iTMLMissileRange)
                             local iTMLAOE = math.max(oLauncher[M28UnitInfo.refiIndirectAOE] or 0, 2)
                             local iPotentialInRangeDistance = iTMLRange + iTMLAOE + 4 --unlikely to have larger buildings than this
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider enemy ACU in TML targets in FAF/steam, M28Utilities.bFAFActive='..tostring(M28Utilities.bFAFActive)..'; Is table of enemy ACUs empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]))) end
                             if M28Utilities.bFAFActive or M28Utilities.bSteamActive and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
                                 local tACUsInRange = {}
                                 local iCurDist
@@ -1962,7 +1964,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oLauncher:GetPosition())
                                         if iCurDist <= iTMLRange then
                                             --Track ACU positions
-                                            MonitorUnitRecentPositions(oACU)
+                                            ForkThread(MonitorUnitRecentPositions, oACU)
                                             --Is enemy ACU stationery?
                                             if oACU[M28UnitInfo.reftRecentUnitPositions][2] then
                                                 --Is ACU stationery, and hasnt moved from when we last had intel of their position?
@@ -2034,6 +2036,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             end
 
                             local oBestTarget
+                            if bDebugMessages == true then LOG(sFunctionRef..': iValidTargets='..iValidTargets) end
                             if iValidTargets == 0 then
                                 --Disable autobuild and pause the TML since we have no targets - handled below to cover cases where for whatever reason we fail to find a valid target
                             else
@@ -4671,14 +4674,17 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                             end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': Time since last recharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield a transferred unit='..tostring(oShield[M28UnitInfo.refbTransferredUnit])..'; oUnit[refbShieldIsDisabled]='..repru(oShield[M28UnitInfo.refbShieldIsDisabled])) end
-
-                            if oShield[refiTimeOfLastDischarge] and GetGameTimeSeconds() - oShield[refiTimeOfLastDischarge] >= math.max(iLongestRechargeTime + 10, 40) and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeCreated] or 0) >= 5 then
-                                --Enable the shield incase it was somehow paused following the transfer
-                                if bDebugMessages == true then LOG(sFunctionRef..': Enabling shield as it has been a long time since it was discharged, shield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Time='..GetGameTimeSeconds()) end
-                                M28UnitInfo.EnableUnitShield(oShield)
-                            elseif not(oShield[refiTimeOfLastDischarge]) and oShield[M28UnitInfo.refbTransferredUnit] and oShield[M28UnitInfo.refbShieldIsDisabled] == nil and iCurHealth == 0 and oShield:GetAIBrain():GetEconomyStoredRatio('ENERGY') >= 0.1 and not(oShield[M28UnitInfo.refbPaused]) and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeCreated] or 0) >= 5 then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have 0 health shield that was transferred so will try enabling shield, shield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Time='..GetGameTimeSeconds()) end
-                                M28UnitInfo.EnableUnitShield(oShield)
+                            if not(oShield[refiManuallyEnabledTime]) or GetGameTimeSeconds() - oShield[refiManuallyEnabledTime] >= 30 then --as had a case where shields were stuck not recharging, so added in case due to running enableunitshield every tick
+                                if (oShield[refiTimeOfLastDischarge] and GetGameTimeSeconds() - oShield[refiTimeOfLastDischarge] >= math.max(iLongestRechargeTime + 10, 40) and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeCreated] or 0) >= 5) then
+                                    --Enable the shield incase it was somehow paused following the transfer, but only do this once every 10s
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enabling shield as it has been a long time since it was discharged, shield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Time='..GetGameTimeSeconds()) end
+                                    M28UnitInfo.EnableUnitShield(oShield)
+                                    oShield[refiManuallyEnabledTime] = GetGameTimeSeconds() --This is because also had a case where shield progress got stuck, which may have been due to this
+                                elseif not(oShield[refiTimeOfLastDischarge]) and oShield[M28UnitInfo.refbTransferredUnit] and oShield[M28UnitInfo.refbShieldIsDisabled] == nil and iCurHealth == 0 and oShield:GetAIBrain():GetEconomyStoredRatio('ENERGY') >= 0.1 and not(oShield[M28UnitInfo.refbPaused]) and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeCreated] or 0) >= 5 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have 0 health shield that was transferred so will try enabling shield, shield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Time='..GetGameTimeSeconds()) end
+                                    M28UnitInfo.EnableUnitShield(oShield)
+                                    oShield[refiManuallyEnabledTime] = GetGameTimeSeconds()
+                                end
                             end
                         end
 
