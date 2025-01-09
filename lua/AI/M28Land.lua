@@ -6182,12 +6182,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'SK1AMve'..iLandZone)
                                             else
                                                 local tRetreatLocationToUse
-                                                local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
-                                                local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)
-                                                if M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally) <= 65 then
-                                                    local tPotentialRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestEnemy - 180, 15, true, nil, M28Map.bIsCampaignMap)
-                                                    if M28Utilities.IsTableEmpty(tPotentialRetreatLocation) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialRetreatLocation) == iPlateau then
-                                                        tRetreatLocationToUse = {tPotentialRetreatLocation[1], tPotentialRetreatLocation[2], tPotentialRetreatLocation[3]}
+                                                if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+                                                    local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
+                                                    local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)
+                                                    if M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally) <= 65 then
+                                                        local tPotentialRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestEnemy - 180, 15, true, nil, M28Map.bIsCampaignMap)
+                                                        if M28Utilities.IsTableEmpty(tPotentialRetreatLocation) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialRetreatLocation) == iPlateau then
+                                                            tRetreatLocationToUse = {tPotentialRetreatLocation[1], tPotentialRetreatLocation[2], tPotentialRetreatLocation[3]}
+                                                        end
                                                     end
                                                 end
                                                 if not(tRetreatLocationToUse) then

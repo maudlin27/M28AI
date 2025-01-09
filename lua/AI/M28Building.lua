@@ -732,7 +732,7 @@ function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize, tT
 
     if EntityCategoryContains(categories.AEON, oTMD.UnitId) then iTMDRange = iTMDRange + 0.5 end --to be prudent, may not be required as when made change (v169) there was a separate TMD issue (below reduction for building size) that was likely causing the issue of incorrectly thinking TMD didnt cover a target
     --Reduce range based on building size if we are considering whether we should build TMD to protect a target, if our TMD is further away than the unit in question (meaning we are more likely to be behind the unit, such that enemy could more easily 'edge-TML' the unit)
-    if oUnit:GetAIBrain().M28AI and not(oTML:GetAIBrain().M28AI) and M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oTML:GetPosition()) >= M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTML:GetPosition()) then
+    if oUnit:GetAIBrain().M28AI and oTML and not(oTML:GetAIBrain().M28AI) and M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oTML:GetPosition()) >= M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTML:GetPosition()) then
         iTMDRange = iTMDRange - iBuildingSize
     end
 
