@@ -4790,35 +4790,98 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
         local tEnemyTargets = {}
         local tbAdjacentWaterZonesConsidered = {}
         local tbWaterZonesConsidered = {}
-        function AddEnemyTargetsInWaterZone(iWaterZone, bAddAdjacentZones)
+        function AddEnemyTargetsInWaterZone(iWaterZone, bIsPrimaryZoneToAttack, iMaxDistFromAirRallyPointForAdjacentZones)
             --See above for refiAASearchTypes, i.e. refiAvoidAllAA, refiAvoidOnlyGroundAA, refiIgnoreAllAA
-            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemytargetsi n water zone '..iWaterZone..'; bAddAdjacentZones='..tostring(bAddAdjacentZones or false)..'; tbAdjacentWaterZonesConsidered[iWaterZone]='..tostring(tbAdjacentWaterZonesConsidered[iWaterZone] or false)..'; tbWaterZonesConsidered[iWaterZone]='..tostring(tbWaterZonesConsidered[iWaterZone] or false)) end
-            if not(tbAdjacentWaterZonesConsidered[iWaterZone]) and (bAddAdjacentZones or not(tbWaterZonesConsidered[iWaterZone])) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemytargetsi n water zone '..iWaterZone..'; bIsPrimaryZoneToAttack='..tostring(bIsPrimaryZoneToAttack or false)..'; tbAdjacentWaterZonesConsidered[iWaterZone]='..tostring(tbAdjacentWaterZonesConsidered[iWaterZone] or false)..'; tbWaterZonesConsidered[iWaterZone]='..tostring(tbWaterZonesConsidered[iWaterZone] or false)) end            
+            if not(tbAdjacentWaterZonesConsidered[iWaterZone]) and (bIsPrimaryZoneToAttack or not(tbWaterZonesConsidered[iWaterZone])) then
+                local iFurthestUnitFromRallyForZone = 0                
                 tbWaterZonesConsidered[iWaterZone] = true
                 local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
                 local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))) end
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    local tEnemyUnitsOfInterest
+                    if bIsPrimaryZoneToAttack then tEnemyUnitsOfInterest = tWZTeamData[M28Map.subrefTEnemyUnits]
+                    else
+                        tEnemyUnitsOfInterest = EntityCategoryFilterDown(M28UnitInfo.refCategoryGroundAA, tWZTeamData[M28Map.subrefTEnemyUnits])
+                        if M28Utilities.IsTableEmpty(tEnemyUnitsOfInterest) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': enemy has no AA units of interest so returning nil') end
+                            return nil
+                        end
+                    end
                     --Add enemy units if not hover
-                    for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
+                    --local iCurDistToRally
+                    --local iClosestOutOfRangeUnit = 10000
+                    --local toDistanceAndUnitOutOfInitialRangeByDistance
+                    local bCloseToBeingInRange
+                    if not(bIsPrimaryZoneToAttack) then toDistanceAndUnitOutOfInitialRangeByDistance = {} end
+                    for iUnit, oUnit in tEnemyUnitsOfInterest do
                         if M28UnitInfo.IsUnitValid(oUnit) and not(EntityCategoryContains(categories.HOVER, oUnit.UnitId)) then
                             --if land layer then unable to target
                             if not(oUnit:GetCurrentLayer() == 'Land') then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of enemy targets, target position='..repru(oUnit:GetPosition())..'; Map water height='..M28Map.iMapWaterHeight..'; Is this location underwater='..tostring(M28Map.IsUnderwater(oUnit:GetPosition(), false, nil))) end
-                                table.insert(tEnemyTargets, oUnit)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of enemy targets unless in an adjacent zone and too far away, target position='..repru(oUnit:GetPosition())..'; Map water height='..M28Map.iMapWaterHeight..'; Is this location underwater='..tostring(M28Map.IsUnderwater(oUnit:GetPosition(), false, nil))..'; Dist to rally='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)..'; iMaxDistFromAirRallyPointForAdjacentZones='..(iMaxDistFromAirRallyPointForAdjacentZones or 'nil')..'; Unit AA threat='..M28UnitInfo.GetAirThreatLevel({ oUnit }, true, false, true, false, false, false)) end
+                                --iCurDistToRally = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)
+                                if bIsPrimaryZoneToAttack then --or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= iMaxDistFromAirRallyPointForAdjacentZones then
+                                    table.insert(tEnemyTargets, oUnit)
+                                    --[[if bIsPrimaryZoneToAttack then
+                                        if iCurDistToRally > iFurthestUnitFromRallyForZone then
+                                            iFurthestUnitFromRallyForZone = iCurDistToRally
+                                        end
+                                    else
+                                        if iCurDistToRally > iFurthestUnitFromRallyForZone then iFurthestUnitFromRallyForZone = iCurDistToRally end
+                                    end--]]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Added unit to enemy units table as it is in primary zone') end
+                                else
+                                    --Check unit has an anti-air attack and is close to being in range of an enemy
+                                    if (oUnit[M28UnitInfo.refiAARange] or 0) > 0 then
+                                        bCloseToBeingInRange = false
+                                        if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
+                                            for iEnemy, oEnemy in tEnemyTargets do
+                                                if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oUnit[M28UnitInfo.refiAARange] <= 15 then
+                                                    table.insert(tEnemyTargets, oEnemy)
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit is close to being able to give AA coverage to the enemy unit '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Unit AA range='..oUnit[M28UnitInfo.refiAARange]..'; Dist to existing enemy='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())) end
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                    --[[else
+                                        table.insert(toDistanceAndUnitOutOfInitialRangeByDistance, math.floor(iCurDistToRally), oUnit)
+                                    if iCurDistToRally < iClosestOutOfRangeUnit then iClosestOutOfRangeUnit = iCurDistToRally end--]]
+                                end
                             end
                         end
                     end
+                    --Add any initially out of range units if we have just added other units close to this (i.e. want to avoid the scenario where we say target a frigate at the front of a naval force, but ignore the cruisers just behind it)
+                    --[[local iNewDistanceThreshold = iFurthestUnitFromRallyForZone + 15
+                    local bRemovedEntries
+                    while iClosestOutOfRangeUnit < iFurthestUnitFromRallyForZone and M28Utilities.IsTableEmpty(toDistanceAndUnitOutOfInitialRangeByDistance) == false and not(bRemovedEntries) do
+                        iClosestOutOfRangeUnit = 100000
+                        bRemovedEntries = false
+                        for iCurEntry = table.getn(toDistanceAndUnitOutOfInitialRangeByDistance), 1, -1 do
+                            if toDistanceAndUnitOutOfInitialRangeByDistance[iCurEntry][1] <= iNewDistanceThreshold then
+                                table.insert(tEnemyTargets, toDistanceAndUnitOutOfInitialRangeByDistance[iCurEntry][2])
+                                table.remove(toDistanceAndUnitOutOfInitialRangeByDistance, iCurEntry)
+                                iFurthestUnitFromRallyForZone = math.max(iFurthestUnitFromRallyForZone, toDistanceAndUnitOutOfInitialRangeByDistance[iCurEntry][1])
+                                bRemovedEntries = true
+                            else
+                                if toDistanceAndUnitOutOfInitialRangeByDistance[iCurEntry][1] < iClosestOutOfRangeUnit then iClosestOutOfRangeUnit = toDistanceAndUnitOutOfInitialRangeByDistance[iCurEntry][1] end
+                            end
+                        end
+                        if not(bRemovedEntries) then break end --infinite loop redundancy
+                    end--]]
+
                 end
-                if bAddAdjacentZones then
+                if bIsPrimaryZoneToAttack then
                     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will add units in adjacent water zones if they arent too far away, iFurthestUnitFromRallyForZone='..(iFurthestUnitFromRallyForZone or 'nil')) end
                         for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
-                            AddEnemyTargetsInWaterZone(iAdjWZ, false)
+                            AddEnemyTargetsInWaterZone(iAdjWZ, false, iFurthestUnitFromRallyForZone + 50)
                         end
                     end
                     tbAdjacentWaterZonesConsidered[iWaterZone] = true
                 end
-            end
+            end            
         end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of defence water zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]))) end
@@ -4931,6 +4994,14 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                             tWZTeamData[M28Map.refiTimeOfLastTorpAttack] = GetGameTimeSeconds()
                             if bDebugMessages == true then LOG(sFunctionRef..': will attack enemies in this water zone if any valid targets, is tEnemyTargets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyTargets))) end
                             if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
+                                --Double check the AA threat of assigned enemies isnt too much (redundancy for if our 'include adjacent zone' logic has added some units - will only abort if is significantly higher than what we wanted)
+                                local iEnemyGroundAAThreat = M28UnitInfo.GetAirThreatLevel(tEnemyTargets, true, false, true, false, false, false)
+                                if bDebugMessages == true then LOG(sFunctionRef..': AA threat of all targets='..iEnemyGroundAAThreat..'; will abort if it is too high') end
+                                if iEnemyGroundAAThreat > iAAThreatThreshold * 1.1 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will abort the attack as totla enemy AA threat is more than we wanted') end
+                                    break
+                                end
+
                                 --Assign targets by type
                                 local iPriorityCat1 = M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryShieldBoat
                                 local iPriorityCat2 = M28UnitInfo.refCategoryFrigate - iPriorityCat1
