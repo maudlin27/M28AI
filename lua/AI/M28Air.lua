@@ -7481,15 +7481,17 @@ function RecordPotentialCombatDropShortlist(iTeam)
     --Now cycle through every plateau and identify any zone with 2+ mexes in it
     M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau] = {}
     for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
-        if (tPlateauSubtable[M28Map.subrefPlateauTotalMexCount] or 0) >= 2 then
+        local iTotalMexThreshold = 2
+        if table.getn(M28Map.tMassPoints) / M28Team.iPlayersAtGameStart <= 15 then iTotalMexThreshold = 1 end
+        if (tPlateauSubtable[M28Map.subrefPlateauTotalMexCount] or 0) >= iTotalMexThreshold then
             for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
-                if (tLZData[M28Map.subrefLZMexCount] or 0) >= 2 then
+                if (tLZData[M28Map.subrefLZMexCount] or 0) >= iTotalMexThreshold then
                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                     --Ignore zones that can path to with land from a friendly base, or which are in a friendly or enemy base
                     if (tbFriendlyPlateaus[iPlateau] and tLZTeamData[M28Map.refiModDistancePercent] <= 0.2) or tbPlayerStartByPlateauAndZone[iPlateau][iLandZone] then
                         --Ignore
                     else
-                        --Have a land zone, with 2+ mexes, so shoudl consider dropping it for the main combat drop logic
+                        --Have a land zone, with 2+ mexes (unless iTotalMexThreshold is 1), so shoudl consider dropping it for the main combat drop logic
                         if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau][iPlateau] = {} end
                         table.insert(M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau][iPlateau], iLandZone)
                     end
@@ -7811,6 +7813,7 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
         local iLowestGeneralDangerousZoneThreat = 100000
         local iDangerousPlateau, iCurDangerousZoneThreat
         local iDangerousZone
+        local iBestEnemyZoneSafeMexCount = 0
         for iPlateau, tiLandZones in M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau] do
             for iEntry, iLandZone in tiLandZones do
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -7824,14 +7827,21 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
                     if M28Utilities.IsTableEmpty(toEnemyMexCount) == false then
                         iCurMexCount = table.getn(toEnemyMexCount)
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy mex count='..iCurMexCount..'; LZ mex count='..(tLZData[M28Map.subrefLZMexCount] or 'nil')) end
-                        if iCurMexCount >= math.min(4, math.max(2, tLZData[M28Map.subrefLZMexCount] * 0.5)) then
+                        if iCurMexCount >= math.min(4, math.max(1, tLZData[M28Map.subrefLZMexCount] * 0.5)) then
                             --Check whether its safe to travel here for each individual transport
-                            if (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iMobileDFThreshold and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 40 then
+                            --Ignore if 1 mex unless enemy has significant building mass value invested here and not dangerous
+                            if iCurMexCount <= 1 and (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or 0) <= 1 and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <= 1000 and iCurMexCount < iBestEnemyZoneSafeMexCount then
+                                --Ignore if already have a better target
+                                if bDebugMessages == true then LOG(sFunctionRef..': Not enoguh mexes to be worth adding to the shortlist') end
+                            elseif (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iMobileDFThreshold and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 40 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Adding to combat drop shortlist') end
                                 table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iPlateau, iLandZone})
                                 bHaveSafeTarget = true
+                                iBestEnemyZoneSafeMexCount = math.max(iCurMexCount, iBestEnemyZoneSafeMexCount)
                             elseif not(bHaveSafeTarget) and (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= iDangerousGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iDangerousMobileDFThreshold and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 200 then
                                 iCurDangerousZoneThreat = (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 2 + (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
+                                --Increase threat by 50% if this is a 1 mex location so we are less likely to pick it
+                                if iCurMexCount <= 1 and (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or 0) <= 1 and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <= 1000 then iCurDangerousZoneThreat = iCurDangerousZoneThreat * 1.5 end
                                 if iCurDangerousZoneThreat < iLowestGeneralDangerousZoneThreat then
                                     iLowestGeneralDangerousZoneThreat = iCurDangerousZoneThreat
                                     iDangerousPlateau = iPlateau
