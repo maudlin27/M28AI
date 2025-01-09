@@ -10121,7 +10121,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if we have nearby dangerous groundAA that we want to target, is oBestEnemyTarget nil='..tostring(oBestEnemyTarget == nil)..'; iHighestDamage='..iHighestDamage) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if we have nearby dangerous groundAA that we want to target, is oBestEnemyTarget nil='..tostring(oBestEnemyTarget == nil)..'; iHighestDamage='..iHighestDamage..'; Bomber speed='..M28UnitInfo.GetUnitSpeed(oBomber)) end
                     if not(oBestEnemyTarget) or iHighestDamage <= 2000 then --we are multiplying AA value by 4, so this is equivalent to 1 T2 flak
                         for iUnit, oUnit in tEnemyGroundTargets do
                             --Pick the target that will deal the most damage
@@ -10172,8 +10172,8 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         local iBomberFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
                         local iAngleDifToTarget = M28Utilities.GetAngleDifference(iBomberFacingAngle, iAngleToTarget)
                         local iTimeUntilReadyToFire = M28UnitInfo.GetTimeUntilReadyToFireBomb(oBomber)
-
-                        if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())..'; Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oBomber)..'; Angle to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())..'; oBomber[refiTimeBetweenBombs]='..(oBomber[M28UnitInfo.refiTimeBetweenBombs] or 'nil')) end
+                        local iBomberSpeed = M28UnitInfo.GetUnitSpeed(oBomber)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())..'; Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oBomber)..'; Angle to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())..'; oBomber[refiTimeBetweenBombs]='..(oBomber[M28UnitInfo.refiTimeBetweenBombs] or 'nil')..'; Bomber range='..oBomber[M28UnitInfo.refiBomberRange]..'; Bomber speed='..M28UnitInfo.GetUnitSpeed(oBomber)..'; iTimeUntilReadyToFire='..iTimeUntilReadyToFire) end
 
                         --If bomber is facing the wrong direction and isnt that far from the target, and is ready to fire, then consider using micro to turn around and fire at it
                         if iDistToTarget <= 85 and iAngleDifToTarget > 30 and (iTimeUntilReadyToFire <= 0 or (iDistToTarget <= 60 and iTimeUntilReadyToFire <= 5 and (iDistToTarget <= 40 or iTimeUntilReadyToFire <= 3))) and not(oBomber[M28UnitInfo.refbEasyBrain]) then
@@ -10181,6 +10181,39 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             if bDebugMessages == true then LOG(sFunctionRef..': Will use micro to turn where we are to fire a bomb at oBestEnemyTarget='..oBestEnemyTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestEnemyTarget)) end
                             ForkThread(M28Micro.TurnAirUnitAndAttackTarget, oBomber, oBestEnemyTarget)
                             bGivenOrderAlready = true
+                            --If we are already in range of the target, at the right angle, but moving very fast, then hover to slow down and then attack
+                            --One example of this - bomber angle =226.13159179688; Angle to target=218.21295166016; Bomber speed=25.403442382813; Dist to target=38.182476043701; We wouldnt fire the bomb
+                        elseif iDistToTarget < (oBomber[M28UnitInfo.refiBomberRange] or 0) - 10 and iAngleDifToTarget <= 15 and iBomberSpeed >= 15 and iTimeUntilReadyToFire <= -2 then
+                            --If we are still close to being in range then try and adjust the target
+                            if iDistToTarget - iBomberSpeed > (oBomber[M28UnitInfo.refiBomberRange] or 0) - iAOE + 3 then
+                                local tPotentialGroundFireTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iBomberFacingAngle, iDistToTarget + iAOE - 3, true)
+                                if tPotentialGroundFireTarget and M28Utilities.GetDistanceBetweenPositions(tPotentialGroundFireTarget, oBestEnemyTarget:GetPosition()) < iAOE then
+                                    bGivenOrderAlready = true
+                                    M28Orders.IssueTrackedGroundAttack(oBomber, tPotentialGroundFireTarget, 1, false, 'TooCloseGrndFr', false, oBestEnemyTarget)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and ground fire to hit the unit') end
+                                end
+                            end
+                            if not(bGivenOrderAlready) then
+                                --Just fire the bomb if it will do some damage; otherwise abort
+                                local tFiringAtBomberRange = M28Utilities.MoveInDirection(oBomber:GetPosition(), iBomberFacingAngle, oBomber[M28UnitInfo.refiBomberRange] - 0.5, true)
+                                if tFiringAtBomberRange then
+                                    --Get damage, assuming we ignore any shields (by treating damage as 100k)
+                                    --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor, bCheckIfUnderwater)
+                                    local iDamageFromNewTarget = M28Logic.GetDamageFromBomb(aiBrain, tFiringAtBomberRange, iAOE, 100000, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true, 4, M28UnitInfo.refCategoryGroundAA)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Damage if dealt 100k at bombers current range='..iDamageFromNewTarget) end
+                                    if iDamageFromNewTarget > 0 then
+                                        bGivenOrderAlready = true
+                                        M28Orders.IssueTrackedGroundAttack(oBomber, tFiringAtBomberRange, 1, false, 'TooCloseGndFr', false, oBestEnemyTarget)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will just try and fire our bomb so we can t urn around and abort') end
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will abort target and turn around') end
+                                        if not(oBomber[M28UnitInfo.refbEasyBrain]) then
+                                            bGivenOrderAlready = true
+                                            ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oBomber, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 15, 3)
+                                        end
+                                    end
+                                end
+                            end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to make use of bomber AOE, bHaveTargetWhereShotIsBlocked='..tostring(bHaveTargetWhereShotIsBlocked or false)..'; Is target under shield='..tostring(M28Logic.IsTargetUnderShield(aiBrain, oBestEnemyTarget, iDamageForIfUnderShield, false, true, false, false))..'; iTotalExpBombers='..iTotalExpBombers..'; [M28UnitInfo.refbExpBomberShotBlocked]='..tostring(oBestEnemyTarget[M28UnitInfo.refbExpBomberShotBlocked] or false)) end
                             if not(bHaveTargetWhereShotIsBlocked) and M28Logic.IsTargetUnderShield(aiBrain, oBestEnemyTarget, iDamageForIfUnderShield, false, true, false, false) then
