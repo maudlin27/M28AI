@@ -1941,7 +1941,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         end
                     end
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider missile target. iMinRange='..(iMinRange or 'nil')..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; bSML='..tostring((bSML or false))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider missile target. iMinRange='..(iMinRange or 'nil')..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; bSML='..tostring((bSML or false))..'; bTML='..tostring(bTML or false)..'; Is laucher valid='..tostring(M28UnitInfo.IsUnitValid(oLauncher))..'; Time='..GetGameTimeSeconds()) end
                     if M28UnitInfo.IsUnitValid(oLauncher) then
                         local bHaveBlockingSMD = false
                         if bTML then
@@ -1954,6 +1954,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             local iTMLRange = (oLauncher[M28UnitInfo.refiManualRange] or iTMLMissileRange)
                             local iTMLAOE = math.max(oLauncher[M28UnitInfo.refiIndirectAOE] or 0, 2)
                             local iPotentialInRangeDistance = iTMLRange + iTMLAOE + 4 --unlikely to have larger buildings than this
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider enemy ACU in TML targets in FAF/steam, M28Utilities.bFAFActive='..tostring(M28Utilities.bFAFActive)..'; Is table of enemy ACUs empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]))) end
                             if M28Utilities.bFAFActive or M28Utilities.bSteamActive and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
                                 local tACUsInRange = {}
                                 local iCurDist
@@ -1962,7 +1963,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oLauncher:GetPosition())
                                         if iCurDist <= iTMLRange then
                                             --Track ACU positions
-                                            MonitorUnitRecentPositions(oACU)
+                                            ForkThread(MonitorUnitRecentPositions, oACU)
                                             --Is enemy ACU stationery?
                                             if oACU[M28UnitInfo.reftRecentUnitPositions][2] then
                                                 --Is ACU stationery, and hasnt moved from when we last had intel of their position?
@@ -2034,6 +2035,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             end
 
                             local oBestTarget
+                            if bDebugMessages == true then LOG(sFunctionRef..': iValidTargets='..iValidTargets) end
                             if iValidTargets == 0 then
                                 --Disable autobuild and pause the TML since we have no targets - handled below to cover cases where for whatever reason we fail to find a valid target
                             else
