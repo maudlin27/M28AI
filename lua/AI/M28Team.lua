@@ -1154,13 +1154,29 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
 
 end
 
+--Use below if want to track where aiBrain (which should be an M28 brain) has assigned a unit every second - e.g. useful for naval units if trying to figure out what zone an enemy unit is in at a particular time point
+function TestCustomMonitor(oUnit, aiBrain)
+    if not(oUnit['M28TestCustomMonitor']) then
+        oUnit['M28TestCustomMonitor'] = true
+        while M28UnitInfo.IsUnitValid(oUnit) do
+            if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team]) == false then
+                LOG('TestCustomOnitor: Can brain '..aiBrain.Nickname..' see unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, false))..'; oUnit position='..repru(oUnit:GetPosition())..'; Dist to last known position='..M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team], oUnit:GetPosition())..'; team='..aiBrain.M28Team..'; time='..GetGameTimeSeconds())
+                local iCurPlateau, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                local iAltPlateau, iAltZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team])
+                LOG('Based on unit position P'..(iCurPlateau or 'nil')..'Z'..(iCurZone or 'nil')..'; based on last known position Z='..(iAltZone or 'nil')..'; assigned water zone='..(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][aiBrain.M28Team] or 'nil'))
+                WaitSeconds(1)
+            end
+        end
+    end
+end
+
 function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
     --If unit already has a land zone assigned then remove this
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitToWaterZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ues02025' and not(oUnit:GetAIBrain().M28AI) and aiBrain.M28AI then bDebugMessages = true ForkThread(TestCustomMonitor, oUnit, aiBrain) end
 
     if not(M28Map.bWaterZoneInitialCreation) or not(M28Map.bWaterZoneFirstTeamInitialisation) then
         if GetGameTimeSeconds() >= 10 then
