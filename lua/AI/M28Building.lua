@@ -4674,7 +4674,7 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                             end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': Time since last recharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield a transferred unit='..tostring(oShield[M28UnitInfo.refbTransferredUnit])..'; oUnit[refbShieldIsDisabled]='..repru(oShield[M28UnitInfo.refbShieldIsDisabled])) end
-                            if true and (GetGameTimeSeconds() <= 34*60 or (not(oShield[refiManuallyEnabledTime]) or GetGameTimeSeconds() - oShield[refiManuallyEnabledTime] >= 30)) then --as had a case where shields were stuck not recharging, so added in case due to running enableunitshield every tick
+                            if not(oShield[refiManuallyEnabledTime]) or GetGameTimeSeconds() - oShield[refiManuallyEnabledTime] >= 30 then --as had a case where shields were stuck not recharging, so added in case due to running enableunitshield every tick
                                 if (oShield[refiTimeOfLastDischarge] and GetGameTimeSeconds() - oShield[refiTimeOfLastDischarge] >= math.max(iLongestRechargeTime + 10, 40) and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeCreated] or 0) >= 5) then
                                     --Enable the shield incase it was somehow paused following the transfer, but only do this once every 10s
                                     if bDebugMessages == true then LOG(sFunctionRef..': Enabling shield as it has been a long time since it was discharged, shield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Time='..GetGameTimeSeconds()) end
