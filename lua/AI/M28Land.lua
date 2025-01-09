@@ -1446,7 +1446,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
     local sFunctionRef = 'RecordClosestAdjacentEnemiesAndGetBestEnemyRange'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 28 and iPlateau == 2 and GetGameTimeSeconds() >= 22*60+50 then bDebugMessages = true end
+
 
     tLZTeamData[M28Map.reftoNearestDFEnemies] = {}
     tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere] = nil
@@ -4012,7 +4012,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 28 and iPlateau == 2 and GetGameTimeSeconds() >= 22*60+50 then bDebugMessages = true end
+
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileIndirectByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange])..'; subrefLZThreatAllyMobileDFByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Enemy mobile DF='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Threat of tAvailableCombatUnits='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, false, false)..'; subrefiAvailableMobileShieldThreat='..(tLZTeamData[M28Map.subrefiAvailableMobileShieldThreat] or 0)..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Time='..GetGameTimeSeconds())

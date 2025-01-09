@@ -1085,7 +1085,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
     local sFunctionRef = 'GetAirThreatLevel'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bBlueprintThreat and tUnits[1].UnitId == 'ues0202' and bIncludeGroundToAir then bDebugMessages = true end
+
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to check if table is empty. bIncludeAirToAir='..tostring(bIncludeAirToAir)..'; bIncludeAirToGround='..tostring(bIncludeAirToGround or false)) end
 
