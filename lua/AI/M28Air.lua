@@ -8768,11 +8768,24 @@ function ManageTransports(iTeam, iAirSubteam)
                         M28Orders.IssueTrackedTransportUnload(oUnit, tLZOrWZData[M28Map.subrefMidpoint], 10, false, 'TRLZUnlI'..(iIslandToTravelTo or 0)..'Z'..(iLandZoneToTravelTo or iWaterZoneToTravelTo), false)
                         --Set this as an expansion zone if it is in same isalnd (as normal logic wont flag it as an expansion)
                         if bDebugMessages == true then LOG(sFunctionRef..': Just tried to send order for transport to go to iIslandToTravelTo='..iIslandToTravelTo..'; iLandZoneToTravelTo='..iLandZoneToTravelTo..'; LZ midpoint='..repru(tLZOrWZData[M28Map.subrefMidpoint])) end
-                        if bTravelToSameIsland then
-                            local tTargetLZData =  M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
-                            local tLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
+                        local tTargetLZData =  M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
+                        local tLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
+                        if bTravelToSameIsland and tLZTeamData then
                             if not(tLZTeamData[M28Map.subrefLZCoreExpansion]) and (tLZOrWZData[M28Map.subrefLZMexCount] >= 3 or (M28Map.bIsCampaignMap and (M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) == false or M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false))) then
                                 tLZTeamData[M28Map.subrefLZExpansionOverride] = true
+                            end
+                        end
+
+                        --Also set expansion flag for 1-2 mex land zone locations where we are dropping engineers if not many mexes on map and it's not too close to enemy (so not just throwing away mass by trying to fortify more)
+                        if tLZTeamData and not(tLZTeamData[M28Map.subrefLZExpansionOverride]) and (tLZOrWZData[M28Map.subrefLZMexCount] or 0) >= 1 and tLZOrWZData[M28Map.refiModDistancePercent] <= 0.6 then
+                            --Decide if we want to treat a low mex location as still valuable - consider for lowish mex maps
+                            local iMapMexCount = table.getn(M28Map.tMassPoints)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to also set expansion override for P'..iPlateauToTravelTo..'; iIslandToTravelTo='..iIslandToTravelTo..'; iLandZoneToTravelTo='..(iLandZoneToTravelTo or 'nil')..'; iMapMexCount='..iMapMexCount..'; Players at game tsart='..M28Team.iPlayersAtGameStart..'; Island mex count='..(M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 0)) end
+                            if iMapMexCount / M28Team.iPlayersAtGameStart <= 13 then --13 or less mexes per player, so 2 mex islands will be of more value
+                                if (tLZOrWZData[M28Map.subrefLZMexCount] >= 2 or M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 0) >= 2 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Setting expansion override flag to true') end
+                                    tLZTeamData[M28Map.subrefLZExpansionOverride] = true
+                                end
                             end
                         end
 
