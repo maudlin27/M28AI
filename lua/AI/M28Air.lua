@@ -8922,13 +8922,25 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
 
                     --Check for nearby enemy airaa units by distance
                     local iClosestEnemyAirAA = 10000
+                    local iDistanceThreshold = 10
+                    local iAirAAWithinThresholdMassValue = 0
+                    local iCurDist
                     for iEnemy, oEnemy in tCurZoneTeamData[M28Map.reftLZEnemyAirUnits] do
-                        if M28UnitInfo.IsUnitValid(oEnemy) and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oEnemy.UnitId) then
-                            iClosestEnemyAirAA = math.min(iClosestEnemyAirAA, M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()))
+                        if M28UnitInfo.IsUnitValid(oEnemy) and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oEnemy.UnitId) and oEnemy:GetFractionComplete() == 1 then
+                            --Is enemy off the ground?
+                            if oEnemy:IsUnitState('Moving') or (not(oEnemy:IsUnitState('Attached')) and oEnemy:GetPosition()[2] - GetTerrainHeight(oEnemy:GetPosition()[1], oEnemy:GetPosition()[3]) >= 2) then
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - (oEnemy[M28UnitInfo.refiAARange] or 20)
+                                if iCurDist < iClosestEnemyAirAA then
+                                    iClosestEnemyAirAA = iCurDist
+                                end
+                                if iCurDist <= iDistanceThreshold then
+                                    iAirAAWithinThresholdMassValue = iAirAAWithinThresholdMassValue + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
+                                end
+                            end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider dropping transport early, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Dist to cur unload destination='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; Last order detsination pre update='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; iClosestEnemyAirAA='..iClosestEnemyAirAA..'; Unit position='..repru(oUnit:GetPosition())..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                    if iClosestEnemyAirAA <= 35 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider dropping transport early, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Dist to cur unload destination='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])..'; Last order detsination pre update='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; iClosestEnemyAirAA='..iClosestEnemyAirAA..'; Unit position='..repru(oUnit:GetPosition())..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; iAirAAWithinThresholdMassValue='..iAirAAWithinThresholdMassValue) end
+                    if iClosestEnemyAirAA <= 10 and (iAirAAWithinThresholdMassValue >= 100 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.7) then --i.e. air unit is 10 away from being in range of us (or less)
                         --If combat drop then require us to be dropping on land
                         if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater({oUnit:GetPosition()[1], GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]), oUnit:GetPosition()[3]}))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Dropping early as enemy has AirAA') end
@@ -8945,25 +8957,31 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
         if M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.35 and (iDistToTarget <= 50 or oUnit[refbCombatDrop]) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.GetUnitHealthPercent] or 0) <= 8 then
             if bDebugMessages == true then LOG(sFunctionRef..': Transport is low health so want to drop immediately unless it isnt likely to be a valid drop location') end
             if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater(GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3])))) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will drop') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true, false
             elseif iDistToTarget <= 40 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Target within 40 so will proceed to drop') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false, true --i.e. carry on to destination
             else
+                if bDebugMessages == true then LOG(sFunctionRef..': Returning false') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false, false --i.e. consider retreating or changing targets if called this as part of retreat to rally logic
             end
         elseif iDistToTarget <= 30 or (iDistToTarget <= 60 and oUnit[refbCombatDrop]) then
             --Might as well proceed to destination and unload - significant risk we just die if we return by this stage anyway, while a combat drop loses its effectiveness if keep changing our mind
+            if bDebugMessages == true then LOG(sFunctionRef..': Will proceed to destination') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false, true
         elseif iDistToTarget <= 250 then
             local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tLastOrder[M28Orders.subreftOrderPosition], true, iTeam)
             local tCargo = oUnit:GetCargo()
             local iCargoSize = table.getn(tCargo)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will cnosider proceeding to destination, tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; oUnit[refbCombatDrop]='..tostring(oUnit[refbCombatDrop] or false)) end
             if (tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) < iCargoSize * 30 or oUnit[refbCombatDrop] then
                 --Might as well proceed to destination and unload given minimal enemy combat threat
+                if bDebugMessages == true then LOG(sFunctionRef..': Minimal combat threat so will proceed to destination') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false, true
             end
