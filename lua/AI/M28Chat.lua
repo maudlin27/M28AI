@@ -854,7 +854,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                                 AddPotentialMessage( 'Maybe you should lower the AIx modifier next time!')
                                 if oEnemyM28AIBrain[M28Economy.refiBrainResourceMultiplier] >= 1.5 and not(bHaveNonM28Teammates) then
                                     AddPotentialMessage( 'I thought you were being overconfident challenging me when I had this big a resource bonus, looks like I was right')
-                                    AddPotentialMessage( 'Better to try and fail than not try at all, better luck next time!')
+                                    AddPotentialMessage( 'Better to try and fail than not try at all')
                                 end
                             end
 
@@ -872,7 +872,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                         if bHaveNonM28Teammates then
                             AddPotentialMessage( 'gj team', nil, nil, true)
                         else
-                            AddPotentialMessage( 'Better luck next time scrub')
+                            if math.random(1,2) == 1 then AddPotentialMessage( 'Better luck next time scrub') else AddPotentialMessage( 'Better luck next time') end
                             AddPotentialMessage( 'Want to try again?')
                         end
                         AddPotentialMessage( 'All your mex are belong to us')

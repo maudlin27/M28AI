@@ -467,7 +467,7 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
 end
 
 
-function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor, bCheckIfUnderwater)
+function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor, bCheckIfUnderwater, iOptionalGunshipFactor)
     --Below is largely a copy of M27 logic
     --iFriendlyUnitDamageReductionFactor - optional, assumed to be 0 if not specified; will reduce the damage from the bomb by any friendly units in the aoe
     --iFriendlyUnitAOEFactor - e.g. if 2, then will search for friendly units in 2x the aoe
@@ -477,6 +477,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
     --bT3ArtiShotReduction - if this is true then will reduce value of targets where we have fired lots of shots at them
     --iOptionalShieldReductionFactor - if shields exceed iDamage, then this will be used in place of 0 (the default), i.e. what % of the mass damage should be used if the shield means 0 damage will be dealt
     --iOptionalReclaimFactor - if this isnt nil, then will include the value of reclaim if the location looks like it is available to the enemy and damage is high enough that it's reasonable to assume we will kill the reclaim; requires there to be a friendly unit damage reduction factor (to avoid too much of a CPU load given how oftne this function is called)
+    --iOptionalGunshipFactor - if not nil, and iAOE is >15, then will check for enemy gunships in the zone and include this % of their value where they are inside the aoe by at least 15
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetDamageFromBomb'
@@ -538,6 +539,39 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                             if bDebugMessages == true then LOG(sFunctionRef..': Adding unseen unit to enemies in range as it is within range, allowing for AOE') end
                             table.insert(tEnemiesInRange, oUnit)
                             bHaveUnitsInRange = true
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    --Expand enemies in range with gunships if specified
+    if iOptionalGunshipFactor and iAOE > 15  then
+        if not(tLZOrWZTeamData) then
+            local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tBaseLocation)
+
+            if (iLZOrWZ or 0) > 0 then
+                if iPlateauOrZero == 0 then
+                    tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
+                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
+                else
+                    tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLZOrWZ]
+                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+                end
+            end
+        end
+        if tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= 100 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
+            local tEnemyGunships = EntityCategoryFilterDown(M28UnitInfo.refCategoryGunship - categories.HIGHALTAIR - categories.EXPERIMENTAL, tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits])
+            if M28Utilities.IsTableEmpty(tEnemyGunships) == false then
+                local iGunshipDistThreshold = math.min(iAOE * 0.5, iAOE - 15)
+                local iGunshipDist
+                for iUnit, oUnit in tEnemyGunships do
+                    if not(oUnit.Dead) then
+                        iGunshipDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation)
+                        if iGunshipDist <= iGunshipDistThreshold and iGunshipDist + (oUnit:GetPosition()[2] - tBaseLocation[2]) < iAOE then
+                            table.insert(tEnemiesInRange, oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy gunship to those in range, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                         end
                     end
                 end

@@ -951,7 +951,7 @@ function OnShieldBubbleDamaged(self, instigator)
                     --Fatboy specific; if changing threshold here then also change in team
                     if EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oShield.UnitId) then
                         if (oShield[M28Building.refiTMLShotsFired] or 0) > 0 and oUnitCausingDamage.GetAIBrain and oUnitCausingDamage:GetAIBrain().M28AI and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
-                            oShield[M28Building.refiTMLSnipeShotsHit] = (oShield[M28Building.refiTMLSnipeShotsHit] or 0) + 1
+                            oShield[M28Building.refiTMLShotsHit] = (oShield[M28Building.refiTMLShotsHit] or 0) + 1
                         end
                         if oShield.MyShield:GetHealth() <= oShield.MyShield:GetMaxHealth() * 0.5 then
                             local iTeam = instigator:GetAIBrain().M28Team
@@ -1058,7 +1058,7 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                             end
                         end
                     elseif self[M28Building.refiTMLShotsFired] or 0 > 0 and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
-                        self[M28Building.refiTMLSnipeShotsHit] = (self[M28Building.refiTMLSnipeShotsHit] or 0) + 1
+                        self[M28Building.refiTMLShotsHit] = (self[M28Building.refiTMLShotsHit] or 0) + 1
                     end
                     if EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId) and self:GetFractionComplete() < 1 and self:GetFractionComplete() > 0.1 then
                         if (M28Orders.bDontConsiderCombinedArmy or oUnitCausingDamage.M28Active) then

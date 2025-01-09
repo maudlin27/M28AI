@@ -16307,6 +16307,21 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': iFactoriesWanted=' .. iFactoriesWanted .. '; iExistingWaterFactory=' .. iExistingWaterFactory)
                 end
+                --Increase factories wanted based on how important the pond is; whether we can path to the enemy with navy; our gross mass income; and whether it is a core base
+                if M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] >= 14 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and (tWZTeamData[M28Map.subrefWZbCoreBase] or not(bHaveLowMass)) then
+                    local iExtraFactoriesValue = 1
+                    if M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] >= 21 then iExtraFactoriesValue = iExtraFactoriesValue + 1 end
+                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then iExtraFactoriesValue = iExtraFactoriesValue + 1 end
+                    if tWZTeamData[M28Map.subrefWZbCoreBase] then iExtraFactoriesValue = iExtraFactoriesValue + 1 else iExtraFactoriesValue = math.min(2, iExtraFactoriesValue * 0.5) end
+                    --Subject to gross mass threshold
+                    iExtraFactoriesValue = math.min((aiBrain[M28Economy.refiGrossMassBaseIncome] - 4) * 0.5, iExtraFactoriesValue)
+                    if bHaveLowMass then
+                        iExtraFactoriesValue = iExtraFactoriesValue * 0.5
+                    end
+                    iFactoriesWanted = math.min(5, iFactoriesWanted + iExtraFactoriesValue)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iExtraFactoriesValue='..iExtraFactoriesValue..'; iFactoriesWanted='..iFactoriesWanted) end
+                end
+                --(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) >= 16 or not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]))
                 if tWZTeamData[M28Map.subrefWZbCoreBase] and aiBrain[M28Overseer.refbPrioritiseNavy] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then iFactoriesWanted = iFactoriesWanted + 1 end
                 if iExistingWaterFactory < iFactoriesWanted or not(bHaveFactoryHQ) then
                     iBPWanted = 30
@@ -16766,6 +16781,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     --Naval fac if this is a core WZ and we dont have any, but have engineers available, or we have lots of mass stored
     iCurPriority = iCurPriority + 1
     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+    if bDebugMessages == true then LOG(sFunctionRef..': More naval fac if available engineers, iHighestTechEngiAvailable='..(iHighestTechEngiAvailable or 'nil')) end
     if iHighestTechEngiAvailable > 0 then
         if tWZTeamData[M28Map.subrefWZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
             if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) >= 7 or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or ((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) >= 4 and M28Map.iMapSize > 512) or (iExistingWaterFactory > 0 and tWZTeamData[M28Map.subrefWZbCoreBase]) or M28Team.tTeamData[iTeam][M28Team.refbNoAvailableTorpsForEnemies] or ((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2))) then

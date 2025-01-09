@@ -1269,7 +1269,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         if oBP.Weapon then
                             for iWeapon, tWeapon in oBP.Weapon do
                                 bCanShootAir = false
-                                if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable and (not(tWeapon.TargetRestrictOnlyAllow) or EntityCategoryContains(categories.ANTIAIR, oUnit.UnitId)) then
+                                if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable and (not(tWeapon.TargetRestrictOnlyAllow) or not(tWeapon.TargetRestrictOnlyAllow == 'UNTARGETABLE') or EntityCategoryContains(categories.ANTIAIR, oUnit.UnitId)) then
                                     for iType, sTargets in tWeapon.FireTargetLayerCapsTable do
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with sTargets='..repru(sTargets)) end
                                         if sTargets == 'Air' then --and tWeapon.CannotAttackGround then

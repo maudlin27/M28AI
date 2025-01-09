@@ -53,7 +53,7 @@ refbSpecialLauncherTargeting = 'M28BuildSpLnchTr' --true if we are using special
 --iTMLHighPriorityCategories = M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT3Mex * categories.CYBRAN + M28UnitInfo.refCategoryT2Mex + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryT3Radar
 tbExpectMissileBlockedByCliff = 'M28BuildMisBlck' --true if missile firing at this has hit a cliff
 refiTMLShotsFired = 'M28BuildTMLShtFird'
-refiTMLSnipeShotsHit = 'M28TMLSnipeShtHt' --if TML missile damages a target or its shield then this should increase by 1
+refiTMLShotsHit = 'M28TMLSnipeShtHt' --if TML missile damages a target or its shield then this should increase by 1
 refoLastTMLTarget = 'M28BuildTMLLstTrg'
 refoLastTMLLauncher = 'M28BuildTMLLastLnch' --When a TML targets a unit, this is recorded against that unit, so if we have 2 TML they shouldn't target the same unit at the same time
 refiTimeOfLastLaunch = 'M28BuildTMLTimLstLnch' --Gametimeseconds that we last fired a missile at the unit, i.e. this is against the target, not the launcher
@@ -732,7 +732,7 @@ function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize, tT
 
     if EntityCategoryContains(categories.AEON, oTMD.UnitId) then iTMDRange = iTMDRange + 0.5 end --to be prudent, may not be required as when made change (v169) there was a separate TMD issue (below reduction for building size) that was likely causing the issue of incorrectly thinking TMD didnt cover a target
     --Reduce range based on building size if we are considering whether we should build TMD to protect a target, if our TMD is further away than the unit in question (meaning we are more likely to be behind the unit, such that enemy could more easily 'edge-TML' the unit)
-    if oUnit:GetAIBrain().M28AI and not(oTML:GetAIBrain().M28AI) and M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oTML:GetPosition()) >= M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTML:GetPosition()) then
+    if oUnit:GetAIBrain().M28AI and oTML and not(oTML:GetAIBrain().M28AI) and M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oTML:GetPosition()) >= M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTML:GetPosition()) then
         iTMDRange = iTMDRange - iBuildingSize
     end
 
@@ -1958,7 +1958,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 local tACUsInRange = {}
                                 local iCurDist
                                 for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
-                                    if M28UnitInfo.IsUnitValid(oACU) and oACU[refiTMLShotsFired] <= 2 then
+                                    if M28UnitInfo.IsUnitValid(oACU) and ((oACU[refiTMLShotsFired] or 0) <= 2 or ((oACU[refiTMLShotsHit] or 0) > 0 and oACU[refiTMLShotsHit] / oACU[refiTMLShotsFired] >= 0.33))  then
                                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oLauncher:GetPosition())
                                         if iCurDist <= iTMLRange then
                                             --Track ACU positions
@@ -1966,7 +1966,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                             --Is enemy ACU stationery?
                                             if oACU[M28UnitInfo.reftRecentUnitPositions][2] then
                                                 --Is ACU stationery, and hasnt moved from when we last had intel of their position?
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oACU owned by brain ='..oACU:GetAIBrain().Nickname..'; Dist to recent position2='..M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][2], oACU:GetPosition())..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Dist to last known position='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iCurDist='..iCurDist..'; Shots fired='..(oACU[refiTMLShotsFired] or 0)..'; Dist to position 4='..M28Utilities.GetDistanceBetweenPositions((oACU[M28UnitInfo.reftRecentUnitPositions][4] or {0,0,0}), oACU:GetPosition())) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oACU owned by brain ='..oACU:GetAIBrain().Nickname..'; Dist to recent position2='..M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][2], oACU:GetPosition())..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Dist to last known position='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iCurDist='..iCurDist..'; Shots fired='..(oACU[refiTMLShotsFired] or 0)..'; refiTMLShotsHit='..(oACU[refiTMLShotsHit] or 0)..'; Dist to position 4='..M28Utilities.GetDistanceBetweenPositions((oACU[M28UnitInfo.reftRecentUnitPositions][4] or {0,0,0}), oACU:GetPosition())) end
                                                 if M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][2], oACU:GetPosition()) <= 0.1 and not(oACU:IsUnitState('Moving')) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 2 then
                                                     if iCurDist <= 150 then iSecondsToWaitIfNoTarget = 1 elseif iCurDist <= 180 then iSecondsToWaitIfNoTarget = 2 else iSecondsToWaitIfNoTarget = 3 end
                                                     if iCurDist <= 60 or (oACU[refiTMLShotsFired] or 0) == 0 or (oACU[M28UnitInfo.reftRecentUnitPositions][4] and M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][4], oACU:GetPosition()) <= 0.1) then
@@ -2079,7 +2079,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                                     oLauncher[refiLastTMLMassKills] = (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)
                                                     oUnit[refiTMLShotsFired] = oUnit[refiTMLShotsFired] - 1
                                                 end
-                                                if oUnit[refiTMLShotsFired] > 0 or oUnit[refiTimeOfLastLaunch] then
+                                                if oUnit[refiTMLShotsFired] > math.min((oUnit[refiTMLShotsHit] or 0), 4) and (oUnit[refiTimeOfLastLaunch] or oUnit[refiTMLShotsFired] >= 2) then
                                                     if oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] then iCurTargetValue = 0
                                                     else
                                                         local iUnitMaxHealth = oUnit:GetMaxHealth()
@@ -2089,15 +2089,15 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                                         else
 
                                                             local iExpectedShots = math.ceil((iUnitMaxHealth + iUnitMaxShield) / iDamage)
-                                                            if oUnit[refiTMLShotsFired] > iExpectedShots then
+                                                            if oUnit[refiTMLShotsFired] - (oUnit[refiTMLShotsHit] or 0) > iExpectedShots then
                                                                 --Reduce by 50% for each time are over
-                                                                iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots)
-                                                                if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit[refiTMLShotsFired] - iExpectedShots >= 3 then
+                                                                iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots - math.min(4, (oUnit[refiTMLShotsHit] or 0)))
+                                                                if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit[refiTMLShotsFired] - iExpectedShots - (oUnit[refiTMLShotsHit] or 0) >= 3 then
                                                                     iCurTargetValue = 0
                                                                 end
                                                             end
                                                         end
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': iUnitMaxHealth='..iUnitMaxHealth..'; iUnitMaxShield='..iUnitMaxShield..'; oUnit[refiTMLShotsFired]='..oUnit[refiTMLShotsFired]..'; oUnit[refiTimeOfLastLaunch]='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; iCurTargetValue after adjusting for excess='..iCurTargetValue) end
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': iUnitMaxHealth='..iUnitMaxHealth..'; iUnitMaxShield='..iUnitMaxShield..'; oUnit[refiTMLShotsFired]='..oUnit[refiTMLShotsFired]..'; refiTMLShotsHit='..(oUnit[refiTMLShotsHit] or 'nil')..'; oUnit[refiTimeOfLastLaunch]='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; iCurTargetValue after adjusting for excess='..iCurTargetValue) end
                                                     end
                                                 end
                                             elseif oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] then
@@ -2117,7 +2117,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                     --Target ground following FAF changes to TMLs
                                     tTarget[2] = GetSurfaceHeight(tTarget[1], tTarget[3])
                                     RecordTMLMissileTarget(oLauncher, oBestTarget)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..'; iBestTargetValue='..iBestTargetValue..'; SHots fired afteri ncluding this one='..oBestTarget[refiTMLShotsFired]..'; Mass killed prior to missile impacting='..oLauncher[refiLastTMLMassKills]) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..'; iBestTargetValue='..iBestTargetValue..'; SHots fired afteri ncluding this one='..oBestTarget[refiTMLShotsFired]..'; refiTMLShotsHit='..(oBestTarget[refiTMLShotsHit] or 'nil')..'; Mass killed prior to missile impacting='..oLauncher[refiLastTMLMassKills]) end
                                 end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iValidTargets='..iValidTargets..'; tTarget='..repru((tTarget or {'nil'}))..'; Is oBestTarget valid='..tostring(M28UnitInfo.IsUnitValid(oBestTarget))) end
@@ -5061,7 +5061,7 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                         end
                         if iCurTMDOrMissedShotsCoveringTarget <= iLeastTMDOrMissedShotsCoveringTarget then
                             --Adjust for missed shots
-                            if (oUnit[refiTMLShotsFired] or 0) > 0 then iCurTMDOrMissedShotsCoveringTarget = iCurTMDOrMissedShotsCoveringTarget + oUnit[refiTMLShotsFired] / iMissedShotsFactor end
+                            if (oUnit[refiTMLShotsFired] or 0) > (oUnit[refiTMLShotsHit] or 0) then iCurTMDOrMissedShotsCoveringTarget = iCurTMDOrMissedShotsCoveringTarget + (oUnit[refiTMLShotsFired] - (oUnit[refiTMLShotsHit] or 0)) / iMissedShotsFactor end
                             if iCurTMDOrMissedShotsCoveringTarget <= iLeastTMDOrMissedShotsCoveringTarget then
                                 --Adjust for blocking terrain
                                 if M28Utilities.IsTableEmpty(oPrimaryTML[reftTerrainBlockedTargets]) == false then
@@ -5156,7 +5156,7 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                             --We should be able to 1-shot the enemy, so try and attack them if they are close enough to warrant firing
                             --How many shots have we already attempted at this unit? If a lot, then wait for it to get really close
                             local iMinDistWanted
-                            if bAttackingNormalTMLTarget or (oClosestEnemy[refiTMLShotsFired] or 0) < iLoadedTMLs + (oClosestEnemy[refiTMLSnipeShotsHit] or 0) then
+                            if bAttackingNormalTMLTarget or ((oClosestEnemy[refiTMLShotsFired] or 0) - oClosestEnemy[refiTMLShotsHit] or 0) < iLoadedTMLs + (oClosestEnemy[refiTMLShotsHit] or 0) then
                                 iMinDistWanted = iMaxEffectiveRange
                             else
                                 --Reduce range by up to 60% if we are missing all our shots
@@ -5164,7 +5164,7 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                 if not(M28Team.tTeamData[iTeam][M28Team.refbTMLBatteryMissedLots]) and oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4] and M28Utilities.GetDistanceBetweenPositions(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4], oClosestEnemy:GetPosition()) <= 1 and not(oClosestEnemy:IsUnitState('Moving')) then
                                     iFactorAffected = 0.3
                                 end
-                                iMinDistWanted = math.max(iMaxEffectiveRange * ((1 - iFactorAffected) + iFactorAffected * math.max(iLoadedTMLs, (oClosestEnemy[refiTMLSnipeShotsHit] or iLoadedTMLs)) / oClosestEnemy[refiTMLShotsFired]), 60, math.min(iMaxEffectiveRange, (oClosestEnemy[M28UnitInfo.refiCombatRange] or 0) + 10))
+                                iMinDistWanted = math.max(iMaxEffectiveRange * ((1 - iFactorAffected) + iFactorAffected * math.max(iLoadedTMLs, (oClosestEnemy[refiTMLShotsHit] or iLoadedTMLs)) / oClosestEnemy[refiTMLShotsFired]), 60, math.min(iMaxEffectiveRange, (oClosestEnemy[M28UnitInfo.refiCombatRange] or 0) + 10))
                                 if oClosestEnemy[refiTMLShotsFired] > 28 then --We have fired 28 TMLs at this enemy, so should switch to getting T2 arti
                                     M28Team.tTeamData[iTeam][M28Team.refbTMLBatteryMissedLots] = true
                                 end
