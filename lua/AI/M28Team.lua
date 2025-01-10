@@ -4664,9 +4664,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                     if iBrainCount > 1 and oUnit:GetAIBrain().Rating < math.min(iTotalRating / iBrainCount, iHighestRating - 500) then
                         bLowRatedTarget = true
                     end
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering unit owned by brain '..oUnit:GetAIBrain().Nickname..'; that brains rating is '..(oUnit:GetAIBrain().Rating or 'nil')..'; Team iHighestRating='..iHighestRating..'; Team average rating='..iTotalRating / iBrainCount..'; bLowRatedTarget='..tostring(bLowRatedTarget)) end
-                    bDebugMessages = false
                 end
                 if not(bLowRatedTarget) then
 
