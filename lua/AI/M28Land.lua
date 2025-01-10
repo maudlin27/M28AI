@@ -4871,7 +4871,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     if iMobileDFWanted <= 3000 or tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > iMobileDFWanted then
                         --Check that the threat of our forces near the enemy ACU is high enough to handle it as well
                         local oClosestACUToMidpoint
-                        local iClosestACUDist = 200
+                        local iClosestACUDist = 10000
                         for iACU, oACU in toEnemyACUsNearZone do
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
                             if iCurDist < iClosestACUDist then
@@ -4879,11 +4879,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 oClosestACUToMidpoint = oACU
                             end
                         end
-                        if oClosestACUToMidpoint then
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': oClosestACUToMidpoint='..(oClosestACUToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestACUToMidpoint) or 'nil'))
+                            if oClosestACUToMidpoint then LOG(sFunctionRef..': ACU dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oClosestACUToMidpoint:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
+                        end
+                        if oClosestACUToMidpoint and M28Utilities.GetDistanceBetweenPositions(oClosestACUToMidpoint:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 200 then
                             --Include T1 arti in the threat calculation
                             local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
                             --Get the closest friendly combat unit to this
-                            iClosestACUDist = 1000
+                            iClosestACUDist = 10000
                             local oClosestCombatUnitToEnemyACU
                             for iUnit, oUnit in tAvailableCombatUnits do
                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUToMidpoint:GetPosition())
@@ -4892,6 +4896,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     oClosestCombatUnitToEnemyACU = oUnit
                                 end
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': oClosestCombatUnitToEnemyACU='..(oClosestCombatUnitToEnemyACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestCombatUnitToEnemyACU) or 'nil')) end
                             if oClosestCombatUnitToEnemyACU then
                                 local tFriendlyCombatNearACU = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oClosestCombatUnitToEnemyACU:GetPosition(), 40, 'Ally')
                                 local iFriendlyFrontlineCombatThreat = M28UnitInfo.GetCombatThreatRating(tFriendlyCombatNearACU, true)
@@ -5148,7 +5153,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
             end
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for nearest enemy unit, is it valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToFriendlyBase))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for nearest enemy unit, is it valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToFriendlyBase))) end
             local iAdjacentDistGeneralMod = math.min(tLZData[M28Map.subrefLZMaxSegX] - tLZData[M28Map.subrefLZMinSegX], tLZData[M28Map.subrefLZMaxSegZ] - tLZData[M28Map.subrefLZMinSegZ]) * M28Map.iLandZoneSegmentSize
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then iAdjacentDistGeneralMod = iAdjacentDistGeneralMod + 25 end
             function AddUnitFromAdjacentZoneToTableIfCloseEnough(tAdjLZTeamData, tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureFurtherDistAdjust, iAngleFromClosestFriendlyUnitToMidpoint)
