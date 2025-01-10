@@ -2343,7 +2343,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
             return true
         else
             --If ACU is upgrading then we wont have checked if we want to run, so do a check of enemy threat and consider running
-            if bDebugMessages == true then LOG(sFunctionRef..': Is ACU upgrading='..tostring(oACU:IsUnitState('Upgrading'))..'; ACU work progress='..oACU:GetWorkProgress()..'; Core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Dangerous enemies in this LZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Is table of DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; Enemy mobile DF total='..tLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Is ACU upgrading='..tostring(oACU:IsUnitState('Upgrading'))..'; ACU work progress='..(oACU:GetWorkProgress() or 'nil')..'; Core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Dangerous enemies in this LZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Is table of DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; Enemy mobile DF total='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 'nil')) end
             if oACU:IsUnitState('Upgrading') and iPlateauOrZero > 0 and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.99 and oACU:GetWorkProgress() <= 0.8 and (tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or oACU:GetWorkProgress() <= 0.6) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
                 if bDebugMessages == true then LOG(sFunctionRef..': ACU is upgrading, will consider if a really large threat such that we should run, safe to get upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))) end
                 if not(M28Conditions.SafeToUpgradeUnit(oACU)) then
@@ -2474,7 +2474,34 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
                             end
                         end
                     end
+                    if bWantACUToRun and iHealthPercent >= 0.75 then
+                        --Exception - ACU has at least 75% health, and doesnt have far to travel underwater to reach its destination
+                        local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
+                        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove then
+                            local iDistUntilIsland = 200
+                            local iIslandRefWanted = NavUtils.GetLabel(M28Map.refPathingTypeLand,  tLastOrder[M28Orders.subreftOrderPosition])
+                            local iAngleToTarget = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])
+                            local bArePassingEnemyAntiNavyThreat = false
+                            for iCurDist = 10, 70, 10 do
+                                local tTempMoveLocation = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleToTarget, iCurDist, true, true, false)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..iCurDist..'; Island ref='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tTempMoveLocation) or 'nil')..'; iIslandRefWanted='..(iIslandRefWanted or 'nil')) end
+                                if not(bArePassingEnemyAntiNavyThreat) then
+                                    local tMoveLocationData, tMoveLocationTeamData = M28Map.GetLandOrWaterZoneData(tTempMoveLocation, true, iTeam)
+                                    if (tMoveLocationTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) > 0 then bArePassingEnemyAntiNavyThreat = true end
+                                end
+                                if tTempMoveLocation and NavUtils.GetLabel(M28Map.refPathingTypeLand, tTempMoveLocation) == iIslandRefWanted then
+                                    iDistUntilIsland = iCurDist
+                                    break
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iDistUntilIsland (defaults to 200 if couldnt find island after 60)='..iDistUntilIsland..'; iHealthPercent='..iHealthPercent..'; 30 +  (iHealthPercent - 0.75) * 30)='..30 +  (iHealthPercent - 0.75) * 30) end
+                            if iDistUntilIsland <= 70 and (iDistUntilIsland <= 30 or (not(bArePassingEnemyAntiNavyThreat) and iHealthPercent >= 0.9) or iDistUntilIsland <= 30 +  (iHealthPercent - 0.75) / 0.25 * 40) then
+                                bWantACUToRun = false
+                            end
+                        end
+                    end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Do we want to return to base due to water being dangerous? bWantACUToRun='..tostring(bWantACUToRun)) end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return bWantACUToRun
             end
