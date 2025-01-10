@@ -2611,6 +2611,17 @@ function GetNearbyACUForAirFacBomberSnipe(oFactory, iTeam)
     end
 end
 
+function BrainIsUpgradingNavalHQ(aiBrain)
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamUpgradingHQs]) == false then
+        for iUpgrading, oUpgrading in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamUpgradingHQs] do
+            if not(oUpgrading.Dead) and oUpgrading:GetAIBrain() == aiBrain and EntityCategoryContains(M28UnitInfo.refCategoryNavalHQ, oUpgrading.UnitId) then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
     --Returns true if we want more engineers (e.g. for more power or nearby unclaimed mexes) before upgrading
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2670,6 +2681,7 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                         iBuildCountAdjust = iBuildCountAdjust - math.max(10, iBuildCountAdjust * 0.25)
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Naval fac, bUpgradingHQForBrain='..tostring(bUpgradingHQForBrain)..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]..'; iBuildCountAdjust='..iBuildCountAdjust) end
             end
 
             if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 25 - iFactoryTechLevel * 5 + iBuildCountAdjust or ((oFactory[M28Factory.refiTotalBuildCount] or 0) <= 30 + iBuildCountAdjust and GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= math.max(5, aiBrain[M28Economy.refiGrossMassBaseIncome] * 3 / iFactoryTechLevel) + iBuildCountAdjust) then
@@ -2764,16 +2776,18 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 if bWantMoreMexes then
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= (tLZOrWZData[M28Map.subrefLZMexCount] or 0) and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] >= 40 + 20 * iLifetimeCount then
                         bWantMoreMexes = false
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and ((tLZOrWZData[M28Map.subrefWZMexCount] or 0) == 0 or (tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and oFactory[M28Factory.refiTotalBuildCount] >= 20 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 8 * iFactoryTechLevel)) then
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and ((tLZOrWZData[M28Map.subrefWZMexCount] or 0) == 0 or (tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and (oFactory[M28Factory.refiTotalBuildCount] >= 20 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 8 * iFactoryTechLevel))) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Naval factory, is core base='..tostring(tLZOrWZTeamData[M28Map.subrefWZbCoreBase])..'; Brain mass income gross='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iFactoryTechLevel='..iFactoryTechLevel..'; subrefbDangerousEnemiesInAdjacentWZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or false)..'; Team fgrigate+sub build count='..GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryFrigate + M28UnitInfo.refCategorySubmarine)) end
-                        if tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and (oFactory[M28Factory.refiTotalBuildCount] >= 20 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 7 * iFactoryTechLevel or (iFactoryTechLevel == 1 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and oFactory[M28Factory.refiTotalBuildCount] >= 10 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) and GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryFrigate + M28UnitInfo.refCategorySubmarine) >= 16)) then
+                        if tLZOrWZTeamData[M28Map.subrefWZbCoreBase] and
+                                ((oFactory[M28Factory.refiTotalBuildCount] >= 20 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 7 * iFactoryTechLevel or (iFactoryTechLevel == 1 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and (oFactory[M28Factory.refiTotalBuildCount] >= 6 or GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine) >= 6) and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and not(BrainIsUpgradingNavalHQ(aiBrain))))
+                                or (iFactoryTechLevel == 1 and oFactory[M28Factory.refiTotalBuildCount] > 0 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 3.5 + 1 * aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalFactory - categories.TECH1) and not(BrainIsUpgradingNavalHQ(aiBrain)))) then
                             bWantMoreMexes = false
                         elseif not(tLZOrWZTeamData[M28Map.subrefWZbCoreBase]) and (oFactory[M28Factory.refiTotalBuildCount] >= 40 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 * iFactoryTechLevel) then
                             bWantMoreMexes = false
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': LOUD/QUIET - considering if want to hold off  on factory upgrade until we have more mexes, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; bWantMoreMexes='..tostring(bWantMoreMexes)..'; tLZOrWZData[M28Map.subrefWZMexCount]='..(tLZOrWZData[M28Map.subrefWZMexCount] or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': LOUD/QUIET - considering if want to hold off  on factory upgrade until we have more mexes, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; bWantMoreMexes='..tostring(bWantMoreMexes)..'; tLZOrWZData[M28Map.subrefWZMexCount]='..(tLZOrWZData[M28Map.subrefWZMexCount] or 'nil')..'; WZ core base='..tostring(tLZOrWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; Factory build count='..oFactory[M28Factory.refiTotalBuildCount]..'; Dangerous enemies in adj WZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; Enemy torp bomber threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]..'; Brain is upgrading naval HQ='..tostring(BrainIsUpgradingNavalHQ(aiBrain))) end
                 if bWantMoreMexes then
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true

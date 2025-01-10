@@ -5480,7 +5480,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tWZTeamData, iFactoryTechLevel)
             if bDebugMessages == true then
                 if sBPIDToBuild then
-                    LOG(sFunctionRef..': sBPIDToBuild after adjusting for override='..(sBPIDToBuild or 'nil')..': '..__blueprints[sBPIDToBuild].General.UnitName..'; Close to unit cap='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap])..'; bIsEngineer='..tostring(bIsEngineer))
+                    LOG(sFunctionRef..': sBPIDToBuild after adjusting for override='..(sBPIDToBuild or 'nil')..': '..(__blueprints[sBPIDToBuild].General.UnitName or 'nil')..'; Close to unit cap='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap])..'; bIsEngineer='..tostring(bIsEngineer))
                 else
                     LOG(sFunctionRef..': sBPIDToBuild after adjusting for override='..(sBPIDToBuild or 'nil')..'; Close to unit cap='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap])..'; bIsEngineer='..tostring(bIsEngineer))
                 end
@@ -5742,10 +5742,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and iFactoryTechLevel == 2 and oFactory[refiTotalBuildCount] >= 8 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or -10) <= 4.1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2) >= 6 then
                     iGrossMassThreshold = iGrossMassThreshold * 0.8
                 end
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Considering whether to upgrade, Gross mass income=' .. aiBrain[M28Economy.refiGrossMassBaseIncome] .. '; iGrossMassThreshold=' .. iGrossMassThreshold)
+                --Upgrade T1 to T2 if enemy has torp bombers and we lack T2 in this zone
+                if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 and not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) then
+                    iGrossMassThreshold = iGrossMassThreshold * 0.5
                 end
-                if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold and (tWZTeamData[M28Map.subrefWZbCoreBase] or not(bHaveLowMass)) then
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': Considering whether to upgrade, Gross mass income=' .. aiBrain[M28Economy.refiGrossMassBaseIncome] .. '; iGrossMassThreshold=' .. iGrossMassThreshold..'; Is this core base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; bHaveLowMass='..tostring(bHaveLowMass or false))
+                end
+                if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold and (tWZTeamData[M28Map.subrefWZbCoreBase] or not(bHaveLowMass) or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold * 3 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Mass income high enough so will try and upgrade naval fac') end
                     if ConsiderUpgrading() then
                         return sBPIDToBuild
