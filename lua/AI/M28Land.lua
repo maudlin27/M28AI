@@ -1752,10 +1752,41 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
                     local iSecondClosestFirstZone = tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iSecondClosestLZRef]][M28Map.subrefLZPath][1]
                     local tSecondClosestFirstZoneLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iSecondClosestFirstZone]
                     local tSecondClosestFirstZoneLZTeamData = tSecondClosestFirstZoneLZData[M28Map.subrefLZTeamData][iTeam]
+                    local iClosestGrossThreat = (tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+                    local iClosestNetThreat = (tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
+                    local iSecondClosestGrossThreat = (tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+                    local iSecondClosestNetThreat = (tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
+                    --Include mobile DF threat in adjacent zones
+                    local iAdjZoneFactor = 0.7
+                    if M28Utilities.IsTableEmpty(tClosestFirstZoneLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tClosestFirstZoneLZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                            if (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 0 then
+                                iClosestGrossThreat = iClosestGrossThreat + (tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) * iAdjZoneFactor
+                            end
+                            iClosestNetThreat = iClosestNetThreat + ((tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - (tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0)) * 0.7
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tSecondClosestFirstZoneLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tSecondClosestFirstZoneLZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                            if (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 0 then
+                                iSecondClosestGrossThreat = iSecondClosestGrossThreat + (tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) * iAdjZoneFactor
+                            end
+                            iSecondClosestNetThreat = iSecondClosestNetThreat + ((tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - (tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0)) * iAdjZoneFactor
+                        end
+                    end
+
                     --Does the closest first zone closer to the enemy and has significantly more enemy combat threat than the second closest first zone?
-                    if bDebugMessages == true then LOG(sFunctionRef..': iLandZone='..iLandZone..'; iPlateua='..iPlateau..'; First closest LZ='..iClosestFirstZone..'; Second closest first zone='..iSecondClosestFirstZone..'; ClosestFirstZoneModDist%='..(tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Second closest='..(tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Closest net combat='..((tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0))..'; Second closest net combat='.. ((tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)..'; iSecondClosestLZRef='..(iSecondClosestLZRef or 'nil')..'; iSecondClosestDist='..iSecondClosestDist)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iLandZone='..iLandZone..'; iPlateua='..iPlateau..'; First closest LZ='..iClosestFirstZone..'; Second closest first zone='..iSecondClosestFirstZone..'; ClosestFirstZoneModDist%='..(tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Second closest='..(tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Closest net combat='..iClosestGrossThreat..'; Second closest net combat='.. iSecondClosestGrossThreat..'; iSecondClosestLZRef='..(iSecondClosestLZRef or 'nil')..'; iSecondClosestDist='..iSecondClosestDist..'; iClosestGrossThreat='..iClosestGrossThreat..'; iSecondClosestGrossThreat='..iSecondClosestGrossThreat) end
                     if iSecondClosestLZRef and tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] > tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.8 and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 1.2 * (tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Switching rally point so will treat second closest as the actual closest') end
+                        iClosestLZRef = iSecondClosestLZRef
+                        iClosestDist = iSecondClosestDist
+                        --If second closest is lower mod dist, significantly lower gross threat, and either net threat isnt negative, or net threat negative but not massively more than gross threat, then switch
+                    elseif (iClosestNetThreat > 0 and iSecondClosestNetThreat <= 0 and (iClosestNetThreat > math.min(iSecondClosestGrossThreat * 0.5, iClosestGrossThreat * 0.5))) or
+                            (iSecondClosestGrossThreat * 1.25 < iClosestGrossThreat and tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] < tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and ((iClosestNetThreat > 0 and iClosestGrossThreat < iClosestNetThreat) or (iSecondClosestNetThreat < 0 and iClosestNetThreat < 0 and -iSecondClosestNetThreat < 3 * iSecondClosestGrossThreat and -iClosestNetThreat < 3 * iClosestGrossThreat))) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Second closest seems safer than closest so will switch') end
                         iClosestLZRef = iSecondClosestLZRef
                         iClosestDist = iSecondClosestDist
                     end
