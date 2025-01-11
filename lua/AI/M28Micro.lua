@@ -868,9 +868,10 @@ function ForkedResetMicroFlag(oUnit, iTimeToWait, sOptionalAdditionalTrackingVar
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedResetMicroFlag'
 
-
     oUnit[M28UnitInfo.refbSpecialMicroActive] = true --As if we are calling an action for the micro that clears commands, then that will reset the micro flag
-    WaitSeconds(iTimeToWait)
+    if iTimeToWait > 0 then
+        WaitSeconds(iTimeToWait)
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28UnitInfo.IsUnitValid(oUnit) then
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if micro flag can be reset to false for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()..'; Time to reset flag='..(oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
