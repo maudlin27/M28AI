@@ -2694,3 +2694,55 @@ function GetFirstActiveBrain()
     end
     M28Utilities.ErrorHandler('Dont appear to have any active brains')
 end
+
+function ReviewTreatingOldBaseAsCoreBase(aiBrain)
+    --Claled when aibrain is defeated - if have teammates then will consider treating its old base as a core base once enemy threats dealt with and we have sufficient tech/mexes in the zone, but will also consider turning the flag off
+    local sFunctionRef = 'ReviewTreatingOldBaseAsCoreBase'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iTeam = aiBrain.M28Team
+    local tStartPosition = M28Map.GetPlayerStartPosition(aiBrain)
+    local iStartPlateau, iStartZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPosition)
+
+    if iStartPlateau and iStartZone and iStartPlateau > 0 then
+        local tLZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartZone]
+        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+        --Only consider this for 4+ mex zones and mod dist is <=0.3
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether we want to monitor resetting core base flag, iStartPlateau='..iStartPlateau..'; iStartZone='..iStartZone..'; LZ mex c ount='..tLZData[M28Map.subrefLZMexCount]..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Brain nickname='..(aiBrain.Nickname or 'nil')) end
+        if tLZData[M28Map.subrefLZMexCount] >= 4 and tLZTeamData[M28Map.refiModDistancePercent] <= 0.3 then
+            while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
+                if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for assessing if we want to change this zone core zone flag, tLZTeamData[M28Map.subrefbCoreBaseOverride]='..tostring(tLZTeamData[M28Map.subrefbCoreBaseOverride] or false)..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Enemy air to ground='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Enemies in this or adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)..'; T2 mexes in zone='..tLZTeamData[M28Map.subrefMexCountByTech][2]..'; T3 mexes in zone='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Total mexes in zone='..tLZData[M28Map.subrefLZMexCount]..'; Time='..GetGameTimeSeconds()) end
+                --If this is already a core zone, then only abort if dangerous enemies in the zone, and we lack a factory HQ
+                if tLZTeamData[M28Map.subrefbCoreBaseOverride] then
+                    --We are a core zone, only change if significant change in position
+                    if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 100 or tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) then
+                            tLZTeamData[M28Map.subrefbCoreBaseOverride] = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': No friendly units so not a core base') end
+                        else
+                            local tFriendlyT2PlusHQs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tFriendlyT2PlusHQs) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': No friendly HQ so not a core base anymore') end
+                                tLZTeamData[M28Map.subrefbCoreBaseOverride] = false
+                            end
+                        end
+                    end
+                else
+                    --We arent a core zone, consider if we want to become one - consider if all mexes are T2+, at least one is T3+, and there are no enemies in an adjacent zone
+                    if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 6) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will treat this as a core zone again') end
+                        tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
+                    end
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(10)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

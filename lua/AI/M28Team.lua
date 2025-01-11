@@ -4049,6 +4049,12 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
 
     LOG('Brain death detected for '..oDefeatedBrain.Nickname)
     M28Overseer.iTimeLastPlayerDefeat = GetGameTimeSeconds()
+
+    --M28 brains - monitor their start position and consider resetting core baes flag
+    if oDefeatedBrain.M28AI then
+        ForkThread(M28Overseer.ReviewTreatingOldBaseAsCoreBase, oDefeatedBrain)
+    end
+
     for iTeam = 1, iTotalTeamCount do
         if oDefeatedBrain.M28Team == iTeam then
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains]) == false then

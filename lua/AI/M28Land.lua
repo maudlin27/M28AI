@@ -9495,8 +9495,9 @@ function AssignValuesToLandZones(iTeam)
                                     M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau][iLandZone] = true
                                 end
                             end
-
                         end
+                        --'Rebuild former core base of a dead teammate' logic - handle this via separate function that rechecks every 30s if we want to reflag as a core base, ReviewTreatingOldBaseAsCoreBase
+
 
                         if iZonesSinceWait >= iZonesPerTick and iCurCycleCount > 1 then --dont want to wait the first time, as on large maps can mean a delay in the ACU building
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
