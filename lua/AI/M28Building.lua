@@ -5012,7 +5012,7 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
             iClosestEnemy = iMaxEffectiveRange
             if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) then
                 for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits] do
-                    if M28UnitInfo.IsUnitValid(oUnit) then
+                    if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(tBasePosition, oUnit:GetPosition())
                         if bDebugMessages == true then LOG(sFunctionRef..': Dist from oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tBasePosition='..iCurDist..'; oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]='..repru(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4])) end
                         if iCurDist < iClosestEnemy and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Attached')) then

@@ -5213,13 +5213,14 @@ function ConsiderTMLForLongRangeEnemyThreat(iTeam)
                 WaitSeconds(10)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
-            if M28UnitInfo.IsUnitValid(oClosestLREnemy) then
+            if M28UnitInfo.IsUnitValid(oClosestLREnemy) and oClosestLREnemy:GetFractionComplete() >= 0.75 and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oClosestLREnemy.UnitId) then
                 --Flag this zone to get TMLs, and nearby zones that they dont need to
                 local tLZData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iClosestZone]
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
 
                 tLZTeamData[M28Map.refbGetTMLBattery] = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Flagging primary TML battery iCurPlateau='..iCurPlateau..'; iClosestZone='..iClosestZone) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Flagging primary TML battery iCurPlateau='..iCurPlateau..'; iClosestZone='..iClosestZone..' due to '..oClosestLREnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestLREnemy)..' owned by '..oClosestLREnemy:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()) end
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                         local tAdjLZTeamData = M28Map.tAllPlateaus[iClosestPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
