@@ -2698,7 +2698,7 @@ end
 function ReviewTreatingOldBaseAsCoreBase(aiBrain)
     --Claled when aibrain is defeated - if have teammates then will consider treating its old base as a core base once enemy threats dealt with and we have sufficient tech/mexes in the zone, but will also consider turning the flag off
     local sFunctionRef = 'ReviewTreatingOldBaseAsCoreBase'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iTeam = aiBrain.M28Team
