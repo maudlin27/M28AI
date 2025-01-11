@@ -1325,20 +1325,21 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                         elseif iAverageCurAirAndLandFactories < 2 and (iAverageCurAirAndLandFactories * 0.8 < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 200) then
                             if bDebugMessages == true then LOG(sFunctionRef..': We have equiv of 3 mexes per player or 200 mass stored so want at least 2 factories') end
                             bWantMoreFactories = true
-                            --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 300 land travel distance?
+                            --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 350 land travel distance (225 if cant path by land)?
                         elseif (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.25 and not(bIgnoreMainEcoConditions)) or (iAverageCurAirAndLandFactories == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 and GetGameTimeSeconds() <= 300) then
-                            local iStartPlateau, iStartLandZone
-                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-                                iStartPlateau, iStartLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-                                if iStartPlateau == iPlateau and iStartLandZone > 0 then
-                                    if M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iStartLandZone) <= 350 then
-                                        bWantMoreFactories = true
-                                        break
-                                    end
+                            --Just get nearest enemy base
+                            local iStartPlateau, iStartLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZTeamData[M28Map.reftClosestEnemyBase])
+                            if iStartPlateau == iPlateau and iStartLandZone > 0 then
+                                local iTravelDist = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iStartLandZone) or 10000)
+                                if iTravelDist <= 350 and (iTravelDist <= 225 or NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef]) then
+                                    bWantMoreFactories = true
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iTravelDist='..iTravelDist..'; This island='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; Closest enemy base island='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')) end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if have enemy within 350 of us, bWantMoreFactories after this check='..tostring(bWantMoreFactories)) end
-
+                            --Can only path to enemy with navy, and we lack T3 air, and have <50% mass stored - then dont get more facs at core base
+                        elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.5 and not(iCurIsland == iEnemyIsland) and tLZTeamData[M28Map.subrefLZbCoreBase] and (iAverageCurAirAndLandFactories >= 3 or not(DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': No more facs at core base as not at risk of overflowing and want to consderve resources for navy') end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': Want more factories general') end
                             bWantMoreFactories = true
@@ -1404,8 +1405,8 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
             --Only get more if have lots of mass
             if aiBrain:GetEconomyStoredRatio('MASS') < 0.2 or (aiBrain:GetEconomyStoredRatio('MASS') < 0.35 and aiBrain[M28Economy.refiNetMassBaseIncome] < 0) then
                 if aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] < 3
-                    --Naval facs - want to get more land/air facs if we have lost navy
-                    or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0))) then
+                        --Naval facs - want to get more land/air facs if we have lost navy
+                        or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0))) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want more facs as want to tech or turtle, unless this zone has no factories') end
                     bWantMoreFactories = false
                     if not(iLandFacsInZone) or not(iAirFacsInZone) then
