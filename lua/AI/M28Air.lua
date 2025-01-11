@@ -4151,7 +4151,7 @@ function EnemyBaseEarlyBomber(oBomber)
     end
     if oBomber[M28UnitInfo.refbSpecialMicroActive] then
         oBomber[M28UnitInfo.refbSpecialMicroActive] = false
-        ForkThread(M28Micro.ForkedResetMicroFlag, oBomber, 0.01) --redundancy
+        ForkThread(M28Micro.ForkedResetMicroFlag, oBomber, 0) --redundancy
     end
     oBomber[rebEarlyBomberTargetBase] = false
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -11071,82 +11071,102 @@ function PlanBomberSnipe(tAvailableBombers, oSnipeTarget, iTeam)
             local iCurStrikePotential, iBomberCount
             local iAttackCurHealthThreshold = iAbortCurHealthThreshold * 0.9
             local iCurFactorWanted
-            if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, is table of bombers planning to snipe this unit valid='..tostring(M28Conditions.IsTableOfUnitsStillValid(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]))..'; iAbortCurHealthThreshold='..iAbortCurHealthThreshold..'; Cur health='..M28UnitInfo.GetUnitCurHealthAndShield(oSnipeTarget)) end
-            while M28Conditions.IsTableOfUnitsStillValid(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]) and M28UnitInfo.IsUnitValid(oSnipeTarget) and M28UnitInfo.GetUnitCurHealthAndShield(oSnipeTarget) < iAbortCurHealthThreshold do
-                --Wait until either have lots of bombers, or enough to 1-shot by a bit
-                iCurStrikePotential = 0
-                iBomberCount = 0
-                for iBomber, oBomber in oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] do
-                    iCurStrikePotential = iCurStrikePotential + (oBomber[M28UnitInfo.refiStrikeDamage] or 0)
-                    iBomberCount = iBomberCount + 1
-                    --Make sure micro is enabled
-                    if not(oBomber[M28UnitInfo.refbSpecialMicroActive]) then
-                        M28Micro.EnableUnitMicroUntilManuallyTurnOff(oBomber, false)
+            if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, is table of bombers planning to snipe this unit valid='..tostring(M28Conditions.IsTableOfUnitsStillValid(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]))..'; iAbortCurHealthThreshold='..iAbortCurHealthThreshold..'; Cur health='..M28UnitInfo.GetUnitCurHealthAndShield(oSnipeTarget)..'; oSnipeTarget='..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..' owned by '..oSnipeTarget:GetAIBrain().Nickname) end
+            local bAbortAndClearBomberMicroFlag
+            while M28Conditions.IsTableOfUnitsStillValid(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]) do
+                if not(M28UnitInfo.IsUnitValid(oSnipeTarget)) then
+                    bAbortAndClearBomberMicroFlag = true
+                else
+                    iCurHealth = M28UnitInfo.GetUnitCurHealthAndShield(oSnipeTarget)
+                    if iCurHealth >= iAbortCurHealthThreshold then
+                        bAbortAndClearBomberMicroFlag = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Cur health above threshold for aborting the snipe attempt') end
+                        --Clear micro flag on all bombers
                     end
                 end
-                iCurFactorWanted = 1
-                local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oSnipeTarget:GetPosition(), true, iTeam)
-                if tLZTeamData[M28Map.refiModDistancePercent] <= 0.6 then
-                    if tLZTeamData[M28Map.subrefThreatEnemyShield] == 0 and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] <= 1000 then
-                        iCurFactorWanted = 0.6
-                    end
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering bomber snipe, iCurStrikePotential='..iCurStrikePotential..'; iMaxHealth='..iMaxHealth..'; iBomberCount='..iBomberCount..'; iCurHealth='..iCurHealth) end
-                if iCurStrikePotential >= iMaxHealth * iCurFactorWanted * 1.1 or iBomberCount >= iBomberCountThreshold * iCurFactorWanted or iCurStrikePotential >= math.max(iCurHealth * 1.1, iAttackCurHealthThreshold) or (iBomberCount >= 18 and iCurStrikePotential >= iCurHealth * iCurFactorWanted * 1.05 and iCurStrikePotential >= iMaxHealth * 0.6) then
-                    --Attack with the bombers, and flag to no longer try and snipe this target
-                    oSnipeTarget[M28UnitInfo.refiRecentBomberSnipeAttempts] = (oSnipeTarget[M28UnitInfo.refiRecentBomberSnipeAttempts] or 0)
-                    M28Utilities.DelayChangeVariable(oSnipeTarget, M28UnitInfo.refiRecentBomberSnipeAttempts, -1, 600, nil, nil, nil, nil, true)
+                if bAbortAndClearBomberMicroFlag then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Aborting snipe attempt and clearing flag off any bombers') end
                     for iBomber, oBomber in oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] do
-                        M28Orders.IssueTrackedAttack(oBomber, oSnipeTarget, false, 'BomSn', true)
+                        ForkThread(M28Micro.ForkedResetMicroFlag,oBomber, 0)
                     end
-                    --If this is in the bomber snipe targets then remove it
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets]) == false then
-                        for iRecordedSnipeTarget, oRecordedSnipeTarget in M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets] do
-                            if oRecordedSnipeTarget == oSnipeTarget then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Removing from table of bomber snipe targets') end
-                                table.remove(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets], iRecordedSnipeTarget)
-                                break
-                            end
+                    break
+                else
+                    --Wait until either have lots of bombers, or enough to 1-shot by a bit
+                    iCurStrikePotential = 0
+                    iBomberCount = 0
+                    for iBomber, oBomber in oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] do
+                        iCurStrikePotential = iCurStrikePotential + (oBomber[M28UnitInfo.refiStrikeDamage] or 0)
+                        iBomberCount = iBomberCount + 1
+                        --Make sure micro is enabled
+                        if not(oBomber[M28UnitInfo.refbSpecialMicroActive]) then
+                            M28Micro.EnableUnitMicroUntilManuallyTurnOff(oBomber, false)
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Ordered all bombers to attack target '..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..' owned by brain '..oSnipeTarget:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()) end
+                    iCurFactorWanted = 1
+                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oSnipeTarget:GetPosition(), true, iTeam)
+                    if tLZTeamData[M28Map.refiModDistancePercent] <= 0.6 then
+                        if tLZTeamData[M28Map.subrefThreatEnemyShield] == 0 and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] <= 1000 then
+                            iCurFactorWanted = 0.6
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering bomber snipe, iCurStrikePotential='..iCurStrikePotential..'; iMaxHealth='..iMaxHealth..'; iBomberCount='..iBomberCount..'; iCurHealth='..iCurHealth..'; iAbortCurHealthThreshold='..iAbortCurHealthThreshold..'; bAbortAndClearBomberMicroFlag='..tostring(bAbortAndClearBomberMicroFlag)) end
+                    if iCurStrikePotential >= iMaxHealth * iCurFactorWanted * 1.1 or iBomberCount >= iBomberCountThreshold * iCurFactorWanted or iCurStrikePotential >= math.max(iCurHealth * 1.1, iAttackCurHealthThreshold) or (iBomberCount >= 18 and iCurStrikePotential >= iCurHealth * iCurFactorWanted * 1.05 and iCurStrikePotential >= iMaxHealth * 0.6) then
+                        --Attack with the bombers, and flag to no longer try and snipe this target
+                        oSnipeTarget[M28UnitInfo.refiRecentBomberSnipeAttempts] = (oSnipeTarget[M28UnitInfo.refiRecentBomberSnipeAttempts] or 0)
+                        M28Utilities.DelayChangeVariable(oSnipeTarget, M28UnitInfo.refiRecentBomberSnipeAttempts, -1, 600, nil, nil, nil, nil, true)
+                        for iBomber, oBomber in oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] do
+                            M28Orders.IssueTrackedAttack(oBomber, oSnipeTarget, false, 'BomSn', true)
+                        end
+                        --If this is in the bomber snipe targets then remove it
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets]) == false then
+                            for iRecordedSnipeTarget, oRecordedSnipeTarget in M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets] do
+                                if oRecordedSnipeTarget == oSnipeTarget then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Removing from table of bomber snipe targets') end
+                                    table.remove(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets], iRecordedSnipeTarget)
+                                    break
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Ordered all bombers to attack target '..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..' owned by brain '..oSnipeTarget:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()) end
 
-                    --Wait until either the target is dead or the bombers are dead
-                    while M28Conditions.IsTableOfUnitsStillValid(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]) and M28UnitInfo.IsUnitValid(oSnipeTarget) and not(oSnipeTarget:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oSnipeTarget)) do
+                        --Wait until either the target is dead or the bombers are dead
+                        while M28Conditions.IsTableOfUnitsStillValid(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]) and M28UnitInfo.IsUnitValid(oSnipeTarget) and not(oSnipeTarget:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oSnipeTarget)) do
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            WaitSeconds(1)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        end
+                        --Clear any units that are still alive
+                        if M28Utilities.IsTableEmpty(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]) == false then
+                            for iBomber, oBomber in oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] do
+                                ForkThread(M28Micro.ForkedResetMicroFlag,oBomber, 0)
+                            end
+                        end
+                        if oSnipeTarget then
+                            oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] = nil
+                        end
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets]) == false then
+                            for iRecordedSnipeTarget, oRecordedSnipeTarget in M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets] do
+                                if oRecordedSnipeTarget == oSnipeTarget then
+                                    table.remove(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets], iRecordedSnipeTarget)
+                                    break
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Exiting loop as have issued the attack and either lost all bombers or lost the snipe target, is snipe target valid='..tostring(M28UnitInfo.IsUnitValid(oSnipeTarget))..'; Time='..GetGameTimeSeconds()) end
+                        break
+                    else
+                        --Dont want to attack yet - make sure bombers are all at their air subteam's rally point
+                        for iBomber, oBomber in oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] do
+                            M28Orders.IssueTrackedMove(oBomber, (tRallyPointOverride or M28Team.tAirSubteamData[oBomber:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint]), 5, false, 'BombPrepSnipeR', true)
+                        end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         WaitSeconds(1)
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     end
-                    --Clear any units that are still alive
-                    if M28Utilities.IsTableEmpty(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]) == false then
-                        for iBomber, oBomber in oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] do
-                            ForkThread(M28Micro.ForkedResetMicroFlag,oBomber, GetGameTimeSeconds() - 0.01)
-                        end
-                    end
-                    if oSnipeTarget then
-                        oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] = nil
-                    end
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets]) == false then
-                        for iRecordedSnipeTarget, oRecordedSnipeTarget in M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets] do
-                            if oRecordedSnipeTarget == oSnipeTarget then
-                                table.remove(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets], iRecordedSnipeTarget)
-                                break
-                            end
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Exiting loop as have issued the attack and either lost all bombers or lost the snipe target, is snipe target valid='..tostring(M28UnitInfo.IsUnitValid(oSnipeTarget))..'; Time='..GetGameTimeSeconds()) end
-                    break
-                else
-                    --Dont want to attack yet - make sure bombers are all at their air subteam's rally point
-                    for iBomber, oBomber in oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] do
-                        M28Orders.IssueTrackedMove(oBomber, (tRallyPointOverride or M28Team.tAirSubteamData[oBomber:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint]), 5, false, 'BombPrepSnipeR', true)
-                    end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    WaitSeconds(1)
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 end
             end
         else
+            if bDebugMessages == true then LOG(sFunctionRef..': We already have code for planning a snipe active with some bombers assigned so will add available bombers to the table of bombers planning a snipe') end
             --Add these to existing table
             local bIncluded
             for iBomber, oBomber in tAvailableBombers do
@@ -11170,7 +11190,8 @@ function PlanBomberSnipe(tAvailableBombers, oSnipeTarget, iTeam)
                         if not(bHaveValidAttackOrder) then
                             M28Utilities.ErrorHandler('Have too many bombers and some already included so will abort the snipe attempt if none of them have an attack order on a unit recorded')
                             for iBomber, oBomber in oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] do
-                                ForkThread(M28Micro.ForkedResetMicroFlag,oBomber, GetGameTimeSeconds() - 0.01)
+                                if bDebugMessages == true then LOG(sFunctionRef..': resetting micro flag for oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)) end
+                                ForkThread(M28Micro.ForkedResetMicroFlag,oBomber, 0)
                             end
                             oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] = nil
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets]) == false then
@@ -11187,6 +11208,7 @@ function PlanBomberSnipe(tAvailableBombers, oSnipeTarget, iTeam)
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, time='..GetGameTimeSeconds()..'; Is oSnipeTarget valid='..tostring(M28UnitInfo.IsUnitValid(oSnipeTarget))..'; Is table of bombers planning snipe empty='..tostring(M28Utilities.IsTableEmpty(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]))) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

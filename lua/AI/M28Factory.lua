@@ -4452,7 +4452,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Low power air fac builer - considering getting gunship, bomber or torp bomber in response to approaching land experimental threat, oClosestLandExp='..(oClosestLandExp.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestLandExp) or 'nil')..'; iClosestLandExp='..iClosestLandExp) end
             if oClosestLandExp then
-                if M28UnitInfo.IsUnitUnderwater(oClosestLandExp) then
+                --If relatively far away and at t1 then upgrade
+                if iFactoryTechLevel == 1 and iClosestLandExp >= 250 and ConsiderUpgrading() then return sBPIDToBuild
+                elseif M28UnitInfo.IsUnitUnderwater(oClosestLandExp) then
                     --Only respond if it's a bit closer
                     if iClosestLandExp <= math.min(400, M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.reftClosestEnemyBase]) * 0.4) then
                         if iClosestLandExp <= 200 then
@@ -4490,6 +4492,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         local sEnhancementWanted = ConsiderFactoryEnhancement(oFactory, tLZTeamData)
         if sEnhancementWanted then return sEnhancementWanted, true end
+
+        --Upgrade t1 fac to t2 if have t3 mexes in the zone and not stalling power
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if iFactoryTechLevel == 1 and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 400 and ConsiderUpgrading() then return sBPIDToBuild end
     else
         --Emergency air defence
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -4885,7 +4891,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Low tech level air fac considering getting  bomber or torp bomber in response to approaching land experimental threat, oClosestLandExp='..(oClosestLandExp.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestLandExp) or 'nil')..'; iClosestLandExp='..iClosestLandExp) end
                     if oClosestLandExp then
-                        if M28UnitInfo.IsUnitUnderwater(oClosestLandExp) then
+                        if iFactoryTechLevel == 1 and iClosestLandExp >= 250 and ConsiderUpgrading() then return sBPIDToBuild
+                        elseif M28UnitInfo.IsUnitUnderwater(oClosestLandExp) then
                             --Only respond if it's a bit closer
                             if iClosestLandExp <= math.min(400, M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.reftClosestEnemyBase]) * 0.4) then
                                 if iClosestLandExp <= 200 then
@@ -5209,7 +5216,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering getting gunship, bomber or torp bomber in response to approaching land experimental threat, oClosestLandExp='..(oClosestLandExp.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestLandExp) or 'nil')..'; iClosestLandExp='..iClosestLandExp) end
                     if oClosestLandExp then
-                        if M28UnitInfo.IsUnitUnderwater(oClosestLandExp) then
+                        if iFactoryTechLevel == 1 and iClosestLandExp >= 250 and ConsiderUpgrading() then return sBPIDToBuild
+                        elseif M28UnitInfo.IsUnitUnderwater(oClosestLandExp) then
                             --Only respond if it's a bit closer
                             if iClosestLandExp <= math.min(400, M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.reftClosestEnemyBase]) * 0.4) then
                                 if iClosestLandExp <= 200 then
