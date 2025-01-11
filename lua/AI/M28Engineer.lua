@@ -16317,9 +16317,10 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     iExtraFactoriesValue = math.min((aiBrain[M28Economy.refiGrossMassBaseIncome] - 4) * 0.5, iExtraFactoriesValue)
                     if bHaveLowMass then
                         iExtraFactoriesValue = iExtraFactoriesValue * 0.5
+                        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iExtraFactoriesValue = math.min(1, iExtraFactoriesValue * 0.5) end
                     end
                     iFactoriesWanted = math.min(5, iFactoriesWanted + iExtraFactoriesValue)
-                    if bDebugMessages == true then LOG(sFunctionRef..': iExtraFactoriesValue='..iExtraFactoriesValue..'; iFactoriesWanted='..iFactoriesWanted) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iExtraFactoriesValue='..iExtraFactoriesValue..'; iFactoriesWanted='..iFactoriesWanted..'; Team is stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; bHaveLowMass='..tostring(bHaveLowMass)..'; gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
                 end
                 --(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) >= 16 or not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]))
                 if tWZTeamData[M28Map.subrefWZbCoreBase] and aiBrain[M28Overseer.refbPrioritiseNavy] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then iFactoriesWanted = iFactoriesWanted + 1 end
