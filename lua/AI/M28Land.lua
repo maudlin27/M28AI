@@ -1752,10 +1752,41 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
                     local iSecondClosestFirstZone = tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iSecondClosestLZRef]][M28Map.subrefLZPath][1]
                     local tSecondClosestFirstZoneLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iSecondClosestFirstZone]
                     local tSecondClosestFirstZoneLZTeamData = tSecondClosestFirstZoneLZData[M28Map.subrefLZTeamData][iTeam]
+                    local iClosestGrossThreat = (tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+                    local iClosestNetThreat = (tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
+                    local iSecondClosestGrossThreat = (tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+                    local iSecondClosestNetThreat = (tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)
+                    --Include mobile DF threat in adjacent zones
+                    local iAdjZoneFactor = 0.7
+                    if M28Utilities.IsTableEmpty(tClosestFirstZoneLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tClosestFirstZoneLZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                            if (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 0 then
+                                iClosestGrossThreat = iClosestGrossThreat + (tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) * iAdjZoneFactor
+                            end
+                            iClosestNetThreat = iClosestNetThreat + ((tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - (tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0)) * 0.7
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tSecondClosestFirstZoneLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tSecondClosestFirstZoneLZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                            if (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 0 then
+                                iSecondClosestGrossThreat = iSecondClosestGrossThreat + (tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) * iAdjZoneFactor
+                            end
+                            iSecondClosestNetThreat = iSecondClosestNetThreat + ((tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) - (tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0)) * iAdjZoneFactor
+                        end
+                    end
+
                     --Does the closest first zone closer to the enemy and has significantly more enemy combat threat than the second closest first zone?
-                    if bDebugMessages == true then LOG(sFunctionRef..': iLandZone='..iLandZone..'; iPlateua='..iPlateau..'; First closest LZ='..iClosestFirstZone..'; Second closest first zone='..iSecondClosestFirstZone..'; ClosestFirstZoneModDist%='..(tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Second closest='..(tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Closest net combat='..((tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0))..'; Second closest net combat='.. ((tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)..'; iSecondClosestLZRef='..(iSecondClosestLZRef or 'nil')..'; iSecondClosestDist='..iSecondClosestDist)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iLandZone='..iLandZone..'; iPlateua='..iPlateau..'; First closest LZ='..iClosestFirstZone..'; Second closest first zone='..iSecondClosestFirstZone..'; ClosestFirstZoneModDist%='..(tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Second closest='..(tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Closest net combat='..iClosestGrossThreat..'; Second closest net combat='.. iSecondClosestGrossThreat..'; iSecondClosestLZRef='..(iSecondClosestLZRef or 'nil')..'; iSecondClosestDist='..iSecondClosestDist..'; iClosestGrossThreat='..iClosestGrossThreat..'; iSecondClosestGrossThreat='..iSecondClosestGrossThreat) end
                     if iSecondClosestLZRef and tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] > tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.8 and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 1.2 * (tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Switching rally point so will treat second closest as the actual closest') end
+                        iClosestLZRef = iSecondClosestLZRef
+                        iClosestDist = iSecondClosestDist
+                        --If second closest is lower mod dist, significantly lower gross threat, and either net threat isnt negative, or net threat negative but not massively more than gross threat, then switch
+                    elseif (iClosestNetThreat > 0 and iSecondClosestNetThreat <= 0 and (iClosestNetThreat > math.min(iSecondClosestGrossThreat * 0.5, iClosestGrossThreat * 0.5))) or
+                            (iSecondClosestGrossThreat * 1.25 < iClosestGrossThreat and tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] < tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and ((iClosestNetThreat > 0 and iClosestGrossThreat < iClosestNetThreat) or (iSecondClosestNetThreat < 0 and iClosestNetThreat < 0 and -iSecondClosestNetThreat < 3 * iSecondClosestGrossThreat and -iClosestNetThreat < 3 * iClosestGrossThreat))) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Second closest seems safer than closest so will switch') end
                         iClosestLZRef = iSecondClosestLZRef
                         iClosestDist = iSecondClosestDist
                     end
@@ -4941,64 +4972,87 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
 
             function SuicideUnitIntoEnemyStructure(oUnit)
-                --Get closest unit of preferred category
-                local tBuildingsOfInterestInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefTEnemyUnits])
-                local oUnitToAttack
-                if M28Utilities.IsTableEmpty(tBuildingsOfInterestInZone) == false then
-                    --Get units iwthin range, and then pick the preferred one
-                    local iCurValue, iValueFactor
-                    local iBestValue = 0
-                    for iEnemy, oEnemy in tBuildingsOfInterestInZone do
-                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
-                        if iCurDist <= oUnit[M28UnitInfo.refiCombatRange] + 6 then
-                            iValueFactor = 1
-                            --Adjust value based on category
-                            if EntityCategoryContains(categories.VOLATILE - M28UnitInfo.refCategoryT1Power, oEnemy.UnitId) then
-                                iValueFactor = 4
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, oEnemy.UnitId) then
-                                iValueFactor = 1.5
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPower - M28UnitInfo.refCategoryT1Power, oEnemy.UnitId) then
-                                iValueFactor = 2.1 --so a T1 mex should have more value than a T1 pgen
-                                if oEnemy:GetWorkProgress() >= 0.05 then --Reason for htis is that a human palyer will usually be able ot use intuition to target upgraidng mexes, since players typically upgrade mexes in order, and are likely to have engineers near an upgrading mex, as well as some being at T2 some at T1, but want to avoid the significant cpu load from trying to mathematically approximate such intuition
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oEnemy.UnitId) then
-                                        iValueFactor = 2 + 40 * oEnemy:GetWorkProgress() --T2 mex costs roughly 25 times a t1 mex, but we are treating eco damage as worth twice as much
-                                        if bDebugMessages == true then LOG(sFunctionRef..': T1 mex upgrading to t2 so greater priority, oEnemy:GetWorkProgress()='..oEnemy:GetWorkProgress()) end
-                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oEnemy.UnitId) then
-                                        iValueFactor = 2 + 7 * oEnemy:GetWorkProgress() --T3 mex costs 5 times t2 mex, but we are valuing eco damage at double rate
-                                    else
-                                        iValueFactor = 2 + 3 * oEnemy:GetWorkProgress() --e.g. support for mods with upgradable pgens
-                                    end
-                                end
-                            end
-                            --Reduce value if not actually in range
-                            if iCurDist > oUnit[M28UnitInfo.refiCombatRange] then
-                                iValueFactor = iValueFactor * 0.25
-                            end
-                            --Reduce value if covered by shields
-                            if M28Utilities.IsTableEmpty(oEnemy[M28Building.reftoShieldsProvidingCoverage]) == false then
-                                iValueFactor = iValueFactor * 0.05
-                            end
-
-                            iCurValue = iValueFactor * oEnemy:GetFractionComplete() * (oEnemy[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oEnemy))
-                            --Now figure out how quickly we can kill the unit, and adjust the value by that
-                            local iShotsToKill = math.floor(oEnemy:GetHealth() / (oUnit[M28UnitInfo.refiStrikeDamage] or 200)) + 1
-                            iCurValue = iCurValue / math.max(2, iShotsToKill) --2 shots to kill min since likely we have multiple t1 arti in the zone, so want to avoid e.g. all of them trying to focus down an enemy t1 radar
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurValue='..iCurValue..'; iValueFactor='..iValueFactor..'; Mass cost='..oEnemy[M28UnitInfo.refiUnitMassCost]..'; iShotsToKill='..iShotsToKill..'; ICurDist='..iCurDist..'; Unit combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Work progress='..(oEnemy:GetWorkProgress() or 'nil')..'; Fraction complete='..oEnemy:GetFractionComplete()..'; Is table of shields providing coverage empty='..tostring(M28Utilities.IsTableEmpty(oEnemy[M28Building.reftoShieldsProvidingCoverage]))) end
-                            if iCurValue > iBestValue then
-                                iBestValue = iCurValue
-                                oUnitToAttack = oEnemy
+                --Consider running from nearby enemy engineers
+                local bRunningFromEngi = false
+                if M28Utilities.IsTableEmpty(tEnemyEngineers) == false and oUnit[M28UnitInfo.refiLastWeaponEvent] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Time since unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' fired its weapon last='..GetGameTimeSeconds() -oUnit[M28UnitInfo.refiLastWeaponEvent]..'; Time between IF shots='..oUnit[M28UnitInfo.refiTimeBetweenIFShots]) end
+                    if GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] < oUnit[M28UnitInfo.refiTimeBetweenIFShots] - 1.1 then
+                        local oNearestEngineerToUnit = M28Utilities.GetNearestUnit(tEnemyEngineers, oUnit:GetPosition())
+                        local iEngiBuildRange = math.max(4, (oNearestEngineerToUnit:GetBlueprint().Economy.MaxBuildDistance or 5)) + 1 --+1 to allow for unit sizes
+                        local iDistToNearestEngi = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEngineerToUnit:GetPosition())
+                        if bDebugMessages == true then LOG(sFunctionRef..': oNearestEngineerToUnit='..oNearestEngineerToUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEngineerToUnit)..'; iEngiBuildRange='..iEngiBuildRange..'; iDistToNearestEngi='..iDistToNearestEngi) end
+                        if iDistToNearestEngi <= 3 + iEngiBuildRange then --to allow for engi to move inbetween firing
+                            local iAngleFromEngiToUnit = M28Utilities.GetAngleFromAToB(oNearestEngineerToUnit:GetPosition(), oUnit:GetPosition())
+                            local tPotentialMoveLocation = M28Utilities.MoveInDirection(oNearestEngineerToUnit:GetPosition(), iAngleFromEngiToUnit, iEngiBuildRange + 6, true, true, M28Map.bIsCampaignMap)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Plateau label of tPotentialMoveLocation='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) or 'nil')..'; iPlateau='..iPlateau) end
+                            if tPotentialMoveLocation and NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) == iPlateau then
+                                bRunningFromEngi = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try and run from the engineer') end
+                                M28Orders.IssueTrackedMove(oUnit, tPotentialMoveLocation, 1, false, 'ArtRnFrE', false)
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finsihed considering all buildings in zone, iBestValue='..iBestValue) end
                 end
-                if not(oUnitToAttack) then oUnitToAttack = oNearestEnemyStructureToMidpoint end
-                if M28Utilities.GetDistanceBetweenPositions(oUnitToAttack:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] + 2 then
-                    M28Orders.IssueTrackedAttack(oUnit, oUnitToAttack, false, 'ISDrAtc'..iLandZone, false)
-                else
-                    M28Orders.IssueTrackedAggressiveMove(oUnit, oUnitToAttack[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 15, false, 'IKADrMve'..iLandZone)
+                if not(bRunningFromEngi) then
+                    --Get closest unit of preferred category
+                    local tBuildingsOfInterestInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefTEnemyUnits])
+                    local oUnitToAttack
+                    if M28Utilities.IsTableEmpty(tBuildingsOfInterestInZone) == false then
+                        --Get units iwthin range, and then pick the preferred one
+                        local iCurValue, iValueFactor
+                        local iBestValue = 0
+                        for iEnemy, oEnemy in tBuildingsOfInterestInZone do
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
+                            if iCurDist <= oUnit[M28UnitInfo.refiCombatRange] + 6 then
+                                iValueFactor = 1
+                                --Adjust value based on category
+                                if EntityCategoryContains(categories.VOLATILE - M28UnitInfo.refCategoryT1Power, oEnemy.UnitId) then
+                                    iValueFactor = 4
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, oEnemy.UnitId) then
+                                    iValueFactor = 1.5
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPower - M28UnitInfo.refCategoryT1Power, oEnemy.UnitId) then
+                                    iValueFactor = 2.1 --so a T1 mex should have more value than a T1 pgen
+                                    if oEnemy:GetWorkProgress() >= 0.05 then --Reason for htis is that a human palyer will usually be able ot use intuition to target upgraidng mexes, since players typically upgrade mexes in order, and are likely to have engineers near an upgrading mex, as well as some being at T2 some at T1, but want to avoid the significant cpu load from trying to mathematically approximate such intuition
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oEnemy.UnitId) then
+                                            iValueFactor = 2 + 40 * oEnemy:GetWorkProgress() --T2 mex costs roughly 25 times a t1 mex, but we are treating eco damage as worth twice as much
+                                            if bDebugMessages == true then LOG(sFunctionRef..': T1 mex upgrading to t2 so greater priority, oEnemy:GetWorkProgress()='..oEnemy:GetWorkProgress()) end
+                                        elseif EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oEnemy.UnitId) then
+                                            iValueFactor = 2 + 7 * oEnemy:GetWorkProgress() --T3 mex costs 5 times t2 mex, but we are valuing eco damage at double rate
+                                        else
+                                            iValueFactor = 2 + 3 * oEnemy:GetWorkProgress() --e.g. support for mods with upgradable pgens
+                                        end
+                                    end
+                                end
+                                --Reduce value if not actually in range
+                                if iCurDist > oUnit[M28UnitInfo.refiCombatRange] then
+                                    iValueFactor = iValueFactor * 0.25
+                                end
+                                --Reduce value if covered by shields
+                                if M28Utilities.IsTableEmpty(oEnemy[M28Building.reftoShieldsProvidingCoverage]) == false then
+                                    iValueFactor = iValueFactor * 0.05
+                                end
+
+                                iCurValue = iValueFactor * oEnemy:GetFractionComplete() * (oEnemy[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oEnemy))
+                                --Now figure out how quickly we can kill the unit, and adjust the value by that
+                                local iShotsToKill = math.floor(oEnemy:GetHealth() / (oUnit[M28UnitInfo.refiStrikeDamage] or 200)) + 1
+                                iCurValue = iCurValue / math.max(2, iShotsToKill) --2 shots to kill min since likely we have multiple t1 arti in the zone, so want to avoid e.g. all of them trying to focus down an enemy t1 radar
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurValue='..iCurValue..'; iValueFactor='..iValueFactor..'; Mass cost='..oEnemy[M28UnitInfo.refiUnitMassCost]..'; iShotsToKill='..iShotsToKill..'; ICurDist='..iCurDist..'; Unit combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Work progress='..(oEnemy:GetWorkProgress() or 'nil')..'; Fraction complete='..oEnemy:GetFractionComplete()..'; Is table of shields providing coverage empty='..tostring(M28Utilities.IsTableEmpty(oEnemy[M28Building.reftoShieldsProvidingCoverage]))) end
+                                if iCurValue > iBestValue then
+                                    iBestValue = iCurValue
+                                    oUnitToAttack = oEnemy
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finsihed considering all buildings in zone, iBestValue='..iBestValue) end
+                    end
+                    if not(oUnitToAttack) then oUnitToAttack = oNearestEnemyStructureToMidpoint end
+                    if M28Utilities.GetDistanceBetweenPositions(oUnitToAttack:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] + 2 then
+                        M28Orders.IssueTrackedAttack(oUnit, oUnitToAttack, false, 'ISDrAtc'..iLandZone, false)
+                    else
+                        M28Orders.IssueTrackedAggressiveMove(oUnit, oUnitToAttack[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 15, false, 'IKADrMve'..iLandZone)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': T1 arti drop or similar, oUnitToAttack='..(oUnitToAttack.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToAttack) or 'nil')) end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': T1 arti drop or similar, oUnitToAttack='..(oUnitToAttack.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToAttack) or 'nil')) end
             end
 
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to search adjacent land zones for enemies closer to the midpoint; bOnlyCheckForStructure='..tostring(bOnlyCheckForStructure)..'; oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil')..'; oNearestEnemyStructureToMidpoint='..(oNearestEnemyStructureToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyStructureToMidpoint) or 'nil')) end
