@@ -21,6 +21,7 @@ local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
+local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 
 --ACU specific variables against the ACU
 refbTreatingAsACU = 'M28ACUTreatACU' --true if are running ACU logic on this unit - e.g. for campagins where are given SACU but not an ACU
@@ -3780,6 +3781,64 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         if bDebugMessages == true then LOG(sFunctionRef..': No shields so will move ACU to start point') end
         tRallyPoint = M28Map.GetPlayerStartPosition(oACU:GetAIBrain())
     end
+
+    local iNearestEnemyExperimental = 1000
+    local oNearestEnemyExperimental
+    local iCurDist
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+        for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())
+            if iCurDist < iNearestEnemyExperimental then
+                iNearestEnemyExperimental = iCurDist
+                oNearestEnemyExperimental = oUnit
+            end
+        end
+    end
+    local iAngleThreshold = 115
+    --Consider running from the experimental if we arent in its range yet
+    if oNearestEnemyExperimental and iNearestEnemyExperimental > oNearestEnemyExperimental[M28UnitInfo.refiDFRange] + 1 and iNearestEnemyExperimental <= 160 then
+        --Would moving towards the closest base take us in a similar direction to this experimental?
+        local iAngleToExperimental = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oNearestEnemyExperimental:GetPosition())
+        local iAngleToRally = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)
+        local iAngleDif = M28Utilities.GetAngleDifference(iAngleToExperimental, iAngleToRally)
+        if bDebugMessages == true then LOG(sFunctionRef..': iAngleToExperimental='..iAngleToExperimental..'; iAngleToRally='..iAngleToRally..'; iAngleDif='..iAngleDif..'; iNearestEnemyExperimental='..iNearestEnemyExperimental) end
+        if iAngleDif < iAngleThreshold then
+            --What if we just go to a land rally point?
+            local tAltRallyPoint
+            if iPlateauOrZero == 0 then
+                tAltRallyPoint = oACU[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition] or M28Navy.GetNearestWaterRallyPoint(tLZOrWZData, iTeam, M28Map.tiPondByWaterZone[iLandOrWaterZone], iLandOrWaterZone)
+            else
+                tAltRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 3, true)
+            end
+            local iAngleToAltRally = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tAltRallyPoint)
+            local iAltRallyAngleDif = M28Utilities.GetAngleDifference(iAngleToExperimental, iAngleToAltRally)
+            if bDebugMessages == true then LOG(sFunctionRef..': Angle to alt rally='..iAltRallyAngleDif) end
+            if iAltRallyAngleDif >= iAngleThreshold or (iAltRallyAngleDif >= 90 and iAltRallyAngleDif > iAngleDif) then
+                tRallyPoint = tAltRallyPoint
+            elseif iNearestEnemyExperimental <= 100 then
+                --Try moving away from the enemy unit if it is getting close to us
+                local tTempPosition
+                local bHaveValidRunAwayPosition = false
+                for iDistance = 10, 30, 10 do
+                    for iAngleSize = 0, 45, 15 do
+                        for iAngleMod = -1, 1, 2 do
+                            tTempPosition = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleToExperimental + 180 + iAngleSize * iAngleMod, iDistance, true, true, M28Map.bIsCampaignMap)
+                            if M28Utilities.IsTableEmpty(tTempPosition) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, tTempPosition) == iPlateauOrZero then
+                                tRallyPoint = tTempPosition
+                                bHaveValidRunAwayPosition = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': will try running in opposite direction to approaching enemy experimental, iDistance='..iDistance..'; iAngleSize='..iAngleSize..'; iAngleMod='..iAngleMod) end
+                                break
+                            end
+                        end
+                        if bHaveValidRunAwayPosition then break end
+                    end
+                    if bHaveValidRunAwayPosition then break end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': bHaveValidRunAwayPosition='..tostring(bHaveValidRunAwayPosition)..'; tRallyPoint='..repru(tRallyPoint)) end
+            end
+        end
+    end
+
     if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
         if iPlateauOrZero > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.GiveAttackMoveAsWeaponStuck(oACU) and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], oACU[M28UnitInfo.refiCombatRange], iTeam, false, nil, nil, nil, nil, nil) then
             M28Orders.IssueTrackedAttackMove(oACU, tRallyPoint, 3, false, 'RunT')
@@ -3789,18 +3848,6 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         if bDebugMessages == true then LOG(sFunctionRef..': Sending ACU to core base') end
     else
         --Consider attacking nearby enemies if no enemy experimental
-        local iNearestEnemyExperimental = 1000
-        local oNearestEnemyExperimental
-        local iCurDist
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
-            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
-                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())
-                if iCurDist < iNearestEnemyExperimental then
-                    iNearestEnemyExperimental = iCurDist
-                    oNearestEnemyExperimental = oUnit
-                end
-            end
-        end
         if bDebugMessages == true then LOG(sFunctionRef..': iNearestEnemyExperimental='..iNearestEnemyExperimental..'; ACU range='..oACU[M28UnitInfo.refiDFRange]..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; ACU dist to rally='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oACU:GetPosition())) end
         if (iNearestEnemyExperimental <= 150 and iNearestEnemyExperimental >= (oACU[M28UnitInfo.refiDFRange] or 0) + 5) or (M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 and M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oACU:GetPosition()) > 10) then
             if bDebugMessages == true then LOG(sFunctionRef..': Will move ACU to rally point instead of base, unless it means moving close to the exp, in which case will try moving in the opposite direction if we can') end
@@ -5274,8 +5321,8 @@ function GetACUOrder(aiBrain, oACU)
 
                                                                 if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and aiBrain:GetEconomyStoredRatio('ENERGY') < 0.95 and
                                                                         (((oACU[refiUpgradeCount] == 0 or (oACU[M28UnitInfo.refiDFRange] or 0) < 26) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= 80*aiBrain[M28Economy.refiBrainBuildRateMultiplier])
-                                                                        or (oACU[refiBuildTech] >= 2 and ((oACU[M28UnitInfo.refiDFRange] or 0) < 26 or aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= 150 * aiBrain[M28Economy.refiBrainBuildRateMultiplier]))
-                                                                        or (GetGameTimeSeconds() >= 720 and not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and (M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] or GetGameTimeSeconds() >= 840))) then
+                                                                                or (oACU[refiBuildTech] >= 2 and ((oACU[M28UnitInfo.refiDFRange] or 0) < 26 or aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= 150 * aiBrain[M28Economy.refiBrainBuildRateMultiplier]))
+                                                                                or (GetGameTimeSeconds() >= 720 and not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and (M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] or GetGameTimeSeconds() >= 840))) then
                                                                     if (aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.8 or M28Conditions.HaveLowPower(aiBrain.M28Team)) and (not(M28Conditions.ZoneWantsT1Spam(tLZOrWZTeamData, iTeam)) or (aiBrain:GetEconomyStored('ENERGY') < 3500 and (aiBrain[M28Economy.refiNetEnergyBaseIncome] < 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0))) then
                                                                         --Do we have no power of a higher tech level than our ACU in this core zone?
                                                                         local tFriendlyPower = EntityCategoryFilterDown(M28UnitInfo.refCategoryPower, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
