@@ -2084,7 +2084,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
 
                 --Combat land scouts
-                if iFactoryTechLevel == 1 and EntityCategoryContains(categories.AEON, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] * 0.5 > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
+                if iFactoryTechLevel == 1 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and EntityCategoryContains(categories.AEON + categories.UEF, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] * 0.5 > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
                     iCategoryToGet = M28UnitInfo.refCategoryLandScout
                 end
                 if not (iCategoryToGet) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -2588,7 +2588,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         --If have fewer than 2 tanks for each t1 arti then restrict to only building tanks
                         local iCombatCategoryWanted
                         --Aeon - get scouts to use in combat role
-                        if EntityCategoryContains(categories.AEON, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
+                        if EntityCategoryContains(categories.AEON + categories.UEF, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
                             iCombatCategoryWanted = M28UnitInfo.refCategoryLandScout
                         elseif iLifetimeLandCombat <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE) / iLifetimeLandCombat < 0.65 then
                             iCombatCategoryWanted = M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE
@@ -5786,13 +5786,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     --Medium priority engineer if no immediate threats in this zone, are in a water start position or high mass, and want more engineers due to having mass but not needing power
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Engi fi underwtaer start: tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]=' .. tostring(tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) .. '; tWZTeamData[M28Map.subrefTbWantBP]=' .. tostring(tWZTeamData[M28Map.subrefTbWantBP]) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; aiBrain[M28Economy.refiGrossMassBaseIncome]=' .. aiBrain[M28Economy.refiGrossMassBaseIncome])
+        LOG(sFunctionRef .. ': Engi fi underwtaer start: tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]=' .. tostring(tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) .. '; tWZTeamData[M28Map.subrefTbWantBP]=' .. tostring(tWZTeamData[M28Map.subrefTbWantBP]) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; aiBrain[M28Economy.refiGrossMassBaseIncome]=' .. aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored])
     end
     if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)  then
         if tWZTeamData[M28Map.subrefTbWantBP] and (not (bHaveLowMass) or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= iFactoryTechLevel * 6)) then
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
-                return sBPIDToBuild
-            end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+            --Still get 1 T3 engi if dealing with a t3 factory that hasnt built any before and we have lots of mass
+        elseif iFactoryTechLevel == 3 and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and oFactory[refiTotalBuildCount] <= 5 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20 and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer, false) == 0 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
     end
 

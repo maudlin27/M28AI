@@ -2555,13 +2555,39 @@ function DecideOnGeneralMapStrategy(aiBrain)
     end
 
     --Combat land scouts - do if can path to enemy base
-    aiBrain[refiCombatLandScoutThreshold] = 0
     local tStartPosition = M28Map.GetPlayerStartPosition(aiBrain)
     local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(tStartPosition, true, aiBrain.M28Team)
     if tLZData[M28Map.subrefLZIslandRef] == M28Utilities.NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
         --We can path to enemy with land
-        aiBrain[refiCombatLandScoutThreshold] = 15 --spirits only have 1 dps so this only gives a slight long term benefit in t1 land combat
+        --if brain is UEF then reduce the threshold, and eliminate entirely if enemy has aeon (as aurora have same range as snoops)
+        if aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
+            aiBrain[refiCombatLandScoutThreshold] = 15 --spirits only have 1 dps so this only gives a slight long term benefit in t1 land combat
+        elseif not(aiBrain[refiCombatLandScoutThreshold]) then
+            if aiBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF then
+                for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+                    if oBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
+                        aiBrain[refiCombatLandScoutThreshold] = 0
+                        break
+                    end
+                end
+                if not(aiBrain[refiCombatLandScoutThreshold]) then
+                    --We havent considered this before, so can do a random % chance
+                    local iRandom = math.random(1, 10)
+                    if iRandom >= 8 then
+                        aiBrain[refiCombatLandScoutThreshold] = 10
+                    elseif iRandom >= 5 then
+                        aiBrain[refiCombatLandScoutThreshold] = 5
+                    else
+                        aiBrain[refiCombatLandScoutThreshold] = 0
+                    end
+                end
+            else
+                --Non aeon non-UEF - dont try and build scouts for their combat value
+                aiBrain[refiCombatLandScoutThreshold] = 0
+            end
+        end
     end
+    if not(aiBrain[refiCombatLandScoutThreshold]) then aiBrain[refiCombatLandScoutThreshold] = 0 end --redundancy
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
 end
