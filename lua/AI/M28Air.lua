@@ -6091,6 +6091,10 @@ function ManageGunships(iTeam, iAirSubteam)
         --Emergency response - first include any ground threats in a core zone and (if none) adjacent to a core zone (v92 and earlier - used start positions instead)
         if not(iClosestSnipeTarget) or iClosestSnipeTarget >= 200 then
             local tiFriendlyStartPositionPlateauAndZones = {}
+            local iStartPositionGunshipThreatFactorWanted = 0.5
+            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                iStartPositionGunshipThreatFactorWanted = math.min(1.2, 0.3 + 0.3 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])
+            end
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) == false then
                 if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each core base by plateau and adding to friendly start position P and Z table, repru='..repru(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau])..'; M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau]='..repru(M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau])) end
                 for iPlateau, tZones in M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] do
@@ -6137,7 +6141,7 @@ function ManageGunships(iTeam, iAirSubteam)
                             if bDebugMessages == true then LOG(sFunctionRef..': Will be soon checking for enemies in the start position for friendly brain '..oBrain.Nickname..' in iCurLZOrWZ='..iCurLZOrWZ..'; iCurPlateauOrZero='..iCurPlateauOrZero) end
                             table.insert(tiFriendlyStartPositionPlateauAndZones, {iCurPlateauOrZero, iCurLZOrWZ})
                             --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
-                            AddEnemyGroundUnitsToTargetsSubjectToAA(iCurPlateauOrZero, iCurLZOrWZ, 0, false, nil,nil,true)
+                            AddEnemyGroundUnitsToTargetsSubjectToAA(iCurPlateauOrZero, iCurLZOrWZ, iStartPositionGunshipThreatFactorWanted, false, nil,nil,true)
                         end
                     end
                 end
@@ -6151,7 +6155,7 @@ function ManageGunships(iTeam, iAirSubteam)
                 for iEntry, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do
                     --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add enemies around core base P'..(tiPlateauAndZone[1] or 'nil')..'; Z'..(tiPlateauAndZone[2] or 'nil')) end
-                    AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], tiPlateauAndZone[2], 0, false, nil, nil, true)
+                    AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], tiPlateauAndZone[2], iStartPositionGunshipThreatFactorWanted, false, nil, nil, true)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of targets empty after checking core zones='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets))) end
                 if M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets) then
