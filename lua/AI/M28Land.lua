@@ -6773,7 +6773,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     CalculateNearbyEnemyCombatThreatFriendlyDFAndIfFriendlyACUInCombat()
                     if iOurDFAndT1ArtiCombatThreat > 0 and M28Utilities.IsTableEmpty(tOurDFAndT1ArtiUnits) == false then
                         local iOurDFAndT1ArtiUnits = table.getn(tOurDFAndT1ArtiUnits)
-                        if not(bAttackWithEverything) and iOurDFAndT1ArtiUnits >= 125 and iOurDFAndT1ArtiUnits - table.getn(tLZTeamData[M28Map.subrefTEnemyUnits]) >= 50 then bAttackWithEverything = true end
+                        if not(bAttackWithEverything) and iOurDFAndT1ArtiUnits >= 125 and iOurDFAndT1ArtiUnits - table.getn(tLZTeamData[M28Map.subrefTEnemyUnits]) >= 50 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) or table.getn(tLZTeamData[M28Map.reftoNearestDFEnemies]) < iOurDFAndT1ArtiUnits * 0.25) then bAttackWithEverything = true end
                         if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to attack with everything - pre firebase and beachhead adjust bAttackWithEverything='..tostring(bAttackWithEverything)..'; iOurDFAndT1ArtiCombatThreat='..iOurDFAndT1ArtiCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase)..'; tLZTeamData[M28Map.subrefLZTValue]='..tLZTeamData[M28Map.subrefLZTValue]..'; Have enough threat to attack='..tostring(M28Conditions.HaveEnoughThreatToAttack(iPlateau, iLandZone, tLZData, tLZTeamData, iOurDFAndT1ArtiCombatThreat, iEnemyCombatThreat, math.max(iFirebaseThreatAdjust, (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)), bHaveSignificantCombatCloserToFirebase, iTeam))..'; oNearestEnemyToFriendlyBase='..oNearestEnemyToFriendlyBase.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase)..'; Is brain civilian='..tostring(M28Conditions.IsCivilianBrain(oNearestEnemyToFriendlyBase:GetAIBrain()))..'; iClosestFriendlyUnitToAnEnemyFirebase='..(iClosestFriendlyUnitToAnEnemyFirebase or 'nil')..'; iFirebaseThreatAdjust='..(iFirebaseThreatAdjust or 'nil')) end
                         if not(bAttackWithEverything) and (not(EntityCategoryContains(M28UnitInfo.refCategoryPD, oNearestEnemyToFriendlyBase.UnitId)) or not(M28Conditions.IsCivilianBrain(oNearestEnemyToFriendlyBase:GetAIBrain()))) then
                             if M28Conditions.HaveEnoughThreatToAttack(iPlateau, iLandZone, tLZData, tLZTeamData, iOurDFAndT1ArtiCombatThreat, iEnemyCombatThreat, math.max(iFirebaseThreatAdjust, (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)), bHaveSignificantCombatCloserToFirebase, iTeam) then
@@ -6839,6 +6839,20 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 end
                             end
                         end
+
+                        --Enemy in a nearby zone - include that zone threat when deciding whether to attack
+                        if bAttackWithEverything and not(bSuicideIntoFatboyOrACU) and oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] and not(oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) and oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Nearest enemy is in a different zone but the same plateau, so will check threat of that zone and revert the attack with everything flag if it is too much, iEnemyCombatThreat before update='..iEnemyCombatThreat) end
+                            local tNearestEnemyLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]]
+                            local tNearestEnemyLZTeamData = tNearestEnemyLZData[M28Map.subrefLZTeamData][iTeam]
+                            iEnemyCombatThreat = math.max(iEnemyCombatThreat, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] + tNearestEnemyLZTeamData[M28Map.subrefTThreatEnemyCombatTotal])
+                            if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat after update='..iEnemyCombatThreat..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust) end
+                            if iEnemyCombatThreat * 1.4 >= iAvailableCombatUnitThreat and (iFirebaseThreatAdjust == 0 or iEnemyCombatThreat >= iAvailableCombatUnitThreat) then
+                                bAttackWithEverything = false
+                                if bDebugMessages == true then LOG(sFunctionRef..': Changing flag back to false due to enemy unit in a dif zone that has a significant threat in it') end
+                            end
+                        end
+
                         if bDebugMessages == true then LOG(sFunctionRef..': bAttackWithEverything after initial assessment='..tostring(bAttackWithEverything)..'; tLZTeamData[M28Map.refbIslandBeachhead]='..tostring(tLZTeamData[M28Map.refbIslandBeachhead] or false)) end
                         if not(bAttackWithEverything) and tLZTeamData[M28Map.refbIslandBeachhead] then
                             --May have units nearby underwater that want to include
