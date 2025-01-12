@@ -4179,6 +4179,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                     bConsiderReclaimableEnemiesInBuildRangeOnly = true
                                 end
                             end
+                            if bDebugMessages == true and M28UnitInfo.IsUnitValid(oFocusUnit) then LOG(sFunctionRef..': We are currently building '..oFocusUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFocusUnit)..'; Fraction complete='..oFocusUnit:GetFractionComplete()..'; Engi work progress='..oEngineer:GetWorkProgress()..'; bConsiderReclaimableEnemiesInBuildRangeOnly='..tostring(bConsiderReclaimableEnemiesInBuildRangeOnly)) end
                         end
                         if not(bReclaimingDangerousEnemy) and not(bConsiderReclaimableEnemiesInBuildRangeOnly) and not(oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75) then
                             if not(oEngineer[M28UnitInfo.refbEasyBrain]) or (not(oEngineer:IsUnitState('Reclaiming')) and not(oEngineer:IsUnitState('Repairing')) and not(oEngineer:IsUnitState('Building'))) then
