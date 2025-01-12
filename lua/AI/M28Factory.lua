@@ -2084,7 +2084,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
 
                 --Combat land scouts
-                if iFactoryTechLevel == 1 and EntityCategoryContains(categories.AEON, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] * 0.5 > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
+                if iFactoryTechLevel == 1 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and EntityCategoryContains(categories.AEON + categories.UEF, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] * 0.5 > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
                     iCategoryToGet = M28UnitInfo.refCategoryLandScout
                 end
                 if not (iCategoryToGet) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -2588,7 +2588,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         --If have fewer than 2 tanks for each t1 arti then restrict to only building tanks
                         local iCombatCategoryWanted
                         --Aeon - get scouts to use in combat role
-                        if EntityCategoryContains(categories.AEON, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
+                        if EntityCategoryContains(categories.AEON + categories.UEF, oFactory.UnitId) and tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > 0 and aiBrain[M28Overseer.refiCombatLandScoutThreshold] > M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) then
                             iCombatCategoryWanted = M28UnitInfo.refCategoryLandScout
                         elseif iLifetimeLandCombat <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE) / iLifetimeLandCombat < 0.65 then
                             iCombatCategoryWanted = M28UnitInfo.refCategoryLandCombat - categories.INDIRECTFIRE
