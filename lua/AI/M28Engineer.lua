@@ -14394,6 +14394,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
 
     --Do we want emergency PD?
+    if iLandZone == 17 and GetGameTimeSeconds() >= 15*60 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering emergency PD for zone '..iLandZone..', iExistingFactory='..(iExistingFactory or 'nil')..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Enemies in this or adj LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Ally AA threat='..(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0)..'; SValue='..(tLZTeamData[M28Map.subrefLZSValue] or 0)) end
     if not(bTeammateHasBuiltHere) and ((tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and (GetExistingFactoryNumber() >= 1 or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 + tLZTeamData[M28Map.subrefMexCountByTech][1] * 0.35) >= 2) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) <= math.min(350, 0.5*(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0))) and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 120 or (not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) then
         --Does enemy have any units that can outrange a PD? If so then dont bother building
@@ -14473,7 +14474,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                         then
                             --Get T1 radar in priority to T2 PD if we already have T2 PD but no radar
                             if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to get t1 radar instead of t2 pd, bHaveLRPDThreat='..tostring(bHaveLRPDThreat)..'; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Radar coverage='..tLZTeamData[M28Map.refiRadarCoverage]..'; Want land scout='..tostring(tLZTeamData[M28Map.refbWantLandScout])..'; iExistingStructureThreat='..iExistingStructureThreat..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)) end
-                            if bHaveLRPDThreat and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiRadarCoverage] <= 40 and (tLZTeamData[M28Map.refbWantLandScout] or (tLZTeamData[M28Map.refiRadarCoverage] == 0 and iExistingStructureThreat >= 1000 and iExistingStructureThreat >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0))) and iExistingStructureThreat * 1.5 >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) then
+                            if bHaveLRPDThreat and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiRadarCoverage] <= math.min(50, math.max(40, M28UnitInfo.iT1RadarSize - 50)) and (tLZTeamData[M28Map.refbWantLandScout] or ((tLZTeamData[M28Map.refiRadarCoverage] == 0 or iExistingStructureThreat >= 2000) and iExistingStructureThreat >= 1000 and iExistingStructureThreat >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0))) and iExistingStructureThreat * 1.5 >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': will get t1 radar') end
                                 HaveActionToAssign(refActionBuildT1Radar, 1, iBPWanted)
                             else
                                 local tPDStartPoint
@@ -14491,6 +14493,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
     end
+    bDebugMessages = false
 
     --Anti-teleport PD builder
     iCurPriority = iCurPriority + 1
@@ -14887,8 +14890,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --radar to support longer ranged units (prioritised more if in LOUD)
     iCurPriority = iCurPriority + 1
+    if iLandZone == 17 and GetGameTimeSeconds() >= 15*60 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Radar builder check if we have LR units wanting support, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28UnitInfo.iT1RadarSize='..M28UnitInfo.iT1RadarSize..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; tLZTeamData[M28Map.subrefLZAllyBestCombatRange]='..tLZTeamData[M28Map.subrefLZAllyBestCombatRange]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Table of enemy firebases is empty?='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))) end
-    if tLZTeamData[M28Map.refiRadarCoverage] < math.min(50, M28UnitInfo.iT1RadarSize - 5) and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 2000 and tLZTeamData[M28Map.subrefLZAllyBestCombatRange] >= 60 and (not(bHaveLowPower) or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250)) and not(bTeammateHasBuiltHere) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 15 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
+    if tLZTeamData[M28Map.refiRadarCoverage] < math.min(50, M28UnitInfo.iT1RadarSize - 5) and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 2000 and (tLZTeamData[M28Map.subrefLZAllyBestCombatRange] >= 60 or tLZTeamData[M28Map.subrefLZAllyBestCombatRange] >= 50 and tLZTeamData[M28Map.refiRadarCoverage] < M28UnitInfo.iT1RadarSize -50) and (not(bHaveLowPower) or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false and tLZTeamData[M28Map.subrefLZSValue] >= 1000)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250)) and not(bTeammateHasBuiltHere) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 15 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
         if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 4000 and  tLZTeamData[M28Map.subrefMexCountByTech][2] +  tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) then
             if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and tLZTeamData[M28Map.subrefLZAllyBestCombatRange] >= 70) then
                 iBPWanted = 5
@@ -14900,9 +14904,12 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     if not(bHaveLowMass) or (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 5000 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then iBPWanted = 10 end
                     HaveActionToAssign(refActionBuildT1Radar, 1, iBPWanted)
                 end
+            else
+                HaveActionToAssign(refActionBuildT1Radar, 1, 5)
             end
         end
     end
+    bDebugMessages = false
 
     --nearby zones with unclaimed mexes (or undefended enemy mexes) and no engineers traveling there
     iCurPriority = iCurPriority + 1
