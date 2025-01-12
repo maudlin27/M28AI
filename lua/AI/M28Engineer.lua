@@ -8915,6 +8915,25 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                                 end
                                             end
                                         end
+                                        --T2+ naval fac - assist the factory with the highest progress
+                                    elseif iActionToAssign == refActionAssistNavalFactory then
+                                        local iBestProgressByMass = -1
+                                        local iCurProgressByMass, oCurConstruction
+                                        for iUnit, oUnit in tUnitsOfCategoryInLZ do
+                                            if oUnit:GetWorkProgress() > 0 then
+                                                iCurProgressByMass = 0
+                                                oCurConstruction = oUnit:GetFocusUnit()
+                                                if M28UnitInfo.IsUnitValid(oCurConstruction) then iCurProgressByMass = oUnit:GetWorkProgress() * M28UnitInfo.GetMassCostOfUnits(oCurConstruction) end
+                                                if iCurProgressByMass > iBestProgressByMass then
+                                                    oUnitToAssist = oUnit
+                                                    iBestProgressByMass = iCurProgressByMass
+                                                end
+                                            else
+                                                oBackupUnit = oUnitToAssist
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to assist unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with work progress '..oUnit:GetWorkProgress()) end
+                                        end
+                                        if not(oUnitToAssist) then oUnitToAssist = oBackupUnit end
                                     else
                                         for iUnit, oUnit in tUnitsOfCategoryInLZ do
                                             if oUnit:GetWorkProgress() > 0 then
@@ -16315,12 +16334,18 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': iFactoriesWanted=' .. iFactoriesWanted .. '; iExistingWaterFactory=' .. iExistingWaterFactory)
                 end
-                --Increase factories wanted based on how important the pond is; whether we can path to the enemy with navy; our gross mass income; and whether it is a core base
+                --Increase factories wanted based on how important the pond is; whether we can path to the enemy with navy; our gross mass income; whether it is a core base; and whehter we have reached T2 navy in this pond yet
                 if M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] >= 14 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and (tWZTeamData[M28Map.subrefWZbCoreBase] or not(bHaveLowMass)) then
                     local iExtraFactoriesValue = 1
                     if M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] >= 21 then iExtraFactoriesValue = iExtraFactoriesValue + 1 end
                     if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then iExtraFactoriesValue = iExtraFactoriesValue + 1 end
                     if tWZTeamData[M28Map.subrefWZbCoreBase] then iExtraFactoriesValue = iExtraFactoriesValue + 1 else iExtraFactoriesValue = math.min(2, iExtraFactoriesValue * 0.5) end
+                    --Decrease factories wanted if have T2/T3 navy
+                    if aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 3 then
+                        iExtraFactoriesValue = math.max(1, iExtraFactoriesValue - 2)
+                    elseif aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 2 and iExtraFactoriesValue >= 3 then
+                        iExtraFactoriesValue = math.max(1, iExtraFactoriesValue - 1)
+                    end
                     --Subject to gross mass threshold
                     iExtraFactoriesValue = math.min((aiBrain[M28Economy.refiGrossMassBaseIncome] - 4) * 0.5, iExtraFactoriesValue)
                     if bHaveLowMass then
