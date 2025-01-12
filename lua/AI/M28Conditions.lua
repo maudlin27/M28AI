@@ -1016,6 +1016,13 @@ function HaveFactionTech(iSubteam, iFactoryType, iFactionWanted, iMinTechLevelNe
     return false
 end
 
+function EnemyTeamHasFaction(iM28Team, iEnemyFaction)
+    for iBrain, oBrain in M28Team.tTeamData[iM28Team][M28Team.subreftoEnemyBrains] do
+        if oBrain:GetFactionIndex() == iEnemyFaction then return true end
+    end
+    return false
+end
+
 function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
     --Returns true if our distance to any of tUnitsToCheck is <= iDistThreshold; if bIncludeEnemyDFRange is true then our distance to the units is reduced by the enemy unit's DF range (meaning it returns true if we are within iDistThreshold of the enemy unit being able to shoot at us)
     --iAltThresholdToDFRange - if bIncludeEnemyDFRange is true and this also has a value specified, then if we are within iAltThresholdToDFRange will return true regardless of the iDistThreshold test
