@@ -513,8 +513,13 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                     elseif EntityCategoryContains(categories.MOBILE, oCurUnit.UnitId) then
                         if oCurUnit:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oCurUnit) then
                             if not(oUnit[M28UnitInfo.refbEasyBrain]) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to consider dodging for') end
-                                table.insert(tUnitsToConsiderDodgeFor, oCurUnit)
+                                --Engineers - dont dodge if almost done construction
+                                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oCurUnit.UnitId) and oCurUnit:GetWorkProgress() >= 0.95 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Wont dodge shot as almost done with construction') end
+                                else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to consider dodging for') end
+                                    table.insert(tUnitsToConsiderDodgeFor, oCurUnit)
+                                end
                             end
                         end
                     end
