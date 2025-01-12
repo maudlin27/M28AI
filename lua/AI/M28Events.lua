@@ -373,9 +373,9 @@ function OnUnitDeath(oUnit)
                         M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame - 1
 
                         --Adjust T3 MAA count
-                        if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) == false then
+                        if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) == false and EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH3, oUnit.UnitId) then
                             for iRecordedTeam, bRecorded in oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] do
-                                M28Team.tTeamData[iRecordedTeam][M28Team.iEnemyT3MAAActiveCount] = (M28Team.tTeamData[iRecordedTeam][M28Team.iEnemyT3MAAActiveCount] or 0) - 1
+                                M28Team.tTeamData[iRecordedTeam][M28Team.iEnemyT3MAAActiveCount] = math.max(0, (M28Team.tTeamData[iRecordedTeam][M28Team.iEnemyT3MAAActiveCount] or 0) - 1)
                             end
                         end
 
