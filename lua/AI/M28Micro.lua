@@ -1308,7 +1308,7 @@ end
 
 function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableAngleDif, iOptionalSecondsToMoveAtEndIfFarFromTarget)
     --Based on hoverbomb logic - may give unexpected results if not using with T3 bombers
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TurnAirUnitAndMoveToTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
