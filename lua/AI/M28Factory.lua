@@ -4153,6 +4153,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false) .. '; Time since a factory in this LZ last built something=' .. GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastBuiltAtFactory] or -100) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; bHaveLowPower=' .. tostring(bHaveLowPower)..'; brain='..oFactory:GetAIBrain().Nickname..'; Net E (brain)='..aiBrain[M28Economy.refiNetEnergyBaseIncome]..'; GrossE='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; E % stored='..aiBrain:GetEconomyStoredRatio('ENERGY'))
     end
 
+
     iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
     local sBPIDToBuild
     local iCurrentConditionToTry = 0
@@ -4180,6 +4181,18 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
             return sBPIDToBuild
         end
+    end
+
+    --If we have nearby enemy groundAA then dont try building anything unless we have lots of mass (or it is a campaign map and early game)
+    if tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] > 0 and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] > iFactoryTechLevel * iFactoryTechLevel * 50 and (bHaveLowMass or bHaveLowPower or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.7) and (GetGameTimeSeconds() >= 5*60 or not(M28Map.bIsCampaignMap)) then
+        --Consider building an engineer
+        if bDebugMessages == true then LOG(sFunctionRef..'Nearby enemy groundAA threat so no point building from air fac unless have lots of resources to spare, will consider getting engineers if not low on mass and no enemy combat threat') end
+        if not(bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.25 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Will just not build anything') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return nil
     end
 
     --Unit counts
