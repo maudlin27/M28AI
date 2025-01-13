@@ -1308,11 +1308,19 @@ end
 
 function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableAngleDif, iOptionalSecondsToMoveAtEndIfFarFromTarget)
     --Based on hoverbomb logic - may give unexpected results if not using with T3 bombers
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TurnAirUnitAndMoveToTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; GameTime='..GetGameTimeSeconds()) end
+    --First delay microing until finished our salvo if dealing with T1-T2 bomber
+    if M28UnitInfo.DoesBomberFireSalvo(oBomber) and EntityCategoryContains(M28UnitInfo.refCategoryBomber * (categories.TECH1 + categories.TECH2), oBomber.UnitId) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will wait a second so bomber can finish firing') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1.1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; is bomber valid='..tostring(M28UnitInfo.IsUnitValid(oBomber))) end
+    end
     if M28UnitInfo.IsUnitValid(oBomber) then
         local bContinue = true
         if M28Utilities.IsTableEmpty(tDirectionToMoveTo) then
