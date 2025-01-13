@@ -513,8 +513,13 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                     elseif EntityCategoryContains(categories.MOBILE, oCurUnit.UnitId) then
                         if oCurUnit:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oCurUnit) then
                             if not(oUnit[M28UnitInfo.refbEasyBrain]) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to consider dodging for') end
-                                table.insert(tUnitsToConsiderDodgeFor, oCurUnit)
+                                --Engineers - dont dodge if almost done construction
+                                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oCurUnit.UnitId) and oCurUnit:GetWorkProgress() >= 0.95 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Wont dodge shot as almost done with construction') end
+                                else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to consider dodging for') end
+                                    table.insert(tUnitsToConsiderDodgeFor, oCurUnit)
+                                end
                             end
                         end
                     end
@@ -1308,6 +1313,14 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; GameTime='..GetGameTimeSeconds()) end
+    --First delay microing until finished our salvo if dealing with T1-T2 bomber
+    if M28UnitInfo.DoesBomberFireSalvo(oBomber) and EntityCategoryContains(M28UnitInfo.refCategoryBomber * (categories.TECH1 + categories.TECH2), oBomber.UnitId) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will wait a second so bomber can finish firing') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1.1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; is bomber valid='..tostring(M28UnitInfo.IsUnitValid(oBomber))) end
+    end
     if M28UnitInfo.IsUnitValid(oBomber) then
         local bContinue = true
         if M28Utilities.IsTableEmpty(tDirectionToMoveTo) then
@@ -2028,7 +2041,7 @@ function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAtta
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to abort due to enemy groundAA='..tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; Does the zone have too much AA for base bomber='..tostring(M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData) or false)) end
                     if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData) then
                         --Return to nearest base
-                        if oBomber[rebEarlyBomberTargetBase] then oBomber[rebEarlyBomberTargetBase] = false end
+                        if oBomber[M28Air.rebEarlyBomberTargetBase] then oBomber[M28Air.rebEarlyBomberTargetBase] = false end
                         M28Orders.IssueTrackedMove(oBomber, tTargetLZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'AbortHBM', true)
                         break
                     end

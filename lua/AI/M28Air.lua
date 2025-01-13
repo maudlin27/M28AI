@@ -4424,16 +4424,16 @@ function ManageBombers(iTeam, iAirSubteam)
             end
         end
         local iAvailableBombers = table.getn(tAvailableBombers)
-        if iAvailableBombers >= 15 then iSearchSize = iSearchSize * 1.5 end
+        if iAvailableBombers >= 8 then iSearchSize = iSearchSize * 1.5 end
         if M28Map.bIsCampaignMap then
             iSearchSize = math.max(M28Map.iMapSize, iSearchSize * 1.5)
         end
-        if iAvailableBombers >= 100 and (iAvailableBombers >= 300 or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3))) then
+        if iAvailableBombers >= 20 and (iAvailableBombers >= 50 or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3))) then
             iSearchSize = iSearchSize * 2
         elseif M28Map.bIsCampaignMap and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iSearchSize = iSearchSize * 1.5
         end
         if M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 then
-            iSearchSize = math.min(2, math.max(0.5, M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]))
+            iSearchSize = iSearchSize * math.min(2, math.max(0.5, M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]))
         end
 
         --Consider snipe targets
@@ -4647,8 +4647,12 @@ function ManageBombers(iTeam, iAirSubteam)
                         end
                         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
                             --If have air control and lots of bombers available consider further away targets; also consider if rally point is outside the playable area
-                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; Do we have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; iAvailableBombers='..(iAvailableBombers or 'nil')..'; iOurBomberThreat='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] or 'nil')..'; Time='..GetGameTimeSeconds()) end
-                            if M28Utilities.IsTableEmpty(tAvailableBombers) == false and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] or M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAvailableBombers >= 8 and (iAvailableBombers >= 60 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 25000 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or (M28Map.bIsCampaignMap and iAvailableBombers >= 12 and (iAvailableBombers >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap]))))) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; Do we have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; iAvailableBombers='..(iAvailableBombers or 'nil')..'; iOurBomberThreat='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] or 'nil')..'; iMaxEnemyGroundAAThreat before adjusting if dont have lots of bombers='..iMaxEnemyGroundAAThreat..'; iSearchSize='..iSearchSize..'; Time='..GetGameTimeSeconds()) end
+                            if not((M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] or M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAvailableBombers >= 8 and (iAvailableBombers >= 60 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 25000 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or (M28Map.bIsCampaignMap and iAvailableBombers >= 12 and (iAvailableBombers >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap])))))) then
+                                iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * 1.4
+                                if bDebugMessages == true then LOG(sFunctionRef..': We dont have lots of available bombers so be more cautious about searching for far away targets') end
+                            end
+                            if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]))) end
                                 if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                     local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
@@ -6091,6 +6095,10 @@ function ManageGunships(iTeam, iAirSubteam)
         --Emergency response - first include any ground threats in a core zone and (if none) adjacent to a core zone (v92 and earlier - used start positions instead)
         if not(iClosestSnipeTarget) or iClosestSnipeTarget >= 200 then
             local tiFriendlyStartPositionPlateauAndZones = {}
+            local iStartPositionGunshipThreatFactorWanted = 0.5
+            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                iStartPositionGunshipThreatFactorWanted = math.min(1.2, 0.3 + 0.3 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])
+            end
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) == false then
                 if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each core base by plateau and adding to friendly start position P and Z table, repru='..repru(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau])..'; M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau]='..repru(M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau])) end
                 for iPlateau, tZones in M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] do
@@ -6137,7 +6145,7 @@ function ManageGunships(iTeam, iAirSubteam)
                             if bDebugMessages == true then LOG(sFunctionRef..': Will be soon checking for enemies in the start position for friendly brain '..oBrain.Nickname..' in iCurLZOrWZ='..iCurLZOrWZ..'; iCurPlateauOrZero='..iCurPlateauOrZero) end
                             table.insert(tiFriendlyStartPositionPlateauAndZones, {iCurPlateauOrZero, iCurLZOrWZ})
                             --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
-                            AddEnemyGroundUnitsToTargetsSubjectToAA(iCurPlateauOrZero, iCurLZOrWZ, 0, false, nil,nil,true)
+                            AddEnemyGroundUnitsToTargetsSubjectToAA(iCurPlateauOrZero, iCurLZOrWZ, iStartPositionGunshipThreatFactorWanted, false, nil,nil,true)
                         end
                     end
                 end
@@ -6151,7 +6159,7 @@ function ManageGunships(iTeam, iAirSubteam)
                 for iEntry, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do
                     --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add enemies around core base P'..(tiPlateauAndZone[1] or 'nil')..'; Z'..(tiPlateauAndZone[2] or 'nil')) end
-                    AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], tiPlateauAndZone[2], 0, false, nil, nil, true)
+                    AddEnemyGroundUnitsToTargetsSubjectToAA(tiPlateauAndZone[1], tiPlateauAndZone[2], iStartPositionGunshipThreatFactorWanted, false, nil, nil, true)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of targets empty after checking core zones='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets))) end
                 if M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets) then

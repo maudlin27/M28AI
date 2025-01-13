@@ -313,14 +313,22 @@ function OnYthothaDeath(oUnit)
             for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                 tNearbyUnits = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand, oUnit:GetPosition(), iSearchRange, 'Ally')
                 if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                    local bRunCurrentUnit
                     for iFriendlyUnit, oFriendlyUnit in tNearbyUnits do
                         if bDebugMessages == true then LOG(sFunctionRef..': oFriendlyUnit='..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..'; if we own it then will make it run away') end
                         if oFriendlyUnit:GetAIBrain() == oBrain then --Only do this for M28 units
                             if M28UnitInfo.IsUnitValid(oFriendlyUnit, true) then
                                 if not(oFriendlyUnit[M28UnitInfo.refbEasyBrain]) then
-                                    iTimeToRun = math.min(32, math.max(10, 18 + (50 - M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), oUnit:GetPosition()) / (oFriendlyUnit:GetBlueprint().Physics.MaxSpeed or 1))))
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Telling friendly unit '..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..' to move away for 18s via moveawayfromtarget order') end
-                                    ForkThread(M28Micro.MoveAwayFromTargetTemporarily, oFriendlyUnit, iTimeToRun, oUnit:GetPosition())
+                                    bRunCurrentUnit = true
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oFriendlyUnit.UnitId) and (oFriendlyUnit:IsUnitState('Building') or oFriendlyUnit:IsUnitState('Repairing')) and oFriendlyUnit:GetWorkProgress() >= 0.94 and (oFriendlyUnit:GetWorkProgress() >= 0.97 or oFriendlyUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryAllShieldUnits + categories.MOBILE, oFriendlyUnit:GetFocusUnit().UnitId)) then
+                                        bRunCurrentUnit = false
+                                    end
+                                    if bRunCurrentUnit then
+                                        --Engineers that are assisting a near-complete shield or mobile unit - keep building
+                                        iTimeToRun = math.min(32, math.max(10, 18 + (50 - M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), oUnit:GetPosition()) / (oFriendlyUnit:GetBlueprint().Physics.MaxSpeed or 1))))
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Telling friendly unit '..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..' to move away for 18s via moveawayfromtarget order') end
+                                        ForkThread(M28Micro.MoveAwayFromTargetTemporarily, oFriendlyUnit, iTimeToRun, oUnit:GetPosition())
+                                    end
                                 end
                             end
                         end
@@ -365,9 +373,9 @@ function OnUnitDeath(oUnit)
                         M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame - 1
 
                         --Adjust T3 MAA count
-                        if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) == false then
+                        if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) == false and EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH3, oUnit.UnitId) then
                             for iRecordedTeam, bRecorded in oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] do
-                                M28Team.tTeamData[iRecordedTeam][M28Team.iEnemyT3MAAActiveCount] = (M28Team.tTeamData[iRecordedTeam][M28Team.iEnemyT3MAAActiveCount] or 0) - 1
+                                M28Team.tTeamData[iRecordedTeam][M28Team.iEnemyT3MAAActiveCount] = math.max(0, (M28Team.tTeamData[iRecordedTeam][M28Team.iEnemyT3MAAActiveCount] or 0) - 1)
                             end
                         end
 
@@ -1173,7 +1181,7 @@ function OnBombFired(oWeapon, projectile)
                 --Logic relating to the bomber itself:
                 if not(oUnit.Dead) then
                     --Ahwassa and strats - micro the bomber so they turn around and retreat to rally point/nearest base, but dont micro the first couple of strats as the enemy is less likely to have T3 AA (and slowing down to micro could cause them to die to flak)
-                    if EntityCategoryContains(categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.TECH3, sUnitID) then
+                    if EntityCategoryContains(categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber, sUnitID) and ((not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and not(oUnit[M28Air.rebEarlyBomberTargetBase])) or not(EntityCategoryContains(categories.TECH1, sUnitID))) then
                         --Experimental bomber - micro to turn around and go to rally point
                         if oUnit:GetAIBrain().M28AI then
                             if not(oUnit[M28UnitInfo.refbEasyBrain]) then
