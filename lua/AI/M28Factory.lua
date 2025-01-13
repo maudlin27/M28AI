@@ -6757,12 +6757,6 @@ function GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam
             bAirToGroundIsIneffective = true
         end
         iGunshipCategoryUnlessBombersBetter = iNormalBomberCategoryToBuild
-        --Seraphim - prefer strats over t2 gunships if enemy has significant AA threat on our side of map, and has built significant lightnign tanks
-    elseif iFactoryTechLevel == 3 and  M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] >= 4000 and M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] >= 4 + 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 2000 and (M28Conditions.EnemyTeamHasFaction(iTeam, M28UnitInfo.refFactionSeraphim) or M28Conditions.EnemyTeamHasFaction(iTeam, M28UnitInfo.refFactionUEF)) then
-        if M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] < M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] * 0.35 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] < M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 0.35 then
-            bAirToGroundIsIneffective = true
-        end
-        iGunshipCategoryUnlessBombersBetter = iNormalBomberCategoryToBuild
     elseif M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] <= 75000 or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 10000 then --i.e. c.50 broadswords in losses before consider switching to bombers; also want minimum level of gunships to deal with raids
         iGunshipCategoryUnlessBombersBetter = M28UnitInfo.refCategoryGunship
     elseif (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] > 10000 or M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] >= 20000) and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 then
@@ -6782,9 +6776,9 @@ function GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam
         iGunshipCategoryUnlessBombersBetter = iNormalBomberCategoryToBuild
     end
 
-        if iFactoryTechLevel >= 3 then iBackupAirToGroundCategory = M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber
+    if iFactoryTechLevel >= 3 then iBackupAirToGroundCategory = M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber
     else
-    iBackupAirToGroundCategory = M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber * categories.TECH2 --i.e. dont want to risk building t1 bombers from a gunship builder just because we aren't at t3 yet
+        iBackupAirToGroundCategory = M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber * categories.TECH2 --i.e. dont want to risk building t1 bombers from a gunship builder just because we aren't at t3 yet
     end
     return iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective
 end
