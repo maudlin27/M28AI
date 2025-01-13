@@ -2451,11 +2451,16 @@ end
 function ForkedPauseUnit(oUnit, bPauseNotUnpause)
     --Even adding a not(oUnit.Dead) check can still have an error in LOUD; however forked thread so shoudlnt matter
     --Other things tried is checking unit fraction is complete, and not trying to pause if :IsPaused is already true, but this didnt work in LOUD - i.e. would have an error when trying to pause an already paused factory
+    --However, had a crash in LOUD caused by trying to do :SetPaused on a unit, and when adding the oUnit.Dead check it didnt crash
 
     --if not(oUnit.Dead) and oUnit:GetFractionComplete() == 1 then
-        --if not(oUnit.IsPaused and bPauseNotUnpause and oUnit:IsPaused()) then
-            oUnit:SetPaused(bPauseNotUnpause)
-        --end
+    --if not(oUnit.IsPaused and bPauseNotUnpause and oUnit:IsPaused()) then
+    --LOG('About to pause unit '..(oUnit.UnitId or 'nil')..'; bPauseNotUnpause='..tostring(bPauseNotUnpause or false))
+    if oUnit.SetPaused and not(oUnit.Dead) then
+        oUnit:SetPaused(bPauseNotUnpause)
+    end
+    --LOG('Finished calling setpaused')
+    --end
     --end
 end
 
