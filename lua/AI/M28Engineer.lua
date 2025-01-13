@@ -2815,6 +2815,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     else iGameEnderTemplateCategories = M28UnitInfo.refCategoryGameEnder
     end
     local bGettingNonSeraphimAirExp = false
+    local bGettingNonUEFLandExp = false
     if not(tbEngineersOfFactionOrNilIfAlreadyAssigned) then
         if bDebugMessages == true then LOG(sFunctionRef..': Already have unit under construction so will return experimentallevel') end
         iCategoryWanted = M28UnitInfo.refCategoryExperimentalLevel - categories.NAVAL --Already have the unit under construction
@@ -3400,6 +3401,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 iCategoryWanted = M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                             elseif bPrioritiseLand and bCanPathAmphibiously then
                                 iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                bGettingNonUEFLandExp = true
                             elseif not(bCanPathByLand) or (not(bDontGetAhwassa) and (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] or (not(M28Team.tTeamData[iTeam][M28Team.refbFarBehindOnAir]) and iTeamLandExperimentals >= math.max(1, iEnemyLandExperimentalCount)) or (not(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats) or iTeamLandExperimentals > iEnemyLandExperimentalCount + 2))) then
                                 local iAhwassaLifetimeCount = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL)
                                 if bDontGetAhwassa or (not(bDontConsiderGameEnderInMostCases) and iAhwassaLifetimeCount > 0 and (iAhwassaCount >= 2 or iAhwassaLifetimeCount >= 3) and (iGameEnderCount * 3 + iCurT3ArtiCount < 3 * iAhwassaLifetimeCount) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 4 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 25 + 25 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and
@@ -3467,6 +3469,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get another exp bomber') end
                                     else
                                         iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                        bGettingNonUEFLandExp = true
                                         --If have Cybran then get megalith in preference to ythotha
                                         if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
                                             iFactionRequired = M28UnitInfo.refFactionCybran
@@ -3495,8 +3498,10 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             elseif bPrioritiseLand and bCanPathAmphibiously then
                                 if ScenarioInfo.Options.M28PrioritiseBPs == 2 then --dont want to prioritise certain units
                                     iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR --megalith has better torps
+                                    bGettingNonUEFLandExp = true
                                 else
                                     iCategoryWanted = M28UnitInfo.refCategoryMegalith - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR --megalith has better torps
+                                    bGettingNonUEFLandExp = true
                                 end
                                 --Switch to t3 arti or scathis in some cases (e.g. cant reach enemy by hover; or have lots of land+air exp; or enemy has fatboy)
                             elseif not(bCanPathAmphibiously) or
@@ -3540,18 +3545,22 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 elseif not(bCanPathByLand) then
                                     if ScenarioInfo.Options.M28PrioritiseBPs == 2 then --dont want to prioritise certain units
                                         iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR --megalith has better torps
+                                        bGettingNonUEFLandExp = true
                                     else
                                         iCategoryWanted = M28UnitInfo.refCategoryMegalith - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR --megalith has better torps
+                                        bGettingNonUEFLandExp = true
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Cybr will get mega') end
                                 else
                                     if iTeamLandExperimentals == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental) < 2 then
                                         iCategoryWanted = M28UnitInfo.refCategoryMonkeylord - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                        bGettingNonUEFLandExp = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Cybr will get monkey') end
                                     else
                                         --Get megalith
                                         iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR --i.e. megalith (but slightly more helpful to mods doing it this way)
                                         if categories.url0402 then iCategoryWanted = iCategoryWanted - categories.url0402 end
+                                        bGettingNonUEFLandExp = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Cybr will get non monkey land exp') end
                                     end
                                 end
@@ -3582,6 +3591,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 iCategoryWanted = (M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                             elseif bPrioritiseLand and bCanPathAmphibiously then
                                 iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                bGettingNonUEFLandExp = true
                             elseif not(bDontGetAirExp) and bHaveLargeBuildAreaAvailable and ((iLifetimeGroundExpCount >= 4 and iLifetimeAirExpCount < iLifetimeGroundExpCount / 5 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 4) or (not(bCanPathByLand) and iEnemyLandExperimentalCount <= iTeamLandExperimentals + iUnderConstructionLandExp)) and (bHaveAirControl or (not(bFarBehindOnAir) and M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] <= 20) or M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] <= 8) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have built lots of exp but havent tried many czars so will get some even if we lack air control') end
                                 bGettingNonSeraphimAirExp = true
@@ -3692,6 +3702,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     else
                                         --Dont reset faction requirement as GC is better than most other factions, except cybran
                                         iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                        bGettingNonUEFLandExp = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': want more land experimentals') end
                                         if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
                                             iFactionRequired = M28UnitInfo.refFactionCybran
@@ -3708,6 +3719,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 iCategoryWanted = (M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                             elseif bPrioritiseLand and bCanPathAmphibiously then
                                 iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                bGettingNonUEFLandExp = true
                                 --Switch to t3 arti or scathis in some cases (e.g. cant reach enemy by hover; or have lots of land+air exp; or enemy has fatboy)
                             elseif not(bCanPathAmphibiously) then
                                 iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure
@@ -3729,6 +3741,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
 
                                 if iTeamLandExperimentals <= math.max(iEnemyLandExperimentalCount + 2 + iBaseAdjust, 3 + iBaseAdjust) then
                                     iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR
+                                    bGettingNonUEFLandExp = true
                                 else
                                     iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure
                                     local iCurExperimentalsOfType = 0
@@ -3895,7 +3908,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished main logic for choosing experimental, is iCategoryWanted nil='..tostring(iCategoryWanted == nil)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished main logic for choosing experimental, is iCategoryWanted nil='..tostring(iCategoryWanted == nil)..'; bGettingNonSeraphimAirExp='..tostring(bGettingNonSeraphimAirExp)..'; bGettingNonUEFLandExp='..tostring(bGettingNonUEFLandExp)..'; Mass%='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored]..'; Exp constructed count='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount]) end
     if not(iCategoryWanted) and not(bDontWantExperimental) then iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - iGameEnderTemplateCategories - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.ANTIAIR end --redundancy
     if iCategoryWanted == refActionManageGameEnderTemplate and not(tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
         --Redundancy - wouldn't expect to get here
@@ -3929,13 +3942,33 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 tLZOrWZTeamData[M28Map.refiLastGameEnderTemplateCategory] = M28UnitInfo.refCategoryGameEnder
             end
         end
-    elseif bGettingNonSeraphimAirExp and not(ScenarioInfo.Options.M28PrioritiseBPs == 2) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= 0.6 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 2 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] > 0 and not(M28Utilities.bLoudModActive) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim on our team, and if so will hold off getting a general air experimental') end
-        local iTeam = aiBrain.M28Team
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            if oBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then
-                if bDebugMessages == true then LOG(sFunctionRef..': We have seraphim on our team so want to hold off on getting an experimental from this zone') end
-                iCategoryWanted = nil
+    elseif not(ScenarioInfo.Options.M28PrioritiseBPs == 2) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] <= 0.6 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 2 then
+        if bGettingNonSeraphimAirExp and not(M28Utilities.bLoudModActive) and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] > 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim on our team, and if so will hold off getting a general air experimental') end
+            local iTeam = aiBrain.M28Team
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if oBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have seraphim on our team so want to hold off on getting an experimental from this zone') end
+                    iCategoryWanted = nil
+                end
+            end
+        elseif bGettingNonUEFLandExp then
+            --Do we have UEF on team?
+            local bHaveUEFOnTeam
+            local iTeam = aiBrain.M28Team
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if oBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF then
+                    bHaveUEFOnTeam = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have UEF on our team so want to hold off on getting an experimental from this zone unless we have built similar number of fatboys to other EXPs') end
+                end
+            end
+            if bHaveUEFOnTeam and not(M28Overseer.bUnitRestrictionsArePresent) and categories.uel0401 and not(M28Map.bIsCampaignMap) then
+                local iFatboyLC = M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryFatboy)
+                local iAllLandExpLC = M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental)
+                if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] > 0 or iAllLandExpLC - iFatboyLC >= 1) and (iFatboyLC <= (iAllLandExpLC - iFatboyLC) or (aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFatboy) == 0 and iFatboyLC <= 1 + (iAllLandExpLC - iFatboyLC) * 2)) then
+                    iCategoryWanted = nil
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iFatboyLC='..iFatboyLC..'; iAllLandExpLC='..iAllLandExpLC..'; Is iCategoryWanted nil now='..tostring(iCategoryWanted == nil)) end
             end
         end
     end
