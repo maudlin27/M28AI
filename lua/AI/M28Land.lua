@@ -5541,7 +5541,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 or iFriendlyBestMobileDFRange >= 100) and --No long range enemy threat (i.e. t2 arti); and
                         (iFirebaseThreatAdjust == 0 or (iFriendlyBestMobileDFRange >= 100 and iFirebaseThreatAdjust < 6000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 8000) or (not(bRunFromFirebase) and (iFriendlyBestMobileDFRange >= 60 or iFriendlyBestMobileIndirectRange >= 60))) and --No enemy firebase or we have large threat that should be able to overwhelm it; and
                         ((iFriendlyBestMobileDFRange or 0) > (iEnemyBestDFRange or 0) + 2 or --we outrange enemy with our direct fire, or
-                            --Important to not increase more than +4 range without more complicated logic, as T1 arti need to engage T1 PD, and outrange T1 PD by 4
+                                --Important to not increase more than +4 range without more complicated logic, as T1 arti need to engage T1 PD, and outrange T1 PD by 4
                                 ((iFriendlyBestMobileIndirectRange or 0) >= (iEnemyBestDFRange or 0) + 4 and ((iEnemyBestStructureDFRange or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) > 1.4 * (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)))) then --we have indirect fire with better range than enemy direct fire, and the enemy has structures in this LZ such that we want to attack
 
                     bAreInScenario1 = true
@@ -5889,11 +5889,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                                             --Are we in range of any enemy or cant kite?
                                             --CloseToEnemyUnit(tStartPosition,      tUnitsToCheck,         iDistThreshold,             iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure)                                                                                                                                                                                     CloseToEnemyUnit(tStartPosition,      tUnitsToCheck,                                        iDistThreshold,             iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure)
-                                            if bDebugMessages == true then LOG(sFunctionRef..': About to check if we are about to be in range of the enemy and so want to do a kiting retreat, our DF range='..oUnit[M28UnitInfo.refiDFRange]..'; iEnemyBestDFRange='..iEnemyBestDFRange..'; Expected threshold for close to enemy='..math.min(oUnit[M28UnitInfo.refiDFRange], math.max(oUnit[M28UnitInfo.refiDFRange] - 3,  iEnemyBestDFRange + oUnit:GetBlueprint().Physics.MaxSpeed + 2))..'; bUseNormalLogic before fatboy adj='..tostring(bUseNormalLogic)) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': About to check if we are about to be in range of the enemy and so want to do a kiting retreat, our DF range='..oUnit[M28UnitInfo.refiDFRange]..'; iEnemyBestDFRange='..iEnemyBestDFRange..'; Expected threshold for close to enemy='..math.min(oUnit[M28UnitInfo.refiDFRange], math.max(oUnit[M28UnitInfo.refiDFRange] - 3,  iEnemyBestDFRange + oUnit:GetBlueprint().Physics.MaxSpeed + 2))..'; bUseNormalLogic before fatboy adj='..tostring(bUseNormalLogic)..'; iVisibleDFMassInFatboyRange='..(iVisibleDFMassInFatboyRange or 'nil')) end
                                             --Fatboy special logic if fatboy not in water - although default logic works fori t, want to do a more detailed check that looks into further away zones for nearby enemies
-                                            if (oUnit[M28UnitInfo.refiDFRange] or 0) >= 100 and not(bFiringAtNegligibleThreatInLRExperimentalRange) and oUnit[M28UnitInfo.refbCanKite] and iVisibleDFMassInFatboyRange >= 3000 then
+                                            if (oUnit[M28UnitInfo.refiDFRange] or 0) >= 100 and not(bFiringAtNegligibleThreatInLRExperimentalRange) and oUnit[M28UnitInfo.refbCanKite] and (GetEnemyCombatThreatInAdjacentZones() >= 8000 or iVisibleDFMassInFatboyRange >= 3000) then
                                                 --First make sure the fatboy is closer to enemy base than the closest friendly base is (otherwise we risk 'retreating' to a base that takes us closer to the enemy)
-                                                if (iVisibleDFMassInFatboyRange >= 6000 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) < M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.reftClosestEnemyBase]) then
+                                                if (iVisibleDFMassInFatboyRange >= 6000 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) or (tLZTeamData[M28Map.refiModDistancePercent] >= 0.1 and not(bFiringAtNegligibleThreatInLRExperimentalRange and GetEnemyCombatThreatInAdjacentZones() >= 8000) and oNearestEnemyToFriendlyBase and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()) < oUnit[M28UnitInfo.refiDFRange] - 10 )) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) < M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.reftClosestEnemyBase]) then
                                                     bUseNormalLogic = false
                                                     --Want to do kiting retreat towards nearest friendly base, or (if in a significantly different direction to the nearest enemy unit and mod dist is low
                                                     local tBaseRally
@@ -5923,6 +5923,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                         --if bDebugMessages == true then LOG(sFunctionRef..': Considering fatboy kiting retreat location, LZData mod dist%='.. tLZTeamData[M28Map.refiModDistancePercent]..'; iAngleToRally='..iAngleToRally..'; Angle to nearest enemy to midpoint='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Angle to nearest enemy base='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])..'; Dist to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]))
                                                         if tLZTeamData[M28Map.refiModDistancePercent] >= 0.4 then
                                                             iAngleToRetreat = iAngleToRally
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will head towards rally point') end
                                                         else
                                                             local iAngleToNearestEnemy
                                                             if oNearestEnemyToFriendlyBase then
@@ -5930,15 +5931,19 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             else
                                                                 iAngleToNearestEnemy = iAngleToNearestEnemy - 180 --redundancy
                                                             end
-
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to go in opposite direction to nearest enemy, or to the rally, Angle dif between algoe to enemy and angle to rally='.. M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally)) end
                                                             if M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally) <= 100 then
                                                                 local iAngleToNearestEnemyBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])
                                                                 if M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestEnemyBase) <= 115 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 60 then
                                                                     --Moving towards the rally point isn't htat much of a dif from moving to the closest enemy or from moving to the closest enemy base, and our mod dist is already fairly low, so we may well be moving towards danger with the nearest base being overrun
                                                                     iAngleToRetreat = iAngleToNearestEnemy - 180
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will run in opposite direction to nearest enemy') end
                                                                 end
                                                             end
-                                                            if not(iAngleToRetreat) then iAngleToRetreat = iAngleToRally end
+                                                            if not(iAngleToRetreat) then
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Not running in opposite direction so will go to rally') end
+                                                                iAngleToRetreat = iAngleToRally
+                                                            end
                                                         end
 
 
@@ -6193,7 +6198,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                         if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)) <= iAngleThresholdForRally then
                                                             local tTemporaryRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()), 8, true, false, M28Map.bIsCampaignMap)
                                                             if bDebugMessages == true then LOG(sFunctionRef..': tTemporaryRetreatLocation='..repru(tTemporaryRetreatLocation)..'; Land label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tTemporaryRetreatLocation) or 'nil')..'; Island ref='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; Unit position='..repru(oUnit:GetPosition())..'; bAttackMove='..tostring(bAttackMove))
-                                                                M28Utilities.DrawLocation(tTemporaryRetreatLocation)
+                                                                --M28Utilities.DrawLocation(tTemporaryRetreatLocation)
                                                             end
                                                             if M28Utilities.IsTableEmpty(tTemporaryRetreatLocation) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tTemporaryRetreatLocation) == tLZData[M28Map.subrefLZIslandRef] then
                                                                 oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
@@ -6643,7 +6648,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         tSRRallyOverride = M28Utilities.MoveInDirection(oClosestLRToRally:GetPosition(), iAngleToNearestEnemy + 180, 20, true, nil, not(M28Map.bIsCampaignMap))
                                         if bDebugMessages == true then
                                             LOG(sFunctionRef..': Land label of tSRRallyOverride='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tSRRallyOverride) or 'nil')..'; Island ref of this LZ='..(tLZData[M28Map.subrefLZIslandRef] or 'nil'))
-                                            M28Utilities.DrawLocation(tSRRallyOverride)
+                                            --M28Utilities.DrawLocation(tSRRallyOverride)
                                         end
                                         if tSRRallyOverride and NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tSRRallyOverride) == tLZData[M28Map.subrefLZIslandRef] then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Setting SR rally override so we go away from the nearest enemy to our base due to risk otherwise that we move closer to that enemy by moving towards the rally') end
@@ -7647,7 +7652,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                     else
                                                         if bDebugMessages == true then
                                                             LOG(sFunctionRef..': Will retreat towards rally point, tRallyPoint='..repru(tRallyPoint)..'; Unit position='..repru(oUnit:GetPosition())..'; Unit special micro='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; last order position='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]))
-                                                            M28Utilities.DrawLocation(tRallyPoint)
+                                                            --M28Utilities.DrawLocation(tRallyPoint)
                                                         end
                                                         if (oUnit[M28UnitInfo.refbWeaponUnpacks] or not(oUnit[M28UnitInfo.refbCanKite])) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 13 then
                                                             M28Orders.IssueTrackedAggressiveMove(oUnit, tRallyPoint, 6, false, sRetreatMessage..iLandZone)
@@ -9137,13 +9142,15 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 if tAltLZTeam[M28Map.subrefLZTValue] < iCurLZValue and tAltLZTeam[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 50 then bConsiderGivingOrdersToUnits = true end-- and M28Utilities.IsTableEmpty(tAltLZTeam[M28Map.subrefLZTAlliedCombatUnits]) == false then
                 if M28Utilities.IsTableEmpty(tAltLZTeam[M28Map.subrefLZTAlliedCombatUnits]) == false then
                     for iUnit, oUnit in tAltLZTeam[M28Map.subrefLZTAlliedCombatUnits] do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to add adjacent oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' with cur assignment value '..(oUnit[refiCurrentAssignmentValue] or 0)..' and cur assignemnt LZ='..(oUnit[refiCurrentAssignmentPlateauAndLZ][2] or 'nil')) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to add adjacent oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' with cur assignment value '..(oUnit[refiCurrentAssignmentValue] or 0)..' and cur assignemnt LZ='..(oUnit[refiCurrentAssignmentPlateauAndLZ][2] or 'nil')..'; DFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
                         if not(oUnit.Dead) and ((oUnit[refiCurrentAssignmentValue] or 0) < iCurLZValue or (oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau and oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone)) then
                             --Combat unit related
                             if not(bConsiderGivingOrdersToUnits) then
                                 if oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone then
                                     oUnit[refiCurrentAssignmentValue] = -1
                                 end
+                            elseif (oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 then
+                                --Dont want long ranged DF units to receive orders from an adjacent zone as we risk them not taking into account all nearby enemies
                             else
                                 if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(bConsiderAdjacentDF) and oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone then
                                     oUnit[refiCurrentAssignmentValue] = -1
