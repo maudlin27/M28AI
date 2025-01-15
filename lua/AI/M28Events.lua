@@ -1187,7 +1187,7 @@ function OnBombFired(oWeapon, projectile)
                             if not(oUnit[M28UnitInfo.refbEasyBrain]) then
                                 --Track exp bombs fired (relevant for when trying to use our aoe to hit mobile targets safely)
                                 local oTargetUnit = oUnit[M28Orders.reftiLastOrders][M28Orders.subrefoOrderUnitTarget]
-                                if bDebugMessages == true then LOG(sFunctionRef..': will get ahwassa to head towards rally point, bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Bomber position='..repru(oUnit:GetPosition())..'; Rally point='..repru(M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist to rally point='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to its owners start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Map.GetPlayerStartPosition(oUnit:GetAIBrain()))..'; oTargetUnit='..(oTargetUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTargetUnit) or 'nil')) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': will get bomber to head towards rally point, bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Bomber position='..repru(oUnit:GetPosition())..'; Rally point='..repru(M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist to rally point='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to its owners start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Map.GetPlayerStartPosition(oUnit:GetAIBrain()))..'; oTargetUnit='..(oTargetUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTargetUnit) or 'nil')) end
                                 if M28UnitInfo.IsUnitValid(oTargetUnit) then
                                     oTargetUnit[M28Air.refiExpBomberShotCount] = (oTargetUnit[M28Air.refiExpBomberShotCount] or 0) + 1
                                 end
@@ -1225,7 +1225,10 @@ function OnBombFired(oWeapon, projectile)
                                     end
                                 end
                                 if not(tRetreatLocation) then tRetreatLocation = {tAirRallyPoint[1], tAirRallyPoint[2], tAirRallyPoint[3]} end
-                                ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, tRetreatLocation, 15, 3)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try turning around to a retreat location if special micro not already active, oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                                if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+                                    ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, tRetreatLocation, 15, 3)
+                                end
                             end
 
                             --Have friendly gunships dodge
@@ -1408,6 +1411,11 @@ function OnWeaponFired(oWeapon)
                         --TML and nuke - consider launching missile if have any remaining
                         ForkThread(M28Building.JustFiredMissile, oUnit)
                     end
+                end
+
+                --T2 bombers - call OnBombFired event (doesnt fire properly normally since it fires missiles)
+                if oUnit.UnitId == 'dra0202' and (not(oUnit[M28UnitInfo.refiLastBombFired]) or GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastBombFired] > 0.1) then
+                    OnBombFired(oWeapon)
                 end
             end
         end
@@ -2094,6 +2102,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oJustBuilt.UnitId) then
                             M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oJustBuilt.UnitId) or ((oJustBuilt[M28UnitInfo.refiDFRange] or 0) >= 80 and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oJustBuilt.UnitId)) then
+                            --flag we have built long range unit so we prioritise building omni
+                            aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] = true
                         end
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oJustBuilt.UnitId) then

@@ -66,6 +66,7 @@ refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civ
 refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are transferred to a player
 reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
 refiCombatLandScoutThreshold = 'M28OvsrCLnS' --number of aeon land scouts to use in a combat role
+refbBuiltLongRangeLandUnit = 'M28BultLRU' -- true if we have constructed a long ranged DF land unit like a fatboy, so we prioritise building an omni if we havent already
 --Brain style variables to affect behaviour - set to true if to apply to the brain
 refbPrioritiseLand = 'M28PersLand'
 refbPrioritiseAir = 'M28PersAir'
