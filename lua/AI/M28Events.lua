@@ -2102,6 +2102,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oJustBuilt.UnitId) then
                             M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oJustBuilt.UnitId) or ((oJustBuilt[M28UnitInfo.refiDFRange] or 0) >= 80 and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oJustBuilt.UnitId)) then
+                            --flag we have built long range unit so we prioritise building omni
+                            aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] = true
                         end
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oJustBuilt.UnitId) then

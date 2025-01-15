@@ -12931,7 +12931,11 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --High priority omni if we have fatboy or sniperbots
     iCurPriority = iCurPriority + 1
-    if tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT2RadarSize and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount]) and (not(bHaveLowPower) or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 10)) and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Priority T3 radar for fatboy and sniperbots,  tLZTeamData[M28Map.refiRadarCoverage]='.. tLZTeamData[M28Map.refiRadarCoverage]..'; Exp cosntructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Team has omni vision='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision])..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Team gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; aiBrain[M28Overseer.refbBuiltLongRangeLandUnit]='..tostring(aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] or false)..'; Brain gross E='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
+    if tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT2RadarSize and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and
+            ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 10)) or
+                    (aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 600 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 900 or not(bHaveLowPower)))) then
+
         --We have built at least 1 exp, and lack omni coverage, and have enough powe that we could probably support an omni
         local bHaveFatboyOrSnipers = false
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -12941,8 +12945,19 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             elseif oBrain:GetCurrentUnits(M28UnitInfo.refCategorySniperBot) >= 3 then
                 bHaveFatboyOrSnipers = true
                 break
+            elseif aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] then
+                local toExistingLandExp = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryLandExperimental, false, true)
+                if M28Utilities.IsTableEmpty(toExistingLandExp) == false then
+                    for iExp, oExp in toExistingLandExp do
+                        if (oExp[M28UnitInfo.refiDFRange] or 0) >= 80 then
+                            bHaveFatboyOrSnipers = true
+                            break
+                        end
+                    end
+                end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': bHaveFatboyOrSnipers='..tostring(bHaveFatboyOrSnipers)) end
         if bHaveFatboyOrSnipers then
             --T2 radar
             local bBuildingT2 = false
@@ -12962,13 +12977,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
             --T3 radar
             iCurPriority = iCurPriority + 1
-            if bDebugMessages == true then LOG(sFunctionRef..': High priority Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': High priority Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; aiBrain[M28Overseer.refbBuiltLongRangeLandUnit]='..tostring(aiBrain[M28Overseer.refbBuiltLongRangeLandUnit])..'; Omni under construction elsewhere='..M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryT3Radar)) end
             if not(bSaveMassForMML) and tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT2RadarSize then
-                --Require T3 mexes before building T3 radar
-                if tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] == 1 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] == 0) then
+                --Require T3 mexes before building T3 radar unless we have a fatboy and no T3 radar under construction elsewhere
+                if tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] == 1 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] == 0) or (aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] and M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryT3Radar) == 0) then
                     if M28UnitInfo.iT3RadarSize - M28UnitInfo.iT2RadarSize >= 100 or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryT3Radar) == 0 then
                         iBPWanted = 30
-                        if not(bHaveLowMass) then iBPWanted = 100 end
+                        if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 100 end
                         if bBuildingT2 then iBPWanted = 5 end
                         if bDebugMessages == true then LOG(sFunctionRef..': Will build T3 radar, iBPWanted='..iBPWanted..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
                         HaveActionToAssign(refActionBuildT3Radar, 3, iBPWanted)
