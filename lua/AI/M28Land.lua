@@ -9149,8 +9149,9 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                 if oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone then
                                     oUnit[refiCurrentAssignmentValue] = -1
                                 end
-                            elseif (oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 then
+                            elseif (oUnit[M28UnitInfo.refiDFRange] or 0) >= 26 and (oUnit[M28UnitInfo.refiDFRange] >= 64 or oUnit[M28UnitInfo.refbScoutCombatOverride] or (oUnit[M28UnitInfo.refiDFRange] >= 34 and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId))) then
                                 --Dont want long ranged DF units to receive orders from an adjacent zone as we risk them not taking into account all nearby enemies
+                                if bDebugMessages == true then LOG(sFunctionRef..': Skirmisher, combat scout or LR DF unit so only want it assigned to the zone it is in') end
                             else
                                 if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(bConsiderAdjacentDF) and oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone then
                                     oUnit[refiCurrentAssignmentValue] = -1
