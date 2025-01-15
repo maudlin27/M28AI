@@ -5162,7 +5162,7 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                             --We should be able to 1-shot the enemy, so try and attack them if they are close enough to warrant firing
                             --How many shots have we already attempted at this unit? If a lot, then wait for it to get really close
                             local iMinDistWanted
-                            if bAttackingNormalTMLTarget or ((oClosestEnemy[refiTMLShotsFired] or 0) - oClosestEnemy[refiTMLShotsHit] or 0) < iLoadedTMLs + (oClosestEnemy[refiTMLShotsHit] or 0) then
+                            if bAttackingNormalTMLTarget or (oClosestEnemy[refiTMLShotsFired] or 0) - (oClosestEnemy[refiTMLShotsHit] or 0) < iLoadedTMLs + (oClosestEnemy[refiTMLShotsHit] or 0) then
                                 iMinDistWanted = iMaxEffectiveRange
                             else
                                 --Reduce range by up to 60% if we are missing all our shots
