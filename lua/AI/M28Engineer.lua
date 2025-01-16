@@ -4079,7 +4079,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     if M28Map.bIsCampaignMap and (M28Overseer.tbSpecialCodeForMission[41] or (ScenarioInfo.QAICommander and M28UnitInfo.IsUnitValid(ScenarioInfo.QAICommander))) then
         bCheckIfEnemyIsActuallyEnemy = true
     end
-    if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then --M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+    if (bIsWaterZone and (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]) == false)) or (not(bIsWaterZone) and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
         --table.insert(tNearbyEnemiesByZone, tLZTeamData[M28Map.subrefTEnemyUnits])
         bCheckForEnemies = true
         if M28Utilities.bCPUPerformanceMode then
@@ -4087,6 +4087,13 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
             elseif aiBrain[M28UnitInfo.refbEasyBrain] and tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] == 0 and tEngineers[1].GetAIBrain and tEngineers[1]:GetAIBrain()[M28UnitInfo.refbEasyBrain] then
                 bCheckForEnemies = false
             end
+        end
+    end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Finished deciding if should check for enemies, bCheckForEnemies='..tostring(bCheckForEnemies)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or false)..'; M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]) empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]))..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false))
+        if bIsWaterZone then
+            local tNewAttemptWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandZone]][M28Map.subrefPondWaterZones][iLandZone][M28Map.subrefWZTeamData][iTeam]
+            LOG(sFunctionRef..': Is tNewAttemptWZTeamData[reftoNearestCombatEnemies] empty='..tostring(M28Utilities.IsTableEmpty(tNewAttemptWZTeamData[M28Map.reftoNearestCombatEnemies]))..'; Is tNewAttemptWZTeamData = tLZTeamData='..tostring(tNewAttemptWZTeamData == tLZTeamData))
         end
     end
 
@@ -4230,8 +4237,37 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                         iNearestEnemy = iActualEnemySearchRange
                                         iNearestReclaimableDangerousEnemy = iActualEnemySearchRange
                                         iNearestReclaimableEnemy = iActualEnemySearchRange
-                                    else
+                                    elseif tLZTeamData[M28Map.refiRadarCoverage] >= 60 or not(bCheckForEnemies) then
                                         tNearbyEnemiesByZone = aiBrain:GetUnitsAroundPoint(iActualEnemyCategorySearch, oEngineer:GetPosition(), iActualEnemySearchRange, 'Enemy')
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Using getunitsaroundpoint to check for enemies, tLZTeamData[M28Map.refiRadarCoverage]='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')) end
+                                    else
+                                        --Rely on memory
+                                        tNearbyEnemiesByZone = {}
+                                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                            for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
+                                                table.insert(tNearbyEnemiesByZone, oUnit)
+                                            end
+                                        end
+                                        --Include adjacent zones
+                                        if bIsWaterZone then
+                                            --Water zone
+                                            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                                                for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestCombatEnemies] do
+                                                    if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iLandZone) then
+                                                        table.insert( tNearbyEnemiesByZone, oUnit)
+                                                    end
+                                                end
+                                            end
+                                        else
+                                            --Land zone
+                                            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                                for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                                                    if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
+                                                        table.insert( tNearbyEnemiesByZone, oUnit)
+                                                    end
+                                                end
+                                            end
+                                        end
                                     end
                                     --for iSubtable, tSubtable in tNearbyEnemiesByZone do
                                     --if M28Utilities.IsTableEmpty(tSubtable) == false then
@@ -4271,6 +4307,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                             else
                                                                 if iCurDistUntilInRange < iClosestDistUntilInRangeOfStaticEnemy then iClosestDistUntilInRangeOfStaticEnemy = iCurDistUntilInRange end
                                                             end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistUntilInRange='..iCurDistUntilInRange) end
                                                         end
                                                     end
                                                 end
@@ -16027,8 +16064,8 @@ end--]]
 
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..(tSubtable[M28Map.subrefiLandOrWaterZoneRef] or 'nil')..'; Wnats BP='..tostring(tAdjLZOrWZTeamData[M28Map.subrefTbWantBP] or false)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAdjLZOrWZData[M28Map.subrefMidpoint]))..'; On same plateau='..tostring(NavUtils.GetLabel(M28Map.refPathingTypeHover, tAdjLZOrWZData[M28Map.subrefMidpoint]) == iPlateau)..'; Mass reclaim='..(tAdjLZOrWZData[M28Map.subrefTotalMassReclaim] or 'nil')..'; Energy reclaim='..(tAdjLZOrWZData[M28Map.subrefLZTotalEnergyReclaim] or 'nil')..'; tAdjLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tAdjLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; tAdjLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..(tAdjLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')..'; Mod dist%='..(tAdjLZOrWZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Enemy S value='..(tAdjLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')..'; tAdjLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..(tAdjLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')) end
                             if NavUtils.GetLabel(M28Map.refPathingTypeHover, tAdjLZOrWZData[M28Map.subrefMidpoint]) == iPlateau and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAdjLZOrWZData[M28Map.subrefMidpoint])) then
+                                local bDangerousZone
                                 if tAdjLZOrWZTeamData[M28Map.subrefTbWantBP] then
-                                    local bDangerousZone
                                     if tSubtable[M28Map.subrefbIsWaterZone] then
                                         bDangerousZone = ((tAdjLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > (tAdjLZOrWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0))
                                     else
@@ -16067,8 +16104,8 @@ end--]]
                                         end
                                     end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to record this zone as a potential destination for any further spare engineers') end
-                                if (not(iZoneWithAnyReclaimOrCoreBase) or bZoneHasOnlyEnergyReclaim) and ((tAdjLZOrWZData[M28Map.subrefTotalMassReclaim] or 0) > 0 or (tAdjLZOrWZData[M28Map.subrefLZTotalEnergyReclaim] or 0) > 0 or (tAdjLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tAdjLZOrWZTeamData[M28Map.subrefLZSValue] >= 100)) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to record this zone as a potential destination for any further spare engineers, bDangerousZone='..tostring(bDangerousZone or false)..'; bDangerousZone is nil='..tostring(bDangerousZone == nil)..'; tAdjLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tAdjLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; tAdjLZOrWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..(tAdjLZOrWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil')..'; iZoneWithAnyReclaimOrCoreBase='..(iZoneWithAnyReclaimOrCoreBase or 'nil')) end
+                                if (not(iZoneWithAnyReclaimOrCoreBase) or bZoneHasOnlyEnergyReclaim) and ((tAdjLZOrWZData[M28Map.subrefTotalMassReclaim] or 0) > 0 or (tAdjLZOrWZData[M28Map.subrefLZTotalEnergyReclaim] or 0) > 0 or (tAdjLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tAdjLZOrWZTeamData[M28Map.subrefLZSValue] >= 100)) and ((bDangerousZone == nil and (tAdjLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < (tAdjLZOrWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)) or (not(bDangerousZone == nil) and not(bDangerousZone))) then
                                     --if (tSubtable[M28Map.subrefiPlateauOrPond] == iPlateau and not(tSubtable[M28Map.subrefbIsWaterZone])) or (tSubtable[M28Map.subrefbIsWaterZone] and NavUtils.GetLabel(M28Map.refPathingTypeHover, tAdjLZOrWZData[M28Map.subrefMidpoint]) == iPlateau) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Recording first plateau or pond and zone with reclaim in in case we want for spare engi action, or core base, total mass reclaim='..(tAdjLZOrWZData[M28Map.subrefTotalMassReclaim] or 0)..'; Is core base='..tostring(tAdjLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Zone='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; Energy reclaim in this zone='..(tAdjLZOrWZData[M28Map.subrefLZTotalEnergyReclaim] or 0)) end
                                     iZoneWithAnyReclaimOrCoreBase = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
@@ -16121,7 +16158,7 @@ end--]]
                             end
                         end
                         --Other zones with reclaim or further away core bases
-                        if iHighestTechEngiAvailable > 0 and iZoneWithAnyReclaimOrCoreBase and iZoneWithAnyReclaimOrCoreBase then
+                        if iHighestTechEngiAvailable > 0 and iZoneWithAnyReclaimOrCoreBase then
                             local iBPToSend = math.max(iTotalAvailableEngineerBP - 40, math.min(iTotalAvailableEngineerBP - 5, 60), 5)
                             if iHighestTechEngiAvailable > 0 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will move (or attack move for land zone) to closest zone with reclaim or core base, current P='..iPlateau..'Z'..iLandZone..'; iZoneWithAnyReclaimOrCoreBase='..(iZoneWithAnyReclaimOrCoreBase or 'nil')..'; iPlateauOrZeroOfZoneWithReclaimOrCoreBase='..iPlateauOrZeroOfZoneWithReclaimOrCoreBase) end

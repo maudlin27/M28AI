@@ -245,7 +245,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refbEnemiesInNearbyPlateau = 'EnNrPl' --true if a nearby plateau has enemies in it - works imilsarly to refoNearestStructureInOtherPlateauIfNoEnemiesHere, and is intended so can do more detailed calc for mobile units if relevant
 
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
-            subrefTThreatEnemyCombatTotal = 'ECTotal'
+            subrefTThreatEnemyCombatTotal = 'ECTotal' --Land and water zone ref
             subrefLZTThreatAllyCombatTotal = 'ACTotal'
             subrefLZDFThreatWanted = 'DFWanted'
             subrefLZMAAThreatWanted = 'MAAThreatWanted'
@@ -369,7 +369,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Intel related values
             refbWantLandScout = 'LandScout' --True/false, used by water and land zones
             refiTimeLastFailedToKiteDueToScoutIntel = 'IntlFail' --gametimeseconds that we aborted scenario 1 logic due to not seeing the enemy unit
-            refiRadarCoverage = 'RadCov' --Radar coverage of the centre of the land zone midpoint
+            refiRadarCoverage = 'RadCov' --Radar coverage of the centre of the land (or water) zone midpoint
             refiOmniCoverage = 'OmnCov' --Omni coverage of the centre of the land or water zone midpoint
             refiEnemyOmniCoverage = 'EOmCov' --Enemy omni coverage of the centre of the land or water zone midpoint
             refiSonarCoverage = 'SonCov' --Sonar coverage of the centre of the land or water zone midpoint (intended for water zones)
@@ -514,7 +514,7 @@ tPondDetails = {}
             reftoNearestCombatEnemies = 'WNrSufE'
             subreftEnemyLongRangeUnits = 'WEnLRU' --Table of enemy 'longer range' units (e.g. T2PD+ in range), based on iLongRangeThreshold
 
-            subrefWZTThreatAllyCombatTotal = 'AlCom'
+            subrefWZTThreatAllyCombatTotal = 'ACTotal' --Uses same ref as for LZ
             subrefWZTThreatAllyLauncherDefenceTotal = 'AlLnc' --Fixed combat threat (i.e. torp launchers, and in LOUD PD) in the water zone
             subrefWZThreatAlliedAntiNavy = 'AlANav'
             subrefWZThreatAlliedSubmersible = 'AlSub'
