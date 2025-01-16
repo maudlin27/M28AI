@@ -2123,9 +2123,11 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
                                         oLowestDFDistUntilInRange = nil
                                     end
                                     table.insert(tWZTeamData[M28Map.reftoNearestCombatEnemies], oUnit)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of nearest combat enemies as it is within the distance to always include') end
                                 else
                                     oLowestDFDistUntilInRange = oUnit
                                     iLowestDistUntilInRange = iCurDistUntilInRange
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Recording as oLowestDFDistUntilInRange, subject to another closer unit') end
                                 end
                                 iEnemyBestCombatRange = math.max(iEnemyBestCombatRange, oUnit[M28UnitInfo.refiDFRange])
                             end
@@ -2137,6 +2139,7 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
         end
         if oLowestDFDistUntilInRange  then
             table.insert(tWZTeamData[M28Map.reftoNearestCombatEnemies], oLowestDFDistUntilInRange)
+            if bDebugMessages == true then LOG(sFunctionRef..': Adding oLowestDFDistUntilInRange='..oLowestDFDistUntilInRange.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestDFDistUntilInRange)..' to nearest combat enemies') end
         end
     end
     if iEnemyBestCombatRange > 1000 then M28Utilities.ErrorHandler('Enemy somehow calculated to have more than 1k range, iWaterZone='..iWaterZone) end
