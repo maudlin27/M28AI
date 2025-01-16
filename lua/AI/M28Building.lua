@@ -718,6 +718,7 @@ function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize, tT
     local sFunctionRef = 'IsTMDProtectingUnitFromTML'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, considering for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' owned by '..oTMD:GetAIBrain().Nickname..'; oTML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' owned by '..oTML:GetAIBrain().Nickname..'; Distance between TMD and unit='..M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oUnit:GetPosition())) end
     if EntityCategoryContains(categories.AEON, oTMD.UnitId) and M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oUnit:GetPosition()) > 120 then
         if bDebugMessages == true then LOG(sFunctionRef..': Aeon TMD that is so far away we wouldnt expect it to intercept TML missiles evne if it appears (ignoring height) to be able to intercept') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1955,6 +1956,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             local iTMLRange = (oLauncher[M28UnitInfo.refiManualRange] or iTMLMissileRange)
                             local iTMLAOE = math.max(oLauncher[M28UnitInfo.refiIndirectAOE] or 0, 2)
                             local iPotentialInRangeDistance = iTMLRange + iTMLAOE + 4 --unlikely to have larger buildings than this
+                            local tNearbyEnemyTMD
                             if bDebugMessages == true then LOG(sFunctionRef..': Will consider enemy ACU in TML targets in FAF/steam, M28Utilities.bFAFActive='..tostring(M28Utilities.bFAFActive)..'; Is table of enemy ACUs empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]))) end
                             if M28Utilities.bFAFActive or M28Utilities.bSteamActive and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
                                 local tACUsInRange = {}
@@ -2048,6 +2050,8 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                     if M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then
                                         iCurTargetValue = 0
                                         if bDebugMessages == true then LOG(sFunctionRef..': Shields are covering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                    elseif oUnit.Dead or oUnit:GetFractionComplete() <= 0.6 and (oUnit:GetFractionComplete() <= 1 - 0.25 * M28UnitInfo.GetUnitTechLevel(oUnit)) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit under construction so TMD checks are less reliable (although we have a backup later on) and benefit reduced, with bomb damage potentially including other buildings nearby') end
                                     else
                                         --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor)
                                         iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,       nil,                                nil,                true,                           nil,                nil,                            nil,                                        false,              nil,                            true,                               nil,                                nil,                    nil)
@@ -2106,14 +2110,42 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                             elseif oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] then
                                                 iCurTargetValue = iCurTargetValue * 0.25
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Target was recorded when under construction, significantly decreasing value due to risk of enemy TMD as appears to be issue with logic not picking up tmd when unit is being upgraded') end
+                                                if iCurTargetValue > iBestTargetValue then
+                                                    --Do more detailed check
+                                                    if not(tNearbyEnemyTMD) then tNearbyEnemyTMD = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oLauncher:GetPosition(), iTMLMissileRange + 20, 'Ally') end
+                                                    if M28Utilities.IsTableEmpty(tNearbyEnemyTMD) == false then
+                                                        for iTMD, oTMD in tNearbyEnemyTMD do
+                                                            RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oLauncher, tNearbyEnemyTMD, false)
+                                                        end
+                                                    end
+                                                    if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then
+                                                        if M28Utilities.IsTableEmpty(oLauncher[reftUnprotectedUnitTargetsForThisTML]) then
+                                                            iCurTargetValue = 0
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': No longer an unrptoected target for this TML') end
+                                                        else
+                                                            local bRecordedStill = false
+                                                            for iRecordedUnit, oRecordedUnit in oLauncher[reftUnprotectedUnitTargetsForThisTML] do
+                                                                if oRecordedUnit == oUnit then
+                                                                    bRecordedStill = true
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Still recorded as an unrptoected target for this TML') end
+                                                                    break
+                                                                end
+                                                            end
+                                                            if not(bRecordedStill) then
+                                                                iCurTargetValue = 0
+                                                            end
+                                                        end
+                                                    end
+
+                                                end
                                             end
                                         end
                                     end
-                                    if iBestTargetValue < iCurTargetValue then
+                                        if iBestTargetValue < iCurTargetValue then
                                         if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then iCurTargetValue = math.max(125, iCurTargetValue * 0.2) end
-                                        iBestTargetValue = iCurTargetValue
-                                        oBestTarget = oUnit
-                                    end
+                                    iBestTargetValue = iCurTargetValue
+                                    oBestTarget = oUnit
+                                        end
                                 end
                                 if oBestTarget then
                                     tTarget = oBestTarget:GetPosition()

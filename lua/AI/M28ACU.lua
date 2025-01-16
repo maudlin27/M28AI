@@ -6221,7 +6221,7 @@ function HaveNearbyVulnerableEnemyACUToAttack(oACU, iTeam, tLZData, tLZTeamData,
     local sFunctionRef = 'HaveNearbyVulnerableEnemyACUToAttack'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oACU:GetAIBrain():GetArmyIndex() == 7 and GetGameTimeSeconds() >= 456 then bDebugMessages = true end
+
     local bAttackNearestACU = false
     --Ignore if at core base (mainly for optimisation reasons)
     if not(tLZTeamData[M28Map.subrefLZbCoreBase]) and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) then
