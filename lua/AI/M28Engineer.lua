@@ -16117,7 +16117,6 @@ end--]]
                                     end
                                 end
                             end
-                            bDebugMessages = false
                         end
                     end
                 else
