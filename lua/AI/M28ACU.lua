@@ -6459,9 +6459,9 @@ end
 function DoesACUOnlyWantToSuicideIfInExplosionRange(oACU, tLZOrWZTeamData, iTeam)
     local iACUHealth = M28UnitInfo.GetUnitCurHealthAndShield(oACU)
     if iACUHealth >= 8000 then return false
-    elseif iACUHealth <= 4000 then return true
+    elseif iACUHealth <= 3000 then return true
     else
-        --ACU is between 4k and 8k health, so be more cautious if enemy has T2 PD within our range
+        --ACU is between 3k and 8k health, so be more cautious if enemy has T2 PD within our range
         local iEnemyT2PDInOurRange = 0
         if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
             local tEnemyPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZOrWZTeamData[M28Map.reftoNearestDFEnemies])
@@ -6475,9 +6475,9 @@ function DoesACUOnlyWantToSuicideIfInExplosionRange(oACU, tLZOrWZTeamData, iTeam
         end
         if iEnemyT2PDInOurRange == 0 then
             return false
-        elseif iEnemyT2PDInOurRange >= 3 then
+        elseif iEnemyT2PDInOurRange >= 4 then
             return true
-        elseif iACUHealth > 4000 + 1500 * iEnemyT2PDInOurRange then
+        elseif iACUHealth > 3000 + 1500 * iEnemyT2PDInOurRange then
             return false
         else
             return true
