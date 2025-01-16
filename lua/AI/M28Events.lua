@@ -1489,16 +1489,27 @@ function ProjectileCreated(oProjectile, inWater)
                 oProjectile.Launcher = oProjectile:GetLauncher()
                 --Consider adding inner and outer rings if this is a nuke launcher
                 if oProjectile.Launcher.UnitId and EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId) and not(oProjectile.InnerRing) then
-                    local oLauncherBP = oProjectile.Launcher:GetBlueprint()
-                    if oLauncherBP.Weapon then
-                        for iWeapon, tWeapon in oLauncherBP.Weapon do
-                            if tWeapon.NukeInnerRingRadius then
-                                --LOG('TEMPCODE setting nuke inner and outer radius')
-                                oProjectile.InnerRing = tWeapon.NukeInnerRingRadius
-                                oProjectile.OuterRing = (tWeapon.NukeOuterRingRadius or 40)
-                                break
+                    --Battleship exception - if target isnt far away assume we are dealing with normal battleship weapon
+                    local bIncludeNukeRings = true
+                    if oProjectile.Launcher[M28UnitInfo.refiDFRange] and oProjectile.GetCurrentTargetPosition then
+                        local tTarget = oProjectile:GetCurrentTargetPosition()
+                        if M28Utilities.IsTableEmpty(tTarget) == false and M28Utilities.GetDistanceBetweenPositions(tTarget, oProjectile.Launcher:GetPosition()) <= oProjectile.Launcher[M28UnitInfo.refiDFRange] + 5 then
+                            bIncludeNukeRings = false
+                        end
+                    end
+                    if bIncludeNukeRings then
+                        local oLauncherBP = oProjectile.Launcher:GetBlueprint()
+                        if oLauncherBP.Weapon then
+                            for iWeapon, tWeapon in oLauncherBP.Weapon do
+                                if tWeapon.NukeInnerRingRadius then
+                                    --LOG('TEMPCODE setting nuke inner and outer radius')
+                                    oProjectile.InnerRing = tWeapon.NukeInnerRingRadius
+                                    oProjectile.OuterRing = (tWeapon.NukeOuterRingRadius or 40)
+                                    break
+                                end
                             end
                         end
+                    else
                     end
                 end
             end

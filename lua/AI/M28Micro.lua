@@ -1746,7 +1746,7 @@ function MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oLauncher, iTeam, bE
         --LOG('Blueprint for projectile repru='..repru(oProjectile.Blueprint))
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         if aiBrain then
-            if bDebugMessages == true then LOG(sFunctionRef..': Outer ring='..repru(oProjectile.OuterRing)..'; Inner ring='..repru(oProjectile.InnerRing)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Outer ring='..repru(oProjectile.OuterRing)..'; Inner ring='..repru(oProjectile.InnerRing)..'; oLauncher='..(oLauncher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher) or 'nil')) end
             --Record in friendly nuke table
             local tTarget = oProjectile:GetCurrentTargetPosition()
             ForkThread(M28Building.RecordNukeTarget, iTeam, tTarget)
