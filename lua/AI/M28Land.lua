@@ -608,13 +608,14 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         local iRangeThreshold = math.max(iZoneDiameter * 0.8, 60)
         for iUnit, oUnit in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
             --Only include megalith if we lack similar DF or IF range
-            if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiCombatRange] > 70 or tLZTeamData[M28Map.subrefLZAllyBestCombatRange] < oUnit[M28UnitInfo.refiCombatRange]) then
+            if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiCombatRange] > 70 or tLZTeamData[M28Map.subrefLZAllyBestCombatRange] < oUnit[M28UnitInfo.refiCombatRange] or (oUnit[M28UnitInfo.refiCombatRange] == 70 and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= 100 and M28Conditions.GetBestMobileDFRangeInZone(tLZTeamData) > oUnit[M28UnitInfo.refiCombatRange])) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Long range threat unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; Unit range='..(oUnit[M28UnitInfo.refiCombatRange] or 0)..'; iRangeThreshold='..iRangeThreshold..'; iZoneDiameter='..iZoneDiameter) end
                 if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= (oUnit[M28UnitInfo.refiCombatRange] or 0) + iRangeThreshold then --tried 55 but proved too small
                     table.insert(tNearbyLongRangeThreats, oUnit)
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby long range threats empty='..tostring(M28Utilities.IsTableEmpty(tNearbyLongRangeThreats))) end
         if M28Utilities.IsTableEmpty(tNearbyLongRangeThreats) then tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] = 0
         else
             tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] = M28UnitInfo.GetCombatThreatRating(tNearbyLongRangeThreats, true)
@@ -6933,7 +6934,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             end
                                             local iEnemyThreatWithinRange = M28UnitInfo.GetCombatThreatRating(tEnemyDFUnitsNearTarget, true, false)
                                             local iOurExpThreat = M28UnitInfo.GetCombatThreatRating({oClosestSRExpToEnemy}, false, false)
-                                            bDebugMessages = true
                                             if bDebugMessages == true then LOG(sFunctionRef..': oClosestSRExpToEnemy='..oClosestSRExpToEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestSRExpToEnemy)..'; iEnemyThreatWithinRange='..iEnemyThreatWithinRange..'; iOurExpThreat='..iOurExpThreat..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Mod dist of this zone='..tLZTeamData[M28Map.refiModDistancePercent]..'; Mod dist of target zone='..tTargetPositionLZTeamData[M28Map.refiModDistancePercent]..'; iClosestSRExpToEnemy='..iClosestSRExpToEnemy..'; oClosestSRExpToEnemy[M28UnitInfo.refiDFRange]='..oClosestSRExpToEnemy[M28UnitInfo.refiDFRange]) end
                                             if (iOurExpThreat > iEnemyThreatWithinRange or iOurExpThreat + (iAvailableCombatUnitThreat - iOurExpThreat) * 0.4 > iEnemyThreatWithinRange * 1.1
                                                     --Monkeylord further exception as we might be able to close in distance on enemy without being seen; and similarly ythotha who deathball might damage enemy; but only consider if mod dist low enough that we are desparate
