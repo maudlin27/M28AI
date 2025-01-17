@@ -1542,9 +1542,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH3) then return sBPIDToBuild end
     end
 
-    --Engineers for transport - build engineers as high priority if no enemies in this zone
+    --Engineers for transport - build engineers as high priority if no enemies in this zone and no nearby long range threats
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 or iFactoryTechLevel == 1) then
         local bTransportWaitingForEngi = false
         local iCombatUnitsWanted = 0
         for iTransport, oTransport in tLZTeamData[M28Map.reftoTransportsWaitingForUnits] do
@@ -1555,7 +1555,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 iCombatUnitsWanted = iCombatUnitsWanted + (oTransport[M28Air.refiCombatUnitsWanted] or 0)
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Want engineers or t1 arti as have transport waiting for them, bTransportWaitingForEngi='..tostring(bTransportWaitingForEngi or false)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want engineers or t1 arti as have transport waiting for them, bTransportWaitingForEngi='..tostring(bTransportWaitingForEngi or false)..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 'nil')) end
         if bTransportWaitingForEngi then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         else
@@ -1764,6 +1764,14 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+    --Map specific - enemy base near ours, so want early T1 arti to help e.g. prevent enemy getting early guncom
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])..'; T1 arti built='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryIndirect)) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.5 and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) <= 125 and (M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryIndirect) <= math.min(5, math.max(2, oFactory[refiTotalBuildCount] * 0.5))) and NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will try and get some early t1 arti') end
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+    end
+
     --Priority engineers as we are being prevented from upgrading
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory) then
@@ -1912,7 +1920,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
         --if more than 40% mass stored then consider engineer instead
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer) >= 2 then
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemy has nearby T2 arti or enemies in nearby plateau, Is table of t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; Does enemy have enemies in nearby plateau='..tostring(tLZTeamData[M28Map.refbEnemiesInNearbyPlateau])..'; Our IF threat='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemy has nearby T2 arti or enemies in nearby plateau, Is table of t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; Does enemy have enemies in nearby plateau='..tostring(tLZTeamData[M28Map.refbEnemiesInNearbyPlateau])..'; Our IF threat='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0)..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]) end
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
                 if (M28Team.tTeamData[iTeam][M28Team.refiHighestEnemyDFRangeByPlateau][iPlateau] or 0) <= 55 or (iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiHighestEnemyDFRangeByPlateau][iPlateau] or 0) <= 90) or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 10) then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
@@ -1921,7 +1929,34 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             --Have at least 1 factory building indirect fire if this is highest tech level and enemy has nearby units in another plateau and we dont already have a decent indirect fire threat
             if tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] and (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) < 200 * iFactoryTechLevel * iFactoryTechLevel and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] and M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) == 0 then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+                --Also prioritise if T3 and enemy has ravagers nearby
+            elseif (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats])) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has ravagers, want to build mobile arti unless we have already built a lot, T3 indirect under construction in zone='..M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryIndirect * categories.TECH3)..'; Factory mobile indirect count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect * categories.TECH3)..'; Factory total build count='..oFactory[refiTotalBuildCount]..'; iFactoryTechLevel='..iFactoryTechLevel) end
+                if oFactory[refiTotalBuildCount] < 10 or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryIndirect * categories.TECH3) == 0 or M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect * categories.TECH3) < oFactory[refiTotalBuildCount] * 0.35 then
+                    if iFactoryTechLevel >= 3 then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH3) then return sBPIDToBuild end
+                    elseif aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then --redundancy for niche cases such as e.g. a map that has ravagers near the start
+                        --If we have no units upgrading in this zone, then upgrade if we either have t3 land or no active t3 land upgrade for this brain
+                        local bUpgradingOtherFactoryInZone = false
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+                            for iUpgrade, oUpgrade in tLZTeamData[M28Map.subreftoActiveUpgrades] do
+                                if not(oUpgrade.Dead) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUpgrade.UnitId) and (iFactoryTechLevel == 1 or EntityCategoryContains(categories.TECH2, oUpgrade.UnitId)) then
+                                    bUpgradingOtherFactoryInZone = true
+                                    break
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want T3 to deal with ravagers, bUpgradingOtherFactoryInZone='..tostring(bUpgradingOtherFactoryInZone)..'; aiBrain[M28Economy.refiOurHighestLandFactoryTech]='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]..'; Do we have active T2 HQ upgrade='..tostring(M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, M28UnitInfo.refCategoryLandFactory * categories.TECH2))) end
+                        if not(bUpgradingOtherFactoryInZone) then
+
+                            if aiBrain[M28Economy.refiOurHighestLandFactoryTech] > iFactoryTechLevel or not(M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, M28UnitInfo.refCategoryLandFactory * categories.TECH2)) then
+                                if ConsiderUpgrading() then  return sBPIDToBuild end
+                            end
+                        end
+                    end
+                end
             end
+
         end
     end
 

@@ -3564,3 +3564,13 @@ function EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData)
     end
     return false
 end
+
+function GetBestMobileDFRangeInZone(tLZTeamData)
+    local iBestRange = 0
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) == false then
+        for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] do
+            if iRange > iBestRange and iThreat > 0 then iBestRange = iRange end
+        end
+    end
+    return iBestRange
+end
