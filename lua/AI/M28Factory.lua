@@ -1953,7 +1953,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                                 if ConsiderUpgrading() then  return sBPIDToBuild end
                             end
                         end
-                        bDebugMessages = false
                     end
                 end
             end
