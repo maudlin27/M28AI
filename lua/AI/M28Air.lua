@@ -7817,14 +7817,19 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
             iMobileDFThreshold = 200
             iGroundAAThreshold = 400
         end
-        local iCurMexCount
+        local iMexMassInvestment
         local bHaveSafeTarget = false
         local iDangerousGroundAAThreshold = iGroundAAThreshold * 10
         local iDangerousMobileDFThreshold = iMobileDFThreshold * 10
         local iLowestGeneralDangerousZoneThreat = 100000
         local iDangerousPlateau, iCurDangerousZoneThreat
         local iDangerousZone
-        local iBestEnemyZoneSafeMexCount = 0
+        local iBestEnemyZoneSafeMexValue = 0
+        local tbPlayerBaseOnPlateau = {}
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+            local iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, M28Map.GetPlayerStartPosition(oBrain))
+            tbPlayerBaseOnPlateau[iCurPlateau] = true
+        end
         for iPlateau, tiLandZones in M28Team.tTeamData[iTeam][M28Team.reftiPotentialCombatDropZonesByPlateau] do
             for iEntry, iLandZone in tiLandZones do
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -7836,23 +7841,28 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
                     local toEnemyMexCount = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefTEnemyUnits])
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy mexes empty='..tostring( M28Utilities.IsTableEmpty(toEnemyMexCount))) end
                     if M28Utilities.IsTableEmpty(toEnemyMexCount) == false then
-                        iCurMexCount = table.getn(toEnemyMexCount)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy mex count='..iCurMexCount..'; LZ mex count='..(tLZData[M28Map.subrefLZMexCount] or 'nil')) end
-                        if iCurMexCount >= math.min(4, math.max(1, tLZData[M28Map.subrefLZMexCount] * 0.5)) then
+                        iMexMassInvestment = 0
+                        for iUnit, oUnit in toEnemyMexCount do
+                            if not(oUnit.Dead) then
+                                iMexMassInvestment = iMexMassInvestment + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iMexMassInvestment='..iMexMassInvestment..'; LZ mex count='..(tLZData[M28Map.subrefLZMexCount] or 'nil')..'; Count of enemy mex ignoring % complete='..table.getn(toEnemyMexCount)) end
+                        if iMexMassInvestment >= 550 or (iMexMassInvestment >= 50 and not(tbPlayerBaseOnPlateau[iPlateau])) then
                             --Check whether its safe to travel here for each individual transport
                             --Ignore if 1 mex unless enemy has significant building mass value invested here and not dangerous
-                            if iCurMexCount <= 1 and (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or 0) <= 1 and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <= 1000 and iCurMexCount < iBestEnemyZoneSafeMexCount then
+                            if iMexMassInvestment < 800 and iMexMassInvestment < iBestEnemyZoneSafeMexValue and (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or 0) <= 1 and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <= 1000 then
                                 --Ignore if already have a better target
-                                if bDebugMessages == true then LOG(sFunctionRef..': Not enoguh mexes to be worth adding to the shortlist') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Not enoguh mex value to be worth adding to the shortlist') end
                             elseif (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iMobileDFThreshold and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 40 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Adding to combat drop shortlist') end
                                 table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iPlateau, iLandZone})
                                 bHaveSafeTarget = true
-                                iBestEnemyZoneSafeMexCount = math.max(iCurMexCount, iBestEnemyZoneSafeMexCount)
+                                iBestEnemyZoneSafeMexValue = math.max(iMexMassInvestment, iBestEnemyZoneSafeMexValue)
                             elseif not(bHaveSafeTarget) and (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= iDangerousGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) <= iDangerousMobileDFThreshold and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= 200 then
                                 iCurDangerousZoneThreat = (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 2 + (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
-                                --Increase threat by 50% if this is a 1 mex location so we are less likely to pick it
-                                if iCurMexCount <= 1 and (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or 0) <= 1 and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <= 1000 then iCurDangerousZoneThreat = iCurDangerousZoneThreat * 1.5 end
+                                --Increase threat by 50% if this is a low value location (e.g. 1 mex) so we are less likely to pick it
+                                if iMexMassInvestment <= 800 and (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or 0) <= 1 and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <= 1000 then iCurDangerousZoneThreat = iCurDangerousZoneThreat * 1.5 end
                                 if iCurDangerousZoneThreat < iLowestGeneralDangerousZoneThreat then
                                     iLowestGeneralDangerousZoneThreat = iCurDangerousZoneThreat
                                     iDangerousPlateau = iPlateau
@@ -7894,8 +7904,20 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Including enemy base P'..iCurPlateau..'Z'..iCurLZ..' which is the core base for '..oBrain.Nickname..' in the combat drop shortlist unless it has 2+ land factories, iEnemyLandFactories='..iEnemyLandFactories) end
                     if iEnemyLandFactories <= 1 then
-                        table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iCurPlateau, iCurLZ})
-                        M28Team.tTeamData[iTeam][M28Team.refbEnemyBaseInCombatDropShortlist] = true
+                        --has enemy got any t2+ mexes or has started upgrading?
+                        local tEnemyMexesAndFabs = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryMassFab + M28UnitInfo.refCategoryPower - categories.TECH1, tLZTeamData[M28Map.subrefTEnemyUnits])
+                        if M28Utilities.IsTableEmpty(tEnemyMexesAndFabs) == false then
+                            for iUnit, oUnit in tEnemyMexesAndFabs do
+                                if not(oUnit.Dead) and oUnit:GetFractionComplete() >= 0.5 then
+                                    if bDebugMessages == true then LOG(sFUnctionRef..': Enemy has T2 or better eco at the base') end
+                                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist], {iCurPlateau, iCurLZ})
+                                    M28Team.tTeamData[iTeam][M28Team.refbEnemyBaseInCombatDropShortlist] = true
+                                    break
+                                end
+                            end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy doesnt have T2 eco at the base yet') end
+                        end
                     end
                 end
             end
