@@ -136,8 +136,11 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
         local sExpectedUpgradeID = oUnitToUpgrade:GetBlueprint().General.UpgradesTo
         if sExpectedUpgradeID and M28UnitInfo.IsUnitRestricted(sExpectedUpgradeID, oUnitToUpgrade:GetAIBrain():GetArmyIndex()) then
             --Restricted e.g. due to campaign or other settings
-        else
+        elseif not(M28Map.bIsCampaignMap) then --on campaign had issue where could have t3 HQs but not be allowed to upgrade t2 support factory to t3, so have disabled error message on all campaign maps
             M28Utilities.ErrorHandler('Dont have a valid upgrade ID; UnitID=' .. (oUnitToUpgrade.UnitId or 'nil')..'; sExpectedUpgradeID='..(sExpectedUpgradeID or 'nil'))
+            if bDebugMessages == true and sExpectedUpgradeID then
+                LOG(sFunctionRef..': oUnitToUpgrade:CanBuild(sExpectedUpgradeID)='..tostring(oUnitToUpgrade:CanBuild(sExpectedUpgradeID))..'; Cur T3 Air HQs='..oUnitToUpgrade:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryAirHQ*categories.TECH3)..'; Cur T3 land HQs='..oUnitToUpgrade:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryLandHQ*categories.TECH3))
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

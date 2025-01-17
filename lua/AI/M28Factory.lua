@@ -5840,7 +5840,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if tWZTeamData[M28Map.subrefTbWantBP] and (not (bHaveLowMass) or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= iFactoryTechLevel * 6)) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
             --Still get 1 T3 engi if dealing with a t3 factory that hasnt built any before and we have lots of mass
-        elseif iFactoryTechLevel == 3 and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and oFactory[refiTotalBuildCount] <= 5 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20 and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer, false) == 0 then
+        elseif iFactoryTechLevel == 3 and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and oFactory[refiTotalBuildCount] <= 5 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20 and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer, false) == 0 then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
     end

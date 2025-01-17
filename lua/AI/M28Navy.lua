@@ -1880,7 +1880,7 @@ function FlagWaterZoneStartPositions(iTeam)
                             if bDebugMessages == true then LOG(sFunctionRef..': Have flagged that water zone '..iWaterZone..' in pond '..iPond..'; Contains a naval build location for team '..iTeam..', subrefWZbContainsNavalBuildLocation='..tostring(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] or false)) end
 
                         else
-                            M28Utilities.ErrorHandler('Have empty tWZData for water zone '..(M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] or 'nil'))
+                            M28Utilities.ErrorHandler('Have empty tWZData for water zone '..(M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] or 'nil')..' in pond '..iPond..' for iTeam='..iTeam..'; Expected pond for WZ='..(M28Map.tiPondByWaterZone[iWaterZone] or 'nil'))
                         end
                     end
                 end
@@ -4763,7 +4763,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                                 --Get the closest enemy unit to thie midpoint of this zone if we have combat aa:
 
                                 for iUnit, oUnit in tClosestEnemyBuildingsOfInterest do
-                                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.7 then
+                                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.7 and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZData[M28Map.subrefMidpoint])
                                         iCurModDist = iCurDist
                                         if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryTMD, oUnit.UnitId) then

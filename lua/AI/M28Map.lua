@@ -5671,6 +5671,7 @@ function RecordPondToExpandTo(aiBrain)
     if not(aiBrain[reftPrimaryEnemyBaseLocation]) then UpdateNewPrimaryBaseLocation(aiBrain, true) end
     if M28Utilities.IsTableEmpty(tPondDetails) == false then
         local bStartLocationIsUnderwater = false
+        local bThisPondHasUnderwaterStartLocation = false
         local tStartPos = GetPlayerStartPosition(aiBrain)
         if GetTerrainHeight(tStartPos[1], tStartPos[3]) < GetSurfaceHeight(tStartPos[1], tStartPos[3]) then bStartLocationIsUnderwater = true end
         if bDebugMessages == true then
@@ -5768,9 +5769,11 @@ function RecordPondToExpandTo(aiBrain)
             aiBrain[M28Navy.reftiPondValueToUs][iCurPondRef] = 0
             aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] = 0
             if M28Utilities.IsTableEmpty(tPondSubtable) == false and (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize then
+                bThisPondHasUnderwaterStartLocation = false
+                if bStartLocationIsUnderwater and NavUtils.GetLabel(refPathingTypeNavy, tStartPos) == iCurPondRef then bThisPondHasUnderwaterStartLocation = true end
                 iCurPondValue = 0
                 iCurPondDefensiveValue = 0
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurPondRef='..iCurPondRef..'; GetAverageDistToPond='..GetAverageDistToPond(tPondSubtable, aiBrain)..'; Dist of X to our start='..math.min(math.abs(tPondSubtable[subrefPondMinX] - GetPlayerStartPosition(aiBrain)[1]), math.abs(GetPlayerStartPosition(aiBrain)[1] - tPondSubtable[subrefPondMaxX]))..'; Dist of Z to our start='..math.min(math.abs(tPondSubtable[subrefPondMinZ] - GetPlayerStartPosition(aiBrain)[3]),  math.abs(GetPlayerStartPosition(aiBrain)[3] - tPondSubtable[subrefPondMaxZ]))..'; MaxX='..tPondSubtable[subrefPondMaxX]..'Z='..tPondSubtable[subrefPondMaxZ]..'; MinX='..tPondSubtable[subrefPondMinX]..'Z='..tPondSubtable[subrefPondMinZ]..'; Mex info='..repru(tPondSubtable[subrefPondMexInfo])..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Segment count='..tPondSubtable[subrefiSegmentCount]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurPondRef='..iCurPondRef..'; GetAverageDistToPond='..GetAverageDistToPond(tPondSubtable, aiBrain)..'; Dist of X to our start='..math.min(math.abs(tPondSubtable[subrefPondMinX] - GetPlayerStartPosition(aiBrain)[1]), math.abs(GetPlayerStartPosition(aiBrain)[1] - tPondSubtable[subrefPondMaxX]))..'; Dist of Z to our start='..math.min(math.abs(tPondSubtable[subrefPondMinZ] - GetPlayerStartPosition(aiBrain)[3]),  math.abs(GetPlayerStartPosition(aiBrain)[3] - tPondSubtable[subrefPondMaxZ]))..'; MaxX='..tPondSubtable[subrefPondMaxX]..'Z='..tPondSubtable[subrefPondMaxZ]..'; MinX='..tPondSubtable[subrefPondMinX]..'Z='..tPondSubtable[subrefPondMinZ]..'; Mex info='..repru(tPondSubtable[subrefPondMexInfo])..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Segment count='..tPondSubtable[subrefiSegmentCount]..'; bThisPondHasUnderwaterStartLocation='..tostring(bThisPondHasUnderwaterStartLocation)) end
 
                 --Is the pond within 175 of our start position?  First see if X is within distance threshold:
                 if GetAverageDistToPond(tPondSubtable, aiBrain) <= iDistanceThreshold then
@@ -5863,14 +5866,14 @@ function RecordPondToExpandTo(aiBrain)
                     if aiBrain[refbCanPathToEnemyBaseWithAmphibious] and not(aiBrain[refbCanPathToEnemyBaseWithLand]) then iCurPondValue = iCurPondValue * 4 end
                     if bDebugMessages == true then LOG(sFunctionRef..': Have a pond that is in range of our start position, value based on mexes in range pre main adjust (but post adjusting for campaign and pathing)='..iCurPondValue..'; aiBrain[refbCanPathToEnemyBaseWithAmphibious]='..tostring(aiBrain[refbCanPathToEnemyBaseWithAmphibious] or false)..'; aiBrain[refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[refbCanPathToEnemyBaseWithLand] or false)) end
                     --Do we have sufficient value to consider?
-                    if iCurPondValue >= 4 or iCurPondDefensiveValue >= 4 or bStartLocationIsUnderwater then
+                    if iCurPondValue >= 4 or iCurPondDefensiveValue >= 4 or bThisPondHasUnderwaterStartLocation then
                         if iCurPondValue <= 0 then iCurPondValue = 0.1 end --Pond has defensive value so greater than 0
                         --Adjust value based on how close the naval build location would be for this pond
                         if not(tPondSubtable[subrefBuildLocationByStartPosition]) then
                             tPondSubtable[subrefBuildLocationByStartPosition] = {}
                         end
                         local tNavalBuildArea = {}
-                        if not(bStartLocationIsUnderwater) then
+                        if not(bThisPondHasUnderwaterStartLocation) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Brain='..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; Start point='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])..'; Midpoint of pond='..repru(tPondSubtable[subrefPondMidpoint])..'; iCurPondRef='..(iCurPondRef or 'nil')) end
                             local iAngleToCentre = M28Utilities.GetAngleFromAToB(GetPlayerStartPosition(aiBrain), tPondSubtable[subrefPondMidpoint])
                             local iDistInterval = 8
@@ -5981,7 +5984,7 @@ function RecordPondToExpandTo(aiBrain)
 
 
                             if bDebugMessages == true then
-                                LOG(sFunctionRef..': Have a naval build area='..repru(tNavalBuildArea)..'; will draw large square around it in blue, and will set this as the build area for brain '..aiBrain.Nickname)
+                                LOG(sFunctionRef..': Have a naval build area='..repru(tNavalBuildArea)..'; will draw large square around it in blue, and will set this as the build area for brain '..aiBrain.Nickname..'; Naval label of this position='..(NavUtils.GetLabel(refPathingTypeNavy, tNavalBuildArea) or 'nil')..'; iPond='..iCurPondRef)
                                 M28Utilities.DrawLocation(tNavalBuildArea, nil, 200, 10)
                             end
                             tPondSubtable[subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()] = tNavalBuildArea
@@ -6071,6 +6074,21 @@ function RecordPondToExpandTo(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function DrawZonesInPond(iPond, iOptionalColour)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddSegmentToWaterZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28Utilities.IsTableEmpty(tPondDetails[iPond][subrefPondWaterZones]) == false then
+        for iWaterZone, tZoneDetails in tPondDetails[iPond][subrefPondWaterZones] do
+            LOG(sFunctionRef..': Drawing zone '..iWaterZone..' for pond '..iPond)
+            DrawSpecificWaterZone(iWaterZone, iOptionalColour)
+        end
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': No water zones recorded for pond '..iPond) end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function AddSegmentToWaterZone(iPond, iWaterZone, iSegmentX, iSegmentZ)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddSegmentToWaterZone'
@@ -6109,6 +6127,7 @@ function RecordWaterZoneAtPosition(tSegmentPosition)
         tiPondByWaterZone[iTotalWaterZoneCount] = iPond
         local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tSegmentPosition)
         AddSegmentToWaterZone(iPond, iTotalWaterZoneCount, iSegmentX, iSegmentZ)
+        LOG('TEMPCODE Created iPond='..iPond..' which contains WaterZone='..iTotalWaterZoneCount)
     end
 end
 
