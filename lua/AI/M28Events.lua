@@ -108,7 +108,7 @@ function OnACUKilled(oUnit)
             end
         end
         --Update the table of enemy ACUs for every team
-        for iCurTeam = 1, iTotalTeamCount do
+        for iCurTeam = 1, M28Team.iTotalTeamCount do
             if not(iCurTeam == oKilledBrain.M28Team) then
                 if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iCurTeam][M28Team.reftEnemyACUs]) then
                     --Do nothing (function will have cleansed the table of old entries already)
