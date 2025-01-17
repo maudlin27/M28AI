@@ -107,6 +107,18 @@ function OnACUKilled(oUnit)
                 end
             end
         end
+        --Update the table of enemy ACUs for every team
+        for iCurTeam = 1, iTotalTeamCount do
+            if not(iCurTeam == oKilledBrain.M28Team) then
+                if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iCurTeam][M28Team.reftEnemyACUs]) then
+                    --Do nothing (function will have cleansed the table of old entries already)
+                end
+            elseif oKilledBrain.M28AI then
+                if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iCurTeam][M28Team.reftM28ACUs]) then
+                    --Do nothing (function will have cleansed the table of old entries already)
+                end
+            end
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': Will consider calling OnPlayerDefeated, .M28IsDefeated='..tostring(oUnit:GetAIBrain().M28IsDefeated or false)..'; bDefeated='..tostring(bDefeated)) end
         if bDefeated then
             if oUnit:GetAIBrain() then

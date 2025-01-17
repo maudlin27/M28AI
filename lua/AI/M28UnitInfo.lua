@@ -823,6 +823,9 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                             iMassMod = iMassMod * 0.6
                         elseif EntityCategoryContains(refCategoryStructureAA * categories.TECH1, oUnit.UnitId) then
                             iMassMod = iMassMod * 1.5
+                        elseif M28Utilities.bFAFActive and EntityCategoryContains(refCategoryT3PD, oUnit.UnitId) then
+                            --Ravager is weaker in FAF
+                            iMassMod = iMassMod * 1.5
                         else
                             iMassMod = iMassMod * 2
                             if bAntiNavyOnly or (bAddAntiNavy and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive)) then
