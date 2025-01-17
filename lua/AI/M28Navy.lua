@@ -4763,7 +4763,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                                 --Get the closest enemy unit to thie midpoint of this zone if we have combat aa:
 
                                 for iUnit, oUnit in tClosestEnemyBuildingsOfInterest do
-                                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.7 then
+                                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.7 and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZData[M28Map.subrefMidpoint])
                                         iCurModDist = iCurDist
                                         if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
