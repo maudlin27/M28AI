@@ -382,6 +382,14 @@ function AirSubteamInitialisation(iTeam, iAirSubteam)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iTeam='..iTeam..'; iAirSubteam='..iAirSubteam..'; Time='..GetGameTimeSeconds()..'; will call air subteamoverseer') end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] = true
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] = false
+    --Set default values for rally points (for campaign where we might not have started main logic yet)
+    local oFirstBrain
+    for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+        oFirstBrain = oBrain
+        break
+    end
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = M28Map.GetPlayerStartPosition(oFirstBrain)
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = M28Map.GetPlayerStartPosition(oFirstBrain)
     ForkThread(AirSubteamOverseer, iTeam, iAirSubteam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -4599,8 +4607,9 @@ function ManageBombers(iTeam, iAirSubteam)
                             if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
                                 for _, iAdjLZ in tRallyLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
                                     tbZonesConsideredByPlateau[iRallyPlateauOrZero][iAdjLZ] = true
+                                    local tAdjLZTeamData
                                     if not(tbZoneByPlateauHasTooMuchAA[iRallyPlateauOrZero][iAdjLZ]) then
-                                        local tAdjLZTeamData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                                        tAdjLZTeamData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                                         FilterToAvailableTargets(tAdjLZTeamData[M28Map.subrefTEnemyUnits])
                                         if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
                                             if tbZoneByPlateauHasTooMuchAA[iRallyPlateauOrZero][iAdjLZ] == nil then
@@ -4614,7 +4623,10 @@ function ManageBombers(iTeam, iAirSubteam)
                                             if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
                                         end
                                     end
-                                    if bCheckForObjectiveTargets then AddObjectiveTargetsFromLZTeamData(tAdjLZTeamData) end
+                                    if bCheckForObjectiveTargets then
+                                        if not(tAdjLZTeamData) then tAdjLZTeamData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam] end
+                                        AddObjectiveTargetsFromLZTeamData(tAdjLZTeamData)
+                                    end
                                 end
                             end
 

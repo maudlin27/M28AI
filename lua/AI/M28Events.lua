@@ -1022,7 +1022,7 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
             --Will only update when props and wrecks are destroyed for performance reasons
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Non-wreck damaged') end
-            if self.GetUnitId then
+            if self.GetUnitId and (not(M28Map.bIsCampaignMap) or GetGameTimeSeconds() >= 300 or not(ScenarioInfo.OpEnded)) then
                 local oUnitCausingDamage
                 if instigator and not(instigator:BeenDestroyed()) then
                     if instigator.GetLauncher and instigator:GetLauncher() then
@@ -1219,21 +1219,25 @@ function OnBombFired(oWeapon, projectile)
                                 local tRallyLZOrWZData, tRallyLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, aiBrain.M28Team)
                                 local tRetreatLocation
                                 if not(bCloseToDangerousFriendlyBase) and tRallyLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.3 then
-                                    local iAngleToBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tNearestFriendlyBase)
-                                    local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAirRallyPoint)
-                                    if M28Utilities.GetAngleDifference(iAngleToBase, iAngleToRally) >= 35 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNearestFriendlyBase) >= 60 then
-                                        if tRallyLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.5 then
-                                            tRetreatLocation = {tNearestFriendlyBase[1], tNearestFriendlyBase[2], tNearestFriendlyBase[3]}
-                                        else
-                                            local iRallyPlateauOrZero, iRallyZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tAirRallyPoint)
-                                            local iUnitPlateauOrZero, iUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                                            if iRallyPlateauOrZero and iUnitPlateauOrZero and iRallyZone and iUnitZone then
-                                                M28Air.CalculateAirTravelPath(iUnitPlateauOrZero, iUnitZone, iRallyPlateauOrZero, iRallyZone)
-                                                if M28Air.DoesEnemyHaveAAThreatAlongPath(aiBrain.M28Team, iUnitPlateauOrZero, iUnitZone, iRallyPlateauOrZero, iRallyZone, false, 1000, 1000, false, aiBrain.M28AirSubteam, true, false, oUnit:GetPosition(), false) then
-                                                    tRetreatLocation = {tNearestFriendlyBase[1], tNearestFriendlyBase[2], tNearestFriendlyBase[3]}
+                                    if M28Utilities.IsTableEmpty(tAirRallyPoint) == false then
+                                        local iAngleToBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tNearestFriendlyBase)
+                                        local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAirRallyPoint)
+                                        if M28Utilities.GetAngleDifference(iAngleToBase, iAngleToRally) >= 35 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNearestFriendlyBase) >= 60 then
+                                            if tRallyLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.5 then
+                                                tRetreatLocation = {tNearestFriendlyBase[1], tNearestFriendlyBase[2], tNearestFriendlyBase[3]}
+                                            else
+                                                local iRallyPlateauOrZero, iRallyZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tAirRallyPoint)
+                                                local iUnitPlateauOrZero, iUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                                if iRallyPlateauOrZero and iUnitPlateauOrZero and iRallyZone and iUnitZone then
+                                                    M28Air.CalculateAirTravelPath(iUnitPlateauOrZero, iUnitZone, iRallyPlateauOrZero, iRallyZone)
+                                                    if M28Air.DoesEnemyHaveAAThreatAlongPath(aiBrain.M28Team, iUnitPlateauOrZero, iUnitZone, iRallyPlateauOrZero, iRallyZone, false, 1000, 1000, false, aiBrain.M28AirSubteam, true, false, oUnit:GetPosition(), false) then
+                                                        tRetreatLocation = {tNearestFriendlyBase[1], tNearestFriendlyBase[2], tNearestFriendlyBase[3]}
+                                                    end
                                                 end
                                             end
                                         end
+                                    --elseif GetGameTimeSeconds() >= 60 and (not(M28Map.bIsCampaignMap) or tonumber(ScenarioInfo.Options.CmpAIDelay) < GetGameTimeSeconds() + 1) then
+                                        --M28Utilities.ErrorHandler('No valid air rally point, AI delay='..tonumber(ScenarioInfo.Options.CmpAIDelay))
                                     end
                                 end
                                 if not(tRetreatLocation) then tRetreatLocation = {tAirRallyPoint[1], tAirRallyPoint[2], tAirRallyPoint[3]} end
@@ -1449,7 +1453,7 @@ function ProjectileCreated(oProjectile, inWater)
         LOG('TEMPCODE will draw projectile created target')
         M28Utilities.DrawLocation(oProjectile:GetCurrentTargetPosition(), 2)
     end--]]
-    if oProjectile.BeenDestroyed and not(oProjectile:BeenDestroyed()) then
+    if oProjectile.BeenDestroyed and not(oProjectile:BeenDestroyed()) and (not(M28Map.bIsCampaignMap) or GetGameTimeSeconds() >= 300 or not(ScenarioInfo.OpEnded)) then
         local bTrackingProjectile = false
         if oProjectile.GetTrackingTarget then
             local oTarget = oProjectile:GetTrackingTarget()

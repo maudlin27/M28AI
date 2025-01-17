@@ -1880,7 +1880,7 @@ function FlagWaterZoneStartPositions(iTeam)
                             if bDebugMessages == true then LOG(sFunctionRef..': Have flagged that water zone '..iWaterZone..' in pond '..iPond..'; Contains a naval build location for team '..iTeam..', subrefWZbContainsNavalBuildLocation='..tostring(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] or false)) end
 
                         else
-                            M28Utilities.ErrorHandler('Have empty tWZData for water zone '..(M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] or 'nil'))
+                            M28Utilities.ErrorHandler('Have empty tWZData for water zone '..(M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] or 'nil')..' in pond '..iPond..' for iTeam='..iTeam..'; Expected pond for WZ='..(M28Map.tiPondByWaterZone[iWaterZone] or 'nil'))
                         end
                     end
                 end
