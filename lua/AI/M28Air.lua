@@ -70,6 +70,7 @@ iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to conside
     refbRallyViaPointReached = 'M28GsRalPR' --true if have recently reached the via point for the rally
     rebEarlyBomberTargetBase = 'M28ErBTrB' --true if have a bomber that we want to target enemy base (used when went early bomber mode)
     refiExpBomberShotCount = 'M28ExpBCn' --If using our aoe to ground fire mobile AA targets, then we should track the exp bomber target, and then increase this count by 1 so we dont continue to try if the unit survived the first attempt
+    refbExpBomberRecentlyTriedFiringAtRange = 'M28ExpBFnR' --true if bomber has tried to fire at range instead of turning around
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -10083,8 +10084,38 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
 
                 if M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
                     --Return bomber to nearest rally point (NOTE: if changing this appraoch then need to rethink above appraoch that determines bomber angle to rally point to decide whether to keep moving)
-                    local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
-                    M28Orders.IssueTrackedMove(oBomber, tMovePoint, 10, false, 'ExBIdle', false)
+                    --Exception (for cases where e.g. enemy has large airaa threat) - check if we fire a bomb now if that will do damage
+                    local bReturnToRally = true
+                    if not(oBomber[refbExpBomberRecentlyTriedFiringAtRange]) and (oBomber[M28UnitInfo.refiBomberRange] or 0) > 0 then
+                        local iBomberAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
+                        local iAngleToRally = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                        if bDebugMessages == true then LOG(sFunctionRef..': iBomberAngle='..iBomberAngle..'; iAngleToRally='..iAngleToRally..'; AngleDif='..M28Utilities.GetAngleDifference(iBomberAngle, iAngleToRally)..'; Bomber range='..oBomber[M28UnitInfo.refiBomberRange]..'; Bomber speed='..M28UnitInfo.GetUnitSpeed(oBomber)) end
+                        if M28Utilities.GetAngleDifference(iBomberAngle, iAngleToRally) >= 90 then
+                            --NOTE: Doing some basic logging of distance of bomb target vs bomber speed, out of 16 bombs dropped by an ahwassa with speed ranging from 8-24, in 1 case the distance was more than the bomber range; hence will try just doing at bomber range
+                            local tPotentialTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iBomberAngle, oBomber[M28UnitInfo.refiBomberRange] - 1, true, false, M28Map.bIsCampaignMap)
+                            if tPotentialTarget then
+                                local iTargetDamage = M28Logic.GetDamageFromBomb(aiBrain, tPotentialTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true,                   4,                          M28UnitInfo.refCategoryGroundAA,        nil,                nil,                0.5)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering firing our bomb at our range, iTargetDamage='..iTargetDamage) end
+                                if iTargetDamage >= 600 then --Will lose 0.5s in turning around (waiting to see if the bomb will drop) so want to do some damage to do this
+                                    --Attack move here
+                                    bReturnToRally = false
+                                    oBomber[refbExpBomberRecentlyTriedFiringAtRange] = true
+                                    M28Utilities.DelayChangeVariable(oBomber, refbExpBomberRecentlyTriedFiringAtRange, false, 5)
+                                    M28Orders.IssueTrackedGroundAttack(oBomber, tPotentialTarget, 0, false, 'BmAtRetr', false, nil)
+                                    if bDebugMessages == true then
+                                        LOG(sFunctionRef..': Will try dropping bomb at our range')
+                                        M28Utilities.DrawLocation(tPotentialTarget)
+                                    end
+                                    ForkThread(ReturnBomberToRallyIfBombNotDropped, oBomber, 9)
+                                end
+                            end
+                        end
+                    end
+                    if bReturnToRally then
+                        if bDebugMessages == true then LOG(sFunctionRef..': will return to air sub rally point') end
+                        local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+                        M28Orders.IssueTrackedMove(oBomber, tMovePoint, 10, false, 'ExBIdle', false)
+                    end
                 else
                     --Have targets for bomber, send orders for targeting - if enemy has dangerous AA then target the closest such AA, otherwise pick the target that will deal the most damage
 
@@ -11320,4 +11351,17 @@ function AssessPotentialBomberSnipeTargetsNowReachedT2Air(iTeam)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, is M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets] empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toBomberSnipeTargets]))) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ReturnBomberToRallyIfBombNotDropped(oBomber, iTicksToWait)
+    --Called if we want bomber to drop bomb and immediately return to rally
+    WaitTicks(iTicksToWait)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ReturnBomberToRallyIfBombNotDropped'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, is Bomber valid='..tostring( M28UnitInfo.IsUnitValid(oBomber))..'; Is special micro active='..tostring(oBomber[M28UnitInfo.refbSpecialMicroActive])..'; Time since last fired bomb='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0)..'; Time='..GetGameTimeSeconds()) end
+    if M28UnitInfo.IsUnitValid(oBomber) and not(oBomber[M28UnitInfo.refbSpecialMicroActive]) and GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) >= math.max(1, iTicksToWait * 0.1 + 0.1) then
+        M28Orders.IssueTrackedMove(oBomber, M28Team.tAirSubteamData[oBomber:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'FailBmR', false)
+        if bDebugMessages == true then LOG(sFunctionRef..': will send bomber to rally') end
+    end
 end
