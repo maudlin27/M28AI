@@ -9895,7 +9895,6 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                     --[[if tLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] >= 9000 and tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= 4500 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
                                         local tEnemyRestorers = EntityCategoryFilterDown(M28UnitInfo.refCategoryRestorer - categories.EXPERIMENTAL - categories.HIGHALTAIR, tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits])
                                         if M28Utilities.IsTableEmpty(tEnemyRestorers) == false then
-                                            bDebugMessages = true
                                             if bDebugMessages == true then LOG(sFunctionRef..': About to add enemy restorers that are in the target zone, P'..iPlateauOrZero..'Z'..iLandOrWaterZone..'; size of table='..table.getn(tEnemyRestorers)) end
                                             local bAddUnit, iCurUnitSegmentX, iCurUnitSegmentZ
                                             for iUnit, oUnit in tEnemyRestorers do
@@ -11356,7 +11355,7 @@ end
 function ReturnBomberToRallyIfBombNotDropped(oBomber, iTicksToWait)
     --Called if we want bomber to drop bomb and immediately return to rally
     WaitTicks(iTicksToWait)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ReturnBomberToRallyIfBombNotDropped'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, is Bomber valid='..tostring( M28UnitInfo.IsUnitValid(oBomber))..'; Is special micro active='..tostring(oBomber[M28UnitInfo.refbSpecialMicroActive])..'; Time since last fired bomb='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0)..'; Time='..GetGameTimeSeconds()) end
