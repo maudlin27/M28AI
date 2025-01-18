@@ -1676,7 +1676,8 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                         end
 
                         --If want MMLs then also increase resource requirements
-                        if M28Conditions.SaveMassForMMLForFirebase(tLZOrWZData, tLZOrWZTeamData, iTeam, M28Conditions.HaveLowMass(aiBrain)) then
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
+                        if M28Conditions.SaveMassForMMLOrMobileT3ArtiForFirebase(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iTeam, M28Conditions.HaveLowMass(aiBrain)) then
                             iResourceFactor = iResourceFactor * 2
                             if M28Conditions.HaveLowPower(aiBrain.M28Team) then iResourceFactor = iResourceFactor * 2 end
                         end
@@ -1696,7 +1697,6 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                         end
                         if oACU[refbStartedUnderwater] and (tEnhancement.ProductionPerSecondEnergy or 0) > 20 then iResourceFactor = 0.5 end
                         local iDistToEnemyBase
-                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
                         if iPlateauOrZero == 0 then
                             iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestEnemyBase])
                         else

@@ -1408,8 +1408,8 @@ function ManageMassStalls(iTeam)
                     for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                         if M28UnitInfo.IsUnitValid(oFactory) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
                             local tFactoryLZData, tFactoryLZTeamData = M28Map.GetLandOrWaterZoneData(oFactory:GetPosition(), true, iTeam)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrading factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Do we want to save mass for MML for firebase for zone this factory is in='..tostring(M28Conditions.SaveMassForMMLForFirebase(tFactoryLZData, tFactoryLZTeamData, iTeam, true))) end
-                            if tFactoryLZTeamData and M28Conditions.SaveMassForMMLForFirebase(tFactoryLZData, tFactoryLZTeamData, iTeam, true) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrading factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Do we want to save mass for MML for firebase for zone this factory is in='..tostring(M28Conditions.SaveMassForMMLOrMobileT3ArtiForFirebase(tFactoryLZData, tFactoryLZTeamData, oFactory[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1], iTeam, true))) end
+                            if tFactoryLZTeamData and M28Conditions.SaveMassForMMLOrMobileT3ArtiForFirebase(tFactoryLZData, tFactoryLZTeamData, oFactory[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1], iTeam, true) then
                                 bDontPauseUpgradingT1LandOrT2Land = true
                                 break
                             end
@@ -2077,7 +2077,7 @@ function ManageEnergyStalls(iTeam)
                         for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                             if M28UnitInfo.IsUnitValid(oFactory) then
                                 local tFactoryLZData, tFactoryLZTeamData = M28Map.GetLandOrWaterZoneData(oFactory:GetPosition(), true, iTeam)
-                                if tFactoryLZTeamData and M28Conditions.SaveMassForMMLForFirebase(tFactoryLZData, tFactoryLZTeamData, iTeam, true) then
+                                if tFactoryLZTeamData and M28Conditions.SaveMassForMMLOrMobileT3ArtiForFirebase(tFactoryLZData, tFactoryLZTeamData, oFactory[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1], iTeam, true) then
                                     bDontPauseUpgradingT1LandOrT2Land = true
                                     break
                                 end
