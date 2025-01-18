@@ -4381,7 +4381,7 @@ function ManageBombers(iTeam, iAirSubteam)
             for iUnit, oUnit in tPotentialTargets do
                 if bDebugMessages == true then
                     if M28UnitInfo.IsUnitValid(oUnit) then
-                        LOG(sFunctionRef..': Considering whether to treat unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as a potential target, is unit valid=true, Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Is unit in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))..'; Is unit optional category (if is one)='..tostring(not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId))..'; bOptionalCheckNotAlreadyInEnemyTargets='..tostring(bOptionalCheckNotAlreadyInEnemyTargets or false)..'; Time='..GetGameTimeSeconds())
+                        LOG(sFunctionRef..': Considering whether to treat unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as a potential target, is unit valid=true, Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Is unit in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))..'; Is unit optional category (if is one)='..tostring(not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId))..'; bOptionalCheckNotAlreadyInEnemyTargets='..tostring(bOptionalCheckNotAlreadyInEnemyTargets or false)..'; Is unit GroundAA='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryGroundAA, oUnit.UnitId))..'; Time='..GetGameTimeSeconds())
                     else
                         LOG(sFunctionRef..': Considering whether to treat unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as a potential target, is unit valid=false')
                     end
@@ -4670,6 +4670,25 @@ function ManageBombers(iTeam, iAirSubteam)
                                 if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                     local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
                                     local iCurGroundAAThreat
+                                    local iMaxModDist --In addition to searchsize which limits by distance, will also avoid attacking enemy base if we lack air control
+                                    if true and GetGameTimeSeconds() <= 25*60 then
+                                        iMaxModDist = 10 --max is probably 1 so this is to be safe
+                                    elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+                                        iMaxModDist = 10 --max is probably 1 so this is to be safe
+                                    elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
+                                        if M28Map.iMapSize >= 1024 then
+                                            iMaxModDist = 0.35
+                                        elseif M28Map.iMapSize <= 256 then
+                                            iMaxModDist = 0.6
+                                        else
+                                            iMaxModDist = 0.45
+                                        end
+                                    else
+                                        if M28Map.iMapSize >= 1024 then iMaxModDist = 0.7
+                                        else iMaxModDist = 0.8
+                                        end
+                                    end
+
 
                                     for iEntry, tPathingDetails in tRallyLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                         local iOtherPlateauOrZero = tPathingDetails[M28Map.subrefiPlateauOrPond]
@@ -4690,11 +4709,16 @@ function ManageBombers(iTeam, iAirSubteam)
                                                 tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                                                 iCurGroundAAThreat = (tOtherLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)
                                             end
-                                            if (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) > iSearchSize and ((tOtherLZOrWZTeamData[M28Map.subrefLZSValue] or 0) == 0 or (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) > iSearchSize + 25) then break end
+                                            if (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) > iSearchSize and ((tOtherLZOrWZTeamData[M28Map.subrefLZSValue] or 0) == 0 or (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) > iSearchSize + 25) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Stopping loop as P'..iOtherPlateauOrZero..'Z'..iOtherLZOrWZ..';  is outside search size') end
+                                                break
+                                            elseif tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] > iMaxModDist then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Mod dist of P'..iOtherPlateauOrZero..'Z'..iOtherLZOrWZ..' is too high so wont consider this zone') end
+                                            end
                                             if bDontCheckForPacifism or not(M28Conditions.AdjacentToPacifistZone(iOtherPlateauOrZero, iOtherLZOrWZ)) then
                                                 --If enemy GroundAA threat is too big then stop looking/dont consider targets that are more than a bit further from here iSearchSize
 
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Dealing with P'..iOtherPlateauOrZero..'Z'..iOtherLZOrWZ..'; iCurGroundAAThreat='..iCurGroundAAThreat..'; Enemy shield='..(tOtherLZOrWZData[M28Map.subrefThreatEnemyShield] or 0)..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat..'; SValue='..(tOtherLZOrWZTeamData[M28Map.subrefLZSValue] or 0)) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Dealing with P'..iOtherPlateauOrZero..'Z'..iOtherLZOrWZ..'; iCurGroundAAThreat='..iCurGroundAAThreat..'; Enemy shield='..(tOtherLZOrWZData[M28Map.subrefThreatEnemyShield] or 0)..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat..'; SValue='..(tOtherLZOrWZTeamData[M28Map.subrefLZSValue] or 0)..'; Mod dist='..tOtherLZOrWZTeamData[M28Map.refiModDistancePercent]..'; iMaxModDist='..iMaxModDist) end
                                                 if iCurGroundAAThreat + math.min(iCurGroundAAThreat * 3, (tOtherLZOrWZData[M28Map.subrefThreatEnemyShield] or 0)) > iMaxEnemyGroundAAThreat and (tOtherLZOrWZTeamData[M28Map.subrefLZSValue] or 0) == 0 then
                                                     iSearchSize = math.min(iSearchSize, (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) + 25) --i.e. consider a couple more zones in case htey are in another direction
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Zone has too much AA threat so wont target and will stop searching soon') end
@@ -4715,12 +4739,16 @@ function ManageBombers(iTeam, iAirSubteam)
                                                                     if M28UnitInfo.GetAirThreatLevel(tNearbyEnemyGroundAA, true, false, true, false, false, false) >= iMaxEnemyGroundAAThreat then
                                                                         bProceedWithAttack = false
                                                                     else
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': will add nearby enemy groundAA to targets') end
                                                                         FilterToAvailableTargets(tNearbyEnemyGroundAA, nil, true)
                                                                     end
                                                                 end
                                                             end
                                                             if bProceedWithAttack then
-                                                                if M28Utilities.IsTableEmpty(tAAUnitsAlongPath) == false then FilterToAvailableTargets(tAAUnitsAlongPath, nil, true) end
+                                                                if M28Utilities.IsTableEmpty(tAAUnitsAlongPath) == false then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': will add AA units along path to available targets') end
+                                                                    FilterToAvailableTargets(tAAUnitsAlongPath, nil, true)
+                                                                end
                                                                 --Further redundancy for nearby AA - get the closest potential enemy target, and search for nearby groundAA units using getunitsaroundpoint
 
                                                                 AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
