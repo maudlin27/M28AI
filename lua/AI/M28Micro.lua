@@ -1311,7 +1311,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TurnAirUnitAndMoveToTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber) == 'xsa04021' and GetGameTimeSeconds() >= 35*60 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; GameTime='..GetGameTimeSeconds()) end
     --First delay microing until finished our salvo if dealing with T1-T2 bomber
     if M28UnitInfo.DoesBomberFireSalvo(oBomber) and EntityCategoryContains(M28UnitInfo.refCategoryBomber * (categories.TECH1 + categories.TECH2), oBomber.UnitId) then
@@ -1435,8 +1435,8 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TurnAirUnitAndAttackTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; GameTime='..GetGameTimeSeconds()) end
+    if oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber) == 'xsa04021' and GetGameTimeSeconds() >= 35*60 then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; bDontAdjustMicroFlag='..tostring(bDontAdjustMicroFlag or false)..'; GameTime='..GetGameTimeSeconds()) end
     if M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) then
         local iStartTime = GetGameTimeSeconds()
         --local iAngleToTarget
@@ -1470,7 +1470,9 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
         elseif bContinueAttackingUntilTargetDead then iMaxMicroTime = 1000
         end
 
-        if not(bDontAdjustMicroFlag) then TrackTemporaryUnitMicro(oBomber, 60) end --60s is redundancy
+        if not(bDontAdjustMicroFlag) then
+            EnableUnitMicroUntilManuallyTurnOff(oBomber)
+        end
 
         while GetGameTimeSeconds() - iStartTime < iMaxMicroTime do
             iCurTick = iCurTick + 1
@@ -1512,6 +1514,7 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
                     tGroundTarget = oTarget:GetPosition()
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurAngleDif='..iCurAngleDif..'; iMaxAcceptableAngleDif='..iMaxAcceptableAngleDif..'; iDistToTarget='..iDistToTarget..'; iPotentialAbortDistance='..iPotentialAbortDistance..'; Is tGroundTarget empty='..tostring(M28Utilities.IsTableEmpty(tGroundTarget))..'; Time='..GetGameTimeSeconds()) end
             if tGroundTarget and M28UnitInfo.GetTimeUntilReadyToFireBomb(oBomber) > 0 then
                 --If we cant fire yet then clear the ground target and keep microing
                 tGroundTarget = nil
@@ -1535,7 +1538,7 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
                 end
             end
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': end of loop for turning to face the target, is tGroundTarget empty='..tostring(M28Utilities.IsTableEmpty(tGroundTarget))..'; Is bomber valid='..tostring(M28UnitInfo.IsUnitValid(oBomber))..'; Is target valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))) end
         if tGroundTarget and M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) then
             --Fire the bomb
             if not(bDontAdjustMicroFlag) then
@@ -1543,10 +1546,11 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
                 oBomber[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()
             end
             M28Orders.IssueTrackedGroundAttack(oBomber, tGroundTarget, 1, false, 'BMicGA', true, oTarget)
-            if bDebugMessages == true then LOG(sFunctionRef..': Just cleared bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' commands and told it to attack tGroundTarget='..repru(tGroundTarget)..'which is expected to hit oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; GameTime='..GetGameTimeSeconds()) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Just cleared bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' commands and told it to attack tGroundTarget='..repru(tGroundTarget)..'which is expected to hit oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; bContinueAttackingUntilTargetDead='..tostring(bContinueAttackingUntilTargetDead or false)..'; GameTime='..GetGameTimeSeconds()) end
             if bContinueAttackingUntilTargetDead then
                 local iDelayForHoverBomb = 0
                 if M28UnitInfo.DoesBomberFireSalvo(oBomber) then iDelayForHoverBomb = 2 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will wait '..iDelayForHoverBomb..' seconds (or 1, if higher)') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitSeconds(math.max(1, iDelayForHoverBomb))
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1556,8 +1560,11 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
                     WaitSeconds(iDelayForHoverBomb - (GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired]))
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': want to keep attacking target so will call this function again') end
                 TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAttackingUntilTargetDead)
+            elseif not(bDontAdjustMicroFlag) then oBomber[M28UnitInfo.refbSpecialMicroActive] = false
             end
+        elseif not(bDontAdjustMicroFlag) then oBomber[M28UnitInfo.refbSpecialMicroActive] = false
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
