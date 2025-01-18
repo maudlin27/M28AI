@@ -1817,14 +1817,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         bIgnore = true
                     else
 
-
-                        --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
-                        if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
-                            if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU') end
-                                tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
-                            end
-                        end
                         --Enemy based logic (first time considering)
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to apply enemy based logic to the unit for the first time it is recognised, IsEnemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
                         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
@@ -1835,7 +1827,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
                                     if iUnitTechLevel <= 2 and M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 4 then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy doesnt have many sniperbots and theyre T2 or lower, so wont set flag yet') end
-                                    elseif M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and not(tTeamData[aiBrain.M28Team][refbAssassinationOrSimilar]) then
+                                    elseif not(tTeamData[aiBrain.M28Team][refbAssassinationOrSimilar]) and M28UnitInfo.GetUnitLifetimeCount(oUnit) <= math.min(8, 1 + (tTeamData[aiBrain.M28Team][subrefiActiveM28BrainCount] - 1) * 1.5) and not(tTeamData[aiBrain.M28Team][refbAssassinationOrSimilar]) and not(EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId)) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': enemy only has 1 sniperbot, since we have multiple ACUs will risk staying out a little bit longer') end
                                     else
                                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
@@ -1911,6 +1903,11 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to big threat table, aiBrain='..(aiBrain.Nickname or 'nil')..' team='..(aiBrain.M28Team or 'nil')) end
                                 AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
+                                --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
+                                if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) and EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU') end
+                                    tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
+                                end
                             elseif M28Conditions.IsUnitLongRangeThreat(oUnit) then
                                 AddUnitToLongRangeThreatTable(oUnit, aiBrain.M28Team, true)
                             end
@@ -1962,6 +1959,18 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             end
 
                         else
+                            --General - big threats (experimental) - include if dont have spare ACUs
+                            --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
+                            if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs])  then
+                                if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
+                                    if not(tTeamData[aiBrain.M28Team][refbAssassinationOrSimilar]) and tTeamData[aiBrain.M28Team][subrefiActiveM28BrainCount] >= 3 and tTeamData[aiBrain.M28Team][refiConstructedExperimentalCount] == 0 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Exp level but we are in full share and we havent constructed any yet so will delay ACU retreat') end
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU') end
+                                        tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
+                                    end
+                                end
+                            end
                             --Campaign neutral units
                             --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units) or is owned by a different team
                             if not(oUnit:GetAIBrain().M28AI) or not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
