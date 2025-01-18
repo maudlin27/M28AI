@@ -17780,7 +17780,7 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     local sFunctionRef = 'GetStartSearchPositionForEmergencyPD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tNearestEnemy='..repru(tNearestEnemy)..'; Time='..GetGameTimeSeconds()) end
     local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tLZMidpoint)
@@ -17882,6 +17882,7 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
         iAngleFromTargetToMidpoint = M28Utilities.GetAngleFromAToB(tNearestEnemy, tLZMidpoint)
         tTargetLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
     end
+
     --Adjust if T2 arti nearby
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
         --Get closest T2 arti
@@ -17903,6 +17904,43 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
             iDistToMove = (oClosestT2Arti[M28UnitInfo.refiIndirectRange] or 120) + 10 - iClosestT2ArtiDist
             tTargetLocation = M28Utilities.MoveInDirection(tPointToMoveFrom, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
             if bDebugMessages == true then LOG(sFunctionRef..': Adjusted for T2 arti location, iClosestT2ArtiDist='..iClosestT2ArtiDist) end
+        end
+    end
+
+    --Adjust if enemy has long range DF units nearby
+    local bMovedDueToLRThreat = false
+    if tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
+        local iCurDistUntilInRange
+        local iClosestDist = 15 --If we would be building this close to enemy unit then want to move further back
+        local oClosestLRUnit
+        for iLRUnit, oLRUnit in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
+            if not(oLRUnit.Dead) and (oLRUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oLRUnit:GetPosition(), tTargetLocation) - oLRUnit[M28UnitInfo.refiDFRange]
+                if iCurDistUntilInRange <= iClosestDist then
+                    oClosestLRUnit = oLRUnit
+                    iClosestDist = iCurDistUntilInRange
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if build location is close to enemy LR threats, oClosestLRUnit that is almost in range of it='..(oClosestLRUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestLRUnit) or 'nil')..'; iClosestDist (factoring in range)='..iClosestDist..'; tTargetLocation='..repru(tTargetLocation)) end
+        if oClosestLRUnit then
+            local iAngleFromLRUnit = M28Utilities.GetAngleFromAToB(oClosestLRUnit:GetPosition(), tTargetLocation)
+            local iRangeFallback = 25
+            if M28Utilities.GetDistanceBetweenPositions(oClosestLRUnit:GetPosition(), tLZMidpoint) - oClosestLRUnit[M28UnitInfo.refiDFRange] >= 30 then iRangeFallback = 35 end
+            if M28Utilities.GetAngleDifference(iAngleFromLRUnit, iAngleFromTargetToMidpoint) > 90 then
+                tPointToMoveFrom = oClosestLRUnit:GetPosition()
+                iDistToMove = -iCurDistUntilInRange + iRangeFallback - 5
+                iAngleFromTargetToMidpoint = M28Utilities.GetAngleFromAToB(oClosestLRUnit:GetPosition(), tLZMidpoint)
+                if bDebugMessages == true then LOG(sFunctionRef..': Big angle dif so will revise so we are moving away from the nearest LR threat') end
+            else
+                iDistToMove = iDistToMove -iCurDistUntilInRange + iRangeFallback
+            end
+            local tPotentialNewLocation = M28Utilities.MoveInDirection(tPointToMoveFrom, iAngleFromTargetToMidpoint, iDistToMove, true, false, M28Map.bIsCampaignMap)
+            if tPotentialNewLocation and NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialNewLocation) == iPlateau then
+                if bDebugMessages == true then LOG(sFunctionRef..': Moving build location due to enemy LR threat, for P'..iPlateau..'Z'..iLandZone..'; Dist moved away='..(-iCurDistUntilInRange + 20)..'; iCurDistUntilInRange='..iCurDistUntilInRange..'; iAngleFromLRUnit='..iAngleFromLRUnit..'; tPotentialNewLocation='..repru(tPotentialNewLocation)..'; Dist from tPotentialNewLocation to tNearestEnemy='..M28Utilities.GetDistanceBetweenPositions(tPotentialNewLocation, tNearestEnemy)..'; iDistToMove after adjust='..iDistToMove) end
+                tTargetLocation = {tPotentialNewLocation[1], tPotentialNewLocation[2], tPotentialNewLocation[3]}
+                bMovedDueToLRThreat = true
+            end
         end
     end
 
@@ -17930,8 +17968,8 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
 
 
     --Adjust if likely to be on elevated ground and unable to hit the enemy as a result (move closer so are on edge of cliff); if the reverse (we are on lower ground) then move away
-    if bDebugMessages == true then LOG(sFunctionRef..': Y height of target location='..tTargetLocation[2]..'; Y height of nearest enemy='..tNearestEnemy[2]..'; iDistToMove='..iDistToMove) end
-    if tTargetLocation[2] > tNearestEnemy[2] + 1 and iDistToMove >= 35 then
+    if bDebugMessages == true then LOG(sFunctionRef..': Y height of target location='..tTargetLocation[2]..'; Y height of nearest enemy='..tNearestEnemy[2]..'; iDistToMove='..iDistToMove..'; bMovedDueToLRThreat='..tostring(bMovedDueToLRThreat)) end
+    if not(bMovedDueToLRThreat) and tTargetLocation[2] > tNearestEnemy[2] + 1 and iDistToMove >= 35 then
         local iDistToCliff
         for iCurCliffAdjust = 1, 20 do
             local tAltLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove - iCurCliffAdjust, true, false, true)
@@ -17969,7 +18007,6 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
         end
     else
         --Consider if there is a cliff inbetween us and the enemy that is a higher height (even if the enemy itself is on the same height)
-        local iCliffDist
         local iMaxSearchRange
         if iDistToMove > 30 then iMaxSearchRange = 30 else iMaxSearchRange = math.floor(iDistToMove / 5)*5 - 5 end
         if iMaxSearchRange >= 5 then
@@ -18006,7 +18043,7 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
 
 
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. '; tNearestEnemy=' .. repru(tNearestEnemy) .. '; tLZMidpoint=' .. repru(tLZMidpoint) .. '; iAngleFromTargetToMidpoint=' .. iAngleFromTargetToMidpoint .. '; iDistToTarget=' .. iDistToTarget .. '; iDistToMove=' .. iDistToMove .. '; tTargetLocation=' .. repru(tTargetLocation)..'; will draw original target location in blue and the midpoint in red, and the revised target in gold')
+        LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. '; tNearestEnemy=' .. repru(tNearestEnemy) .. '; tLZMidpoint=' .. repru(tLZMidpoint) .. '; iAngleFromTargetToMidpoint=' .. iAngleFromTargetToMidpoint .. '; iDistToTarget=' .. iDistToTarget .. '; iDistToMove=' .. iDistToMove .. '; tTargetLocation=' .. repru(tTargetLocation)..'; Dist between tNearestEnemy and tTargetLocation='..M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, (tTargetLocation or {0,0,0}))..'; will draw original target location in blue and the midpoint in red, and the revised target in gold')
         M28Utilities.DrawLocation(tNearestEnemy, 1)
         M28Utilities.DrawLocation(tLZMidpoint, 2)
         M28Utilities.DrawLocation(tTargetLocation, 4)
