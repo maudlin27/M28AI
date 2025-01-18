@@ -1334,10 +1334,10 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                     --Do nothing - have already decided what upgrade path to go down
                 else
                     if oACU[refbPlanningToGetShield] == nil then
-                        if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
+                        if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.85 then
                             oACU[refbPlanningToGetShield] = true
                         end
-                    elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
+                    elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
                         oACU[refbPlanningToGetShield] = true
                     end
                     --Also get shield if a good chance we will use ACU in combat for a while
@@ -1347,10 +1347,22 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                         oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'Shield'}
                     end
                 end
-            elseif oACU[refiUpgradeCount] >= 1 then
-                oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'Shield'}
             else
-                oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'AdvancedEngineering'}
+                local bWantNanoNotT2 = true
+                if M28Map.iMapSize >= 1024 or (M28Map.iMapSize >= 768 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 4) then bWantNanoNotT2 = false end
+                if bWantNanoNotT2 then
+                    if oACU[refiUpgradeCount] >= 1 then
+                        oACU[reftPreferredUpgrades] = {'DamageStabilization', 'ResourceAllocation', 'Shield'}
+                    else
+                        oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'DamageStabilization'}
+                    end
+                else
+                    if oACU[refiUpgradeCount] >= 1 then
+                        oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'Shield'}
+                    else
+                        oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'AdvancedEngineering'}
+                    end
+                end
             end
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
             if oACU[refiUpgradeCount] >= 3 then
@@ -1375,7 +1387,12 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             else
                 oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
             end
-            if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] and not(oACU[reftPreferredUpgrades][3] == 'FAF_CrysalisBeamAdvanced') then table.insert( oACU[reftPreferredUpgrades], 3, 'FAF_CrysalisBeamAdvanced') end
+            if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then
+                local iCurEntries = table.getn(oACU[reftPreferredUpgrades])
+                if iCurEntries >= 4 and  not(oACU[reftPreferredUpgrades][4] == 'FAF_CrysalisBeamAdvanced') then table.insert( oACU[reftPreferredUpgrades], 4, 'FAF_CrysalisBeamAdvanced')
+                else table.insert(oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced')
+                end
+            end
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             if oACU[refiUpgradeCount] >= 1 then
                 if oACU[refiUpgradeCount] >= 3 and M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
@@ -1428,12 +1445,12 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization'}
             end
         end
-    else
+        else
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'DamageStabilization', 'Shield'}
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield'}
-            if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then table.insert( oACU[reftPreferredUpgrades], 3, 'FAF_CrysalisBeamAdvanced') end
+            if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then table.insert( oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced') end --get shield before advanced range for survivability
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'StealthGenerator'}
             --FAF balance patch expected 15th July 2023 to introduce nano upgrade for Cybran
@@ -1659,15 +1676,16 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                         end
 
                         --If want MMLs then also increase resource requirements
-                        if M28Conditions.SaveMassForMMLForFirebase(tLZOrWZData, tLZOrWZTeamData, iTeam, M28Conditions.HaveLowMass(aiBrain)) then
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
+                        if M28Conditions.SaveMassForMMLOrMobileT3ArtiForFirebase(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iTeam, M28Conditions.HaveLowMass(aiBrain)) then
                             iResourceFactor = iResourceFactor * 2
                             if M28Conditions.HaveLowPower(aiBrain.M28Team) then iResourceFactor = iResourceFactor * 2 end
                         end
 
-                        --If enemy has dangerous ACU and the upgrade is combat related and is a T1-T2 stage upgrade (e.g. first nano, shield) then decrease resource requirements
-                        if M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade) >= 1 and tEnhancement.BuildCostMass <= 2500 and tEnhancement.BuildCostEnergy <= 125000 then
+                        --If enemy has dangerous ACU and the upgrade is combat related and is a T1-T2 stage upgrade (e.g. first nano, shield) and either we lack T3 land or we are UEF or Cybran, then decrease resource requirements
+                        if M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade) >= 1 and tEnhancement.BuildCostMass <= 2500 and tEnhancement.BuildCostEnergy <= 125000 and (aiBrain[M28Economy.refiOurHighestLandFactoryTech] <= 2 or aiBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF or aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran) then
                             iResourceFactor = iResourceFactor * 0.7
-                        elseif (oACU[refiUpgradeCount] or 0) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 then iResourceFactor = iResourceFactor * 1.3
+                        elseif (oACU[refiUpgradeCount] or 0) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and tEnhancement.BuildCostMass >= 1500 and (oACU[refiUpgradeCount] >= 3 or not(aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon)) then iResourceFactor = iResourceFactor * 1.3
                         elseif (oACU[refiUpgradeCount] or 0) == 0 and GetGameTimeSeconds() >= 600 then iResourceFactor = iResourceFactor * 0.5
                         end
                         if M28Map.bIsCampaignMap and GetGameTimeSeconds() >= 480 then
@@ -1679,7 +1697,6 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                         end
                         if oACU[refbStartedUnderwater] and (tEnhancement.ProductionPerSecondEnergy or 0) > 20 then iResourceFactor = 0.5 end
                         local iDistToEnemyBase
-                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
                         if iPlateauOrZero == 0 then
                             iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestEnemyBase])
                         else
@@ -1687,7 +1704,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                         end
                         if iDistToEnemyBase >= 400 then iResourceFactor = iResourceFactor * 1.5 end
                         if (oACU[refiUpgradeCount] or 0) > 0 then
-                            if (oACU[refiUpgradeCount] or 0) >= 2 and M28Conditions.HaveLowMass(aiBrain) then iResourceFactor = iResourceFactor * 2
+                            if (oACU[refiUpgradeCount] or 0) >= 2 and (oACU[refiUpgradeCount] >= 3 or not(aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon)) and M28Conditions.HaveLowMass(aiBrain) then iResourceFactor = iResourceFactor * 2
                             else iResourceFactor = iResourceFactor * 1.25
                             end
                         end
@@ -5383,7 +5400,7 @@ function GetACUOrder(aiBrain, oACU)
                                                             if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] >= 30 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 16 or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 11 + (oACU[refiUpgradeCount] or 0) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.8))) then
                                                                 --Consider running if enemy is at T3 or has large air to ground threat, or we have built ltos of T3
                                                                 if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat] or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
-                                                                    if not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 then
+                                                                    if not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]) or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 3) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 then
                                                                         if bDebugMessages == true then LOG(sFunctionRef..': Although it is quite dangerous for ACUs we wont flag that it is very dangerous just yet due to full share') end
                                                                     else
                                                                         M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] = true
