@@ -4219,7 +4219,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     end
 
     --If we have nearby enemy groundAA then dont try building anything unless we have lots of mass (or it is a campaign map and early game)
-    if tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] > 0 and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] > iFactoryTechLevel * iFactoryTechLevel * 50 and (bHaveLowMass or bHaveLowPower or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.7) and (GetGameTimeSeconds() >= 5*60 or not(M28Map.bIsCampaignMap)) then
+    if tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] > 0 and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] > iFactoryTechLevel * iFactoryTechLevel * 50 and (bHaveLowMass or bHaveLowPower or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.7) and (GetGameTimeSeconds() >= 300 or not(M28Map.bIsCampaignMap)) then
         --Consider building an engineer
         if bDebugMessages == true then LOG(sFunctionRef..'Nearby enemy groundAA threat so no point building from air fac unless have lots of resources to spare, will consider getting engineers if not low on mass and no enemy combat threat') end
         if not(bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.25 then
