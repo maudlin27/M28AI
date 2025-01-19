@@ -1067,7 +1067,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
     local sFunctionRef = 'GetOverchargeTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if aiBrain:GetArmyIndex() == 5 and GetGameTimeSeconds() >= 10*60 then bDebugMessages = true end
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitWithOvercharge[refbOnlyOverchargeHighValueTargets]='..tostring(oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets]  or false)..'; Brain='..oUnitWithOvercharge:GetAIBrain().Nickname) end
     local oOverchargeTarget
     if not(oUnitWithOvercharge[M28UnitInfo.refbEasyBrain]) then
         --Do we have positive energy income? If not, then only overcharge if ACU is low on health as an emergency
