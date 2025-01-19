@@ -1066,7 +1066,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetOverchargeTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if aiBrain:GetArmyIndex() == 5 and GetGameTimeSeconds() >= 10*60 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
     local oOverchargeTarget
     if not(oUnitWithOvercharge[M28UnitInfo.refbEasyBrain]) then
@@ -1171,7 +1171,8 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
 
                 --if iMostMobileCombatMassDamage >= 80 then
                 --    oOverchargeTarget = oMostCombatMassDamage
-                if iMostMassDamage >= 200 or iKillsExpected >= 3 or (iKillsExpected >= 1 and iMostMassDamage >= 100) or (iMostMassDamage >= 60 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.9 and (aiBrain:GetEconomyStored('ENERGY') >= 10000 or (aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 1 and aiBrain:GetEconomyStored('ENERGY') >= 8000))) then --e.g. striker is 56 mass; lobo is 36
+                if (not(oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets]) and iMostMassDamage >= 200 or iKillsExpected >= 3 or (iKillsExpected >= 1 and iMostMassDamage >= 100) or (iMostMassDamage >= 60 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.9 and (aiBrain:GetEconomyStored('ENERGY') >= 10000 or (aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 1 and aiBrain:GetEconomyStored('ENERGY') >= 8000))))
+                or (oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets] and (iMostMassDamage >= 500 or iKillsExpected >= 6 or (oOverchargeTarget and EntityCategoryContains(M28UnitInfo.refCategoryPD, oOverchargeTarget.UnitId)))) then --e.g. striker is 56 mass; lobo is 36
                     oOverchargeTarget = oMostMassDamage
                     if bDebugMessages == true then LOG(sFunctionRef..': Have a mobile or PD unit in range that will do enough damage to, oOverchargeTarget='..oOverchargeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOverchargeTarget)) end
                 else
@@ -1179,7 +1180,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
                     if GetGameTimeSeconds() - (oUnitWithOvercharge[M28ACU.refiTimeLastWantedToRun] or -30) >= 30 then
                         --No decent combat targets; Check for lots of walls that might be blocking our path (dont reduce ACU range given these are structures)
                         --Only consider overcharging walls if no enemies within our combat range + 3
-                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false and table.getn(tLZData[M28Map.subrefLZPlayerWallSegments]) >= 9 then
+                        if not(oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false and table.getn(tLZData[M28Map.subrefLZPlayerWallSegments]) >= 9 then
                             local tAllEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface, tUnitPosition, math.min(iMaxSearchDistance, iACURange + 3), 'Enemy')
                             if M28Utilities.IsTableEmpty(tAllEnemies) then
                                 tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryWall, tUnitPosition, iACURange, 'Enemy')
@@ -1235,7 +1236,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
                                 end
                             end
                         end
-                        if not(oOverchargeTarget) then
+                        if not(oOverchargeTarget) and not(oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets]) then
                             --Check further away incase enemy has T2 PD that can see us
                             if bDebugMessages == true then LOG(sFunctionRef..': Checking if any T2 PD further away') end
                             tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, tUnitPosition, iMaxSearchDistance, 'Enemy')
@@ -1269,7 +1270,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
                                 end
                             end
                         end
-                        if not(oOverchargeTarget) then
+                        if not(oOverchargeTarget) and not(oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets]) then
                             --Consider all structures (can do ACU max range since before when structures were considered we were looking at reduced range)
                             tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure, tUnitPosition, iACURange, 'Enemy')
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering all enemy structures within range of ACU; is table empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end

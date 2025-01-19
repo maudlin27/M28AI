@@ -47,6 +47,7 @@ refbPlanningToGetShield = 'M28ACUPlanningShield' --nil if haven't considered whe
 refiTimeLastConsideredUpgradePath = 'M28ACUTimUpP' --Gametimeseconds we last considered the upgrade path
 refoShieldRallyTarget = 'M28ACUShR' --Shield unit that ACU is trying to shelter under
 refbWantsPriorityUpgrade = 'M28ACUPrU' --true if want to get upgrade asap (e.g. enemy ACU getting upgrade and we want our own upgrade to defend against it)
+refbOnlyOverchargeHighValueTargets = 'M28ACUOCHV' --true if we only want to overcharge high value targets - e.g. intended for if we are trying to chase down an enemy ACU
 
 --ACU related variables against the ACU's brain
 refoPrimaryACU = 'M28PrimACU' --ACU unit for the brain; recorded against aibrain
@@ -2545,7 +2546,7 @@ function GiveOverchargeOrderIfRelevant(tLZData, tLZTeamData, oACU, iPlateauOrZer
     local sFunctionRef = 'GiveOverchargeOrderIfRelevant'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU:GetAIBrain():GetArmyIndex() == 5 and GetGameTimeSeconds() >= 10*60 then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; DO we have enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; Can we use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
 
@@ -2581,7 +2582,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU:GetAIBrain():GetArmyIndex() == 5 and GetGameTimeSeconds() >= 10*60 then bDebugMessages = true end
 
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
@@ -2919,7 +2920,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                                     end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': iClosestACU='..iClosestACU) end
-                                if true and GetGameTimeSeconds() >= 10*60 and iClosestACU + 2 <= oACU[M28UnitInfo.refiDFRange] and M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) and M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) * 0.95 > M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) then
+                                if true and GetGameTimeSeconds() >= 10*60 + 30 and iClosestACU + 2 <= oACU[M28UnitInfo.refiDFRange] and M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) and M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) * 0.95 > M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) then
                                     local iOurVisualRange = oACU:GetBlueprint().Intel.VisionRadius
                                     if bDebugMessages == true then LOG(sFunctionRef..': iOurVisualRange='..iOurVisualRange..'; iClosestACU='..iClosestACU..'; oClosestACU owner='..oClosestACU:GetAIBrain().Nickname) end
                                     if iClosestACU > iOurVisualRange - 3 then
@@ -2931,6 +2932,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                         if oUnitToMoveTo then
                             if bDebugMessages == true then LOG(sFunctionRef..': will move closer to enemy ACU that we outrange') end
                             M28Orders.IssueTrackedMove(oACU, oUnitToMoveTo:GetPosition(), 5, false, 'ACUMacu', false)
+                            oACU[refbOnlyOverchargeHighValueTargets] = true
                         elseif iEnemyT1ArtiAndDFThreatCloseToOurRange >= 250 then
                             --Attack-move towards enemy due to significant threat
                             if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Will attack-move to enemy target unless have active micro, oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; refbSpecialMicroActive='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
@@ -4630,7 +4632,7 @@ function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if oACU:GetAIBrain():GetArmyIndex() == 5 and GetGameTimeSeconds() >= 10*60 then bDebugMessages = true end
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
     end
@@ -4639,7 +4641,7 @@ function GetACUOrder(aiBrain, oACU)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU.Nickname='..aiBrain.Nickname..'; oACU.M28Active='..tostring(oACU.M28Active or false)..'; Brain type='..aiBrain.BrainType..'; bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy)..'; Special micro active for ACU='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; ACU upgrade count='..(oACU[refiUpgradeCount] or 'nil')..'; Time='..GetGameTimeSeconds()) end
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
-
+    oACU[refbOnlyOverchargeHighValueTargets] = oACU[refbACUSnipeModeActive] --will also set to true if we are trying to run down an enemy ACU
 
     local tLZOrWZData
     local tLZOrWZTeamData
