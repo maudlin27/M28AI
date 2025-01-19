@@ -6027,6 +6027,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             oTargetToManuallyAttack, bMoveNotManualAttack = GetManualAttackTargetIfWantManualAttack(oUnit)
                                                             if bDebugMessages == true then LOG(sFunctionRef..': We cant kite so checking if we want a target to manually attack, oTargetToManuallyAttack='..(oTargetToManuallyAttack.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTargetToManuallyAttack) or 'nil')..'; bMoveNotManualAttack='..tostring(bMoveNotManualAttack)) end
                                                         end
+                                                        --Combat scout specific - use manual attack order if enemy is almost in our range
+                                                        if not(oTargetToManuallyAttack) and oUnit[M28UnitInfo.refbScoutCombatOverride] and M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()) <= oUnit[M28UnitInfo.refiDFRange] + 3 then
+                                                            oTargetToManuallyAttack = oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]
+                                                            bMoveNotManualAttack = false
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': We are still near the nearest enemy unit, and we have a land scout, so will do a manual attack order to reduce risk of going in its range') end
+                                                        end
 
                                                         --Not in range yet, so attack move to the nearest enemy (unless bFiringAtNegligibleThreatInLRExperimentalRange is true)
                                                         if oTargetToManuallyAttack then
