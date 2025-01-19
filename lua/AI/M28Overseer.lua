@@ -554,59 +554,8 @@ function NoRushMonitor()
 end
 
 
-function TestCustom(aiBrain)
-    ScenarioInfo.Options.M28Aggression = '0.2'
-    M28UnitInfo.bCustomThreatFactor = true
-    M28UnitInfo.iThreatFactor = 0.01
-    --[[local tStartLZData = M28Map.tAllPlateaus[64][M28Map.subrefPlateauLandZones][2]
-    local tTargetLZData = M28Map.tAllPlateaus[69][M28Map.subrefPlateauLandZones][4]
-    LOG('TESTCUSTOM dist between LZ midpoints='..M28Utilities.GetDistanceBetweenPositions(tStartLZData[M28Map.subrefMidpoint], tTargetLZData[M28Map.subrefMidpoint]))
-    M28Utilities.DrawPath({ tStartLZData[M28Map.subrefMidpoint], tTargetLZData[M28Map.subrefMidpoint] })
-    M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZData)
-    for iEntry, tSubtable in tStartLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
-        LOG('TESTCUSTOM Zone ' .. tSubtable[M28Map.subrefiLandOrWaterZoneRef] .. ' with Plateau/Pond '..tSubtable[M28Map.subrefiPlateauOrPond]..' is distance ' .. tSubtable[M28Map.subrefiDistance] .. ' away')
-    end--]]
-    --[[local tBasePosition = {600.5,0,617.5}
-    tBasePosition[2] = GetTerrainHeight(tBasePosition[1], tBasePosition[3])
-    local NavUtils = M28Utilities.NavUtils
-    LOG('TestCustom plateau of tBasePosition='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tBasePosition) or 'nil'))
-    local iCurPlateau, tCurPosition
-    for iXAdjust = -20, 20, 1 do
-        for iZAdjust = -20, 20, 1 do
-            tCurPosition = {tBasePosition[1] + iXAdjust, 0, tBasePosition[3] + iZAdjust}
-            tCurPosition[2] = GetTerrainHeight(tCurPosition[1], tCurPosition[3])
-            iCurPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tCurPosition)
-            if not(iCurPlateau) then
-                M28Utilities.DrawLocation(tCurPosition)
-            end
-        end
-    end
-    local iStartPlateau, iStartZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tBasePosition)
-    local tStartLZOrWZData
-    if iStartPlateau and iStartZone then tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartZone] end
-    LOG('TestCustom iStartPlateau='..(iStartPlateau or 'nil')..'; iStartZone='..(iStartZone or 'nil')..'; midpoint of iStartLZOrWZ='..repru(tStartLZOrWZData[M28Map.subrefMidpoint])..'; Is tLZData empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZData)))
-    local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tBasePosition)
-    local tSegmentMidpoint = M28Map.GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
-    local iSegmentPlateau, iSegmentZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tSegmentMidpoint)
-    LOG('TestCustom iSegmentPlateau='..(iSegmentPlateau or 'nil')..'; iSegmentZone='..(iSegmentZone or 'nil'))
-    if iSegmentPlateau and not(iSegmentZone) then
-        M28Map.CreateNewLandZoneAtSegment(iSegmentX, iSegmentZ, iSegmentPlateau)
-    end--]]
-    --M28Map.DrawSpecificWaterZone(7)
+function TestCustom(aiBrain)    
 
-
-    --[[local oHumanBrain
-    for iBrain, oBrain in ArmyBrains do
-        if oBrain.BrainType == 'Human' then
-            oHumanBrain = oBrain
-            break
-        end
-    end
-    local tBase = M28Map.GetPlayerStartPosition(oHumanBrain)
-
-    local oUnit = CreateUnit('ual0204', oHumanBrain:GetArmyIndex(), tBase[1], tBase[2], tBase[3], 0, 0, 0, 0, 'Air')
-
-    M28Orders.IssueTrackedEnhancement(oUnit, 'EnhancedWeapon', false, 'Upgrade')--]]
 
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end
