@@ -2895,7 +2895,43 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                         end
                         M28Orders.IssueTrackedMove(oACU, tRallyPoint, 6, false, 'ACUKit', false)
                     else
-                        if iEnemyT1ArtiAndDFThreatCloseToOurRange >= 250 then
+                        --If near to enemy ACU that we outrange then stay within visual range of it
+                        local oUnitToMoveTo
+                        if M28Utilities.IsTableEmpty(tUnitsToTarget) == false and oACU[M28UnitInfo.refiDFRange] >= 28 then
+                            local iOurACUThreat = M28UnitInfo.GetCombatThreatRating({ oACU })
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to move close to enemy ACU if there is one, iEnemyT1ArtiAndDFThreatCloseToOurRange='..iEnemyT1ArtiAndDFThreatCloseToOurRange..'; iOurACUThreat='..iOurACUThreat) end
+                            if iEnemyT1ArtiAndDFThreatCloseToOurRange < math.max(250 + 250 * oACU[refiUpgradeCount], iOurACUThreat * 0.8) then
+                                local tACUsNearby = EntityCategoryFilterDown(categories.COMMAND, tUnitsToTarget)
+                                local oClosestACU
+                                local iClosestACU = 1000
+                                local bOutrangeAllACUs = true
+                                if M28Utilities.IsTableEmpty(tACUsNearby) == false then
+                                    for iEnemyACU, oEnemyACU in tACUsNearby do
+                                        if oACU[M28UnitInfo.refiDFRange] >= oEnemyACU then
+                                            bOutrangeAllACUs = false
+                                            break
+                                        end
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
+                                        if iCurDist < iClosestACU then
+                                            iClosestACU = iCurDist
+                                            oClosestACU = oEnemyACU
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iClosestACU='..iClosestACU) end
+                                if true and GetGameTimeSeconds() >= 10*60 and iClosestACU + 2 <= oACU[M28UnitInfo.refiDFRange] and M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) and M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) * 0.95 > M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) then
+                                    local iOurVisualRange = oACU:GetBlueprint().Intel.VisionRadius
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iOurVisualRange='..iOurVisualRange..'; iClosestACU='..iClosestACU..'; oClosestACU owner='..oClosestACU:GetAIBrain().Nickname) end
+                                    if iClosestACU > iOurVisualRange - 3 then
+                                        oUnitToMoveTo = oClosestACU
+                                    end
+                                end
+                            end
+                        end
+                        if oUnitToMoveTo then
+                            if bDebugMessages == true then LOG(sFunctionRef..': will move closer to enemy ACU that we outrange') end
+                            M28Orders.IssueTrackedMove(oACU, oUnitToMoveTo:GetPosition(), 5, false, 'ACUMacu', false)
+                        elseif iEnemyT1ArtiAndDFThreatCloseToOurRange >= 250 then
                             --Attack-move towards enemy due to significant threat
                             if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Will attack-move to enemy target unless have active micro, oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; refbSpecialMicroActive='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
                             M28Orders.IssueTrackedAggressiveMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUAtM', false)
