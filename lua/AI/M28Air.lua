@@ -1998,7 +1998,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         if aiBrain.GetUnitsAroundPoint then
                             --Increased range to 85 for v90 from 78 to allow for air units turning around
                             tNearbyEnemyAA = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, tSupportRallyPoint, 85, 'Enemy')
-                            if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyEnemyAA empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemyAA))) if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false then LOG(sFunctionRef..': Mass cost of nearby AA='..M28UnitInfo.GetMassCostOfUnits(tNearbyEnemyAA)..'; M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAA, true, false, true, false, false, false)='..M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAA, true, false, true, false, false, false)..'; iGroundAAThreshold='..iGroundAAThreshold)  end end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyEnemyAA empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemyAA))) if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false then LOG(sFunctionRef..': Mass cost of nearby AA='..M28UnitInfo.GetMassCostOfUnits(tNearbyEnemyAA, true)..'; M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAA, true, false, true, false, false, false)='..M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAA, true, false, true, false, false, false)..'; iGroundAAThreshold='..iGroundAAThreshold)  end end
                             if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false and (not(iGroundAAThreshold) or M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAA, true, false, true, false, false, false) > iGroundAAThreshold) then
                                 for iAA, oAA in tNearbyEnemyAA do
                                     if bDebugMessages == true then LOG(sFunctionRef..': oAA Nearby='..oAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAA)..'; AA range='..oAA[M28UnitInfo.refiAARange]..'; Dist to support rally='..M28Utilities.GetDistanceBetweenPositions(oAA:GetPosition(), tSupportRallyPoint)) end
@@ -3114,7 +3114,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 local iCurAirAAThreat = 0
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
                     if not(oBrain.M28AI) and (oBrain.Human or (not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain)))) then
-                        iCurAirAAThreat = M28UnitInfo.GetMassCostOfUnits(oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3, false, true))
+                        iCurAirAAThreat = M28UnitInfo.GetMassCostOfUnits(oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3, false, true), true)
                         if iCurAirAAThreat > iHumanAirAAToInclude then
                             oHumanToInclude = oBrain
                             iHumanAirAAToInclude = iCurAirAAThreat
@@ -4974,7 +4974,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                 local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
                 local iMassValueOfEnemyUnits = 0
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                    iMassValueOfEnemyUnits = M28UnitInfo.GetMassCostOfUnits(tWZTeamData[M28Map.subrefTEnemyUnits])
+                    iMassValueOfEnemyUnits = M28UnitInfo.GetMassCostOfUnits(tWZTeamData[M28Map.subrefTEnemyUnits], true)
                 end
                 if iMassValueOfEnemyUnits > 0 then
                     if iTorpBomberThreat >= 6000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (iTorpBomberThreat >= 4000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 3) then --Have so many torp bombers that dont want to worry about enemy groundAA threat quite as much
@@ -6532,7 +6532,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 end
                                                 local iCurEnemyZone = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
 
-                                                local iMassValueOfTargets = M28UnitInfo.GetMassCostOfUnits(tNewlyAddedEnemies)
+                                                local iMassValueOfTargets = M28UnitInfo.GetMassCostOfUnits(tNewlyAddedEnemies, true)
                                                 local tCurEnemyZoneData, tCurEnemyTeamData
                                                 if iCurEnemyPlateauOrZero > 0 then
                                                     --Land zone
@@ -6572,7 +6572,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 if iPostFirstTargetCount >= iPostTargetMaxZoneCheck or bDontLookForMoreTargets then
                                                     break
                                                 elseif iPostTargetMaxZoneCheck > 4 then
-                                                    local iMassValueOfTargets = M28UnitInfo.GetMassCostOfUnits(tEnemyGroundOrGunshipTargets)
+                                                    local iMassValueOfTargets = M28UnitInfo.GetMassCostOfUnits(tEnemyGroundOrGunshipTargets, true)
                                                     if iMassValueOfTargets > iLowValueZoneThreshold or ((tCurEnemyTeamData[M28Map.subrefLZSValue] or 0) > 100 and iMassValueOfTargets * 5 > (tCurEnemyTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)) then
                                                         iPostTargetMaxZoneCheck = 4
                                                         iPostTargetMaxDistance = 80

@@ -494,7 +494,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
-        tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetMassCostOfUnits(tStructures)
+        tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetMassCostOfUnits(tStructures, true)
         tLZTeamData[M28Map.subrefThreatEnemyDFStructures] = 0
 
         --Increase structure value for under construction experimentals
@@ -4191,7 +4191,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             iDistToFirebase = M28Utilities.GetDistanceBetweenPositions(oOurNearestUnitToFirebase:GetPosition(), oNearestFirebaseUnit:GetPosition())
                             iClosestFirebaseDist = math.min(iClosestFirebaseDist, iDistToFirebase)
                             if iDistToFirebase <= 140 then
-                                iCurFirebaseThreat = M28UnitInfo.GetMassCostOfUnits(tEnemyT2ArtiAndShields)
+                                iCurFirebaseThreat = M28UnitInfo.GetMassCostOfUnits(tEnemyT2ArtiAndShields, true)
                                 if iCurFirebaseThreat > 0 then
                                     iFirebaseCloseCombatThreat = tFirebaseLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] + math.min(tFirebaseLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 1.5, (tFirebaseLZTeamData[M28Map.subrefThreatEnemyShield] or 0)) --combat total excludes shields and t2 arti
                                     bIsAdjacent = false
@@ -4286,7 +4286,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         local iEnemyT2ArtiThreat = 0
                         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
                             --Treat T2 arti as being worth twice their mass cost since we may be dealing with a fatboy
-                            iEnemyT2ArtiThreat = M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])
+                            iEnemyT2ArtiThreat = M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], true)
                             if bHaveFatboys then iEnemyT2ArtiThreat = iEnemyT2ArtiThreat * 1.25 end
                             if bHaveDamagedFatboys then iEnemyT2ArtiThreat = iEnemyT2ArtiThreat * 1.25 end
                         end
@@ -4416,7 +4416,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             local iNearbyEnemyBuildingValue = 0
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                 local tNearbyEnemyBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefTEnemyUnits])
-                iNearbyEnemyBuildingValue = M28UnitInfo.GetMassCostOfUnits(tNearbyEnemyBuildings)
+                iNearbyEnemyBuildingValue = M28UnitInfo.GetMassCostOfUnits(tNearbyEnemyBuildings, true)
             end
             if iNearbyEnemyBuildingValue >= math.min(2000, iAvailableCombatUnitThreat * 0.2) then
                 bRunFromEnemyAir = false
@@ -4735,7 +4735,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local tAllDangerousCombatNearFatboy = oClosestFatboyToEnemy:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattleship + M28UnitInfo.refCategoryBattlecruiser -M28UnitInfo.refCategoryLandScout, oClosestFatboyToEnemy:GetPosition(), (oClosestFatboyToEnemy[M28UnitInfo.refiDFRange] or 0), 'Enemy')
                     if bDebugMessages == true then LOG(sFunctionRef..': is tAllDangerousCombatNearFatboy empty='..tostring(M28Utilities.IsTableEmpty(tAllDangerousCombatNearFatboy))..'; Fatboy range='..(oClosestFatboyToEnemy[M28UnitInfo.refiDFRange] or 0)) end
                     if M28Utilities.IsTableEmpty(tAllDangerousCombatNearFatboy) == false then
-                        iVisibleDFMassInFatboyRange = M28UnitInfo.GetMassCostOfUnits(tAllDangerousCombatNearFatboy)
+                        iVisibleDFMassInFatboyRange = M28UnitInfo.GetMassCostOfUnits(tAllDangerousCombatNearFatboy, true)
                         local tbAdjacentLZ = {}
                         tUnitsNearFatboyInFurtherAwayZones = {}
                         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -5455,7 +5455,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         end
                                     end
                                     AddUnitFromAdjacentZoneToTableIfCloseEnough(tAdjLZTeamData, tNearbyAdjacentEnemies, iAdjacentDistThreshold, iStructureUnitDistThresholdAdjust, iAngleFromClosestFriendlyUnit)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Cumulative threat of tNearbyAdjacentEnemies after updating for iAdjLZ='..iAdjLZ..'='..M28UnitInfo.GetCombatThreatRating(tNearbyAdjacentEnemies, false)..'; Mass cost='..M28UnitInfo.GetMassCostOfUnits(tNearbyAdjacentEnemies)) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Cumulative threat of tNearbyAdjacentEnemies after updating for iAdjLZ='..iAdjLZ..'='..M28UnitInfo.GetCombatThreatRating(tNearbyAdjacentEnemies, false)..'; Mass cost='..M28UnitInfo.GetMassCostOfUnits(tNearbyAdjacentEnemies, true)) end
                                 end
                             end
 
@@ -10685,9 +10685,9 @@ function GetFarAwayLandThreatOfLongRangeUnits(tStartPoint, iTeam, bMinorZoneAdju
                         if M28Utilities.IsTableEmpty(tEnemyExperimental) == false then
                             if M28Team.tTeamData[iTeam][M28Team.refbTMLBatteryMissedLots] then
                                 --Only reduce threat slightly
-                                iLongRangeFurtherAwayThreat = math.max(2000, iLongRangeFurtherAwayThreat * 0.8, iLongRangeFurtherAwayThreat - M28UnitInfo.GetMassCostOfUnits(tEnemyExperimental))
+                                iLongRangeFurtherAwayThreat = math.max(2000, iLongRangeFurtherAwayThreat * 0.8, iLongRangeFurtherAwayThreat - M28UnitInfo.GetMassCostOfUnits(tEnemyExperimental, true))
                             else
-                                iLongRangeFurtherAwayThreat = math.max(2000, iLongRangeFurtherAwayThreat * 0.5, iLongRangeFurtherAwayThreat - M28UnitInfo.GetMassCostOfUnits(tEnemyExperimental))
+                                iLongRangeFurtherAwayThreat = math.max(2000, iLongRangeFurtherAwayThreat * 0.5, iLongRangeFurtherAwayThreat - M28UnitInfo.GetMassCostOfUnits(tEnemyExperimental, true))
                             end
                         end
                     end

@@ -3558,7 +3558,7 @@ function DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOptionalAlli
                     --More detailed check due to how much better torp launchers are
                     bEnemyHasLongRangeOrHover = true
                 else
-                    local iHoverThreat = M28UnitInfo.GetMassCostOfUnits(tEnemyHover)
+                    local iHoverThreat = M28UnitInfo.GetMassCostOfUnits(tEnemyHover, true)
                     if iHoverThreat > 500 or iHoverThreat * 2 > tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] then
                         bEnemyHasLongRangeOrHover = true
                     end

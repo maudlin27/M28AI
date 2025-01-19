@@ -15,6 +15,10 @@ Tooltips = {
         title = "Time between M28 orders",
         description = "Minimum number of seconds between orders for most units (e.g. makes M28 kiting significantly weaker).  Doesnt affect certain microing",
     },
+    pref_M28Aggression = {
+        title = "Enemy threat factor",
+        description = "Adjusts certain enemy threat calculations by the value specified (a value below 1 means M28 will treat enemy units as being worth less, and so will be more likely to engage with land units (but also less likely to consider nuke targets as worth nuking)",
+    },
     pref_M28CPUPerformance = {
         title = 'M28: Enable performance mode?',
         description = 'If enabled, M28 will use simpler functionality for parts of its logic, making it less challenging but also faster to run',

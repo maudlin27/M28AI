@@ -2947,7 +2947,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             if not(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats) then
                 local tNearbyEnemyLandCombat = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat - categories.TECH1, tLZOrWZData[M28Map.subrefMidpoint], 280, 'Enemy')
                 if M28Utilities.IsTableEmpty(tNearbyEnemyLandCombat) == false then
-                    local iNearbyMassThreat = M28UnitInfo.GetMassCostOfUnits(tNearbyEnemyLandCombat)
+                    local iNearbyMassThreat = M28UnitInfo.GetMassCostOfUnits(tNearbyEnemyLandCombat, true)
                     if bDebugMessages == true then LOG(sFunctionRef..': iNearbyMassThreat='..iNearbyMassThreat) end
                     if iNearbyMassThreat > math.max(5000, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) * 0.2) then
                         bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats = true
@@ -3154,7 +3154,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             if not(bCanPathByLand) or iLandExpIfRelevant >= iCurT3Arti + 1 or ((iCurT3Arti == 0 or iLandExpIfRelevant >= 1) and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] <= math.min(8000, M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] * 0.25)) then
                                 local tEnemyBuildingsInRange = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure, tLZOrWZData[M28Map.subrefMidpoint], 825, 'Enemy')
                                 if M28Utilities.IsTableEmpty(tEnemyBuildingsInRange) == false then
-                                    local iMassOfNearbyEnemies = M28UnitInfo.GetMassCostOfUnits(tEnemyBuildingsInRange)
+                                    local iMassOfNearbyEnemies = M28UnitInfo.GetMassCostOfUnits(tEnemyBuildingsInRange, true)
                                     if bDebugMessages == true then LOG(sFunctionRef..': LOUD priority t3 arti builder: iMassOfNearbyEnemies='..iMassOfNearbyEnemies) end
                                     if iMassOfNearbyEnemies >= 10000 and (iCurT3Arti == 0 or iMassOfNearbyEnemies >= math.min(25000, 10000 + iCurT3Arti * 7500)) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Want to get t3 arti') end
@@ -18638,7 +18638,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
 
                 if iEnemyLongRangeThreat >= 1600 then iThreatWanted = math.max(iThreatWanted, 500) end --Want 1 T2 arti if enemy has significant long rnage threat, even if we have friendly units
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
-                    iThreatWanted = math.max(iThreatWanted, 2 * M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))
+                    iThreatWanted = math.max(iThreatWanted, 2 * M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]), true)
                 end
                 if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then iThreatWanted = iThreatWanted * 0.75 end
                 if aiBrain[M28Overseer.refbPrioritiseDefence] then
@@ -18665,7 +18665,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                         tT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                         if M28Utilities.IsTableEmpty(tT2Arti) == false then
-                            iT2ArtiThreat = M28UnitInfo.GetMassCostOfUnits(tT2Arti) --for reference, combat threat will be 60% of mass cost per getcombatthreatrating
+                            iT2ArtiThreat = M28UnitInfo.GetMassCostOfUnits(tT2Arti, true) --for reference, combat threat will be 60% of mass cost per getcombatthreatrating
                             --If enemy has T2 arti near here, then reduce D2 arti threat by 50% of any Arti that are more than 130 away from the enemy T2 arti
                             local tNearestEnemyArtiPosition
                             if tLZTeamData[M28Map.subrefLZbCoreBase] and (not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and table.getn(tT2Arti) < math.min(10, math.max(4, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 2.5)) then
@@ -18703,7 +18703,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     local bAreBuildingShieldOrTML = false
                     local iTMLBPWanted = 0
                     if tLZTeamData[M28Map.refbGetTMLBattery] and (not(M28Team.tTeamData[iTeam][M28Team.refbTMLBatteryMissedLots]) or iT2ArtiCount >= 6 or (iT2ArtiCount >= 3 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTMLBatteryUnits]) or table.getn(tLZTeamData[M28Map.reftoTMLBatteryUnits]) <= iT2ArtiCount))) then iTMLBPWanted = GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, bHaveLowMass) end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; Threat rating of all nearby enemy T2 arti='..M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; iTMLBPWanted='..(iTMLBPWanted or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; Threat rating of all nearby enemy T2 arti='..M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], true)..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; iTMLBPWanted='..(iTMLBPWanted or 'nil')) end
                     if iT2ArtiThreat > 0 and tLZTeamData[M28Map.refiRadarCoverage] <= math.min(60, M28UnitInfo.iT1RadarSize - 20) then
                         if tLZTeamData[M28Map.subrefLZbCoreBase] then
                             HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
@@ -19080,9 +19080,9 @@ function HighValueReclaimOrder(iTeam, oWreck, tPosition)
                 --Check enemy doesnt still have a large army here (taking into account that the threat values may not have updated yet)
                 local iEnemyDFValue = 0
                 if iPlateauOrZero > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
-                    iEnemyDFValue = M28UnitInfo.GetMassCostOfUnits(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies])
+                    iEnemyDFValue = M28UnitInfo.GetMassCostOfUnits(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], true)
                 elseif iPlateauOrZero == 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
-                    iEnemyDFValue = M28UnitInfo.GetMassCostOfUnits(tLZOrWZTeamData[M28Map.reftoNearestCombatEnemies])
+                    iEnemyDFValue = M28UnitInfo.GetMassCostOfUnits(tLZOrWZTeamData[M28Map.reftoNearestCombatEnemies], true)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iEnemyDFValue='..iEnemyDFValue..'; Ally LZ combat='..(tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)..'; Ally WZ combat='..(tLZOrWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)) end
                 if iEnemyDFValue < 20000 or (tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) >= 10000 or (tLZOrWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0) >= 10000 then

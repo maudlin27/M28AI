@@ -2422,13 +2422,13 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 end
                             end
                             if M28Utilities.IsTableEmpty(tEnemyClosestLandAndNavalThreats) == false then
-                                local iMassValueOfThreats = M28UnitInfo.GetMassCostOfUnits(tEnemyClosestLandAndNavalThreats)
+                                local iMassValueOfThreats = M28UnitInfo.GetMassCostOfUnits(tEnemyClosestLandAndNavalThreats, true)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Mass value of nearby threats='..iMassValueOfThreats) end
                                 if iMassValueOfThreats * 2 > iBestTargetValue and iMassValueOfThreats > 24000 then
                                     --Go through the actual zones and consider targeting units in here, but always checking for SMD even with yolona
                                     for iPlateauOrZero, tSubtable in toClosestEnemyUntisByPlateauAndZone do
                                         for iZone, tUnits in tSubtable do
-                                            if M28UnitInfo.GetMassCostOfUnits(tUnits) >= 24000 then
+                                            if M28UnitInfo.GetMassCostOfUnits(tUnits, true) >= 24000 then
                                                 local iBestValuePreCheck = iBestTargetValue
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Best target value pre check for experimental land untis in P'..iPlateauOrZero..'Z'..iZone..'='..iBestTargetValue) end
                                                 ConsiderTableOfPotentialTargets(tUnits, true, 0.8)
@@ -3239,13 +3239,13 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     --Get more precise calculation - i.e. the threat calculation above reduces threat for health, meaning if we attack say a fatboy, its threat decreases as its shield decreases, making it likely we switch targets when its shield is about to be destroyed; however dont bother with low threat values
                     if iCurMobileThreat >= 1000 then
                         if tPlateauZoneAndDist[1] == 0 then
-                            iCurMobileThreat = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(categories.MOBILE - M28UnitInfo.refCategoryAmphibious - categories.SUBMERSIBLE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]))
+                            iCurMobileThreat = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(categories.MOBILE - M28UnitInfo.refCategoryAmphibious - categories.SUBMERSIBLE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]), true)
                         else
-                            iCurMobileThreat = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]))
+                            iCurMobileThreat = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]), true)
                         end
                     end
                     if tPlateauZoneAndDist[1] == 0 and tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] > 0 then
-                        iCurValue = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])) + iCurMobileThreat * 0.2
+                        iCurValue = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]), true) + iCurMobileThreat * 0.2
                     else
                         iCurValue = tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + iCurMobileThreat * 0.2
                     end
@@ -3267,7 +3267,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     if iCurAAThreat >= 3000 then
                         local tEnemyMobileAA = EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
                         if M28Utilities.IsTableEmpty( tEnemyMobileAA) == false then
-                            iCurValue = iCurValue + iCurAAThreat * 0.2 + M28UnitInfo.GetMassCostOfUnits(tEnemyMobileAA) * 0.8
+                            iCurValue = iCurValue + iCurAAThreat * 0.2 + M28UnitInfo.GetMassCostOfUnits(tEnemyMobileAA, true) * 0.8
                         else
                             iCurValue = iCurValue + iCurAAThreat * 0.2
                         end

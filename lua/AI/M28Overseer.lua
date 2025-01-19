@@ -490,6 +490,10 @@ function M28BrainCreated(aiBrain)
         end
         ForkThread(GlobalOverseer)
         ForkThread(SetM28ActiveFlag)
+        if not(tonumber(ScenarioInfo.Options.M28Aggression or '1.0') == 1) then
+            M28UnitInfo.iThreatFactor = tonumber(ScenarioInfo.Options.M28Aggression or '1.0')
+            M28UnitInfo.bCustomThreatFactor = true
+        end
     end
     LOG('Calling overseer manager via a fork')
     ForkThread(OverseerManager, aiBrain)
@@ -551,6 +555,9 @@ end
 
 
 function TestCustom(aiBrain)
+    ScenarioInfo.Options.M28Aggression = '0.2'
+    M28UnitInfo.bCustomThreatFactor = true
+    M28UnitInfo.iThreatFactor = 0.01
     --[[local tStartLZData = M28Map.tAllPlateaus[64][M28Map.subrefPlateauLandZones][2]
     local tTargetLZData = M28Map.tAllPlateaus[69][M28Map.subrefPlateauLandZones][4]
     LOG('TESTCUSTOM dist between LZ midpoints='..M28Utilities.GetDistanceBetweenPositions(tStartLZData[M28Map.subrefMidpoint], tTargetLZData[M28Map.subrefMidpoint]))
@@ -1087,7 +1094,7 @@ function OverseerManager(aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
-    --ForkThread(TestCustom, aiBrain)
+    ForkThread(TestCustom, aiBrain)
 
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging
