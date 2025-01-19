@@ -2546,7 +2546,7 @@ function GiveOverchargeOrderIfRelevant(tLZData, tLZTeamData, oACU, iPlateauOrZer
     local sFunctionRef = 'GiveOverchargeOrderIfRelevant'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 5 and GetGameTimeSeconds() >= 10*60 then bDebugMessages = true end
+
 
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; DO we have enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; Can we use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
 
@@ -2582,7 +2582,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 5 and GetGameTimeSeconds() >= 10*60 then bDebugMessages = true end
+
 
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
@@ -4640,7 +4640,7 @@ function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oACU:GetAIBrain():GetArmyIndex() == 5 and GetGameTimeSeconds() >= 10*60 then bDebugMessages = true end
+
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
     end

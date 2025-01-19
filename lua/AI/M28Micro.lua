@@ -1066,7 +1066,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetOverchargeTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if aiBrain:GetArmyIndex() == 5 and GetGameTimeSeconds() >= 10*60 then bDebugMessages = true end
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitWithOvercharge[refbOnlyOverchargeHighValueTargets]='..tostring(oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets]  or false)..'; Brain='..oUnitWithOvercharge:GetAIBrain().Nickname) end
     local oOverchargeTarget
     if not(oUnitWithOvercharge[M28UnitInfo.refbEasyBrain]) then

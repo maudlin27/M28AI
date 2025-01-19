@@ -554,7 +554,7 @@ function NoRushMonitor()
 end
 
 
-function TestCustom(aiBrain)    
+function TestCustom(aiBrain)
 
 
     M28Utilities.ErrorHandler('Disable testcustom code for final')
