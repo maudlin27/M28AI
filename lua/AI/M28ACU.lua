@@ -2925,7 +2925,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                                     end
                                 end
                                 --If within 2 of being in range of enemy ACU that we outrange then keep pressing forwards
-                                if true and GetGameTimeSeconds() >= 10*60 + 30 and iClosestACU <= oACU[M28UnitInfo.refiDFRange] + 2 and M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) and M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) * 0.95 > M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) then
+                                if iClosestACU <= oACU[M28UnitInfo.refiDFRange] + 2 and M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) and M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) * 0.95 > M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) then
                                     local iOurVisualRange = oACU:GetBlueprint().Intel.VisionRadius
                                     if bDebugMessages == true then LOG(sFunctionRef..': iOurVisualRange='..iOurVisualRange..'; iClosestACU='..iClosestACU..'; oClosestACU owner='..oClosestACU:GetAIBrain().Nickname) end
                                     if iClosestACU > iOurVisualRange - 3 then

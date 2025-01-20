@@ -4671,9 +4671,7 @@ function ManageBombers(iTeam, iAirSubteam)
                                     local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
                                     local iCurGroundAAThreat
                                     local iMaxModDist --In addition to searchsize which limits by distance, will also avoid attacking enemy base if we lack air control
-                                    if true and GetGameTimeSeconds() <= 25*60 then
-                                        iMaxModDist = 10 --max is probably 1 so this is to be safe
-                                    elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+                                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
                                         iMaxModDist = 10 --max is probably 1 so this is to be safe
                                     elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
                                         if M28Map.iMapSize >= 1024 then
