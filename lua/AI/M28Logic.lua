@@ -417,7 +417,6 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
     local iCurHealth, iMaxHealth, iCurShield, iMaxShield
     local iActualDamage
     local iKillsExpected = 0
-    local iUnitsHit = 0 --E.g. if targeting walls then this means we target the most walls assuming no nearby other units
     if bDebugMessages == true then LOG(sFunctionRef..': About to loop through all enemies in range; iDamage='..iDamage..'; iAOE='..iAOE..'; Base target unit='..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)..'; position='..repru(oTargetUnit:GetPosition())) end
 
     if M28Utilities.IsTableEmpty(tEnemiesInRange) == false then

@@ -191,6 +191,19 @@ AIOpts = {
         },
     },
     {
+        default = 10,
+        label = "M28 enemy threat factor",
+        help = "Use 1.0 if you want a competitive experience - this adjusts M28's calculation of the value/threat of enemy units by the value specified (a value below 1 means M28 will treat enemy units as being worth less, and so will be more likely to engage with land units, but also less likely to consider nuke targets as worth nuking)",
+        key = 'M28Aggression',
+        value_text = "%s",
+        value_help = "Enemy threat factor",
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
+            '0.1', '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9',
+            '1.0', '1.1', '1.2', '1.3', '1.4', '1.5', '1.6', '1.7', '1.8', '1.9',
+            '2.0', '2.5', '3.0', '4.0', '5.0',
+        },
+    },
+    {
         default = 2,
         label = "M28: CPU performance mode?",
         help = 'If enabled, M28 will use simpler functionality for parts of its logic, making it less challenging but also faster to run',

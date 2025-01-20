@@ -13,6 +13,8 @@ local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 --Threat values
 tUnitThreatByIDAndType = {} --Calculated at the start of the game
 tiThreatRefsCalculated = {} --table of the threat ID references that have done blueprint checks on
+bCustomThreatFactor = false --true if ScenarioInfo.Options.M28Aggression is not 1
+iThreatFactor = 1
 
 tbBuildOnLandLayerCaps = {['Land'] = true, ['Air'] = true, ['9'] = true, ['3'] = true, ['11'] = true} --used to translate the result of UnitBlueprint.Physics.BuildOnLayerCaps which doesnt return the table shown in the blueprint but instead returns one of these values (or 'Air' - which is what a czar returns)
 tbBuildOnWaterLayerCaps = {['Water'] = true, ['9'] = true, ['3'] = true, ['11'] = true, ['12'] = true}
@@ -648,7 +650,8 @@ function UpdateUnitCombatMassRatingForUpgrades(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetMassCostOfUnits(tUnits)
+function GetMassCostOfUnits(tUnits, bEnemyUnits)
+    --bEnemyUnits is only of use with iThreatFactor not being 1
     local iMassCost = 0
     if M28Utilities.IsTableEmpty(tUnits) == false then
         for iUnit, oUnit in tUnits do
@@ -657,6 +660,7 @@ function GetMassCostOfUnits(tUnits)
             end
         end
     end
+    if bCustomThreatFactor and bEnemyUnits then iMassCost = iMassCost * iThreatFactor end
     return iMassCost
 end
 
@@ -1071,7 +1075,8 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
 
                 iTotalThreat = iTotalThreat + iCurThreat
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': iTotalThreat='..iTotalThreat) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iTotalThreat='..iTotalThreat..'; iThreatFactor='..iThreatFactor) end
+            if bCustomThreatFactor then iTotalThreat = iTotalThreat * iThreatFactor end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return iTotalThreat
         end
@@ -1448,13 +1453,14 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
         end
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': End of code, iTotalThreat='..iTotalThreat..'; iTotalByTeamThreat='..repru(iTotalByTeamThreat)..'; bRecordByTeam='..tostring(bRecordByTeam or false)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, iTotalThreat='..iTotalThreat..'; iTotalByTeamThreat='..repru(iTotalByTeamThreat)..'; bRecordByTeam='..tostring(bRecordByTeam or false)..'; iThreatFactor='..iThreatFactor) end
         if bRecordByTeam then
             if M28Utilities.IsTableEmpty(iTotalByTeamThreat) == false then
                 local iMaxThreat = 0
                 for iTeam, iThreat in iTotalByTeamThreat do
                     iMaxThreat = math.max(iThreat, iMaxThreat)
                 end
+                if bCustomThreatFactor then iMaxThreat = iMaxThreat * iThreatFactor end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return iMaxThreat
             else
@@ -1462,6 +1468,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                 return 0
             end
         else
+            if bCustomThreatFactor then iTotalThreat = iTotalThreat * iThreatFactor end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return iTotalThreat
         end

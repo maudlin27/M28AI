@@ -6127,7 +6127,6 @@ function RecordWaterZoneAtPosition(tSegmentPosition)
         tiPondByWaterZone[iTotalWaterZoneCount] = iPond
         local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tSegmentPosition)
         AddSegmentToWaterZone(iPond, iTotalWaterZoneCount, iSegmentX, iSegmentZ)
-        LOG('TEMPCODE Created iPond='..iPond..' which contains WaterZone='..iTotalWaterZoneCount)
     end
 end
 

@@ -786,6 +786,137 @@ LobbyGlobalOptions = {
         },
     },--]]
     {
+        default = 9,
+        label = "M28: aggression override",
+        help = "Use 1.0 if you want a competitive experience - this adjusts M28's calculation of the value/threat of enemy units by the value specified (a value below 1 means M28 will treat enemy units as being worth less, and so will be more likely to engage with land units, but also less likely to consider nuke targets as worth nuking)",
+        key = 'M28Aggression',
+        pref = 'pref_M28Aggression',
+        bUseKeyAsValueInScenarioInfo = false, --referenced by M28 in initialisation where it updates scenarioinfo.option values so are being consistent in how variables are stored
+        values = {
+            {
+                text = '0.1',
+                help = 'Enemy threat factor',
+                key = 1,
+            },
+            {
+                text = '0.2',
+                help = 'Enemy threat factor',
+                key = 2,
+            },
+            {
+                text = '0.3',
+                help = 'Enemy threat factor',
+                key = 3,
+            },
+            {
+                text = '0.4',
+                help = 'Enemy threat factor',
+                key = 4,
+            },
+            {
+                text = '0.5',
+                help = 'Enemy threat factor',
+                key = 5,
+            },
+            {
+                text = '0.6',
+                help = 'Enemy threat factor',
+                key = 6,
+            },
+            {
+                text = '0.7',
+                help = 'Enemy threat factor',
+                key = 7,
+            },
+            {
+                text = '0.8',
+                help = 'Enemy threat factor',
+                key = 8,
+            },
+            {
+                text = '0.9',
+                help = 'Enemy threat factor',
+                key = 9,
+            },
+            {
+                text = '1.0',
+                help = 'Enemy threat factor',
+                key = 10,
+            },
+            {
+                text = '1.2',
+                help = 'Enemy threat factor',
+                key = 11,
+            },
+            {
+                text = '1.2',
+                help = 'Enemy threat factor',
+                key = 12,
+            },
+            {
+                text = '1.3',
+                help = 'Enemy threat factor',
+                key = 13,
+            },
+            {
+                text = '1.4',
+                help = 'Enemy threat factor',
+                key = 14,
+            },
+            {
+                text = '1.5',
+                help = 'Enemy threat factor',
+                key = 15,
+            },
+            {
+                text = '1.6',
+                help = 'Enemy threat factor',
+                key = 16,
+            },
+            {
+                text = '1.7',
+                help = 'Enemy threat factor',
+                key = 17,
+            },
+            {
+                text = '1.8',
+                help = 'Enemy threat factor',
+                key = 18,
+            },
+            {
+                text = '1.9',
+                help = 'Enemy threat factor',
+                key = 19,
+            },
+            {
+                text = '2.0',
+                help = 'Enemy threat factor',
+                key = 20,
+            },
+            {
+                text = '2.5',
+                help = 'Enemy threat factor',
+                key = 21,
+            },
+            {
+                text = '3',
+                help = 'Enemy threat factor',
+                key = 22,
+            },
+            {
+                text = '4',
+                help = 'Enemy threat factor',
+                key = 23,
+            },
+            {
+                text = '5',
+                help = 'Enemy threat factor',
+                key = 24,
+            },
+
+        },
+    },
+    {
         default = 1,
         label = "M28: Time between orders",
         help = "Minimum number of seconds between orders for most units (e.g. makes M28 kiting significantly weaker).  Doesnt affect certain microing",
@@ -795,77 +926,77 @@ LobbyGlobalOptions = {
         values = {
             {
                 text = '1.0',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 1,
             },
             {
                 text = '1.1',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 2,
             },
             {
                 text = '1.2',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 3,
             },
             {
                 text = '1.3',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 4,
             },
             {
                 text = '1.4',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 5,
             },
             {
                 text = '1.5',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 6,
             },
             {
                 text = '2.0',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 7,
             },
             {
                 text = '3.0',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 8,
             },
             {
                 text = '4.0',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 9,
             },
             {
                 text = '5.0',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 10,
             },
             {
                 text = '6.0',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 11,
             },
             {
                 text = '7.0',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 12,
             },
             {
                 text = '8.0',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 13,
             },
             {
                 text = '9.0',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 14,
             },
             {
                 text = '10.0',
-                help = 'Seconds between orders',
+                 help = 'Seconds between orders',
                 key = 15,
             },
         },

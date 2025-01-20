@@ -4559,7 +4559,7 @@ function GetEnemyMainCampaignBase(iTeam)
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                         local tBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefTEnemyUnits])
                         if M28Utilities.IsTableEmpty(tBuildings) == false then
-                            iCurSValue = M28UnitInfo.GetMassCostOfUnits(tBuildings)
+                            iCurSValue = M28UnitInfo.GetMassCostOfUnits(tBuildings, true)
                             if iCurSValue > iBestSValue then
                                 iBestSValue = iCurSValue
                                 tBestValueMidpoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}

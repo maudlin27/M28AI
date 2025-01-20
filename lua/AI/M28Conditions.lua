@@ -1973,6 +1973,7 @@ end
 
 function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
     --Will return the combat threat of any approaching enemy ACUs and the position of the nearest ACU (usfficiently in range); also updates the time of hte appraoching threat
+        --For safe zones will consider if there is a friendly zone between us and the approaching ACU
     local sFunctionRef = 'GetThreatOfApproachingEnemyACUsAndNearestACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1988,16 +1989,74 @@ function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPla
         local iNearestACUDist = 100000
         local oNearestACU
         local iCurDist
+
+        function DoWePathThroughOtherCoreBaseFirst(oACU)
+            if not(oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau) then
+                if bDebugMessages == true then LOG(sFunctionRef..': enemy ACU is in a different plateau') end
+                --Ignore ACU as not in same plateau
+                return true
+            elseif oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone then
+                --ACU is already in this zone
+                if bDebugMessages == true then LOG(sFunctionRef..': enemy ACU is in the same land zone') end
+                return false
+            elseif not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oACU:GetPosition()) == tLZData[M28Map.subrefLZIslandRef]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': enemy ACU is in a different island') end
+                return true
+            else
+                local iACULandZone = oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                if not(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iACULandZone]) then
+                    M28Map.ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iLandZone, iACULandZone, tLZData[M28Map.subrefMidpoint])
+                end
+                if not(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iACULandZone]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': iACULandZOne='..iACULandZone..'; dont have any land pathing from there to this zone, to be safe will assume ACU can reach us') end
+                    --To be safe will assume ACU is a threat
+                    return false
+                else
+                    local iPathingRef = tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iACULandZone]
+                    if not(tLZData[M28Map.subrefLZPathingToOtherLandZones][iPathingRef]) then
+                        --To be safe will assume ACU is a threat
+                        M28Utilities.ErrorHandler('Likely error - we have a pathing ref but no data')
+                        if bDebugMessages == true then LOG(sFunctionRef..': iACULandZOne='..iACULandZone..'; We have a reference but no actual pathing from there to this zone, to be safe will assume ACU can reach us, iPathingRef='..iPathingRef..'; tLZData[M28Map.subrefLZPathingToOtherLandZones]='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones])) end
+                        return false
+                    else
+                        for _, iLandZoneRef in tLZData[M28Map.subrefLZPathingToOtherLandZones][iPathingRef][M28Map.subrefLZPath] do
+                            if not(iLandZoneRef == iLandZone) then
+                                local tPathingLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][iTeam]
+                                if bDebugMessages == true then LOG(sFunctionRef..': enemy ACU owned by '..oACU:GetAIBrain().Nickname..' would be pathing through iLandZoneRef='..iLandZoneRef..' to get to us at iLandZone='..iLandZone..'; is this a core base='..tostring(tPathingLZTeamData[M28Map.subrefLZbCoreBase])) end
+                                if tPathingLZTeamData[M28Map.subrefLZbCoreBase] then
+                                    return true
+                                elseif M28Utilities.IsTableEmpty(tPathingLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+                                    local iThreatInZone = 0
+                                    for iRange, iThreat in tPathingLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                                        if iRange > oACU[M28UnitInfo.refiDFRange] then
+                                            iThreatInZone = iThreatInZone + iThreat
+                                        end
+                                    end
+                                    if iThreatInZone >= 2000 then
+                                        return true
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                --tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZRef]][M28Map.subrefLZPath][1]
+            end
+        end
+
         for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
             if M28UnitInfo.IsUnitValid(oACU) then
                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tMidpoint)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..'; iCurDist Distance to midpoint='..iCurDist..'; iDistanceThreshold='..iDistanceThreshold) end
                 if iCurDist <= iDistanceThreshold then
-                    table.insert(tACUsInRange, oACU)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU as an in range enemy unit') end
-                    if iCurDist < iNearestACUDist then
-                        iNearestACUDist = iCurDist
-                        oNearestACU = oACU
+                    --Consider whether we pass through another core base first
+                    if iCurDist <= 90 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (iCurDist <= 120 and not(tLZTeamData[M28Map.refbBaseInSafePosition])) or not(DoWePathThroughOtherCoreBaseFirst(oACU)) then
+                        table.insert(tACUsInRange, oACU)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU as an in range enemy unit') end
+                        if iCurDist < iNearestACUDist then
+                            iNearestACUDist = iCurDist
+                            oNearestACU = oACU
+                        end
                     end
                 end
             end
@@ -3558,7 +3617,7 @@ function DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOptionalAlli
                     --More detailed check due to how much better torp launchers are
                     bEnemyHasLongRangeOrHover = true
                 else
-                    local iHoverThreat = M28UnitInfo.GetMassCostOfUnits(tEnemyHover)
+                    local iHoverThreat = M28UnitInfo.GetMassCostOfUnits(tEnemyHover, true)
                     if iHoverThreat > 500 or iHoverThreat * 2 > tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] then
                         bEnemyHasLongRangeOrHover = true
                     end

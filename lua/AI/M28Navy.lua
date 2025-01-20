@@ -494,7 +494,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefWZThreatEnemySurface] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits],   true,       false,              false,                      false,      true,           false)
         --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
         tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false, false)
-        tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tWZTeamData[M28Map.subrefTEnemyUnits]))
+        tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tWZTeamData[M28Map.subrefTEnemyUnits]), true)
         tWZTeamData[M28Map.subreftEnemyLongRangeUnits] = {}
         local iTorpDefenceCount = 0
         local iLRThreshold = iLongRangeThreshold
@@ -4448,7 +4448,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         --If our indirect threat of our MAA units is significant, and exceeds the enemy T2 arti, then want to consider attacking
         if tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 200 then
             local iOurIndirectThreat = M28UnitInfo.GetCombatThreatRating(tAvailableMAA, false, false, true, false, false, false, false)
-            local iEnemyT2ArtiCost = M28UnitInfo.GetMassCostOfUnits(tEnemyT2Arti)
+            local iEnemyT2ArtiCost = M28UnitInfo.GetMassCostOfUnits(tEnemyT2Arti, true)
             if iOurIndirectThreat > 1.5 * iEnemyT2ArtiCost then
                 --Check the mass value of our units that have below 130 range (but more than 50) is at least as much as the t2 arti value - i.e. risk is we have lots of cruiers and 1 shorter range unit and we suicide shorter range unit
                 local iOurMediumRangeIndirectMassValue = 0
@@ -5666,7 +5666,7 @@ function RefreshRaidingNavalLocations(iFactoryWaterZone, iTeam)
                                     if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                         tZoneStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tCurLZTeamData[M28Map.subrefTEnemyUnits])
                                         if M28Utilities.IsTableEmpty(tZoneStructures) == false then
-                                            iZoneEnemyStructureMassValue = M28UnitInfo.GetMassCostOfUnits(tZoneStructures)
+                                            iZoneEnemyStructureMassValue = M28UnitInfo.GetMassCostOfUnits(tZoneStructures, true)
                                             local tMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tZoneStructures)
                                             if M28Utilities.IsTableEmpty(tMexes) == false then
                                                 iZoneEnemyStructureMassValue = iZoneEnemyStructureMassValue + 300 * table.getn(tMexes)
