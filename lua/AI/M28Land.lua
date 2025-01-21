@@ -4478,23 +4478,30 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         end
     end
     local oNearestEnemyToFriendlyBase
+    local bConsiderAttackingACU = false
+    local toEnemyACUsNearZone --will set this later on
     function GetManualAttackTargetIfWantManualAttack(oUnit, oOptionalPrimaryTarget)
         if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - start of code') end
         --Returns the unit, and returns true if should move towards it instead of a manual attack order (will want to move towards it if we are in range of a dangerous unit but we cant attack it yet)
         local oManualAttackTarget
         local bMoveTowardsTarget = false
-        if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering if want oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to pick a target for a manual attack, unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Is table of nearby enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; Can we see nearest enemy to midpoint='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyToFriendlyBase))..'; Dist to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition())..'; Is unit shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; refiTimeOfLastUnblockedShot='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering if want oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to pick a target for a manual attack, unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Is table of nearby enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; Can we see nearest enemy to midpoint='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyToFriendlyBase))..'; Dist to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition())..'; Is unit shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; refiTimeOfLastUnblockedShot='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')..'; bConsiderAttackingACU='..tostring(bConsiderAttackingACU)) end
 
         --Monkeylord, GC and Ythotha - prioritise enemy ACUs that we are clsoe to being in range of, unless the ACU is very powerful
         if (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] <= 64 and (oUnit[M28UnitInfo.refiDFRange] <= 50 or oUnit.UnitId == 'url0402') then --IF CHANGING HERE THEN CHANGE BELOW AS WELL
             if not(oClosestFatboyOrACUInIslandToSuicideInto) and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
                 --Consider suiciding into enemy ACU with experimentals only
-                local iClosestACU = oUnit[M28UnitInfo.refiDFRange] + 14
+                local iClosestACU
+                if bConsiderAttackingACU and M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false then iClosestACU = oUnit[M28UnitInfo.refiDFRange] + math.min(30, math.max(20, oUnit[M28UnitInfo.refiDFRange]))
+                else iClosestACU = oUnit[M28UnitInfo.refiDFRange] + 14
+                end
                 local iCurDist
                 local oClosestACUNearUnit
+
                 for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
                     if M28UnitInfo.IsUnitValid(oACU) then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist to ACU owned by '..oACU:GetAIBrain().Nickname..'='..iCurDist) end
                         if iCurDist < iClosestACU and not(M28UnitInfo.IsUnitUnderwater(oACU)) and not(oACU:IsUnitState('Attached')) then
                             --Check this isnt a deadly ACU (i.e. 10k+ of mass upgrades)
                             if (oACU[M28UnitInfo.refiDFMassThreatOverride] or 0) < 10000 and not(oACU[M28UnitInfo.refbUnitIsCloaked]) then
@@ -4509,6 +4516,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                 end
                 if oClosestACUNearUnit then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will launch micro logic to suicide into enemy ACU') end
                     --Suicide into this ACU as special micro logic (so dont get given new orders)
                     ForkThread(M28Micro.SuicideExperimentalIntoEnemyACU, oUnit, oClosestACUNearUnit)
                     return oClosestACUNearUnit, true
@@ -4813,8 +4821,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearest enemy to midpoint, bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits)..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))) end
 
-            local bConsiderAttackingACU = false
-            local toEnemyACUsNearZone = EntityCategoryFilterDown(categories.COMMAND, tLZTeamData[M28Map.reftoNearestDFEnemies])
+            toEnemyACUsNearZone = EntityCategoryFilterDown(categories.COMMAND, tLZTeamData[M28Map.reftoNearestDFEnemies])
             local oNearestEnemyStructureToMidpoint
             local iClosestDist = 100000
             local iClosestStructureDist = 100000
