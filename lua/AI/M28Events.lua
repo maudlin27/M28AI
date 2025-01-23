@@ -1873,7 +1873,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                 local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
                                 if iPlateau > 0 and iLandZone > 0 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will consider cancelling other queued engineer construction if there is any; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
-                                    M28Engineer.GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, false, nil, nil, true)
+                                    M28Engineer.GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, false, nil, nil, true, nil, oConstruction:GetAIBrain().M28AirSubteam)
                                 end
                             end
                         end
