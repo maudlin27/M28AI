@@ -41,6 +41,7 @@ reftUnitsCoveredByThisTMD = 'M28BuildUnitsCoveredByTMD' --Against TMD, table of 
 reftTMDCoveringThisUnit = 'M28BuildTMDCoveringUnit' --against unit, table of TMD providing TML coverage to it
 refiLastDetailedTMDProtectionCount = 'M28BuildLstTMDPrC' --Records how many TMD are covering a unit from a specific TML - i.e. intended as part of TML battery logic, so only refresh this if the number isnt too high
 refbUnitWantsMoreTMD = 'M28BuildUnitWantsTMD' --true if a unit wants more TMD
+refiMinTMDWantedForUnit = 'M28BuildTMDMin' --number of TMD we want regardless of if there is a TML in range (i.e. preemptive TMD for a unit)
 refbNoNearbyTMDBuildLocations = 'M28BuiltUnitHasNoNearbyTMDBuildLocations' --true if we buitl a TMD to cover this unit and the TMD ended up too far away
 refbMissileRecentlyBuilt = 'M28BuildMissileBuiltRecently' --true if unit has recently built a missile
 refbMissileChecker = 'M28BuildMissileChecker' --true if active missile builder checker for the unit
@@ -636,6 +637,17 @@ function TMDJustBuilt(oTMD)
         end
     end
 
+    --Also record TMD as covering any units in their range (allows for coverage to be recorded for preemptive TMD)
+    local tNearbyAlliedUnits = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTMD:GetPosition(), oTMD[M28UnitInfo.refiMissileDefenceRange] - 1, 'Ally')
+    if M28Utilities.IsTableEmpty(tNearbyAlliedUnits) == false then
+        for iUnit, oUnit in tNearbyAlliedUnits do
+            if oUnit:GetAIBrain().M28AI then
+                RecordThatTMDProtectsUnitFromTML(oTMD, oUnit)
+            end
+        end
+    end
+
+
     --Reevaluate all units in the zone flagged as wanting TMD, due to issue where in some cases the unit would be recorded against the LZ despite loads of TMD covering it
     if M28Utilities.IsTableEmpty(tTMDZoneTeamData[M28Map.reftUnitsWantingTMD]) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': Will update tTMDZoneTeamData[M28Map.reftUnitsWantingTMD], iTMDTeam='..iTMDTeam) end
@@ -758,6 +770,7 @@ function RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordThatTMDProtectsUnitFromTML'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --If oTML is nil and oTMD is in range of oUnit then will record the TMD against the unit
 
     --TMD can block the TML
     local bAlreadyRecordedTMD = false
@@ -775,7 +788,7 @@ function RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
     end
 
 
-    if M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]) == false then
+    if oTML and M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]) == false then
         for iExistingUnit, oExistingUnit in oTML[reftUnprotectedUnitTargetsForThisTML] do
             if oExistingUnit == oUnit then
                 if bDebugMessages == true then LOG(sFunctionRef..': This unit was previously recorded as an unprotected target, will remove') end
@@ -1094,6 +1107,7 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueTo
     --Cycles through each unit in tUnits and if it has less TMD covering it than TML in range, makes sure it is reecorded in its land zone as one of the units wanting TMD
     --If it has sufficient TMD coverage, then instead makes sure it isnt recorded in its land zone as one of the units wanting TMD
     --Relies on otherfunctions for accurately recording TML in range of it and TMD giving coverage
+    --bCalledDueToTMLOrTMDEvent - if true, then will recheck if we want more TMD/how many we have in range even if we have recently checked for this
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordIfUnitsWantTMDCoverageAgainstLandZone'
@@ -1120,7 +1134,7 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueTo
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considierng unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMDInRange='..iTMDInRange..'; TML in range='..table.getn((oUnit[reftTMLInRangeOfThisUnit] or {}))..'; oUnit[refbUnitWantsMoreTMD]='..tostring(oUnit[refbUnitWantsMoreTMD] or false)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considierng unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMDInRange='..iTMDInRange..'; TML in range='..table.getn((oUnit[reftTMLInRangeOfThisUnit] or {}))..'; oUnit[refbUnitWantsMoreTMD]='..tostring(oUnit[refbUnitWantsMoreTMD] or false)..'; Is oUnit[reftTMDCoveringThisUnit] empty='..tostring(M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]))) end
             local iTMLValueInRangeOfUnit = 0
             if M28Utilities.IsTableEmpty(oUnit[reftTMLInRangeOfThisUnit]) == false then
                 for iRecordedTML, oRecordedTML in oUnit[reftTMLInRangeOfThisUnit] do
@@ -1146,8 +1160,8 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueTo
                     end
                 end
             end
-
-            if iTMDInRange < iTMLValueInRangeOfUnit and not(oUnit[refbNoNearbyTMDBuildLocations]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want more TMD for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMDInRange='..iTMDInRange..'; iTMLValueInRangeOfUnit='..iTMLValueInRangeOfUnit..'; oUnit[refiMinTMDWantedForUnit]='..(oUnit[refiMinTMDWantedForUnit] or 'nil'))  end
+            if ((iTMDInRange < iTMLValueInRangeOfUnit) or (oUnit[refiMinTMDWantedForUnit] and iTMDInRange < oUnit[refiMinTMDWantedForUnit])) and not(oUnit[refbNoNearbyTMDBuildLocations]) then
                 if not(oUnit[refbUnitWantsMoreTMD]) then --redundancy (i.e. will ahve already called below if unit is already flagged as wanting more TMD)
                     iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
                     if bDebugMessages == true then LOG(sFunctionRef..': Want TMD for this unit, iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitLandZone='..(iUnitLandZone or 'nil')) end
@@ -5496,4 +5510,41 @@ function GetTargetsWithoutTMDCoverageBasedOnZoneMidpoint(tTMLLZTeamData, tTarget
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return tTMLLZTeamData[M28Map.refiDetailedTMLTargetWithoutTMDCheckByPlateauAndZone][iTargetPlateauOrZero][iTargetZone]
+end
+
+function ConsiderGettingPreemptiveTMD(oPD)
+    --Called where we finish construction of T2 PD - check how many T2 PD we have in the zone, and flag all T2 PD to have TMD preemptively
+    if M28UnitInfo.IsUnitValid(oPD) then
+        local iTeam = oPD:GetAIBrain().M28Team
+        --If enemy has T3 land then dont bother
+        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 then
+            local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oPD:GetPosition(), true, iTeam)
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                local tFriendlyT2PD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if M28Utilities.IsTableEmpty(tFriendlyT2PD) == false then
+                    local iT2PDInZone = 1
+                    for iUnit, oUnit in tFriendlyT2PD do
+                        if not(oUnit.Dead) and not(oUnit == oPD) then
+                            iT2PDInZone = iT2PDInZone + 1
+                        end
+                    end
+                    if iT2PDInZone >= 3 then
+                        local iTMDWanted = math.min(3, iT2PDInZone - 2)
+                        local toPDUpdated = {}
+                        oPD[refiMinTMDWantedForUnit] = iTMDWanted --redundancy in case for some reason we havent yet recorded against the LZTeamData
+                        table.insert(toPDUpdated, oPD)
+                        for iUnit, oUnit in tFriendlyT2PD do
+                            if not(oUnit.Dead) and not(oUnit == oPD) then
+                                if (oUnit[refiMinTMDWantedForUnit] or 0) < iTMDWanted then
+                                    oUnit[refiMinTMDWantedForUnit] = iTMDWanted
+                                    table.insert(toPDUpdated, oUnit)
+                                end
+                            end
+                        end
+                        RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, toPDUpdated, true)
+                    end
+                end
+            end
+        end
+    end
 end

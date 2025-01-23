@@ -2368,6 +2368,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     end
                                 end
                             end
+                        --T2 PD - get TMD preemptively if built a number
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH2, oJustBuilt.UnitId) then
+                            ForkThread(M28Building.ConsiderGettingPreemptiveTMD, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower, oJustBuilt.UnitId) then --In LOUD t2 pgen upgrades to t3 are as efficient as t3 pgens
                             local sUpgrade = oJustBuilt:GetBlueprint().General.UpgradesTo
                             if sUpgrade and not(sUpgrade == '') then
@@ -2422,10 +2425,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 end
                             end
                         end
-                        if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
-                            ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                            if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
+                        ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
                         end
-                        --Clear engineers that just built this
+                            --Clear engineers that just built this
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryIndirect * categories.TECH1, oJustBuilt.UnitId) then
                         --Check if we have transports wanting combat drops
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
