@@ -1430,7 +1430,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     iBaseThreat = iBaseThreat * 0.5
                                 else
                                     --e.g. friendly soulripper
-                                    iBaseThreat = iBaseThreat * 0.75
+                                    iBaseThreat = iBaseThreat * 0.65
                                 end
                             end
                             iCurThreat = iBaseThreat * iHealthThreatFactor + iGhettoGunshipAdjust
