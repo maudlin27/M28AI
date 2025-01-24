@@ -2399,7 +2399,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
         --MAA if we are building a land experimental, lack air control, and enemy has a large air to ground threat
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if not(bDontConsiderBuildingMAA) and iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000 and not(M28Conditions.TeamHasAirControl(iTeam)) and M28Engineer.GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, false, 0, M28UnitInfo.refCategoryLandExperimental, false, nil) then
+        if not(bDontConsiderBuildingMAA) and iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000 and not(M28Conditions.TeamHasAirControl(iTeam)) and M28Engineer.GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, false, 0, M28UnitInfo.refCategoryLandExperimental, false, nil, aiBrain.M28AirSubteam) then
             if bDebugMessages == true then LOG(sFunctionRef..': Will get MAA as we are building a ground exp, enemy has signif air to ground threat, and we lack air control') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA) then return sBPIDToBuild end
         end

@@ -932,7 +932,7 @@ function OnShieldBubbleDamaged(self, instigator)
                         oUnitCausingDamage = instigator
                     end
                 end
-                oUnitCausingDamage[M28UnitInfo.refiTimeOfLastUnblockedShot] = GetGameTimeSeconds()
+                if oUnitCausingDamage and not(oUnitCausingDamage.Dead) then oUnitCausingDamage[M28UnitInfo.refiTimeOfLastUnblockedShot] = GetGameTimeSeconds() end
                 if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oShield.UnitId) then
                     if EntityCategoryContains(M28UnitInfo.refCategoryMML, instigator.UnitId) then
                         local iShieldPlateau, iShieldLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oShield:GetPosition())
@@ -1873,7 +1873,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                 local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
                                 if iPlateau > 0 and iLandZone > 0 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will consider cancelling other queued engineer construction if there is any; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
-                                    M28Engineer.GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, false, nil, nil, true)
+                                    M28Engineer.GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, false, nil, nil, true, nil, oConstruction:GetAIBrain().M28AirSubteam)
                                 end
                             end
                         end
@@ -2368,6 +2368,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     end
                                 end
                             end
+                        --T2 PD - get TMD preemptively if built a number
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH2, oJustBuilt.UnitId) then
+                            ForkThread(M28Building.ConsiderGettingPreemptiveTMD, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower, oJustBuilt.UnitId) then --In LOUD t2 pgen upgrades to t3 are as efficient as t3 pgens
                             local sUpgrade = oJustBuilt:GetBlueprint().General.UpgradesTo
                             if sUpgrade and not(sUpgrade == '') then
@@ -2422,10 +2425,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 end
                             end
                         end
-                        if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
-                            ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                            if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
+                        ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
                         end
-                        --Clear engineers that just built this
+                            --Clear engineers that just built this
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryIndirect * categories.TECH1, oJustBuilt.UnitId) then
                         --Check if we have transports wanting combat drops
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
