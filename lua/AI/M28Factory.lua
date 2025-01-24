@@ -1163,6 +1163,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         return iEngisInZone
     end
 
+    
+
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' at plateau '..(iPlateau or 'nil')..' and zone '..(iLandZone or 'nil')..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground MAA threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; Prioritise sniperbots='..tostring(M28Conditions.PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, EntityCategoryContains(categories.AEON + categories.SERAPHIM, oFactory.UnitId))))
     end
@@ -1557,7 +1559,18 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Want engineers or t1 arti as have transport waiting for them, bTransportWaitingForEngi='..tostring(bTransportWaitingForEngi or false)..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 'nil')) end
         if bTransportWaitingForEngi then
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+            --If have enemies in an adjacent zone then only have half our factories building engineers
+            if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                local iEngisUnderConstruction = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryEngineer, false)
+                local iLandFactoriesInZone = M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryLandFactory)
+                if bDebugMessages == true then LOG(sFunctionRef..': iLandFactoriesInZone='..iLandFactoriesInZone..'; iEngisUnderConstruction='..iEngisUnderConstruction) end
+                if iLandFactoriesInZone == 1 or iEngisUnderConstruction < iLandFactoriesInZone * 0.5 then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                end
+            else
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+            end
+
         else
             --Avoid overbuilding t1 arti too much - will allow slight overbuild though to cover the risk of t1 arti being killed for unrelated reason and delaying the transport too much
             if iCombatUnitsWanted > 0 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoCombatUnitsLoadingOntoTransport]) or table.getn(tLZTeamData[M28Map.reftoCombatUnitsLoadingOntoTransport]) <= iCombatUnitsWanted) then
