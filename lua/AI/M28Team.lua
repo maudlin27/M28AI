@@ -4875,7 +4875,7 @@ function SnipeOverseer(iTeam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if GetGameTimeSeconds() >= 19*60 then bDebugMessages = true end
+
         --Decide if want to stop monitoring
         if M28Utilities.IsTableEmpty(tTeamData[iTeam][toActiveSnipeTargets]) then
             if tTeamData[iTeam][refiEnemyAirAAThreat] >= 10000 and (tTeamData[iTeam][refiEnemyAirToGroundThreat] >= 10000 or not(M28Conditions.TeamHasAirControl(iTeam))) and tTeamData[iTeam][refiConstructedExperimentalCount] > 0 and GetGameTimeSeconds() >= 1200 and (GetGameTimeSeconds() >= 1800 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryBomber - categories.TECH1 - categories.TECH2) >= 10) then
