@@ -1294,13 +1294,21 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         end
     elseif aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.7 and (M28Map.iMapSize >= 1024 or aiBrain[M28Economy.refiBrainResourceMultiplier] >= 4.0) then
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'Shield'}
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
+                oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'Shield', 'T3Engineering', 'ResourceAllocation'}
+            else
+                oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'Shield'}
+            end
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation'}
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization', 'DamageStabilizationAdvanced'}
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
+                oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'DamageStabilization', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilizationAdvanced'}
+            else
+                oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization', 'DamageStabilizationAdvanced'}
+            end
         end
     elseif oACU[refbStartedUnderwater] then
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
@@ -1342,7 +1350,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                         oACU[refbPlanningToGetShield] = true
                     end
                     --Also get shield if a good chance we will use ACU in combat for a while
-                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgradeOrShield(oACU) then
+                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgradeOrShield(oACU) or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
                         oACU[reftPreferredUpgrades] = {'Shield', 'ResourceAllocation'}
                     else
                         oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'Shield'}
@@ -1353,13 +1361,21 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 if M28Map.iMapSize >= 1024 or (M28Map.iMapSize >= 768 and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 4) then bWantNanoNotT2 = false end
                 if bWantNanoNotT2 then
                     if oACU[refiUpgradeCount] >= 1 then
-                        oACU[reftPreferredUpgrades] = {'DamageStabilization', 'ResourceAllocation', 'Shield'}
+                        if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
+                            oACU[reftPreferredUpgrades] = {'DamageStabilization', 'Shield', 'ResourceAllocation'}
+                        else
+                            oACU[reftPreferredUpgrades] = {'DamageStabilization', 'ResourceAllocation', 'Shield'}
+                        end
                     else
                         oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'DamageStabilization'}
                     end
                 else
                     if oACU[refiUpgradeCount] >= 1 then
-                        oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'Shield'}
+                        if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
+                            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'Shield', 'ResourceAllocation'}
+                        else
+                            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'Shield'}
+                        end
                     else
                         oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'AdvancedEngineering'}
                     end
@@ -1436,7 +1452,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                     elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
                         oACU[refbPlanningToGetShield] = true
                     end
-                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgradeOrShield(oACU) then
+                    if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgradeOrShield(oACU) or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
                         oACU[reftPreferredUpgrades] = {'DamageStabilization', 'ResourceAllocation', 'DamageStabilizationAdvanced', 'ResourceAllocationAdvanced'}
                     else
                         oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization'}
@@ -1446,7 +1462,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization'}
             end
         end
-        else
+    else
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'DamageStabilization', 'Shield'}
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then

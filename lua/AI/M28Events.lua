@@ -870,6 +870,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
 
             if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
         end
+        --if not(oUnit.Dead) and oUnit.SetAutoOvercharge and oUnit:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active) then oUnit:SetAutoOvercharge(false) end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end

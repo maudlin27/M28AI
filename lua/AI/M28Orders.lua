@@ -902,6 +902,7 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
                     end
                 end
             end
+            --if oUnit.SetAutoOvercharge and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then oUnit:SetAutoOvercharge(true) end -After testing, although this owrked, the ACU wouldnt fire overcharge shots hwne upgrading for some reason
             if sEnhancementOverride then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade with sEnhancementOverride='..sEnhancementOverride) end
                 if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
