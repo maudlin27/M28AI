@@ -4486,6 +4486,7 @@ function ManageBombers(iTeam, iAirSubteam)
             if bDebugMessages == true then LOG(sFunctionRef..': oClosestSnipeTarget='..(oClosestSnipeTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestSnipeTarget) or 'nil')) end
             if oClosestSnipeTarget then
                 ForkThread(PlanBomberSnipe, tAvailableBombers,  oClosestSnipeTarget, iTeam)
+                tAvailableBombers = nil
             end
         end
         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
@@ -11178,9 +11179,10 @@ function PlanBomberSnipe(tAvailableBombers, oSnipeTarget, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'PlanBomberSnipe'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if GetGameTimeSeconds() >= 17*60 then bDebugMessages = true end
     if bDebugMessages == true then
         if M28UnitInfo.IsUnitValid(oSnipeTarget) then
-            LOG(sFunctionRef..': Start of code, oSnipeTarget='..(oSnipeTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget) or 'nil')..'; iTeam='..iTeam..'; Owner of snipe target='..oSnipeTarget:GetAIBrain().Nickname)
+            LOG(sFunctionRef..': Start of code, oSnipeTarget='..(oSnipeTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget) or 'nil')..'; iTeam='..iTeam..'; Owner of snipe target='..oSnipeTarget:GetAIBrain().Nickname..'; Is tAvailableBombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers)))
         end
     end
     if M28UnitInfo.IsUnitValid(oSnipeTarget) and (oSnipeTarget[M28UnitInfo.refiRecentBomberSnipeAttempts] or 0) == 0 then --redundancy since call vai fork thread
@@ -11195,6 +11197,7 @@ function PlanBomberSnipe(tAvailableBombers, oSnipeTarget, iTeam)
             end
             oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] = {}
             for iBomber, oBomber in tAvailableBombers do
+                if bDebugMessages == true then LOG(sFunctionRef..': will add bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' to table of bombers planning snipe if it is still valid, is it valid='..tostring(M28UnitInfo.IsUnitValid(oBomber))) end
                 if M28UnitInfo.IsUnitValid(oBomber) then table.insert(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe], oBomber) end
             end
             --Plan the snipe attempt
@@ -11208,6 +11211,7 @@ function PlanBomberSnipe(tAvailableBombers, oSnipeTarget, iTeam)
             if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, is table of bombers planning to snipe this unit valid='..tostring(M28Conditions.IsTableOfUnitsStillValid(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]))..'; iAbortCurHealthThreshold='..iAbortCurHealthThreshold..'; Cur health='..M28UnitInfo.GetUnitCurHealthAndShield(oSnipeTarget)..'; oSnipeTarget='..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..' owned by '..oSnipeTarget:GetAIBrain().Nickname) end
             local bAbortAndClearBomberMicroFlag
             while M28Conditions.IsTableOfUnitsStillValid(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]) do
+                if GetGameTimeSeconds() >= 17*60 then bDebugMessages = true end
                 if not(M28UnitInfo.IsUnitValid(oSnipeTarget)) then
                     bAbortAndClearBomberMicroFlag = true
                 else
