@@ -4486,6 +4486,7 @@ function ManageBombers(iTeam, iAirSubteam)
             if bDebugMessages == true then LOG(sFunctionRef..': oClosestSnipeTarget='..(oClosestSnipeTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestSnipeTarget) or 'nil')) end
             if oClosestSnipeTarget then
                 ForkThread(PlanBomberSnipe, tAvailableBombers,  oClosestSnipeTarget, iTeam)
+                tAvailableBombers = nil
             end
         end
         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
@@ -5918,6 +5919,7 @@ function ManageGunships(iTeam, iAirSubteam)
             end
         end
         local iZonesWithPotentialTargetsCount = 0
+        local bHaveEnemyInCoreBase = false
         function AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck, bDetailedAACheckOverride)
             --Campaign specific-  check this is within the playable area first
             tNewlyAddedEnemies = {}
@@ -6044,6 +6046,7 @@ function ManageGunships(iTeam, iAirSubteam)
                         --Add enemy air units in the plateau/land zone to list of enemy unit targets
                         if bDebugMessages == true then LOG(sFunctionRef..': We want to target this zone if it has enemy units in it, Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of enemy air units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]))) end
                         if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                            if not(bHaveEnemyInCoreBase) then bHaveEnemyInCoreBase = tLZOrWZTeamData[M28Map.subrefLZbCoreBase] end
                             local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
                             local bReplaceOnFirstValidUnit = bOnlyIncludeIfMexToProtect
 
@@ -6304,7 +6307,31 @@ function ManageGunships(iTeam, iAirSubteam)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if have appraoching land experimental, oNearestExperimental='..(oNearestExperimental.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestExperimental) or 'nil')..'; iClosestDist='..iClosestDist..'; Is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets))) end
             end
-            if M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets) then
+            local bConsiderEnemiesInGunshipZone = M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets)
+            if not(bConsiderEnemiesInGunshipZone) and iOurGunshipThreat >= 5000 and not(bHaveEnemyInCoreBase) and M28Utilities.GetDistanceBetweenPositions(tEnemyGroundOrGunshipTargets[1]:GetPosition(), oFrontGunship:GetPosition()) >= 200 and iEnemyGroundAAThreatByGunship < 0.2 * iOurGunshipThreat and iEnemyAirAAThreatNearGunship < 0.05 * iOurGunshipThreat and (tGunshipLandOrWaterZoneTeamData[M28Map.subrefThreatEnemyShield] or 0) < math.min(iOurGunshipThreat * 0.5, 7500) and M28Utilities.IsTableEmpty(tGunshipLandOrWaterZoneTeamData[M28Map.subrefTEnemyUnits]) == false then
+                --Want to avoid the scenario where we are about ot kill a high value unit or enemy base, but we decide to run across to the other side of the map because a couple of tanks got adjacent to a core base
+                if (tGunshipLandOrWaterZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) - (tGunshipLandOrWaterZoneTeamData[M28Map.subrefThreatEnemyShield] or 0) * 4 >= 6000 then
+                    bConsiderEnemiesInGunshipZone = true
+                else
+                    local tEnemiesOfSignificanceInZone = EntityCategoryFilterDown(categories.COMMAND + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryExperimentalLevel, tGunshipLandOrWaterZoneTeamData[M28Map.subrefTEnemyUnits])
+                    if M28Utilities.IsTableEmpty( tEnemiesOfSignificanceInZone) == false then
+                        --Check enemy health low enough we can kill it relatively fast
+                        local iCurHealthAndShield
+                        for iUnit, oUnit in tEnemiesOfSignificanceInZone do
+                            if not(oUnit.Dead) then
+                                iCurHealthAndShield = M28UnitInfo.GetUnitCurHealthAndShield(oUnit)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit of interest in gunship zone, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurHealthAndShield='..iCurHealthAndShield..'; Unit health%='..M28UnitInfo.GetUnitHealthAndShieldPercent(oUnit)) end
+                                if iCurHealthAndShield <= 16000 and (iCurHealthAndShield < iOurGunshipThreat or M28UnitInfo.GetUnitHealthAndShieldPercent(oUnit) <= 0.6) then
+                                    bConsiderEnemiesInGunshipZone = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true and M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets) == false then LOG(sFunctionRef..': We have targets but want to consider still attacking nearby enemies first; bConsiderEnemiesInGunshipZone='..tostring(bConsiderEnemiesInGunshipZone)..'; Dist to first enemy in table of enemies='..M28Utilities.GetDistanceBetweenPositions(tEnemyGroundOrGunshipTargets[1]:GetPosition(), oFrontGunship:GetPosition())..'; bHaveEnemyInCoreBase='..tostring(bHaveEnemyInCoreBase)..'; iEnemyGroundAAThreatByGunship='..iEnemyGroundAAThreatByGunship..'; iEnemyAirAAThreatNearGunship='..iEnemyAirAAThreatNearGunship..'; Is table of enemy units in gunship zone empty='..tostring(M28Utilities.IsTableEmpty(tGunshipLandOrWaterZoneTeamData[M28Map.subrefTEnemyUnits]))..'; Enemy structure mass in zone='..(tGunshipLandOrWaterZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')..'; Enemy shield threat='..(tGunshipLandOrWaterZoneTeamData[M28Map.subrefThreatEnemyShield] or 'nil')) end
+            if bConsiderEnemiesInGunshipZone then
                 --Protect ACU if down to last ACU on the team and ACU may be in trouble
                 if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
                     local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
@@ -11152,9 +11179,10 @@ function PlanBomberSnipe(tAvailableBombers, oSnipeTarget, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'PlanBomberSnipe'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then
         if M28UnitInfo.IsUnitValid(oSnipeTarget) then
-            LOG(sFunctionRef..': Start of code, oSnipeTarget='..(oSnipeTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget) or 'nil')..'; iTeam='..iTeam..'; Owner of snipe target='..oSnipeTarget:GetAIBrain().Nickname)
+            LOG(sFunctionRef..': Start of code, oSnipeTarget='..(oSnipeTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget) or 'nil')..'; iTeam='..iTeam..'; Owner of snipe target='..oSnipeTarget:GetAIBrain().Nickname..'; Is tAvailableBombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers)))
         end
     end
     if M28UnitInfo.IsUnitValid(oSnipeTarget) and (oSnipeTarget[M28UnitInfo.refiRecentBomberSnipeAttempts] or 0) == 0 then --redundancy since call vai fork thread
@@ -11169,6 +11197,7 @@ function PlanBomberSnipe(tAvailableBombers, oSnipeTarget, iTeam)
             end
             oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] = {}
             for iBomber, oBomber in tAvailableBombers do
+                if bDebugMessages == true then LOG(sFunctionRef..': will add bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' to table of bombers planning snipe if it is still valid, is it valid='..tostring(M28UnitInfo.IsUnitValid(oBomber))) end
                 if M28UnitInfo.IsUnitValid(oBomber) then table.insert(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe], oBomber) end
             end
             --Plan the snipe attempt

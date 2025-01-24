@@ -1229,10 +1229,11 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                             end
                                         end
                                     end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': AirAA bCanShootAir='..tostring(bCanShootAir or false)..'; MuzzleSalvoSize='..(tWeapon.MuzzleSalvoSize or 'nil')..'; MuzzleSalvoDelay='..(tWeapon.MuzzleSalvoDelay or 'nil')..'; Damage='..(tWeapon.Damage or 'nil')) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether weapon '..tWeapon.DisplayName..' can shot air; bCanShotAir='..tostring(bCanShootAir or false)..'; MuzzleSalvoSize='..(tWeapon.MuzzleSalvoSize or 'nil')..'; MuzzleSalvoDelay='..(tWeapon.MuzzleSalvoDelay or 'nil')..'; Damage='..(tWeapon.Damage or 'nil')) end
                                     if bCanShootAir then
                                         iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
-                                        iCurDPS = math.min(tWeapon.Damage, 6000) * ((tWeapon.ProjectilesPerOnFire or 1) + (tWeapon.MuzzleSalvoSize or 1)) / (tWeapon.RateOfFire or 1) --Note: if muzzlesalvosize * muzzlesalvodelay doesnt conclude before the normal weapon rate of fire, then the weapon wont fire as often; for simplicity have assumed this isnt the case
+                                        --.RateOfFire is essentially 'how many times on average does this unit fire per second', e.g. duke is 10/100 (so it fires 0.1 times, or once every 10s), mantis is 10/3, so it fires 3.33 times per second
+                                        iCurDPS = math.min(tWeapon.Damage, 6000) * ((tWeapon.ProjectilesPerOnFire or 1) + (tWeapon.MuzzleSalvoSize or 1)) * (tWeapon.RateOfFire or 1) --Note: if muzzlesalvosize * muzzlesalvodelay doesnt conclude before the normal weapon rate of fire, then the weapon wont fire as often; for simplicity have assumed this isnt the case
                                         iAADPS = iAADPS + iCurDPS
                                         if bDebugMessages == true then LOG(sFunctionRef..': iCurDPS for this weapon='..iCurDPS) end
                                     end
@@ -1292,7 +1293,8 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                 if bDebugMessages == true then LOG(sFunctionRef..': GroundAA bCanShootAir='..tostring(bCanShootAir or false)..'; MuzzleSalvoSize='..(tWeapon.MuzzleSalvoSize or 'nil')..'; MuzzleSalvoDelay='..(tWeapon.MuzzleSalvoDelay or 'nil')..'; Damage='..(tWeapon.Damage or 'nil')) end
                                 if bCanShootAir then
                                     iBestAirAAAOE = math.max(iBestAirAAAOE, (tWeapon.DamageRadius or 0))
-                                    iCurDPS = math.min(tWeapon.Damage, 6000) * ((tWeapon.ProjectilesPerOnFire or 1) + (tWeapon.MuzzleSalvoSize or 1)) / (tWeapon.RateOfFire or 1) --Note: if muzzlesalvosize * muzzlesalvodelay doesnt conclude before the normal weapon rate of fire, then the weapon wont fire as often; for simplicity have assumed this isnt the case
+                                    --.RateOfFire is essentially 'how many times on average does this unit fire per second', e.g. duke is 10/100 (so it fires 0.1 times, or once every 10s), mantis is 10/3, so it fires 3.33 times per second
+                                    iCurDPS = math.min(tWeapon.Damage, 6000) * ((tWeapon.ProjectilesPerOnFire or 1) + (tWeapon.MuzzleSalvoSize or 1)) * (tWeapon.RateOfFire or 1) --Note: if muzzlesalvosize * muzzlesalvodelay doesnt conclude before the normal weapon rate of fire, then the weapon wont fire as often; for simplicity have assumed this isnt the case
                                     iAADPS = iAADPS + iCurDPS
                                 end
                             end

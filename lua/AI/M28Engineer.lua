@@ -8452,6 +8452,7 @@ function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderEmergencyPDReassignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oEngiGivenPDOrder='..(oEngiGivenPDOrder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngiGivenPDOrder) or 'nil')) end
     if M28UnitInfo.IsUnitValid(oEngiGivenPDOrder) then
         --Add to table if not already there
@@ -18477,6 +18478,8 @@ function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
         local tPDToSurround = oPDToSurround:GetPosition()
         --Get first location around the PD that is available for building, if any
         local aiBrain = oEngineer:GetAIBrain()
+        local tiDistToEnemyBaseByXAndZ --used to decide which 3 wall segments not to build
+        local tbDontBuildByXAndZ --true if we dont want to build these segments due to being in opposite direction to enemy
         for iXAdjust = -1, 1, 1 do
             for iZAdjust = -1, 1, 1 do
                 if not(iXAdjust == 0 and iZAdjust == 0) then
@@ -18487,8 +18490,69 @@ function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
                     if (iPlateau or 0) > 0 and (iLandZone or 0) > 0 then
                         --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation)
                         if CanBuildAtLocation(aiBrain, sWallBP,         tTargetLocation,     iPlateau,                  iLandZone, nil, false, true, false, true, false) then
-                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            return tTargetLocation
+                            --Do we want to drop 3 of the wall segments to save mass?
+                            if not(tiDistToEnemyBaseByXAndZ) then
+                                local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
+                                local oClosestDFEnemy
+                                local iClosestDFEnemy = 1000
+                                local iCurDist
+                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                    for iEnemy, oEnemy in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                                        if not(oEnemy.Dead) then
+                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), tPDToSurround)
+                                            if iCurDist < iClosestDFEnemy then
+                                                iClosestDFEnemy = iCurDist
+                                                oClosestDFEnemy = oEnemy
+                                            end
+                                        end
+                                    end
+                                end
+                                local iAngleToEnemyBase = M28Utilities.GetAngleFromAToB(tPDToSurround, tLZTeamData[M28Map.reftClosestEnemyBase])
+                                if not(oClosestDFEnemy) or M28Utilities.GetAngleDifference(iAngleToEnemyBase, M28Utilities.GetAngleFromAToB(tPDToSurround, oClosestDFEnemy:GetPosition())) <= 55 then
+                                    --Get the 3 points furthest from the enemy base (in an ideal would work figure out the maths to calculate this , but easier to use this method since wont get t1 pd that often)
+                                    tiDistToEnemyBaseByXAndZ = {}
+                                    local iFurthest1 = 0
+                                    local iFurthest2 = 0
+                                    local iFurthest3 = 0
+                                    tbDontBuildByXAndZ = {}
+                                    for i2XAdjust = -1, 1, 1 do
+                                        tiDistToEnemyBaseByXAndZ[i2XAdjust] = {}
+                                        for i2ZAdjust = -1, 1, 1 do
+                                            local tLocation = {tPDToSurround[1] + i2XAdjust, tPDToSurround[2], tPDToSurround[3] + i2ZAdjust}
+                                            tiDistToEnemyBaseByXAndZ[i2XAdjust][i2ZAdjust] = M28Utilities.GetDistanceBetweenPositions(tLocation, tLZTeamData[M28Map.reftClosestEnemyBase])
+                                            if tiDistToEnemyBaseByXAndZ[i2XAdjust][i2ZAdjust] > iFurthest3 then
+                                                if tiDistToEnemyBaseByXAndZ[i2XAdjust][i2ZAdjust] > iFurthest2 then
+                                                    if tiDistToEnemyBaseByXAndZ[i2XAdjust][i2ZAdjust] > iFurthest1 then
+                                                        iFurthest3 = iFurthest2
+                                                        iFurthest2 = iFurthest1
+                                                        iFurthest1 = tiDistToEnemyBaseByXAndZ[i2XAdjust][i2ZAdjust]
+                                                    else
+                                                        iFurthest3 = iFurthest2
+                                                        iFurthest2 = tiDistToEnemyBaseByXAndZ[i2XAdjust][i2ZAdjust]
+                                                    end
+                                                else
+                                                    iFurthest3 = tiDistToEnemyBaseByXAndZ[i2XAdjust][i2ZAdjust]
+                                                end
+                                            end
+                                        end
+                                    end
+                                    --Now we have worked out the 3 furthest distances, ignore any positions that are too far
+                                    tbDontBuildByXAndZ = {}
+                                    for i2XAdjust, tSubtable in tiDistToEnemyBaseByXAndZ do
+                                        tbDontBuildByXAndZ[i2XAdjust] = {}
+                                        for i2ZAdjust, iDist in tSubtable do
+                                            if iDist >= iFurthest3 then
+                                                tbDontBuildByXAndZ[i2XAdjust][i2ZAdjust] = true
+                                            end
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': oPDToSurround is at position='..repru(oPDToSurround:GetPosition())..'; iFurthest3='..iFurthest3..'; tbDontBuildByXAndZ='..repru(tbDontBuildByXAndZ)..'; tiDistToEnemyBaseByXAndZ='..repru(tiDistToEnemyBaseByXAndZ)) end
+                                end
+                            end
+                            if not(tbDontBuildByXAndZ[iXAdjust][iZAdjust]) then
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return tTargetLocation
+                            end
                         end
                     --sometimes an area might appear to be on a cliff but could still fit a wall piece
                     elseif aiBrain:CanBuildStructureAt(sWallBP, tTargetLocation) then
