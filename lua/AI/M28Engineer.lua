@@ -9658,8 +9658,8 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
                 --Dont get SMD if enemy has no nukes but has nearby T2 arti
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
                     iSMDWanted = 0
-                    --Dont get pre-emptive SMD if in LOUD (where they cost a lot more) unless we have built a lot of high level units first
-                elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 1.5 and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (bHaveLowMass or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) < 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                    --Dont get pre-emptive SMD if in LOUD (where they cost a lot more) unless we have built a lot of high level units first or the game has been going on ages
+                elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and GetGameTimeSeconds() <= 4500 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= math.min(4, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 1.5) and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (bHaveLowMass or M28Conditions.GetTeamLifetimeBuildCount(iTeam, (M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.TECH3) < 50 * math.max(1, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.5)) then
                     iSMDWanted = 0
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to be slower to get preemptive SMD in LOUD/QUIET due to how much nukes cost') end
                 end
