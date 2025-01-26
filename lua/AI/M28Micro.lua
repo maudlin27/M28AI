@@ -476,7 +476,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDodgingShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if not(ScenarioInfo.Options.M28DodgeMicro == 2) then
+    if not(ScenarioInfo.Options.M28DodgeMicro == 2) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId)) then
         local oWeaponBP = oWeapon.Blueprint or oWeapon.bp
         if bDebugMessages == true then
             LOG(sFunctionRef..': Just fired, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit combat range='..(oUnit[M28UnitInfo.refiCombatRange] or 'nil')..'; oWeaponBP.RangeCategory='..(oWeaponBP.RangeCategory or 'nil'))
