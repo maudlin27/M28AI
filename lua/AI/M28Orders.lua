@@ -282,11 +282,11 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
                 table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
                 if not(bChangedViaNavigator) then
                     IssueMove({oUnit}, tOrderPosition)
-                    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url011119' and GetGameTimeSeconds() >= 14*60 then
-                        LOG('TEMPCODE Just sent issuemove order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; bChangedViaNavigator='..tostring(bChangedViaNavigator))
-                        M28Utilities.ErrorHandler('Audit trail', true, true)
-                    end
                 end
+                --[[if oUnit.UnitId == 'xra0105' and GetGameTimeSeconds() >= 360 then
+                    LOG('TEMPCODE Just sent issuemove order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; bChangedViaNavigator='..tostring(bChangedViaNavigator))
+                    M28Utilities.DrawLocation(tOrderPosition)
+                end--]]
             else
                 --We cant move here because weh ave active micro and dont want to override it
                 oUnit[reftMoveDestinationIgnoredDueToMicro] = tOrderPosition
@@ -417,10 +417,6 @@ function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc, bOver
                 table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = iOrderType, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
                 oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
                 if bMoveNotAttackMove then
-                    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url011119' and GetGameTimeSeconds() >= 14*60 then
-                        LOG('TEMPCODE Just sent issuemove2 order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; bChangedViaNavigator='..tostring(bChangedViaNavigator))
-                        M28Utilities.ErrorHandler('Audit trail', true, true)
-                    end
                     IssueMove({oUnit}, tOrderPosition)
                 else
                     IssueAggressiveMove({oUnit}, tOrderPosition)
@@ -432,10 +428,6 @@ function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc, bOver
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = iOrderType, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
             oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
             if bMoveNotAttackMove then
-                if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url011119' and GetGameTimeSeconds() >= 14*60 then
-                    LOG('TEMPCODE Just sent issuemove3 order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; bChangedViaNavigator='..tostring(bChangedViaNavigator))
-                    M28Utilities.ErrorHandler('Audit trail', true, true)
-                end
                 IssueMove({oUnit}, tOrderPosition)
             else
                 IssueAggressiveMove({oUnit}, tOrderPosition)
@@ -580,10 +572,6 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
             if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
             oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = {tMoveTarget[1], tMoveTarget[2], tMoveTarget[3]}})
-            if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url011119' and GetGameTimeSeconds() >= 14*60 then
-                LOG('TEMPCODE Just sent issuemove4 order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; bChangedViaNavigator='..tostring(bChangedViaNavigator))
-                M28Utilities.ErrorHandler('Audit trail', true, true)
-            end
             IssueMove({oUnit}, tMoveTarget)
 
             oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
@@ -1075,10 +1063,6 @@ function IssueTrackedRefuel(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
                 oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
                 local tOrderPosition = oOrderTarget:GetPosition()
                 table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
-                if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url011119' and GetGameTimeSeconds() >= 14*60 then
-                    LOG('TEMPCODE Just sent issuemove5 order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; bChangedViaNavigator='..tostring(bChangedViaNavigator))
-                    M28Utilities.ErrorHandler('Audit trail', true, true)
-                end
                 IssueMove({oUnit}, tOrderPosition)
             end
 
