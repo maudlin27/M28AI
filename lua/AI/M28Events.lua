@@ -1185,7 +1185,6 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and (projectile or bIgnoreProjectileCheck or GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastDodgeBombEvent] or 0) >= 2) then
-            if oUnit:GetAIBrain().M28AI then bDebugMessages = true end
             oUnit[M28UnitInfo.refiLastBombFired] = GetGameTimeSeconds()
             local sUnitID = oUnit.UnitId
 
