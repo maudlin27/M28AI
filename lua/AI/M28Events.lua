@@ -3005,8 +3005,12 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             if oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() > 1 or oUnit:GetWorkProgress() >= 0.8 then
                                 oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 240 - M28Building.iTimeForSMDToBeConstructed
                             end
+                            --Wall segments created at start of game in large numbers - i.e. for scenario where large parts of map are walled off
+                        elseif GetGameTimeSeconds() <= 10 and EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) and M28UnitInfo.GetUnitLifetimeCount(oUnit) >= 8 then
+                            M28Land.TrackWallSegment(oUnit, true)
                         end
                     end
+
 
 
 
