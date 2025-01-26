@@ -815,6 +815,10 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     oUnit[M28ACU.refiBuildTech] = 2
                 elseif sEnhancement == 'T3Engineering' then
                     oUnit[M28ACU.refiBuildTech] = 3
+                elseif  sEnhancement == 'StealthGenerator' or sEnhancement == 'FAF_SelfRepairSystem' or sEnhancement == 'CloakingGenerator' then
+                    if oUnit[M28Land.refoAssignedMobileStealth] then
+                        oUnit[M28Land.refoAssignedMobileStealth][M28Land.refoMobileStealthTarget] = nil
+                    end
                 end
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                     --Consider being more aggressive with ACU again (mainly relevant for team games)
@@ -1172,15 +1176,15 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
     end
 end
 
-function OnBombFired(oWeapon, projectile)
+function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
+    --bIgnoreProjectileCheck - if true, then will run the main part of the logic even if have fired a bomb recently and have no projectile specified (i.e. intended use is with the redundancy for onweaponfired which calls this logic)
     if M28Utilities.bM28AIInGame then
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnBombFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
         local oUnit = oWeapon.unit
-        if oUnit and oUnit.GetUnitId then
+        if oUnit and oUnit.GetUnitId and (projectile or bIgnoreProjectileCheck or GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastDodgeBombEvent] or 0) >= 2) then
             oUnit[M28UnitInfo.refiLastBombFired] = GetGameTimeSeconds()
             local sUnitID = oUnit.UnitId
 
@@ -1237,7 +1241,7 @@ function OnBombFired(oWeapon, projectile)
                                                 end
                                             end
                                         end
-                                    --elseif GetGameTimeSeconds() >= 60 and (not(M28Map.bIsCampaignMap) or tonumber(ScenarioInfo.Options.CmpAIDelay) < GetGameTimeSeconds() + 1) then
+                                        --elseif GetGameTimeSeconds() >= 60 and (not(M28Map.bIsCampaignMap) or tonumber(ScenarioInfo.Options.CmpAIDelay) < GetGameTimeSeconds() + 1) then
                                         --M28Utilities.ErrorHandler('No valid air rally point, AI delay='..tonumber(ScenarioInfo.Options.CmpAIDelay))
                                     end
                                 end
@@ -1276,7 +1280,6 @@ function OnWeaponFired(oWeapon)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnWeaponFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
         if not(M28Map.bWaterZoneInitialCreation) then
             while GetGameTimeSeconds() < 5 do
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1288,7 +1291,7 @@ function OnWeaponFired(oWeapon)
 
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; reprs='..reprs(oWeapon)..'; Time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; reprs='..reprs(oWeapon)..'; oWeapon.Label='..(oWeapon.Label or 'nil')..'; oWeapon.Blueprint.Label='..(oWeapon.Blueprint.Label or 'nil')..'; oWeapon.bp.Label='..(oWeapon.bp.Label or 'nil')..'; Time='..GetGameTimeSeconds()) end
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain and M28UnitInfo.IsUnitValid(oUnit) then
 
@@ -1297,8 +1300,8 @@ function OnWeaponFired(oWeapon)
             if oParentBrain.M28AI then
                 if EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
                     --Micro torp bombers if this is the last shot and torp only has 1 rack
-                    if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs(oWeapon.Blueprint)..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; oWeapon.Blueprint.RackSalvoSize='..oWeapon.Blueprint.RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..(oWeapon.Blueprint.MuzzleSalvoSize or 0)) end
-                    if (oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or oWeapon.bp.RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or oWeapon.bp.MuzzleSalvoSize or 0) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs((oWeapon.Blueprint or oWeapon.bp))..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; (oWeapon.Blueprint or oWeapon.bp).RackSalvoSize='..(oWeapon.Blueprint or oWeapon.bp).RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0)) end
+                    if (oWeapon.CurrentRackSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0) then
                         if not(oUnit[M28UnitInfo.refbEasyBrain]) then
                             ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
                         end
@@ -1307,8 +1310,8 @@ function OnWeaponFired(oWeapon)
                     ForkThread(M28Building.ConsiderManualT2ArtiTarget, oUnit, oWeapon)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
                     --Micro asfs and inties to hover-fire at slower targets
-                    if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs(oWeapon.Blueprint)..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; oWeapon.Blueprint.RackSalvoSize='..oWeapon.Blueprint.RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..(oWeapon.Blueprint.MuzzleSalvoSize or 0)) end
-                    if (oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or oWeapon.bp.RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or oWeapon.bp.MuzzleSalvoSize or 0) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs((oWeapon.Blueprint or oWeapon.bp))..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; (oWeapon.Blueprint or oWeapon.bp).RackSalvoSize='..(oWeapon.Blueprint or oWeapon.bp).RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0)) end
+                    if (oWeapon.CurrentRackSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0) then
                         if not(oUnit[M28UnitInfo.refbEasyBrain]) then
                             ForkThread(M28Micro.ConsiderAirAAHoverAttackTowardsTarget, oUnit, oWeapon)
                         end
@@ -1334,8 +1337,8 @@ function OnWeaponFired(oWeapon)
                 end
 
                 --Consider dodging
-                if bDebugMessages == true then LOG(sFunctionRef..': About to consider dodging logic and recording non-M28 nuke target locations, weapon.DamageType='..(oWeapon.DamageType or 'nil')..'; oWeapon.Blueprint.DamageType='..(oWeapon.Blueprint.DamageType or 'nil')..'; Weapon label='..(oWeapon.Label or 'nil')..'; reprs of oWeapon='..reprs(oWeapon)) end
-                if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and (oWeapon.Label == 'GroundMissile') then
+                if bDebugMessages == true then LOG(sFunctionRef..': About to consider dodging logic and recording non-M28 nuke target locations, weapon.DamageType='..(oWeapon.DamageType or 'nil')..'; (oWeapon.Blueprint or oWeapon.bp).DamageType='..((oWeapon.Blueprint or oWeapon.bp).DamageType or 'nil')..'; Weapon label='..(oWeapon.Label or 'nil')..'; reprs of oWeapon='..reprs(oWeapon)) end
+                if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and ((oWeapon.Label or oWeapon.Blueprint.Label or oWeapon.bp.Label) == 'GroundMissile') then
                     --Corsairs dont trigger the onbombfired event normally hence why we have this
                     if bDebugMessages == true then
                         LOG(sFunctionRef..': Weapon fired by corsair, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
@@ -1345,7 +1348,7 @@ function OnWeaponFired(oWeapon)
                         ForkThread(M28Micro.DodgeBomb, oUnit, oWeapon, nil)
                     end
                 else
-                    if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) and (oWeapon.Blueprint.DamageType or oWeapon.bp.DamageType) == 'Nuke' then
+                    if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) and (oWeapon.Blueprint or oWeapon.bp).DamageType == 'Nuke' then
                         --Nuke missile fired - update the table for non-M28 AI (M28AI will have recorded the target when the order was given)
                         if bDebugMessages == true then LOG(sFunctionRef..': Unit brain='..oUnit:GetAIBrain().Nickname..'; GetCurrentTarget()='..reprs(oWeapon:GetCurrentTarget())..'; GetCurrentTargetPos='..reprs(oWeapon:GetCurrentTargetPos())) end
                         if not(oUnit:GetAIBrain().M28AI) and oWeapon.GetCurrentTargetPos then
@@ -1363,7 +1366,7 @@ function OnWeaponFired(oWeapon)
                 end
 
                 --Update overcharge tracking
-                if oWeapon.GetBlueprint and oWeapon.GetBlueprint and not(oWeapon:BeenDestroyed()) and oWeapon:GetBlueprint().Overcharge then
+                if oWeapon.GetBlueprint and oWeapon.BeenDestroyed and not(oWeapon:BeenDestroyed()) and oWeapon:GetBlueprint().Overcharge then
                     if bDebugMessages == true then LOG(sFunctionRef..': Overcharge weapon has just fired') end
                     oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] = GetGameTimeSeconds()
                     if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and oUnit:GetAIBrain().M28AI then
@@ -1376,8 +1379,8 @@ function OnWeaponFired(oWeapon)
                 if oUnit:GetAIBrain().M28AI then
                     --Shot is blocked logic
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..(oWeapon.Blueprint.RangeCategory or 'nil')..'; reprs of .RangeCategory='..reprs(oWeapon.Blueprint.RangeCategory)..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))..'; repr of oWeapon.Blueproint='..reprs(oWeapon.Blueprint)) end
-                    local iWeaponRangeCategory = (oWeapon.Blueprint.RangeCategory or oWeapon.bp.RangeCategory)
+                    if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..((oWeapon.Blueprint or oWeapon.bp).RangeCategory or 'nil')..'; reprs of .RangeCategory='..reprs((oWeapon.Blueprint or oWeapon.bp).RangeCategory)..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))..'; repr of oWeapon.Blueproint='..reprs((oWeapon.Blueprint or oWeapon.bp))) end
+                    local iWeaponRangeCategory = ((oWeapon.Blueprint or oWeapon.bp).RangeCategory)
                     if (iWeaponRangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (iWeaponRangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
                         --Get weapon target if it is a DF weapon or sub torpedo
                         local oTarget
@@ -1431,8 +1434,9 @@ function OnWeaponFired(oWeapon)
                 end
 
                 --T2 bombers - call OnBombFired event (doesnt fire properly normally since it fires missiles)
-                if oUnit.UnitId == 'dra0202' and (not(oUnit[M28UnitInfo.refiLastBombFired]) or GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastBombFired] > 0.1) then
-                    OnBombFired(oWeapon)
+                if (oUnit.UnitId == 'dra0202' or (not(M28Utilities.bFAFActive) and (oWeapon.Label or oWeapon.Blueprint.Label or oWeapon.bp.Label) == 'Bomb')) and (not(oUnit[M28UnitInfo.refiLastBombFired]) or GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastBombFired] > 0.1) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will call onbombfired as a redundancy') end
+                    OnBombFired(oWeapon, nil, oUnit.UnitId == 'dra0202')
                 end
             end
         end
@@ -3000,8 +3004,12 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             if oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() > 1 or oUnit:GetWorkProgress() >= 0.8 then
                                 oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 240 - M28Building.iTimeForSMDToBeConstructed
                             end
+                            --Wall segments created at start of game in large numbers - i.e. for scenario where large parts of map are walled off
+                        elseif GetGameTimeSeconds() <= 10 and EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) and M28UnitInfo.GetUnitLifetimeCount(oUnit) >= 8 then
+                            M28Land.TrackWallSegment(oUnit, true)
                         end
                     end
+
 
 
 

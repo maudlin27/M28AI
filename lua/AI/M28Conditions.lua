@@ -3694,3 +3694,38 @@ function GetBestMobileDFRangeInZone(tLZTeamData)
     end
     return iBestRange
 end
+
+function GetNearbyEnemyAirToGroundThreat(tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, iSearchRadius, iOptionalAbortThreshold)
+    --iOptionalAbortThreshold - if is more than this then will the threat value
+    local iNearbyAirToGround = (tStartLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)
+    if iOptionalAbortThreshold and iNearbyAirToGround > iOptionalAbortThreshold then return iNearbyAirToGround end
+    M28Air.RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
+
+    if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+        local iOtherPlateauOrZero, iOtherLZOrWZ
+        for iEntry, tPathingDetails in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+            if tPathingDetails[M28Map.subrefiDistance] > iSearchRadius then
+                break
+            end
+            iOtherPlateauOrZero = tPathingDetails[M28Map.subrefiPlateauOrPond]
+            iOtherLZOrWZ = tPathingDetails[M28Map.subrefiLandOrWaterZoneRef]
+            if tPathingDetails[M28Map.subrefbIsWaterZone] then iOtherPlateauOrZero = 0 end
+            if iOtherLZOrWZ then
+                local tOtherLZOrWZData
+                local tOtherLZOrWZTeamData
+                if iOtherPlateauOrZero == 0 then
+                    tOtherLZOrWZData = M28Map.tPondDetails[tPathingDetails[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][iOtherLZOrWZ]
+                    tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                else
+                    tOtherLZOrWZData = M28Map.tAllPlateaus[iOtherPlateauOrZero][M28Map.subrefPlateauLandZones][iOtherLZOrWZ]
+                    tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                end
+                if (tOtherLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 then
+                    iNearbyAirToGround = iNearbyAirToGround + tOtherLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]
+                    if iOptionalAbortThreshold and iNearbyAirToGround > iOptionalAbortThreshold then return iNearbyAirToGround end
+                end
+            end
+        end
+    end
+    return iNearbyAirToGround
+end
