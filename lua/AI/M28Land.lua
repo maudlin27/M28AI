@@ -999,6 +999,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         local iImmobileDistAdjust = math.min(iRunThreshold, 5)
         local bClosestDangerousEnemyIsImmobile
         for iScout, oScout in tScouts do
+            oEnemyToConsiderAttacking = nil
             bConsiderAttacking = false
             if oScout:GetFractionComplete() == 1 then
 
@@ -8042,6 +8043,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 end
                                             end
                                         end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': oInRangeUpgradingACU='..(oInRangeUpgradingACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oInRangeUpgradingACU) or 'nil')..'; iClosestPotentialTarget='..iClosestPotentialTarget..'; oUnit[M28UnitInfo.refiIndirectRange]='..oUnit[M28UnitInfo.refiIndirectRange]..'; oClosestPotentialTarget='..(oClosestPotentialTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestPotentialTarget) or 'nil')) end
                                         if oInRangeUpgradingACU then
                                             M28Orders.IssueTrackedGroundAttack(oUnit, oInRangeUpgradingACU:GetPosition(), (oUnit[M28UnitInfo.refiIndirectAOE] or 0), false, 'MMLSchACU', false)
                                             table.insert(tMMLWithNearbyTargets, oUnit)
@@ -8076,8 +8078,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     end
                                 end
                             end
-                            --If we would be running from an enemy PD (which cant chase us) and we aren't yet in range of it, then switch to attacking that PD instead
-                        elseif oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) > (oUnit[M28UnitInfo.refiDFRange] or 0) + 2 then
+                            --If we would be running from an enemy PD (which cant chase us) and we aren't yet in range of it, then switch to attacking that PD instead; do +3 as if we get too close we might trigger dodge shot micro, and/or might move into range of the pd due to dodge shot micro
+                        elseif oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) > (oUnit[M28UnitInfo.refiDFRange] or 0) + 3 then
                             if bDebugMessages == true then LOG(sFunctionRef..': Normally would retreat but there is an enemy PD that is the closest to being in our range and we can attack it without getting in range') end
                             M28Orders.IssueTrackedAttack(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'MMLAtckNtR', false)
                         else
