@@ -9109,8 +9109,9 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                     table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                                 end
                             end
-                            if iEnemyOmniCoverage <= 20 and (not(oUnit.HasEnhancement) or not((oUnit:HasEnhancement('StealthGenerator') or oUnit:HasEnhancement('CloakingGenerator')))) then
+                            if iEnemyOmniCoverage <= 20 and (not(oUnit.HasEnhancement) or (oUnit[M28ACU.refiUpgradeCount] or 0) == 0 or not((oUnit:HasEnhancement('StealthGenerator') or oUnit:HasEnhancement('CloakingGenerator') or oUnit:HasEnhancement('FAF_SelfRepairSystem')))) then
                                 if not(oUnit[refoAssignedMobileStealth]) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU to table of units wanting mobile stealth, UpgradeCount='..(oUnit[M28ACU.refiUpgradeCount] or 0)..'; oUnit.HasEnhancement == nil='..tostring(oUnit.HasEnhancement == nil)..'; Has stealthgen enhancement='..tostring(oUnit:HasEnhancement('StealthGenerator'))..'; Has cloaking enhancement='..tostring(oUnit:HasEnhancement('CloakingGenerator'))..'; Has self repair system='..tostring(oUnit:HasEnhancement('FAF_SelfRepairSystem'))) end
                                     table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
                                 end
                             end
@@ -9216,15 +9217,17 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                     if iEnemyOmniCoverage <= 20 and not(EntityCategoryContains(M28UnitInfo.refCategoryStealth, oUnit.UnitId)) then
                                         if iUnitMassCost >= iMobileStealthHigherMassThreshold then
                                             if not(oUnit[refoAssignedMobileStealth]) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Want mobile stealth for unit') end
                                                 table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
                                             end
                                         elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect + M28UnitInfo.refCategoryAbsolver - categories.TECH1, oUnit.UnitId) then
-                                            --Only say we want a mobile shield if the unit doesnt have one assigned
+                                            --Only say we want a mobile stealth if the unit doesnt have one assigned
                                             iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
 
                                             if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
                                                 iMobileStealthLowerThresholdCount = 0
                                                 if not(oUnit[refoAssignedMobileStealth]) then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Want mobile stealth for lower threshold unit') end
                                                     table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
                                                 end
                                             end

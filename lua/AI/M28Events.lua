@@ -815,6 +815,10 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     oUnit[M28ACU.refiBuildTech] = 2
                 elseif sEnhancement == 'T3Engineering' then
                     oUnit[M28ACU.refiBuildTech] = 3
+                elseif  sEnhancement == 'StealthGenerator' or sEnhancement == 'FAF_SelfRepairSystem' or sEnhancement == 'CloakingGenerator' then
+                    if oUnit[M28Land.refoAssignedMobileStealth] then
+                        oUnit[M28Land.refoAssignedMobileStealth][M28Land.refoMobileStealthTarget] = nil
+                    end
                 end
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                     --Consider being more aggressive with ACU again (mainly relevant for team games)
