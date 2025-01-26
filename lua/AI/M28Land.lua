@@ -6511,7 +6511,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                                     M28Orders.IssueTrackedGroundAttack(oUnit, oEnemyToConsiderAttacking:GetPosition(), math.min(1, oUnit[M28UnitInfo.refiIndirectAOE] * 0.5), false, 'INglHidA', false)
                                                                 elseif not(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemyToConsiderAttacking)) then
                                                                     --Just attack move as normal since we dont know enemy unit is there
-                                                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oEnemyToConsiderAttacking, math.max(15, iIndirectDistanceInsideRangeThreshold), false, 'IKANgM'..iLandZone)
+                                                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oEnemyToConsiderAttacking:GetPosition(), math.max(15, iIndirectDistanceInsideRangeThreshold), false, 'IKANgM'..iLandZone)
                                                                 else
                                                                     --We can see the enemy, so manual attack
                                                                     M28Orders.IssueTrackedAttack(oUnit, oEnemyToConsiderAttacking, false, 'IFNglAE'..iLandZone, false)
