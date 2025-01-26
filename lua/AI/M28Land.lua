@@ -999,6 +999,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         local iImmobileDistAdjust = math.min(iRunThreshold, 5)
         local bClosestDangerousEnemyIsImmobile
         for iScout, oScout in tScouts do
+            oEnemyToConsiderAttacking = nil
             bConsiderAttacking = false
             if oScout:GetFractionComplete() == 1 then
 
