@@ -3111,7 +3111,7 @@ function ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZ
     local sFunctionRef = 'ConsiderNearbyReclaimForACUOrEngineer'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     if EntityCategoryContains(categories.RECLAIM, oEngineer.UnitId) then
 
@@ -5545,8 +5545,8 @@ function GetACUOrder(aiBrain, oACU)
                                                                                 --If lots of reclaim in this zone consider getting it
                                                                             elseif oACU[refiUpgradeCount] > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and iPlateauOrZero > 0 and HaveNearbyVulnerableEnemyACUToAttack(oACU, iTeam, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone) then
                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Are going to try and attack nearby vulnerable enemy ACU') end
-                                                                            elseif tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 300 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and aiBrain:GetEconomyStoredRatio('MASS') <= 0.9 and ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, nil, nil, nil) then
-                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Lots of reclaim so will stay here') end
+                                                                            elseif tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 300 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and aiBrain:GetEconomyStoredRatio('MASS') <= 0.9 and (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 or tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 3500 or not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or (M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory) == 0 and M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryEngineer) <= math.max(1, tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] / 1000))) and ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, nil, nil, nil) then
+                                                                                if bDebugMessages == true then LOG(sFunctionRef..': Lots of reclaim so will stay here, signif reclaim='..tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]..'; Mod dist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; Enemies in this or adjacent zone='..tostring(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)) end
                                                                             elseif tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 40 and ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true, nil, nil, nil) then
                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Getting reclaim in build radius') end
                                                                             else
