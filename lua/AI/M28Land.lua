@@ -1125,9 +1125,15 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 end
                 if oEnemyToConsiderAttacking and M28UnitInfo.IsUnitValid(oEnemyToConsiderAttacking) then
                     tLZTeamData[M28Map.refbWantLandScout] = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy to attack with combat scout, oEnemyToConsiderAttacking='..oEnemyToConsiderAttacking.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToConsiderAttacking)) end
-                    if M28Utilities.GetDistanceBetweenPositions(oEnemyToConsiderAttacking:GetPosition(), oScout:GetPosition()) >= 9 then
-                        M28Orders.IssueTrackedAttackMove(oScout, oEnemyToConsiderAttacking:GetPosition(), 4, false, 'SelSA', false)
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemyToConsiderAttacking:GetPosition(), oScout:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy to attack with combat scout, oEnemyToConsiderAttacking='..oEnemyToConsiderAttacking.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToConsiderAttacking)..'; iCurDist='..iCurDist..'; oScout[M28UnitInfo.refbLastShotBlocked]='..tostring(oScout[M28UnitInfo.refbLastShotBlocked])..'; Health% of enemy to consider attacking='..M28UnitInfo.GetUnitHealthPercent(oEnemyToConsiderAttacking)..'; Time of last weapon event='..GetGameTimeSeconds() - (oScout[M28UnitInfo.refiLastWeaponEvent] or 'nil')) end
+                    if iCurDist >= 9 then
+                        --Move closer if our shot is blocked and enemy isnt an engineer; also some redundancy incase our shot is blocked but isnt registering as blocked
+                        if (oScout[M28UnitInfo.refbLastShotBlocked] or (iCurDist >= 8 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oEnemyToConsiderAttacking.UnitId) and (M28UnitInfo.GetUnitHealthPercent(oEnemyToConsiderAttacking) >= 1 or oEnemyToConsiderAttacking:GetHealth() <= 10))) and (not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEnemyToConsiderAttacking.UnitId)) or (iCurDist >= 5 and iCurDist > oEnemyToConsiderAttacking:GetBlueprint().Economy.MaxBuildDistance)) then
+                            M28Orders.IssueTrackedMove(oScout, oEnemyToConsiderAttacking:GetPosition(), 4, false, 'SelSM', false)
+                        else
+                            M28Orders.IssueTrackedAttackMove(oScout, oEnemyToConsiderAttacking:GetPosition(), 4, false, 'SelSA', false)
+                        end
                     else
                         --Are too close so run away temporarily
                         RunFromEnemy(oScout, oEnemyToConsiderAttacking, iTeam, iPlateau, 16)

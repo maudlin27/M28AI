@@ -7059,7 +7059,7 @@ function ManageAirScouts(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageAirScouts'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 27.5*60 then bDebugMessages = true end
+
     local tAvailableScouts, tScoutsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirScout)
 
     --First record as having visual of every land/water zone that an air scout is in
