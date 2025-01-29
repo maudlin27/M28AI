@@ -1739,7 +1739,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                 if tAltWZTeam[M28Map.subrefWZTValue] < iCurWZValue and tAltWZTeam[M28Map.subrefTThreatEnemyCombatTotal] <= 50 and M28Utilities.IsTableEmpty(tAltWZTeam[M28Map.subrefWZTAlliedCombatUnits]) == false then
                     for iUnit, oUnit in tAltWZTeam[M28Map.subrefWZTAlliedCombatUnits] do
                         if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to add adjacent WZ oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' with cur assignment value '..(oUnit[refiCurrentWZAssignmentValue] or 0)..' and cur assignemnt WZ='..(oUnit[refiCurrentAssignmentWaterZone] or 'nil')) end
-                        if not(oUnit.Dead) and not(oUnit[refbActiveRaider]) and ((oUnit[refiCurrentWZAssignmentValue] or 0) < iCurWZValue or (oUnit[refiCurrentAssignmentWaterZone] == iWaterZone)) then
+                        if not(oUnit.Dead) and not(oUnit[refbActiveRaider]) and ((oUnit[refiCurrentWZAssignmentValue] or 0) < iCurWZValue or (oUnit[refiCurrentAssignmentWaterZone] == iWaterZone)) and oUnit:GetFractionComplete() == 1 then
                             --Combat unit related
                             if bConsiderAdjacentCombat and (oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiAntiNavyRange] > 0) and not(EntityCategoryContains(M28UnitInfo.refCategoryCruiser, oUnit.UnitId)) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Adding unit from adj WZ to available combat units') end
@@ -3242,9 +3242,9 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     if not(bHaveRunFromAir) and tWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and not(tWZTeamData[M28Map.subrefWZbCoreBase]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > iFriendlyAdjacentUnweightedAAThreat then
         local aiBrain = ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
         local iAirSubteam = aiBrain.M28AirSubteam
-        local iAAFactorWanted = 0.5
+        local iAAFactorWanted = 0.45
         if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iAAFactorWanted = 0.25
-        elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then iAAFactorWanted = 0.75
+        elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then iAAFactorWanted = 0.55
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to run due to enemy total torp bomber threat, M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]..'; iAAFactorWanted='..iAAFactorWanted..'; iFriendlyAdjacentUnweightedAAThreat='..iFriendlyAdjacentUnweightedAAThreat) end
         if M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] * iAAFactorWanted > iFriendlyAdjacentUnweightedAAThreat then
