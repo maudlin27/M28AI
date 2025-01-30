@@ -2707,6 +2707,28 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                                 if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and M28Utilities.GetDistanceBetweenPositions(tBrainStartZoneData[M28Map.subrefMidpoint], tBrainStartZoneTeamData[M28Map.reftClosestEnemyBase]) >= 300 then bWantUpgrade = false end
                                 if bDebugMessages == true then LOG(sFunctionRef..': tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition]='..tostring(tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] or false)..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tBrainStartZoneData[M28Map.subrefMidpoint], tBrainStartZoneTeamData[M28Map.reftClosestEnemyBase])) end
                             end
+                            --Also hold off if we have an AirHQ upgrading and dont urgently need land
+                            if bWantUpgrade and oBrain:GetEconomyStoredRatio('MASS') <= 0.4 then
+                                local iStartPlateauOrZero, iStartZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.GetPlayerStartPosition(oBrain, false))
+                                local tBrainStartZoneData, tBrainStartZoneTeamData
+                                if iStartPlateauOrZero == 0 then
+                                    tBrainStartZoneData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartZone]][M28Map.subrefPondWaterZones][iStartZone]
+                                    tBrainStartZoneTeamData = tBrainStartZoneData[M28Map.subrefWZTeamData][iM28Team]
+                                else
+                                    tBrainStartZoneData = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartZone]
+                                    tBrainStartZoneTeamData = tBrainStartZoneData[M28Map.subrefLZTeamData][iM28Team]
+                                end
+                                if tBrainStartZoneTeamData then
+                                    local bHaveActiveAirUpgrade = DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ)
+                                    if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and (bHaveActiveAirUpgrade or (GetGameTimeSeconds() <= 1200 and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= oBrain[M28Economy.refiOurHighestAirFactoryTech])) then bWantUpgrade = false
+                                    elseif bHaveActiveAirUpgrade and oBrain:GetEconomyStoredRatio('MASS') <= 0.3 and (oBrain:GetEconomyStoredRatio('MASS') <= 0.05 or oBrain[M28Economy.refiOurHighestLandFactoryTech] <= oBrain[M28Economy.refiOurHighestAirFactoryTech] or oBrain[M28Overseer.refbPrioritiseAir]) then
+                                        local bWantMMLOrT3Arti, bWantT3 = M28Conditions.SaveMassForMMLOrMobileT3ArtiForFirebase(tBrainStartZoneData, tBrainStartZoneTeamData, iStartPlateauOrZero, iM28Team, true)
+                                        if not(bWantMMLOrT3Arti) or (not(bWantT3 and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2)) then
+                                            bWantUpgrade = false
+                                        end
+                                    end
+                                end
+                            end
 
                             if bWantUpgrade and (iExistingBrainsWithHQUpgrades < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 0.5 or tTeamData[iM28Team][subrefiTeamMassStored] >= 450 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade a land factory HQ subject to how many units the factory has built') end

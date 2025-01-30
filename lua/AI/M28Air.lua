@@ -2531,7 +2531,8 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
     if M28Utilities.IsTableEmpty(tUnitsUnableToRefuel) == false then
         local bWantMoreAirStaging = false
         for iUnit, oUnit in tUnitsUnableToRefuel do
-            if not(EntityCategoryContains(categories.EXPERIMENTAL - categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+            if not(EntityCategoryContains(categories.EXPERIMENTAL + categories.CANNOTUSEAIRSTAGING + M28UnitInfo.refCategoryTransport, oUnit.UnitId)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that wants to refuel but has no air staging, unit owned by player '..oUnit:GetAIBrain().Nickname) end
                 bWantMoreAirStaging = true
                 break
             end

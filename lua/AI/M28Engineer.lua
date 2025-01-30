@@ -1613,8 +1613,8 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     --= math.min(math.max(oBuildingBP.Physics.SkirtSizeX, oBuildingBP.Physics.SkirtSizeZ), math.max(oBuildingBP.SizeX, oBuildingBP.SizeZ) + 0.5)  --M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5
     local iBuilderRange = (oEngiBP.Economy.MaxBuildDistance or 5) + math.min(oEngiBP.SizeX, oEngiBP.SizeZ) + iNewBuildingRadius - 0.5
     local aiBrain = oEngineer:GetAIBrain()
-
     local bResource = EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild)
+
 
     if bTryToBuildAtTarget then
         local iPlateauOrZero, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tTargetLocation)
@@ -1659,6 +1659,12 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local iTeam = oEngineer:GetAIBrain().M28Team
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+
+    local bAvoidBuildingOnMassStorage = false
+    if not(bResource) and iNewBuildingRadius <= 1 and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) == false then
+        bAvoidBuildingOnMassStorage = true
+    end
+
     local tArtiPositionsToBuildAwayFrom
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
         --Get average position of enemy T2 arti and build away from here
@@ -1752,6 +1758,8 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
 
     local bCheckForStorageAdjacency = EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, sBlueprintToBuild)
     local iClosestLocationToAvoidDist
+    local iStorageDistThreshold
+    if bAvoidBuildingOnMassStorage then iStorageDistThreshold = math.max(1, iNewBuildingRadius) + 0.1 end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; sBLueprintToBuild='..(sBlueprintToBuild or 'nil')..'; tTargetLocation='..repru(tTargetLocation)..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)..'; iOptionalMaxDistanceFromTargetLocation='..(iOptionalMaxDistanceFromTargetLocation or 'nil')..'; iMaxRange='..iMaxRange..'; iBuilderRange='..iBuilderRange..'; iNewBuildingRadius='..iNewBuildingRadius..'; bBuildTowardsHydro='..tostring(bBuildTowardsHydro)..'; tLocationToBuildTowards (e.g. for hydro)='..repru(tLocationToBuildTowards)..'; Engineer position='..repru(oEngineer:GetPosition())) end
     --local tiTopThreeLocationRefs = {}
@@ -1892,6 +1900,15 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
             else
                 iCurPriority = iCurPriority - 100
                 --NOTE: Dont include adjustments after this poitn, as abovel ogic assumes we have got to the post-modifier priority for buildtowardshydro
+            end
+            --Check if building on mass storage location
+            if bAvoidBuildingOnMassStorage then
+                for iEntry, tStorageLocation in tLZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable] do
+                    if math.abs(tStorageLocation[1] - tCurLocation[1]) <= iStorageDistThreshold and math.abs(tStorageLocation[3] - tCurLocation[3]) <= iStorageDistThreshold then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will be blocking storage location, iStorageDistThreshold='..iStorageDistThreshold..'; X dist='..math.abs(tStorageLocation[1] - tCurLocation[1]) ..'; Z dist='..math.abs(tStorageLocation[3] - tCurLocation[3])) end
+                        iCurPriority = iCurPriority - 50  break
+                    end
+                end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering tCurLocation='..repru(tCurLocation)..'; iCurDistance='..iCurDistance..'; iCurPriority='..iCurPriority) end
             --[[ Started drafting code below so we would only check for units in rec for the top 3 entries, but decided to scrap as already checking for htis above via M28Conditions check for mobile units
@@ -9717,10 +9734,11 @@ function GetBPToAssignToMassStorage(iPlateauOrZero, iLandOrWaterZone, iTeam, tLZ
         --Do we have empty locations for mass storage?
         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) == false then
             --Do we have really low power?
+            if bDebugMessages == true then LOG(sFunctionRef..': Av energy%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
             if not(bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0) then
 
                 iBPWanted = 10
-                if not (bHaveLowMass) or tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
+                if not (bHaveLowMass) or tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 5 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 4 and tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) then
                     iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
                     if not (bWantMorePower) then
                         iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
