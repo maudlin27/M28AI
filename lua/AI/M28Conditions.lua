@@ -584,6 +584,7 @@ function SafeToUpgradeUnit(oUnit)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
     local bSafeZone = false
+
     if (iLandOrWaterZone or 'nil') > 0 and not(iPlateauOrZero == 0) then
         local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
         if M28Utilities.IsTableEmpty(tLZData) == false then
@@ -591,11 +592,63 @@ function SafeToUpgradeUnit(oUnit)
             if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
                 bSafeZone = true
             elseif tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 150 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Are in a core base so treating it as safe to upgrade as enemy lacks significant threat in this zone specificaly; however will make an exception if enemy has significant threat nearby, tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)..'; Is table of nearest df enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])) end
                 bSafeZone = true
+                if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and iPlateauOrZero > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Map.iMapSize >= 512 and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) >= 180 then
+                    local iTeam = oUnit:GetAIBrain().M28Team
+                    local iRangeThreshold = math.max(20, oUnit[M28UnitInfo.refiCombatRange]) --i.e. a guncom ignores enemies with less range than it
+                    local iThreatThreshold = 150
+                    local iDistUntilInRangeThreshold = 50
+                    local iCurThreat = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
+                            local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; Enemy combat total in this zone='..tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
+                            if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 150 then
+                                for iEnemy, oEnemy in tAdjLZTeamData[M28Map.subrefTEnemyUnits] do
+                                    if bDebugMessages == true and not(oEnemy.Dead) then LOG(sFunctionRef..': Considering enemy unit '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Dist to us='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())..'; Combat range='..oEnemy[M28UnitInfo.refiCombatRange]..'; iRangeThreshold='..iRangeThreshold) end
+                                    if oEnemy[M28UnitInfo.refiCombatRange] >= iRangeThreshold and not(oEnemy.Dead) then
+                                        if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange] <= iDistUntilInRangeThreshold then
+                                            iCurThreat = iCurThreat + M28UnitInfo.GetCombatThreatRating({ oEnemy }, true)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iCurThreat after reflecting this unit='..iCurThreat..'; iThreatThreshold='..iThreatThreshold) end
+                                            if iCurThreat >= iThreatThreshold then
+                                                bSafeZone = false
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if bSafeZone and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                        local iAdjWZ, iPond
+                        for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                            iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+                            iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+                            local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                            if (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 20 and tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] > iRangeThreshold and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                for iEnemy, oEnemy in tAdjWZTeamData[M28Map.subrefTEnemyUnits] do
+                                    if oEnemy[M28UnitInfo.refiCombatRange] >= iRangeThreshold and not(oEnemy.Dead) then
+                                        if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange] <= iDistUntilInRangeThreshold then
+                                            iCurThreat = iCurThreat + M28UnitInfo.GetCombatThreatRating({ oEnemy }, true)
+                                            if iCurThreat >= iThreatThreshold then
+                                                bSafeZone = false
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurThreat after detailed check (but stopping if we get to the threshold)='..iCurThreat..'; iThreatThreshold='..iThreatThreshold..'; bSafeZone='..tostring(bSafeZone)) end
+                end
             end
             --ACU specific:
             if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and tLZTeamData[M28Map.reftClosestFriendlyBase] then
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrading ACU, iLandOrWaterZone='..iLandOrWaterZone..'; bSafeZone before extra checks='..tostring(bSafeZone or false)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is table of nearby friendly T2 PD empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 15, 'Ally')))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrading ACU, iLandOrWaterZone='..iLandOrWaterZone..'; bSafeZone before extra checks='..tostring(bSafeZone or false)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is table of nearby friendly T2 PD empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 15, 'Ally')))..'; ACU owned by player '..oUnit:GetAIBrain().Nickname) end
                 -- dont treat as safe if low health unless close to a base
                 local iDistToClosestFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
                 if bSafeZone and iDistToClosestFriendlyBase > 10 then
@@ -639,9 +692,10 @@ function SafeToUpgradeUnit(oUnit)
                         if bEnemyHasLongerRangedUnits then bSafeZone = false end
                     end
                 end
-                --Treat as safe if are near T2 PD and have at least 40% health
+                --Treat as safe if are near T2 PD and have at least 40% health, and enemy lacks significant indirect fire threat nearby
                 if not(bSafeZone) and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.4 then
                     if M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 15, 'Ally')) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU near PD so will treat as safe') end
                         bSafeZone = true
                     elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
                         local iTotalLongRangePDThreat = 0
@@ -661,12 +715,65 @@ function SafeToUpgradeUnit(oUnit)
                             end
                         end
                     end
+                    --Exception - enemy has MMLs or other long ranged units nearby
+                    if bSafeZone then
+                        local iTeam = oUnit:GetAIBrain().M28Team
+                        local iRangeThreshold = math.max(55, oUnit[M28UnitInfo.refiCombatRange])
+                        local iThreatThreshold = 400
+                        local iDistUntilInRangeThreshold = 40
+                        local iCurThreat = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
+
+                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                local tAdjLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 150 then
+                                    for iEnemy, oEnemy in tAdjLZTeamData[M28Map.subrefTEnemyUnits] do
+                                        if oEnemy[M28UnitInfo.refiCombatRange] >= iRangeThreshold and not(oEnemy.Dead) then
+                                            if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange] <= iDistUntilInRangeThreshold then
+                                                iCurThreat = iCurThreat + M28UnitInfo.GetCombatThreatRating({ oEnemy }, true)
+                                                if iCurThreat >= iThreatThreshold then
+                                                    bSafeZone = false
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if bSafeZone and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                            local iAdjWZ, iPond
+                            for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                                iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+                                iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+                                local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                if (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 20 and tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] > iRangeThreshold and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                    for iEnemy, oEnemy in tAdjWZTeamData[M28Map.subrefTEnemyUnits] do
+                                        if oEnemy[M28UnitInfo.refiCombatRange] >= iRangeThreshold and not(oEnemy.Dead) then
+                                            if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange] <= iDistUntilInRangeThreshold then
+                                                iCurThreat = iCurThreat + M28UnitInfo.GetCombatThreatRating({ oEnemy }, true)
+                                                if iCurThreat >= iThreatThreshold then
+                                                    bSafeZone = false
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': bSafeZone after checking for nearby longer ranged enemies='..tostring(bSafeZone)) end
+                    end
                 end
             end
 
             --If this mex has survived 5 mins and has no enemies in this zone itself, then treat as safe
             if not(bSafeZone) and EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeCreated] or 0) >= 300 then
-                bSafeZone = true
+                if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeCreated] or 0) >= 420 or EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Mex survived a while so treating as safe, mex survived for '..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeCreated] or 0)..' seconds') end
+                    bSafeZone = true
+                end
             end
 
             --Treat as safe if we are under a shield
@@ -675,7 +782,8 @@ function SafeToUpgradeUnit(oUnit)
                 for iShield, oShield in oUnit[M28Building.reftoShieldsProvidingCoverage] do
                     if M28UnitInfo.IsUnitValid(oShield) then
                         iCurShieldHealth, iMaxShieldHealth = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
-                        if (iCurShieldHealth or 0) >= (iMaxShieldHealth or -1) and iCurShieldHealth >= 2000 then
+                        if (iCurShieldHealth or 0) >= (iMaxShieldHealth or -1) and iCurShieldHealth >= 2000 and iCurShieldHealth > iMaxShieldHealth * 0.9 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Under fixed shield, iCurShieldHealth='..iCurShieldHealth..'; iMaxShieldHealth='..iMaxShieldHealth..'; so treating as safe') end
                             bSafeZone = true
                             break
                         end
