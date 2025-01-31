@@ -5270,7 +5270,7 @@ function GetACUOrder(aiBrain, oACU)
                         end
                     else
                         --ACU is being used as an engineer?
-                        if oACU[refiBuildTech] > 1 and ((oACU[refiBuildTech] >= aiBrain[M28Economy.refiOurHighestFactoryTechLevel] and (GetGameTimeSeconds() <= 12.5*60 or (oACU[refiBuildTech] > aiBrain[M28Economy.refiOurHighestFactoryTechLevel] and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies])) or not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))) or (oACU[M28UnitInfo.refiDFRange] or 0) <= 24) and HaveActionForACUAsEngineer(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone) then
+                        if oACU[refiBuildTech] > 1 and ((oACU[refiBuildTech] >= aiBrain[M28Economy.refiOurHighestFactoryTechLevel] and ((oACU[refiBuildTech] > aiBrain[M28Economy.refiOurHighestFactoryTechLevel] and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies])) or not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))) or (oACU[M28UnitInfo.refiDFRange] or 0) <= 24) and HaveActionForACUAsEngineer(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Are using ACU more as an engineer') end
                         else
                             --Snipe mode
