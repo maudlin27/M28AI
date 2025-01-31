@@ -819,6 +819,19 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     if oUnit[M28Land.refoAssignedMobileStealth] then
                         oUnit[M28Land.refoAssignedMobileStealth][M28Land.refoMobileStealthTarget] = nil
                     end
+                    --Treat enemies with laser com or seraphim gun as being land experimentals so they are seen as greater threat
+                elseif sEnhancement == 'MicrowaveLaserGenerator' or sEnhancement == 'BlastAttack' then
+                    --double-check the upgrade mass cost indicates it is a deadly upgrade
+                    local iUpgradeMassCost = oUnit:GetBlueprint().Enhancements[sEnhancement].BuildCostMass
+                    if iUpgradeMassCost >= 3000 then
+                        --Every other team - add to bigthreat table
+                        local iOurTeam = oUnit:GetAIBrain().M28Team
+                        for iTeam = 1, M28Team.iTotalTeamCount do
+                            if not(iOurTeam == iTeam) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                                M28Team.AddUnitToBigThreatTable(iTeam, oUnit)
+                            end
+                        end
+                    end
                 end
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                     --Consider being more aggressive with ACU again (mainly relevant for team games)
