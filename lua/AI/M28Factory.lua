@@ -1330,10 +1330,28 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
     end
-    if not(bConsiderMobileShields) and iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
-        bConsiderMobileShields = true
+    if bDebugMessages == true then LOG(sFunctionRef..': Mobile shield override if T2+ and nearby enemy threat, bConsiderMobileShields before override='..tostring(bConsiderMobileShields)..'; Enemies in adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Enemy LR threat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]) end
+    if bConsiderMobileShields and iFactoryTechLevel >= 2 and (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > 0) then
+        --Exception to building mobile shields if we have some under construction already and enemies in an adjacent zone
+        local iMobileShieldsUnderConstruction = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryMobileLandShield, false)
+        if iMobileShieldsUnderConstruction >= 1 then
+            if iMobileShieldsUnderConstruction >= 2 then
+                bConsiderMobileShields = false
+            else
+                local iLandFacsInZone = M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryLandFactory * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))
+                if iLandFacsInZone < 3 then
+                    bConsiderMobileShields = false
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': ILandFacsInZone of same tech level='..iLandFacsInZone) end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if still want to build mobile shields if we have some under construction already, iMobileShieldsUnderConstruction='..iMobileShieldsUnderConstruction..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)) end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want mobile shields, iFactoryTechLevel='..iFactoryTechLevel..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Time last had no shield targets='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldTargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] or -100)..'; Team net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Movile shields under construction in this zone='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryMobileLandShield)..'; Cur mobile shields='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLandShield)..'; DF+IF threat='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]..'; M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport])) end
+    if not(bConsiderMobileShields) and iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData) then
+        bConsiderMobileShields = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has teleport so want mobile shields so we can protect GE templates') end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished Considering if want mobile shields, bConsiderMobileShields='..tostring(bConsiderMobileShields)..';  iFactoryTechLevel='..iFactoryTechLevel..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Time last had no shield targets='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldTargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] or -100)..'; Team net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Movile shields under construction in this zone='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryMobileLandShield)..'; Cur mobile shields='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLandShield)..'; DF+IF threat='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]..'; M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport])) end
 
     --Mobile stealth if we are at T2+ as part of the land zone reinforcement logic
     local bConsiderMobileStealths = false
@@ -2216,6 +2234,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                                         return sBPIDToBuild
                                     end
                                 end
+                            end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will just try and get the support category') end
+                            if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild
                             end
                         end
                     end
