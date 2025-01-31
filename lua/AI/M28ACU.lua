@@ -2686,6 +2686,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
         local iClosestDist = iDistThreshold + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of units to target empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToTarget))..'; Is tLZTeamData[M28Map.reftoNearestDFEnemies] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; iClosestDist='..iClosestDist) end
         if M28Utilities.IsTableEmpty(tUnitsToTarget) == false then
+            local iOurACUHealthPercent = M28UnitInfo.GetUnitHealthAndShieldPercent(oACU)
             local bAbortDueToStartingPD = false
             if tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] > oACU[M28UnitInfo.refiDFRange] and (GetGameTimeSeconds() <= 300 or (GetGameTimeSeconds() <= 600 and M28Map.bIsCampaignMap)) then
                 local tPDToTarget = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tUnitsToTarget)
@@ -2803,8 +2804,8 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     local bWantKitingRetreat = false
                     local iEnemyT1ArtiAndDFThreatCloseToOurRange = 0
 
-                    if iStraightLineDist + iMaxDistToBeInRange <= oACU[M28UnitInfo.refiDFRange] and (M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75 or iNearbyMobileEnemyDFThreat >= 250 or (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 150) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to do a kiting retreat, iStraightLineDist='..iStraightLineDist..'; iMaxDistToBeInRange='..iMaxDistToBeInRange..'; Our DF range='..(oACU[M28UnitInfo.refiDFRange] or 'nil')..'; ACU health%='..(M28UnitInfo.GetUnitHealthPercent(oACU) or 'nil')..'; iNearbyMobileEnemyDFThreat='..iNearbyMobileEnemyDFThreat..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')) end
+                    if iStraightLineDist + iMaxDistToBeInRange <= oACU[M28UnitInfo.refiDFRange] and (iOurACUHealthPercent <= 0.75 or iNearbyMobileEnemyDFThreat >= 250 or (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 150) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to do a kiting retreat, iStraightLineDist='..iStraightLineDist..'; iMaxDistToBeInRange='..iMaxDistToBeInRange..'; Our DF range='..(oACU[M28UnitInfo.refiDFRange] or 'nil')..'; ACU health%='..(iOurACUHealthPercent or 'nil')..'; iNearbyMobileEnemyDFThreat='..iNearbyMobileEnemyDFThreat..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')) end
                         bWantKitingRetreat = true
                         --Exception - we have >= enemy range, and the threat of enemy units within our range + 5 isn't that great, and the mobile threat of enemy units isn't that great
                         local iAdjacentThreatThreshold = 1500 + oACU[refiUpgradeCount] * 750
@@ -2818,10 +2819,10 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                         end
                         local iEnemyThreatThresholdForDetailedCheck = 1750 + oACU[refiUpgradeCount] * 750
 
-                        if M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 then
+                        if iOurACUHealthPercent >= 0.95 then
                             iEnemyThreatThresholdForDetailedCheck = iEnemyThreatThresholdForDetailedCheck + 500 + 250 * oACU[refiUpgradeCount]
                         end
-                        
+
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to ignore kiting retreat and advance due to low enemy threat, iNearbyMobileEnemyDFThreat (which is mobile DF in this and adjacent zones)='..iNearbyMobileEnemyDFThreat..'; iAdjacentThreatThreshold='..iAdjacentThreatThreshold..'; iACUInZone='..iACUInZone..'; iEnemyThreatThresholdForDetailedCheck='..iEnemyThreatThresholdForDetailedCheck) end
                         if iNearbyMobileEnemyDFThreat <= iEnemyThreatThresholdForDetailedCheck then --will do a more detailed check later on
                             local iCurDist
@@ -2888,7 +2889,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                             if iEnemyT1ArtiAndDFThreatCloseToOurRange <= 200 + 100 * oACU[refiUpgradeCount] and iEnemyT1ArtiAndDFThreatCloseToOurRange + iEnemyMobileThreatSlightlyFurtherAway <= 600 + oACU[refiUpgradeCount] * 300 then
                                 bWantKitingRetreat = false
                                 if bDebugMessages == true then LOG(sFunctionRef..': Dont want to do king retreat after all') end
-                            elseif oACU[refiUpgradeCount] >= 2 and (oACU[refiUpgradeCount] >= 3 or not(EntityCategoryContains(categories.AEON, oACU.UnitId))) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and iEnemyT1ArtiAndDFThreatCloseToOurRange <= 1800 and iEnemyT1ArtiAndDFThreatCloseToOurRange + iEnemyMobileThreatSlightlyFurtherAway <= 2700 and iEnemyT1PDInRangeOfUs == 0 and (iEnemyT1ArtiAndDFThreatCloseToOurRange + iEnemyMobileThreatSlightlyFurtherAway <= 1900 or iEnemyNearbyT2PlusPDThreat + iEnemyFurtherAwayLRPDThreat >= 800) then
+                            elseif oACU[refiUpgradeCount] >= 2 and (oACU[refiUpgradeCount] >= 3 or not(EntityCategoryContains(categories.AEON, oACU.UnitId))) and iOurACUHealthPercent >= 0.95 and iEnemyT1ArtiAndDFThreatCloseToOurRange <= 1800 and iEnemyT1ArtiAndDFThreatCloseToOurRange + iEnemyMobileThreatSlightlyFurtherAway <= 2700 and iEnemyT1PDInRangeOfUs == 0 and (iEnemyT1ArtiAndDFThreatCloseToOurRange + iEnemyMobileThreatSlightlyFurtherAway <= 1900 or iEnemyNearbyT2PlusPDThreat + iEnemyFurtherAwayLRPDThreat >= 800) then
                                 bWantKitingRetreat = false
                                 if bDebugMessages == true then LOG(sFunctionRef..': We have high health and are heavily upgraded so want to press a bit more either due to enemy threat not being massive, or because neemy threat includes PD which we could always run from') end
                                 --if shot is blocked for the closest enemy unit then dont kite
@@ -2899,7 +2900,54 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyT1ArtiAndDFThreatCloseToOurRange='..iEnemyT1ArtiAndDFThreatCloseToOurRange..'; iEnemyMobileThreatSlightlyFurtherAway='..iEnemyMobileThreatSlightlyFurtherAway..'; iEnemyT1PDInRangeOfUs='..iEnemyT1PDInRangeOfUs..'; iEnemyNearbyT2PlusPDThreat='..iEnemyNearbyT2PlusPDThreat..'; iEnemyFurtherAwayLRPDThreat='..iEnemyFurtherAwayLRPDThreat..'; bEnemyHasLongerRangedUnits='..tostring(bEnemyHasLongerRangedUnits)..'; Is shot blocked='..tostring(M28Logic.IsShotBlocked(oACU, oEnemyToTarget, false, nil))) end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; iClosestDist='..iClosestDist..'; iMaxDistToBeInRange='..iMaxDistToBeInRange..'; ACU DF range='..(oACU[M28UnitInfo.refiDFRange] or 0)..'; ACU position='..repru(oACU:GetPosition())..'; Enemy unit to target='..repru(oEnemyToTarget:GetPosition())..'; Dist betweeh tnem straight line='..M28Utilities.GetDistanceBetweenPositions(oEnemyToTarget:GetPosition(), oACU:GetPosition())..'; ACU health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Enemy combat total based just on this zone='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; iNearbyMobileEnemyDFThreat='..iNearbyMobileEnemyDFThreat..'; bWantKitingRetreat='..tostring(bWantKitingRetreat)) end
+
+                    --Check for ACUs in our range that we outrange
+                    local tACUsNearby
+                    if M28Utilities.IsTableEmpty(tUnitsToTarget) == false then tACUsNearby = EntityCategoryFilterDown(categories.COMMAND, tUnitsToTarget) end
+                    local oClosestACU
+                    local iClosestACU = 1000
+                    local bOutrangeAllACUs = true
+                    if M28Utilities.IsTableEmpty(tACUsNearby) == false and oACU[M28UnitInfo.refiDFRange] >= 28 then
+                        for iEnemyACU, oEnemyACU in tACUsNearby do
+                            if oACU[M28UnitInfo.refiDFRange] >= oEnemyACU then
+                                bOutrangeAllACUs = false
+                                break
+                            end
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
+                            if iCurDist < iClosestACU then
+                                iClosestACU = iCurDist
+                                oClosestACU = oEnemyACU
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then
+                        if oClosestACU then
+                            LOG(sFunctionRef..': iClosestACU='..iClosestACU..'; Can see ACU='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU))..'; Do we have a valid land scout='..tostring(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedLandScout]))..'; Closest ACU health%='..M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU)..'; Our ACU health%='..iOurACUHealthPercent..'; Enemy ACU range='..oClosestACU[M28UnitInfo.refiDFRange]..'; tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]='..tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] ..'; iEnemyT1ArtiAndDFThreatCloseToOurRange='..iEnemyT1ArtiAndDFThreatCloseToOurRange..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; ACU shot blocked='..tostring(oACU[M28UnitInfo.refbLastShotBlocked] or false))
+                            if M28UnitInfo.IsUnitValid(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedLandScout])) then LOG(sFunctionRef..': Dist to assigned land scout='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28Land.refoAssignedLandScout]:GetPosition())) end
+                        else LOG(sFunctionRef..': No nearby enemy ACU')
+                        end
+                    end
+
+                    local oUnitToMoveTo
+                    --If within 2 of being in range of enemy ACU that we outrange then keep pressing forwards (we will ignore this if we decide we still want kiting retreat)
+                    if iClosestACU <= oACU[M28UnitInfo.refiDFRange] + 2 and (M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) or (M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedLandScout]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28Land.refoAssignedLandScout]:GetPosition()) <= 40) or (iOurACUHealthPercent >= 0.9 and iClosestACU <= oACU[M28UnitInfo.refiDFRange] and tLZTeamData[M28Map.refiModDistancePercent] <= 0.8 and M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) < iOurACUHealthPercent - 0.05)) and iOurACUHealthPercent * 0.95 > M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) then
+                        local iOurVisualRange = oACU:GetBlueprint().Intel.VisionRadius
+                        if bDebugMessages == true then LOG(sFunctionRef..': iOurVisualRange='..iOurVisualRange..'; iClosestACU='..iClosestACU..'; oClosestACU owner='..oClosestACU:GetAIBrain().Nickname) end
+                        if iClosestACU > iOurVisualRange - 3 or (oACU[M28UnitInfo.refbLastShotBlocked] or iOurACUHealthPercent > 0.4 + M28UnitInfo.GetUnitHealthPercent(oClosestACU) or M28Logic.IsShotBlocked(oACU, oClosestACU, false, false)) then
+                            oUnitToMoveTo = oClosestACU
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want to move to enemy ACU unless decide to kite, oClosestACU='..oClosestACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestACU)) end
+                        end
+                    end
+
+                    --Consider override for kiting retreat if enemy ACU in our range, and we have more health than them, and enemy lacks T2 PD/similar
+                    if oUnitToMoveTo and bWantKitingRetreat and oClosestACU and iClosestACU <= oACU[M28UnitInfo.refiDFRange] and bOutrangeAllACUs and oACU[M28UnitInfo.refiDFRange]  >= math.max((tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)) and (iEnemyT1ArtiAndDFThreatCloseToOurRange <= 1500 or (iOurACUHealthPercent > 0.2 + M28UnitInfo.GetUnitHealthPercent(oClosestACU) and M28UnitInfo.GetUnitHealthPercent(oClosestACU) <= 0.55 and (not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) or oClosestACU:GetHealth() <= 4000))) and (iClosestACU > oClosestACU[M28UnitInfo.refiDFRange] or (iOurACUHealthPercent > 0.2 + M28UnitInfo.GetUnitHealthPercent(oClosestACU) and (oACU[M28UnitInfo.refbLastShotBlocked] or iOurACUHealthPercent > 0.4 + M28UnitInfo.GetUnitHealthPercent(oClosestACU)))) then
+                        if iOurACUHealthPercent >= M28UnitInfo.GetUnitHealthPercent(oClosestACU) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We are in range of an enemy ACU that we outrange, so want to ignore kiting retreat and go for the kill') end
+                            bWantKitingRetreat = false
+                        end
+                    end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; iClosestDist='..iClosestDist..'; iMaxDistToBeInRange='..iMaxDistToBeInRange..'; ACU DF range='..(oACU[M28UnitInfo.refiDFRange] or 0)..'; ACU position='..repru(oACU:GetPosition())..'; Enemy unit to target='..repru(oEnemyToTarget:GetPosition())..'; Dist betweeh tnem straight line='..M28Utilities.GetDistanceBetweenPositions(oEnemyToTarget:GetPosition(), oACU:GetPosition())..'; ACU health percent='..iOurACUHealthPercent..'; Enemy combat total based just on this zone='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; iNearbyMobileEnemyDFThreat='..iNearbyMobileEnemyDFThreat..'; bWantKitingRetreat='..tostring(bWantKitingRetreat)) end
                     if bWantKitingRetreat then
                         --Retreat temporarily - if aren't in a core zone then retreat to rally point
                         local tRallyPoint
@@ -2934,47 +2982,11 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                         M28Orders.IssueTrackedMove(oACU, tRallyPoint, 6, false, 'ACUKit', false)
                     else
                         --If near to enemy ACU that we outrange then stay within visual range of it
-                        local oUnitToMoveTo
-                        if M28Utilities.IsTableEmpty(tUnitsToTarget) == false and oACU[M28UnitInfo.refiDFRange] >= 28 then
-                            local iOurACUThreat = M28UnitInfo.GetCombatThreatRating({ oACU })
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to move close to enemy ACU if there is one, iEnemyT1ArtiAndDFThreatCloseToOurRange='..iEnemyT1ArtiAndDFThreatCloseToOurRange..'; iOurACUThreat='..iOurACUThreat) end
-                            if iEnemyT1ArtiAndDFThreatCloseToOurRange < math.max(250 + 250 * oACU[refiUpgradeCount], iOurACUThreat * 0.8) then
-                                local tACUsNearby = EntityCategoryFilterDown(categories.COMMAND, tUnitsToTarget)
-                                local oClosestACU
-                                local iClosestACU = 1000
-                                local bOutrangeAllACUs = true
-                                if M28Utilities.IsTableEmpty(tACUsNearby) == false then
-                                    for iEnemyACU, oEnemyACU in tACUsNearby do
-                                        if oACU[M28UnitInfo.refiDFRange] >= oEnemyACU then
-                                            bOutrangeAllACUs = false
-                                            break
-                                        end
-                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
-                                        if iCurDist < iClosestACU then
-                                            iClosestACU = iCurDist
-                                            oClosestACU = oEnemyACU
-                                        end
-                                    end
-                                end
-                                if bDebugMessages == true then
-                                    if oClosestACU then LOG(sFunctionRef..': iClosestACU='..iClosestACU..'; Can see ACU='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU))..'; Closest ACU health%='..M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU)..'; Our ACU health%='..M28UnitInfo.GetUnitHealthAndShieldPercent(oACU))
-                                    else LOG(sFunctionRef..': No nearby enemy ACU')
-                                    end
-                                end
-                                --If within 2 of being in range of enemy ACU that we outrange then keep pressing forwards
-                                if iClosestACU <= oACU[M28UnitInfo.refiDFRange] + 2 and M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) and M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) * 0.95 > M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) then
-                                    local iOurVisualRange = oACU:GetBlueprint().Intel.VisionRadius
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iOurVisualRange='..iOurVisualRange..'; iClosestACU='..iClosestACU..'; oClosestACU owner='..oClosestACU:GetAIBrain().Nickname) end
-                                    if iClosestACU > iOurVisualRange - 3 then
-                                        oUnitToMoveTo = oClosestACU
-                                    end
-                                end
-                            end
-                        end
                         if oUnitToMoveTo then
-                            M28Orders.IssueTrackedMove(oACU, oUnitToMoveTo:GetPosition(), 5, false, 'ACUMacu', false)
+                            M28Orders.IssueTrackedMove(oACU, oUnitToMoveTo:GetPosition(), 0, false, 'ACUMacu', false)
                             oACU[refbOnlyOverchargeHighValueTargets] = true
-                            if bDebugMessages == true then LOG(sFunctionRef..': will move closer to enemy ACU that we outrange, refbOnlyOverchargeHighValueTargets='..tostring(oACU[refbOnlyOverchargeHighValueTargets])) end
+                            oEnemyToTarget = oUnitToMoveTo --need to set this or else we will think we didnt get an order
+                            if bDebugMessages == true then LOG(sFunctionRef..': will move closer to enemy ACU that we outrange, oUnitToMoveTo='..oUnitToMoveTo.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToMoveTo)..' owned by '..oUnitToMoveTo:GetAIBrain().Nickname..'; refbOnlyOverchargeHighValueTargets='..tostring(oACU[refbOnlyOverchargeHighValueTargets])..'; Position of enemy='..repru(oUnitToMoveTo:GetPosition())) end
                         elseif iEnemyT1ArtiAndDFThreatCloseToOurRange >= 250 then
                             --Attack-move towards enemy due to significant threat
                             if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Will attack-move to enemy target unless have active micro, oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; refbSpecialMicroActive='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)) end

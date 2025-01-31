@@ -5065,7 +5065,7 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                         --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCurHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth, bReturnShieldsCovringTargetInstead)
                         iCurShieldHealth, iMaxShieldHealth = M28Logic.IsTargetUnderShield(aiBrain, oUnit,   0,                                          true,                       true,              true,                           true,                   false)
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy exp oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShieldHealth (of fixed shields, cumulatively)='..iCurShieldHealth) end
-                        if true and (GetGameTimeSeconds() <= 48*60 or iCurShieldHealth <= 14000) then --seraphim t2 shield is 13k health
+                        if iCurShieldHealth <= 14000 then --seraphim t2 shield is 13k health
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(tBasePosition, oUnit:GetPosition())
                             if bDebugMessages == true then LOG(sFunctionRef..': Dist from oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tBasePosition='..iCurDist..'; oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]='..repru(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4])) end
                             if iCurDist < iClosestEnemy and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Attached')) then
