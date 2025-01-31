@@ -4686,19 +4686,12 @@ function ManageBombers(iTeam, iAirSubteam)
                                     elseif M28Map.iMapSize <= 256 then
                                         iMaxModDist = 0.55
                                     else
-                                        iMaxModDist = 0.45
-                                        if GetGameTimeSeconds() >= 19*60 then iMaxModDist = 0.4 end
+                                        iMaxModDist = 0.4
                                     end
                                 else
-                                    if GetGameTimeSeconds() >= 19*60 then
-                                        if M28Map.iMapSize >= 1024 then iMaxModDist = 0.45
-                                        elseif M28Map.iMapSize <= 256 then iMaxModDist = 0.7
-                                        else iMaxModDist = 0.55
-                                        end
-                                    else
-                                        if M28Map.iMapSize >= 1024 then iMaxModDist = 0.7
-                                        else iMaxModDist = 0.8
-                                        end
+                                    if M28Map.iMapSize >= 1024 then iMaxModDist = 0.45
+                                    elseif M28Map.iMapSize <= 256 then iMaxModDist = 0.7
+                                    else iMaxModDist = 0.55
                                     end
                                 end
 
