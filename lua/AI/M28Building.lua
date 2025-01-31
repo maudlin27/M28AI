@@ -5057,14 +5057,22 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
             local oClosestEnemy
             iClosestEnemy = iMaxEffectiveRange
             if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) then
+                local iCurShieldHealth, iMaxShieldHealth
+                local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
                 for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits] do
                     if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
-                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tBasePosition, oUnit:GetPosition())
-                        if bDebugMessages == true then LOG(sFunctionRef..': Dist from oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tBasePosition='..iCurDist..'; oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]='..repru(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4])) end
-                        if iCurDist < iClosestEnemy and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Attached')) then
-                            --oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]
-                            iClosestEnemy = iCurDist
-                            oClosestEnemy = oUnit
+                        --Check target not under lots of fixed shielding (ignore mobile shields though since we might be targeting fatboy
+                        --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCurHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth, bReturnShieldsCovringTargetInstead)
+                        iCurShieldHealth, iMaxShieldHealth = M28Logic.IsTargetUnderShield(aiBrain, oUnit,   0,                                          true,                       true,              true,                           true,                   false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy exp oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShieldHealth (of fixed shields, cumulatively)='..iCurShieldHealth) end
+                        if true and (GetGameTimeSeconds() <= 48*60 or iCurShieldHealth <= 14000) then --seraphim t2 shield is 13k health
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tBasePosition, oUnit:GetPosition())
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dist from oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tBasePosition='..iCurDist..'; oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]='..repru(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4])) end
+                            if iCurDist < iClosestEnemy and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Attached')) then
+                                --oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]
+                                iClosestEnemy = iCurDist
+                                oClosestEnemy = oUnit
+                            end
                         end
                     end
                 end
@@ -5134,7 +5142,8 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
                                 end
                                 if iCurValue > 0 and iCurTMDOrMissedShotsCoveringTarget <= iLeastTMDOrMissedShotsCoveringTarget and (iCurTMDOrMissedShotsCoveringTarget < iLeastTMDOrMissedShotsCoveringTarget or iCurValue > iBestValue) then
                                     --Adjust for fixed shields
-                                    iCurShieldHealth, iMaxShieldHealth = M28Logic.IsTargetUnderShield(aiBrain, oUnit, 0, true, false, true, true, false)
+                                                                                --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCurHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth, bReturnShieldsCovringTargetInstead)
+                                    iCurShieldHealth, iMaxShieldHealth = M28Logic.IsTargetUnderShield(aiBrain, oUnit,   0,                                          true,                       false,              true,                           true,                   false)
                                     if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTMDOrMissedShotsCoveringTarget before shield adj='..iCurTMDOrMissedShotsCoveringTarget..'; iCurShieldHealth='..(iCurShieldHealth or 'nil')..'; iMaxShieldHealth='..(iMaxShieldHealth or 'nil')..'; iLeastTMDOrMissedShotsCoveringTarget='..iLeastTMDOrMissedShotsCoveringTarget) end
                                     if iMaxShieldHealth > 0 then
                                         iCurShieldValue = math.min(iMaxShieldHealth, math.max(iCurShieldHealth * 2, iCurShieldHealth + iStrikeDamage)) / iShieldFactor
