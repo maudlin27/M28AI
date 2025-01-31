@@ -3925,6 +3925,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
 
     local tEnemyBases = {}
     local tAllyBases = {}
+    local iFriendlyBrainCount = 0
     local tBrainsByIndex = {}
     if bDebugMessages == true then LOG(sFunctionRef..': About to record enemy brains in table of enemy bases, is table of enemy brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
@@ -3949,6 +3950,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         --Old logic: if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
         if not(bIsCampaignMap) or oBrain.M28AI then
             if not(oBrain.M28IsDefeated) then
+                iFriendlyBrainCount = iFriendlyBrainCount + 1
                 tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
                 tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
             end
@@ -3987,7 +3989,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
     end
 
     --Record any ally bases which are in 'eco/air' slots (no enemy that is closer to them than another ally)
-    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+    if iFriendlyBrainCount > 1 then
         if M28Utilities.IsTableEmpty(tEnemyBases) == false then
             local iMaxDistToBaseWanted
             local iCurFriendlyDistToBase

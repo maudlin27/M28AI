@@ -169,6 +169,7 @@ function UpdateUnitCategories()
         M28UnitInfo.refCategorySalem = M28UnitInfo.refCategorySalem + categories.urs0201
         M28UnitInfo.refCategoryAllAmphibiousAndNavy = M28UnitInfo.refCategoryAllAmphibiousAndNavy + M28UnitInfo.refCategoryAmphibiousCombat
         M28UnitInfo.refCategoryNavyThatCanBeTorpedoed = M28UnitInfo.refCategoryNavyThatCanBeTorpedoed + M28UnitInfo.refCategoryAmphibious
+        M28UnitInfo.refCategoryNavalAA = M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryAntiAir * categories.NAVAL * categories.MOBILE + categories.CRUISER * categories.MOBILE + categories.NAVALCARRIER * categories.MOBILE - categories.xes0307 --in case steam has similar issue to LOUD (cant be bothered to check)
 
         --Naval based: LOUD specific issues so dont need for steam
         --M28UnitInfo.refCategoryAntiNavy = M28UnitInfo.refCategoryAntiNavy + categories.DESTROYER + categories.SUBMARINE - categories.ues0201 --Unlike LOUD, Steam has antinavy for subs and destroyers

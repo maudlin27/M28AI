@@ -299,8 +299,10 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCur
         local sSearchType = 'Ally'
         if bEnemy then sSearchType = 'Enemy' end
         local tTargetPos = oTarget:GetPosition()
-        local iShieldCategory = M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategoryFixedShield
-        if bIgnoreMobileShields then iShieldCategory = M28UnitInfo.refCategoryFixedShield end
+        local iShieldCategory
+        if bIgnoreMobileShields then iShieldCategory = M28UnitInfo.refCategoryFixedShield
+        else iShieldCategory = M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategoryFixedShield
+        end
 
         local tNearbyShields
         local bDontDoDistanceCheck = false
@@ -331,7 +333,20 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCur
                 if bDebugMessages == true then LOG(sFunctionRef..': Are considering a structure target, bDontDoDistanceCheck='..tostring(bDontDoDistanceCheck)..'; Is shields providing coverage empty='..tostring(M28Utilities.IsTableEmpty(oTarget[M28Building.reftoShieldsProvidingCoverage]))..'; Is mobile shield table empty='..tostring(M28Utilities.IsTableEmpty(tNearbyMobileShields))) end
             end
         else
-            tNearbyShields = aiBrain:GetUnitsAroundPoint(iShieldCategory, tTargetPos, iShieldSearchRange, sSearchType)
+            --tNearbyShields = aiBrain:GetUnitsAroundPoint(iShieldCategory, tTargetPos, iShieldSearchRange, sSearchType)
+            if bEnemy then
+                tNearbyShields = oTarget:GetAIBrain():GetUnitsAroundPoint(iShieldCategory, tTargetPos, iShieldSearchRange, 'Ally') --performance reasons dont want to be checking recorded units in the zone, instead do this and then remove any units that we havent recorded yet
+                if M28Utilities.IsTableEmpty(tNearbyShields) == false then
+                    local iTeam = aiBrain.M28Team
+                    for iShieldEntry = table.getn(tNearbyShields), 1, -1 do
+                        if not(tNearbyShields[iShieldEntry][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam]) and not(tNearbyShields[iShieldEntry][M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]) and not(M28UnitInfo.CanSeeUnit(aiBrain, tNearbyShields[iShieldEntry])) then
+                            table.remove(tNearbyShields, iShieldEntry)
+                        end
+                    end
+                end
+            else
+                tNearbyShields = aiBrain:GetUnitsAroundPoint(iShieldCategory, tTargetPos, iShieldSearchRange, sSearchType)
+            end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Searching for shields around '..repru(tTargetPos)..'; iShieldSearchRange='..iShieldSearchRange..'; sSearchType='..sSearchType) end
         local iShieldCurHealth, iShieldMaxHealth

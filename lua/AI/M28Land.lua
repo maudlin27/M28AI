@@ -1125,9 +1125,15 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 end
                 if oEnemyToConsiderAttacking and M28UnitInfo.IsUnitValid(oEnemyToConsiderAttacking) then
                     tLZTeamData[M28Map.refbWantLandScout] = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy to attack with combat scout, oEnemyToConsiderAttacking='..oEnemyToConsiderAttacking.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToConsiderAttacking)) end
-                    if M28Utilities.GetDistanceBetweenPositions(oEnemyToConsiderAttacking:GetPosition(), oScout:GetPosition()) >= 9 then
-                        M28Orders.IssueTrackedAttackMove(oScout, oEnemyToConsiderAttacking:GetPosition(), 4, false, 'SelSA', false)
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemyToConsiderAttacking:GetPosition(), oScout:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy to attack with combat scout, oEnemyToConsiderAttacking='..oEnemyToConsiderAttacking.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToConsiderAttacking)..'; iCurDist='..iCurDist..'; oScout[M28UnitInfo.refbLastShotBlocked]='..tostring(oScout[M28UnitInfo.refbLastShotBlocked])..'; Health% of enemy to consider attacking='..M28UnitInfo.GetUnitHealthPercent(oEnemyToConsiderAttacking)..'; Time of last weapon event='..GetGameTimeSeconds() - (oScout[M28UnitInfo.refiLastWeaponEvent] or 'nil')) end
+                    if iCurDist >= 9 then
+                        --Move closer if our shot is blocked and enemy isnt an engineer; also some redundancy incase our shot is blocked but isnt registering as blocked
+                        if (oScout[M28UnitInfo.refbLastShotBlocked] or (iCurDist >= 8 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oEnemyToConsiderAttacking.UnitId) and (M28UnitInfo.GetUnitHealthPercent(oEnemyToConsiderAttacking) >= 1 or oEnemyToConsiderAttacking:GetHealth() <= 10))) and (not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEnemyToConsiderAttacking.UnitId)) or (iCurDist >= 5 and iCurDist > oEnemyToConsiderAttacking:GetBlueprint().Economy.MaxBuildDistance)) then
+                            M28Orders.IssueTrackedMove(oScout, oEnemyToConsiderAttacking:GetPosition(), 4, false, 'SelSM', false)
+                        else
+                            M28Orders.IssueTrackedAttackMove(oScout, oEnemyToConsiderAttacking:GetPosition(), 4, false, 'SelSA', false)
+                        end
                     else
                         --Are too close so run away temporarily
                         RunFromEnemy(oScout, oEnemyToConsiderAttacking, iTeam, iPlateau, 16)
@@ -9397,7 +9403,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 if M28Utilities.IsTableEmpty(tAltLZTeam[M28Map.subrefLZTAlliedCombatUnits]) == false then
                     for iUnit, oUnit in tAltLZTeam[M28Map.subrefLZTAlliedCombatUnits] do
                         if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to add adjacent oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' with cur assignment value '..(oUnit[refiCurrentAssignmentValue] or 0)..' and cur assignemnt LZ='..(oUnit[refiCurrentAssignmentPlateauAndLZ][2] or 'nil')..'; DFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Is this a LAB='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, oUnit.UnitId))) end
-                        if not(oUnit.Dead) and ((oUnit[refiCurrentAssignmentValue] or 0) < iCurLZValue or (oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau and oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone)) then
+                        if not(oUnit.Dead) and oUnit:GetFractionComplete() == 1 and ((oUnit[refiCurrentAssignmentValue] or 0) < iCurLZValue or (oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau and oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone)) then
                             --Combat unit related
                             if not(bConsiderGivingOrdersToUnits) then
                                 if oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone then
