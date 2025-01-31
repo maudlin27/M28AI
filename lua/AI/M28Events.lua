@@ -862,11 +862,9 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             end
 
             --Teleport details
-            if sEnhancement == 'Teleporter' then
-                for iCurTeam = 1, M28Team.iTotalTeamCount do
-                    if not(iCurTeam == oUnit:GetAIBrain().M28Team) and M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
-                        M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasTeleport] = true
-                    end
+            for iCurTeam = 1, M28Team.iTotalTeamCount do
+                if not(iCurTeam == oUnit:GetAIBrain().M28Team) and M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                    M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasTeleport] = true
                 end
             end
 
