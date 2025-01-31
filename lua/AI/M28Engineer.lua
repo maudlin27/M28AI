@@ -16795,18 +16795,22 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 iGrossEnergyWanted = iGrossEnergyWanted * 0.7
             end
         end
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iGrossMassWanted and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= iGrossEnergyWanted then
-            --Check we dont have any T2+ sonar in this WZ as sometimes water zones are so big that they dont get great coverage from sonar
-            local tFriendlySonar
-            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                tFriendlySonar = EntityCategoryFilterDown(M28UnitInfo.refCategorySonar, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-            end
-            if M28Utilities.IsTableEmpty(tFriendlySonar) then
-                --Build t1 sonar if enemy has enemies in adjacent WZ or we have reached 400 gross mass income, T2 if no enemies in this or adjacent
-                if not (tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750) then
-                    HaveActionToAssign(refActionBuildT2Sonar, 2, iBPWanted, false, false)
-                elseif tWZTeamData[M28Map.refiSonarCoverage] <= 10 then
-                    HaveActionToAssign(refActionBuildT1Sonar, 1, 5, false, false)
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iGrossMassWanted and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= iGrossEnergyWanted and M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] >= 10 then
+            local iPondSize = math.min((M28Map.tPondDetails[iPond][M28Map.subrefPondMaxX] - M28Map.tPondDetails[iPond][M28Map.subrefPondMinX]), (M28Map.tPondDetails[iPond][M28Map.subrefPondMaxZ] - M28Map.tPondDetails[iPond][M28Map.subrefPondMinZ]))
+
+            if iPondSize >= 50 and (iPondSize >= 90 or tWZTeamData[M28Map.subrefWZbCoreBase]) then
+                --Check we dont have any T2+ sonar in this WZ as sometimes water zones are so big that they dont get great coverage from sonar
+                local tFriendlySonar
+                if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                    tFriendlySonar = EntityCategoryFilterDown(M28UnitInfo.refCategorySonar, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                end
+                if M28Utilities.IsTableEmpty(tFriendlySonar) then
+                    --Build t1 sonar if enemy has enemies in adjacent WZ or we have reached 400 gross mass income, T2 if no enemies in this or adjacent
+                    if (iPondSize >= 200 or (iPondSize >= 150 and tWZTeamData[M28Map.subrefWZbCoreBase])) and not (tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750) then
+                        HaveActionToAssign(refActionBuildT2Sonar, 2, iBPWanted, false, false)
+                    elseif tWZTeamData[M28Map.refiSonarCoverage] <= 10 then
+                        HaveActionToAssign(refActionBuildT1Sonar, 1, 5, false, false)
+                    end
                 end
             end
         end
