@@ -9611,12 +9611,12 @@ function GetNovaxTarget(aiBrain, oNovax)
             function ConsiderTableOfPriorityUnits(tTableOfUnits, iPriorityShieldSearchDist)
                 for iUnit, oUnit in tTableOfUnits do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering priority unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Health of shield='..oUnit.MyShield:GetHealth()..'; Dist to novax='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())..'; Do shields cover this shield='..tostring((DoShieldsCoverUnit(oUnit, oUnit)))..'; iBestTargetValue='..iBestTargetValue) end
-                    if oUnit.MyShield and oUnit.MyShield:GetHealth() >= 3000 then
+                    if oUnit.MyShield.GetHealth and oUnit.MyShield:GetHealth() >= 3000 then
                         table.insert(tiUnitsToRemove, iUnit)
                     elseif oUnit:GetFractionComplete() == 1 then
                         --Is the unit outside of the search range from above, but still close enoguh that we want to consider?
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())
-                        if iCurDist < iNearestRecentlyFailedShieldDist and oUnit.MyShield:GetHealth() == 1 then
+                        if iCurDist < iNearestRecentlyFailedShieldDist then--and oUnit.MyShield:GetHealth() == 1 then
                             iNearestRecentlyFailedShieldDist = iCurDist
                             oNearestRecentlyFailedShield = oUnit
                         end

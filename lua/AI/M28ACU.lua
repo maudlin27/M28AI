@@ -566,6 +566,21 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
             bProceedWithLogic = false
         end
     end
+    --Mod that reduces upgrade costs to negligible amount
+    if bProceedWithLogic and GetGameTimeSeconds() <= 15 and (oACU:GetBlueprint().Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and (oACU:GetBlueprint().Enhancements.ResourceAllocation.BuildTime or 10000) <= 100 then
+        local sUpgradeToGet, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData, not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))
+        if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeToGet='..(sUpgradeToGet or 'nil')) end
+        if not(sUpgradeToGet) and not(oACU:HasEnhancement('ResourceAllocation')) then sUpgradeToGet = 'ResourceAllocation' end --e.g. if in eco slot then we ignore upgrades initially
+        if sUpgradeToGet == 'ResourceAllocation' or sUpgradeToGet == 'AdvancedEngineering' or sUpgradeToGet == 'ResourceAllocationAdvanced' or sUpgradeToGet == 'T3Engineering' then
+            M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUEGUpr1')
+            bProceedWithLogic = false
+        elseif oACU:HasEnhancement('ResourceAllocation') and not(oACU:HasEnhancement('AdvancedEngineering')) and oACU:GetBlueprint().Enhancements.AdvancedEngineering and GetGameTimeSeconds() <= 15 then
+            --Get advanced engineering so we build faster
+            sUpgradeToGet = 'AdvancedEngineering'
+            M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUEGUpr2')
+            bProceedWithLogic = false
+        end
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': bProceedWithLogic='..tostring(bProceedWithLogic)) end
     if bProceedWithLogic then
         --Are we already building something?
@@ -1221,7 +1236,7 @@ function RemovePreferredUpgradesThatWeAlreadyHave(oACU, oBP)
         end
         local bUpgradeIsObsolete
 
-        local iRevisedIndex = 1
+        local iRevisedIndex = 0
         local iTableSize = table.getn(oACU[reftPreferredUpgrades])
 
         --First check if we have any upgrades that have prerequiites, in which case we want to remove those prerequisites first
@@ -1247,11 +1262,12 @@ function RemovePreferredUpgradesThatWeAlreadyHave(oACU, oBP)
                     else
 
                         --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                        iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
                         if (iOrigIndex ~= iRevisedIndex) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': setting iRevisedIndex '..iRevisedIndex..' to equal '..oACU[reftPreferredUpgrades][iOrigIndex]) end
                             oACU[reftPreferredUpgrades][iRevisedIndex] = oACU[reftPreferredUpgrades][iOrigIndex];
                             oACU[reftPreferredUpgrades][iOrigIndex] = nil;
                         end
-                        iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
                         if bDebugMessages == true then LOG(sFunctionRef..': We dont have this upgrade yet so will retain it') end
                     end
                 else
@@ -1260,11 +1276,20 @@ function RemovePreferredUpgradesThatWeAlreadyHave(oACU, oBP)
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': End of removal, iRevisedIndex='..iRevisedIndex..'; iTableSize='..iTableSize..'; repru='..repru(oACU[reftPreferredUpgrades])) end
+        iTableSize = table.getn(oACU[reftPreferredUpgrades])
+        if bDebugMessages == true then LOG(sFunctionRef..': End of removal, iRevisedIndex='..iRevisedIndex..'; iTableSize='..iTableSize..'; repru='..repru(oACU[reftPreferredUpgrades])..'; Entry 1 of table='..(oACU[reftPreferredUpgrades][1] or 'nil')) end
         if iRevisedIndex < iTableSize then
-            --table.setn(oACU[reftPreferredUpgrades], iRevisedIndex - 1)
-            for iRemovalEntry = iTableSize, (iRevisedIndex + 1), -1 do
-                table.remove(oACU[reftPreferredUpgrades], iRemovalEntry)
+            if iRevisedIndex == 0 then oACU[reftPreferredUpgrades] = {}
+            elseif iRevisedIndex == 1 then
+                --redundancy (had issue where doing table.remove results in the last entry with a value being removed, i think it was due to separate error with not refreshing iTableSize, but adding this to be safe)
+                oACU[reftPreferredUpgrades] = {[1] = oACU[reftPreferredUpgrades][1]}
+            else
+                --table.setn(oACU[reftPreferredUpgrades], iRevisedIndex - 1)
+                for iRemovalEntry = iTableSize, (iRevisedIndex + 1), -1 do
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to remove entry '..(iRemovalEntry or 'nil')..' with value='..(oACU[reftPreferredUpgrades][iRemovalEntry] or 'nil')) end
+                    table.remove(oACU[reftPreferredUpgrades], iRemovalEntry)
+                    if bDebugMessages == true then LOG(sFunctionRef..': repr of table after removal='..repru(oACU[reftPreferredUpgrades])) end
+                end
             end
         end
     end
@@ -1303,8 +1328,13 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation'}
+            --Mod that makes upgrades cost nothing
+            if (oBP.Enhancements['MicrowaveLaserGenerator'].BuildCostMass or 10000) <= 1000 then table.insert(oACU[reftPreferredUpgrades], 'MicrowaveLaserGenerator') end
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
-            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
+            --Mod that makes upgrades cost nothing
+            if (oBP.Enhancements['BlastAttack'].BuildCostMass or 10000) <= 1000 then
+                oACU[reftPreferredUpgrades] = {'BlastAttack', 'DamageStabilization', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilizationAdvanced'}
+            elseif M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
                 oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'DamageStabilization', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilizationAdvanced'}
             else
                 oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization', 'DamageStabilizationAdvanced'}
@@ -1328,11 +1358,19 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         if not(oACU[refbPlanningToGetShield]) then oACU[refbPlanningToGetShield] = true end
         if bDebugMessages == true then LOG(sFunctionRef..': Recording that ACU wants to get shield type upgrades') end
         if EntityCategoryContains(categories.AEON, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield', 'ShieldHeavy'}
+            --Mod that makes all upgrades super cheap
+            if (oBP.Enhancements['ResourceAllocation'].BuildCostMass or 10000) <= 100 then
+                oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'AdvancedEngineering', 'ResourceAllocationAdvanced', 'T3Engineering'}
+                if bDebugMessages == true then LOG(sFunctionRef..': Going with eco build due to cheap RAS') end
+            else
+                oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield', 'ShieldHeavy'}
+            end
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'StealthGenerator'}
             if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
             if oBP.Enhancements['FAF_SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'FAF_SelfRepairSystem') end
+            --Mod that makes upgrades cost nothing
+            if (oBP.Enhancements['MicrowaveLaserGenerator'].BuildCostMass or 10000) <= 1000 then table.insert(oACU[reftPreferredUpgrades], 'MicrowaveLaserGenerator') end
             table.insert(oACU[reftPreferredUpgrades], 'CloakingGenerator')
         else M28Utilities.ErrorHandler('Unrecognised ACU category')
         end
@@ -1382,7 +1420,10 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 end
             end
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
-            if oACU[refiUpgradeCount] >= 3 then
+            if (oBP.Enhancements['ResourceAllocation'].BuildCostMass or 10000) <= 100 then
+                oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'AdvancedEngineering', 'ResourceAllocationAdvanced', 'T3Engineering'}
+                if bDebugMessages == true then LOG(sFunctionRef..': Going with eco build due to cheap RAS2') end
+            elseif oACU[refiUpgradeCount] >= 3 then
                 if oACU[refiUpgradeCount] >= 4 and M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
                     --Do nothing - already determined upgrade path
                 else
@@ -1406,12 +1447,24 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             end
             if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then
                 local iCurEntries = table.getn(oACU[reftPreferredUpgrades])
-                if iCurEntries >= 4 and  not(oACU[reftPreferredUpgrades][4] == 'FAF_CrysalisBeamAdvanced') then table.insert( oACU[reftPreferredUpgrades], 4, 'FAF_CrysalisBeamAdvanced')
-                else table.insert(oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced')
+                local bHaveAdvancedRange = false
+                for iEntry, sEntry in oACU[reftPreferredUpgrades] do
+                    if sEntry == 'FAF_CrysalisBeamAdvanced' then
+                        bHaveAdvancedRange = true
+                        break
+                    end
+                end
+                if not(bHaveAdvancedRange) then
+                    if iCurEntries >= 4 and  not(oACU[reftPreferredUpgrades][4] == 'FAF_CrysalisBeamAdvanced') then table.insert( oACU[reftPreferredUpgrades], 4, 'FAF_CrysalisBeamAdvanced')
+                    else table.insert(oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced')
+                    end
                 end
             end
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
-            if oACU[refiUpgradeCount] >= 1 then
+            --Mod that makes upgrades cost nothing
+            if (oBP.Enhancements['MicrowaveLaserGenerator'].BuildCostMass or 10000) <= 1000 and oBP.Enhancements['ResourceAllocation'].BuildCostMass <= 1000 then
+                oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'ResourceAllocation', 'MicrowaveLaserGenerator'}
+            elseif oACU[refiUpgradeCount] >= 1 then
                 if oACU[refiUpgradeCount] >= 3 and M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
                     --Do nothing - already determined upgrade path
                     if bDebugMessages == true then LOG(sFunctionRef..': Already determiend upgrade path as have 3+ upgrades') end
@@ -1441,7 +1494,9 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 if bDebugMessages == true then LOG(sFunctionRef..': Will start with default being gun and RAS') end
             end
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
-            if oACU[refiUpgradeCount] >= 2 then
+            if (oBP.Enhancements['BlastAttack'].BuildCostMass or 10000) <= 1000 then
+                oACU[reftPreferredUpgrades] = {'BlastAttack', 'DamageStabilization', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilizationAdvanced'}
+            elseif oACU[refiUpgradeCount] >= 2 then
                 if oACU[refiUpgradeCount] >= 3 and M28Utilities.IsTableEmpty( oACU[reftPreferredUpgrades]) == false then
                     --Do nothing - already determined which path to go down
                 else
@@ -1486,6 +1541,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
 
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
         local tiEntriesToRemove = {}
+        if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades] before removing invalid entries='..repru(oACU[reftPreferredUpgrades])) end
         for iUpgradeWanted, sUpgradeWanted in oACU[reftPreferredUpgrades] do
             bInvalidUpgrade = false
             if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
@@ -1593,6 +1649,19 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 end
             end
         end
+    else
+        --If can get RAS, and it is cheap, then make it the first upgrade to get
+        if (oBP.Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and GetGameTimeSeconds() <= 60 and not(oACU[reftPreferredUpgrades][1] == 'ResourceAllocation') then
+            table.insert(oACU[reftPreferredUpgrades], 1, 'ResourceAllocation')
+            --Remove the other RAS
+            for iUpgrade, sUpgrade in oACU[reftPreferredUpgrades] do
+                if sUpgrade == 'ResourceAllocation' and iUpgrade > 1 then
+                    table.remove(oACU[reftPreferredUpgrades], iUpgrade)
+                    break
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': The first upgrade entry should be RAS upgrade because of how cheap it is') end
+        end
     end
     --Campaign specific - add RAS upgrade if we only have 1 upgrade
     if bDebugMessages == true then
@@ -1615,14 +1684,14 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
 end
 
 function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamData, bIgnoreEcoCondition)
-    --Returns nil if cantr find anything
+    --Returns nil if cantr find anything; also returns true as a second variable if we have a low cost upgrade
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetACUUpgradeWanted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
 
-    local sUpgradeWanted
+    local sUpgradeWanted, bIgnoreOtherConditions
 
     if EntityCategoryContains(categories.COMMAND, oACU.UnitId) then
         local aiBrain = oACU:GetAIBrain()
@@ -1669,11 +1738,15 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                 if bDebugMessages == true then LOG(sFunctionRef..': Early teamgame, enemy doesnt have upgraded ACU, we lack T2 mex in our core base, so wont consider upgrade yet') end
                 bDontConsiderAnyUpgrades = true
             end
+            --Exception for low cost mod where we are calling this from the early game order
+            if bDontConsiderAnyUpgrades and GetGameTimeSeconds() <= 15 then
+                bDontConsiderAnyUpgrades = false
+            end
             --tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] <= 2
         end
         if bDontConsiderAnyUpgrades then
             --Do nothing
-            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to consider any upgrades due to norush') end
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to consider any upgrades due to norush or being in a safe spot') end
         else
             --If we were to get an upgrade, what upgrade would it be?
             if not(oACU[reftPreferredUpgrades]) or (oACU[reftPreferredUpgrades][1] and oACU.HasEnhancement and oACU:HasEnhancement(oACU[reftPreferredUpgrades][1])) or bWantToDoTeleSnipe or (oACU[refiUpgradeCount] > 0 and GetGameTimeSeconds() - (oACU[refiTimeLastConsideredUpgradePath] or 0) >= 30) then
@@ -1681,13 +1754,18 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
             end
 
             if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades]='..repru(oACU[reftPreferredUpgrades])..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))..'; bWantToDoTeleSnipe='..tostring(bWantToDoTeleSnipe or false)) end
-            if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false and (not(M28Conditions.HaveLowPower(iTeam)) or aiBrain[M28Economy.refbBuiltParagon] or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 7500 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
-
-                local sPotentialUpgrade = oACU[reftPreferredUpgrades][1]
-                if sPotentialUpgrade then
+            local sPotentialUpgrade = oACU[reftPreferredUpgrades][1]
+            if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false and sPotentialUpgrade then
+                local tEnhancement = oACU:GetBlueprint().Enhancements[sPotentialUpgrade]
+                if tEnhancement.BuildCostMass <= 100 and tEnhancement.BuildCostEnergy <= 100 and (oACU:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 600 or not(sUpgradeWanted == 'CloakingGenerator' or sUpgradeWanted == 'Sheild')) then
+                    sUpgradeWanted = sPotentialUpgrade
+                    if tEnhancement.BuildTime <= 100 then
+                        bIgnoreOtherConditions = true
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Low cost upgrade wanted') end
+                elseif (not(M28Conditions.HaveLowPower(iTeam)) or aiBrain[M28Economy.refbBuiltParagon] or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 7500 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
                     if bWantToDoTeleSnipe or bIgnoreEcoCondition then sUpgradeWanted = sPotentialUpgrade
                     else
-                        local tEnhancement = oACU:GetBlueprint().Enhancements[sPotentialUpgrade]
                         --Do we have the eco to support the upgrade?
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering sPotentialUpgrade='..sPotentialUpgrade..'; for ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' for brain '..oACU:GetAIBrain().Nickname..'; tEnhancement='..reprs(tEnhancement)) end
                         local iBuildRate = oACU:GetBlueprint().Economy.BuildRate
@@ -1820,7 +1898,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return sUpgradeWanted
+    return sUpgradeWanted, bIgnoreOtherConditions
 end
 
 function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
@@ -1948,6 +2026,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                     else
 
                                         local iEnemyNearbyThreat = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+                                        local iEnemyMobileNearbyDFThreat = (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)
                                         local aiBrain = oACU:GetAIBrain()
                                         local iTeam = aiBrain.M28Team
                                         local iAllyNearbyThreat
@@ -1987,6 +2066,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                 iBestEnemyDFRange = math.max(iBestEnemyDFRange, (tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0))
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Adding threat for iAdjLZ='..iAdjLZ..' with threat '..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]..'; mobile DF='..(tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Mobile indirect='..(tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)..'; subrefiNearbyEnemyLongRangeThreat='..(tAdjLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 'nil')..'; Enemy best mobile DF range in this LZ='..(tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)) end
                                                 iEnemyNearbyThreat = iEnemyNearbyThreat + (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+                                                iEnemyMobileNearbyDFThreat = iEnemyMobileNearbyDFThreat + (tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)
                                                 iMaxLRThreat = math.max(iMaxLRThreat, (tAdjLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0))
                                                 --Include adjacent enemies assuming ACU has enough health that they are likely to be able to arrive
                                                 if iHealthPercent >= 0.65 and (iHealthPercent >= 0.8 or oACU[refbUseACUAggressively] or (iHealthPercent >= 0.35 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 and not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]))) then
@@ -2032,7 +2112,11 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                 iAllyNearbyThreat = iAllyNearbyThreat + iAllyAdjacentZoneThreat
                                             end
                                         end
-                                        iEnemyNearbyThreat = iEnemyNearbyThreat + iMaxLRThreat
+                                        if iMaxLRThreat > 0 then
+                                            iEnemyNearbyThreat = iEnemyNearbyThreat + iMaxLRThreat
+                                            iEnemyMobileNearbyDFThreat = iEnemyMobileNearbyDFThreat + iMaxLRThreat
+                                        end
+
 
                                         if iMaxLRThreat == 0 and M28Utilities.IsTableEmpty(tOutrangedACUs) == false and iBestEnemyDFRange < oACU[M28UnitInfo.refiDFRange] then
                                             local iCurThreatReduction
@@ -2059,9 +2143,10 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                             iEnemyNearbyThreat = iEnemyNearbyThreat - M28UnitInfo.GetCombatThreatRating(tOutrangedACUs, true, false) * 0.75
                                         end
 
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyNearbyThreat='..iEnemyNearbyThreat..'; iACUThreat='..iACUThreat..'; bAgainstEnemyACUAndMightWin='..tostring(bAgainstEnemyACUAndMightWin or false)..'; iPercentageToFriendlyBase='..iPercentageToFriendlyBase..'; bAdjacentToCoreLZ='..tostring(bAdjacentToCoreLZ)..'; iAllyNearbyThreat='..iAllyNearbyThreat..'; iMaxLRThreat='..iMaxLRThreat) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyNearbyThreat='..iEnemyNearbyThreat..'; iACUThreat='..iACUThreat..'; iEnemyMobileNearbyDFThreat='..iEnemyMobileNearbyDFThreat..'; bAgainstEnemyACUAndMightWin='..tostring(bAgainstEnemyACUAndMightWin or false)..'; iPercentageToFriendlyBase='..iPercentageToFriendlyBase..'; bAdjacentToCoreLZ='..tostring(bAdjacentToCoreLZ)..'; iAllyNearbyThreat='..iAllyNearbyThreat..'; iMaxLRThreat='..iMaxLRThreat) end
                                         --Run if enemy has a really large threat (regardless of if we think we can beat it)
-                                        if iEnemyNearbyThreat > math.min(math.max(iACUThreat * 2, iACUThreat * 0.75 + iAllyNearbyThreat), 4000 + 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (iEnemyNearbyThreat > math.max(iACUThreat * 3, iACUThreat + iAllyNearbyThreat) or ((not(bAgainstEnemyACUAndMightWin) and iPercentageToFriendlyBase >= 0.35 and not(bAdjacentToCoreLZ) and not(oACU[refbUseACUAggressively])))) then
+                                        if iEnemyNearbyThreat > math.min(math.max(iACUThreat * 2, iACUThreat * 0.75 + iAllyNearbyThreat), 4000 + 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (iEnemyNearbyThreat > math.max(iACUThreat * 3, iACUThreat + iAllyNearbyThreat) or ((not(bAgainstEnemyACUAndMightWin) and iPercentageToFriendlyBase >= 0.35 and not(bAdjacentToCoreLZ) and not(oACU[refbUseACUAggressively]))))
+                                                and (iACUThreat < iEnemyMobileNearbyDFThreat * 1.1 or iACUThreat * 3 < iEnemyNearbyThreat) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Enemy has too large a threat so will run') end
                                             bWantToRun = true
                                         else
@@ -2091,9 +2176,12 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                 iAllyNearbyThreatFactor = 0.8
                                             end
 
+                                            --Increase ACU factor if enemy lacks much mobile threat
+                                            if iEnemyMobileNearbyDFThreat < 0.5 * iEnemyNearbyThreat and iEnemyMobileNearbyDFThreat * 1.2 < iACUThreat and not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) then iACUFactor = iACUFactor * 1.25 end
+
 
                                             --NOTE: subrefLZTThreatAllyCombatTotal includes the ACU threat
-                                            if not(oACU[refbUseACUAggressively]) and (iACUThreat * iACUFactor + iAllyNearbyThreat * iAllyNearbyThreatFactor < iEnemyNearbyThreat) then
+                                            if not(oACU[refbUseACUAggressively]) and (iACUThreat * iACUFactor + iAllyNearbyThreat * iAllyNearbyThreatFactor < iEnemyNearbyThreat) and iEnemyMobileNearbyDFThreat >= iACUThreat * iACUFactor then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will run as iACUThreat='..iACUThreat..'; iACUFactor='..iACUFactor..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; iEnemyNearbyThreat='..iEnemyNearbyThreat..'; Ally mobile DF total='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0)..'; iAllyNearbyThreat='..iAllyNearbyThreat) end
                                                 bWantToRun = true
                                             else
@@ -2185,10 +2273,10 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                                 end
                                                             end
                                                         end
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': iNearbyEnemyLRDFThreat='..iNearbyEnemyLRDFThreat..'; bWantToRun='..tostring(bWantToRun or false)) end
-                                                        if iNearbyEnemyLRDFThreat >= 3000 then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': iNearbyEnemyLRDFThreat='..iNearbyEnemyLRDFThreat..'; bWantToRun='..tostring(bWantToRun or false)..'; iACUThreat='..iACUThreat) end
+                                                        if iNearbyEnemyLRDFThreat >= 3000 and (iACUThreat <= 5000 or iNearbyEnemyLRDFThreat >= iACUThreat or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) then
                                                             bWantToRun = true
-                                                        elseif iNearbyEnemyLRDFThreat >= 1750 then
+                                                        elseif iNearbyEnemyLRDFThreat >= 1750 and iNearbyEnemyLRDFThreat >= iACUThreat * 0.7 then
                                                             --Do more precise check of whether we are in range of the enemy based on nearest enemies in this zone and adjacent zones
                                                             local toLRUnits = {}
                                                             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
@@ -2216,7 +2304,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                             end
                                                         end
                                                     end
-                                                    if iEnemyNearbyThreat >= 1200 and ((oACU[refiUpgradeCount] or 0) < 3 or EntityCategoryContains(categories.UEF + categories.AEON, oACU.UnitId)) and iEnemyNearbyThreat / iAggressiveFactor > (iACUThreat * iACUFactor + iAllyNearbyThreat) then
+                                                    if iEnemyNearbyThreat >= 1200 and iACUThreat <= 5000 and ((oACU[refiUpgradeCount] or 0) < 3 or EntityCategoryContains(categories.UEF + categories.AEON, oACU.UnitId)) and iEnemyNearbyThreat / iAggressiveFactor > (iACUThreat * iACUFactor + iAllyNearbyThreat) then
                                                         if not(bEnemyHasPDOrSignificantACUs) then
                                                             local iBestEnemyThreatRange = 0
                                                             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange]) == false then
@@ -2346,9 +2434,9 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..' on team '..iTeam..'; Dangerous for ACUs='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])..'; ACU health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Air to ground threat='..tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Team air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Nearby enemy air to ground threat='..M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 0)..'; Mod dist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; Have air control='..tostring(M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbHaveAirControl])..'; Assassinationorsimilar='..tostring(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])) end
     if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 or ((tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= 400 or
-        --Is enemy planning a potential air snipe and we are exposed?
+            --Is enemy planning a potential air snipe and we are exposed?
             ((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(500, 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)))
-            and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or (not(M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.55 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and M28Map.iMapSize >= 1024) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.95 or oACU[refiUpgradeCount] <= 1 or M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 0) > (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2.5)))
+                    and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or (not(M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.55 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and M28Map.iMapSize >= 1024) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.95 or oACU[refiUpgradeCount] <= 1 or M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 0) > (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2.5)))
             )) then
         if bDebugMessages == true then LOG(sFunctionRef..': Is dangerous for ACU or low health or large enemy air to ground threat so returning to base; is part of condition re enemy air threat up to but before nearby zones true='..tostring(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.55 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and M28Map.iMapSize >= 1024) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.95 or oACU[refiUpgradeCount] <= 1)) end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2404,7 +2492,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
         end
 
         --Return to base if enemy has signiifcant air to ground threat and we lack air control
-        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(math.min(1000, 400 + math.max(250 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1), (M28Team.iPlayersAtGameStart or 1) * 100)), math.min(750, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2), math.min(4000, (M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.subrefiOurAirAAThreat] or 0))) and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] and ((oACU[refiUpgradeCount] or 0) < 3 or not(oACU:GetHealth() >= 15000 - 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (oACU.MyShield and oACU.MyShield:GetHealth()) >= 7000)) then
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(math.min(1000, 400 + math.max(250 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1), (M28Team.iPlayersAtGameStart or 1) * 100)), math.min(750, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2), math.min(4000, (M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.subrefiOurAirAAThreat] or 0))) and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] and ((oACU[refiUpgradeCount] or 0) < 3 or not(oACU:GetHealth() >= 15000 - 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (oACU.MyShield.GetHealth and oACU.MyShield:GetHealth()) >= 7000)) then
             if bDebugMessages == true then LOG(sFunctionRef..': Vulnerable to an air snipe so want to retreat, oACU[refiUpgradeCount]='..oACU[refiUpgradeCount]) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
@@ -4032,10 +4120,10 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': No naval threats close enough to attack so will consider nearby reclaim') end
                     if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true)) then
-                        local sUpgradeToGet = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData)
-                        if sUpgradeToGet and not(M28Conditions.HaveLowMass(aiBrain)) and not(M28Conditions.HaveLowPower(aiBrain)) then
+                        local sUpgradeToGet, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData)
+                        if sUpgradeToGet and (bIgnoreOtherUpgradeConditions or (not(M28Conditions.HaveLowMass(aiBrain)) and not(M28Conditions.HaveLowPower(aiBrain)))) then
                             --Are we safe to get the upgrade here? if not then retreat
-                            if M28Conditions.SafeToUpgradeUnit(oACU) then
+                            if bIgnoreOtherUpgradeConditions or M28Conditions.SafeToUpgradeUnit(oACU) then
                                 if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) >= 2 or oACU[M28Orders.refiTimeOfLastRemovalUpgrade] or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeToGet then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname) end
                                     M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpg')
@@ -5300,15 +5388,15 @@ function GetACUOrder(aiBrain, oACU)
                                     local bGettingPriorityUpgrade = false
                                     if oACU[refbWantsPriorityUpgrade] and (not(oACU:IsUnitState('Building')) and (not(oACU:IsUnitState('Repairing')) or oACU:IsUnitState('Guarding')) and (not(oACU:IsUnitState('Reclaiming')) or aiBrain:GetEconomyStoredRatio('MASS') >= 0.8) and not(oACU:IsUnitState('Capturing'))) then
                                         --Do we want to get an upgrade?
-                                        local sUpgradeToGet = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData, not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))
+                                        local sUpgradeToGet, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData, not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))
                                         if bDebugMessages == true then LOG(sFunctionRef..': Do we have a priority upgrade we want to get? sUpgradeToGet='..(sUpgradeToGet or 'nil')) end
                                         if sUpgradeToGet then
                                             bGettingPriorityUpgrade = true
                                             --Do we have a friendly nearby ugprading ACU? If so then assist its upgrade first before getting ours
-                                            if not(AssistNearbyUpgradingACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, 40)) then
+                                            if bIgnoreOtherUpgradeConditions or not(AssistNearbyUpgradingACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, 40)) then
                                                 --Are we safe to get the upgrade here? if not then retreat
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will check if safe to get priority upgrade for oACU, oACU='..(oACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oACU) or 'nil')..'; Brain='..oACU:GetAIBrain().Nickname) end
-                                                if M28Conditions.SafeToUpgradeUnit(oACU) then
+                                                if bIgnoreOtherUpgradeConditions or M28Conditions.SafeToUpgradeUnit(oACU) then
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Safe to get priority upgrade here so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeToGet))) end
                                                     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) >= 2 or oACU[M28Orders.refiTimeOfLastRemovalUpgrade] or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeToGet then
                                                         M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpr')
@@ -5586,14 +5674,14 @@ function GetACUOrder(aiBrain, oACU)
                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if ACU unit state not important so we can consider doing other things, ACU state='..M28UnitInfo.GetUnitState(oACU)..'; Mass stored ratio='..aiBrain:GetEconomyStoredRatio('MASS')..'; Is unit state building='..tostring(oACU:IsUnitState('Building'))..'; Is unit state repairing='..tostring(oACU:IsUnitState('Repairing'))..'; Is unit state reclaiming='..tostring(oACU:IsUnitState('Reclaiming'))..'; Is unit state guarding='..tostring(oACU:IsUnitState('Guarding'))) end
                                                                                 if not(oACU:IsUnitState('Building')) and (not(oACU:IsUnitState('Repairing')) or oACU:IsUnitState('Guarding')) and (not(oACU:IsUnitState('Reclaiming')) or aiBrain:GetEconomyStoredRatio('MASS') >= 0.8) and not(oACU:IsUnitState('Capturing')) then
                                                                                     --Do we want to get an upgrade?
-                                                                                    local sUpgradeToGet = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData)
+                                                                                    local sUpgradeToGet, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData)
                                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Do we have an upgrade we want to get? sUpgradeToGet='..(sUpgradeToGet or 'nil')) end
                                                                                     if sUpgradeToGet then
                                                                                         --Do we have a friendly nearby ugprading ACU? If so then assist its upgrade first before getting ours
-                                                                                        if not(AssistNearbyUpgradingACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, 40)) then
+                                                                                        if bIgnoreOtherUpgradeConditions or not(AssistNearbyUpgradingACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, 40)) then
                                                                                             --Are we safe to get the upgrade here? if not then retreat
                                                                                             if bDebugMessages == true then LOG(sFunctionRef..': Will check if safe to get upgrade for oACU, oACU='..(oACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oACU) or 'nil')..'; Brain='..oACU:GetAIBrain().Nickname) end
-                                                                                            if M28Conditions.SafeToUpgradeUnit(oACU) then
+                                                                                            if bIgnoreOtherUpgradeConditions or M28Conditions.SafeToUpgradeUnit(oACU) then
                                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade here so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeToGet))) end
                                                                                                 if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) >= 2 or oACU[M28Orders.refiTimeOfLastRemovalUpgrade] or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeToGet then
                                                                                                     M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpr')
@@ -6157,17 +6245,17 @@ function HaveActionForACUAsEngineer(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateau
                     if aiBrain:GetEconomyStoredRatio('MASS') >= 0.4 and not(M28Conditions.HaveLowPower(iTeam)) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
                         --If are at T2 and next upgrade is for T3 then consider getting this
                         if  oACU[refiBuildTech] == 2 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 150 then
-                            local sUpgradeWanted
+                            local sUpgradeWanted, bIgnoreOtherUpgradeConditions
                             if tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= 3 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 300 then
                                 --Ignore eco checks
-                                sUpgradeWanted = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, true)
+                                sUpgradeWanted, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, true)
                             else
-                                sUpgradeWanted = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, false)
+                                sUpgradeWanted, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, false)
                             end
                             if sUpgradeWanted then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to get T3 on ACU') end
                                 bGivenOrder = true
-                                if M28Conditions.SafeToUpgradeUnit(oACU) then
+                                if bIgnoreOtherUpgradeConditions or M28Conditions.SafeToUpgradeUnit(oACU) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': ACU Eng Safe to get upgrade here so will proceed with upgrading ACU, sUpgradeWanted='..(sUpgradeWanted or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeWanted))) end
                                     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) >= 2 or oACU[M28Orders.refiTimeOfLastRemovalUpgrade] or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeToGet then
                                         M28Orders.IssueTrackedEnhancement(oACU, sUpgradeWanted, false, 'ACUEUpr')
@@ -6311,14 +6399,15 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
         if oClosestShield then
             oACU[refoShieldRallyTarget] = oClosestShield
             if bDebugMessages == true then LOG(sFunctionRef..': iClosestShield='..iClosestShield..'; Shield radius='..(oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0)..'; Shield health='..oClosestShield.MyShield:GetHealth()..'; brain'..oACU:GetAIBrain().Nickname) end
-            if iClosestShield <= 6 or (iClosestShield < math.min((oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5 - 3.5, 26) and oClosestShield.MyShield and oClosestShield.MyShield:GetHealth() >= 5000) then                local sUpgradeToGet = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, false)
+            if iClosestShield <= 6 or (iClosestShield < math.min((oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5 - 3.5, 26) and oClosestShield.MyShield.GetHealth and oClosestShield.MyShield:GetHealth() >= 5000) then
+                local sUpgradeToGet, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, false)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if want upgrade, sUpgradeToGet='..(sUpgradeToGet or 'nil')..'; Have low mass='..tostring(M28Conditions.HaveLowMass(oACU:GetAIBrain()))..'; Have low power='..tostring(M28Conditions.HaveLowPower(oACU:GetAIBrain()))..'; Stalling mass='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefbTeamIsStallingMass])..'; Gross brain mass='..oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome]) end
-                if sUpgradeToGet and (not(M28Conditions.HaveLowPower(oACU:GetAIBrain())) or oACU:GetAIBrain()[M28Economy.refbBuiltParagon]) and not(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefbTeamIsStallingMass]) and (not(M28Conditions.HaveLowMass(oACU:GetAIBrain())) or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 50) then
+                if sUpgradeToGet and (bIgnoreOtherUpgradeConditions or (not(M28Conditions.HaveLowPower(oACU:GetAIBrain())) or oACU:GetAIBrain()[M28Economy.refbBuiltParagon]) and not(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefbTeamIsStallingMass]) and (not(M28Conditions.HaveLowMass(oACU:GetAIBrain())) or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 50)) then
                     M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpLg')
                     if bDebugMessages == true then LOG(sFunctionRef..': Are under shield already but want to get an upgrade so will get upgrade') end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true
-                elseif iClosestShield <= 3 or (oClosestShield.MyShield and oClosestShield.MyShield:GetHealth() >= 5000) then
+                elseif iClosestShield <= 3 or (oClosestShield.MyShield.GetHealth and oClosestShield.MyShield:GetHealth() >= 5000) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Are under the shield already so will consider normal ACU logic') end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return false

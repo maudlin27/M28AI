@@ -628,7 +628,7 @@ function SafeToUpgradeUnit(oUnit)
                             iAdjWZ = tSubtable[M28Map.subrefAWZRef]
                             iPond = M28Map.tiPondByWaterZone[iAdjWZ]
                             local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                            if (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 20 and tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] > iRangeThreshold and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                            if (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 20 and tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] > iRangeThreshold and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                 for iEnemy, oEnemy in tAdjWZTeamData[M28Map.subrefTEnemyUnits] do
                                     if oEnemy[M28UnitInfo.refiCombatRange] >= iRangeThreshold and not(oEnemy.Dead) then
                                         if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange] <= iDistUntilInRangeThreshold then
@@ -1600,7 +1600,7 @@ function CanUnitUseOvercharge(aiBrain, oUnit, tLZTeamDataIfACU)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local bCanUseOC = false
-    if oUnit and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then --and (oUnit[M28UnitInfo.refiFailedOCCount] or 0) < 2 then
+    if oUnit and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(oUnit[M28UnitInfo.refbDisableOvercharge]) then --and (oUnit[M28UnitInfo.refiFailedOCCount] or 0) < 2 then
         local oBP = oUnit:GetBlueprint()
         local iEnergyNeeded
         if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or -100) >= 5 then

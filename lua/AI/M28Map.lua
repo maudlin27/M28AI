@@ -483,6 +483,7 @@ tPondDetails = {}
             subrefWZbContainsNavalBuildLocation = 'WZNavBL' --true if contains a naval build location for a friendly M28AI
             subrefWZTValue = 'WZVal' --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
             subrefWZFactoryDestroyedCount = 'WZFacKil' --number of factories that have died in this WZ, used to decide whether to clear the core WZ flag
+            subrefWZTimeLastDestroyedForStuckNavy = 'WZStT3T' --gametimeseconds that we had a naval unit stuck long enough that we resorted to ctrl-king a factory/similar
             --refiRadarCoverage - use same ref as for land zone
             --refiOmniCoverage - use same ref as land zone
             --refoBestRadar - use same ref as for land zone

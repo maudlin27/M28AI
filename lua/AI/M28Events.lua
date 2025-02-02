@@ -823,14 +823,22 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 elseif sEnhancement == 'MicrowaveLaserGenerator' or sEnhancement == 'BlastAttack' then
                     --double-check the upgrade mass cost indicates it is a deadly upgrade
                     local iUpgradeMassCost = oUnit:GetBlueprint().Enhancements[sEnhancement].BuildCostMass
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have got laser or sera gun, iUpgradeMassCost='..iUpgradeMassCost) end
                     if iUpgradeMassCost >= 3000 then
                         --Every other team - add to bigthreat table
                         local iOurTeam = oUnit:GetAIBrain().M28Team
                         for iTeam = 1, M28Team.iTotalTeamCount do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering adding to big threat table for iTeam='..iTeam..'; M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Team of the ACU='..iOurTeam) end
                             if not(iOurTeam == iTeam) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding to big threat table') end
                                 M28Team.AddUnitToBigThreatTable(iTeam, oUnit)
                             end
                         end
+                    end
+                    --Enable autoovercharge if this is an M28ACU and flag we dont want to manually overcharge
+                    if oUnit.SetAutoOvercharge and oUnit:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active) then
+                        oUnit:SetAutoOvercharge(true)
+                        oUnit[M28UnitInfo.refbDisableOvercharge] = true
                     end
                 end
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
@@ -993,7 +1001,7 @@ function OnShieldBubbleDamaged(self, instigator)
                         if (oShield[M28Building.refiTMLShotsFired] or 0) > 0 and oUnitCausingDamage.GetAIBrain and oUnitCausingDamage:GetAIBrain().M28AI and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
                             oShield[M28Building.refiTMLShotsHit] = (oShield[M28Building.refiTMLShotsHit] or 0) + 1
                         end
-                        if oShield.MyShield:GetHealth() <= oShield.MyShield:GetMaxHealth() * 0.5 then
+                        if oShield.MyShield.GetHealth and oShield.MyShield:GetHealth() <= oShield.MyShield:GetMaxHealth() * 0.5 then
                             local iTeam = instigator:GetAIBrain().M28Team
                             local bRecordedAlready
                             if oShield.MyShield:GetHealth() <= 1250 then
@@ -1394,9 +1402,9 @@ function OnWeaponFired(oWeapon)
                 --M28 owned unit specific logic
                 if oUnit:GetAIBrain().M28AI then
                     --Shot is blocked logic
-                    if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..((oWeapon.Blueprint or oWeapon.bp).RangeCategory or 'nil')..'; reprs of .RangeCategory='..reprs((oWeapon.Blueprint or oWeapon.bp).RangeCategory)..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))..'; repr of oWeapon.Blueproint='..reprs((oWeapon.Blueprint or oWeapon.bp))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..((oWeapon.Blueprint or oWeapon.bp).RangeCategory or 'nil')..'; reprs of .RangeCategory='..reprs((oWeapon.Blueprint or oWeapon.bp).RangeCategory)..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer + categories.uas0401 - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))..'; repr of oWeapon.Blueproint='..reprs((oWeapon.Blueprint or oWeapon.bp))) end
                     local iWeaponRangeCategory = ((oWeapon.Blueprint or oWeapon.bp).RangeCategory)
-                    if (iWeaponRangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryCombatScout + M28UnitInfo.refCategoryLightAttackBot + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (iWeaponRangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
+                    if (iWeaponRangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryCombatScout + M28UnitInfo.refCategoryLightAttackBot + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer + categories.uas0401 - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (iWeaponRangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
                         --Get weapon target if it is a DF weapon or sub torpedo
                         local oTarget
                         if oWeapon.GetCurrentTarget and not(oWeapon:BeenDestroyed()) then oTarget = oWeapon:GetCurrentTarget() end
