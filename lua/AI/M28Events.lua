@@ -823,14 +823,22 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 elseif sEnhancement == 'MicrowaveLaserGenerator' or sEnhancement == 'BlastAttack' then
                     --double-check the upgrade mass cost indicates it is a deadly upgrade
                     local iUpgradeMassCost = oUnit:GetBlueprint().Enhancements[sEnhancement].BuildCostMass
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have got laser or sera gun, iUpgradeMassCost='..iUpgradeMassCost) end
                     if iUpgradeMassCost >= 3000 then
                         --Every other team - add to bigthreat table
                         local iOurTeam = oUnit:GetAIBrain().M28Team
                         for iTeam = 1, M28Team.iTotalTeamCount do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering adding to big threat table for iTeam='..iTeam..'; M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Team of the ACU='..iOurTeam) end
                             if not(iOurTeam == iTeam) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding to big threat table') end
                                 M28Team.AddUnitToBigThreatTable(iTeam, oUnit)
                             end
                         end
+                    end
+                    --Enable autoovercharge if this is an M28ACU and flag we dont want to manually overcharge
+                    if oUnit.SetAutoOvercharge and oUnit:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active) then
+                        oUnit:SetAutoOvercharge(true)
+                        oUnit[M28UnitInfo.refbDisableOvercharge] = true
                     end
                 end
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then

@@ -69,6 +69,7 @@ refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate i
 refbExpBomberShotBlocked = 'M28ULstExpBShtBlck' --true if an experimental bomber thinks a shot fired at this unit will be blocked
 refiTargetShotBlockedCount = 'M28UnitTrgSBlC' --Number of times a long range unit has failed to hit this (used for naval units targeting structures - change how this is increased if want to expand usage)
 refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds
+refbDisableOvercharge = 'M28ACUOCDs' --true if dont want to use overcharge manually, e.g. if have enabled auto-overcharge due to having laser or blast
 --refiFailedOCCount = 'M28UFlOCC' --intneded for QUIET - if we have tried overcharging a unit that is in our range and are firing our main gun instead then this will increase by 1
 reftbInArmyIndexBigThreatTable = 'M28UnitInBigThreatTable' --[x] is army index; true if have added unit to table of big threats for that army index
 refbConstructionStart = 'M28UnitConStrt' --True if constructionstarted event logic has been run for this unit
@@ -635,6 +636,15 @@ function UpdateUnitCombatMassRatingForUpgrades(oUnit)
                 if oUnit:HasEnhancement(sCurUpgrade) then
                     iCurMassValue = tUpgrade.BuildCostMass
                     iCurMassMod = GetUpgradeCombatWeighting(sCurUpgrade)
+                    --Exception for mod that makes mass costs 1
+                    if iCurMassValue == 1 and iCurMassMod >= 0.4 then
+                        --Very simplistic approximation
+                        if sCurUpgrade == 'MicrowaveLaserGenerator' or sCurUpgrade == 'BlastAttack' then
+                            iCurMassValue = 4000
+                        elseif iCurMassMod >= 1 then iCurMassValue = 1000
+                        else iCurMassValue = 500
+                        end
+                    end
                     iTotalMassValue = iTotalMassValue + iCurMassMod * iCurMassValue
                     if bDebugMessages == true then LOG(sFunctionRef..': ACU has enhancement no. '..sCurUpgrade..'; iCurMassValue='..iCurMassValue..'; iCurMassMod='..iCurMassMod) end
                 end
