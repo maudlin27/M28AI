@@ -4572,7 +4572,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Is this the same as nearest enemy to midpoint='..tostring(oEnemy == oNearestEnemyToFriendlyBase)..'; Fraction complete='..oEnemy:GetFractionComplete()) end
                         if oEnemy:GetFractionComplete() == 1 then
                             iCurHealth = oEnemy:GetHealth()
-                            if oUnit.MyShield then
+                            if oUnit.MyShield.GetHealth then
                                 iCurHealth = iCurHealth + oUnit.MyShield:GetHealth()
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack -  Considering if we want to manually attack enemy unit '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurHelath='..iCurHealth..'; iLowestHealth='..iLowestHealth..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy))..'; Distance ot unit='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())..'; iCurHealth < iLowestHealth ='..tostring(iCurHealth < iLowestHealth )..'; Both conditions='..tostring(iCurHealth < iLowestHealth and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemy, true))) end
@@ -6501,7 +6501,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                                         for iEnemy, oEnemy in tLZTeamData[M28Map.reftoNearestDFEnemies] do
 
                                                                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
-                                                                            if iCurDist < iClosestEnemyToIndirect then
+                                                                            if iCurDist < iClosestEnemyToIndirect and not(oEnemy.Dead) then
                                                                                 oEnemyToConsiderAttacking = oEnemy
                                                                                 iClosestEnemyToIndirect = iCurDist
                                                                             end
@@ -6512,9 +6512,16 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                                     if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then oEnemyToConsiderAttacking = oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] else oEnemyToConsiderAttacking = oNearestEnemyToFriendlyBase end
                                                                     iClosestEnemyToIndirect = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemyToConsiderAttacking[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
                                                                 end
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': oEnemyToConsiderAttacking='..oEnemyToConsiderAttacking.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToConsiderAttacking)..'; Can see this unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemyToConsiderAttacking))) end
-                                                                --AOE ground attack option similar to below logic for hidden attackers we know are there and which arent moving
-                                                                if iClosestEnemyToIndirect <= oUnit[M28UnitInfo.refiIndirectRange] and (oUnit[M28UnitInfo.refiIndirectAOE] or 0) > 0 and oUnit[M28UnitInfo.refiTimeBetweenIFShots] and not(oEnemyToConsiderAttacking:IsUnitState('Moving')) and not(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemyToConsiderAttacking)) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or -1) > 1 + oUnit[M28UnitInfo.refiTimeBetweenIFShots] * 1.2 and M28Utilities.GetDistanceBetweenPositions(oEnemyToConsiderAttacking:GetPosition(), oUnit:GetPosition()) <= (oUnit[M28UnitInfo.refiIndirectRange] or 0) then
+                                                                if bDebugMessages == true then
+                                                                    if not(M28UnitInfo.IsUnitValid(oEnemyToConsiderAttacking)) then LOG(sFunctionRef..': oEnemyToConsiderAttacking is dead so will attack closest enemy base as a redundancy')
+                                                                    else
+                                                                        LOG(sFunctionRef..': oEnemyToConsiderAttacking='..oEnemyToConsiderAttacking.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToConsiderAttacking)..'; Can see this unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemyToConsiderAttacking)))
+                                                                    end
+                                                                end
+                                                                if not(M28UnitInfo.IsUnitValid(oEnemyToConsiderAttacking)) then --redundancy
+                                                                    M28Orders.IssueTrackedAggressiveMove(oUnit, tLZTeamData[M28Map.reftClosestEnemyBase], 5, false, 'IKADead'..iLandZone)
+                                                                    --AOE ground attack option similar to below logic for hidden attackers we know are there and which arent moving
+                                                                elseif iClosestEnemyToIndirect <= oUnit[M28UnitInfo.refiIndirectRange] and (oUnit[M28UnitInfo.refiIndirectAOE] or 0) > 0 and oUnit[M28UnitInfo.refiTimeBetweenIFShots] and not(oEnemyToConsiderAttacking:IsUnitState('Moving')) and not(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemyToConsiderAttacking)) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or -1) > 1 + oUnit[M28UnitInfo.refiTimeBetweenIFShots] * 1.2 and M28Utilities.GetDistanceBetweenPositions(oEnemyToConsiderAttacking:GetPosition(), oUnit:GetPosition()) <= (oUnit[M28UnitInfo.refiIndirectRange] or 0) then
                                                                     M28Orders.IssueTrackedGroundAttack(oUnit, oEnemyToConsiderAttacking:GetPosition(), math.min(1, oUnit[M28UnitInfo.refiIndirectAOE] * 0.5), false, 'INglHidA', false)
                                                                 elseif not(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemyToConsiderAttacking)) then
                                                                     --Just attack move as normal since we dont know enemy unit is there

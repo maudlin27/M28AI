@@ -1001,7 +1001,7 @@ function OnShieldBubbleDamaged(self, instigator)
                         if (oShield[M28Building.refiTMLShotsFired] or 0) > 0 and oUnitCausingDamage.GetAIBrain and oUnitCausingDamage:GetAIBrain().M28AI and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
                             oShield[M28Building.refiTMLShotsHit] = (oShield[M28Building.refiTMLShotsHit] or 0) + 1
                         end
-                        if oShield.MyShield:GetHealth() <= oShield.MyShield:GetMaxHealth() * 0.5 then
+                        if oShield.MyShield.GetHealth and oShield.MyShield:GetHealth() <= oShield.MyShield:GetMaxHealth() * 0.5 then
                             local iTeam = instigator:GetAIBrain().M28Team
                             local bRecordedAlready
                             if oShield.MyShield:GetHealth() <= 1250 then

@@ -1696,7 +1696,7 @@ end
 function GetUnitHealthAndShieldPercent(oUnit)
     local iCurHealth = oUnit:GetHealth()
     local iMaxHealth = oUnit:GetMaxHealth()
-    if oUnit.MyShield and oUnit:GetFractionComplete() == 1 then
+    if oUnit.MyShield.GetHealth and oUnit:GetFractionComplete() == 1 then
         iCurHealth = iCurHealth + oUnit.MyShield:GetHealth()
         iMaxHealth = iMaxHealth + oUnit.MyShield:GetMaxHealth()
     end
@@ -1713,7 +1713,7 @@ function GetUnitMaxHealthIncludingShield(oUnit)
 end
 
 function GetUnitCurHealthAndShield(oUnit)
-    if oUnit.MyShield and oUnit:GetFractionComplete() == 1 then
+    if oUnit.MyShield.GetHealth and oUnit:GetFractionComplete() == 1 then
         return oUnit:GetHealth() + oUnit.MyShield:GetHealth()
     else
         return oUnit:GetHealth()
@@ -1728,7 +1728,7 @@ function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
     --if oUnit.MyShield then
         local iCurShield = 0
         local iMaxShield = 0
-        if oUnit.MyShield then
+        if oUnit.MyShield.GetHealth then
             iCurShield = oUnit.MyShield:GetHealth()
             iMaxShield = oUnit.MyShield:GetMaxHealth()
         else

@@ -2492,7 +2492,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
         end
 
         --Return to base if enemy has signiifcant air to ground threat and we lack air control
-        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(math.min(1000, 400 + math.max(250 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1), (M28Team.iPlayersAtGameStart or 1) * 100)), math.min(750, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2), math.min(4000, (M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.subrefiOurAirAAThreat] or 0))) and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] and ((oACU[refiUpgradeCount] or 0) < 3 or not(oACU:GetHealth() >= 15000 - 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (oACU.MyShield and oACU.MyShield:GetHealth()) >= 7000)) then
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(math.min(1000, 400 + math.max(250 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1), (M28Team.iPlayersAtGameStart or 1) * 100)), math.min(750, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2), math.min(4000, (M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.subrefiOurAirAAThreat] or 0))) and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] and ((oACU[refiUpgradeCount] or 0) < 3 or not(oACU:GetHealth() >= 15000 - 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (oACU.MyShield.GetHealth and oACU.MyShield:GetHealth()) >= 7000)) then
             if bDebugMessages == true then LOG(sFunctionRef..': Vulnerable to an air snipe so want to retreat, oACU[refiUpgradeCount]='..oACU[refiUpgradeCount]) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
@@ -6399,7 +6399,7 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
         if oClosestShield then
             oACU[refoShieldRallyTarget] = oClosestShield
             if bDebugMessages == true then LOG(sFunctionRef..': iClosestShield='..iClosestShield..'; Shield radius='..(oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0)..'; Shield health='..oClosestShield.MyShield:GetHealth()..'; brain'..oACU:GetAIBrain().Nickname) end
-            if iClosestShield <= 6 or (iClosestShield < math.min((oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5 - 3.5, 26) and oClosestShield.MyShield and oClosestShield.MyShield:GetHealth() >= 5000) then
+            if iClosestShield <= 6 or (iClosestShield < math.min((oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5 - 3.5, 26) and oClosestShield.MyShield.GetHealth and oClosestShield.MyShield:GetHealth() >= 5000) then
                 local sUpgradeToGet, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, false)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if want upgrade, sUpgradeToGet='..(sUpgradeToGet or 'nil')..'; Have low mass='..tostring(M28Conditions.HaveLowMass(oACU:GetAIBrain()))..'; Have low power='..tostring(M28Conditions.HaveLowPower(oACU:GetAIBrain()))..'; Stalling mass='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefbTeamIsStallingMass])..'; Gross brain mass='..oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome]) end
                 if sUpgradeToGet and (bIgnoreOtherUpgradeConditions or (not(M28Conditions.HaveLowPower(oACU:GetAIBrain())) or oACU:GetAIBrain()[M28Economy.refbBuiltParagon]) and not(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefbTeamIsStallingMass]) and (not(M28Conditions.HaveLowMass(oACU:GetAIBrain())) or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 50)) then
@@ -6407,7 +6407,7 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
                     if bDebugMessages == true then LOG(sFunctionRef..': Are under shield already but want to get an upgrade so will get upgrade') end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true
-                elseif iClosestShield <= 3 or (oClosestShield.MyShield and oClosestShield.MyShield:GetHealth() >= 5000) then
+                elseif iClosestShield <= 3 or (oClosestShield.MyShield.GetHealth and oClosestShield.MyShield:GetHealth() >= 5000) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Are under the shield already so will consider normal ACU logic') end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return false
