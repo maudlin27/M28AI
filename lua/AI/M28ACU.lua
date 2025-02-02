@@ -567,10 +567,18 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
         end
     end
     --Mod that reduces upgrade costs to negligible amount
-    if bProceedWithLogic and (oACU:GetBlueprint().Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and (oACU:GetBlueprint().Enhancements.ResourceAllocation.BuildTime or 10000) <= 100 then
+    if bProceedWithLogic and GetGameTimeSeconds() <= 15 and (oACU:GetBlueprint().Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and (oACU:GetBlueprint().Enhancements.ResourceAllocation.BuildTime or 10000) <= 100 then
         local sUpgradeToGet, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData, not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))
-        if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) >= 2 or oACU[M28Orders.refiTimeOfLastRemovalUpgrade] or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeToGet then
-            M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpr')
+        if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeToGet='..(sUpgradeToGet or 'nil')) end
+        if not(sUpgradeToGet) and not(oACU:HasEnhancement('ResourceAllocation')) then sUpgradeToGet = 'ResourceAllocation' end --e.g. if in eco slot then we ignore upgrades initially
+        if sUpgradeToGet == 'ResourceAllocation' or sUpgradeToGet == 'AdvancedEngineering' or sUpgradeToGet == 'ResourceAllocationAdvanced' or sUpgradeToGet == 'T3Engineering' then
+            M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUEGUpr1')
+            bProceedWithLogic = false
+        elseif oACU:HasEnhancement('ResourceAllocation') and not(oACU:HasEnhancement('AdvancedEngineering')) and oACU:GetBlueprint().Enhancements.AdvancedEngineering and GetGameTimeSeconds() <= 15 then
+            --Get advanced engineering so we build faster
+            sUpgradeToGet = 'AdvancedEngineering'
+            M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUEGUpr2')
+            bProceedWithLogic = false
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': bProceedWithLogic='..tostring(bProceedWithLogic)) end
@@ -1350,7 +1358,13 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         if not(oACU[refbPlanningToGetShield]) then oACU[refbPlanningToGetShield] = true end
         if bDebugMessages == true then LOG(sFunctionRef..': Recording that ACU wants to get shield type upgrades') end
         if EntityCategoryContains(categories.AEON, oACU.UnitId) then
-            oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield', 'ShieldHeavy'}
+            --Mod that makes all upgrades super cheap
+            if (oBP.Enhancements['ResourceAllocation'].BuildCostMass or 10000) <= 100 then
+                oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'AdvancedEngineering', 'ResourceAllocationAdvanced', 'T3Engineering'}
+                if bDebugMessages == true then LOG(sFunctionRef..': Going with eco build due to cheap RAS') end
+            else
+                oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield', 'ShieldHeavy'}
+            end
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'StealthGenerator'}
             if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
@@ -1406,7 +1420,10 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 end
             end
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
-            if oACU[refiUpgradeCount] >= 3 then
+            if (oBP.Enhancements['ResourceAllocation'].BuildCostMass or 10000) <= 100 then
+                oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'AdvancedEngineering', 'ResourceAllocationAdvanced', 'T3Engineering'}
+                if bDebugMessages == true then LOG(sFunctionRef..': Going with eco build due to cheap RAS2') end
+            elseif oACU[refiUpgradeCount] >= 3 then
                 if oACU[refiUpgradeCount] >= 4 and M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
                     --Do nothing - already determined upgrade path
                 else
@@ -1430,8 +1447,17 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             end
             if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then
                 local iCurEntries = table.getn(oACU[reftPreferredUpgrades])
-                if iCurEntries >= 4 and  not(oACU[reftPreferredUpgrades][4] == 'FAF_CrysalisBeamAdvanced') then table.insert( oACU[reftPreferredUpgrades], 4, 'FAF_CrysalisBeamAdvanced')
-                else table.insert(oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced')
+                local bHaveAdvancedRange = false
+                for iEntry, sEntry in oACU[reftPreferredUpgrades] do
+                    if sEntry == 'FAF_CrysalisBeamAdvanced' then
+                        bHaveAdvancedRange = true
+                        break
+                    end
+                end
+                if not(bHaveAdvancedRange) then
+                    if iCurEntries >= 4 and  not(oACU[reftPreferredUpgrades][4] == 'FAF_CrysalisBeamAdvanced') then table.insert( oACU[reftPreferredUpgrades], 4, 'FAF_CrysalisBeamAdvanced')
+                    else table.insert(oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced')
+                    end
                 end
             end
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
@@ -1515,6 +1541,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
 
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
         local tiEntriesToRemove = {}
+        if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades] before removing invalid entries='..repru(oACU[reftPreferredUpgrades])) end
         for iUpgradeWanted, sUpgradeWanted in oACU[reftPreferredUpgrades] do
             bInvalidUpgrade = false
             if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
@@ -1622,6 +1649,19 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 end
             end
         end
+    else
+        --If can get RAS, and it is cheap, then make it the first upgrade to get
+        if (oBP.Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and GetGameTimeSeconds() <= 60 and not(oACU[reftPreferredUpgrades][1] == 'ResourceAllocation') then
+            table.insert(oACU[reftPreferredUpgrades], 1, 'ResourceAllocation')
+            --Remove the other RAS
+            for iUpgrade, sUpgrade in oACU[reftPreferredUpgrades] do
+                if sUpgrade == 'ResourceAllocation' and iUpgrade > 1 then
+                    table.remove(oACU[reftPreferredUpgrades], iUpgrade)
+                    break
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': The first upgrade entry should be RAS upgrade because of how cheap it is') end
+        end
     end
     --Campaign specific - add RAS upgrade if we only have 1 upgrade
     if bDebugMessages == true then
@@ -1697,6 +1737,10 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
             elseif not(M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU]) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 and tStartLZOrWZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tStartLZOrWZTeamData[M28Map.subrefMexCountByTech][3] == 0 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Early teamgame, enemy doesnt have upgraded ACU, we lack T2 mex in our core base, so wont consider upgrade yet') end
                 bDontConsiderAnyUpgrades = true
+            end
+            --Exception for low cost mod where we are calling this from the early game order
+            if bDontConsiderAnyUpgrades and GetGameTimeSeconds() <= 15 then
+                bDontConsiderAnyUpgrades = false
             end
             --tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] <= 2
         end
@@ -1862,7 +1906,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
     local sFunctionRef = 'DoesACUWantToRun'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 8 then bDebugMessages = true end
+
 
     local bWantToRun = false
     local iTeam = oACU:GetAIBrain().M28Team
@@ -2378,7 +2422,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
     local sFunctionRef = 'DoesACUWantToReturnToCoreBase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 8 then bDebugMessages = true end
+
 
     local iTeam = oACU:GetAIBrain().M28Team
 
@@ -4733,7 +4777,7 @@ function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oACU:GetAIBrain():GetArmyIndex() == 8 then bDebugMessages = true end
+
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
     end
