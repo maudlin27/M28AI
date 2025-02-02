@@ -7951,7 +7951,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             local tZoneTMDAndShields = EntityCategoryFilterDown(iSearchCategory, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
                             if M28Utilities.IsTableEmpty(tZoneTMDAndShields) == false then
                                 for iTMDOrShield, oTMDOrShield in tZoneTMDAndShields do
-                                    if oTMDOrShield:GetFractionComplete() >= 0.3 and M28UnitInfo.IsUnitValid(oTMDOrShield) and not(oTMDOrShield:IsUnitState('Attached')) and (oTMDOrShield:GetFractionComplete() >= 0.5 or (oTMDOrShield[M28UnitInfo.refiUnitMassCost] or 0) >= 300) then
+                                    if oTMDOrShield:GetFractionComplete() >= 0.3 and M28UnitInfo.IsUnitValid(oTMDOrShield) and not(oTMDOrShield:IsUnitState('Attached')) and (oTMDOrShield:GetFractionComplete() >= 0.5 or (oTMDOrShield[M28UnitInfo.refiUnitMassCost] or 0) >= 300) and (not(EntityCategoryContains(categories.MOBILE, oTMDOrShield.UnitId)) or (not(oTMDOrShield:IsUnitState('Moving')) and M28UnitInfo.GetUnitSpeed(oTMDOrShield) <= 0.1)) then
                                         table.insert(tPriorityMMLTargets, oTMDOrShield)
                                     end
                                 end
@@ -7961,11 +7961,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                     local iPrioritySearchCategory = M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedShield
                     local iMMLMassValue = M28UnitInfo.GetMassCostOfUnits(tMMLForSynchronisation)
-                    if iMMLMassValue >= 2000 then --have 10+ T2 MML equivalent so include t2 arti when searching
-                        bConsiderMultipleTargets = true
-                        iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryFixedT2Arti
-                        if iMMLMassValue >= 4000 then --Include T2 and T3 PD as well
-                            iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryT2PlusPD
+                    if iMMLMassValue >= 1000 then
+                        iPrioritySearchCategory = iPrioritySearchCategory + (M28UnitInfo.refCategoryIndirect * categories.MOBILE - categories.TECH1)
+                        if iMMLMassValue >= 2000 then --have 10+ T2 MML equivalent so include t2 arti when searching
+                            bConsiderMultipleTargets = true
+                            iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryFixedT2Arti
+                            if iMMLMassValue >= 4000 then --Include T2 and T3 PD as well
+                                iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryT2PlusPD
+                            end
                         end
                     end
                     IncludeTMDAndShieldsInZone(iLandZone, nil, iPrioritySearchCategory)
