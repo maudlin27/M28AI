@@ -628,7 +628,7 @@ function SafeToUpgradeUnit(oUnit)
                             iAdjWZ = tSubtable[M28Map.subrefAWZRef]
                             iPond = M28Map.tiPondByWaterZone[iAdjWZ]
                             local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                            if (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 20 and tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] > iRangeThreshold and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                            if (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 20 and tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] > iRangeThreshold and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                 for iEnemy, oEnemy in tAdjWZTeamData[M28Map.subrefTEnemyUnits] do
                                     if oEnemy[M28UnitInfo.refiCombatRange] >= iRangeThreshold and not(oEnemy.Dead) then
                                         if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange] <= iDistUntilInRangeThreshold then

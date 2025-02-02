@@ -4979,16 +4979,25 @@ function RecordExperimentalResourceGen(oUnit)
     end
 end
 
-function MonitorUnitRecentPositions(oUnit)
+function MonitorUnitRecentPositions(oUnit, iOptionalDelayInSecondsOverride, iOptionalCycleLimit)
     --Used to track positions for TML targeting - abort this function if we are already tracking for one of the units
     if not(oUnit[M28UnitInfo.reftRecentUnitPositions]) and M28UnitInfo.IsUnitValid(oUnit) then
+        local iDelay = (iOptionalDelayInSecondsOverride or 2)
+        local iCycleCount = 0
         oUnit[M28UnitInfo.reftRecentUnitPositions] = {[1] = {0,0,0},[2]={0,0,0},[3]={0,0,0},[4]={0,0,0}}
         while M28UnitInfo.IsUnitValid(oUnit) do
             oUnit[M28UnitInfo.reftRecentUnitPositions][4] = {oUnit[M28UnitInfo.reftRecentUnitPositions][3][1], oUnit[M28UnitInfo.reftRecentUnitPositions][3][2], oUnit[M28UnitInfo.reftRecentUnitPositions][3][3]}
             oUnit[M28UnitInfo.reftRecentUnitPositions][3] = {oUnit[M28UnitInfo.reftRecentUnitPositions][2][1], oUnit[M28UnitInfo.reftRecentUnitPositions][2][2], oUnit[M28UnitInfo.reftRecentUnitPositions][2][3]}
             oUnit[M28UnitInfo.reftRecentUnitPositions][2] = {oUnit[M28UnitInfo.reftRecentUnitPositions][1][1], oUnit[M28UnitInfo.reftRecentUnitPositions][1][2], oUnit[M28UnitInfo.reftRecentUnitPositions][1][3]}
             oUnit[M28UnitInfo.reftRecentUnitPositions][1] = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
-            WaitSeconds(2)
+            WaitSeconds(iDelay)
+            if iOptionalCycleLimit then
+                iCycleCount = iCycleCount + 1
+                if iCycleCount >= iOptionalCycleLimit then
+                    oUnit[M28UnitInfo.reftRecentUnitPositions] = nil
+                    break
+                end
+            end
         end
     end
 end
