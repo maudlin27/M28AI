@@ -2097,26 +2097,40 @@ function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPla
         local iNearestACUDist = 100000
         local oNearestACU
         local iCurDist
+        local iWaterDistanceThreshold = math.min(iDistanceThreshold, 175)
 
         function DoWePathThroughOtherCoreBaseFirst(oACU)
-            if not(oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau) then
-                if bDebugMessages == true then LOG(sFunctionRef..': enemy ACU is in a different plateau') end
+            if bDebugMessages == true then LOG(sFunctionRef..': ACU assigned plateua='..(oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 'nil')..'; iPlateau='..iPlateau..'; Nav utils plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition()) or 'nil')) end
+            if not((oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition())) == iPlateau) then
+                if bDebugMessages == true then LOG(sFunctionRef..': enemy ACU is in a different plateau, or not detected yet, is oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] nil='..tostring(oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] == nil)) end
                 --Ignore ACU as not in same plateau
                 return true
             elseif oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone then
                 --ACU is already in this zone
                 if bDebugMessages == true then LOG(sFunctionRef..': enemy ACU is in the same land zone') end
                 return false
+                --if ACU is underwater consider it as an approaching threat, but at a lower distance threshold - dont bother with trying to figure out if we path through a core base first (as more risk anyway with water that enemy can go around a core base)
+            elseif M28UnitInfo.IsUnitUnderwater(oACU) then
+                if bDebugMessages == true then LOG(sFunctionRef..': ACU is underwater, iCurDist='..iCurDist..'; iWaterDistanceThreshold='..iWaterDistanceThreshold) end
+                if iCurDist <= iWaterDistanceThreshold then
+                    return false
+                else
+                    return true
+                end
             elseif not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oACU:GetPosition()) == tLZData[M28Map.subrefLZIslandRef]) then
                 if bDebugMessages == true then LOG(sFunctionRef..': enemy ACU is in a different island') end
                 return true
             else
                 local iACULandZone = oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
-                if not(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iACULandZone]) then
+                if not(oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]) then
+                    local iACUPlateau
+                    iACUPlateau, iACULandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
+                end
+                if not(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iACULandZone]) and iACULandZone then
                     M28Map.ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iLandZone, iACULandZone, tLZData[M28Map.subrefMidpoint])
                 end
                 if not(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iACULandZone]) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': iACULandZOne='..iACULandZone..'; dont have any land pathing from there to this zone, to be safe will assume ACU can reach us') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iACULandZOne='..(iACULandZone or 'nil')..'; dont have any land pathing from there to this zone, to be safe will assume ACU can reach us') end
                     --To be safe will assume ACU is a threat
                     return false
                 else
