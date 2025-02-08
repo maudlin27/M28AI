@@ -5523,13 +5523,8 @@ function GetACUOrder(aiBrain, oACU)
                                                                 if GetGameTimeSeconds() <= 600 and iPlateauOrZero > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] <= 1 or oACU[refiBuildTech] >= 2) and not(M28Overseer.bLikelyGunUpgrade) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 and (aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.8 or aiBrain[M28Economy.refiNetEnergyBaseIncome] > 0 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.5) and M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone) and not(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData)) then
                                                                     --No enemies in this or adj zone, consider building fac unless mod dist is high
                                                                     if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.3 or tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
-                                                                        --If cant path to enemy with land, or are tech or turtle or navy, then be less likely
-                                                                        if (aiBrain:GetEconomyStoredRatio('MASS') >= 0.5 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95)
-                                                                                or not(aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Overseer.refbPrioritiseAir])
-                                                                                or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory) < 3 or (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory) < 3) then
-                                                                            bBuildingOrAssistingPowerOrFactory = true
-                                                                            ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, nil, nil)
-                                                                        end
+                                                                        bBuildingOrAssistingPowerOrFactory = true
+                                                                        ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, nil, nil)
                                                                     end
                                                                 end
 
