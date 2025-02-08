@@ -1402,7 +1402,6 @@ function ManageMassStalls(iTeam)
             if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] = GetGameTimeSeconds() end
 
             if bDebugMessages == true then LOG(sFunctionRef..': bChangeRequired='..tostring(bChangeRequired)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Time of last stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 'nil')) end
-            bDebugMessages = false
             if bChangeRequired then
                 local bDontPauseUpgradingT1LandOrT2Land = false
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering whether we want to avoid pausing a t1 factory upgrading to t2, lowest friendly land factory tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] or 'nil')..'; Highest='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) end
