@@ -907,7 +907,8 @@ function TeamHasLowMass(iTeam)
 
     local bHaveLowMass = false
     if not(M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon]) then
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1) * (M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or 1) then --i.e. we dont ahve a paragon or crazy amount of SACUs
+        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then bHaveLowMass = true
+        elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1) * (M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or 1) then --i.e. we dont ahve a paragon or crazy amount of SACUs
             local iMassStoredRatio = M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]
 
             if (iMassStoredRatio <= 0.15 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
@@ -921,7 +922,7 @@ function TeamHasLowMass(iTeam)
             bHaveLowMass = true
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; End of code, bHaveLowMass='..tostring(bHaveLowMass)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Time of last mass stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; End of code, bHaveLowMass='..tostring(bHaveLowMass)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Time of last mass stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 'nil')..'; Is team stalling='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bHaveLowMass
 end
