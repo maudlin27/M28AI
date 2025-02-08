@@ -3852,3 +3852,27 @@ function GetNearbyEnemyAirToGroundThreat(tStartLZOrWZData, tStartLZOrWZTeamData,
     end
     return iNearbyAirToGround
 end
+
+function GetHighestAirToGroundThreatForIndividualEnemyBrain(iTeam)
+    --Gets the highest airtoground threat (ignoring torpedo threat, i.e. just bomber/gunship threat) for an individaul brain - this isnt that optimal an approach so assumed only called in rare cases
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround]) then
+        return 0
+    else
+        local toUnitsByBrain = {}
+        local iCurIndex
+        local iHighestThreat = 0
+        for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround] do
+            if not(oUnit.Dead) then
+                iCurIndex = oUnit:GetAIBrain():GetArmyIndex()
+                if not(toUnitsByBrain[iCurIndex]) then toUnitsByBrain[iCurIndex] = {} end
+                table.insert(toUnitsByBrain[iCurIndex], oUnit)
+            end
+        end
+        if iCurIndex then
+            for iIndex, tUnits in toUnitsByBrain do
+                iHighestThreat = math.max(iHighestThreat, M28UnitInfo.GetAirThreatLevel(tUnits, true, false, false, true, true, false))
+            end
+        end
+        return iHighestThreat
+    end
+end
