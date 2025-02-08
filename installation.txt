@@ -33,8 +33,10 @@ C:\Program Files (x86)\Steam\steamapps\common\Supreme Commander Forged Alliance\
 -Open up the mods folder in this archive
 -Add the M28AI folder to this archive/zipped file; if using 7Zip, this means doing click and drag on the M28AI folder into the 7Zip window showing the mods folder, e.g. into C:\Program Files (x86)\Steam\steamapps\common\Supreme Commander Forged Alliance\gamedata\mods.scd\mods\
 -When creating a game in forged alliance, go to the mod manager and enable the M28AI mod
--Select AI: Easy for 'M28EasyAI', and AI: Normal for normal M28AI (and similarly the AIx versions of these to apply bonus resources or build rate modifiers to the AI)
+-M28AI should then take over the logic for the 'Easy' and 'Normal' AIs that are normally available in steam (and replace them with M28AI's logic) when the game starts.
+-I.e. select the "AI: Easy" AI to play against 'M28EasyAI', and select the "AI: Normal" AI to play against M28 Adaptive AI (and similarly the AIx versions of these to apply bonus resources or build rate modifiers to the AI)
 -If the SorianAI mod is also included, then additional game options should show up to configure M28AI further
+-If you want to play against other M28AI subtypes (e.g. turtle, tech, rush, land, air, navy, random) you will need to play on FAF, QUIET, or LOUD
 
 GOG:
 M28AI should work on GOG similarly to steam (see above) - i.e. add the M28AI folder to the mods.scd archive.
