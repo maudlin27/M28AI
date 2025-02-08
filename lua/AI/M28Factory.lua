@@ -1150,6 +1150,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
+
+
     local iEngisInZone
     function GetEngiCountInZone()
         if not(iEngisInZone) then
@@ -1166,7 +1168,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
 
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' at plateau '..(iPlateau or 'nil')..' and zone '..(iLandZone or 'nil')..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground MAA threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; Prioritise sniperbots='..tostring(M28Conditions.PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, EntityCategoryContains(categories.AEON + categories.SERAPHIM, oFactory.UnitId))))
+        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. ' at plateau '..(iPlateau or 'nil')..' and zone '..(iLandZone or 'nil')..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground MAA threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; Prioritise sniperbots='..tostring(M28Conditions.PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, EntityCategoryContains(categories.AEON + categories.SERAPHIM, oFactory.UnitId)))..'; subrefbTeamIsStallingMass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
     end
 
     --Dont build anything if last unit cap was at -1 and we killed a unit in last minute
@@ -3903,44 +3905,70 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                     if M28UnitInfo.IsUnitValid(oFactory) then
                         local bSelfDestructIfLowMass = false
                         local iExistingT3Factories = 0
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef .. ': Considering at time ' .. GetGameTimeSeconds() .. ' whether to ctrlk factory tech level ' .. M28UnitInfo.GetUnitTechLevel(oFactory) .. ' when bHaveLowMass=' .. tostring(M28Conditions.HaveLowMass(aiBrain)) .. ' and highest tech=' .. M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] .. '; factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; bConsiderDestroyingForMass=' .. tostring(bConsiderDestroyingForMass or false))
-                        end
-                        if bConsiderDestroyingForMass and M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] == 3 and (M28UnitInfo.GetUnitTechLevel(oFactory) < 3 or (not(oFactory[refbPrimaryFactoryForIslandOrPond]) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) and (not(M28Utilities.bFAFActive) or not(EntityCategoryContains(M28UnitInfo.refCategoryLandHQ, oFactory.UnitId))) and (M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.refiConstructedExperimentalCount] >= 2 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat) >= 30))) then
-                            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
-                            if iPlateauOrZero > 0 then
-                                local oBrain = oFactory:GetAIBrain()
-                                local iTeam = oBrain.M28Team
-                                local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
-                                local iFactoryType = M28UnitInfo.GetFactoryType(oFactory)
-                                if iFactoryType == refiFactoryTypeLand then
-                                    local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                                    if bDebugMessages == true then
-                                        LOG(sFunctionRef .. ': Is table of existing T3 land factories empty=' .. tostring(M28Utilities.IsTableEmpty(tExistingT3Factories)) .. '; Total T3 land owned by this brain=' .. oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory * categories.TECH3))
-                                    end
-                                    iExistingT3Factories = table.getn(tExistingT3Factories)
-                                    if M28Utilities.IsTableEmpty(tExistingT3Factories) == false and iExistingT3Factories >= 2 and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH3) > 0 then
-                                        bSelfDestructIfLowMass = true
-                                    end
+                        --Adjust flag for destroying for mass if dealing with a land factory, and we dont have much mass stored, and we have multiple in this zone, and are a core base
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+                        if iPlateauOrZero > 0 then
+                            local oBrain = oFactory:GetAIBrain()
+                            local iTeam = oBrain.M28Team
+                            local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                            local iFactoryType = M28UnitInfo.GetFactoryType(oFactory)
 
-                                elseif iFactoryType == refiFactoryTypeAir then
-                                    if M28UnitInfo.GetUnitTechLevel(oFactory) == 1 then
-                                        local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                                        if bDebugMessages == true then
-                                            LOG(sFunctionRef .. ': Is table of existing T3 air factories empty=' .. tostring(M28Utilities.IsTableEmpty(tExistingT3Factories)) .. ' Brain cur T3 factories=' .. oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH3))
+                            --When factory completes something, oFactory[refiFirstTimeOfLastOrder] should get set to nil (unless it has already started construction)
+                            if not(bConsiderDestroyingForMass) and not(oFactory[refiFirstTimeOfLastOrder]) and oBrain:GetEconomyStoredRatio('MASS') <= 0.01 and tLZTeamData[M28Map.subrefLZbCoreBase] and iFactoryType == refiFactoryTypeLand then
+                                if oBrain[M28Overseer.refbPrioritiseDefence] or oBrain[M28Overseer.refbPrioritiseHighTech] or oBrain[M28Overseer.refbPrioritiseLowTech] or oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Overseer.refbPrioritiseAir] or not(oBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
+                                    bConsiderDestroyingForMass = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider destroying for mass afterall') end
+                                end
+                            end
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef .. ': Considering at time ' .. GetGameTimeSeconds() .. ' whether to ctrlk factory tech level ' .. M28UnitInfo.GetUnitTechLevel(oFactory) .. ' when bHaveLowMass=' .. tostring(M28Conditions.HaveLowMass(aiBrain)) .. ' and highest tech=' .. M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] .. '; factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; bConsiderDestroyingForMass=' .. tostring(bConsiderDestroyingForMass or false)..'; oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil'))
+                            end
+                            if bConsiderDestroyingForMass and M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and not(oFactory[refbPrimaryFactoryForIslandOrPond]) then
+                                local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
+                                if (not(M28Utilities.bFAFActive) or iFactoryTechLevel == 1 or not(EntityCategoryContains(M28UnitInfo.refCategoryLandHQ, oFactory.UnitId))) and M28Conditions.HaveLowMass(aiBrain) then
+                                    if iFactoryType == refiFactoryTypeLand and iFactoryTechLevel < oBrain[M28Economy.refiOurHighestLandFactoryTech] then
+                                        local iExistingFactoriesOfHigherTech = 0
+                                        local iSearchCategory
+                                        if iFactoryTechLevel == 1 then iSearchCategory = M28UnitInfo.refCategoryLandFactory - categories.TECH1
+                                        else iSearchCategory = M28UnitInfo.refCategoryLandFactory * categories.TECH3
                                         end
-                                        iExistingT3Factories = table.getn(tExistingT3Factories)
-                                        if M28Utilities.IsTableEmpty(tExistingT3Factories) == false and iExistingT3Factories >= 2 and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirHQ * categories.TECH3) > 0 then
+                                        local tExistingFactories = EntityCategoryFilterDown(iSearchCategory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                        if M28Utilities.IsTableEmpty(tExistingFactories) == false then
+                                            iExistingFactoriesOfHigherTech = table.getn(tExistingFactories)
+                                        end
+
+                                        if iExistingFactoriesOfHigherTech >= 2 then
                                             bSelfDestructIfLowMass = true
+                                        elseif iExistingFactoriesOfHigherTech == 1 then
+                                            --Still self destruct if we dont want to prioritise land, or cant navigate by land
+                                            if oBrain[M28Overseer.refbPrioritiseDefence] or oBrain[M28Overseer.refbPrioritiseHighTech] or oBrain[M28Overseer.refbPrioritiseLowTech] or oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Overseer.refbPrioritiseAir] or not(oBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
+                                                bSelfDestructIfLowMass = true
+                                            end
+                                        end
+                                        if bDebugMessages == true then
+                                            LOG(sFunctionRef .. ': iExistingFactoriesOfHigherTech='..iExistingFactoriesOfHigherTech..'; bSelfDestructIfLowMass='..tostring(bSelfDestructIfLowMass))
+                                        end
+
+                                    elseif iFactoryType == refiFactoryTypeAir then
+                                        --Consider ctrlking t1 air facs if we have t3 air
+                                        if iFactoryTechLevel == 1 and oBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 then
+                                            local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                            if bDebugMessages == true then
+                                                LOG(sFunctionRef .. ': Is table of existing T3 air factories empty=' .. tostring(M28Utilities.IsTableEmpty(tExistingT3Factories)) .. ' Brain cur T3 factories=' .. oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH3))
+                                            end
+                                            iExistingT3Factories = table.getn(tExistingT3Factories)
+                                            if M28Utilities.IsTableEmpty(tExistingT3Factories) == false and iExistingT3Factories >= 2 and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirHQ * categories.TECH3) > 0 then
+                                                bSelfDestructIfLowMass = true
+                                            end
                                         end
                                     end
                                 end
                             end
                         end
                         if bDebugMessages == true then
-                            LOG(sFunctionRef .. ': bSelfDestructIfLowMass=' .. tostring(bSelfDestructIfLowMass))
+                            LOG(sFunctionRef .. ': Finished considering if want to ctrlk, bSelfDestructIfLowMass=' .. tostring(bSelfDestructIfLowMass))
                         end
-                        if not (bSelfDestructIfLowMass) or not (M28Conditions.HaveLowMass(aiBrain)) then
+                        if not (bSelfDestructIfLowMass)then
                             ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, false)
                         else
                             sBPToBuild = nil
@@ -4175,8 +4203,9 @@ function IdleFactoryMonitor(aiBrain)
         if M28Utilities.IsTableEmpty(tOurFactories) == false then
             for iFactory, oFactory in tOurFactories do
                 if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering factory'..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time '..GetGameTimeSeconds()..'; Is factory ready to build='..tostring(IsFactoryReadyToBuild(oFactory))..'; oFactory[M28UnitInfo.refbPaused]='..tostring(oFactory[M28UnitInfo.refbPaused] or false)..'; oFactory:IsPaused()='..tostring(oFactory:IsPaused())) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering factory'..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time '..GetGameTimeSeconds()..'; Is factory ready to build='..tostring(IsFactoryReadyToBuild(oFactory))..'; oFactory[M28UnitInfo.refbPaused]='..tostring(oFactory[M28UnitInfo.refbPaused] or false)..'; oFactory:IsPaused()='..tostring(oFactory:IsPaused())..'; Time since last order='..(GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0))) end
                     if IsFactoryReadyToBuild(oFactory) and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 then
+                        if bDebugMessages == true then LOG(sFunctionRef..'; more than 5s since we have checked for an order, will consider self destruct') end
                         oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
                         ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, nil, true)
                         --Redundancy for paused factories (in theory shouldnt be needed)
@@ -4188,7 +4217,7 @@ function IdleFactoryMonitor(aiBrain)
                             if bDebugMessages == true then LOG(sFunctionRef..': Unpause override for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
                         end
                     elseif oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oFactory[refiFirstTimeOfLastOrder] >= 15 and oFactory:GetWorkProgress() == 0 and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 and M28UnitInfo.GetUnitState(oFactory) == '' then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have a factory that hasnt been given an order to build for some time now, will call DecideAndBuildUnitForFactory for the factory') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a factory that hasnt been given an order to build for some time now, will call DecideAndBuildUnitForFactory for the factory, and consider self destructing if no order') end
                         oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
                         ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, nil, true)
                     end
