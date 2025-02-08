@@ -11568,9 +11568,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-    --Build quantum gateway if using a mod (e.g. LOUD) that requires SACUs to build experimentals, or if we have lots of T3 mexes with high resource mod
+    --Build quantum gateway if using a mod (e.g. LOUD) that requires SACUs to build experimentals
     iCurPriority = iCurPriority + 1
-    if (aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.5 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= 4 and tLZTeamData[M28Map.subrefMexCountByTech][2] <= (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(aiBrain:GetArmyIndex() == M28UnitInfo.refFactionSeraphim)) or ((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= 30 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount]))) then
+    if (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= 30 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount])) then
         --Require at least 1 t3 pgen in the zone before starting on quantum gateway unless have very high gross energy
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have enough gross E to warrant building a quantum gateway, or if we should get more power first, bWantMorePower='..tostring(bWantMorePower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; No. of t3 pgens constructed in zone='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryT3Power)) end
         if not(bWantMorePower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryT3Power) > 0 then
@@ -11603,11 +11603,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Building quantum gateway as a high priority so we can get experimentals, oExistingGateway='..(oExistingGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oExistingGateway) or 'nil')) end
                 if not(oExistingGateway) then
-                    if M28Utilities.bFAFActive and aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.5 then --we are building the gateway for the eco not for buildilng experimentals
-                        ConsiderBuildingMassFabOrGateway(iTeam, iLandZone, tLZTeamData, HaveActionToAssign, bWantMorePower, 1.5, bDontConsiderGateway)
-                    else
-                        HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
-                    end
+                    HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
                 else
                     --Do we have any SACUs that are upgrading? if so then assist them ahead of the gateway
                     local tSACUInZone = EntityCategoryFilterDown(categories.SUBCOMMANDER, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
@@ -12774,13 +12770,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-    --Assist mex and air fac upgrades if in a safe zone or high resource modifier; also assist mex more generally if have already have at least 1 mex of the same tech level and no enemies in an adjacent zone
+    --Assist mex and air fac upgrades if in a safe zone; also assist mex more generally if have already have at least 1 mex of the same tech level and no enemies in an adjacent zone
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Priority mex or air fac assist, iCurPriority='..iCurPriority..'; is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]))..'; Is base in safe position='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition])..'; Enemies in adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Mex count: T1='..tLZTeamData[M28Map.subrefMexCountByTech][1]..'; T2='..tLZTeamData[M28Map.subrefMexCountByTech][2]..'; T3='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false and (tLZTeamData[M28Map.refbBaseInSafePosition] or (aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.3 and tLZTeamData[M28Map.subrefMexCountByTech][2] > 0) or (not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or tLZTeamData[M28Map.subrefMexCountByTech][2] > 0)  and not(M28Overseer.bUnitRestrictionsArePresent) then
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false and (tLZTeamData[M28Map.refbBaseInSafePosition] or (not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or tLZTeamData[M28Map.subrefMexCountByTech][2] > 0)  and not(M28Overseer.bUnitRestrictionsArePresent) then
         --Decide if we want to assist an air factory, or instead assist a mex upgrade
         local oFactoryOrMexToAssist
-        if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 or not(tLZTeamData[M28Map.refbBaseInSafePosition]) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.3) then
+        if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 or not(tLZTeamData[M28Map.refbBaseInSafePosition]) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3) then
             local tUpgradingMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subreftoActiveUpgrades])
             if bDebugMessages == true then LOG(sFunctionRef..': is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tUpgradingMexes))) end
             if M28Utilities.IsTableEmpty(tUpgradingMexes) == false then
@@ -12800,7 +12796,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if bDebugMessages == true then LOG(sFunctionRef..': oMex that want to assist='..(oFactoryOrMexToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryOrMexToAssist) or 'nil')) end
             end
         end
-        --safe zones - consider assisting an HQ upgrade
         if not(oFactoryOrMexToAssist) and tLZTeamData[M28Map.refbBaseInSafePosition] then
             local tUpgradingAirFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoActiveUpgrades])
             if M28Utilities.IsTableEmpty(tUpgradingAirFac) == false then
@@ -12819,7 +12814,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 local iCountAdjust = 0
                 if tLZTeamData[M28Map.refbBaseInSafePosition] then iCountAdjust = 1 end
                 iBPWanted = math.max(5, 5 * math.max(0, tLZTeamData[M28Map.subrefMexCountByTech][2] + iCountAdjust) + 10 * math.max(0, tLZTeamData[M28Map.subrefMexCountByTech][3] + iCountAdjust))
-                if aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.3 then iBPWanted = iBPWanted + math.max(5, iBPWanted * 0.1, math.min(4, iBPWanted * 0.7, (aiBrain[M28Economy.refiBrainResourceMultiplier] - 1.2)*10) * 5) * aiBrain[M28Economy.refiOurHighestFactoryTechLevel] end
                 if bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
             else
                 iBPWanted = 20 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]
@@ -18655,7 +18649,6 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
     local sFunctionRef = 'GiveOrderForEmergencyT2Arti'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Only want to get for core base or minor zones iwth lots of mexes that have a positive mod distance
-
     if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Is team stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Is team stalling power='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; refbBaseInSafePosition='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition] or false)..'; Time='..GetGameTimeSeconds()) end
     if tLZTeamData[M28Map.subrefLZbCoreBase] or
             ((tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and (tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4))) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiModDistancePercent] > 0.05) then
@@ -18690,23 +18683,15 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
 
 
             if tLZTeamData[M28Map.refbBaseInSafePosition] then
-                if tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(6, tLZData[M28Map.subrefLZMexCount]) then
-                    iSearchRange = 200
-                    iHighestIndividiualLongRangeThreat = iHighestIndividiualLongRangeThreat * 0.5
-                else
-                    iSearchRange = math.min(200, 110 + (tLZData[M28Map.subrefLZMaxSegX] - tLZData[M28Map.subrefLZMinSegX] + tLZData[M28Map.subrefLZMaxSegZ] - tLZData[M28Map.subrefLZMinSegZ]) * M28Map.iLandZoneSegmentSize * 0.25)
-                    iHighestIndividiualLongRangeThreat = iHighestIndividiualLongRangeThreat * 0.5
-                end
+                iSearchRange = 200
+                iHighestIndividiualLongRangeThreat = iHighestIndividiualLongRangeThreat * 0.5
             end
             if aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] then
-                if tLZTeamData[M28Map.refbBaseInSafePosition] then
-                    iSearchRange = iSearchRange + 15
-                    if aiBrain[M28Overseer.refbPrioritiseDefence] then iSearchRange = math.max(iSearchRange, 200) end
-                elseif aiBrain[M28Overseer.refbPrioritiseDefence] then iSearchRange = iSearchRange * 1.5
+                if aiBrain[M28Overseer.refbPrioritiseDefence] then iSearchRange = iSearchRange * 1.5
                 else iSearchRange = iSearchRange * 1.25
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Is table of firebases in range empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))..'; iSearchRange='..iSearchRange) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of firebases in range empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))) end
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
                 for iFirebase, tPlateauAndZone in tLZTeamData[M28Map.subreftEnemyFirebasesInRange] do
                     iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.max(1500, (M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefThreatEnemyStructureTotalMass] or 0))
