@@ -2132,9 +2132,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --Enemies nearby and have built fewer tanks of this tech level than engineers; or are on a core expansion and have no combat threat in this LZ
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': CHecking if nearby enemy threat and we are T2 plus, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Enemies in this or adjacent LZ=' .. tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) .. '; bSaveMassDueToEnemyFirebaseOrOurExperimental=' .. tostring(bSaveMassDueToEnemyFirebaseOrOurExperimental) .. '; bDontConsiderBuildingMAA=' .. tostring(bDontConsiderBuildingMAA))
+            LOG(sFunctionRef .. ': CHecking if nearby enemy threat and we are T2 plus, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Enemies in this or adjacent LZ=' .. tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) .. '; bSaveMassDueToEnemyFirebaseOrOurExperimental=' .. tostring(bSaveMassDueToEnemyFirebaseOrOurExperimental) .. '; bDontConsiderBuildingMAA=' .. tostring(bDontConsiderBuildingMAA)..'; refbAdjZonesWantEngiForUnbuiltMex='..tostring(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or false))
         end
-        if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+        --If early on and we have ACU in our zone and nearest enemy base is close and no enemies in our zone itself, and we have nearby zones wanting engis for mex, then dont build
+        if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and (iFactoryTechLevel > 1 or oFactory[refiTotalBuildCount] >= 10 or GetGameTimeSeconds() >= 300 or not(tLZTeamData[M28Map.subrefLZbCoreBase]) or (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 60 and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] < tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 2) or not(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex]) or M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) >= 300) then
             --Require lifetime engi build count of 2 first for t1 fac
             if iFactoryTechLevel == 1 and not(M28Map.bIsCampaignMap) and (oFactory[refiTotalBuildCount] or 0) < 4 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) < 3 then
                 --Do nothing (want later initial engineer builder to apply instead)
@@ -2387,13 +2388,13 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
 
         --Initiail combat
-        if bDebugMessages == true then LOG(sFunctionRef .. ': Considering initial combat units, lifetime count=' .. M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat)) end
+        if bDebugMessages == true then LOG(sFunctionRef .. ': Considering initial combat units, lifetime count=' .. M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat)..'; Is this core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])) end
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bCanPathToEnemyWithLand and iFactoryTechLevel == 1 and bHaveHighestLZTech and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat - categories.COMMAND) < 3 then
             --Get LABs for the first couple of combat units (non-seraphim)
             if bDebugMessages == true then LOG(sFunctionRef..': T1 factory - Will get attack bot if are non-seraphim and low LC for this brain, LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)) end
             local iAttackBotLifetimeCount = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLightAttackBot)
-            if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) and iAttackBotLifetimeCount <= 1 and ConsiderBuildingCategory(M28UnitInfo.refCategoryLightAttackBot) then
+            if not(EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) and iAttackBotLifetimeCount <= 1 and (iAttackBotLifetimeCount == 0 or M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) >= 200) and ConsiderBuildingCategory(M28UnitInfo.refCategoryLightAttackBot) then
                 return sBPIDToBuild
             elseif iAttackBotLifetimeCount >= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandScout) <= 1 and (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) or EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId)) and ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then
                 return sBPIDToBuild
