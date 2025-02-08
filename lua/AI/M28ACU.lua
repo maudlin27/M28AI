@@ -488,7 +488,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --if oACU:GetAIBrain():GetArmyIndex() == 3 and GetGameTimeSeconds() >= 295 then bDebugMessages = true end
+
 
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
@@ -1932,7 +1932,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
     local sFunctionRef = 'DoesACUWantToRun'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --if oACU:GetAIBrain():GetArmyIndex() == 3 and GetGameTimeSeconds() >= 295 then bDebugMessages = true end
+
 
     local bWantToRun = false
     local iTeam = oACU:GetAIBrain().M28Team
@@ -2484,7 +2484,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
     local sFunctionRef = 'DoesACUWantToReturnToCoreBase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --if oACU:GetAIBrain():GetArmyIndex() == 3 and GetGameTimeSeconds() >= 295 then bDebugMessages = true end
+
 
     local iTeam = oACU:GetAIBrain().M28Team
 
@@ -2770,7 +2770,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --if oACU:GetAIBrain():GetArmyIndex() == 3 and GetGameTimeSeconds() >= 295 then bDebugMessages = true end
+
 
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
@@ -4895,7 +4895,7 @@ function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --if oACU:GetAIBrain():GetArmyIndex() == 3 and GetGameTimeSeconds() >= 295 then bDebugMessages = true end
+
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
     end
@@ -6212,6 +6212,7 @@ function ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tL
 
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZOrWZTeamData[M28Map.refbACUInTrouble]='..tostring(tLZOrWZTeamData[M28Map.refbACUInTrouble] or false)..'; P'..iPlateauOrZero..'Z'..iLandOrWaterZone) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
