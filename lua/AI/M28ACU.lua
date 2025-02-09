@@ -4125,7 +4125,7 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
     end
     local iAngleThreshold = 115
     --Consider running from the experimental if we arent in its range yet
-    if oNearestEnemyExperimental and iNearestEnemyExperimental > oNearestEnemyExperimental[M28UnitInfo.refiDFRange] + 1 and iNearestEnemyExperimental <= 160 then
+    if oNearestEnemyExperimental and iNearestEnemyExperimental > (oNearestEnemyExperimental[M28UnitInfo.refiDFRange] or 30) + 1 and iNearestEnemyExperimental <= 160 then
         --Would moving towards the closest base take us in a similar direction to this experimental?
         local iAngleToExperimental = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oNearestEnemyExperimental:GetPosition())
         local iAngleToRally = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)
