@@ -1892,6 +1892,18 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Trying to build within iMinDistToBuildAwayFrom='..iMinDistToBuildAwayFrom..' of locations, iClosestLocationToAvoidDist='..iClosestLocationToAvoidDist..'; iMinDistMarginOfError='..iMinDistMarginOfError..'; Was this location far enough away='..tostring(iClosestLocationToAvoidDist >= iMinDistToBuildAwayFrom)) end
                     end
+                    --Mex - increase priority if will be building adjacent to a land factory and is early game
+                    if bResource and GetGameTimeSeconds() <= 150 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
+                        local rRect = M28Utilities.GetRectAroundLocation(tCurLocation, 2) --doing 3.5 resulted in false positive for a mex that was near but not adjacent, so guessing getunitsinrect picks up units that are touching on the rectangle (rather than needing their midpoint to be in the rectangle)
+                        local tUnitsInRect = GetUnitsInRect(rRect)
+                        local tNearbyFactories
+                        if M28Utilities.IsTableEmpty(tUnitsInRect) == false then tNearbyFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tUnitsInRect) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyFactories empty='..tostring(M28Utilities.IsTableEmpty(tNearbyFactories))) end
+                        if M28Utilities.IsTableEmpty(tNearbyFactories) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': have a facotyr nearby so will assume it is adjacent') end
+                            iCurPriority = iCurPriority + 3
+                        end
+                    end
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Not within max range, so will just try and pick the closest location within range') end
                     --Not within range, so have priority factor in range so at least we pick the cloesst to being in range
@@ -11606,7 +11618,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if bDebugMessages == true then LOG(sFunctionRef..': Building quantum gateway as a high priority so we can get experimentals, oExistingGateway='..(oExistingGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oExistingGateway) or 'nil')) end
                 if not(oExistingGateway) then
                     if M28Utilities.bFAFActive and aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.5 then --we are building the gateway for the eco not for buildilng experimentals
-                        ConsiderBuildingMassFabOrGateway(iTeam, iLandZone, tLZTeamData, HaveActionToAssign, bWantMorePower, 1.5, bDontConsiderGateway)
+                        ConsiderBuildingMassFabOrGateway(iTeam, iLandZone, tLZTeamData, HaveActionToAssign, bWantMorePower, 1.5, false)
                     else
                         HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
                     end

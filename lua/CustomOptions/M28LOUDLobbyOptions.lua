@@ -786,7 +786,7 @@ LobbyGlobalOptions = {
         },
     },--]]
     {
-        default = 9,
+        default = 10,
         label = "M28: aggression override",
         help = "Use 1.0 if you want a competitive experience - this adjusts M28's calculation of the value/threat of enemy units by the value specified (a value below 1 means M28 will treat enemy units as being worth less, and so will be more likely to engage with land units, but also less likely to consider nuke targets as worth nuking)",
         key = 'M28Aggression',
