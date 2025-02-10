@@ -11606,7 +11606,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if bDebugMessages == true then LOG(sFunctionRef..': Building quantum gateway as a high priority so we can get experimentals, oExistingGateway='..(oExistingGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oExistingGateway) or 'nil')) end
                 if not(oExistingGateway) then
                     if M28Utilities.bFAFActive and aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.5 then --we are building the gateway for the eco not for buildilng experimentals
-                        ConsiderBuildingMassFabOrGateway(iTeam, iLandZone, tLZTeamData, HaveActionToAssign, bWantMorePower, 1.5, bDontConsiderGateway)
+                        ConsiderBuildingMassFabOrGateway(iTeam, iLandZone, tLZTeamData, HaveActionToAssign, bWantMorePower, 1.5, false)
                     else
                         HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
                     end
