@@ -908,10 +908,8 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                     table.insert(tAvailableUnits, oUnit)
                                     --Strats - if are close to the enemy target and havent fired then assume terrain prevented us
                                 elseif oExistingValidAttackTarget and EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3, oUnit.UnitId) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastBombFired] or 0) > (oUnit[M28UnitInfo.refiTimeBetweenBombs] or 0) + 1 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oExistingValidAttackTarget:GetPosition()) <= math.min(30, (oUnit[M28UnitInfo.refiBomberRange] or 30) * 0.5) and VDist3(oUnit:GetPosition(), oExistingValidAttackTarget:GetPosition()) <= (oUnit[M28UnitInfo.refiBomberRange] or 30) - 10 then
-                                    bDebugMessages = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': Strat bomber appears to have failed to launch bomb at target, will tyr hoverbombing instead, oUnit (bomber)='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oExistingValidAttackTarget='..oExistingValidAttackTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExistingValidAttackTarget)..'; Time='..GetGameTimeSeconds()) end
                                     ForkThread(M28Micro.T1HoverBombTarget, oUnit, oExistingValidAttackTarget, false, false, false)
-                                    bDebugMessages = false
                                 else
                                     table.insert(tInUseUnits, oUnit)
                                 end
