@@ -5377,7 +5377,7 @@ function GetACUOrder(aiBrain, oACU)
                             elseif bDebugMessages == true then LOG(sFunctionRef..': Will run to GE template')
                             end
                         end
-                    elseif DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and (not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7)) then --and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
+                    elseif DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and (not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7) then --and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
                         local tRallyPoint
                         local bConsiderMexesAndReclaim = false
                         if not(ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero)) then
