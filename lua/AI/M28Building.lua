@@ -1164,7 +1164,7 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueTo
             if ((iTMDInRange < iTMLValueInRangeOfUnit) or (oUnit[refiMinTMDWantedForUnit] and iTMDInRange < oUnit[refiMinTMDWantedForUnit])) and not(oUnit[refbNoNearbyTMDBuildLocations]) then
                 if not(oUnit[refbUnitWantsMoreTMD]) then --redundancy (i.e. will ahve already called below if unit is already flagged as wanting more TMD)
                     iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-                    if bDebugMessages == true then LOG(sFunctionRef..': Want TMD for this unit, iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitLandZone='..(iUnitLandZone or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want TMD for this unit, iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitLandZone='..(iUnitLandZone or 'nil')..'; Unit owner='..oUnit:GetAIBrain().Nickname..'; iTMDInRange='..iTMDInRange..'; oUnit[refiMinTMDWantedForUnit]='..(oUnit[refiMinTMDWantedForUnit] or 'nil')) end
                     if iUnitLandZone > 0 then
                         local tLZTeamData = M28Map.tAllPlateaus[iUnitPlateau][M28Map.subrefPlateauLandZones][iUnitLandZone][M28Map.subrefLZTeamData][iTeam]
                         table.insert(tLZTeamData[M28Map.reftUnitsWantingTMD], oUnit)
@@ -1324,7 +1324,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': End of code, oClosestUnit='..(oClosestUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnit) or 'nil')..'; Is table of TML in range of this unit empty='..tostring(M28Utilities.IsTableEmpty(oClosestUnit[reftTMLInRangeOfThisUnit]))..'; Is reftTMDCoveringThisUnit empty='..tostring(M28Utilities.IsTableEmpty(oClosestUnit[reftTMDCoveringThisUnit])))
-        if oClosestUnit then
+        if M28Utilities.IsTableEmpty(oClosestUnit[reftTMLInRangeOfThisUnit]) == false then
             for iTML, oTML in oClosestUnit[reftTMLInRangeOfThisUnit] do
                 LOG(sFunctionRef..': oTML in range='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..'; Dist='..M28Utilities.GetDistanceBetweenPositions(oTML:GetPosition(), oClosestUnit:GetPosition())..'; TML range='..(oTML[M28UnitInfo.refiIndirectRange] or oTML[M28UnitInfo.refiManualRange] or 'nil'))
             end
@@ -5538,7 +5538,7 @@ function ConsiderGettingPreemptiveTMD(oPD)
         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 then
             local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oPD:GetPosition(), true, iTeam)
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                local tFriendlyT2PD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                local tFriendlyT2PD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                 if M28Utilities.IsTableEmpty(tFriendlyT2PD) == false then
                     local iT2PDInZone = 1
                     for iUnit, oUnit in tFriendlyT2PD do
