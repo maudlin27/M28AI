@@ -4379,6 +4379,7 @@ function ManageBombers(iTeam, iAirSubteam)
     local tAvailableBombers, tBombersForRefueling, tUnavailableUnits, tSpecialLogicAvailableBombers = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL)
     local iOurBomberThreat = 0
     local tEnemyTargets = {}
+    local bHaveT3Bombers = false
 
     function FilterToAvailableTargets(tPotentialTargets, iOptionalCategory, bOptionalCheckNotAlreadyInEnemyTargets) --UPDATE USAGE IN SPECIAL BOMBER LOGIC IF CHANGING (and changes are relevant to engi hunter)
         if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
@@ -4400,7 +4401,7 @@ function ManageBombers(iTeam, iAirSubteam)
                     end
                 end
                 if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
-                    if not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId) then
+                    if (not(iOptionalCategory) and (not(bHaveT3Bombers) or (oUnit[M28UnitInfo.refiUnitMassCost] or GetUnitMassCost(oUnit)) >= 45 or not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout + M28UnitInfo.refCategoryLightAttackBot, oUnit.UnitId)))) or (iOptionalCategory and EntityCategoryContains(iOptionalCategory, oUnit.UnitId)) then
                         if not(bOptionalCheckNotAlreadyInEnemyTargets) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to enemy targets') end
                             table.insert(tEnemyTargets, oUnit)
@@ -4497,7 +4498,6 @@ function ManageBombers(iTeam, iAirSubteam)
             end
         end
         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
-            local bHaveT3Bombers = false
             for iUnit, oUnit in tAvailableBombers do
                 if M28UnitInfo.GetUnitTechLevel(oUnit) == 3 then bHaveT3Bombers = true end
             end

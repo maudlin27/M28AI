@@ -209,7 +209,7 @@ function GetBombTarget(weapon, projectile)
 
     --Copy of CalcBallisticAcceleration core part of calculation to determine bomb target; ignores multiple bombs
     local acc = 4.75
-    if projectile and projectile.GetLauncher then
+    if projectile and projectile.GetLauncher and not(projectile:BeenDestroyed()) then
         local launcher = projectile:GetLauncher()
         if launcher then
             -- Get projectile position and velocity
