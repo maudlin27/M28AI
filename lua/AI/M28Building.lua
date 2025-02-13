@@ -1107,7 +1107,7 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueTo
     --Cycles through each unit in tUnits and if it has less TMD covering it than TML in range, makes sure it is reecorded in its land zone as one of the units wanting TMD
     --If it has sufficient TMD coverage, then instead makes sure it isnt recorded in its land zone as one of the units wanting TMD
     --Relies on otherfunctions for accurately recording TML in range of it and TMD giving coverage
-    --bCalledDueToTMLOrTMDEvent - if true, then will recheck if we want more TMD/how many we have in range even if we have recently checked for this
+    --bCalledDueToTMLOrTMDEvent - if this is true, then will recheck if we want more TMD/how many we have in range even if we have recently checked for this
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordIfUnitsWantTMDCoverageAgainstLandZone'

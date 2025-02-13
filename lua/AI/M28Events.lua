@@ -1200,7 +1200,7 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
 end
 
 function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
-    --bIgnoreProjectileCheck - if true, then will run the main part of the logic even if have fired a bomb recently and have no projectile specified (i.e. intended use is with the redundancy for onweaponfired which calls this logic)
+    --bIgnoreProjectileCheck - if this is true, then will run the main part of the logic even if have fired a bomb recently and have no projectile specified (i.e. intended use is with the redundancy for onweaponfired which calls this logic)
     if M28Utilities.bM28AIInGame then
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnBombFired'
