@@ -6425,7 +6425,7 @@ function HaveActionForACUAsEngineer(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateau
                                 bGivenOrder = true
                                 if bIgnoreOtherUpgradeConditions or M28Conditions.SafeToUpgradeUnit(oACU) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': ACU Eng Safe to get upgrade here so will proceed with upgrading ACU, sUpgradeWanted='..(sUpgradeWanted or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeWanted))) end
-                                    if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) >= 2 or oACU[M28Orders.refiTimeOfLastRemovalUpgrade] or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeToGet then
+                                    if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) >= 2 or oACU[M28Orders.refiTimeOfLastRemovalUpgrade] or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeWanted then
                                         M28Orders.IssueTrackedEnhancement(oACU, sUpgradeWanted, false, 'ACUEUpr')
                                     end
                                 else
