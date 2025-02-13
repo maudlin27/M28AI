@@ -906,13 +906,17 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                 if oUnit.UnitId == 'xsa0402' and oUnit[M28UnitInfo.refiBomberRange] >= 80 and M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition]) <= 64 and M28UnitInfo.GetUnitSpeed(oUnit) >= 17.5 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastBombFired] or 0) > oUnit[M28UnitInfo.refiTimeBetweenBombs] + 2 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Doesnt look like ahwassa is going to drop its bomb so will treat sa available again') end
                                     table.insert(tAvailableUnits, oUnit)
+                                    --Strats - if are close to the enemy target and havent fired then assume terrain prevented us
+                                elseif oExistingValidAttackTarget and EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3, oUnit.UnitId) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastBombFired] or 0) > (oUnit[M28UnitInfo.refiTimeBetweenBombs] or 0) + 1 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oExistingValidAttackTarget:GetPosition()) <= math.min(30, (oUnit[M28UnitInfo.refiBomberRange] or 30) * 0.5) and VDist3(oUnit:GetPosition(), oExistingValidAttackTarget:GetPosition()) <= (oUnit[M28UnitInfo.refiBomberRange] or 30) - 10 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Strat bomber appears to have failed to launch bomb at target, will tyr hoverbombing instead, oUnit (bomber)='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oExistingValidAttackTarget='..oExistingValidAttackTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExistingValidAttackTarget)..'; Time='..GetGameTimeSeconds()) end
+                                    ForkThread(M28Micro.T1HoverBombTarget, oUnit, oExistingValidAttackTarget, false, false, false)
                                 else
                                     table.insert(tInUseUnits, oUnit)
                                 end
-                                --[[elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
-                                table.insert(tInUseUnits, oUnit)
-                                oUnit[refiEngisWanted] = 0
-                                M28Orders.UpdateRecordedOrders(oUnit)--]]
+                                    --[[elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
+                                    table.insert(tInUseUnits, oUnit)
+                                    oUnit[refiEngisWanted] = 0
+                                    M28Orders.UpdateRecordedOrders(oUnit)--]]
                             else
                                 --Bombers - remove any assigned strike damage; AirAA - still treat as available
                                 if oExistingValidAttackTarget then
@@ -4373,6 +4377,7 @@ function ManageBombers(iTeam, iAirSubteam)
     local tAvailableBombers, tBombersForRefueling, tUnavailableUnits, tSpecialLogicAvailableBombers = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL)
     local iOurBomberThreat = 0
     local tEnemyTargets = {}
+    local bHaveT3Bombers = false
 
     function FilterToAvailableTargets(tPotentialTargets, iOptionalCategory, bOptionalCheckNotAlreadyInEnemyTargets) --UPDATE USAGE IN SPECIAL BOMBER LOGIC IF CHANGING (and changes are relevant to engi hunter)
         if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
@@ -4394,7 +4399,7 @@ function ManageBombers(iTeam, iAirSubteam)
                     end
                 end
                 if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
-                    if not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId) then
+                    if (not(iOptionalCategory) and (not(bHaveT3Bombers) or (oUnit[M28UnitInfo.refiUnitMassCost] or GetUnitMassCost(oUnit)) >= 45 or not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout + M28UnitInfo.refCategoryLightAttackBot, oUnit.UnitId)))) or (iOptionalCategory and EntityCategoryContains(iOptionalCategory, oUnit.UnitId)) then
                         if not(bOptionalCheckNotAlreadyInEnemyTargets) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to enemy targets') end
                             table.insert(tEnemyTargets, oUnit)
@@ -4491,7 +4496,6 @@ function ManageBombers(iTeam, iAirSubteam)
             end
         end
         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
-            local bHaveT3Bombers = false
             for iUnit, oUnit in tAvailableBombers do
                 if M28UnitInfo.GetUnitTechLevel(oUnit) == 3 then bHaveT3Bombers = true end
             end

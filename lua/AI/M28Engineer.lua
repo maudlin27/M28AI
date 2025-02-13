@@ -13526,7 +13526,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want high priority second factory builder, bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; bWantMoreFactories='..tostring(bWantMoreFactories)..'; iActiveMexUpgrades='..iActiveMexUpgrades..'; Mass % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Friendly highest land fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; Team net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
     if not(bHaveLowMass) and not(bHaveLowPower) and bWantMoreFactories and not(bSaveMassForMML) and iFactoriesInLZ >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 11 and (iActiveMexUpgrades >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.25) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 or iActiveMexUpgrades >= 4) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 1 or iActiveMexUpgrades >= 4) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.45 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= math.min(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.25, 8))
-        and (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 or not(aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseDefence])) then
+            and (aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 or not(aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseDefence])) then
 
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.55 then iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]] * 4
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 then iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]] * 2
@@ -13653,7 +13653,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if not(bHaveLowMass) then iBPWanted = 80 end
             HaveActionToAssign(refActionBuildAirFactory, 3, iBPWanted)
             if not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000 and not(M28Conditions.TeamHasAirControl(iTeam))
-            and (not(aiBrain[M28Overseer.refbPrioritiseHighTech]) or aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3) and not(aiBrain[M28Overseer.refbPrioritiseNavy]) and (not(aiBrain[M28Overseer.refbPrioritiseDefence]) or aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3) then
+                    and (not(aiBrain[M28Overseer.refbPrioritiseHighTech]) or aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3) and not(aiBrain[M28Overseer.refbPrioritiseNavy]) and (not(aiBrain[M28Overseer.refbPrioritiseDefence]) or aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3) then
                 HaveActionToAssign(refActionBuildSecondAirFactory, 3, iBPWanted)
             end
         end
