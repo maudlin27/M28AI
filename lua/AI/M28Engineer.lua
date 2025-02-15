@@ -12093,6 +12093,25 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bDebugMessages == true then LOG(sFunctionRef..': We have an active gameender template so will assign engis to this (unless we want to assist nearby teammate exp)') end
     end
 
+    --V high priority TMD (we have another TMD builder a bit lower)
+    iCurPriority = iCurPriority + 1
+    if iLandZone == 3 and GetGameTimeSeconds() >= 25*60 then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Very high priority TMD builder, is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; Enemy combat total='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')) end
+    if true and GetGameTimeSeconds() >= 25*60 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD]) >= 4 then
+        local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is oUnitWantingTMD valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnitWantingTMD))) end
+        if oUnitWantingTMD then
+            iBPWanted = 10
+            if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 30 end
+            if bSaveMassForMML then
+                iBPWanted = iBPWanted * 0.5
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to build TMD, iBPWanted='..iBPWanted..'; Unit wanting TMD='..oUnitWantingTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitWantingTMD)) end
+            HaveActionToAssign(refActionBuildTMD, 2, iBPWanted, oUnitWantingTMD)
+        end
+    end
+    bDebugMessages = false
+
     --first ever experimental to build - rush if have t3 mex
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': First experimental - consider rushing if have t3 mex, M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; T3 mexes='..tLZTeamData[M28Map.subrefMexCountByTech][3]) end
@@ -12253,6 +12272,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --TMD (including vs mobile ACUs with TML upgrade)
     iCurPriority = iCurPriority + 1
+    if iLandZone == 3 and GetGameTimeSeconds() >= 25*60 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering if we want to get TMD; Priority of this action='..iCurPriority..'; is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))..'; Time since TMD intercepted missile='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] or -10000)) end
     if (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false or (tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] <= 60)) then
         local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone)
@@ -12267,6 +12287,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             HaveActionToAssign(refActionBuildTMD, 2, iBPWanted, oUnitWantingTMD)
         end
     end
+    bDebugMessages = false
 
     --Approaching enemy guncom - prioritise upgrades if dont have T2, if do have T2 then get T2 PD
     iCurPriority = iCurPriority + 1
