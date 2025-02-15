@@ -29,7 +29,7 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
 
                 -- keep track of the number of intercepted missiles
                 --DiskGetFileInfo used as a proxy for checking if bFAFactive = true; for non-FAF increasing the kills could cause combat units with built in TMD like cruisers to vet early
-                if not IsDestroyed(instigator) and instigator.GetStat and (DiskGetFileInfo('/lua/sim/navutils.lua') or (instigator.UnitId and EntityCategoryContains(categories.ANTIMISSILE * categories.STRUCTURE - categories.DIRECTFIRE, instigator.UnitId)) then
+                if not IsDestroyed(instigator) and instigator.GetStat and (DiskGetFileInfo('/lua/sim/navutils.lua') or (instigator.UnitId and EntityCategoryContains(categories.ANTIMISSILE * categories.STRUCTURE - categories.DIRECTFIRE, instigator.UnitId))) then
                     instigator:UpdateStat('KILLS', instigator:GetStat('KILLS', 0).Value + 1)
                 end
             end
