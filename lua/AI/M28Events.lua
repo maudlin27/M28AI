@@ -3082,6 +3082,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
 
                                 for iTransferCount, tUnitTable in aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount] do
+                                    iClosestUnitRef = nil
                                     if M28Utilities.IsTableEmpty(tUnitTable) == false then
                                         for iCompletedUnit, oCompletedUnit in tUnitTable do
                                             if M28UnitInfo.IsUnitValid(oCompletedUnit) then
