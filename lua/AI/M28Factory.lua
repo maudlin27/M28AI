@@ -1133,7 +1133,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oFactory.UnitId == 'xsb0101' and aiBrain[M28Overseer.refbPrioritiseAir] and GetGameTimeSeconds() >= 506 then bDebugMessages = true end
 
     local iCategoryToBuild
     local iTeam = aiBrain.M28Team
@@ -1437,6 +1437,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to get more engineers before we upgrade') end
                 bConsiderUpgrading = false
             end
+        end
+        if bConsiderUpgrading and ((aiBrain[M28Overseer.refbPrioritiseAir] and aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 3) or (aiBrain[M28Overseer.refbPrioritiseNavy] and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] <= iFactoryTechLevel)) then
+            bConsiderUpgrading = false
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to prioritise land fac upgrades for this AI personality') end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bConsiderUpgrading='..tostring(bConsiderUpgrading)) end
         if bConsiderUpgrading then

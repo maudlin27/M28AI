@@ -3198,14 +3198,14 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
     --First identify any players that have a T1 land or air HQ
     for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
         if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Highest air fac tech='..oBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Highest land fac tech='..oBrain[M28Economy.refiOurHighestLandFactoryTech]..'; bOnlyConsiderLandFactory='..tostring(bOnlyConsiderLandFactory or false)) end
-        if oBrain[M28Economy.refiOurHighestAirFactoryTech] == 1 and (not(bOnlyConsiderLandFactory) or oBrain[M28Overseer.refbPrioritiseAir]) and (not(oBrain[M28Overseer.refbPrioritiseLand]) or oBrain[M28Economy.refiOurHighestLandFactoryTech] > 1) then
+        if oBrain[M28Economy.refiOurHighestAirFactoryTech] == 1 and (not(bOnlyConsiderLandFactory) or oBrain[M28Overseer.refbPrioritiseAir]) and (not(oBrain[M28Overseer.refbPrioritiseLand]) or oBrain[M28Economy.refiOurHighestLandFactoryTech] > 2) then
             if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ)) then
                 --Check we dont already have an active upgrade
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirHQ * categories.TECH1, false, true)
                 AddPotentialUnitsToShortlist(toSafeUnitsToUpgrade, tPotentialUnits)
             end
         end
-        if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or oBrain[M28Economy.refiOurHighestAirFactoryTech] > 1) then
+        if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2) then
             if bDebugMessages == true then LOG(sFunctionRef..': Does brain have active Land HQ upgrades='..tostring(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ))) end
             if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ)) then
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH1, false, true)
