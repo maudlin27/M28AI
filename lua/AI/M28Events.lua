@@ -435,12 +435,15 @@ function OnUnitDeath(oUnit)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
                             --Record mex position first as it is a forked thread so may lose position if the unit dies; however ignore if looks like an upgrading mex unit
-                            if bDebugMessages == true then LOG(sFunctionRef..': We have a mex that has died, checking if it was the upgrading element, .CanTakeDamage='..tostring(oUnit.CanTakeDamage or false)..'; .IsUpgrade='..tostring(oUnit.IsUpgrade or false)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': We have a mex that has died, checking if it was the upgrading element, .CanTakeDamage='..tostring(oUnit.CanTakeDamage or false)..'; .IsUpgrade='..tostring(oUnit.IsUpgrade or false)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Owner='..oUnit:GetAIBrain().Nickname) end
                             if not(oUnit.CanTakeDamage == false and oUnit.IsUpgrade == true) then
                                 local tMexPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to call OnMexDeath via fork, tMexPosition='..repru(tMexPosition)) end
                                 if tMexPosition[1] == 0 and tMexPosition[2] == 0 then M28Utilities.ErrorHandler('Dont have a valid mex position - mex is showing as 0,0,0') end
                                 ForkThread(M28Building.OnMexDeath, tMexPosition, (oUnit.UnitId or 'nil'), (M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'), oUnit:GetAIBrain():GetArmyIndex()) --Need to fork thread or else get an error when try to wait in the building logic
+                            elseif oUnit:GetFractionComplete() == 1 then
+                                --Rare case where a constructed unit showed in LOUD with .IsUpgrade as true and .CanTakeDamage as false
+                                ForkThread(M28Building.ConsiderDelayedOnMexDeathCall, {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}, (oUnit.UnitId or 'nil'), (M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'), oUnit:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain().M28Team)
                             end
                             --[[local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
                             if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then
@@ -3082,6 +3085,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
 
 
                                 for iTransferCount, tUnitTable in aiBrain[M28Overseer.reftoTransferredUnitMexesAndFactoriesByCount] do
+                                    iClosestUnitRef = nil
                                     if M28Utilities.IsTableEmpty(tUnitTable) == false then
                                         for iCompletedUnit, oCompletedUnit in tUnitTable do
                                             if M28UnitInfo.IsUnitValid(oCompletedUnit) then

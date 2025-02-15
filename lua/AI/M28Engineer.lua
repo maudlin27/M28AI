@@ -11066,7 +11066,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     iBPWanted = 10
                     if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
                         iBPWanted = 5
-                        if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, (tLZData[M28Map.subrefLZMexCount] or 0)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 8*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetCurrentUnits(M28UnitInfo.refCategoryPower) < 3 then
+                        if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, (tLZData[M28Map.subrefLZMexCount] or 0)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 8*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]] and not(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28IsDefeated) and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetCurrentUnits(M28UnitInfo.refCategoryPower) < 3 then
                             HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 5)
                         else
                             HaveActionToAssign(refActionBuildHydro, 1, iBPWanted)
@@ -12091,6 +12091,23 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData) then
         AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam, tLZData, false, refActionManageGameEnderTemplate, 3, 150)
         if bDebugMessages == true then LOG(sFunctionRef..': We have an active gameender template so will assign engis to this (unless we want to assist nearby teammate exp)') end
+    end
+
+    --V high priority TMD (we have another TMD builder a bit lower)
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Very high priority TMD builder, is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; Enemy combat total='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')) end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD]) >= 4 then
+        local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is oUnitWantingTMD valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnitWantingTMD))) end
+        if oUnitWantingTMD then
+            iBPWanted = 10
+            if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 30 end
+            if bSaveMassForMML then
+                iBPWanted = iBPWanted * 0.5
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to build TMD, iBPWanted='..iBPWanted..'; Unit wanting TMD='..oUnitWantingTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitWantingTMD)) end
+            HaveActionToAssign(refActionBuildTMD, 2, iBPWanted, oUnitWantingTMD)
+        end
     end
 
     --first ever experimental to build - rush if have t3 mex

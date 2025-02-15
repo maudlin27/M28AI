@@ -1433,11 +1433,40 @@ function RecordPriorityShields(iTeam, tLZTeamData)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ConsiderDelayedOnMexDeathCall(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex, iOwnerTeam)
+    --Due to a replay on LOUD where a mex was destroyed (fully constructed) and it showed up as being an upgrading mex so OnMexDeath never triggered, resulting in M28 thinkning there were no locations available to build (when there were)
+    WaitSeconds(3)
+    local rRect = M28Utilities.GetRectAroundLocation(tUnitPosition, 0.5)
+    local tUnitsInRect = GetUnitsInRect(rRect)
+    local bHaveMexThere = false
+    if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+        local tMexesInRect = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitPosition)
+        if M28Utilities.IsTableEmpty(tMexesInRect) == false then
+            bHaveMexThere = true
+        end
+    end
+    if not(bHaveMexThere) then
+        --Check we have fewer mexes recorded in this zone for all teams
+        local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tUnitPosition, true, iOwnerTeam)
+        local iTeamMexes = 0
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefMexCountByTech]) == false then
+            for iTech, iMexes in tLZOrWZTeamData[M28Map.subrefMexCountByTech] do
+                iTeamMexes = iTeamMexes + iMexes
+            end
+        end
+        if iTeamMexes < tLZOrWZData[M28Map.subrefLZMexCount] then
+            --Have a risk of an inconsistency so run OnMexDeath to be safe
+            OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
+        end
+    end
+end
+
 function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
     --Call via fork thread due to the WaitSeconds() in it; however note that as this is forked, the unit (mex) may not exist anymore, so tUnitPosition needs to be a copy of the position table, and dont want to pass the unit object
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OnMexDeath'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; tUnitPosition='..repru(tUnitPosition)) end
 
 
@@ -1463,7 +1492,7 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
     end
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tUnitPosition='..repru(tUnitPosition)..'; is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; iWaterZone='..(iWaterZone or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tUnitPosition='..repru(tUnitPosition)..'; is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; iWaterZone='..(iWaterZone or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if M28Utilities.IsTableEmpty(tMexLocations) == false then
         --Record time of last mex death against LZ data to help with error messages
         tLZOrWZData[M28Map.refiTimeOfLastMexDeath] = GetGameTimeSeconds()
@@ -1517,9 +1546,14 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
                                 end
                             end
                             if tCurMexClosestLocation[1] == tClosestMexLocation[1] and tCurMexClosestLocation[3] == tClosestMexLocation[3] then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have a valid mex in this location, oMex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; Army Index='..oMex:GetAIBrain():GetArmyIndex()..'; sUnitRef='..sUnitRef..'; sLifetimeCount='..sLifetimeCount..'; iOwnerArmyIndex='..(iOwnerArmyIndex or 'nil')..'; tCurMexClosestLocation='..repru(tCurMexClosestLocation)..'; Mex position='..repru(oMex:GetPosition())..'; tUnitPosition='..repru(tUnitPosition)..'; tClosestMexLocation='..repru(tClosestMexLocation)) end
-                                bNoMex = false
-                                break
+                                --double-check due to rare case where presumably an upgrading t3 mex has just started and the base mex died, and there's a delay?
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have a valid mex in this location, oMex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; Is mex valid='..tostring(M28UnitInfo.IsUnitValid(oMex))..'; Army Index='..oMex:GetAIBrain():GetArmyIndex()..'; sUnitRef='..sUnitRef..'; sLifetimeCount='..sLifetimeCount..'; iOwnerArmyIndex='..(iOwnerArmyIndex or 'nil')..'; tCurMexClosestLocation='..repru(tCurMexClosestLocation)..'; Mex position='..repru(oMex:GetPosition())..'; tUnitPosition='..repru(tUnitPosition)..'; tClosestMexLocation='..repru(tClosestMexLocation)..'; oMex fraction complete='..oMex:GetFractionComplete()..'; OMex Owner army index='..oMex:GetAIBrain():GetArmyIndex()..'; iOwnerArmyIndex='..iOwnerArmyIndex) end
+                                if oMex:GetFractionComplete() < 1 and oMex:GetAIBrain():GetArmyIndex() == iOwnerArmyIndex and M28Utilities.GetDistanceBetweenPositions(tUnitPosition, tCurMexClosestLocation) <= 0.5 and M28UnitInfo.GetUnitTechLevel(oMex) > M28UnitInfo.GetBlueprintTechLevel(sUnitRef) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Think we have a mex that has died while upgrading, and the upgrading mex hasnt had its death triggered yet, so wont treat there as being a mex here afterall') end
+                                else
+                                    bNoMex = false
+                                    break
+                                end
                             end
                         end
                     end
@@ -1547,10 +1581,7 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Already recorded this location as unbuilt') end
                 end
-                --break
             end
-            --end
-            --end
         end
         if bDebugMessages == true then
             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after update is empty')

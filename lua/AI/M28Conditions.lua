@@ -1748,7 +1748,7 @@ function HaveEnoughThreatToAttack(iPlateau, iLandZone, tLZData, tLZTeamData, iOu
     return false
 end
 
-function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
+function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOptionalBrainOverride)
     --Returns true if want an air factory - to be used where we want more production, so we can decide whether to get +1 air fac or +1 land fac
 
     local sFunctionRef = 'DoWeWantAirFactoryInsteadOfLandFactory'
@@ -1771,8 +1771,8 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                 iLandFactoriesHave = table.getn(tLandFactories)
             end
         end
-        local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
-        if bDebugMessages == true then LOG(sFunctionRef..': Near start, iLandFactoriesHave='..iLandFactoriesHave..'; Highest air fac tech='..(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestAirFactoryTech] or 'nil')..'; bGoingSecondAir='..tostring(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refbGoingSecondAir] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Focus on T1 spam='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] or false)) end
+        local aiBrain = oOptionalBrainOverride or ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+        if bDebugMessages == true then LOG(sFunctionRef..': Near start, iLandFactoriesHave='..iLandFactoriesHave..'; Highest air fac tech='..(aiBrain[M28Economy.refiOurHighestAirFactoryTech] or 'nil')..'; bGoingSecondAir='..tostring(aiBrain[M28Economy.refbGoingSecondAir] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Focus on T1 spam='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] or false)..'; oOptionalBrainOverride='..(oOptionalBrainOverride.Nickname or 'nil')..'; aiBrain='..(aiBrain.Nickname or 'nil')) end
 
         --Early game where ACU wants to go second air - build air fac if low on mass to avoid a case where we stall mass while trying to build 2 different factories at once
         if GetGameTimeSeconds() <= 240 then
