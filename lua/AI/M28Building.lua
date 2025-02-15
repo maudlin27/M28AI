@@ -1581,21 +1581,7 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Already recorded this location as unbuilt') end
                 end
-                --break
-            elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then
-                --Redundancy for rare case where we had 0 unbuilt locations for a 4 mex zone when only having 2 mexes
-                --TODO - implement code
-                if bDebugMessages == true then
-                    LOG(sFunctionRef..': Mexes in zone='..(tLZOrWZData[M28Map.subrefLZMexCount] or 'nil'))
-                    for iTeam = 1, M28Team.iTotalTeamCount do
-                        local tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-                        LOG(sFunctionRef..': iTeam='..iTeam..'; Mex by tech='..repru(tLZOrWZTeamData[M28Map.subrefMexCountByTech]))
-                    end
-                end
-
             end
-            --end
-            --end
         end
         if bDebugMessages == true then
             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after update is empty')
