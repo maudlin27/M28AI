@@ -147,8 +147,8 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
     if iFactoryCategoryOverride then iCategoryToBuild = iFactoryCategoryOverride
     else
         local iTeam = oACU:GetAIBrain().M28Team
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to build an air factory, do we want air instead of land='..tostring(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))..'; Is tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; tLZTeamData[CoreBase]='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])) end
-        if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then iCategoryToBuild = M28UnitInfo.refCategoryAirFactory
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to build an air factory, do we want air instead of land='..tostring(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, aiBrain))..'; Is tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; tLZTeamData[CoreBase]='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])) end
+        if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, aiBrain) then iCategoryToBuild = M28UnitInfo.refCategoryAirFactory
         else iCategoryToBuild = M28UnitInfo.refCategoryLandFactory
         end
     end
@@ -672,7 +672,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
                         --Build more factories if we have 100% E, positive net energy, have a decent amount of mass stored, and we have at least 1 pgen or hydro
                     elseif iCurLandFactories < 10 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and aiBrain:GetEconomyStored('MASS') >= 250 and aiBrain[M28Economy.refiNetMassBaseIncome] > 0 and aiBrain[M28Economy.refiNetEnergyBaseIncome] > 0 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) < math.max(3, math.min(8, aiBrain[M28Economy.refiGrossMassBaseIncome] * 0.5)) and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) then
-                        if  M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData) or (bGoSecondAir and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0) then
+                        if  M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData, aiBrain) or (bGoSecondAir and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0) then
                             if not(bGoSecondAir) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 20 * aiBrain[M28Economy.refiBrainResourceMultiplier] then
                                 if bDebugMessages == true then LOG(sFunctionRef..': want power so can build an air fac') end
                                 ACUActionBuildPower(aiBrain, oACU)
@@ -916,7 +916,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     else
                         --Have initial power and mexes built, get second factory now subject to the cap
                         if iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < iFactoryCap then
-                            local bWantAirFactory = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData)
+                            local bWantAirFactory = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData, aiBrain)
                             if bDebugMessages == true then LOG(sFunctionRef..': Checking if want more factories, iCurLandFactories='..iCurLandFactories..'; Want more factories='..tostring(M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ))..'; Cur air factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)) end
                             if bGoSecondAir and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0 then
                                 ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
@@ -3772,7 +3772,7 @@ function ConsiderGettingExtraLandFactory(tLZData, tLZTeamData, oACU, iPlateau, i
     if (oACU[refiUpgradeCount] or 0) == 0 and tLZTeamData[M28Map.subrefLZbCoreBase] and oACU:GetAIBrain():GetEconomyStored('MASS') >= 220 and M28Conditions.WantMoreFactories(oACU:GetAIBrain().M28Team, iPlateau, iLandZone) then
         --We think we want another land factory; however dont do this if we will use up our current mass in 20s or less, or we have 4+ land factories, or we are at T2
         local iTeam = oACU:GetAIBrain().M28Team
-        if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then
+        if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, aiBrain) then
             --DO nothing for now
         else
             if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= -0.5 then
@@ -5266,7 +5266,7 @@ function GetACUOrder(aiBrain, oACU)
                             iFactoryEngineerAction = M28Engineer.refActionBuildAirFactory
                         elseif M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone) then
                             bWantAnotherFactory = true
-                            if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData) then
+                            if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData, aiBrain) then
                                 iFactoryCategoryToGet = M28UnitInfo.refCategoryAirFactory
                                 iFactoryEngineerAction = M28Engineer.refActionBuildAirFactory
                             end
@@ -5679,10 +5679,10 @@ function GetACUOrder(aiBrain, oACU)
                                                             local bBuildingOrAssistingPowerOrFactory = false
                                                             if bDebugMessages == true then LOG(sFunctionRef..': About to consider getting power or factories if in core base and have lots of mass stored, M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])..'; tLZOrWZTeamData[M28Map.subrefLZbCoreBase]='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])..'; Energy%='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Mass %='..aiBrain:GetEconomyStoredRatio('MASS')..'; Gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Enemeis in this or adj='..tostring(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
 
-                                                            if not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 3000 then
+                                                            if not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 3000 and (aiBrain:GetEconomyStoredRatio('MASS') >= 0.5 or not(aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Overseer.refbPrioritiseNavy]) or aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 3 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.3 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) < 3 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZOrWZTeamData, M28UnitInfo.refCategoryFactory * categories.TECH1) == 0)) then
                                                                 --First consider factories if a t1 spam mode and enemy lacks gun
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': About to check if want to build more factories, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or 'nil')..'; tLZTeamData[M28Map.subrefMexCountByTech][3]='..(tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] or 'nil')) end
-                                                                if GetGameTimeSeconds() <= 600 and iPlateauOrZero > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] <= 1 or oACU[refiBuildTech] >= 2) and not(M28Overseer.bLikelyGunUpgrade) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 and (aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.8 or aiBrain[M28Economy.refiNetEnergyBaseIncome] > 0 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.5) and M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone) and not(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData)) then
+                                                                if GetGameTimeSeconds() <= 600 and iPlateauOrZero > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] <= 1 or oACU[refiBuildTech] >= 2) and not(M28Overseer.bLikelyGunUpgrade) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 and (aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.8 or aiBrain[M28Economy.refiNetEnergyBaseIncome] > 0 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.5) and M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone) and not(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData, aiBrain)) then
                                                                     --No enemies in this or adj zone, consider building fac unless mod dist is high
                                                                     if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.3 or tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
                                                                         --If cant path to enemy with land, or are tech or turtle or navy, then be less likely
