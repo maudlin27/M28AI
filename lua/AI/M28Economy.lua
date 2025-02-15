@@ -198,8 +198,17 @@ function UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, oO
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
+    local iOrigMexCount = 0
+    --Redundancy for rare cases where we realise we have fewer mexes in the zone, but think there are no avaialble build locations
+    if tLZOrWZTeamData[M28Map.subrefMexCountByTech] then
+        for iTech, iMexes in tLZOrWZTeamData[M28Map.subrefMexCountByTech] do
+            iOrigMexCount = iOrigMexCount + iMexes
+        end
+    end
+
     tLZOrWZTeamData[M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0} --starting point
     if bDebugMessages == true then LOG(sFunctionRef..': Time of game='..GetGameTimeSeconds()..'; Is table of allied units for iPlateauOrZero '..iPlateauOrZero..' iLandOrWaterZone '..iLandOrWaterZone..' empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
+    local iMexCount = 0
     if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
         local tAllMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         --Update list of allied mex units in this LZ in case some of the mexes are dead now
@@ -211,7 +220,6 @@ function UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, oO
         end
 
         local tMexesByTech = {}
-        local iMexCount = 0
         tMexesByTech[1] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH1, tAllMexes)
         tMexesByTech[2] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH2, tAllMexes)
         tMexesByTech[3] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH3, tAllMexes)
@@ -247,6 +255,50 @@ function UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, oO
             ForkThread(UpdateZoneM28AllMexByTech, aiBrain, iPlateauOrZero, iLandOrWaterZone, oOptionalUnitThatDied, 15)
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking mex count by tech, iMexCount='..iMexCount..'; iOrigMexCount='..iOrigMexCount..'; Is table of unbuilt locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; tLZOrWZData[M28Map.subrefLZMexCount]='..tLZOrWZData[M28Map.subrefLZMexCount]) end
+    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) and (iMexCount < iOrigMexCount or (iMexCount == iOrigMexCount and iMexCount < tLZOrWZData[M28Map.subrefLZMexCount])) then
+        --We have fewer mexes; unless this is because e.g. enemy has captured a mex, or due to a split second timing issue, this suggests a bug with mex tracking, so will re-check all unavailable locations in 1 sec
+        if bDebugMessages == true then LOG(sFunctionRef..': Will manuall recheck unbuilt locations') end
+        ForkThread(ManuallyRecheckUnbuiltMexLocationsInZone, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, 1)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ManuallyRecheckUnbuiltMexLocationsInZone(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iWaitInSeconds)
+    --Calll via forkthread when had unexpected mex result that in some cases might be valid but in others invalid
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManuallyRecheckUnbuiltMexLocationsInZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    WaitSeconds(iWaitInSeconds)
+
+    local tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations] --same ref used for LZ and WZs
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iPlateauOrZero..'Z'..iLandOrWaterZone..'; Is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; Is subrefMexUnbuiltLocations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))) end
+    --Do we have unavailable build locations, but have mexes in the zone? (redundancy in case things have changed in iWaitInSeconds time; we shouldve only called this function if the team's mexes decreased but there were no available mex locations to build on)
+    if M28Utilities.IsTableEmpty(tMexLocations) == false and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then
+        local bNoMexPresent
+        for iMex, tMex in tMexLocations do
+            local rRect = M28Utilities.GetRectAroundLocation(tMex, 0.49)
+            local tUnitsInRect = GetUnitsInRect(rRect)
+            bNoMexPresent = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iMex position='..iMex..'; tMex='..repru(tMex)..'; Are there units in a rectangle around this mex='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))) end
+            if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                for iUnit, oUnit in tUnitsInRect do
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a mex near here, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; .Dead='..tostring(oUnit.Dead or false)) end
+                        bNoMexPresent = false
+                        break
+                    end
+                end
+            end
+            if bNoMexPresent then
+                if not(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then tLZOrWZData[M28Map.subrefMexUnbuiltLocations] = {} end
+                if bDebugMessages == true then LOG(sFunctionRef..': Redundancy, adding unbuilt mex location for P'..iPlateauOrZero..'Z'..iLandOrWaterZone..' at time='..GetGameTimeSeconds()..'; tMex='..repru(tMex)) end
+                table.insert(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], tMex)
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': end of code, tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

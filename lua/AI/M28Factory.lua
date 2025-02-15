@@ -1133,7 +1133,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oFactory.UnitId == 'xsb0101' and aiBrain[M28Overseer.refbPrioritiseAir] and GetGameTimeSeconds() >= 506 then bDebugMessages = true end
+
 
     local iCategoryToBuild
     local iTeam = aiBrain.M28Team

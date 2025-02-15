@@ -11066,7 +11066,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     iBPWanted = 10
                     if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
                         iBPWanted = 5
-                        if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, (tLZData[M28Map.subrefLZMexCount] or 0)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 8*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetCurrentUnits(M28UnitInfo.refCategoryPower) < 3 then
+                        if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, (tLZData[M28Map.subrefLZMexCount] or 0)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 8*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]] and not(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28IsDefeated) and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetCurrentUnits(M28UnitInfo.refCategoryPower) < 3 then
                             HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 5)
                         else
                             HaveActionToAssign(refActionBuildHydro, 1, iBPWanted)
