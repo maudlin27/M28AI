@@ -1316,8 +1316,8 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
     local sFunctionRef = 'TurnAirUnitAndMoveToTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; GameTime='..GetGameTimeSeconds()) end
-    --First delay microing until finished our salvo if dealing with T1-T2 bomber
-    if M28UnitInfo.DoesBomberFireSalvo(oBomber) and EntityCategoryContains(M28UnitInfo.refCategoryBomber * (categories.TECH1 + categories.TECH2), oBomber.UnitId) then
+    --First delay microing until finished our salvo if dealing with T1-T3 bomber
+    if M28UnitInfo.DoesBomberFireSalvo(oBomber) and EntityCategoryContains(M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL, oBomber.UnitId) then
         if bDebugMessages == true then LOG(sFunctionRef..': Will wait a second so bomber can finish firing') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1.1)
