@@ -2040,7 +2040,7 @@ function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAtta
         if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, bAbortForGroundAA='..tostring(bAbortForGroundAA or false)..'; iStartTime='..iStartTime..'; Cur time='..GetGameTimeSeconds()..'; iMaxMicroTime='..iMaxMicroTime..'; Is bomber valid='..tostring(M28UnitInfo.IsUnitValid(oBomber) )..'; Is target valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))) end
         while GetGameTimeSeconds() - iStartTime < iMaxMicroTime and M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) do
             --If have recently fired then dont want to give orders if have a salvo
-            if iMinTimeAfterFiringBeforeGivingNewOrders > 0 and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] < iMinTimeAfterFiringBeforeGivingNewOrders then
+            if iMinTimeAfterFiringBeforeGivingNewOrders > 0 and GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) < iMinTimeAfterFiringBeforeGivingNewOrders then
                 --Just wait, dont give orders, so all our bombs can drop
                 if bDebugMessages == true then LOG(sFunctionRef..': Bomber fired recently so wont give new orders, time since last fired='..( GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired])) end
             else

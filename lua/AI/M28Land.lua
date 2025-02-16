@@ -5049,7 +5049,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] <= 64 and (oUnit[M28UnitInfo.refiDFRange] <= 50 or oUnit.UnitId == 'url0402') then --IF CHANGING HERE THEN CHANGE ABOVE AS WELL
                     ForkThread(M28Micro.SuicideExperimentalIntoEnemyACU, oUnit, oClosestACUToAttack)
                 end
-                if oUnit[M28UnitInfo.refiDFRange] - iClosestACU >= 5 and (not(oUnit[M28UnitInfo.refbLastShotBlocked]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId)) or not(M28Logic.IsShotBlocked(oUnit, oClosestACUToAttack)))) then --ACU more than 5 inside our range - attack it unless our shot is blocked
+                if (oUnit[M28UnitInfo.refiCombatRange] or 0) - iClosestACU >= 5 and (not(oUnit[M28UnitInfo.refbLastShotBlocked]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId)) or (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 or not(M28Logic.IsShotBlocked(oUnit, oClosestACUToAttack)))) then --ACU more than 5 inside our range - attack it unless our shot is blocked
                     M28Orders.IssueTrackedAttack(oUnit, oClosestACUToAttack, false, 'ACUEAt', false)
                 else
                     M28Orders.IssueTrackedMove(oUnit, oClosestACUToAttack:GetPosition(), (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.4, false, 'ACUEMv'..iLandZone, false)

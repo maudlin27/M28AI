@@ -1085,7 +1085,7 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                         --Reset the arti shot count if damaged a high value unit
                         if M28UnitInfo.IsUnitValid(self) then
                             if bDebugMessages == true then LOG(sFunctionRef..': T3/Exp arti owned by M28 brain '..oUnitCausingDamage:GetAIBrain().Nickname..', arti unit='..oUnitCausingDamage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitCausingDamage)..' has just damaged unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..' which is valid') end
-                            local iUnitDamagedMassValue = self[M28UnitInfo.refiUnitMassCost] * self:GetFractionComplete()
+                            local iUnitDamagedMassValue = (self[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(self)) * self:GetFractionComplete()
                             if iUnitDamagedMassValue >= 700 then
                                 --Reduce the ineffective arti shot count
                                 local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(self:GetPosition())
