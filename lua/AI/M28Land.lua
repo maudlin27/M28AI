@@ -7787,7 +7787,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     --if bDebugMessages == true then LOG(sFunctionRef..': Unit will run away from location to avoid') end
 
                                     --Shot not blocked - consider attackign ACU with experimentals
-                                    if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsNearZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
+                                    if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy - M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsNearZone, 6 + (oUnit[M28UnitInfo.refiCombatRange] or 0), iTeam, false, nil, nil, nil, nil, nil) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Experimental - attack nearest ACU') end
                                         GetUnitToAttackNearestACU(oUnit)
                                         --CloseToEnemyUnit(tStartPosition,       tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
