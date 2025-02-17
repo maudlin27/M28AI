@@ -2871,7 +2871,6 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             end
         end
         if not(iCategoryWanted) then
-            bDebugMessages = true
             if bDebugMessages == true then
                 LOG(sFunctionRef..': Deciding on what experimental to construct, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; Team mass income='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 'nil')..'; Brain='..(aiBrain.Nickname or 'nil')..'; Is campaignAI='..tostring(aiBrain.CampaignAI or false)..'; Is M28AI='..tostring(aiBrain.M28AI or false)..'; Land subteam='..(aiBrain.M28LandSubteam or 'nil')..'; Is table of land subteam empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains]))..'; Team gross mass='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; refbBuiltParagon='..tostring(aiBrain[M28Economy.refbBuiltParagon] or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(aiBrain.M28Team))..'; (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0)='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiFriendlyGameEnderCount] or 0))
                 local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(aiBrain.M28Team, iPlateauOrZero, iLandOrWaterZone, true, nil, nil, false, nil, aiBrain.M28AirSubteam)
@@ -6388,7 +6387,7 @@ end
 
 function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTableRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, bWantToChangeDueToNovax, bWantToChangeDueToBuildingMultipleGameEnder)
     local sFunctionRef = 'GETemplateReassessGameEnderCategory'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -7830,7 +7829,6 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
         if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for P'..iPlateau..'Z'..iLandZone..'; iTableRef='..iTemplateRef..'; tTableRef[M28Map.subrefGEbDontNeedEngineers]='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers] or false)..'; is tableo f engineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; Time='..GetGameTimeSeconds()) end
 
         while not(tTableRef[M28Map.subrefGEbDontNeedEngineers]) do
-            if GetGameTimeSeconds() >= 2889 and iLandZone == 3 then bDebugMessages = true end
             --Decide whether to continue with loop - abort if have no engineers and no arti and no shields
             local bStillValid = false
             if M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEEngineers]) then bStillValid = true end
@@ -8086,25 +8084,26 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                                         local oPotentialSACUToGetUpgrade
                                                         for iEngi, oEngi in tAvailableEngineers do
                                                             if EntityCategoryContains(categories.SUBCOMMANDER, oEngi.UnitId) then
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oSACU, oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; Unit state='..M28UnitInfo.GetUnitState(oEngi)..'; Dist to oNearestCompletionArti='..M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), oNearestCompletionArti)..'; oEngi[M28ACU.refbTriedAndFailedToGetBuildRateUpgrade]='..tostring(oEngi[M28ACU.refbTriedAndFailedToGetBuildRateUpgrade] or false)) end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oSACU, oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; Unit state='..M28UnitInfo.GetUnitState(oEngi)..'; Dist to oNearestCompletionArti='..M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), oNearestCompletionArti:GetPosition())..'; oEngi[M28ACU.refbTriedAndFailedToGetBuildRateUpgrade]='..tostring(oEngi[M28ACU.refbTriedAndFailedToGetBuildRateUpgrade] or false)) end
                                                                 if oEngi:IsUnitState('Upgrading') then
-                                                                    if M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), oNearestCompletionArti) <= 25 then
+                                                                    if M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), oNearestCompletionArti:GetPosition()) <= 25 then
                                                                         oSACUUpgradeToAssist = oEngi
                                                                         table.remove(tAvailableEngineers, iEngi)
                                                                         break
                                                                     end
                                                                 elseif not(oPotentialSACUToGetUpgrade) and not(oEngi[M28ACU.refbTriedAndFailedToGetBuildRateUpgrade]) then
-                                                                    local sUpgradeWanted = M28ACU.GetUpgradeForSACU(oPotentialSACUToGetUpgrade, true, true)
+                                                                    local sUpgradeWanted = M28ACU.GetUpgradeForSACU(oEngi, true, true)
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..(sUpgradeWanted or 'nil')) end
-                                                                    if sUpgradeWanted and M28Utilities.GetDistanceBetweenPositions(oSACUUpgradeToAssist:GetPosition(), oNearestCompletionArti) <= 25 then
+                                                                    if sUpgradeWanted and M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), oNearestCompletionArti:GetPosition()) <= 25 then
                                                                         oPotentialSACUToGetUpgrade = oEngi
+                                                                        M28Orders.IssueTrackedEnhancement(oPotentialSACUToGetUpgrade, sUpgradeWanted, false, 'GETemUgr')
                                                                         if bDebugMessages == true then LOG(sFunctionRef..': Setting oPotentialSACUToGetUpgrade as this SACU') end
                                                                     end
                                                                 end
                                                             end
                                                         end
                                                         if oPotentialSACUToGetUpgrade then
-                                                            oSACUUpgradeToAssist = oPotentialSACUToGetUpgrade
+                                                            --oSACUUpgradeToAssist = oPotentialSACUToGetUpgrade -dont set this yet, as want to be sure that the unit state is upgrading
                                                             for iEngi, oEngi in tAvailableEngineers do
                                                                 if oEngi == oSACUUpgradeToAssist then table.remove(tAvailableEngineers, iEngi) break end
                                                             end
@@ -8277,6 +8276,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
 
     if not(tTableRef[M28Map.subrefGEbActiveMonitor]) then --v77 - had issues with the main loop being called repeatedly and engineers not being given orders, suspect this was the cause, but this was added due to issues with engineers staying stuck on GE duty, so might need to consider further if run into issues again
         --Redundancy - clear engineers
+        if bDebugMessages == true then LOG(sFunctionRef..': Extra check, is table of engineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))) end
         if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]) == false then
             for iEngineer, oEngineer in tTableRef[M28Map.subrefGEEngineers] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Redundancy for clearing engineers for this template ref, iTemplateRef='..iTemplateRef..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Clearing flag for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Time='..GetGameTimeSeconds()) end
