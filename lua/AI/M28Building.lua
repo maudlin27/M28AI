@@ -4893,7 +4893,7 @@ function QuantumOpticsManager(aiBrain, oUnit)
         local iEntryToScout
         local iCurLZOrWZ, iCurPlateauOrZero, iCurZoneSizeX, iCurZoneSizeZ
         function ReadyToScry()
-            if aiBrain:GetEconomyStoredRatio('ENERGY') >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 250 and aiBrain:GetEconomyStored('ENERGY') >= 14000 and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+            if M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active and aiBrain:GetEconomyStoredRatio('ENERGY') >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 250 and aiBrain:GetEconomyStored('ENERGY') >= 14000 and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
                 return true
             else
                 return false

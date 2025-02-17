@@ -43,7 +43,7 @@ bCPUPerformanceMode = false
 function ConsiderIfLoudActive()
     local bDebugMessages = false --simplified setup/no profiling as dont want to call profiler at this stage since hardly anything will have loaded and might cause compatibility headaches
     local sFunctionRef = 'ConsiderIfLoudActive'
-    if bDebugMessages == true then LOG(sFunctionRef..': About to consider whether LOUD or Steam is active') end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to consider whether LOUD or Steam is active, bFAFActive='..tostring(bFAFActive)..'; bSteamActive='..tostring(bSteamActive)) end
     if not(bFAFActive) and not(bSteamActive) then
         --Further check for if FAF active
         local file_exists = function(name)
@@ -57,6 +57,7 @@ function ConsiderIfLoudActive()
         local NavUtilsCheck
         local bAddNonFafFunctions = false
         if file_exists('/lua/sim/navutils.lua') then
+            if bDebugMessages == true then LOG(sFunctionRef..': NavUtils exists, so either FAF or a mod with FAF characteristics') end
             NavUtilsCheck = import('/lua/sim/navutils.lua')
             if NavUtilsCheck and rawget(NavUtilsCheck, 'DetailedPathTo') then
                 bFAFActive = true
@@ -75,12 +76,17 @@ function ConsiderIfLoudActive()
             bAddNonFafFunctions = true
         end
         if bAddNonFafFunctions then
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Does ExtrasAI file exist='..tostring(file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua')))
+                if file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') then LOG(sFunctionRef..': Extras AI name='..(import('/lua/AI/CustomAIs_v2/ExtrasAI.lua').AI.Name or 'nil')..'; Version is nil='..tostring(import('/lua/AI/CustomAIs_v2/ExtrasAI.lua').AI.Version == nil)) end
+            end
             --Either steam or LOUD is active
             if file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') and import('/lua/AI/CustomAIs_v2/ExtrasAI.lua').AI.Name == 'QUIET Patch' then
                 bQuietModActive = true
                 LOG('M28AI: Flagging that QUIET mod is active')
             elseif file_exists('/lua/AI/CustomAIs_v2/ExtrasAI.lua') and import('/lua/AI/CustomAIs_v2/ExtrasAI.lua').AI.Version then
                 bLoudModActive = true
+                if bDebugMessages == true then LOG(sFunctionRef..': LOUD is active') end
                 --Backwards compatibility for initial versions of LCE and QUIET which were done as mods to LOUD (not relevant going forwards as its standalone)
                 if file_exists('/mods/LOUD-Community-Edition/mod_info.lua') or file_exists('/mods/QUIET-Community-Edition/mod_info.lua') then
                     --Make sure by checking active SIM mods
@@ -89,12 +95,16 @@ function ConsiderIfLoudActive()
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iMod='..iMod..'; Mod name='..(tModData.name or 'nil')..'; tModData.enabled='..tostring(tModData.enabled or false)..'; tModData.ui_only='..tostring(tModData.ui_only or false)) end
                         if tModData.enabled and not (tModData.ui_only) then --Note: pre-v1.52 of QUIET there was a bug where the mod wouldn't have .enabled set to true, Azraeel mentioned this should be fixed as of v1.52
                             if tModData.name == 'LOUD Community Edition' or tModData.name == 'QUIET' then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Appears that QUIET is active instead of LOUD') end
                                 bQuietModActive = true
                                 bLoudModActive = false
                                 break
                             end
                         end
                     end
+                end
+                if bLoudModActive then LOG('M28AI: Flagging that LOUD is active')
+                elseif bQuietModActive then LOG('M28AI: Redundancy for QUIET backwards compatibility - QUIET is active')
                 end
             else
                 if not(NavUtilsCheck) then

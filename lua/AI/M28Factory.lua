@@ -283,7 +283,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     local sFunctionRef = 'AdjustBlueprintForOverrides'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if sBPIDToBuild == 'ual0301' then bDebugMessages = true end
 
     local iCurEngineers
     if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild] then
@@ -585,7 +585,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     if sBPIDToBuild and aiBrain[M28Overseer.refbCloseToUnitCap] then
         --If just ctrlKd in last 60s and are ctrlking t3 land or engis then dont build naything (relevant e.g. for engineers from air fac, as land fac aborts much earlier)
         if not(iCurEngineers) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) end
-        if not(iCurEngineers) or iCurEngineers > M28Overseer.iT3EngineerUnitCapThresholdCount or (iCurEngineers >= 20 and not(EntityCategoryContains(categories.TECH3, sBPIDToBuild)) and aiBrain[M28Economy.refiHighestFactoryBuildCount] >= 3) then
+        if not(iCurEngineers) or iCurEngineers > M28Overseer.iT3EngineerUnitCapThresholdCount or (iCurEngineers >= 20 and not(EntityCategoryContains(categories.TECH3, sBPIDToBuild)) and aiBrain[refiHighestFactoryBuildCount] >= 3) then
             if aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] and GetGameTimeSeconds() - aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] <= 60 and (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 or (tLZTeamData[M28Map.subrefLZbCoreBase] and not(EntityCategoryContains(categories.TECH3, sBPIDToBuild)))) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have recently ctrlkd unit so want to abort if we are about to build the same unit again if we have mobile land or same category, do we contain this='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileLand + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild))) end
                 if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild) then
@@ -607,6 +607,8 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 sBPIDToBuild = nil
             elseif iFactoryTechLevel >= M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] and not(EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild)) then
                 --Do nothing - are at highest tech level for this factory and we havent destroyed any units of this type
+            elseif EntityCategoryContains(categories.SUBCOMMANDER, sBPIDToBuild) and ((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) >= -1 or aiBrain:GetCurrentUnits(categories.SUBCOMMANDER) <= 60) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Still build SACU as unit cap isnt too bad or we dont have loads') end
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Close to unit cap so wont build more') end
                 sBPIDToBuild = nil
@@ -6365,6 +6367,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
 
     --LOUD specific - build SACUs if needed to build experimentals, but dont build anything if low on mass and have built a few
     local iCurSACUs = aiBrain:GetCurrentUnits(categories.SUBCOMMANDER)
+    if iCurSACUs >= 25 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to abort for LOUD/QUIET if we have several SACUs already, iCurSACUs='..iCurSACUs..'; M28Utilities.bLoudModActive='..tostring(M28Utilities.bLoudModActive or false)..'; Mass%='..aiBrain:GetEconomyStoredRatio('MASS')..'; Fac total build count='..(oFactory[refiTotalBuildCount] or 'nil')..'; Team exp constructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]) end
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iCurSACUs >= M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 2 and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (bHaveLowMass or aiBrain:GetEconomyStoredRatio('MASS') < 0.3) and oFactory[refiTotalBuildCount] >= 2 then
@@ -6377,7 +6380,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
 
     --General - if close to unit cap and have lots of SACUs then dont get more (except for LOUD where apparently they give you bonus unit cap?)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and iCurSACUs >= 15 and aiBrain[M28Overseer.refbCloseToUnitCap] and (iCurSACUs >= 20 or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -2) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1 then
+    if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and iCurSACUs >= 15 and aiBrain[M28Overseer.refbCloseToUnitCap] and (iCurSACUs >= 30 or (iCurSACUs >= math.max(20, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -2) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1) then
         if bDebugMessages == true then LOG(sFunctionRef..': Dont want more SACUs due to unit cap') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return nil
@@ -6402,14 +6405,16 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     --Build RAS SACUs (note - FAF has bug as of May 2023 where SACUs dont benefit from AIx modifier - have added code in M28 to counteract/fix
     --v107 - will just build normal SACUs and upgrade tem
     iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Main SACU builder, bHaveLowPower='..tostring(bHaveLowPower)..'; GrossE='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; iCurSACUs='..iCurSACUs) end
     if not (bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 then
         --Stop building if have low mass or close to unit cap and have a large number
-        if bDebugMessages == true then LOG(sFunctionRef .. ': Will try to build RAS SACU') end
+        if bDebugMessages == true then LOG(sFunctionRef .. ': Will try to build RAS SACU, iCurSACUs='..iCurSACUs..'; Close to unit cap='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap])..'; Have low mass='..tostring(M28Conditions.HaveLowMass(aiBrain))..'; Fac build count='..(oFactory[refiTotalBuildCount] or 'nil')) end
         --[[if aiBrain.CheatEnabled and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] >= 3.5 then
             if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
                 return sBPIDToBuild
             end--]]
-        if iCurSACUs < 60 and (not(aiBrain[M28Overseer.refbCloseToUnitCap]) or not(M28Conditions.HaveLowMass(aiBrain)) or oFactory[refiTotalBuildCount] < 5 or iCurSACUs < 30) then
+        if iCurSACUs < 60 and (not(aiBrain[M28Overseer.refbCloseToUnitCap]) or oFactory[refiTotalBuildCount] < 5 or iCurSACUs < 30 or not(M28Conditions.HaveLowMass(aiBrain))) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get SACU') end
             if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
                 return sBPIDToBuild
             end
