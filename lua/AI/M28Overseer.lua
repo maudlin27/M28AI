@@ -642,7 +642,6 @@ function CheckUnitCap(aiBrain)
     local sFunctionRef = 'CheckUnitCap'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     if GetGameTimeSeconds() - (aiBrain[refiLastUnitCapTimeCheck] or -1) >= 0.5 then
         aiBrain[refiLastUnitCapTimeCheck] = GetGameTimeSeconds()
         --local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
@@ -710,12 +709,31 @@ function CheckUnitCap(aiBrain)
             end
 
             --If exp count is 0 then remove cat -1
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to include factories in the -2 category to destroy, Exp count='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount]..'; Lowest unit cap adj level='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 'nil')..'; Mass%='..aiBrain:GetEconomyStoredRatio('MASS')..'; Energy%='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Cur land facs='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)..'; Current air facs='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)) end
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 then
+                --Include t3 land facs in cat-2 if too many of them (if likely overflowing)
+                if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 then
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) >= 30 then
+                        tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryLandFactory
+                    end
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) >= 40 then
+                        tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryAirFactory
+                    end
+                end
             else
                 --If we have <35 T3 engis then exclude engineers from cat -1
                 if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 1) <= 0 then
                     if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < iT3EngineerUnitCapThresholdCount then
                         tiCategoryToDestroy[-1] = tiCategoryToDestroy[-1] - M28UnitInfo.refCategoryEngineer * categories.TECH3
+                    end
+                end
+                --Include T3 land factories if we have too many of them
+                if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 then
+                    if aiBrain:GetEconomyStoredRatio('MASS') >= 0.5 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) >= 16 then
+                        tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryLandFactory
+                    end
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) >= 20 then
+                        tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryAirFactory
                     end
                 end
             end
@@ -775,6 +793,9 @@ function CheckUnitCap(aiBrain)
                                         elseif M28Utilities.IsTableEmpty(oUnit[M28Building.reftArtiTemplateRefs]) == false and not(M28Map.tAllPlateaus[oUnit[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oUnit[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftActiveGameEnderTemplates][oUnit[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEbDontNeedEngineers]) then
                                             bKillUnit = false
                                         end
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
+                                        if oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or (oUnit[M28ACU.refiUpgradeCount] or 0) > 0 then bKillUnit = false end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering destroying a factory, is this a primary factory='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false)..'; Number of factories on team='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, aiBrain.M28Team)..'; bKillUnit='..tostring(bKillUnit)) end
                                     end
                                     if bKillUnit then
                                         if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' to avoid going over unit cap'..'; Have we already tried to kill this unit? oUnit[M28UnitInfo.refbTriedToKill]='..tostring(oUnit[M28UnitInfo.refbTriedToKill] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end

@@ -5492,8 +5492,14 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget, oOptionalTarget)
 
     function MoveIndividualGunship(oClosestUnit, tUnitDestination)
         --Experimental gunship doesnt attack properly when just given a move order
+        if bDebugMessages == true then LOG(sFunctionRef..': Are we dealing with an experimental='..tostring( EntityCategoryContains(M28UnitInfo.categories.EXPERIMENTAL, oClosestUnit.UnitId))..'; Dist to unit destination='..M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), tUnitDestination)..'; Is oOptionalTarget valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalTarget))) end
         if EntityCategoryContains(M28UnitInfo.categories.EXPERIMENTAL, oClosestUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), tUnitDestination) <= 20 then
-            M28Orders.IssueTrackedAggressiveMove(oClosestUnit, tUnitDestination, iGunshipMoveTolerance, false, 'GSExA', false)
+            if oOptionalTarget and M28Utilities.bLoudModActive then
+                --Do manual attack to be safe due to risk czar doesnt fire at all (had mixed results)
+                M28Orders.IssueTrackedAttack(oClosestUnit, oOptionalTarget, false, 'LoudExA', false)
+            else
+                M28Orders.IssueTrackedAggressiveMove(oClosestUnit, tUnitDestination, iGunshipMoveTolerance, false, 'GSExA', false)
+            end
         else
             if bDebugMessages == true then LOG(sFunctionRef..': bConsiderAttackIfCloseToTarget='..tostring(bConsiderAttackIfCloseToTarget)..'; Time since last f ired='..GetGameTimeSeconds() - (oClosestUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots]='..(oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
             if bConsiderAttackIfCloseToTarget and (oClosestUnit[refoGunshipAttackOrderTarget] == oOptionalTarget or M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), oOptionalTarget:GetPosition()) < (oClosestUnit[M28UnitInfo.refiDFRange] or 0)) then
@@ -6807,7 +6813,7 @@ function ManageGunships(iTeam, iAirSubteam)
                     break
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Closest priority enemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)..'; Is closest enemy near an active nuke='..tostring( M28Conditions.IsTargetNearActiveNukeTarget(oClosestEnemy:GetPosition(), iTeam, 60))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Closest priority enemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)..'; Is closest enemy near an active nuke='..tostring( M28Conditions.IsTargetNearActiveNukeTarget(oClosestEnemy:GetPosition(), iTeam, 60))..'; M28Utilities.bLoudModActive='..tostring(M28Utilities.bLoudModActive or false)) end
 
             --Check we arent near a nuke
             if M28Conditions.IsTargetNearActiveNukeTarget(oClosestEnemy:GetPosition(), iTeam, 60) then

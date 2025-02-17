@@ -3494,7 +3494,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             --Is this the same as the last target?
                             oArti[refiLastTargetValue] = iBestValue
                             local tLastOrder = oArti[M28Orders.reftiLastOrders][oArti[M28Orders.refiOrderCount]]
-                            if M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder, tLZTeamData[M28Map.reftClosestEnemyBase]) > 1 then
+                            if M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], tLZTeamData[M28Map.reftClosestEnemyBase]) > 1 then
                                 oArti[refiTimeLastGotBestArtiTarget] = GetGameTimeSeconds()
                                 M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
                                 IncreaseArtiShotCount(tLZTeamData[M28Map.reftClosestEnemyBase], iTeam, iShotCount)
@@ -4893,7 +4893,7 @@ function QuantumOpticsManager(aiBrain, oUnit)
         local iEntryToScout
         local iCurLZOrWZ, iCurPlateauOrZero, iCurZoneSizeX, iCurZoneSizeZ
         function ReadyToScry()
-            if aiBrain:GetEconomyStoredRatio('ENERGY') >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 250 and aiBrain:GetEconomyStored('ENERGY') >= 14000 and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+            if M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active and aiBrain:GetEconomyStoredRatio('ENERGY') >= 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 250 and aiBrain:GetEconomyStored('ENERGY') >= 14000 and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
                 return true
             else
                 return false

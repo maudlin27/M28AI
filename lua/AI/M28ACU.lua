@@ -28,6 +28,7 @@ refbTreatingAsACU = 'M28ACUTreatACU' --true if are running ACU logic on this uni
 refbDoingInitialBuildOrder = 'M28ACUInitialBO'
 reftPreferredUpgrades = 'M28ACUPreferredUpgrades' --table of the enhancement IDs in the order that we want to get them (which is updated to remove any upgrades we already have as and when we get them)
 refiUpgradeCount = 'M28ACUUpgradeCount' --Number of upgrades the ACU has
+refbTriedAndFailedToGetBuildRateUpgrade = 'M28ACUFailBRU' --for SACUs - true if we tried to improve their build rate and failed
 refiBuildTech = 'M28ACUTcL' --Tech levle the ACU can build (i.e. 2 if it has t2 upgrade, 3 if it has t3 upgrade)
 refiTimeLastWantedToRun = 'M28ACUTimeLastWantedToRun' --gametimeseconds that last wanted to run
 refbACUAvailableToDoSnipeAttack = 'M28ACUAvailableForSnipe' --true if ACU not busy doing higher priority actions
@@ -1925,6 +1926,139 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return sUpgradeWanted, bIgnoreOtherConditions
+end
+
+function GetUpgradeForSACU(oSACU, bWantBuildPower, bForceGetNewUpgradePath)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetUpgradeForSACU'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --E.g. used when overflowing resources and want engineer upgrade for the SACU
+
+    local sUpgradeWanted
+    local aiBrain = oSACU:GetAIBrain()
+    local iTeam = aiBrain.M28Team
+    --If we were to get an upgrade, what upgrade would it be?
+    if bForceGetNewUpgradePath or not(oSACU[reftPreferredUpgrades]) or (oSACU[reftPreferredUpgrades][1] and oSACU.HasEnhancement and oSACU:HasEnhancement(oSACU[reftPreferredUpgrades][1])) then
+        --Determine upgrade path
+        oSACU[reftPreferredUpgrades] = {}
+        --Find build rate and RAS enhancements
+        local tUpgradesAvailable = oSACU:GetBlueprint().Enhancements
+        local oBP = oSACU:GetBlueprint()
+        if M28Utilities.IsTableEmpty(tUpgradesAvailable) == false then
+            local sRASUpgrade
+            local sBuildRateUpgrade
+
+            --First get what slots are available
+            --Check if can get RAS upgrade
+            local tbSlotsInUse = {}
+            local iBestBuildPowerRate
+            if bWantBuildPower then
+                iBestBuildPowerRate = (oSACU:GetBlueprint().Economy.BuildRate or 0)
+            end
+            local iBestEcoRate = 0
+            local sBestEcoEnhancement, iCurEcoRate
+            for sEnhancement, tEnhancement in tUpgradesAvailable do
+                if oSACU:HasEnhancement(sEnhancement) then
+                    tbSlotsInUse[tEnhancement.Slot] = true
+                    iCurEcoRate = (tEnhancement.ProductionPerSecondEnergy or 0) / 100 + (tEnhancement.ProductionPerSecondMass or 0)
+                    if iCurEcoRate > iBestEcoRate then
+                        iBestEcoRate = iCurEcoRate
+                    end
+                    if bWantBuildPower and (tEnhancement.NewBuildRate or 0) > iBestBuildPowerRate then
+                        iBestBuildPowerRate = tEnhancement.NewBuildRate
+                    end
+                elseif not(tEnhancement.Prerequisite) or (oSACU:HasEnhancement(tEnhancement.Prerequisite)) then
+                    iCurEcoRate = (tEnhancement.ProductionPerSecondEnergy or 0) / 100 + (tEnhancement.ProductionPerSecondMass or 0)
+                    if iCurEcoRate > iBestEcoRate then
+                        iBestEcoRate = iCurEcoRate
+                        sBestEcoEnhancement = sEnhancement
+                    end
+                    if bWantBuildPower and (tEnhancement.NewBuildRate or 0) > iBestBuildPowerRate then
+                        iBestBuildPowerRate = tEnhancement.NewBuildRate
+                        sBuildRateUpgrade = sEnhancement
+                    end
+                end
+            end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': bWantBuildPower='..tostring(bWantBuildPower)..'; sBuildRateUpgrade='..(sBuildRateUpgrade or 'nil')) end
+            if bWantBuildPower then
+                if sBuildRateUpgrade and (not(sBestEcoEnhancement) or bWantBuildPower or not(tUpgradesAvailable[sBuildRateUpgrade].Slot == tUpgradesAvailable[sBestEcoEnhancement].Slot)) and not(tbSlotsInUse[tUpgradesAvailable[sBuildRateUpgrade].Slot]) then
+                    table.insert(oSACU[reftPreferredUpgrades], sBuildRateUpgrade)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Included build power enhancement in table of upgrades for the SACU') end
+                end
+            end
+            if sBestEcoEnhancement then
+                table.insert(oSACU[reftPreferredUpgrades], sBestEcoEnhancement)
+            end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades] before refining to exclude invalid ones='..repru(oACU[reftPreferredUpgrades])) end
+
+            --Check all of these are options (in case a mod has changed them)
+            local tRestrictedEnhancements = import("/lua/enhancementcommon.lua").GetRestricted()
+            local bCheckForRestrictions = not (M28Utilities.IsTableEmpty(tRestrictedEnhancements))
+            local bInvalidUpgrade
+
+            if M28Utilities.IsTableEmpty(oSACU[reftPreferredUpgrades]) == false then
+                local tiEntriesToRemove = {}
+                if bDebugMessages == true then LOG(sFunctionRef..': oSACU[reftPreferredUpgrades] before removing invalid entries='..repru(oSACU[reftPreferredUpgrades])) end
+                for iUpgradeWanted, sUpgradeWanted in oSACU[reftPreferredUpgrades] do
+                    bInvalidUpgrade = false
+                    if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
+                        bInvalidUpgrade = true
+                        oSACU[reftPreferredUpgrades] = {}
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU doesnt have sUpgradeWanted='..sUpgradeWanted..' in its blueprint so aborting') end
+                        break
+                    elseif bCheckForRestrictions then
+                        --If we cant get the first upgrade, then cancel all upgrades; otherwise just remove the later upgrade that we cant get
+                        if tRestrictedEnhancements[sUpgradeWanted] then
+                            if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted '..sUpgradeWanted..' is in the restricted enhancements table so cant get it yet') end
+                            bInvalidUpgrade = true
+                        end
+                    end
+                    if bInvalidUpgrade then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering restricted upgrade='..sUpgradeWanted..'; iUpgradeWanted='..iUpgradeWanted) end
+                        if iUpgradeWanted <= 1 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We cant get the first planned upgrade so wont get any further upgrades') end
+                            oSACU[reftPreferredUpgrades] = {}
+                            break
+                        else
+                            table.insert(tiEntriesToRemove, iUpgradeWanted)
+                        end
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tiEntriesToRemove) == false then
+                    local iTotalEntriesToRemove = table.getn(tiEntriesToRemove)
+                    for iCurEntry = iTotalEntriesToRemove, 1, -1 do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Removing iCurEntry='..iCurEntry..' from preferred upgrades, Upgrade='..(oSACU[reftPreferredUpgrades][iCurEntry] or 'nil')) end
+                        table.remove(oSACU[reftPreferredUpgrades], tiEntriesToRemove[iCurEntry])
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of preferred upgrades empty='..tostring(M28Utilities.IsTableEmpty(oSACU[reftPreferredUpgrades]))..'; repru='..repru(oSACU[reftPreferredUpgrades])) end
+
+            --Remove any upgrades that we already have
+            RemovePreferredUpgradesThatWeAlreadyHave(oSACU, oBP)
+
+            if bDebugMessages == true then
+                LOG(sFunctionRef .. ': End of code, oSACU[reftPreferredUpgrades] after removing upgrades we already have=' .. repru(oSACU[reftPreferredUpgrades]))
+            end
+
+
+            if oSACU[reftPreferredUpgrades][1] and not(oSACU:HasEnhancement(oSACU[reftPreferredUpgrades][1])) then
+                sUpgradeWanted = oSACU[reftPreferredUpgrades][1]
+            end
+        end
+    end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': End of code, sUpgradeWanted='..(sUpgradeWanted or 'nil'))
+        if sUpgradeWanted then
+            LOG(sFunctionRef..': Does ACU have this enhancement='..tostring(oSACU:HasEnhancement(sUpgradeWanted)))
+        end
+    end
+    if not(sUpgradeWanted) and bWantBuildPower then oSACU[refbTriedAndFailedToGetBuildRateUpgrade] = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return sUpgradeWanted
 end
 
 function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)

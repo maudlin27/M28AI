@@ -1316,8 +1316,8 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
     local sFunctionRef = 'TurnAirUnitAndMoveToTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; GameTime='..GetGameTimeSeconds()) end
-    --First delay microing until finished our salvo if dealing with T1-T2 bomber
-    if M28UnitInfo.DoesBomberFireSalvo(oBomber) and EntityCategoryContains(M28UnitInfo.refCategoryBomber * (categories.TECH1 + categories.TECH2), oBomber.UnitId) then
+    --First delay microing until finished our salvo if dealing with T1-T3 bomber
+    if M28UnitInfo.DoesBomberFireSalvo(oBomber) and EntityCategoryContains(M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL, oBomber.UnitId) then
         if bDebugMessages == true then LOG(sFunctionRef..': Will wait a second so bomber can finish firing') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1.1)
@@ -2040,7 +2040,7 @@ function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAtta
         if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, bAbortForGroundAA='..tostring(bAbortForGroundAA or false)..'; iStartTime='..iStartTime..'; Cur time='..GetGameTimeSeconds()..'; iMaxMicroTime='..iMaxMicroTime..'; Is bomber valid='..tostring(M28UnitInfo.IsUnitValid(oBomber) )..'; Is target valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))) end
         while GetGameTimeSeconds() - iStartTime < iMaxMicroTime and M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) do
             --If have recently fired then dont want to give orders if have a salvo
-            if iMinTimeAfterFiringBeforeGivingNewOrders > 0 and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] < iMinTimeAfterFiringBeforeGivingNewOrders then
+            if iMinTimeAfterFiringBeforeGivingNewOrders > 0 and GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) < iMinTimeAfterFiringBeforeGivingNewOrders then
                 --Just wait, dont give orders, so all our bombs can drop
                 if bDebugMessages == true then LOG(sFunctionRef..': Bomber fired recently so wont give new orders, time since last fired='..( GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired])) end
             else

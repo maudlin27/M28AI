@@ -37,6 +37,9 @@ iT1RadarSize = 1
 iT2RadarSize = 1
 iT3RadarSize = 1
 
+--Which factions have paragon/similar
+tbFactionHasParagon = {} --[x] is the faction number, returns true if they have a paragon
+
 --Transport clamp types
 refClampSmall = 1
 refClampMedium = 2
@@ -1621,6 +1624,8 @@ function CalculateBlueprintThreatsByType()
                     end
                 elseif EntityCategoryContains(refCategoryAirStaging, sUnitId) then
                     M28Building.iLowestAirStagingTechAvailable = math.min(M28Building.iLowestAirStagingTechAvailable, GetBlueprintTechLevel(sUnitId), (GetTechLevelOfEngineerToBuildBlueprint(sUnitId) or 4))
+                elseif EntityCategoryContains(refCategoryParagon, sUnitId) then
+                    tbFactionHasParagon[(GetFactionNumberFromBlueprint(sUnitId) or 0)] = true
                 elseif EntityCategoryContains(refCategoryMassStorage + refCategoryEnergyStorage, sUnitId) then
                     local iCurTechLevel = GetBlueprintTechLevel(sUnitId)
                     local iTechLevelOfEngineerToBuildUnit = GetTechLevelOfEngineerToBuildBlueprint(sUnitId)
@@ -1653,17 +1658,17 @@ function CalculateBlueprintThreatsByType()
                 end
 
                 if bCheckForVolatileUnits then
-                    --Does unit have a death weapon with an aoe and damage?
-                    if oBP.Weapon then
-                        for iWeapon, tWeapon in oBP.Weapon do
-                            if tWeapon.WeaponCategory == 'Death' or tWeapon.Label == 'DeathWeapon' or tWeapon.DisplayName == 'Death Weapon' then
-                                if (tWeapon.DamageRadius or 0) >= 2 and tWeapon.Damage >= 100 then
-                                    refCategoryVolatile = refCategoryVolatile + categories[sUnitId]
-                                end
-                            end
-                        end
+                --Does unit have a death weapon with an aoe and damage?
+                if oBP.Weapon then
+                for iWeapon, tWeapon in oBP.Weapon do
+                if tWeapon.WeaponCategory == 'Death' or tWeapon.Label == 'DeathWeapon' or tWeapon.DisplayName == 'Death Weapon' then
+                if (tWeapon.DamageRadius or 0) >= 2 and tWeapon.Damage >= 100 then
+                refCategoryVolatile = refCategoryVolatile + categories[sUnitId]
                     end
-                end
+                    end
+                    end
+                    end
+                    end
             end
         end
 
