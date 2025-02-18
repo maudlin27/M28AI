@@ -578,7 +578,6 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
             oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = {tBuildLocation[1], tBuildLocation[2], tBuildLocation[3]}})
             IssueBuildMobile({ oUnit }, tBuildLocation, sOrderBlueprint, {})
-            if true and sOrderBlueprint == 'saa0306' then M28Utilities.ErrorHandler('Audit trail', true, true) end
             if sOrderBlueprint then
                 M28Engineer.TrackQueuedBuilding(oUnit, sOrderBlueprint, tBuildLocation) --Cant do via fork thread or if are giving orders to 2 engineers at once they wont realise the location is queued
             else
@@ -610,7 +609,6 @@ function IssueTrackedBuild(oUnit, tOrderPosition, sOrderBlueprint, bAddToExistin
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
             IssueBuildMobile({ oUnit }, tOrderPosition, sOrderBlueprint, {})
             if sOrderBlueprint then
-                if true and sOrderBlueprint == 'saa0306' then M28Utilities.ErrorHandler('Audit trail', true, true) end
                 M28Engineer.TrackQueuedBuilding(oUnit, sOrderBlueprint, tOrderPosition) --Cnat do via fork thread or else engineers given orders in same cycle wont realise it's queued
             else
                 M28Utilities.ErrorHandler('Attempted to give a construction order to unit with no order blueprint')

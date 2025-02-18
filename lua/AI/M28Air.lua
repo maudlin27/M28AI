@@ -7310,7 +7310,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
             for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
                 if M28Utilities.IsTableEmpty(tPlateauSubtable[M28Map.subrefPlateauIslandLandZones]) == false then
                     for iIsland, iLZCount in tPlateauSubtable[M28Map.subrefPlateauIslandLandZones] do
-                        if iLZCount >= 10 and  tPlateauSubtable[M28Map.subrefPlateauIslandMexCount] >= 14 then
+                        if iLZCount >= 10 and  (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) >= 14 then
                             if not(tiOtherFarAwayIslandsByPlateau[iPlateau]) then tiOtherFarAwayIslandsByPlateau[iPlateau] = {} end
                             tiOtherFarAwayIslandsByPlateau[iPlateau][iIsland] = true
                         end
@@ -8049,16 +8049,21 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
             --Unit cur plateau and land/water zone
             local iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
             if bDebugMessages == true then LOG(sFunctionRef..': Closest plateau and land or water zone to unit position: Unit position='..repru(oUnit:GetPosition())..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')) end
+            local iAdjustedMexesInClosestZone = 0
+            local iCurAdjustedIslandMexValue
+            local iDistToOurStart, iDistToCurBrainStart, iClosestBrainDist
             for iEntry, tiPlateauAndIsland in tShortlist do
                 --Get the closest land zone to oUnit for this particular plateau and island; then using that land zone, work out the island distance, and reecord if that island is closest to our transport (with mexless islands being treated as further away)
                 iClosestDist = 100000
                 iClosestNoMexDist= 100000
+
                 iClosestLZ = nil
                 iClosestNoMexLZ = nil
-
-                if bDebugMessages == true then LOG(sFunctionRef..': About to consider all zones in plateau '..(tiPlateauAndIsland[1] or 'nil')..' to get the closest land zone, repru='..repru(M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauIslandLandZones][tiPlateauAndIsland[2]])) end
+                iCurAdjustedIslandMexValue = 0
+                if bDebugMessages == true then LOG(sFunctionRef..': About to consider all zones in plateau '..(tiPlateauAndIsland[1] or 'nil')..' to get the closest land zone adjusted for mexes, repru='..repru(M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauIslandLandZones][tiPlateauAndIsland[2]])) end
                 for iLZEntry, iLandZone in M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauIslandLandZones][tiPlateauAndIsland[2]] do
                     local tLZData = M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauLandZones][iLandZone]
+                    iCurAdjustedIslandMexValue = iCurAdjustedIslandMexValue + (tLZData[M28Map.subrefLZMexCount] or 0)
                     --Only consider LZs with mexes so we land close to where we likely want to be
                     iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
                     if tLZData[M28Map.subrefLZMexCount] > 0 then
@@ -8080,7 +8085,7 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
                 end
                 --Is it safe to travel here?
                 if bDebugMessages == true then
-                    LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndIsland='..repru(tiPlateauAndIsland)..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; iClosestLZ='..(iClosestLZ or 'nil')..'; tiPlateauAndIsland[1]='..(tiPlateauAndIsland[1] or 'nil'))
+                    LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndIsland='..repru(tiPlateauAndIsland)..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; iClosestLZ='..(iClosestLZ or 'nil')..'; tiPlateauAndIsland[1]='..(tiPlateauAndIsland[1] or 'nil')..'; iCurAdjustedIslandMexValue='..iCurAdjustedIslandMexValue)
                     LOG(sFunctionRef..': Does enemy have aa threat along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndIsland[1], iClosestLZ, false, 60))..'; M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tiPlateauAndIsland[2]][iClosestLZ]='..(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tiPlateauAndIsland[2]][iClosestLZ] or 'nil')..'; Does enemy have AA using detailed check='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndIsland[1], iClosestLZ, false, 60,          nil,                     false,         iAirSubteam,         true)))
                 end
                 --Has a transport recently died trying to get here?
@@ -8088,8 +8093,48 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
                     --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck)
                     if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndIsland[1], iClosestLZ, false, 60,          nil,                     false,         iAirSubteam,         true, nil, oUnit:GetPosition())) then
                         iCurIslandDist = iClosestDist
-                        if bDebugMessages == true then LOG(sFunctionRef..': iCurIslandDist='..iCurIslandDist..'; iClosestIslandDist='..iClosestIslandDist) end
-                        if iCurIslandDist < iClosestIslandDist then
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurIslandDist='..iCurIslandDist..'; iClosestIslandDist='..iClosestIslandDist..'; iCurAdjustedIslandMexValue='..iCurAdjustedIslandMexValue) end
+                        --Adjust mexes for mod distance
+                        if iCurAdjustedIslandMexValue >= iAdjustedMexesInClosestZone then
+                            local tLZData = M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauLandZones][iClosestLZ]
+                            local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                            if tLZTeamData[M28Map.refiModDistancePercent] >= 0.65 then
+                                iCurAdjustedIslandMexValue = iCurAdjustedIslandMexValue * 0.2
+                            elseif tLZTeamData[M28Map.refiModDistancePercent] >= 0.5 then iCurAdjustedIslandMexValue = iCurAdjustedIslandMexValue * 0.35
+                            elseif tLZTeamData[M28Map.refiModDistancePercent] >= 0.4 then iCurAdjustedIslandMexValue = iCurAdjustedIslandMexValue * 0.9
+                            elseif tLZTeamData[M28Map.refiModDistancePercent] <= 0.2 or iClosestDist <= math.min(150, M28Map.iMapSize * 0.25) then iCurAdjustedIslandMexValue = iCurAdjustedIslandMexValue * 0.7
+                            else
+                                --Do nothing - will multiply by 1
+                            end
+                            --Make sure if we are on a team we dont have the furthest M28 from the island choosing to go there
+                            if iCurAdjustedIslandMexValue >= iAdjustedMexesInClosestZone and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                                --Check if there is a friendly base closer to it than the base of the brain owning the transport
+                                local oTransportBrain = oUnit:GetAIBrain()
+                                iDistToOurStart = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPlayerStartPosition(oTransportBrain))
+                                iClosestBrainDist = 10000
+                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                    if not(oBrain == oTransportBrain) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..'; Dist from brain '..oBrain.Nickname..' to target LZData midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPlayerStartPosition(oBrain))..'; iDistToOurStart='..iDistToOurStart) end
+                                        iDistToCurBrainStart = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPlayerStartPosition(oBrain))
+                                        iClosestBrainDist = math.min(iClosestBrainDist, iDistToCurBrainStart)
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iDistToOurStart='..iDistToOurStart..'; iClosestBrainDist='..iClosestBrainDist..'; iCurAdjustedIslandMexValue before adjustment for distance='..iCurAdjustedIslandMexValue) end
+                                if iDistToOurStart > iClosestBrainDist then
+                                    if iDistToOurStart > iClosestBrainDist + 150 then
+                                        iCurAdjustedIslandMexValue = iCurAdjustedIslandMexValue * 0.1
+                                    elseif iDistToOurStart > iClosestBrainDist + 60 then
+                                        iCurAdjustedIslandMexValue = iCurAdjustedIslandMexValue * 0.3
+                                    else
+                                        iCurAdjustedIslandMexValue = iCurAdjustedIslandMexValue * 0.7
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurAdjustedIslandMexValue after adjustments for mod dist and closer teammates='..iCurAdjustedIslandMexValue..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]) end
+                        end
+                        if iCurAdjustedIslandMexValue >= iAdjustedMexesInClosestZone and (iCurAdjustedIslandMexValue > iAdjustedMexesInClosestZone or iCurIslandDist < iClosestIslandDist) then
+                            if bDebugMessages == true then LOG(sFunctionRef..'; Updating preferred rop location based on mexes and distance, iClosestIslandDist='..iClosestIslandDist) end
+                            iAdjustedMexesInClosestZone = iCurAdjustedIslandMexValue
                             iClosestIslandDist = iCurIslandDist
                             iTargetIsland = tiPlateauAndIsland[2]
                             iTargetPlateau = tiPlateauAndIsland[1]
@@ -8678,8 +8723,8 @@ function ManageTransports(iTeam, iAirSubteam)
                     end
                 else
                     --Consider far away land zones with 3+ mexes in them if the target plateau only has 1 mex
-                    if bDebugMessages == true then LOG(sFunctionRef..': Mexes in target island='..(M28Map.tAllPlateaus[iPlateauToTravelTo][iIslandToTravelTo][M28Map.subrefPlateauIslandMexCount] or 'nil')..'; P'..iPlateauToTravelTo..'Z'..iLandZoneToTravelTo) end
-                    if iPlateauToTravelTo and iLandZoneToTravelTo and (M28Map.tAllPlateaus[iPlateauToTravelTo][iIslandToTravelTo][M28Map.subrefPlateauIslandMexCount] or 0) <= 1 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Mexes in target island='..(M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 'nil')..'; P'..iPlateauToTravelTo..'Z'..iLandZoneToTravelTo) end
+                    if iPlateauToTravelTo and iLandZoneToTravelTo and (M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 0) <= 1 then
                         local bUseFarAwayZoneInstead = false
                         local iOrigIsland, iOrigPlateau, iOrigLZ
                         iOrigIsland = iIslandToTravelTo

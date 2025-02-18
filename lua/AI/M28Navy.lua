@@ -449,8 +449,18 @@ function RecordAirThreatForWaterZone(tWZTeamData, iTeam, iPond, iWaterZone)
     local sFunctionRef = 'RecordAirThreatForWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if bDebugMessages == true then
+        local iCurPlateau, iCurZone
+        if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) then LOG(sFunctionRef..': No enemy air units for this WZ')
+        else
+            for iUnit, oUnit in tWZTeamData[M28Map.reftWZEnemyAirUnits] do
+                iCurPlateau, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                LOG(sFunctionRef..': Air to ground threat for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'='..M28UnitInfo.GetAirThreatLevel({ oUnit},     true,         false,          false,               true,                  false,              true)..'; Unit position='..repru(oUnit:GetPosition())..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurZone='..(iCurZone or 'nil'))
+            end
+        end
 
-    --GetAirThreatLevel(tUnits,                             bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
+    end
+    --GetAirThreatLevel(                                                            tUnits,                             bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
     tWZTeamData[M28Map.refiEnemyAirToGroundThreat] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.reftWZEnemyAirUnits],     true,         false,          false,               true,                  false,              true)
     tWZTeamData[M28Map.refiEnemyAirAAThreat] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.reftWZEnemyAirUnits],           true,       true,               false,              false,              false,                   false)
     tWZTeamData[M28Map.refiEnemyAirOtherThreat] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.reftWZEnemyAirUnits],        true,       false,           false,              false,                  true,               false)
@@ -3130,6 +3140,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         for _, iAltWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
             local tAltWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAltWZ][M28Map.subrefWZTeamData][iTeam]
             iEnemyAdjacentAirToGroundThreat = iEnemyAdjacentAirToGroundThreat + tAltWZTeamData[M28Map.refiEnemyAirToGroundThreat]
+            if bDebugMessages == true then LOG(sFunctionRef..': Enemy air to ground threat in iAltWZ='..iAltWZ..'='..(tAltWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
             if (tAltWZTeamData[M28Map.subrefWZThreatAlliedMAA] or 0) > 0 then
                 iFriendlyAdjacentAAThreat = iFriendlyAdjacentAAThreat + tAltWZTeamData[M28Map.subrefWZThreatAlliedMAA] * 0.5 --Only factor in part of threat of nearby allied navy
                 iFriendlyAdjacentUnweightedAAThreat = iFriendlyAdjacentUnweightedAAThreat + tAltWZTeamData[M28Map.subrefWZThreatAlliedMAA]
@@ -3138,7 +3149,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     end
 
     --Surface subs if enemy has airtoground in this zone (or nearby if it's a large threat)
-    if bDebugMessages == true then LOG(sFunctionRef..': Checking if should surface AA subs, iEnemyAdjacentAirToGroundThreat just from this zone='..iEnemyAdjacentAirToGroundThreat..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if should surface AA subs, iEnemyAdjacentAirToGroundThreat just from this zone='..iEnemyAdjacentAirToGroundThreat..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
     if (iEnemyAdjacentAirToGroundThreat > 2000 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) and M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
         local tAASubs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAntiAir, tAvailableSubmarines)
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of AA subs empty='..tostring(M28Utilities.IsTableEmpty(tAASubs))) end
@@ -3174,7 +3185,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     end
     local iBestAvailableSubmarineRange = 0
     local bHaveRunFromAir = false
-    if iEnemyAdjacentAirToGroundThreat > math.max(50, iFriendlyAdjacentAAThreat * 1.5) and iFriendlyAdjacentAAThreat < 1500 and not(M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea]) then
+    if iEnemyAdjacentAirToGroundThreat > math.max(50, iFriendlyAdjacentAAThreat * 1.5) and iFriendlyAdjacentAAThreat < 1500 and not(M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 2.2 * iFriendlyAdjacentAAThreat then
         --Retreat to rally point
         if bDebugMessages == true then LOG(sFunctionRef..': Will retreat available combat units and subs to the rally point, si available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))) end
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
@@ -3262,7 +3273,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 local iTimeForRetreat = iCurTime - iRetreatFromAirDuration * 0.8 --i.e. as soon as we get enough AA force we should be open to advancing
                 tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] = math.max(iTimeForRetreat, (tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] or 0))
                 bHaveRunFromAir = true
-                if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then RetreatAllUnits(tAvailableSubmarines) tAvailableSubmarines = nil end
+                if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false and (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0) > 0 then RetreatAllUnits(tAvailableSubmarines) tAvailableSubmarines = nil end
                 if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then RetreatAllUnits(tAvailableCombatUnits) tAvailableCombatUnits = nil end
                 if M28Utilities.IsTableEmpty(tMissileShips) == false then RetreatAllUnits(tMissileShips) tMissileShips = nil end
             end
@@ -3273,7 +3284,8 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             --Below is to be consistent so if we are retreating subs or surface from air we will do the same for the other
             or (bHaveRunFromAir and (M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tMissileShips) == false)) then
         bHaveRunFromAir = true
-        if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then RetreatAllUnits(tAvailableSubmarines) tAvailableSubmarines = nil end
+        if bDebugMessages == true then LOG(sFunctionRef..': We have retreated from air before so want to retreat all naval units, time since last ran='..GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir]..'; iRetreatFromAirDuration='..iRetreatFromAirDuration) end
+        if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false and (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0) > 0 then RetreatAllUnits(tAvailableSubmarines) tAvailableSubmarines = nil end
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then RetreatAllUnits(tAvailableCombatUnits) tAvailableCombatUnits = nil end
         if M28Utilities.IsTableEmpty(tMissileShips) == false then RetreatAllUnits(tMissileShips) tMissileShips = nil end
     end

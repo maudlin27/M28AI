@@ -1262,6 +1262,8 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
     local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
 
+
+
     local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
     local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
     if iCurIsland ~= iEnemyIsland and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35 then
@@ -1802,7 +1804,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                 and ((GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeAirFacHadNothingToBuild] or -100) <= 5 or tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) or (not(HaveLowPower(iTeam) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) <= 1.5)))
                 and (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or iLandFactoriesHave < 3 or NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= math.min(0.5 + 0.1 * iLandFactoriesHave, 0.95)))
         then
-            if bDebugMessages == true then LOG(sFunctionRef..': Recently failed to find anything to build for air factory so will get land factory instead') end
+            if bDebugMessages == true then LOG(sFunctionRef..': Recently failed to find anything to build for air factory so will get land factory instead, M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory]='..(M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or 'nil')) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
         else
@@ -1994,7 +1996,10 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                         end
                                     end
                                     if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
-                                        iLandFactoriesWantedBeforeAir = iLandFactoriesWantedBeforeAir + 1
+                                        --Early game on naval map - still just get 1 land fac first
+                                        if iLandFactoriesHave > 1 or aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                                            iLandFactoriesWantedBeforeAir = iLandFactoriesWantedBeforeAir + 1
+                                        end
                                         iAirFactoriesForEveryLandFactory = iAirFactoriesForEveryLandFactory * 0.8
                                     end
                                     if iLandFactoriesHave >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 1 and M28Map.bIsCampaignMap then
