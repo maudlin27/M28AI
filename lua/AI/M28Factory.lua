@@ -4186,13 +4186,13 @@ function SetPriorityPreferredUnitsByCategory(aiBrain)
             aiBrain[reftBlueprintPriorityOverride]['uas0303'] = -1
             aiBrain[reftBlueprintPriorityOverride]['xss0303'] = -1
 
-            --Prioritise ASFs as penetration fighters dont seem to fire consistently in LOUD
-            aiBrain[reftBlueprintPriorityOverride]['uea0303'] = 1
-            aiBrain[reftBlueprintPriorityOverride]['ura0303'] = 1
-            aiBrain[reftBlueprintPriorityOverride]['uaa0303'] = 1
-            aiBrain[reftBlueprintPriorityOverride]['xsa0303'] = 1
+            --Prioritise penetration fighters in QUIET
+            aiBrain[reftBlueprintPriorityOverride]['sra0313'] = 1 --Cybran pen fighter
+            aiBrain[reftBlueprintPriorityOverride]['saa0313'] = 1 --Aeon pen fighter
+            aiBrain[reftBlueprintPriorityOverride]['sea0313'] = 1 --UEF pen fighter
+            aiBrain[reftBlueprintPriorityOverride]['ssa0313'] = 1 --Seraphim pen fighter
 
-            aiBrain[reftBlueprintPriorityOverride]['srl0311'] = 1
+            aiBrain[reftBlueprintPriorityOverride]['srl0311'] = 1 --T3 cybran mml?
         end
     end
 end
