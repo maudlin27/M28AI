@@ -5538,9 +5538,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     end
 
 
-    if iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then
+    if iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] and not(bHaveLowPower and bHaveLowMass) then --i.e. if we dont have low mass we should be building engi even if we lack power; if we dont have low power we should be building airforce even if we dont have loads of mass
         M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] = GetGameTimeSeconds()
         tLZTeamData[M28Map.subrefiTimeAirFacHadNothingToBuild] = GetGameTimeSeconds()
+        if bDebugMessages == true then LOG(sFunctionRef..': Failed to find something to build for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time='..GetGameTimeSeconds()..'; oFactory fraction complete='..oFactory:GetFractionComplete()) end
     end
     oFactory[refiTimeSinceLastFailedToGetOrder] = GetGameTimeSeconds() --Redundancy, will also include in parent logic
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

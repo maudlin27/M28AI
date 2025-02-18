@@ -390,7 +390,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftLZEnemyAirUnits = 'EnAir' --(same ref as for WZ) - All enemy air units that are currently in the land zone (LZ and WZ use the same definition); see also refiTimeOfLastAirUpdate which refreshes this
             refiEnemyAirToGroundThreat = 'EnA2GT' --Air to ground threat of enemy air units in the LZ / WZ
             refiEnemyAirAAThreat = 'EnAAT' --AirAA threat in the LZ/WZ
-            refiEnemyAirOtherThreat = 'EnAirOT' --mass value of AirAA, air scouts and transports in the LZ / WZ
+            refiEnemyAirOtherThreat = 'EnAirOT' --mass value of air scouts and transports in the LZ / WZ (excludes airaa, bomber and gunship category units)
             refiTimeOfLastAirUpdate = 'EnAirTim' --Gametimeseconds that last refreshed the positiosn of air units (done given high mobility of air to approximate a human player realising the air force is no longer there)
             --Shield, stealth and tmd
             refbLZWantsMobileShield = 'MobSh' --true if LZ wants mobile shields
@@ -4736,7 +4736,7 @@ function RecordIslands()
                         if bDebugMessages == true then LOG(sFunctionRef..': Dont have an island ref for iLandZone='..iLandZone..'; so will record in tLandZonesWithoutIslands') end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking all land zones for plateau '..iPlateau..' for first pass; is table of tLandZonesWithoutIslands empty='..tostring(M28Utilities.IsTableEmpty(tLandZonesWithoutIslands))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking all land zones for plateau '..iPlateau..' for first pass; is table of tLandZonesWithoutIslands empty='..tostring(M28Utilities.IsTableEmpty(tLandZonesWithoutIslands))..'; tPlateauSubtable[subrefPlateauIslandMexCount]='..repru(tPlateauSubtable[subrefPlateauIslandMexCount])) end
                 if M28Utilities.IsTableEmpty(tLandZonesWithoutIslands) == false then
                     for iEntry, iLandZone in tLandZonesWithoutIslands do
                         local tLZData = tPlateauSubtable[subrefPlateauLandZones][iLandZone]

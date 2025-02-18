@@ -1179,7 +1179,8 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
 
                 --Get values for air units:
                 if sCurUnitPathing == M28Map.refPathingTypeAir then
-                    if bIncludeNonCombatAir == true then
+                    --Non-combat - allow torp bombers to be included by default, since if considering a land zone they cant be used; if considering a water zone it just means we'll end up wanting slightly more AA threat which sin't the worst thing
+                    if bIncludeNonCombatAir == true and not(EntityCategoryContains(refCategoryAirAA + refCategoryBomber + refCategoryGunship, sCurUnitBP)) then
                         iMassMod = 1
                         --Reduce to 25% for air scouts, as main concern is transports
                         if EntityCategoryContains(refCategoryAirScout, sCurUnitBP) then iMassMod = 0.25 end
@@ -1547,7 +1548,7 @@ function CalculateBlueprintThreatsByType()
             ['210000'] = { true, false, false, false, false }, --Air AA
             ['210110'] = { true, false, true, true, false }, --Air threat (general)
             ['210111'] = { true, false, true, true, true }, --Air threat (general)
-            ['200101'] = { true, false, true, true, true }, --Bombers and torpedo bombers
+            ['200101'] = { false, false, true, false, true }, --Bombers and torpedo bombers
             ['210011'] = { true, false, false, true, true}, --Air excluding air to ground (but including torp bombers) - i.e. 'air excluding dangerous to land tanks on land'
             ['210010'] = { true, false, false, true, false}, --Air excluding air to ground (i.e. excluding torp bombers as well)
             ['200011'] = { false, false, false, true, true}, --Used to get non-AA non-Air to ground (excl torp bomber) air, e.g. intended for land zones to determine 'other'/less important air
