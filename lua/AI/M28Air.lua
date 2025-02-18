@@ -4378,6 +4378,9 @@ function ManageBombers(iTeam, iAirSubteam)
     local iOurBomberThreat = 0
     local tEnemyTargets = {}
     local bHaveT3Bombers = false
+    local iMassThreshold = 0
+    local iAAMassThreshold = 0
+    local iAACategory = M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategoryShieldBoat + categories.COMMAND
 
     function FilterToAvailableTargets(tPotentialTargets, iOptionalCategory, bOptionalCheckNotAlreadyInEnemyTargets) --UPDATE USAGE IN SPECIAL BOMBER LOGIC IF CHANGING (and changes are relevant to engi hunter)
         if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
@@ -4393,13 +4396,14 @@ function ManageBombers(iTeam, iAirSubteam)
             for iUnit, oUnit in tPotentialTargets do
                 if bDebugMessages == true then
                     if M28UnitInfo.IsUnitValid(oUnit) then
-                        LOG(sFunctionRef..': Considering whether to treat unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as a potential target, is unit valid=true, Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Is unit in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))..'; Is unit optional category (if is one)='..tostring(not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId))..'; bOptionalCheckNotAlreadyInEnemyTargets='..tostring(bOptionalCheckNotAlreadyInEnemyTargets or false)..'; Is unit GroundAA='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryGroundAA, oUnit.UnitId))..'; Time='..GetGameTimeSeconds())
+                        LOG(sFunctionRef..': Considering whether to treat unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as a potential target, is unit valid=true, Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Is unit in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))..'; Is unit optional category (if is one)='..tostring(not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId))..'; bOptionalCheckNotAlreadyInEnemyTargets='..tostring(bOptionalCheckNotAlreadyInEnemyTargets or false)..'; Is unit GroundAA='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryGroundAA, oUnit.UnitId))..'; iMassThreshold='..iMassThreshold..'; Unit mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')..'; Time='..GetGameTimeSeconds())
                     else
                         LOG(sFunctionRef..': Considering whether to treat unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as a potential target, is unit valid=false')
                     end
                 end
+                iAAMassThreshold = iMassThreshold * 3
                 if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
-                    if (not(iOptionalCategory) and (not(bHaveT3Bombers) or (oUnit[M28UnitInfo.refiUnitMassCost] or GetUnitMassCost(oUnit)) >= 45 or not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout + M28UnitInfo.refCategoryLightAttackBot, oUnit.UnitId)))) or (iOptionalCategory and EntityCategoryContains(iOptionalCategory, oUnit.UnitId)) then
+                    if ((oUnit[M28UnitInfo.refiUnitMassCost] or GetUnitMassCost(oUnit)) >= iMassThreshold or (oUnit[M28UnitInfo.refiUnitMassCost] >= iAAMassThreshold and EntityCategoryContains(iAACategory, oUnit.UnitId))) and (not(iOptionalCategory) or (iOptionalCategory and EntityCategoryContains(iOptionalCategory, oUnit.UnitId))) then
                         if not(bOptionalCheckNotAlreadyInEnemyTargets) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to enemy targets') end
                             table.insert(tEnemyTargets, oUnit)
@@ -4496,8 +4500,19 @@ function ManageBombers(iTeam, iAirSubteam)
             end
         end
         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+            local iHighestTechLevel = 1
+            local iCurTechLevel
             for iUnit, oUnit in tAvailableBombers do
-                if M28UnitInfo.GetUnitTechLevel(oUnit) == 3 then bHaveT3Bombers = true end
+                iCurTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
+                if iCurTechLevel > iHighestTechLevel then
+                    iHighestTechLevel = iCurTechLevel
+                    if iHighestTechLevel >= 3 then break end
+                end
+            end
+            if iHighestTechLevel >= 3 then
+                iMassThreshold = 160
+            elseif iHighestTechLevel == 2 then
+                iMassThreshold = 43 --i.e. ignore LABs and scouts
             end
             --Consider nearby defence
             local iRallyPlateauOrZero, iRallyLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyPoint)
@@ -4733,6 +4748,13 @@ function ManageBombers(iTeam, iAirSubteam)
                                                 iSearchSize = math.min(iSearchSize, (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) + 25) --i.e. consider a couple more zones in case htey are in another direction
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Zone has too much AA threat so wont target and will stop searching soon') end
                                             elseif tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] <= iMaxModDist then
+                                                --Update mass thresholds based on mod dist if we have T3 bombers (default earlier is 160 mass for t3)
+                                                if iHighestTechLevel >= 3 then
+                                                    if tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.25 then iMassThreshold = 160
+                                                    elseif tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iMassThreshold = 160 * math.min(800, math.max(1, tPathingDetails[M28Map.subrefiDistance] / 100))
+                                                    else iMassThreshold = 800 --e.g. T3 MAA is 600, stationery flak is 400 - dont want to ignore; we will treat MAA as being worth 4 times the normal value though to reduce risk we ignore
+                                                    end
+                                                end
                                                 FilterToAvailableTargets(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits])
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherPlateauOrZero='..(iOtherPlateauOrZero or 'nil')..'; iOtherLZOrWZ='..(iOtherLZOrWZ or 'nil')..'; dist='..(tPathingDetails[M28Map.subrefiDistance] or 'nil')..'; iSearchSize='..(iSearchSize or 'nil')..'; Does it have enemy units='..tostring(M28Utilities.IsTableEmpty(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of targets empty='..tostring(M28Utilities.IsTableEmpty( tEnemyTargets))) end
                                                 if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
