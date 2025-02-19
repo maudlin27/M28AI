@@ -28,7 +28,7 @@ Tooltips = {
         title = "AI: M28 Land",
         description = "M28 AI that prefers land units over air units",
     },
-    aitype_m28aiaircheat = {
+    aitype_m28ailandcheat = {
         title = "AIx: M28 Land",
         description = "Cheating AI that prefers land units over air units",
     },
@@ -60,7 +60,7 @@ Tooltips = {
         title = "AI: M28 Navy",
         description = "M28 AI that prefers navy to land and air",
     },
-    aitype_m28aiturtlecheat = {
+    aitype_m28ainavycheat = {
         title = "AIx: M28 Navy",
         description = "Cheating AI that prefers navy to land and air",
     },
