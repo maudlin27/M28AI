@@ -5083,7 +5083,7 @@ end
 
 function ConsiderSpecialStrategyAssignment(iTeam)
     local sFunctionRef = 'ConsiderSpecialStrategyAssignment'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Ignore for campaign
@@ -5115,8 +5115,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
             --Consider early bomber strategy for brain with closest enemy (unless in LOUD since bombers suck in LOUD)
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to go first bomber, M28Utilities.bQuietModActive='..tostring(M28Utilities.bQuietModActive or false)..'; Time='..GetGameTimeSeconds()) end
             if not(M28Utilities.bLoudModActive) then
-
-                local iClosestEnemy = 700 --CHANGE BELOW AS WELL IF CHANGING HERE; Dont want to consider if enemy is further away than this; e.g. burial mounds in LOUD players were 792 apart, and is probably at a borderline distnce for if want to
+                local iClosestEnemy = 700 --Dont want to consider if enemy is further away than this; e.g. burial mounds in LOUD players were 792 apart, and is probably at a borderline distnce for if want to
                 local oM28BrainWithClosestEnemy, iCurDist, iCurPlateau, iCurZone
                 local tFirstClosestEnemyBase
 
@@ -5138,47 +5137,12 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Flagging we want first bomber for oM28BrainWithClosestEnemy='..(oM28BrainWithClosestEnemy.Nickname or 'nil')..'; iTeam='..iTeam..'; Air subteam='..(oM28BrainWithClosestEnemy.M28AirSubteam or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Flagging we want first bomber for oM28BrainWithClosestEnemy='..(oM28BrainWithClosestEnemy.Nickname or 'nil')) end
                 if oM28BrainWithClosestEnemy then
                     oM28BrainWithClosestEnemy[M28Overseer.refbFirstBomber] = true
                     tAirSubteamData[oM28BrainWithClosestEnemy.M28AirSubteam][refbDontBuildEngiHunterEngineers] = true
-                    --Chance of having 2nd brain go first bomber if they have a different base they are closest to, and we dont have any other air subteams
-                    local iMaxAirSubteam = oM28BrainWithClosestEnemy.M28AirSubteam
-                    for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
-                        iMaxAirSubteam = math.max(oBrain.M28AirSubteam, iMaxAirSubteam)
-                    end
-                    --Rainbow cup style games - try to ensure even treatment of enemy teams
-                    if iMaxAirSubteam > 1 and iTotalTeamCount >= 3 then
-                        local oCurSubteamM28BrainWithClosestEnemy
-                        for iAirSubteam = 1, iMaxAirSubteam do
-                            iClosestEnemy = 700
-                            oCurSubteamM28BrainWithClosestEnemy = nil
-                            if not(iAirSubteam == oM28BrainWithClosestEnemy.M28AirSubteam) and M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][subreftoFriendlyM28Brains]) == false then
-                                for iBrain, oBrain in tAirSubteamData[iAirSubteam][subreftoFriendlyM28Brains] do
-                                    --Ignore if have chosen a land AI, or cant build bombers or t1 air facs
-                                    if not(oBrain[M28Overseer.refbPrioritiseLand]) and not(M28UnitInfo.IsUnitRestricted('uea0103', oBrain:GetArmyIndex())) and not(M28UnitInfo.IsUnitRestricted('ueb0102', oBrain:GetArmyIndex())) then
-                                        --Get dist to closest enemy
-                                        local tCurStart = M28Map.GetPlayerStartPosition(oBrain)
-                                        iCurPlateau, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tCurStart)
-                                        if iCurPlateau > 0 and iCurZone then
-                                            local tLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurZone][M28Map.subrefLZTeamData][iTeam]
-                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurStart, tLZTeamData[M28Map.reftClosestEnemyBase])
-                                            if bDebugMessages == true then LOG(sFunctionRef..': oBrain='..oBrain.Nickname..'; iCurPlateau='..iCurPlateau..'; iCurZone='..iCurZone..'; tCurStart='..repru(tCurStart)..'; tLZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; iCurDist='..iCurDist..'; Time='..GetGameTimeSeconds()) end
-                                            if iCurDist < iClosestEnemy then
-                                                iClosestEnemy = iCurDist
-                                                oCurSubteamM28BrainWithClosestEnemy = oBrain
-                                            end
-                                        end
-                                    end
-                                end
-                                if oCurSubteamM28BrainWithClosestEnemy then
-                                    oCurSubteamM28BrainWithClosestEnemy[M28Overseer.refbFirstBomber] = true
-                                    tAirSubteamData[iAirSubteam][refbDontBuildEngiHunterEngineers] = true
-                                end
-                            end
-                        end
-                        --Just 1 air subteam - consider multiple AI on that team going first bomber
-                    elseif tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and math.random(1, 2) == 1 then
+                    --Chance of having 2nd brain go first bomber if they have a different base they are closest to
+                    if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and math.random(1, 2) == 1 then
                         local tSecondClosestEnemyBase
                         local oSecondClosestBrain
                         local iSecondClosestEnemy = 700
@@ -5210,7 +5174,6 @@ function ConsiderSpecialStrategyAssignment(iTeam)
         end
         --Disable early bomber engineers some of the time
         if math.random(1,10) <= 3 then
-            if bDebugMessages == true then LOG(sFunctionRef..': Want to disable engi hunter engineers') end
             for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                 if not(oBrain[M28Overseer.refbPrioritiseAir]) then
                     tAirSubteamData[oBrain.M28AirSubteam][refbDontBuildEngiHunterEngineers] = true
