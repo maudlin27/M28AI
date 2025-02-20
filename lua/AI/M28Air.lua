@@ -4392,6 +4392,7 @@ function ManageBombers(iTeam, iAirSubteam)
                 end
             end
             local bAlreadyRecorded
+            iAAMassThreshold = iMassThreshold * 3
 
             for iUnit, oUnit in tPotentialTargets do
                 if bDebugMessages == true then
@@ -4401,7 +4402,6 @@ function ManageBombers(iTeam, iAirSubteam)
                         LOG(sFunctionRef..': Considering whether to treat unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as a potential target, is unit valid=false')
                     end
                 end
-                iAAMassThreshold = iMassThreshold * 3
                 if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
                     if ((oUnit[M28UnitInfo.refiUnitMassCost] or GetUnitMassCost(oUnit)) >= iMassThreshold or (oUnit[M28UnitInfo.refiUnitMassCost] >= iAAMassThreshold and EntityCategoryContains(iAACategory, oUnit.UnitId))) and (not(iOptionalCategory) or (iOptionalCategory and EntityCategoryContains(iOptionalCategory, oUnit.UnitId))) then
                         if not(bOptionalCheckNotAlreadyInEnemyTargets) then
@@ -4751,7 +4751,7 @@ function ManageBombers(iTeam, iAirSubteam)
                                                 --Update mass thresholds based on mod dist if we have T3 bombers (default earlier is 160 mass for t3)
                                                 if iHighestTechLevel >= 3 then
                                                     if tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.25 then iMassThreshold = 160
-                                                    elseif tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iMassThreshold = 160 * math.min(800, math.max(1, tPathingDetails[M28Map.subrefiDistance] / 100))
+                                                    elseif tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iMassThreshold = math.min(800, 160 * math.max(1, tPathingDetails[M28Map.subrefiDistance] / 100))
                                                     else iMassThreshold = 800 --e.g. T3 MAA is 600, stationery flak is 400 - dont want to ignore; we will treat MAA as being worth 4 times the normal value though to reduce risk we ignore
                                                     end
                                                 end
