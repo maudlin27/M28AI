@@ -194,6 +194,7 @@ tiActionCategory = {
     [refActionBuildNavalFactory] = M28UnitInfo.refCategoryNavalFactory,
     [refActionAssistNavalFactory] = M28UnitInfo.refCategoryNavalFactory,
     [refActionBuildTMD] = M28UnitInfo.refCategoryTMD,
+    [refActionBuildSecondTMD] = M28UnitInfo.refCategoryTMD,
     [refActionBuildAA] = M28UnitInfo.refCategoryStructureAA - categories.EXPERIMENTAL,
     --refActionBuildEmergencyPD - will use custom code as sometimes want T1 PD
     [refActionBuildEmergencyArti] = M28UnitInfo.refCategoryFixedT2Arti,
@@ -251,6 +252,7 @@ tiActionOrder = {
     [refActionBuildNavalFactory] = M28Orders.refiOrderIssueBuild,
     [refActionAssistNavalFactory] = M28Orders.refiOrderIssueGuard,
     [refActionBuildTMD] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildSecondTMD] = M28Orders.refiOrderIssueBuild,
     [refActionBuildAA] = M28Orders.refiOrderIssueBuild,
     [refActionBuildEmergencyPD] = M28Orders.refiOrderIssueBuild,
     [refActionBuildEmergencyArti] = M28Orders.refiOrderIssueBuild,
@@ -326,6 +328,7 @@ tiIgnoreUnderConstructionThreshold = { --specify the number of under constructio
     [refActionBuildSecondExperimental] = 1, --have a manual override for this where we are building t3 arti or g ameender
     [refActionBuildSecondShield] = 1,
     [refActionManageGameEnderTemplate] = 100, --Dont want to try and search for buildings to assist with this action as will handle via special logic
+    [refActionBuildSecondTMD] = 1,
 }
 
 tbIgnoreEngineerAssistance = { --Any actions where we dont want to assist an engineer already constructiong the building should go here; main purpose is building a mex
@@ -9257,7 +9260,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                             M28Utilities.DrawLocation(tBuildLocation)
                                         end
                                     end
-                                elseif vOptionalVariable and iActionToAssign == refActionBuildTMD then
+                                elseif vOptionalVariable and (iActionToAssign == refActionBuildTMD or iActionToAssign == refActionBuildSecondTMD) then
                                     --Build near the unit we want to protect (get blueprint will also factor in maxsearchrange based on the TMD range)
                                     if vOptionalVariable.UnitId then
                                         --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,                tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
@@ -12399,16 +12402,26 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering if we want to get TMD; Priority of this action='..iCurPriority..'; is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))..'; Time since TMD intercepted missile='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] or -10000)) end
     if (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false or (tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] <= 60)) then
-        local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone)
+        local oUnitWantingTMD, iEnemyTMLCount = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone, true, nil, false)
         if bDebugMessages == true then LOG(sFunctionRef..': Is oUnitWantingTMD valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnitWantingTMD))) end
         if oUnitWantingTMD then
             iBPWanted = 40
-            if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 70 end
-            if bSaveMassForMML then
+            if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 70
+            elseif iEnemyTMLCount and iEnemyTMLCount >= 3 then iBPWanted = 60
+            end
+            if bSaveMassForMML and (iEnemyTMLCount or 0) <= 2 then
                 iBPWanted = iBPWanted * 0.5
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Want to build TMD, iBPWanted='..iBPWanted..'; Unit wanting TMD='..oUnitWantingTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitWantingTMD)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to build TMD, iBPWanted='..iBPWanted..'; Unit wanting TMD='..oUnitWantingTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitWantingTMD)..'; iEnemyTMLCount='..(iEnemyTMLCount or 'nil')) end
             HaveActionToAssign(refActionBuildTMD, 2, iBPWanted, oUnitWantingTMD)
+            --Consider second TMD builder if enemy has lots of TML
+            if (iEnemyTMLCount or 0) >= 3 then
+                local oSecondUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone, false, categories.TECH3 + categories.EXPERIMENTAL, true)
+                if bDebugMessages == true then LOG(sFunctionRef..': oSecondUnitWantingTMD='..(oSecondUnitWantingTMD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSecondUnitWantingTMD) or 'nil')) end
+                if oSecondUnitWantingTMD then
+                    HaveActionToAssign(refActionBuildSecondTMD, 2, iBPWanted, oSecondUnitWantingTMD)
+                end
+            end
         end
     end
 

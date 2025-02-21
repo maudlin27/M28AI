@@ -1235,16 +1235,19 @@ function UpdateLZUnitsWantingTMDForUnitDeath(oUnit)
     oUnit[refbUnitWantsMoreTMD] = false --redundancy
 end
 
-function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
+function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bReturnTMLCountAsWell, iOptionalCategoryWanted, bGetClosestUnitToOurBase)
     --Gets the unit closest to the nearest enemy base that wants TMD; also refreshes the table for any dead units
+    --bGetClosestUnitToOurBase - if true, then instead of nearest enemy base will get closest to our base
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetUnitWantingTMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --Cap on number of TMD to prvent massiveo verbuilding - dont have more than 10 in a LZ
+    --Cap on number of TMD to prvent massiveo verbuilding - dont have more than 10 in a LZ unless enemy has lots of TML
     local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
     local iExistingValidTMD = 0
+    local iEnemyTotalTMLCount
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing TMD empty='..tostring(M28Utilities.IsTableEmpty(tExistingTMD))..'; iOptionalLandZone='..(iOptionalLandZone or 'nil')..'; Time='..GetGameTimeSeconds()) end
+
     if M28Utilities.IsTableEmpty(tExistingTMD) == false then
         iExistingValidTMD = table.getn(tExistingTMD)
 
@@ -1255,13 +1258,13 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
             iTMDLimit = iTMDLimit + 2
         end
         if bDebugMessages == true then LOG(sFunctionRef..': iExistingValidTMD='..iExistingValidTMD..'; iTMDLimit='..iTMDLimit..'; tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile]='..(tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] or 'nil')) end
-        if iExistingValidTMD >= iTMDLimit then
-            local iEnemyTotalTMLCount = 0
+        if iExistingValidTMD >= iTMDLimit or bReturnTMLCountAsWell then
+            iEnemyTotalTMLCount = 0
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML]) == false then
                 iEnemyTotalTMLCount = table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML])
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyTotalTMLCount='..iEnemyTotalTMLCount) end
-            if iExistingValidTMD > math.min(31, iTMDLimit + (iEnemyTotalTMLCount - 1) * 2) then
+            if iExistingValidTMD > math.max(15, iTMDLimit + (iEnemyTotalTMLCount - 1) * 3) then
                 --Too much TMD already, clear any units wanting TMD; send error message if we have loads of TMD
                 if iExistingValidTMD >= 10 then
                     M28Utilities.ErrorHandler('Have at least '..iExistingValidTMD..' TMD in land zone so wont build any more TMD, risk we may be overbuilding TMD, will clear entries', true)
@@ -1277,12 +1280,15 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
     local iClosestDist = 10000
     local iCurDist
     local oClosestUnit
-    local tEnemyBase = tLZTeamData[M28Map.reftClosestEnemyBase]
+    local tBaseForDistanceCheck
+    if bGetClosestUnitToOurBase then tBaseForDistanceCheck = tLZTeamData[M28Map.reftClosestFriendlyBase]
+    else tBaseForDistanceCheck = tLZTeamData[M28Map.reftClosestEnemyBase]
+    end
     for iEntry = iUnitsWantingTMD, 1, -1 do
         if not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])) then
             table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iEntry)
-        else
-            iCurDist = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
+        elseif not(iOptionalCategoryWanted) or EntityCategoryContains(iOptionalCategoryWanted, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId) then
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(tBaseForDistanceCheck, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])..' is the closest, iCurDist='..iCurDist..'; iCLosestDist='..iClosestDist..'; refbUnitWantsMoreTMD='..tostring(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry][refbUnitWantsMoreTMD])) end
             if iCurDist < iClosestDist then
                 iClosestDist = iCurDist
@@ -1298,7 +1304,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
         for iTMD, oTMD in tExistingTMD do
             if oTMD[refiTimeTMDHitMissile] and GetGameTimeSeconds() - oTMD[refiTimeTMDHitMissile] <= 60 and M28Conditions.IsTableOfUnitsStillValid(oTMD[toLaunchersIntercepted]) then
 
-                iCurDist = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, oTMD:GetPosition())
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(tBaseForDistanceCheck, oTMD:GetPosition())
                 if iCurDist < iClosestDist then
                     --Do we have enough TMD already covering this unit?
                     iCurLaunchers = table.getn(oTMD[toLaunchersIntercepted])
@@ -1310,7 +1316,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
                         end
                         if M28Utilities.IsTableEmpty(oTMD[reftTMDCoveringThisUnit]) then iCurTMD = 1
                         else iCurTMD = table.getn(oTMD[reftTMDCoveringThisUnit]) end
-                        if iCurLaunchers > iCurTMD - 1 or (iCurLaunchers >= 4 and iCurLaunchers > iCurTMD - 2) then
+                        if iCurLaunchers > iCurTMD - 1 or (iCurLaunchers >= 4 and iCurLaunchers > math.min(iCurTMD - 2, iCurTMD * 0.6)) then
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurTMD='..iCurTMD..' so want to build more to cover this TMD and stop it being overwhelmed') end
                             iClosestDist = iCurDist
                             oClosestUnit = oTMD
@@ -1332,7 +1338,10 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return oClosestUnit
+    if bReturnTMLCountAsWell then return oClosestUnit, iEnemyTotalTMLCount
+    else
+        return oClosestUnit
+    end
 end
 
 
