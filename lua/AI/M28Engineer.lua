@@ -6727,7 +6727,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                                     end
                                 elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) and (oUnit:GetFractionComplete() >= 0.05 or oUnit:GetHealth() >= 500 or M28Utilities.GetDistanceBetweenPositions(tBuildLocation, oUnit:GetPosition()) <= 1.5) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have an experimental level unit that might be blocking, if it is close then will record') end
-                                    if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oUnit.UnitId) and oUnit:GetFractionCompelte() < 1 then
+                                    if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oUnit.UnitId) and oUnit:GetFractionComplete() < 1 then
                                         --Just assist the experimental so it gets completed
                                         oBlockingExperimentalToAssist = oUnit
                                     elseif M28Utilities.GetDistanceBetweenPositions(tBuildLocation, oUnit:GetPosition()) <= 3 then
