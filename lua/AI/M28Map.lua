@@ -1137,7 +1137,7 @@ local function RecordMexForPathingGroup()
                         if M28Utilities.IsTableEmpty(tMexByPathingAndGrouping[refPathingTypeLand][iPossibleIsland]) == false then
                             iValidIslandCount = table.getn(tMexByPathingAndGrouping[refPathingTypeLand][iPossibleIsland]) + 1
                         else
-                            tMexByPathingAndGrouping[refPathingTypeLand][iPossibleIsland][iPossibleIsland] = {}
+                            tMexByPathingAndGrouping[refPathingTypeLand][iPossibleIsland] = {}
                         end
                         tMexByPathingAndGrouping[refPathingTypeLand][iPossibleIsland][iValidIslandCount] = tMexLocation
                     end
@@ -1152,8 +1152,15 @@ local function RecordMexForPathingGroup()
                 bFoundAlternative = false
                 iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tMexLocation)
                 local tBasePosition = tMexLocation --for ease of reference since code was copied from similar function elsewhere
-                if bDebugMessages == true then LOG(sFunctionRef..': Trying to find alternative location for tMex='..repru(tMexLocation)..'; iCurMex='..iCurMex) end
-                for iBaseAdjust = 1, 4 do
+                if bDebugMessages == true then LOG(sFunctionRef..': Trying to find alternative location for tMex='..repru(tMexLocation)..'; iCurMex='..iCurMex..'; Hover label for this='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tMexLocation) or 'nil')..'; Naval label='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, tMexLocation) or 'nil')..'; Land label='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tMexLocation) or 'nil')) end
+                local iMaxBaseAdjust = 4
+
+                --One scenario (swamp lake city) is where you have water that is too shallow for navy, meaning neither navy nor land returns a result, so massively increase the search range
+                iPossiblePlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tMexLocation)
+                if iPossiblePlateau and GetSurfaceHeight(tMexLocation[1], tMexLocation[3]) > GetTerrainHeight(tMexLocation[1], tMexLocation[3]) then
+                    iMaxBaseAdjust = 10
+                end
+                for iBaseAdjust = 1, iMaxBaseAdjust do
 
                     iDistAdjust = math.max(2, iLandZoneSegmentSize) * iBaseAdjust
                     local tLocationAdjust = {{-iDistAdjust,0}, {-iDistAdjust, -iDistAdjust}, {-iDistAdjust, iDistAdjust}, {0, -iDistAdjust}, {0, iDistAdjust}, {iDistAdjust, -iDistAdjust}, {iDistAdjust, 0}, {iDistAdjust,iDistAdjust}}
@@ -1172,7 +1179,10 @@ local function RecordMexForPathingGroup()
                     end
                     if bFoundAlternative then break end
                 end
-                if not(bFoundAlternative) then M28Utilities.ErrorHandler('Have a mex where we couldnt find a nearby valid land or water zone, Mex=X'..tMexLocation[1]..'Y'..tMexLocation[2]..'Z'..tMexLocation[3]) end
+
+                if not(bFoundAlternative) then
+                    M28Utilities.ErrorHandler('Have a mex where we couldnt find a nearby valid land or water zone, Mex=X'..tMexLocation[1]..'Y'..tMexLocation[2]..'Z'..tMexLocation[3])
+                end
             end
         end
     end
