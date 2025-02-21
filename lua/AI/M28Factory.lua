@@ -3751,6 +3751,33 @@ function DelayedCheckIfFactoryBuildingAndRetry(oFactory)
                         MovePotentialBlockingUnitsFromFactory(oFactory)
                     end
                     DecideAndBuildUnitForFactory(oFactory:GetAIBrain(), oFactory, true, false)
+                    --T3 naval facs - more likely to be unable ot build due to blocking buildings
+                    if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory * categories.TECH3, oFactory.UnitId) then
+                        local oBP = oFactory:GetBlueprint()
+                        local iFactoryRadiusX = oBP.SizeX * 0.5
+                        local iFactoryRadiusZ = oBP.SizeZ * 0.5
+                        local iEstShipWidth = 3.3
+                        local iEstShipLength = 12.8
+                        local tLocation = oFactory:GetPosition()
+                        local rBuildArea = Rect(tLocation[1] - iFactoryRadiusX - iEstShipWidth + 0.5, tLocation[3] - iFactoryRadiusZ - iEstShipLength * 0.5 + 0.5, tLocation[1] + - iFactoryRadiusX, tLocation[3] + iFactoryRadiusZ + iEstShipLength * 0.5 - 0.5)
+                        local tUnitsInBuildArea = GetUnitsInRect(rBuildArea)
+                        bDebugMessages = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Potential blocking buildings for oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Is tUnitsInBuildArea empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInBuildArea))..'; rBuildArea='..repru(rBuildArea)..'; Factory position='..repru(oFactory:GetPosition())..'; Time='..GetGameTimeSeconds()) end
+                        if M28Utilities.IsTableEmpty(tUnitsInBuildArea) == false then
+                            local tBlockingBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryNavalFactory, tUnitsInBuildArea)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is tBlockingBuildings empty='..tostring(M28Utilities.IsTableEmpty(tBlockingBuildings))) end
+                            if M28Utilities.IsTableEmpty(tBlockingBuildings) == false then
+                                if bDebugMessages == true then M28Utilities.DrawRectangle(rBuildArea) end
+                                for iBuilding, oBuilding in tBlockingBuildings do
+                                    if oBuilding:GetAIBrain().M28AI then
+                                        if bDebugMessages == true then LOG(sFunctionRef..'; Will self destruct oBuilding='..oBuilding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBuilding)) end
+                                        M28Orders.IssueTrackedKillUnit(oBuilding)
+                                    end
+                                end
+                            end
+                        end
+                        bDebugMessages = false
+                    end
                 end
                 break
             end
@@ -5574,6 +5601,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; Pond='..iPond..'; WZ='..iWaterZone..'; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3))
+        if true and GetGameTimeSeconds() >= 19*60 then
+            local tNearbySonar = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryNavalFactory, oFactory:GetPosition(), 10, 'Ally')
+            if M28Utilities.IsTableEmpty(tNearbySonar) == false then
+                for iSonar, oSonar in tNearbySonar do
+                    M28Orders.IssueTrackedKillUnit(oSonar)
+                end
+            end
+        end
     end
 
     local bConsiderBuildingShieldOrStealthBoats = true
