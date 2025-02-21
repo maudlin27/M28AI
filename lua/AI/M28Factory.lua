@@ -3751,6 +3751,31 @@ function DelayedCheckIfFactoryBuildingAndRetry(oFactory)
                         MovePotentialBlockingUnitsFromFactory(oFactory)
                     end
                     DecideAndBuildUnitForFactory(oFactory:GetAIBrain(), oFactory, true, false)
+                    --T3 naval facs - more likely to be unable ot build due to blocking buildings
+                    if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory * categories.TECH3, oFactory.UnitId) then
+                        local oBP = oFactory:GetBlueprint()
+                        local iFactoryRadiusX = oBP.SizeX * 0.5
+                        local iFactoryRadiusZ = oBP.SizeZ * 0.5
+                        local iEstShipWidth = 3.3
+                        local iEstShipLength = 12.8
+                        local tLocation = oFactory:GetPosition()
+                        local rBuildArea = Rect(tLocation[1] - iFactoryRadiusX - iEstShipWidth + 0.5, tLocation[3] - iFactoryRadiusZ - iEstShipLength * 0.5 + 0.5, tLocation[1] + - iFactoryRadiusX, tLocation[3] + iFactoryRadiusZ + iEstShipLength * 0.5 - 0.5)
+                        local tUnitsInBuildArea = GetUnitsInRect(rBuildArea)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Potential blocking buildings for oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Is tUnitsInBuildArea empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInBuildArea))..'; rBuildArea='..repru(rBuildArea)..'; Factory position='..repru(oFactory:GetPosition())..'; Time='..GetGameTimeSeconds()) end
+                        if M28Utilities.IsTableEmpty(tUnitsInBuildArea) == false then
+                            local tBlockingBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryNavalFactory, tUnitsInBuildArea)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is tBlockingBuildings empty='..tostring(M28Utilities.IsTableEmpty(tBlockingBuildings))) end
+                            if M28Utilities.IsTableEmpty(tBlockingBuildings) == false then
+                                if bDebugMessages == true then M28Utilities.DrawRectangle(rBuildArea) end
+                                for iBuilding, oBuilding in tBlockingBuildings do
+                                    if oBuilding:GetAIBrain().M28AI then
+                                        if bDebugMessages == true then LOG(sFunctionRef..'; Will self destruct oBuilding='..oBuilding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBuilding)) end
+                                        M28Orders.IssueTrackedKillUnit(oBuilding)
+                                    end
+                                end
+                            end
+                        end
+                    end
                 end
                 break
             end
@@ -4186,11 +4211,11 @@ function SetPriorityPreferredUnitsByCategory(aiBrain)
             aiBrain[reftBlueprintPriorityOverride]['uas0303'] = -1
             aiBrain[reftBlueprintPriorityOverride]['xss0303'] = -1
 
-            --Prioritise penetration fighters in QUIET
-            aiBrain[reftBlueprintPriorityOverride]['sra0313'] = 1 --Cybran pen fighter
+            --Prioritise penetration fighters in QUIET (v200 - disabled on understanding pen fighters have same physics as asfs such that M28 should be ok to build both interchangeably)
+            --[[aiBrain[reftBlueprintPriorityOverride]['sra0313'] = 1 --Cybran pen fighter
             aiBrain[reftBlueprintPriorityOverride]['saa0313'] = 1 --Aeon pen fighter
             aiBrain[reftBlueprintPriorityOverride]['sea0313'] = 1 --UEF pen fighter
-            aiBrain[reftBlueprintPriorityOverride]['ssa0313'] = 1 --Seraphim pen fighter
+            aiBrain[reftBlueprintPriorityOverride]['ssa0313'] = 1 --Seraphim pen fighter--]]
 
             aiBrain[reftBlueprintPriorityOverride]['srl0311'] = 1 --T3 cybran mml?
         end
@@ -4409,7 +4434,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         --High priority transport if a large map and we ought to have enough
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': High priority transport builder even if have low power, Team net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Factoyr b uild count='..oFactory[refiTotalBuildCount]..'; Brain % energy stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Brain gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
-        if oFactory[refiTotalBuildCount] <= 5 and iFactoryTechLevel == 1 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 10 * (0.5 + 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 6 and aiBrain:GetEconomyStored('ENERGY') >= 2000)) and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.15 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 22 then
+        if iFactoryTechLevel == 1 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 10 * (0.5 + 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 6 and aiBrain:GetEconomyStored('ENERGY') >= 2000)) and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.15 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 22 then
             if bDebugMessages == true then LOG(sFunctionRef..': Is island shortlist empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]))) end
             if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false or M28Team.tTeamData[iTeam][M28Team.refbEnemyBaseInCombatDropShortlist]) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport) == 0 and ((M28Team.tTeamData[iTeam][M28Team.refbEnemyBaseInCombatDropShortlist] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) >= 1) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) == 0) then
                 local iAlreadyBuilding = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryTransport, false)

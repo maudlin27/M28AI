@@ -6110,7 +6110,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                                                     --Megalith - consider moving backwards if enemy in range and we outrange enemy
                                                     if not(bFiringAtNegligibleThreatInLRExperimentalRange) and not(oUnit[M28UnitInfo.refbCanKite]) and EntityCategoryContains(M28UnitInfo.refCategoryMegalith, oUnit.UnitId) then
-
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering moving backwards for megalith, iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; Enemy threat in adj zones='..GetEnemyCombatThreatInAdjacentZones()..'; Is closest enemy from last close to enemy check valid='..tostring(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]))..'; Are we close to nearby enemy DF units='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], (oUnit[M28UnitInfo.refiDFRange] or 0) - 1, iTeam, false, nil, nil, oUnit))..';  oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]='..( oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount( oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) or 'nil')) end
                                                         if iAvailableCombatUnitThreat < GetEnemyCombatThreatInAdjacentZones() * 8 and ((not(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], (oUnit[M28UnitInfo.refiDFRange] or 0) - 1, iTeam, false, nil, nil, oUnit)) or (M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]))) and EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL - M28UnitInfo.refCategoryStructure, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) then
                                                             local iDistToNearestEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition())
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to do kiting retreat with megalith, iDistToNearestEnemy='..iDistToNearestEnemy) end
@@ -6119,9 +6119,45 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                                 --Are we in range of the enemy? If so then stop microing back in case it risks hurting our DPS, and so we can focus down the lowest health enemy experimental; exception if no enemy exps, in which case retreating might help us get closer to friendly units
                                                                 --Have put a weapon event <=6s to try and cover the scenario where megalith is trying to retreat back but all the enemy units have gotten bheind it and it ends up unable to fire (havent actually seen in practice, so is a preemptive change)
                                                                 if iDistToNearestEnemy >= (oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 0) or (EntityCategoryContains(categories.TECH3, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) <= 6 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.EXPERIMENTAL, tLZTeamData[M28Map.reftoNearestDFEnemies])))) then
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to do megalith retreat micro') end
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to do megalith retreat micro for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                                                     if M28Micro.MegalithRetreatMicro(oUnit, tAmphibiousRallyPoint, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
                                                                         bUseNormalLogic = false
+                                                                    end
+                                                                end
+                                                            end
+                                                        end
+                                                        --Also kiting retreat even if nearest enemy unit is say a T2 PD (instead of mobile t3+ unit) if overall enemy threat is high, and enemy threat within our range is high, to avoid scenario where e.g. an enemy GC is approaching our megalith but it doesnt try and kite because the enemy T2 PD is slightly closer to being in range, and we have been firing recently
+                                                        if bUseNormalLogic and iAvailableCombatUnitThreat < GetEnemyCombatThreatInAdjacentZones() * 2 and oUnit[M28UnitInfo.refiDFRange] and M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+                                                            local iDistToClosestUnit = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition())
+                                                            if iDistToClosestUnit < oUnit[M28UnitInfo.refiDFRange] - 5 and iDistToClosestUnit > (oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 0) + 1 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) <= 5 then
+                                                                local tNearbyEnemiesInOurRange = oUnit:GetAIBrain():GetUnitsAroundPoint(categories.DIRECTFIRE + categories.INDIRECTFIRE, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange] - 2, 'Enemy')
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Threat of DF and IF units in megalith range='..M28UnitInfo.GetCombatThreatRating(tNearbyEnemiesInOurRange, true, false)) end
+                                                                if M28UnitInfo.GetCombatThreatRating(tNearbyEnemiesInOurRange, true, false) >= 5000 then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and retreat megalith with micro unless we are almost in range of a significant enemy force') end
+                                                                    local toEnemiesAlmostInRange = {}
+                                                                    for iEnemy, oEnemy in tNearbyEnemiesInOurRange do
+                                                                        if (oEnemy[M28UnitInfo.refiCombatRange] or 0) > 0 then
+                                                                            if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) < oEnemy[M28UnitInfo.refiCombatRange] + 3 then
+                                                                                table.insert(toEnemiesAlmostInRange, oEnemy)
+                                                                            end
+                                                                        end
+                                                                    end
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Mass cost of enemies almost in range='..M28UnitInfo.GetMassCostOfUnits(toEnemiesAlmostInRange, true)) end
+                                                                    if M28Utilities.IsTableEmpty(toEnemiesAlmostInRange) or M28UnitInfo.GetMassCostOfUnits(toEnemiesAlmostInRange, true) < 10000 then
+                                                                        if M28Micro.MegalithRetreatMicro(oUnit, tAmphibiousRallyPoint, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
+                                                                            bUseNormalLogic = false
+                                                                        end
+                                                                    else
+                                                                        --To be safe will check for manual attack - in theory below code would already do this, but as we know there's 10k+ threat want to make sure by doing here
+                                                                        local oTargetToManuallyAttack, bMoveNotManualAttack = GetManualAttackTargetIfWantManualAttack(oUnit)
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Mega kiting manual attack oTargetToManuallyAttack='..(oTargetToManuallyAttack.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTargetToManuallyAttack) or 'nil')) end
+                                                                        if oTargetToManuallyAttack then
+                                                                            if bMoveNotManualAttack then M28Orders.IssueTrackedMove(oUnit, oTargetToManuallyAttack:GetPosition(), 2, false, 'MegaManM', false)
+                                                                            else
+                                                                                DoManualAttack(oUnit, oTargetToManuallyAttack, 'MegaManA')
+                                                                            end
+                                                                            bUseNormalLogic = false
+                                                                        end
                                                                     end
                                                                 end
                                                             end

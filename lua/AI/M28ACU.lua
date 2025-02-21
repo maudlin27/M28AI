@@ -1904,10 +1904,20 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                                             or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 16 and iActiveACUUpgrades == 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= tEnhancement.BuildCostMass <= tEnhancement.BuildCostMass / 375 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade) >= 1)
                                             or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 0.5 and tEnhancement.BuildCostMass <= 800)
                                     then
-                                        --Require T3 mex if 3rd+ upgrade and the upgrade has a significant cost
-                                        if bDebugMessages == true then LOG(sFunctionRef..': T3 mex count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex)..'; T2 mex count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Mex)) end
-                                        if (oACU[refiUpgradeCount] or 0) < 2 or tEnhancement.BuildCostMass <= 800 or aiBrain[M28Economy.refbBuiltParagon] or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) > 1 or (tEnhancement.BuildCostMass <= 2000 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and (oACU[refiUpgradeCount] or 0) == 2 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade) >= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Mex) >= 6 * (tEnhancement.BuildCostMass - 1000) / 1000) then
-                                            sUpgradeWanted = sPotentialUpgrade
+                                        --Early game on larger map where we lack 2+ T2 mexes, and dont have a t2 factory yet, and enemy doesnt have upgrades yet
+                                        if GetGameTimeSeconds() <= 360 and (M28Map.iMapSize >= 750 or not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])) and not(M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU]) and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] <= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Mex) < 2 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) == 0 and (GetGameTimeSeconds() <= 270 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Utilities.GetNearestUnit(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs], oACU:GetPosition()):GetPosition()) > 225) then
+                                            if bDebugMessages == true then
+                                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) then LOG(sFunctionRef..': Early game, larger map, no enemy ACU table, will delay upgrade')
+                                                else
+                                                    LOG(sFunctionRef..': Early game on larger map, enemy lacks upgrade, and we dont have t2, so no rush to get gun, Dist to nearest enemy ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Utilities.GetNearestUnit(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs], oACU:GetPosition()):GetPosition()))
+                                                end
+                                            end
+                                        else
+                                            --Require T3 mex if 3rd+ upgrade and the upgrade has a significant cost
+                                            if bDebugMessages == true then LOG(sFunctionRef..': T3 mex count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex)..'; T2 mex count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Mex)) end
+                                            if (oACU[refiUpgradeCount] or 0) < 2 or tEnhancement.BuildCostMass <= 800 or aiBrain[M28Economy.refbBuiltParagon] or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) > 1 or (tEnhancement.BuildCostMass <= 2000 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and (oACU[refiUpgradeCount] or 0) == 2 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade) >= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Mex) >= 6 * (tEnhancement.BuildCostMass - 1000) / 1000) then
+                                                sUpgradeWanted = sPotentialUpgrade
+                                            end
                                         end
                                     end
                                 end
