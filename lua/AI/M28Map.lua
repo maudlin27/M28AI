@@ -1149,7 +1149,6 @@ local function RecordMexForPathingGroup()
         end                
         for iCurMex, tMexLocation in tMassPoints do
             if tbMexNeedsPathingAdjust[iCurMex] then
-                if tMexLocation[1] == 49.5 and tMexLocation[3] == 685.5 then bDebugMessages = true else bDebugMessages = false end
                 bFoundAlternative = false
                 iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tMexLocation)
                 local tBasePosition = tMexLocation --for ease of reference since code was copied from similar function elsewhere
