@@ -11410,6 +11410,7 @@ function PlanBomberSnipe(tAvailableBombers, oSnipeTarget, iTeam)
                     end
                 end
                 if not(bIncluded) then
+                    if not(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]) then oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] = {} end --redundancy as got error in a game from this sometimes
                     table.insert(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe], oBomber)
                 else
                     --Redundancy - this shouldnt have happened, a risk that an error occurred with the main loop and all the bombers are stuck; if size of table is 2 more than threshold for attacking then abort
