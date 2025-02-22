@@ -11404,8 +11404,10 @@ function PlanBomberSnipe(tAvailableBombers, oSnipeTarget, iTeam)
             local bIncluded
             for iBomber, oBomber in tAvailableBombers do
                 bIncluded = false
-                for iExistingBomber, oExistingBomber in oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] do
-                    if oExistingBomber == oBomber then bIncluded = true break end
+                if M28Utilities.IsTableEmpty(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe]) == false then
+                    for iExistingBomber, oExistingBomber in oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe] do
+                        if oExistingBomber == oBomber then bIncluded = true break end
+                    end
                 end
                 if not(bIncluded) then
                     table.insert(oSnipeTarget[M28UnitInfo.toBombersPlanningSnipe], oBomber)

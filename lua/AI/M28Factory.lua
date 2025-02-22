@@ -3625,7 +3625,8 @@ function IsFactoryReadyToBuild(oFactory)
             WaitSeconds(tonumber(ScenarioInfo.Options.CmpAIDelay) - GetGameTimeSeconds())
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
-
+        if GetGameTimeSeconds() >= 1515 then bDebugMessages = true end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to get factory plateau, position='..repru(oFactory:GetPosition())..'; Factory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Time='..GetGameTimeSeconds()) end
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
         local tLZOrWZTeamData
         local iTeam = aiBrain.M28Team
