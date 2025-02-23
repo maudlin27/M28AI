@@ -811,8 +811,6 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
     local iLowFuelThreshold = 0.25
     local iLowHealthThreshold = iProjectileLowHealthThreshold
     if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] or M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then
-
-        local oFirstBrain
         local bHaveAirStaging = false
         for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
             if oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirStaging) > 0 then
@@ -825,7 +823,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
             iLowHealthThreshold = 0
         end
     end
-    if bLowHealthThresholdDueToSnipeTarget then
+    if bLowHealthThresholdDueToSnipeTarget or (GetGameTimeSeconds() <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1) then
         iLowFuelThreshold = math.min(iLowFuelThreshold, 0.05)
         iLowHealthThreshold = math.min(iLowHealthThreshold, 0.1)
     end
@@ -4180,10 +4178,10 @@ function EnemyBaseEarlyBomber(oBomber)
 end
 
 function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ApplyEngiHuntingBomberLogic'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..(oBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBomber) or 'nil')..'; AirSubteam='..iAirSubteam..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()..'; Brain owner='..oBomber:GetAIBrain().Nickname) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..(oBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBomber) or 'nil')..' owned by '..oBomber:GetAIBrain().Nickname..'; AirSubteam='..iAirSubteam..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()..'; Brain owner='..oBomber:GetAIBrain().Nickname) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTimeOfLastEngiHunterBomberOrder] = GetGameTimeSeconds()
     if oBomber[rebEarlyBomberTargetBase] == nil and oBomber:GetAIBrain()[M28Overseer.refbFirstBomber] and M28UnitInfo.GetUnitLifetimeCount(oBomber) == 1 then
         if GetGameTimeSeconds() > 120 then
