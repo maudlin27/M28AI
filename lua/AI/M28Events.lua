@@ -2207,7 +2207,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 --Check if teammate has enough factories that we should give this to them - require mex to be closer to their base and for them to have factories in the zone, and for us to have no T2+ mexes
                                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) > 1 then
                                     local iMexPlateau, iMexZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oJustBuilt:GetPosition())
-                                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
+                                    local iTeam = oJustBuilt:GetAIBrain().M28Team
+                                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
                                     if GetGameTimeSeconds() >= 100 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) > 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] <= math.max(3, (tLZData[M28Map.subrefLZMexCount] or 0) * 0.5) then
                                         local iClosestNonM28BrainDistBase = 100000
                                         local oClosestNonM28Brain
@@ -2243,7 +2244,16 @@ function OnConstructed(oEngineer, oJustBuilt)
                                                 local iTeammateMexes = oJustBuilt:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMex)
                                                 if iOurMexes >= iTeammateMexes * 0.6 and iOurMexes >= 2 then
                                                     ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
-                                                    M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'GiveT1Mex', 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time', 1, 90, true, true)
+                                                    local sPotentialMessages = {
+                                                        [1] = 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time',
+                                                        [2] = 'You look like you could use this mex more than me '..oClosestNonM28Brain.Nickname,
+                                                        [3] = 'Transferred t1 mex to '..oClosestNonM28Brain.Nickname,
+                                                        [4] = 'Ive just given you a mex '..oClosestNonM28Brain.Nickname,
+                                                        [5] = 'Have this mex '..oClosestNonM28Brain.Nickname..', I hope this means we can be friends',
+                                                        [6] = 'My master says I must help my team more, so have a mex '..oClosestNonM28Brain.Nickname
+                                                    }
+                                                    local sMessage = sPotentialMessages[math.random(1, table.getn(sPotentialMessages))] or sPotentialMessages[1]
+                                                    M28Chat.SendMessage(oJustBuilt:GetAIBrain(), sMessage, 1, 90, true, true)
                                                 end
                                             end
                                             bGiftingToTeammate = true
@@ -3233,6 +3243,26 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMegalith, oUnit.UnitId) then
                                 M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMegalith, true)
                             end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                            --Check for rare case where enemy base is taken over by us but enemy isnt dead (doing here instead of onconstructed as onconstructed wouldnt trigger consistently)
+                            local iMexPlateau, iMexZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                            local iTeam = oUnit:GetAIBrain().M28Team
+                            local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                            --Redundancy for case where enemy nearest us loses their base
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have built on enemy base even if they arent dead, P'..iMexPlateau..'Z'..iMexZone..';mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Enemy total mass='..(tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')..'; Dist from midpoint to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])..'; Number of enemy brains='..table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Brain owner='..oUnit:GetAIBrain().Nickname..'; Enemy combat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Our combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')) end
+                            if tLZTeamData[M28Map.refiModDistancePercent] == 1 and GetGameTimeSeconds() >= 60 and not(M28Map.bIsCampaignMap) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) >= 2 and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) <= 5 then
+                                if (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) == 0 then
+                                    --Enemy base is likely destroyed since they have no mass here
+                                    if bDebugMessages == true then LOG(sFunctionRef..': No enemy buildings, so will update nearest enemy base') end
+                                    ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iTeam, true)
+                                end
+                                --Either way do a check, in case we didnt update to ignore the brain
+                                if tLZTeamData[M28Map.subrefLZSValue] >= (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <= 1000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 500 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < math.min(200, tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.1) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy still has some buildings, so will do a delayed check if we want to update nearest base and iTicksPerLandCycle is relatively high, iTicksPerLandCycle='..M28Land.iTicksPerLandCycle) end
+                                    ForkThread(M28Map.DelayedConsiderationOfWhetherToIgnoreEnemyBase, tLZData, tLZTeamData, iTeam, iMexPlateau, iMexZone, 30)
+                                end
+                            end
+
                             --WEAPON PRIORITIES
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
                             M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship, true)
@@ -3266,24 +3296,24 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         end
 
 
-                        --Non-weapon priority logic
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is this an external factory='..tostring(EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId))..'; Is this an aircraft factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oUnit.UnitId))..'; Is it a special factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySpecialFactory, oUnit.UnitId))) end
+                            --Non-weapon priority logic
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is this an external factory='..tostring(EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId))..'; Is this an aircraft factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oUnit.UnitId))..'; Is it a special factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySpecialFactory, oUnit.UnitId))) end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory + categories.EXTERNALFACTORYUNIT, oUnit.UnitId) then
-                            --If have been gifted factory or created via cheat then want to start building something
-                            oUnit[M28Factory.refiTotalBuildCount] = 0
-                            if oUnit:GetFractionComplete() >= 1 then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Calling logic to try and build something from this factory') end
-                                ForkThread(M28Factory.DecideAndBuildUnitForFactory, oUnit:GetAIBrain(), oUnit)
-                            end
+                        --If have been gifted factory or created via cheat then want to start building something
+                        oUnit[M28Factory.refiTotalBuildCount] = 0
+                        if oUnit:GetFractionComplete() >= 1 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Calling logic to try and build something from this factory') end
+                        ForkThread(M28Factory.DecideAndBuildUnitForFactory, oUnit:GetAIBrain(), oUnit)
+                        end
                         end
                         --Check unit cap
                         if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have too many units, expected remaining cap='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 0)) end
                         if (aiBrain[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will check the unit cap') end
-                            M28Overseer.CheckUnitCap(aiBrain)
-                        else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will check the unit cap') end
+                        M28Overseer.CheckUnitCap(aiBrain)
+                            else
                             aiBrain[M28Overseer.refiExpectedRemainingCap] = aiBrain[M28Overseer.refiExpectedRemainingCap] - 1
-                        end
+                            end
                     elseif M28Orders.bDontConsiderCombinedArmy and ScenarioInfo.Options.M28CombinedArmy == 2 then --Non-M28AI brain, but combined armies is disabled with UI button still to be shown (so people aware of hte option), so flag so the button gets shown
                         oUnit:UpdateStat('M28CombinedArmiesShowUI', 1)
                     end

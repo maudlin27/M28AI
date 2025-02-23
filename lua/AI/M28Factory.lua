@@ -3626,7 +3626,16 @@ function IsFactoryReadyToBuild(oFactory)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
 
-        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+        if bDebugMessages == true then LOG(sFunctionRef..': About to get factory plateau, position='..repru(oFactory:GetPosition())..'; Factory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Time='..GetGameTimeSeconds()) end
+        local iPlateauOrZero, iLandOrWaterZone
+        if oFactory:GetPosition()[1] == 0 and oFactory:GetPosition()[3] == 0 then
+            --Had strange scenario where a t1 land factory returned a position of 0,0,0 on a map where this was outside the playable area; assuming this might happen on death or a unit being transferred for a split second
+            M28Utilities.ErrorHandler('Factory position is 0, likely error if this triggers multiple times', false, true)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return false
+        else
+            iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+        end
         local tLZOrWZTeamData
         local iTeam = aiBrain.M28Team
         if GetGameTimeSeconds() > 10 or (M28Air.tbFullAirTeamCycleRun[iTeam] and M28Air.tbFullAirSubteamCycleRun[aiBrain.M28AirSubteam]) then
