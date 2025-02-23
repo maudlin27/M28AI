@@ -2972,16 +2972,18 @@ function GetMissileCount(oUnit)
     return iMissiles
 end
 
-function GiveUnitTemporaryVision(oUnit, iVision)
-    --LOG('Applying temporary vision buff at time='..GetGameTimeSeconds())
+function GiveUnitTemporaryVision(oUnit, iVision, iOptionalTempDuration)
     local Buff = import('/lua/sim/Buff.lua')
-    if not Buffs['CrateVisBuff'] then
+    if not(iOptionalTempDuration) then iOptionalTempDuration = 3 end
+    local sBuffRef = 'CrateVisBuff'..math.round(iOptionalTempDuration * 10)
+    --LOG('Applying temporary vision buff at time='..GetGameTimeSeconds()..'; iOptionalTempDuration='..iOptionalTempDuration)
+    if not Buffs[sBuffRef] then
         BuffBlueprint {
-            Name = 'CrateVisBuff',
-            DisplayName = 'CrateVisBuff',
+            Name = sBuffRef,
+            DisplayName = sBuffRef,
             BuffType = 'CrateVisBuff',
             Stacks = 'ALWAYS',
-            Duration = 3,
+            Duration = iOptionalTempDuration,
             Affects = {
                 VisionRadius = {
                     Add = iVision,
@@ -2990,7 +2992,7 @@ function GiveUnitTemporaryVision(oUnit, iVision)
             },
         }
     end
-    Buff.ApplyBuff(oUnit, 'CrateVisBuff')
+    Buff.ApplyBuff(oUnit, sBuffRef)
 end
 
 function ToggleUnitDiveOrSurfaceStatus(oUnit)

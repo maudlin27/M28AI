@@ -951,7 +951,16 @@ function RevealCivilainsToAIByGivingVision(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RevealCivilainsToAIByGivingVision'
     --First wait a couple of seconds to give a chance for units to be created
-    if GetGameTimeSeconds() <= 4.4 then
+    local bHaveHumanTeammate = false
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+        for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains] do
+            if oBrain.BrainType == 'Human' then
+                bHaveHumanTeammate = true
+            end
+        end
+    end
+    if GetGameTimeSeconds() <= 4.4 and not(bHaveHumanTeammate) then
+        --Delay time to wait if we have human teammates
         local iTimeToWait = math.min(3, 4.4 - GetGameTimeSeconds())
         WaitSeconds(iTimeToWait)
     end
@@ -959,8 +968,10 @@ function RevealCivilainsToAIByGivingVision(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': About to reveal civilains and then consider capture targets if this is M28Brain, aiBrain.M28AI='..tostring(aiBrain.M28AI or false)..'; nickname='..(aiBrain.Nickname or 'nil')) end
     if aiBrain.M28AI then --redundancy
         local tACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+        local iTempVisionOverride
+        if bHaveHumanTeammate then iTempVisionOverride = 0.6 end
         for iUnit, oUnit in tACU do
-            M28UnitInfo.GiveUnitTemporaryVision(oUnit, 10000)
+            M28UnitInfo.GiveUnitTemporaryVision(oUnit, 10000, iTempVisionOverride)
             break
         end
         --Consider capture targets
