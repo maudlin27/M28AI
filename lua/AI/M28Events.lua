@@ -2244,7 +2244,16 @@ function OnConstructed(oEngineer, oJustBuilt)
                                                 local iTeammateMexes = oJustBuilt:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMex)
                                                 if iOurMexes >= iTeammateMexes * 0.6 and iOurMexes >= 2 then
                                                     ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oClosestNonM28Brain:GetArmyIndex(), 0.2)
-                                                    M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'GiveT1Mex', 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time', 1, 90, true, true)
+                                                    local sPotentialMessages = {
+                                                        [1] = 'I guess this is one of your mexes '..oClosestNonM28Brain.Nickname..', try to claim it faster next time',
+                                                        [2] = 'You look like you could use this mex more than me '..oClosestNonM28Brain.Nickname,
+                                                        [3] = 'Transferred t1 mex to '..oClosestNonM28Brain.Nickname,
+                                                        [4] = 'Ive just given you a mex '..oClosestNonM28Brain.Nickname,
+                                                        [5] = 'Have this mex '..oClosestNonM28Brain.Nickname..', I hope this means we can be friends',
+                                                        [6] = 'My master says I must help my team more, so have a mex '..oClosestNonM28Brain.Nickname
+                                                    }
+                                                    local sMessage = sPotentialMessages[math.random(1, table.getn(sPotentialMessages))] or sPotentialMessages[1]
+                                                    M28Chat.SendMessage(oJustBuilt:GetAIBrain(), sMessage, 1, 90, true, true)
                                                 end
                                             end
                                             bGiftingToTeammate = true
