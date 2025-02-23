@@ -4178,7 +4178,7 @@ function EnemyBaseEarlyBomber(oBomber)
 end
 
 function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ApplyEngiHuntingBomberLogic'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..(oBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBomber) or 'nil')..' owned by '..oBomber:GetAIBrain().Nickname..'; AirSubteam='..iAirSubteam..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()..'; Brain owner='..oBomber:GetAIBrain().Nickname) end
