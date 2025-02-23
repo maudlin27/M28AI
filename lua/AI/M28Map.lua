@@ -3511,10 +3511,10 @@ function RecordAdjacentLandZones()
     local tiBorderSegmentAdjust = {}
     local iMaxAdjacencyToConsider = 1
     if iMapSize <= 1024 then
-        iMaxAdjacencyToConsider = 2
+        iMaxAdjacencyToConsider = 4
         if iMapSize <= 512 then
-            iMaxAdjacencyToConsider = 3
-            if iMapSize <= 256 then iMaxAdjacencyToConsider = 5 end
+            iMaxAdjacencyToConsider = 5
+            if iMapSize <= 256 then iMaxAdjacencyToConsider = 6 end
         end
     end
     if iMaxAdjacencyToConsider > 1 then
@@ -3948,7 +3948,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfBaseToI
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bOnlyCheckIfBaseToIgnore and iTeam == 4 then bDebugMessages = true end
+
     while not(bMapLandSetupComplete) or not(bWaterZoneInitialCreation) do
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
@@ -5270,7 +5270,6 @@ function UpdateNewPrimaryBaseLocation(aiBrain, bIgnoreIfDefeated)
     local sFunctionRef = 'UpdateNewPrimaryBaseLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if aiBrain.M28Team == 4 and GetGameTimeSeconds() >= 17*60 then bDebugMessages = true end
     --LOG(sFunctionRef..': aiBrain='..aiBrain:GetArmyIndex()..'; Start position='..(aiBrain:GetArmyIndex() or 'nil'))
     if bDebugMessages == true then
         LOG(sFunctionRef..': About to get new primary base location for brain '..(aiBrain.Nickname or 'nil')..' unless it is civilian or defeated, aiBrain.BrainType='..(aiBrain.BrainType or 'nil')..'; time='..GetGameTimeSeconds())
