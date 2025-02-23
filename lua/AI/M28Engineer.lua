@@ -3093,7 +3093,10 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 end
                                 local iHighestNukeTargetValue = M28Building.GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, aiBrain.M28Team)
                                 local iValueAdjust = 0
-                                if bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats then iValueAdjust = 10000 end
+                                if bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats then iValueAdjust = 10000
+                                --If we have built lots of experimentals be more likely to consider a nuke for lower value targets
+                                elseif iTeamNukes == 0 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 2 then iValueAdjust = -1000 * math.min((M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] or 0) - 2, 10)
+                                end
                                 if bDebugMessages == true then LOG(sFunctionRef..': iHighestNukeTargetValue='..iHighestNukeTargetValue..'; Team gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; iValueAdjust='..iValueAdjust) end
                                 if iHighestNukeTargetValue >= (20000 + iValueAdjust) * iExpConstructedFactor and (iHighestNukeTargetValue >= (30000 + iValueAdjust)*iExpConstructedFactor or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 550 + 200 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Want to get a normal nuke') end
