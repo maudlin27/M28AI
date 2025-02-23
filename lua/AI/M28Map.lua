@@ -580,6 +580,7 @@ refiLastTimeCheckedEnemyBaseLocation = 'M28MapLastTimeCheckedEnemyBase' --agains
 reftMidpointToPrimaryEnemyBase = 'M28MapMidpointToPrimaryEnemy' --against aiBrain, midpoint between the start position and the nearest enemy start position
 refbCanPathToEnemyBaseWithLand = 'M28MapCanPathToEnemyWithLand'
 refbCanPathToEnemyBaseWithAmphibious = 'M28MapCanPathToEnemyWithAmphibious'
+refbIgnoreForNearestPlayerIndexByTeam = 'M28MIgNPI' --[x] = team we are considering, true if we want to ignore this player when getting the nearest player index - intended for where we have taken over the enemy base but their ACU escaped, and it is a team game
 
 ---@param tPosition table
 ---@return number, number
@@ -3920,11 +3921,34 @@ local function RecordTravelDistBetweenZonesOverTime()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
+function DelayedConsiderationOfWhetherToIgnoreEnemyBase(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, iDelayInSeconds)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DelayedConsiderationOfWhetherToIgnoreEnemyBase'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if not(tLZTeamData['DelayedConsiderNearestEnemyCheck']) then
+        tLZTeamData['DelayedConsiderNearestEnemyCheck'] = true
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(iDelayInSeconds)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        tLZTeamData['DelayedConsiderNearestEnemyCheck'] = false
+        if bDebugMessages == true then LOG(sFunctionRef..'; Time='..GetGameTimeSeconds()..'; iDelayInSeconds='..iDelayInSeconds..'; Mod dist%='..tLZTeamData[refiModDistancePercent]..'; Enemy mass='..(tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0)..'; SValue='..tLZTeamData[subrefLZSValue]..'; Ally combat='..tLZTeamData[subrefLZTThreatAllyCombatTotal]..'; Enemy combat='..tLZTeamData[subrefTThreatEnemyCombatTotal]..'; Time since last update='..GetGameTimeSeconds() - (tLZTeamData[subrefiTimeOfLastEnemyUnitPosUpdate] or 0)) end
+        if tLZTeamData[refiModDistancePercent] == 1 then
+            if tLZTeamData[subrefLZSValue] > 0 and tLZTeamData[subrefLZTThreatAllyCombatTotal] >= tLZTeamData[subrefTThreatEnemyCombatTotal] and ((tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0) == 0 or (tLZTeamData[subrefLZSValue] >= 1000 and tLZTeamData[subrefMexCountByTech][1] + tLZTeamData[subrefMexCountByTech][2] + tLZTeamData[subrefMexCountByTech][3] >= tLZData[subrefLZMexCount]))  then
+                RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, true)
+            end
+            if tLZTeamData[subrefLZSValue] >= (tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0) and (tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0) <= 1000 and tLZTeamData[subrefLZTThreatAllyCombatTotal] >= 500 and tLZTeamData[subrefTThreatEnemyCombatTotal] < math.min(200, tLZTeamData[subrefLZTThreatAllyCombatTotal] * 0.1) then
+                DelayedConsiderationOfWhetherToIgnoreEnemyBase(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, math.min(60, iDelayInSeconds + 5))
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfBaseToIgnore)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if bOnlyCheckIfBaseToIgnore and iTeam == 4 then bDebugMessages = true end
     while not(bMapLandSetupComplete) or not(bWaterZoneInitialCreation) do
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
@@ -3939,15 +3963,48 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
     local tAllyBases = {}
     local iFriendlyBrainCount = 0
     local tBrainsByIndex = {}
-    if bDebugMessages == true then LOG(sFunctionRef..': About to record enemy brains in table of enemy bases, is table of enemy brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to record enemy brains in table of enemy bases, is table of enemy brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]))..'; iTeam='..iTeam) end
+    local bIgnoreThisEnemyBase
+    local toIgnoredBrains
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
             if not(oBrain.M28IsDefeated) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy base for brain '..oBrain.Nickname..' with index='..oBrain:GetArmyIndex()..'; location='..repru(GetPlayerStartPosition(oBrain))..'; Island ref of the base='..(NavUtils.GetTerrainLabel(refPathingTypeLand, GetPlayerStartPosition(oBrain)) or 'nil')) end
+                bIgnoreThisEnemyBase = false
+                if bOnlyCheckIfBaseToIgnore then
+                    local tLZOrWZData, tLZOrWZTeamData = GetLandOrWaterZoneData(GetPlayerStartPosition(oBrain), true, iTeam)
+                    if (tLZOrWZTeamData[subrefThreatEnemyStructureTotalMass] == 0 and (tLZOrWZTeamData[subrefMexCountByTech][1] > 0 or tLZOrWZTeamData[subrefMexCountByTech][2] > 0 or tLZOrWZTeamData[subrefMexCountByTech][3] > 0 or (tLZOrWZTeamData[subrefLZSValue] or 0) >= 80))
+                    or (tLZOrWZTeamData[subrefLZSValue] > 0 and tLZOrWZTeamData[subrefLZTThreatAllyCombatTotal] >= tLZOrWZTeamData[subrefTThreatEnemyCombatTotal] and ((tLZOrWZTeamData[subrefThreatEnemyStructureTotalMass] or 0) == 0 or (tLZOrWZTeamData[subrefLZSValue] >= 1000 and tLZOrWZTeamData[subrefMexCountByTech][1] + tLZOrWZTeamData[subrefMexCountByTech][2] + tLZOrWZTeamData[subrefMexCountByTech][3] >= tLZOrWZTeamData[subrefLZMexCount]))) then
+                        bIgnoreThisEnemyBase = true
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to ignore enemy brain '..oBrain.Nickname..'; tLZOrWZTeamData[subrefThreatEnemyStructureTotalMass]='..(tLZOrWZTeamData[subrefThreatEnemyStructureTotalMass] or 'nil')..'; Our t1 mex count='..(tLZOrWZTeamData[subrefMexCountByTech][1])..'; T2='..(tLZOrWZTeamData[subrefMexCountByTech][2])..'; S Value='..(tLZOrWZTeamData[subrefLZSValue] or 'nil')..'; bIgnoreThisEnemyBase='..tostring(bIgnoreThisEnemyBase or false)) end
+                end
+                if bIgnoreThisEnemyBase then
+                    if not(toIgnoredBrains) then toIgnoredBrains = {} end
+                    table.insert(toIgnoredBrains, oBrain)
+                    if not(oBrain[refbIgnoreForNearestPlayerIndexByTeam]) then oBrain[refbIgnoreForNearestPlayerIndexByTeam] = {} end
+                    oBrain[refbIgnoreForNearestPlayerIndexByTeam][iTeam] = true
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy base for brain '..oBrain.Nickname..' with index='..oBrain:GetArmyIndex()..'; location='..repru(GetPlayerStartPosition(oBrain))..'; Island ref of the base='..(NavUtils.GetTerrainLabel(refPathingTypeLand, GetPlayerStartPosition(oBrain)) or 'nil')) end
+                    table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
+                    tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+                    if oBrain[refbIgnoreForNearestPlayerIndexByTeam][iTeam] then oBrain[refbIgnoreForNearestPlayerIndexByTeam][iTeam] = nil end
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tEnemyBases) and M28Utilities.IsTableEmpty(toIgnoredBrains) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont have any enemy bases recorded so will add those we were planning on ignoring') end
+            for iBrain, oBrain in toIgnoredBrains do
                 table.insert(tEnemyBases, GetPlayerStartPosition(oBrain))
                 tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
             end
+            toIgnoredBrains = nil
         end
+
+    end
+    if bOnlyCheckIfBaseToIgnore and M28Utilities.IsTableEmpty(toIgnoredBrains) and bNearestEnemyBaseLZSetupComplete then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will abort as no brains to ignore') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return nil
     end
 
     function IsInPlayableArea(tLocation)
@@ -3974,6 +4031,12 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         if aiBrain then
             table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
+        end
+    elseif M28Utilities.IsTableEmpty(toIgnoredBrains) == false then
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Updated primary enemy base location for brain '..oBrain.Nickname..'; Enemy base before update='..repru(GetPrimaryEnemyBaseLocation(oBrain))) end
+            UpdateNewPrimaryBaseLocation(oBrain, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Updated primary enemy base location for brain '..oBrain.Nickname..'; Enemy base after update='..repru(GetPrimaryEnemyBaseLocation(oBrain))) end
         end
     end
 
@@ -5207,7 +5270,7 @@ function UpdateNewPrimaryBaseLocation(aiBrain, bIgnoreIfDefeated)
     local sFunctionRef = 'UpdateNewPrimaryBaseLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if aiBrain.M28Team == 4 and GetGameTimeSeconds() >= 17*60 then bDebugMessages = true end
     --LOG(sFunctionRef..': aiBrain='..aiBrain:GetArmyIndex()..'; Start position='..(aiBrain:GetArmyIndex() or 'nil'))
     if bDebugMessages == true then
         LOG(sFunctionRef..': About to get new primary base location for brain '..(aiBrain.Nickname or 'nil')..' unless it is civilian or defeated, aiBrain.BrainType='..(aiBrain.BrainType or 'nil')..'; time='..GetGameTimeSeconds())
