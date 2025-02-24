@@ -1692,7 +1692,6 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
     local sFunctionRef = 'GetNearestLandRallyPoint'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Gets the location of the nearest rally point; if bAmphibiousPathing is true then will consider other islands, otherwise will only consider current island
-
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau]) == false then
         local iCurDist
         local iClosestDist = 100000
@@ -1800,7 +1799,7 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
                     end
 
                     --Does the closest first zone closer to the enemy and has significantly more enemy combat threat than the second closest first zone?
-                    if bDebugMessages == true then LOG(sFunctionRef..': iLandZone='..iLandZone..'; iPlateua='..iPlateau..'; First closest LZ='..iClosestFirstZone..'; Second closest first zone='..iSecondClosestFirstZone..'; ClosestFirstZoneModDist%='..(tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Second closest='..(tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Closest net combat='..iClosestGrossThreat..'; Second closest net combat='.. iSecondClosestGrossThreat..'; iSecondClosestLZRef='..(iSecondClosestLZRef or 'nil')..'; iSecondClosestDist='..iSecondClosestDist..'; iClosestGrossThreat='..iClosestGrossThreat..'; iSecondClosestGrossThreat='..iSecondClosestGrossThreat) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iLandZone='..iLandZone..'; iPlateua='..iPlateau..'; First closest LZ='..iClosestFirstZone..'; Second closest first zone='..(iSecondClosestFirstZone or 'nil')..'; ClosestFirstZoneModDist%='..(tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Second closest='..(tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Closest net combat='..iClosestGrossThreat..'; Second closest net combat='.. (iSecondClosestGrossThreat or 'nil')..'; iSecondClosestLZRef='..(iSecondClosestLZRef or 'nil')..'; iSecondClosestDist='..(iSecondClosestDist or 'nil')..'; iClosestGrossThreat='..iClosestGrossThreat..'; iSecondClosestGrossThreat='..(iSecondClosestGrossThreat or 'nil')) end
                     if iSecondClosestLZRef and tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] > tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.8 and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 1.2 * (tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Switching rally point so will treat second closest as the actual closest') end
                         iClosestLZRef = iSecondClosestLZRef
