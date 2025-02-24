@@ -352,7 +352,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefGEbDontNeedEngineers = 11
                 subrefbFailedToGetArtiLocation = 12
                 subrefGEbActiveShieldMonitor = 13
-                subrefiCyclesWaitingForEngineer = 14
+                subrefiCyclesWaitingForEngineer = 14 --counts how long we are waiting before we have a valid blueprint we can build; see subrefiCyclesWaitingForConstructionToStart for if we are waiting for construction to start once we have a valid unit
                 subrefGEShieldBlockedFailureCount = 15 --used to stop constantly searching for blocking buildings for a shield
                 subrefGEArtiBlockedFailureCount = 16 --used to stop constantly searching for blocking buildings for an arti
                 subrefGEDefenceBlockedFailureCount = 17
@@ -360,6 +360,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefGEDefenceUnits = 19 --i.e. any 'size 4' units that have been built in defence locations
                 subrefbHaveTooSmallShields = 20 --true if we have a shield that is too small to cover other shields
                 subrefGEbSACUAssigned = 21 --true if at some point we have assigned an SACU (so we will then check for SACUs wanting upgrades in mass overflow)
+                subrefiCyclesWaitingForConstructionToStart = 22 --counts how long we are waiting for construction to actually start before we last did a reassessment
+                subrefbForceRefreshOfArtiToBuild = 23 --true if want to do a GETemplate reassess
 
 
 
