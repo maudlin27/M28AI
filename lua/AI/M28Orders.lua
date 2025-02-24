@@ -283,10 +283,10 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
                 if not(bChangedViaNavigator) then
                     IssueMove({oUnit}, tOrderPosition)
                 end
-                --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'xes03071' then
+                --[[if oUnit:GetAIBrain():GetArmyIndex() == 7 and oUnit.UnitId == 'ual0001' and GetGameTimeSeconds() >= 7*60+45 then
                     LOG('TEMPCODE Just sent issuemove order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; bChangedViaNavigator='..tostring(bChangedViaNavigator)..'; Dist to target='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderPosition))
                     M28Utilities.ErrorHandler('Audit trail', true, true)
-                    M28Utilities.DrawLocation(tOrderPosition, 3) --black
+                    M28Utilities.DrawLocation(tOrderPosition, 3) --black; will cause desync
                 end--]]
             else
                 --We cant move here because weh ave active micro and dont want to override it

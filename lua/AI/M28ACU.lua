@@ -2918,8 +2918,6 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
         local iCurDist
@@ -6597,6 +6595,11 @@ function HaveActionForACUAsEngineer(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateau
 end
 
 function HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData)
+    local sFunctionRef = 'HaveACUSnipeAction'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
     if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) and (oACU[M28UnitInfo.refiDFRange] or 0) >= 20 then
         local oClosestEnemyTarget
         local iClosestEnemyTarget = oACU[M28UnitInfo.refiDFRange] + 30 --dont want ACU to try and attack if its further away than this
@@ -6610,7 +6613,9 @@ function HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOr
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyTarget='..(oClosestEnemyTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyTarget) or 'nil')..'; iClosestEnemyTarget='..(iClosestEnemyTarget or 'nil')..'; Our ACU range='..(oACU[M28UnitInfo.refiDFRange] or 'nil')) end
         if oClosestEnemyTarget then
+            if bDebugMessages == true then LOG(sFunctionRef..': Our ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Target ACU health%='..M28UnitInfo.GetUnitHealthPercent(oClosestEnemyTarget)) end
             if iClosestEnemyTarget < oACU[M28UnitInfo.refiDFRange] - 6 then
                 M28Orders.IssueTrackedAggressiveMove(oACU, oClosestEnemyTarget:GetPosition(), 6, false, 'ACUSni', false)
             else
@@ -6618,6 +6623,7 @@ function HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOr
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 
@@ -6947,6 +6953,7 @@ function SuicideACUIntoSnipeTarget(oACU, oSnipeTarget)
     local iTimeOriginallyInSnipeMode = GetGameTimeSeconds()
     local aiBrain = oACU:GetAIBrain()
     while M28UnitInfo.IsUnitValid(oACU) do
+
         bOnlyAttackIfInExplosionRange = false
         if not(oSnipeTarget.Dead) and GetGameTimeSeconds() - iTimeOriginallyInSnipeMode >= 5 then --5s delay in case could get into a cycle where we say we shoudl suicide in the main logic, then we abort immediately in this loop. at least this way we have 5s of trying to kill them first
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, aiBrain.M28Team)
@@ -6955,13 +6962,16 @@ function SuicideACUIntoSnipeTarget(oACU, oSnipeTarget)
         if IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition()), oACU[M28UnitInfo.refiDFRange], bOnlyAttackIfInExplosionRange) then
             --Move towards enemy unless well within range
             iCurDist = M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), oACU:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to move closer to target or attackmove, oSnipeTarget owner='..oSnipeTarget:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; Is shot blocked='..tostring(M28Logic.IsShotBlocked(oACU, oSnipeTarget, false, nil))) end
             if iCurDist <= 10 and not(M28Logic.IsShotBlocked(oACU, oSnipeTarget, false, nil)) then
                 --Attack target
                 M28Orders.IssueTrackedAggressiveMove(oACU, oSnipeTarget:GetPosition(), 3, false, 'ACUSnipAM', true)
+                if bDebugMessages == true then LOG(sFunctionRef..'L Will attackmove to enemy ACU') end
 
             else
                 --Move to target
                 M28Orders.IssueTrackedMove(oACU, oSnipeTarget:GetPosition(), 3, false, 'ACUSnipM', true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will move to enemy ACU, enemy ACU position='..repru(oSnipeTarget:GetPosition())) end
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)
