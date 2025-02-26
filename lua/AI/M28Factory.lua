@@ -4436,7 +4436,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if oACUToSnipe and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) or iFactoryTechLevel == 1) then
                 if M28Utilities.bLoudModActive and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
                 elseif iFactoryTechLevel == 2 and EntityCategoryContains(categories.UEF, oFactory.UnitId) and ConsiderBuildingCategory(iNormalBomberCategoryToBuild * categories.TECH1) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Low power will build T2 UEF bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Low power will build T1 UEF bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
+                    return sBPIDToBuild
+                elseif iFactoryTechLevel == 2 and EntityCategoryContains(categories.AEON, oFactory.UnitId) and M28Utilities.bFAFActive and ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Low power Aeon T2 air fac so will get spectres for snipe due to their high alpha damage') end
                     return sBPIDToBuild
                 elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Low power sniper, will build bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
@@ -4765,10 +4768,13 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if oACUToSnipe and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) or iFactoryTechLevel == 1) then
                 if M28Utilities.bLoudModActive and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
                 elseif iFactoryTechLevel == 2 and EntityCategoryContains(categories.UEF, oFactory.UnitId) and ConsiderBuildingCategory(iNormalBomberCategoryToBuild * categories.TECH1) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Low power will build T2 UEF bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will build T1 UEF bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
+                    return sBPIDToBuild
+                elseif iFactoryTechLevel == 2 and EntityCategoryContains(categories.AEON, oFactory.UnitId) and M28Utilities.bFAFActive and ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Aeon T2 air fac so will get spectres for snipe due to their high alpha damage') end
                     return sBPIDToBuild
                 elseif ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Low power sniper, will build bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Sniper, will build bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
                     return sBPIDToBuild
                 end
             end
