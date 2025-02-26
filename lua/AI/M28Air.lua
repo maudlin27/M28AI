@@ -567,6 +567,7 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
         WaitTicks(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(ManageOtherAir, iTeam, iAirSubteam) --e.g. mercies
+        ForkThread(M28Team.CheckForHidingACU, iTeam, iAirSubteam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
         if iExtraTicksToWaitBetweenAirCycles > 0 then WaitTicks(iExtraTicksToWaitBetweenAirCycles) end

@@ -9266,8 +9266,17 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with fraction complete '..oUnit:GetFractionComplete()..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time until micro stopped='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0)) end
                 bCurUnitWantsMobileShield = false
                 if oUnit[refbFlaggedForPriorityScout] then
-                    if not(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]) then tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts] = {} end
-                    table.insert(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts], oUnit)
+                    local bRecorded = false
+                    if not(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]) then
+                        tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts] = {}
+                    else
+                        for iRecorded, oRecorded in tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts] do
+                            if oRecorded == oUnit then bRecorded = true break end
+                        end
+                    end
+                    if not(bRecorded) then
+                        table.insert(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts], oUnit)
+                    end
                 end
                 if oUnit:GetFractionComplete() >= 1 then
                     if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
