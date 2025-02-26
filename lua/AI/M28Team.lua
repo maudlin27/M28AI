@@ -304,6 +304,7 @@ tAirSubteamData = {}
     reftiLastTransportDropByPlateauAndZone = 'M28TeamTrLstDpPZ' --[x] is the plateau (0 if water), [y] is the land/water zone; returns gametimeseconds that we last issued an unload order for that zone
     reftiTimeOfLastEngiHunterBomberOrder = 'M28ASTEHn' --Gametimeseconds that last sent a bomber for engi hunter assignment
     refbDontBuildEngiHunterEngineers = 'M28ASTEbBr' --true if one of the air subteam has gone first bomber; also true if we dont want to get engi hunters at all
+    reftoPriorityTorpedoUnitTargets = 'M28ATrpT' --table of units to consider targeting with torpedo bombers if underwater - e.g. to use for ACUs hiding underwater
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -4914,28 +4915,32 @@ function CheckForHidingACU(iTeam, iAirSubteam)
                     aiBrain = oBrain
                     break
                 end
-                for iACU, oACU in tTeamData[iTeam][reftEnemyACUs] do
-                    if not(M28UnitInfo.CanSeeUnit(aiBrain, oACU)) then
-                        if bEnemyHasBigThreat == nil then
-                            bEnemyHasBigThreat = false
-                            --Check no big threat categories
-                            for sReferenceTable, iCategory in tEnemyBigThreatCategories do
-                                if M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]) == false then
-                                    for iBigThreat, oBigThreat in tTeamData[iTeam][sReferenceTable] do
-                                        if not(EntityCategoryContains(categories.COMMAND, oBigThreat.UnitId)) then
-                                            bEnemyHasBigThreat = true
-                                            break
-                                        end
+
+                function CheckForBigThreats()
+                    if bEnemyHasBigThreat == nil then
+                        bEnemyHasBigThreat = false
+                        --Check no big threat categories
+                        for sReferenceTable, iCategory in tEnemyBigThreatCategories do
+                            if M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]) == false then
+                                for iBigThreat, oBigThreat in tTeamData[iTeam][sReferenceTable] do
+                                    if not(EntityCategoryContains(categories.COMMAND, oBigThreat.UnitId)) then
+                                        bEnemyHasBigThreat = true
+                                        break
                                     end
                                 end
                             end
-                            if bEnemyHasBigThreat then break end
                         end
+                    end
+                end
+                for iACU, oACU in tTeamData[iTeam][reftEnemyACUs] do
+                    if not(M28UnitInfo.CanSeeUnit(aiBrain, oACU)) then
+                        CheckForBigThreats()
+                        if bEnemyHasBigThreat then break end
                         bRecorded = false
 
                         if not(tAirSubteamData[iAirSubteam][reftPriorityUnitsWantingAirScout]) then
                             tAirSubteamData[iAirSubteam][reftPriorityUnitsWantingAirScout] = {}
-                        elseif oACU[M28Air.refiTimeLastWantedPriorityAirScout] then
+                        elseif oACU[M28Air.refiTimeLastWantedPriorityAirScout] and M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftPriorityUnitsWantingAirScout]) == false then
                             for iUnit, oUnit in tAirSubteamData[iAirSubteam][reftPriorityUnitsWantingAirScout] do
                                 if oUnit == oACU then bRecorded = true break end
                             end
@@ -4944,6 +4949,21 @@ function CheckForHidingACU(iTeam, iAirSubteam)
                         if not(bRecorded) then
                             if bDebugMessages == true then LOG(sFunctionRef..': recording we have a priority scout target, for enemy ACU owned by '..oACU:GetAIBrain().Nickname) end
                             table.insert(tAirSubteamData[iAirSubteam][reftPriorityUnitsWantingAirScout], oACU)
+                        end
+                    elseif M28UnitInfo.IsUnitUnderwater(oACU) then
+                        CheckForBigThreats()
+                        if bEnemyHasBigThreat then break end
+                        bRecorded = false
+                        if not(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) then
+                            tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] = {}
+                        elseif M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) == false then
+                            for iUnit, oUnit in tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] do
+                                if oUnit == oACU then bRecorded = true end
+                            end
+                        end
+                        if not(bRecorded) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU as a priority target for torpedo bombers') end
+                            table.insert(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets], oACU)
                         end
                     end
                 end
