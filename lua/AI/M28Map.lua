@@ -5899,7 +5899,10 @@ function RecordPondToExpandTo(aiBrain)
                                 end
                             end
                             iCurPondValue = iCurPondValue + iCurMexValue
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adjusting mex value based on mod distance, iCurModDistance='..iCurModDistance..'; iMinModDistanceWanted='..iMinModDistanceWanted..'; iCurMexValue='..iCurMexValue..'; Mod dist%='..(tMexWZTeamData[refiModDistancePercent] or 'nil')) end
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Adjusting mex value based on mod distance, iCurModDistance='..iCurModDistance..'; iMinModDistanceWanted='..iMinModDistanceWanted..'; Dist to our start='..M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tMexInfo[subrefMexLocation])..'; MexX='..tMexInfo[subrefMexLocation][1]..'Z'..tMexInfo[subrefMexLocation][3]..'; iCurMexValue='..iCurMexValue..'; Mod dist%='..(tMexWZTeamData[refiModDistancePercent] or 'nil'))
+                                --if iCurModDistance < iMinModDistanceWanted * 0.75 then M28Utilities.DrawLocation(tMexInfo[subrefMexLocation]) end
+                            end
                         end
 
 
@@ -7881,11 +7884,11 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
     local bDebugMessages = false
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Start of code, GameTime=' .. GetGameTimeSeconds() .. '; aiBrain army index=' .. aiBrain:GetArmyIndex() .. '; tTarget=' .. repru(tTarget) .. '; bUseEnemyStartInstead=' .. tostring((bUseEnemyStartInstead or false)) .. '; will draw the location in white')
         M28Utilities.DrawLocation(tTarget, false, 7, 20, nil)
     end
-
     local iEmergencyRangeToUse = 50
 
     local tStartPos
@@ -7915,6 +7918,9 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
             return iEmergencyRangeToUse, math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
         else
             local bIsBehindUs = true
+            local oClosestEnemyBrainToTarget
+            local iClosestEnemyBrainDistToTarget = 100000
+            local iCurBrainDist
             if bDebugMessages == true then LOG(sFunctionRef .. ': Is table of enemy brains empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]))) end
 
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
@@ -7924,10 +7930,13 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
             else
                 for iEnemyGroup, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
                     if bDebugMessages == true then LOG(sFunctionRef .. ': Distance from target to start=' .. M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) .. '; Distance from start to enemy base=' .. M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain))) end
-
-                    if M28Utilities.GetDistanceBetweenPositions(tTarget, GetPlayerStartPosition(oBrain)) < M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain)) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain)) then
+                    iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tTarget, GetPlayerStartPosition(oBrain))
+                    if iCurBrainDist < iClosestEnemyBrainDistToTarget then
+                        iClosestEnemyBrainDistToTarget = iCurBrainDist
+                        oClosestEnemyBrainToTarget = oBrain
+                    end
+                    if bIsBehindUs and iCurBrainDist < M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain)) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain)) then
                         bIsBehindUs = false
-                        break
                     end
                 end
             end
@@ -7939,7 +7948,6 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                 return iEmergencyRangeToUse
             else
                 --Cycle through each enemy group and get lowest value, but stop if <= emergency range
-                local iCurDist
                 local iLowestDist = 10000
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
                     iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
@@ -7947,18 +7955,27 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                     --LOUD - even after 10s this can trigger when enemy team is all dead, so only display error after 37s
                     if not(bIsCampaignMap) and GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 5 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 80) then M28Utilities.ErrorHandler('Dont have any enemy brains recorded for team '..aiBrain.M28Team..' so possible something has gone wrong') end
                 else
-                    for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
-                        iCurDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPlayerStartPosition(oBrain))))) * iDistStartToTarget
-                        if bDebugMessages == true then LOG(sFunctionRef .. ': iCurDist for enemy oBrain index ' .. oBrain:GetArmyIndex() .. ' = ' .. iCurDist .. '; Enemy base=' .. repru(PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; tEnemyBase=' .. repru(tEnemyBase) .. '; Angle from start to target=' .. M28Utilities.GetAngleFromAToB(tStartPos, tTarget) .. '; Angle from Start to enemy base=' .. M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; iDistStartToTarget=' .. iDistStartToTarget) end
-
-                        if iCurDist < iLowestDist then
-                            iLowestDist = iCurDist
-                            if iLowestDist < iEmergencyRangeToUse then
-                                iLowestDist = iEmergencyRangeToUse
-                                break
+                    --Redundancy - work out closest enemy brain to the target
+                    if not(oClosestEnemyBrainToTarget) then
+                        for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+                            iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tTarget, GetPlayerStartPosition(oBrain))
+                            if iCurBrainDist < iClosestEnemyBrainDistToTarget then
+                                iClosestEnemyBrainDistToTarget = iCurBrainDist
+                                oClosestEnemyBrainToTarget = oBrain
                             end
                         end
                     end
+                    --Find the closest enemy brain to this position
+                    --for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+
+                    --Make a triangle with the 3 points being our base, the target position, and the enemy base; then fight the rignt angle of that triangle for a line from our base to enemy base; if divide by the dist to enemy base it means we essentially have a % of how close to the enemy baes we are:
+                    iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPlayerStartPosition(oClosestEnemyBrainToTarget))))) * iDistStartToTarget
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': iLowestDist for enemy oBrain index ' .. oClosestEnemyBrainToTarget:GetArmyIndex() .. ' = ' .. iLowestDist .. '; Enemy base=' .. repru(PlayerStartPoints[oClosestEnemyBrainToTarget:GetArmyIndex()]) .. '; tEnemyBase=' .. repru(tEnemyBase) .. '; Angle from start to target=' .. M28Utilities.GetAngleFromAToB(tStartPos, tTarget) .. '; Angle from Start to enemy base=' .. M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oClosestEnemyBrainToTarget:GetArmyIndex()]) .. '; iDistStartToTarget=' .. iDistStartToTarget..'; oClosestEnemyBrainToTarget='..oClosestEnemyBrainToTarget.Nickname) end
+
+                    if iLowestDist < iEmergencyRangeToUse then
+                        iLowestDist = iEmergencyRangeToUse
+                    end
+                    --end
                 end
 
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
