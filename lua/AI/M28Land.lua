@@ -5901,11 +5901,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             oEnemyNearACU = oNearestEnemyToFriendlyBase
                         elseif M28Utilities.IsTableEmpty(tSkirmisherEnemies) == false then
                             local iClosestDFEnemyDistLessRange = 1 --i.e. attack if enemy is within 1 of being in range of our ACU                            for iEnemy, oEnemy in tSkirmisherEnemies do
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oNearestACUToEnemy:GetPosition(), oEnemy:GetPosition()) - (oEnemy[M28UnitInfo.refiDFRange] or 0)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..' with DF range='..(oEnemy[M28UnitInfo.refiDFRange] or 0)..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oNearestACUToEnemy:GetPosition(), oEnemy:GetPosition())) end
-                            if iCurDist < iClosestDFEnemyDistLessRange then
-                                iClosestDFEnemyDistLessRange = iCurDist
-                                oEnemyNearACU = oEnemy
+                            for iEnemy, oEnemy in tSkirmisherEnemies do
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oNearestACUToEnemy:GetPosition(), oEnemy:GetPosition()) - (oEnemy[M28UnitInfo.refiDFRange] or 0)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..' with DF range='..(oEnemy[M28UnitInfo.refiDFRange] or 0)..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oNearestACUToEnemy:GetPosition(), oEnemy:GetPosition())) end
+                                if iCurDist < iClosestDFEnemyDistLessRange then
+                                    iClosestDFEnemyDistLessRange = iCurDist
+                                    oEnemyNearACU = oEnemy
+                                end
                             end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': oNearestACUToEnemy owner='..oNearestACUToEnemy:GetAIBrain().Nickname..'; oEnemyNearACU='..(oEnemyNearACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemyNearACU) or 'nil')) end
