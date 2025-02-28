@@ -5189,7 +5189,7 @@ end
 
 function SetIfLoseGameOnACUDeath(iTeam)
     local bAssassinationOrSimilar = true
-    if ScenarioInfo.Options.Share == 'FullShare' then
+    if ScenarioInfo.Options.Share == 'FullShare' or ScenarioInfo.Options.Victory == 'team_assassination' then
         if tTeamData[iTeam][subrefiActiveM28BrainCount] > 1 then
             bAssassinationOrSimilar = false
         else
