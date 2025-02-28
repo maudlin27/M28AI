@@ -6405,7 +6405,7 @@ function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLa
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, P'..iPlateau..'L'..iLandZone..'; Is oFirstUEF valid='..tostring(M28UnitInfo.IsUnitValid(oFirstUEF))..'; Does GETemplate contain novax='..tostring(M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]))..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, P'..iPlateau..'L'..iLandZone..'; Is oFirstUEF valid='..tostring(M28UnitInfo.IsUnitValid(oFirstUEF))..'; Does GETemplate contain novax='..tostring(M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]))..'; is refoNearbyExperimentalResourceGen empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.refoNearbyExperimentalResourceGen]))..'; Time='..GetGameTimeSeconds()) end
     local bDontConsiderGameEnderDueToExistingConstruction = false
     if bWantToChangeDueToBuildingMultipleGameEnder then
         bDontConsiderGameEnderDueToExistingConstruction = true
@@ -6536,8 +6536,10 @@ function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLa
         end
     end
 
-    --Exclude paragon if we have high mass
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= math.min(800, math.max(350, 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier])) then
+    --Exclude paragon if we have high mass or nearby one (QUIET/LOUD)
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= math.min(800, math.max(350, 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]))
+    or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.refoNearbyExperimentalResourceGen]) == false and (M28Utilities.bQuietModActive or M28Utilities.bLOUDModActive))
+    then
         if bDebugMessages == true then LOG(sFunctionRef..': Want to exclude paragon as we have lots of mass') end
         tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] - M28UnitInfo.refCategoryParagon
     end
@@ -6853,6 +6855,11 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                 ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild, tLocationToBuild, sArtiToBuild)
                 M28Orders.IssueTrackedBuild(oEngineerToBuild, tLocationToBuild, sArtiToBuild, false, 'GEBArt')
                 bTriedBuildingSomething = true
+                tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] = ( tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] or 0) + 1
+                if tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] >= 60 and math.round(tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] / 10) * 10 == tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] then
+                    --Reassess what to build every 10s as we have spent more than a minute trying to build something
+                    GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTableRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, false, false)
+                end
             end
             if oEngineerToBuild[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseEnergyUsage(oEngineerToBuild, false, nil, iTeam) end
             oEngineerToBuild[refbPrimaryBuilder] = true
@@ -7936,12 +7943,17 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                             end
                         end
 
-                        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking how many shields and arti we have in iPlateau='..iPlateau..'; Zone='..iLandZone..'; Template ref='..iTemplateRef..', iCompletedShields='..iCompletedShields..'; iUnderConstructionShields='..iUnderConstructionShields..'; iCompletedArti='..iCompletedArti..'; iUnderConstructionArti='..iUnderConstructionArti..'; Number of engis='..table.getn(tAvailableEngineers)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking how many shields and arti we have in iPlateau='..iPlateau..'; Zone='..iLandZone..'; Template ref='..iTemplateRef..', iCompletedShields='..iCompletedShields..'; iUnderConstructionShields='..iUnderConstructionShields..'; iCompletedArti='..iCompletedArti..'; iUnderConstructionArti='..iUnderConstructionArti..'; Number of engis='..table.getn(tAvailableEngineers)..'; tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart]='..(tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] or 'nil')..'; tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild]='..tostring(tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] or false)..'; Is table of engineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))) end
 
                         --Check shields for cycling once we have a certain number
                         if iCompletedShields >= 3 and (iCompletedM28EasyShields == 0 or iCompletedShields - iCompletedM28EasyShields >= 2) then
                             if bDebugMessages == true then LOG(sFunctionRef..': we have at least 3 shields so will check if we are shield cycling, tTableRef[M28Map.subrefGEbActiveShieldMonitor]='..tostring(tTableRef[M28Map.subrefGEbActiveShieldMonitor] or false)) end
                             ForkThread(M28Building.MonitorShieldsForCycling, tTableRef, iTeam, iLandZone, iTemplateRef)
+                        end
+
+                        if tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] and M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
+                            tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] = false
+                            GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTemplateRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, false, true)
                         end
 
                         --If we dont have a T3 arti even started construction, then build one with the closest engineer able to build the desired category
@@ -7963,6 +7975,8 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                 break
                             end
                         end
+
+                        if iUnderConstructionArti > 0 then tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] = 0 end
 
                         if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
                             local iOrigAvailableEngis = table.getn(tAvailableEngineers)
@@ -8253,7 +8267,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                         end
                     elseif bDebugMessages == true then LOG(sFunctionRef..': We dont have a first engineer')
                     end
-                else
+                    else
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have engineers') end
                 end
 
@@ -8480,7 +8494,8 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                     [M28Map.subrefGEbDontNeedEngineers] = false,
                     [M28Map.subrefbFailedToGetArtiLocation] = false,
                     [M28Map.subrefGEbActiveShieldMonitor] = false,
-                    [M28Map.subrefiCyclesWaitingForEngineer] = 0
+                    [M28Map.subrefiCyclesWaitingForEngineer] = 0,
+                    [M28Map.subrefiCyclesWaitingForConstructionToStart] = 0
                 })
                 iTemplateRef = table.getn(tLZTeamData[M28Map.reftActiveGameEnderTemplates])
                 for _, tLocation in tArtiLocations do
@@ -11641,21 +11656,26 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iBPWanted = math.min(15, iBPWanted)
                 if bHaveLowMass or bHaveLowPower or GetGameTimeSeconds() <= 300 then iBPWanted = math.min(10, iBPWanted) end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Will try and build factory, iBPWanted='..iBPWanted) end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and build factory, iBPWanted='..iBPWanted..'; iFactoriesInLZ='..(iFactoriesInLZ or 'nil')) end
             local bWantAirNotLand
-            if iFactoriesInLZ == 0 then bWantAirNotLand = false
+            if iFactoriesInLZ == 0 then
+                bWantAirNotLand = false
+                if bDebugMessages == true then LOG(sFunctionRef..': No factoreis in LZ so will get land fac') end
             else bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
             end
             local iFactoryAction
-            if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
+            if bWantAirNotLand then
+                if bDebugMessages == true then LOG(sFunctionRef..': want to get air fac instead of land factory') end
+                iFactoryAction = refActionBuildAirFactory
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory not air factory1') end
                 iFactoryAction = refActionBuildLandFactory
             end
             if bHaveLowPower and bWantAirNotLand then iBPWanted = iBPWanted * 0.5 end
 
-            --Change factory action if we already have a particular type under construction
-            local tFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            --Change factory action if we already have a particular type under construction - not sure why added this, but it causes some issues e.g. with building air/land fac when we dont want to
+            --[[local tFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
                 for iUnit, oUnit in tFactoriesInZone do
                     if oUnit:GetFractionComplete() < 1 then
@@ -11664,11 +11684,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         end
                     end
                 end
-            end
+            end--]]
             if iFactoriesInLZ > 1 and bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
                 iBPWanted = 0
             end
             if iBPWanted > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering building factory (or gateway); iFactoryAction= land fac='..tostring(iFactoryAction == refActionBuildLandFactory)) end
                 if M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] >= 2.0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[M28Map.reftiClosestFriendlyM28BrainIndex][M28Economy.refiOurHighestFactoryTechLevel] >= 3 then
                     --Get quantum gateway instead if we dont already have one (but ignore building anything if we dont have much mass)
                     if (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.05) or tLZTeamData[M28Map.subrefMexCountByTech][2] < 2 then

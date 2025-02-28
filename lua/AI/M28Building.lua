@@ -1237,7 +1237,7 @@ end
 
 function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bReturnTMLCountAsWell, iOptionalCategoryWanted, bGetClosestUnitToOurBase)
     --Gets the unit closest to the nearest enemy base that wants TMD; also refreshes the table for any dead units
-    --bGetClosestUnitToOurBase - if true, then instead of nearest enemy base will get closest to our base
+    --bGetClosestUnitToOurBase - if this is true, then instead of nearest enemy base will get closest to our base
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetUnitWantingTMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

@@ -304,6 +304,7 @@ tAirSubteamData = {}
     reftiLastTransportDropByPlateauAndZone = 'M28TeamTrLstDpPZ' --[x] is the plateau (0 if water), [y] is the land/water zone; returns gametimeseconds that we last issued an unload order for that zone
     reftiTimeOfLastEngiHunterBomberOrder = 'M28ASTEHn' --Gametimeseconds that last sent a bomber for engi hunter assignment
     refbDontBuildEngiHunterEngineers = 'M28ASTEbBr' --true if one of the air subteam has gone first bomber; also true if we dont want to get engi hunters at all
+    reftoPriorityTorpedoUnitTargets = 'M28ATrpT' --table of units to consider targeting with torpedo bombers if underwater - e.g. to use for ACUs hiding underwater
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -1832,7 +1833,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                         if bDebugMessages == true then LOG(sFunctionRef..': enemy only has 1 sniperbot, since we have multiple ACUs will risk staying out a little bit longer') end
                                     else
                                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Sniperbot causing dangerous flag to true, sniperbot='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Sniperbot causing refbDangerousForACUs flag to true, sniperbot='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owner='..oUnit:GetAIBrain().Nickname) end
                                     end
                                 end
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) then
@@ -1843,7 +1844,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 2 and not(tTeamData[iTeam][refbAssassinationOrSimilar]) and not(EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber, oUnit.UnitId)) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Wont flag that it is dangerous for ACUs yet just because enemy has t3 air fac') end
                                     else
-                                        if bDebugMessages == true then LOG(sFunctionRef..': enemy T3 air to ground unit so no longer safe for ACUs') end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': enemy T3 air to ground unit so no longer safe for ACUs, setting refbDangerousForACUs to true') end
                                         tTeamData[iTeam][refbDangerousForACUs] = true
                                     end
                                 end
@@ -1906,7 +1907,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
                                 --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
                                 if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) and EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU') end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU, refbDangerousForACUs is now true') end
                                     tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                                 end
                             elseif M28Conditions.IsUnitLongRangeThreat(oUnit) then
@@ -1967,7 +1968,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     if not(tTeamData[aiBrain.M28Team][refbAssassinationOrSimilar]) and tTeamData[aiBrain.M28Team][subrefiActiveM28BrainCount] >= 3 and tTeamData[aiBrain.M28Team][refiConstructedExperimentalCount] == 0 then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Exp level but we are in full share and we havent constructed any yet so will delay ACU retreat') end
                                     else
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU') end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, setting refbDangerousForACUs for ACU') end
                                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                                     end
                                 end
@@ -3235,7 +3236,7 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
                         end
                     end
                 end
-                if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2) then
+                if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or (oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2 and (M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) or oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2))) then
                     if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ)) then
                         tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH2, false, true)
                         if M28Utilities.IsTableEmpty(tPotentialUnits) == false then
@@ -4691,15 +4692,16 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     local bAddAsSnipeTarget = false
+    local bIsUnderwater
     --Low health%:
-    if not(M28UnitInfo.IsUnitUnderwater(oUnit)) and M28UnitInfo.IsUnitValid(oUnit) then
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        bIsUnderwater = M28UnitInfo.IsUnitUnderwater(oUnit)
         local iCurHealth = oUnit:GetHealth() oUnit:GetMaxHealth()
         local iMaxHealth = oUnit:GetMaxHealth()
         local iHealthPercent = iCurHealth / iMaxHealth
         local iBaseHealthThreshold = 0.5
+        if bIsUnderwater then iBaseHealthThreshold = 0.3 end
         if oUnit[M28UnitInfo.refbIsSnipeTarget] then iBaseHealthThreshold = iBaseHealthThreshold+ 0.1 end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
         if iHealthPercent < iBaseHealthThreshold then
@@ -4726,9 +4728,11 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                     local iBrainCount = 0
                     local iHighestRating = -1000
                     for iBrain, oBrain in tTeamData[oUnit:GetAIBrain().M28Team][subreftoFriendlyHumanAndAIBrains] do
-                        iTotalRating = iTotalRating + (oBrain.Rating or 0)
-                        iBrainCount = iBrainCount + 1
-                        iHighestRating = math.max(iHighestRating, oBrain.Rating)
+                        if not(oBrain:IsDefeated()) then
+                            iTotalRating = iTotalRating + (oBrain.Rating or 0)
+                            iBrainCount = iBrainCount + 1
+                            iHighestRating = math.max(iHighestRating, oBrain.Rating)
+                        end
                     end
                     if iBrainCount > 1 and oUnit:GetAIBrain().Rating < math.min(iTotalRating / iBrainCount, iHighestRating - 500) then
                         bLowRatedTarget = true
@@ -4836,27 +4840,34 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                         end
                     end
                     if bAddAsSnipeTarget then
-                        --Does the target have fixed shield coverage?
+                        --Does the target have fixed shield coverage, or significant mobile shield coverage (WZ)?
                         local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether enemy target has fixed shield coverage, (tTargetLZTeamData[M28Map.subrefThreatEnemyShield]='..(tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0)) end
-                        if (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
-                            local tFixedAndMobileShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
-                            local iMaxDistanceToShield = 10
-                            local iCurDist, iCurShield, iMaxShield
-                            if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMaxDistanceToShield = 0 end
-                            if M28Utilities.IsTableEmpty(tFixedAndMobileShields) == false then
-                                for iShield, oShield in tFixedAndMobileShields do
-                                    if M28UnitInfo.IsUnitValid(oShield) then
-                                        iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurShield='..iCurShield..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oUnit:GetPosition())..'; Shield radius='..(oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5) end
-                                        if iCurShield >= 4000 or (iCurShield >= 2000 and iCurShield / iMaxShield >= 0.4) then
-                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition())
-                                            if iCurDist <= iMaxDistanceToShield then
-                                                bAddAsSnipeTarget = false
-                                            else
-                                                local iShieldRadius = (oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5
-                                                if iCurDist - iShieldRadius <= iMaxDistanceToShield then
+                        if bIsUnderwater then
+                            if (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
+                                bAddAsSnipeTarget = false
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has shields in this WZ') end
+                            end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether enemy target has fixed shield coverage, (tTargetLZTeamData[M28Map.subrefThreatEnemyShield]='..(tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0)) end
+                            if (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
+                                local tFixedAndMobileShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                                local iMaxDistanceToShield = 10
+                                local iCurDist, iCurShield, iMaxShield
+                                if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMaxDistanceToShield = 0 end
+                                if M28Utilities.IsTableEmpty(tFixedAndMobileShields) == false then
+                                    for iShield, oShield in tFixedAndMobileShields do
+                                        if M28UnitInfo.IsUnitValid(oShield) then
+                                            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurShield='..iCurShield..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oUnit:GetPosition())..'; Shield radius='..(oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5) end
+                                            if iCurShield >= 4000 or (iCurShield >= 2000 and iCurShield / iMaxShield >= 0.4) then
+                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition())
+                                                if iCurDist <= iMaxDistanceToShield then
                                                     bAddAsSnipeTarget = false
+                                                else
+                                                    local iShieldRadius = (oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5
+                                                    if iCurDist - iShieldRadius <= iMaxDistanceToShield then
+                                                        bAddAsSnipeTarget = false
+                                                    end
                                                 end
                                             end
                                         end
@@ -4869,8 +4880,46 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Near end of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for iTeam='..iTeam..', was this a snipe target before='..tostring((oUnit[M28UnitInfo.refbIsSnipeTarget] or false))..'; bAddAsSnipeTarget='..tostring(bAddAsSnipeTarget)..'; Time='..GetGameTimeSeconds()) end
-    if bAddAsSnipeTarget == (oUnit[M28UnitInfo.refbIsSnipeTarget] or false) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished deciding if want to add as a snipe target, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for iTeam='..iTeam..', was this a snipe target before='..tostring((oUnit[M28UnitInfo.refbIsSnipeTarget] or false))..'; bAddAsSnipeTarget='..tostring(bAddAsSnipeTarget)..'; bIsUnderwater='..tostring(bIsUnderwater)..'; Time='..GetGameTimeSeconds()) end
+    if bIsUnderwater then
+        local bRecordedAlready
+        local tbSubteamsChecked = {}
+        local iAirSubteam
+        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+            iAirSubteam = oBrain.M28AirSubteam
+            if not(tbSubteamsChecked[iAirSubteam]) then
+                tbSubteamsChecked[iAirSubteam] = true
+                bRecordedAlready = false
+                if M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) == false then
+                    for iRecorded, oRecorded in tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] do
+                        if oRecorded == oUnit then
+                            bRecordedAlready = true
+                            break
+                        end
+                    end
+                end
+                if bAddAsSnipeTarget == bRecordedAlready then
+                    --Do nothing
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to add to the air subteam '..iAirSubteam..'; bAddAsSnipeTarget='..tostring(bAddAsSnipeTarget)..'; havent recorded already') end
+                    if bAddAsSnipeTarget then
+                        if tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] == nil then tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] = {} end
+                        table.insert(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets], oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding to priority torpedo unit targets') end
+                    else
+                        if M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) == false then --redundancy
+                            for iRecorded, oRecorded in M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) do
+                                if oRecorded == oUnit then
+                                    table.remove(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets], iRecorded)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    elseif bAddAsSnipeTarget == (oUnit[M28UnitInfo.refbIsSnipeTarget] or false) then
         --Do nothing
     else
         --Are either removing or adding to snipe table
@@ -4888,6 +4937,90 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function CheckForHidingACU(iTeam, iAirSubteam)
+    --Intended to cover humans trying to keep their ACU hidden e.g. in a transport or underwater; called via air team overseer on a loop
+    local sFunctionRef = 'CheckForHidingACU'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering for iTeam='..iTeam..'; iAirSubteam='..iAirSubteam..'; Have air control='..tostring(tAirSubteamData[iAirSubteam][refbHaveAirControl] or false)..'; Highest friendly air fac tech='..(tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] or 'nil')..'; Gross mass='..(tTeamData[iTeam][subrefiTeamGrossMass] or 'nil')..'; Enemy air to ground='..(tTeamData[iAirSubteam][refiEnemyAirToGroundThreat] or 'nil')..'; Our bomber threat='..(tAirSubteamData[iAirSubteam][subrefiOurBomberThreat] or 'nil')..'; Our gunship threat='..(tAirSubteamData[iAirSubteam][subrefiOurGunshipThreat] or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if tAirSubteamData[iAirSubteam][refbHaveAirControl] and tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] >= 3 and tTeamData[iTeam][subrefiTeamGrossMass] >= 20 and math.max(tTeamData[iAirSubteam][refiEnemyAirToGroundThreat], 500) < math.max(tAirSubteamData[iAirSubteam][subrefiOurBomberThreat], tAirSubteamData[iAirSubteam][subrefiOurGunshipThreat]) * 0.1 then
+        if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyACUs]) == false then
+            --Check we have much more mass than all enemies
+            local iEnemyMass = 0
+            for iBrain, oBrain in tTeamData[iTeam][subreftoEnemyBrains] do
+                if not(oBrain:IsDefeated()) then
+                    iEnemyMass = iEnemyMass + oBrain:GetEconomyIncome('MASS')
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iEnemyMass='..iEnemyMass) end
+            local bEnemyHasBigThreat
+            if iEnemyMass * 10 < math.min(tTeamData[iTeam][subrefiTeamGrossMass], 40) then
+                --for sReferenceTable, iCategory in tEnemyBigThreatCategories do
+                local bRecorded
+                local aiBrain
+                for iBrain, oBrain in tAirSubteamData[iAirSubteam][subreftoFriendlyM28Brains] do
+                    aiBrain = oBrain
+                    break
+                end
+
+                function CheckForBigThreats()
+                    if bEnemyHasBigThreat == nil then
+                        bEnemyHasBigThreat = false
+                        --Check no big threat categories
+                        for sReferenceTable, iCategory in tEnemyBigThreatCategories do
+                            if M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]) == false then
+                                for iBigThreat, oBigThreat in tTeamData[iTeam][sReferenceTable] do
+                                    if not(EntityCategoryContains(categories.COMMAND, oBigThreat.UnitId)) then
+                                        bEnemyHasBigThreat = true
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                for iACU, oACU in tTeamData[iTeam][reftEnemyACUs] do
+                    if not(M28UnitInfo.CanSeeUnit(aiBrain, oACU)) then
+                        CheckForBigThreats()
+                        if bEnemyHasBigThreat then break end
+                        bRecorded = false
+
+                        if not(tAirSubteamData[iAirSubteam][reftPriorityUnitsWantingAirScout]) then
+                            tAirSubteamData[iAirSubteam][reftPriorityUnitsWantingAirScout] = {}
+                        elseif oACU[M28Air.refiTimeLastWantedPriorityAirScout] and M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftPriorityUnitsWantingAirScout]) == false then
+                            for iUnit, oUnit in tAirSubteamData[iAirSubteam][reftPriorityUnitsWantingAirScout] do
+                                if oUnit == oACU then bRecorded = true break end
+                            end
+                        end
+                        oACU[M28Air.refiTimeLastWantedPriorityAirScout] = GetGameTimeSeconds()
+                        if not(bRecorded) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': recording we have a priority scout target, for enemy ACU owned by '..oACU:GetAIBrain().Nickname) end
+                            table.insert(tAirSubteamData[iAirSubteam][reftPriorityUnitsWantingAirScout], oACU)
+                        end
+                    elseif M28UnitInfo.IsUnitUnderwater(oACU) then
+                        CheckForBigThreats()
+                        if bEnemyHasBigThreat then break end
+                        bRecorded = false
+                        if not(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) then
+                            tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] = {}
+                        elseif M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) == false then
+                            for iUnit, oUnit in tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] do
+                                if oUnit == oACU then bRecorded = true end
+                            end
+                        end
+                        if not(bRecorded) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU as a priority target for torpedo bombers') end
+                            table.insert(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets], oACU)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 
 function SnipeOverseer(iTeam)
     local sFunctionRef = 'SnipeOverseer'
@@ -5055,7 +5188,7 @@ end
 
 function SetIfLoseGameOnACUDeath(iTeam)
     local bAssassinationOrSimilar = true
-    if ScenarioInfo.Options.Share == 'FullShare' then
+    if ScenarioInfo.Options.Share == 'FullShare' or ScenarioInfo.Options.Victory == 'team_assassination' then
         if tTeamData[iTeam][subrefiActiveM28BrainCount] > 1 then
             bAssassinationOrSimilar = false
         else

@@ -60,7 +60,6 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     local sFunctionRef = 'UpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitToUpgrade='..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..' owned by '..oUnitToUpgrade:GetAIBrain().Nickname..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])) M28Utilities.ErrorHandler('Audit trail for unit upgrade', true, true) end
 
 
@@ -3327,8 +3326,8 @@ function ConsiderPowerPgenUpgrade(oUnit, iOverrideSecondsToWait)
         WaitSeconds(iTimeToWait)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Is oUnit still valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-    if M28UnitInfo.IsUnitValid(oUnit) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Is oUnit still valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; oUnit[M28UnitInfo.refbTriedUpgrading]='..tostring(oUnit[M28UnitInfo.refbTriedUpgrading] or false)) end
+    if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit[M28UnitInfo.refbTriedUpgrading]) then
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
         local iTeam = oUnit:GetAIBrain().M28Team
         local tLZOrWZData, tLZOrWZTeamData
@@ -3348,6 +3347,7 @@ function ConsiderPowerPgenUpgrade(oUnit, iOverrideSecondsToWait)
                 --Wnat to upgrade pgen
                 if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                 UpgradeUnit(oUnit, true)
+                oUnit[M28UnitInfo.refbTriedUpgrading] = true
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Want t1 spam so will reconsider later') end
                 ForkThread(ConsiderPowerPgenUpgrade, oUnit, 10)

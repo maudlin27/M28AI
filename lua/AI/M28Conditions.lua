@@ -1826,7 +1826,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                         --Also get lots of air facs if we have high gunship/bomber threat and lack air control
-                    elseif iLandFactoriesHave >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= 15000 and not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or iLandFactoriesHave >= 3) and (not(M28Utilities.bLoudModActive) or iLandFactoriesHave >= 4) then
+                    elseif iLandFactoriesHave >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= 15000 and not(TeamHasAirControl(iTeam)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or (aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 2 and iLandFactoriesHave >= 2 and M28Map.iMapSize >= 512 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 2)) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or iLandFactoriesHave >= 3) and (not(M28Utilities.bLoudModActive) or iLandFactoriesHave >= 4) then
                         if bDebugMessages == true then LOG(sFunctionRef..': T3 air, lack air contorl, and have isgnificant gunship/bomber threat, so want more air facs') end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
@@ -1855,7 +1855,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                             if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 0 or M28Map.iMapSize < 512) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.9 or iLandFactoriesHave < 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0)) and
                                     --Also require 1 of the following:
                                     --Same island as enemy base with fewer than 4 land facs
-                                    ((iOurIsland == iEnemyIsland and iLandFactoriesHave < 4 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or M28Map.iMapSize < 512)) or
+                                    ((iOurIsland == iEnemyIsland and iLandFactoriesHave < 4 and (M28Map.iMapSize < 512 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 2 or (aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 2 or iLandFactoriesHave < 2 or (iLandFactoriesHave == 3 or not(aiBrain[M28Overseer.refbPrioritiseAir]) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 2)))) or
                                             --alternatively, same plateau as enemy, and low energy
                                             (iOurPlateau == iEnemyPlateau and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) and ((iLandFactoriesHave < 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4) or (iLandFactoriesHave < 4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.65)))) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': We want land fac1') end
@@ -1901,11 +1901,13 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                             if M28Map.iMapSize < 512 and iEnemyBaseDist <= 512 then
                                                 iLandFactoriesWantedBeforeAir = 4
                                                 iAirFactoriesForEveryLandFactory = 1
-                                            elseif iEnemyBaseDist <= 650 and M28Map.iMapSize <= 512 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 then
+                                            elseif iEnemyBaseDist <= 650 and M28Map.iMapSize <= 512 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 2 or aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 2 or M28Map.iMapSize < 512 or iLandFactoriesHave < 2) then
                                                 iLandFactoriesWantedBeforeAir = 3
                                                 iAirFactoriesForEveryLandFactory = 1
+                                            elseif aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 2 and iLandFactoriesHave >= 2 and M28Map.iMapSize >= 512 then
+                                                iLandFactoriesWantedBeforeAir = 2
+                                                iAirFactoriesForEveryLandFactory = 1
                                             else
-                                                -- and iEnemyBaseDist <=
                                                 iLandFactoriesWantedBeforeAir = 1
                                                 iAirFactoriesForEveryLandFactory = 4
                                                 if M28Map.iMapSize >= 1024 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 then iAirFactoriesForEveryLandFactory = 6 end
@@ -1918,7 +1920,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                                 iAirFactoriesForEveryLandFactory = 4
                                             end
                                         else
-                                            iLandFactoriesWantedBeforeAir = 4
+                                            iLandFactoriesWantedBeforeAir = 5 - aiBrain[M28Economy.refiOurHighestAirFactoryTech]
                                             if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 and not(M28Map.bIsCampaignMap) then
                                                 iAirFactoriesForEveryLandFactory = 0.25
                                                 if M28Map.iMapSize == 256 and iEnemyBaseDist <= 210 then --Dont apply for <256 (e.g. winter duel) where if enemy goes T2 then T1 spam becomes very weak
@@ -2006,7 +2008,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                         iAirFactoriesForEveryLandFactory = math.max(iAirFactoriesForEveryLandFactory, 1)
                                         iLandFactoriesWantedBeforeAir = math.min(iLandFactoriesWantedBeforeAir, 3)
                                     end
-                                    if (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or (M28Utilities.bQuietModActive and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2))) and iLandFactoriesWantedBeforeAir > 3 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 and (M28Map.iMapSize > 256 or iLandFactoriesWantedBeforeAir > 4 or M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 3) then
+                                    if not(M28Utilities.bLoudModActive) and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] < math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2) and iLandFactoriesWantedBeforeAir > 3 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 2 and (M28Map.iMapSize > 256 or iLandFactoriesWantedBeforeAir > 4 or M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] >= 3) then
                                         iLandFactoriesWantedBeforeAir = math.max(3, iLandFactoriesWantedBeforeAir * 0.5)
                                         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 1 then
                                             iAirFactoriesForEveryLandFactory = math.max(iAirFactoriesForEveryLandFactory, 0.75)

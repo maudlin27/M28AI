@@ -567,6 +567,7 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
         WaitTicks(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(ManageOtherAir, iTeam, iAirSubteam) --e.g. mercies
+        ForkThread(M28Team.CheckForHidingACU, iTeam, iAirSubteam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
         if iExtraTicksToWaitBetweenAirCycles > 0 then WaitTicks(iExtraTicksToWaitBetweenAirCycles) end
@@ -4869,9 +4870,9 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
         local tbWaterZonesConsidered = {}
         function AddEnemyTargetsInWaterZone(iWaterZone, bIsPrimaryZoneToAttack, iMaxDistFromAirRallyPointForAdjacentZones)
             --See above for refiAASearchTypes, i.e. refiAvoidAllAA, refiAvoidOnlyGroundAA, refiIgnoreAllAA
-            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemytargetsi n water zone '..iWaterZone..'; bIsPrimaryZoneToAttack='..tostring(bIsPrimaryZoneToAttack or false)..'; tbAdjacentWaterZonesConsidered[iWaterZone]='..tostring(tbAdjacentWaterZonesConsidered[iWaterZone] or false)..'; tbWaterZonesConsidered[iWaterZone]='..tostring(tbWaterZonesConsidered[iWaterZone] or false)) end            
+            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemytargetsi n water zone '..iWaterZone..'; bIsPrimaryZoneToAttack='..tostring(bIsPrimaryZoneToAttack or false)..'; tbAdjacentWaterZonesConsidered[iWaterZone]='..tostring(tbAdjacentWaterZonesConsidered[iWaterZone] or false)..'; tbWaterZonesConsidered[iWaterZone]='..tostring(tbWaterZonesConsidered[iWaterZone] or false)) end
             if not(tbAdjacentWaterZonesConsidered[iWaterZone]) and (bIsPrimaryZoneToAttack or not(tbWaterZonesConsidered[iWaterZone])) then
-                local iFurthestUnitFromRallyForZone = 0                
+                local iFurthestUnitFromRallyForZone = 0
                 tbWaterZonesConsidered[iWaterZone] = true
                 local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
                 local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
@@ -4958,10 +4959,9 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                     end
                     tbAdjacentWaterZonesConsidered[iWaterZone] = true
                 end
-            end            
+            end
         end
-
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of defence water zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of defence water zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]))..'; Is reftoPriorityTorpedoUnitTargets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoPriorityTorpedoUnitTargets]))) end
         local tiWaterZoneByDistance = {}
         local tStartLZOrWZData
         local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyPoint)
@@ -4989,7 +4989,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
             end
         end
 
-        if M28Utilities.IsTableEmpty(tiWaterZoneByDistance) == false then
+        if M28Utilities.IsTableEmpty(tiWaterZoneByDistance) == false or (M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoPriorityTorpedoUnitTargets]) == false and M28Utilities.IsTableEmpty(tAvailableBombers) == false) then
             --Cycle through in order of distance
             iTorpBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, true, false, true, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, true, false)
 
@@ -5001,117 +5001,168 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                 iAirAAThreatThreshold = math.min(iTorpBomberThreat * 0.15, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.25)
             end
 
-            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through water zones, iTorpBomberThreat='..iTorpBomberThreat..'; iAirAAThreatThreshold='..iAirAAThreatThreshold..'; tiWaterZoneByDistance='..repru(tiWaterZoneByDistance)) end
-            for iWaterZone, iDistance in M28Utilities.SortTableByValue(tiWaterZoneByDistance, false) do
-                local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
-                local iMassValueOfEnemyUnits = 0
-                if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                    iMassValueOfEnemyUnits = M28UnitInfo.GetMassCostOfUnits(tWZTeamData[M28Map.subrefTEnemyUnits], true)
+            --Consider targeting any priority units first
+            if M28Conditions.IsTableOfUnitsStillValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoPriorityTorpedoUnitTargets]) then
+                local iCurSegmentX, iCurSegmentZ, iTargetWZ, bTooMuchAA, bHaveSeenTargetRecently
+                local toPriorityTargets = {}
+                local aiBrain
+                for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+                    aiBrain = oBrain
+                    break
                 end
-                if iMassValueOfEnemyUnits > 0 then
-                    if iTorpBomberThreat >= 6000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (iTorpBomberThreat >= 4000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 3) then --Have so many torp bombers that dont want to worry about enemy groundAA threat quite as much
-                        if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 then iAAThreatThreshold = iTorpBomberThreat * 0.8
-                        elseif tWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iAAThreatThreshold = iTorpBomberThreat * 0.45
-                        elseif tWZTeamData[M28Map.refiModDistancePercent]  <= 0.75 then iAAThreatThreshold = iTorpBomberThreat * 0.25
-                        else iAAThreatThreshold = iTorpBomberThreat * 0.2
+                for iPriority, oPriority in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoPriorityTorpedoUnitTargets] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering priority unit target='..oPriority.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPriority)..' owned by '..oPriority:GetAIBrain().Nickname..'; Current height='..oPriority:GetPosition()[2]..'; Map water height='..M28Map.iMapWaterHeight..'; Water zone at position='..(M28Map.GetWaterZoneFromPosition(oPriority:GetPosition()) or 'nil')) end
+                    if oPriority:GetPosition()[2] <= M28Map.iMapWaterHeight and (M28Map.GetWaterZoneFromPosition(oPriority:GetPosition()) or M28UnitInfo.IsUnitUnderwater(oPriority))  then
+                        iAAThreatThreshold = iTorpBomberThreat * 2
+                        iTargetWZ = oPriority[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]
+                        if not(iTargetWZ) then
+                            iCurSegmentX, iCurSegmentZ = M28Map.GetPathingSegmentFromPosition(oPriority:GetPosition())
+                            iTargetWZ = M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': We have a large torp bomber threat so setting a higher enemy AA threshold as even if we will lose the torps we may want to suicide them') end
-                    elseif GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 5 then
-                        --Havnet attacked for a while, so want more threat than enemy
-                        iAAThreatThreshold = iTorpBomberThreat * 0.4
-                        if iDistance >= 200 then
-                            if tWZTeamData[M28Map.subrefWZbCoreBase] then iAAThreatThreshold = iAAThreatThreshold * 0.75
-                            else
-                                iAAThreatThreshold = iAAThreatThreshold * 0.5
+                        if iTargetWZ then bTooMuchAA = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iTargetWZ, false,      iAAThreatThreshold,     iAirAAThreatThreshold * 3, true, iAirSubteam)
+                        else
+                            bTooMuchAA = false
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': bTooMuchAA='..tostring(bTooMuchAA)..'; iTargetWZ='..(iTargetWZ or 'nil')) end
+                        if not(bTooMuchAA) then
+                            --Can we either see the unit, or have torpedo bombers already attacking it?
+                            bHaveSeenTargetRecently = M28UnitInfo.CanSeeUnit(aiBrain, oPriority)
+                            if not(bHaveSeenTargetRecently) then
+                                if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+                                    for iTorp, oTorp in tAvailableBombers do
+                                        if oTorp[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oPriority then
+                                            bHaveSeenTargetRecently = true
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bHaveSeenTargetRecently='..tostring(bHaveSeenTargetRecently or false)) end
+                            if bHaveSeenTargetRecently then
+                                table.insert(toPriorityTargets, oPriority)
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Havent attacked for a while, so want to delay an attack until we think we have enough threat, i.e. want more mass in torps than enemy has in AA') end
-                    else
-                        if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 then iAAThreatThreshold = iTorpBomberThreat * 0.8
-                        elseif tWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iAAThreatThreshold = iTorpBomberThreat * 0.45
-                        elseif tWZTeamData[M28Map.refiModDistancePercent]  <= 0.75 then iAAThreatThreshold = iTorpBomberThreat * 0.25
-                        else iAAThreatThreshold = iTorpBomberThreat * 0.2
-                        end
-                        --Recently chose to attack here
-                        if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 and tWZTeamData[M28Map.subrefWZbCoreBase] then
-                            iAAThreatThreshold = math.min(iTorpBomberThreat * 1.2, math.max(iTorpBomberThreat * 0.8, iAAThreatThreshold * 1.25))
-                        else
-                            iAAThreatThreshold = math.min(iTorpBomberThreat, math.max(iTorpBomberThreat * 0.5, iAAThreatThreshold * 1.2))
-                        end
-                        if bDebugMessages == true then LOG(sFunctionRef..': We recently chose to attack this zone, so will be much more likely to attack with torps') end
                     end
-                    if iDistance >= 300 then
-                        iAAThreatThreshold = iAAThreatThreshold * (1 + (iDistance - 300) / 300)
-                    end
-                    --Be less liekly to send torp bombers if enemy has significantly more AA covering the target than the damage we would do attacking the target
-                    if iAAThreatThreshold >= 500 and tWZTeamData[M28Map.refiModDistancePercent] >= 0.3 then
-                        if tWZTeamData[M28Map.refiModDistancePercent] >= 0.75 then
-                            iAAThreatThreshold = math.min(iAAThreatThreshold, iMassValueOfEnemyUnits)
-                        elseif tWZTeamData[M28Map.refiModDistancePercent] >= 0.5 then
-                            iAAThreatThreshold = math.min(iAAThreatThreshold, iMassValueOfEnemyUnits * 1.3)
-                        else
-                            iAAThreatThreshold = math.min(iAAThreatThreshold, iMassValueOfEnemyUnits * 1.75)
-                        end
-                    end
-                    if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) then iAAThreatThreshold = iAAThreatThreshold * 0.6 end
-                    --Be much more cautious of enemy AA if they ahve torp defence in the zone
-                    if (tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 0) > 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Reducing AA Threat threshold due to enemy torpedo defence, iAAThreatThreshold before reduction='..iAAThreatThreshold) end
-                        iAAThreatThreshold = iAAThreatThreshold * iAAThreatThreshold / (iAAThreatThreshold + math.min(iAAThreatThreshold * 4, math.min(30, tWZTeamData[M28Map.refiEnemyTorpDefenceCount]) * 500))
-                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority targets empty='..tostring(M28Utilities.IsTableEmpty(toPriorityTargets))) end
+                if M28Utilities.IsTableEmpty(toPriorityTargets) == false then
+                    AssignTorpOrBomberTargets(tAvailableBombers, toPriorityTargets, iAirSubteam)
+                end
+            end
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; iTorpBomberThreat='..iTorpBomberThreat..'; tWZTeamData[M28Map.refiModDistancePercent]='..tWZTeamData[M28Map.refiModDistancePercent]..'; iMassValueOfEnemyUnits='..iMassValueOfEnemyUnits..'; tWZTeamData[M28Map.refiEnemyTorpDefenceCount]='..(tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through water zones, iTorpBomberThreat='..iTorpBomberThreat..'; iAirAAThreatThreshold='..iAirAAThreatThreshold..'; tiWaterZoneByDistance='..repru(tiWaterZoneByDistance)) end
+            if M28Utilities.IsTableEmpty(tAvailableBombers) == false and M28Utilities.IsTableEmpty(M28Utilities.IsTableEmpty(tiWaterZoneByDistance)) == false then
+                for iWaterZone, iDistance in M28Utilities.SortTableByValue(tiWaterZoneByDistance, false) do
+                    local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
+                    local iMassValueOfEnemyUnits = 0
                     if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want to attack, enemy AA threat threshold='..iAAThreatThreshold..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false, iAAThreatThreshold, 0))) end
-
-                        --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA)
-                        if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false,      iAAThreatThreshold,     iAirAAThreatThreshold, true, iAirSubteam)) then
-                            --Add enemies in this water zone and any adjacent water zone
-                            AddEnemyTargetsInWaterZone(iWaterZone, true)
-                            tWZTeamData[M28Map.refiTimeOfLastTorpAttack] = GetGameTimeSeconds()
-                            if bDebugMessages == true then LOG(sFunctionRef..': will attack enemies in this water zone if any valid targets, is tEnemyTargets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyTargets))) end
-                            if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
-                                --Double check the AA threat of assigned enemies isnt too much (redundancy for if our 'include adjacent zone' logic has added some units - will only abort if is significantly higher than what we wanted)
-                                local iEnemyGroundAAThreat = M28UnitInfo.GetAirThreatLevel(tEnemyTargets, true, false, true, false, false, false)
-                                if bDebugMessages == true then LOG(sFunctionRef..': AA threat of all targets='..iEnemyGroundAAThreat..'; will abort if it is too high') end
-                                if iEnemyGroundAAThreat > iAAThreatThreshold * 1.1 then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Will abort the attack as totla enemy AA threat is more than we wanted') end
-                                    break
-                                end
-
-                                --Assign targets by type
-                                local iPriorityCat1 = M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryShieldBoat
-                                local iPriorityCat2 = M28UnitInfo.refCategoryFrigate - iPriorityCat1
-                                local iOtherCat = categories.ALLUNITS - iPriorityCat1 - iPriorityCat2
-                                local tEnemyPriority1 = EntityCategoryFilterDown(iPriorityCat1, tEnemyTargets)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority1 units empty='..tostring(M28Utilities.IsTableEmpty(tEnemyPriority1))) end
-                                if M28Utilities.IsTableEmpty(tEnemyPriority1) == false then
-                                    AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority1, iAirSubteam)
-                                    if M28Utilities.IsTableEmpty(tAvailableBombers) then
-                                        break
-                                    end
-                                end
-                                local tEnemyPriority2 = EntityCategoryFilterDown(iPriorityCat2, tEnemyTargets)
-                                if M28Utilities.IsTableEmpty(tEnemyPriority2) == false then
-                                    AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority2, iAirSubteam)
-                                    if M28Utilities.IsTableEmpty(tAvailableBombers) then
-                                        break
-                                    end
-                                end
-                                local tEnemyOther = EntityCategoryFilterDown(iOtherCat, tEnemyTargets)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Is table tEnemyOther empty='..tostring(M28Utilities.IsTableEmpty(tEnemyOther))) end
-                                if M28Utilities.IsTableEmpty(tEnemyOther) == false then
-                                    AssignTorpOrBomberTargets(tAvailableBombers, tEnemyOther, iAirSubteam)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty after assigning torp targets='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
-                                    if M28Utilities.IsTableEmpty(tAvailableBombers) then
-                                        break
-                                    end
+                        iMassValueOfEnemyUnits = M28UnitInfo.GetMassCostOfUnits(tWZTeamData[M28Map.subrefTEnemyUnits], true)
+                    end
+                    if iMassValueOfEnemyUnits > 0 then
+                        if iTorpBomberThreat >= 6000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (iTorpBomberThreat >= 4000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 3) then --Have so many torp bombers that dont want to worry about enemy groundAA threat quite as much
+                            if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 then iAAThreatThreshold = iTorpBomberThreat * 0.8
+                            elseif tWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iAAThreatThreshold = iTorpBomberThreat * 0.45
+                            elseif tWZTeamData[M28Map.refiModDistancePercent]  <= 0.75 then iAAThreatThreshold = iTorpBomberThreat * 0.25
+                            else iAAThreatThreshold = iTorpBomberThreat * 0.2
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': We have a large torp bomber threat so setting a higher enemy AA threshold as even if we will lose the torps we may want to suicide them') end
+                        elseif GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 5 then
+                            --Havnet attacked for a while, so want more threat than enemy
+                            iAAThreatThreshold = iTorpBomberThreat * 0.4
+                            if iDistance >= 200 then
+                                if tWZTeamData[M28Map.subrefWZbCoreBase] then iAAThreatThreshold = iAAThreatThreshold * 0.75
+                                else
+                                    iAAThreatThreshold = iAAThreatThreshold * 0.5
                                 end
                             end
-                            --Clear enemy targets (incase e.g. we have decided not to attack some of them because we have enough threat assigned already or outside playable area)
-                            tEnemyTargets = {}
+                            if bDebugMessages == true then LOG(sFunctionRef..': Havent attacked for a while, so want to delay an attack until we think we have enough threat, i.e. want more mass in torps than enemy has in AA') end
                         else
-                            tiWZWithTooMuchAA[iWaterZone] = true
+                            if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 then iAAThreatThreshold = iTorpBomberThreat * 0.8
+                            elseif tWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then iAAThreatThreshold = iTorpBomberThreat * 0.45
+                            elseif tWZTeamData[M28Map.refiModDistancePercent]  <= 0.75 then iAAThreatThreshold = iTorpBomberThreat * 0.25
+                            else iAAThreatThreshold = iTorpBomberThreat * 0.2
+                            end
+                            --Recently chose to attack here
+                            if tWZTeamData[M28Map.refiModDistancePercent] <= 0.2 and tWZTeamData[M28Map.subrefWZbCoreBase] then
+                                iAAThreatThreshold = math.min(iTorpBomberThreat * 1.2, math.max(iTorpBomberThreat * 0.8, iAAThreatThreshold * 1.25))
+                            else
+                                iAAThreatThreshold = math.min(iTorpBomberThreat, math.max(iTorpBomberThreat * 0.5, iAAThreatThreshold * 1.2))
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': We recently chose to attack this zone, so will be much more likely to attack with torps') end
+                        end
+                        if iDistance >= 300 then
+                            iAAThreatThreshold = iAAThreatThreshold * (1 + (iDistance - 300) / 300)
+                        end
+                        --Be less liekly to send torp bombers if enemy has significantly more AA covering the target than the damage we would do attacking the target
+                        if iAAThreatThreshold >= 500 and tWZTeamData[M28Map.refiModDistancePercent] >= 0.3 then
+                            if tWZTeamData[M28Map.refiModDistancePercent] >= 0.75 then
+                                iAAThreatThreshold = math.min(iAAThreatThreshold, iMassValueOfEnemyUnits)
+                            elseif tWZTeamData[M28Map.refiModDistancePercent] >= 0.5 then
+                                iAAThreatThreshold = math.min(iAAThreatThreshold, iMassValueOfEnemyUnits * 1.3)
+                            else
+                                iAAThreatThreshold = math.min(iAAThreatThreshold, iMassValueOfEnemyUnits * 1.75)
+                            end
+                        end
+                        if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) then iAAThreatThreshold = iAAThreatThreshold * 0.6 end
+                        --Be much more cautious of enemy AA if they ahve torp defence in the zone
+                        if (tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 0) > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Reducing AA Threat threshold due to enemy torpedo defence, iAAThreatThreshold before reduction='..iAAThreatThreshold) end
+                            iAAThreatThreshold = iAAThreatThreshold * iAAThreatThreshold / (iAAThreatThreshold + math.min(iAAThreatThreshold * 4, math.min(30, tWZTeamData[M28Map.refiEnemyTorpDefenceCount]) * 500))
+                        end
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; iTorpBomberThreat='..iTorpBomberThreat..'; tWZTeamData[M28Map.refiModDistancePercent]='..tWZTeamData[M28Map.refiModDistancePercent]..'; iMassValueOfEnemyUnits='..iMassValueOfEnemyUnits..'; tWZTeamData[M28Map.refiEnemyTorpDefenceCount]='..(tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 'nil')) end
+                        if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want to attack, enemy AA threat threshold='..iAAThreatThreshold..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false, iAAThreatThreshold, 0))) end
+
+                            --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA)
+                            if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false,      iAAThreatThreshold,     iAirAAThreatThreshold, true, iAirSubteam)) then
+                                --Add enemies in this water zone and any adjacent water zone
+                                AddEnemyTargetsInWaterZone(iWaterZone, true)
+                                tWZTeamData[M28Map.refiTimeOfLastTorpAttack] = GetGameTimeSeconds()
+                                if bDebugMessages == true then LOG(sFunctionRef..': will attack enemies in this water zone if any valid targets, is tEnemyTargets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyTargets))) end
+                                if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
+                                    --Double check the AA threat of assigned enemies isnt too much (redundancy for if our 'include adjacent zone' logic has added some units - will only abort if is significantly higher than what we wanted)
+                                    local iEnemyGroundAAThreat = M28UnitInfo.GetAirThreatLevel(tEnemyTargets, true, false, true, false, false, false)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': AA threat of all targets='..iEnemyGroundAAThreat..'; will abort if it is too high') end
+                                    if iEnemyGroundAAThreat > iAAThreatThreshold * 1.1 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will abort the attack as totla enemy AA threat is more than we wanted') end
+                                        break
+                                    end
+
+                                    --Assign targets by type
+                                    local iPriorityCat1 = M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryShieldBoat
+                                    local iPriorityCat2 = M28UnitInfo.refCategoryFrigate - iPriorityCat1
+                                    local iOtherCat = categories.ALLUNITS - iPriorityCat1 - iPriorityCat2
+                                    local tEnemyPriority1 = EntityCategoryFilterDown(iPriorityCat1, tEnemyTargets)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority1 units empty='..tostring(M28Utilities.IsTableEmpty(tEnemyPriority1))) end
+                                    if M28Utilities.IsTableEmpty(tEnemyPriority1) == false then
+                                        AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority1, iAirSubteam)
+                                        if M28Utilities.IsTableEmpty(tAvailableBombers) then
+                                            break
+                                        end
+                                    end
+                                    local tEnemyPriority2 = EntityCategoryFilterDown(iPriorityCat2, tEnemyTargets)
+                                    if M28Utilities.IsTableEmpty(tEnemyPriority2) == false then
+                                        AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority2, iAirSubteam)
+                                        if M28Utilities.IsTableEmpty(tAvailableBombers) then
+                                            break
+                                        end
+                                    end
+                                    local tEnemyOther = EntityCategoryFilterDown(iOtherCat, tEnemyTargets)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is table tEnemyOther empty='..tostring(M28Utilities.IsTableEmpty(tEnemyOther))) end
+                                    if M28Utilities.IsTableEmpty(tEnemyOther) == false then
+                                        AssignTorpOrBomberTargets(tAvailableBombers, tEnemyOther, iAirSubteam)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty after assigning torp targets='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
+                                        if M28Utilities.IsTableEmpty(tAvailableBombers) then
+                                            break
+                                        end
+                                    end
+                                end
+                                --Clear enemy targets (incase e.g. we have decided not to attack some of them because we have enough threat assigned already or outside playable area)
+                                tEnemyTargets = {}
+                            else
+                                tiWZWithTooMuchAA[iWaterZone] = true
+                            end
                         end
                     end
                 end
@@ -5135,7 +5186,10 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
     --Flag if we lack torpedo bombers
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] = false
     if M28Utilities.IsTableEmpty(tAvailableBombers) or M28Utilities.IsTableEmpty(tiWZWithTooMuchAA) == false then
-        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]) == false then
+        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoPriorityTorpedoUnitTargets]) == false then
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Want more torp bombers to deal with priority enemy targets') end
+        elseif M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]) == false then
             local bConsiderEvenIfTooMuchAA = M28Utilities.IsTableEmpty(tAvailableBombers)
             for iEntry, iWaterZone in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones] do
                 if bConsiderEvenIfTooMuchAA or tiWZWithTooMuchAA[iWaterZone] then

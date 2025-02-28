@@ -2640,11 +2640,53 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
         return false
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..' on team '..iTeam..'; Dangerous for ACUs='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])..'; ACU health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Air to ground threat='..tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Team air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Nearby enemy air to ground threat='..M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 0)..'; Mod dist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; Have air control='..tostring(M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbHaveAirControl])..'; Assassinationorsimilar='..tostring(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])..'; Highest individual brain air to ground threat='..M28Conditions.GetHighestAirToGroundThreatForIndividualEnemyBrain(iTeam)..'; Dist to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) end
+    --Cloak or advanced nano - dont retreat in most cases where enemy lacks nearby experimental and odesnt have significant air threat
+    if not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) and (oACU:HasEnhancement('CloakingGenerator') or M28UnitInfo.GetUnitCurHealthAndShield(oACU) >= 30000) and M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) >= 0.95 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering being very aggressive with ACU because it has cloack or advanced nano/equivalent - even if we think it is generally dangerous for ACUs') end
+        local iClosestLandExperimental = 10000
+        local iCurPlateau
+        local oClosestLandExp, iCurDist
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+            for iExp, oExp in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                if not(oExp.Dead) then
+                    if not(iCurPlateau) or NavUtils.GetLabel(refPathingTypeHover, oExp:GetPosition()) == iPlateauOrZero then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oExp:GetPosition(), oACU:GetPosition())
+                        if iCurDist < iClosestLandExperimental then
+                            iClosestLandExperimental = iCurDist
+                            oClosestLandExp = oExp
+                        end
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iClosestLandExperimental='..iClosestLandExperimental..'; will run if it is close (unless have cloak and close to base)') end
+        if iClosestLandExperimental <= 200 and (not(oACU:HasEnhancement('CloakingGenerator')) or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.1 or M28UnitInfo.CanSeeUnit(oClosestLandExp:GetAIBrain(), oACU, false)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': enemy has exp that is too close') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
+
+        --Consider running from very large enemy air to ground threat if we are relatively far from base
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to run from enemy air threat, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Our groundAA='..(tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0)..'; Dist to friendly base='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(iTeam))..'; Highest enemy brain air to ground threat='..M28Conditions.GetHighestAirToGroundThreatForIndividualEnemyBrain(iTeam)) end
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 5000 and (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) <= 1000 and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 180 and not(M28Conditions.TeamHasAirControl(iTeam)) and M28Conditions.GetHighestAirToGroundThreatForIndividualEnemyBrain(iTeam) >= 4000 then
+            --if we are overextending or enemy has nearby air to ground threat then retreat
+            local iDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+            if bDebugMessages == true then LOG(sFunctionRef..': Will retreat if overextending, iDistToFriendlyBase='..iDistToFriendlyBase..'; Mod dist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; Enemy nearby air to ground (aborting at threshold)='..M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 800)) end
+            if tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.2 and iDistToFriendlyBase >= 200 and ((iDistToFriendlyBase >= 300 and tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45) or M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 800)) then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return false
+
+    end
+
     if (M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and (GetGameTimeSeconds() >= 1080 or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.35 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 175))) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 or (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= 400 or
             --Is enemy planning a potential air snipe and we are exposed?
             ((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(500, 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)))
                     and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or (not(M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1200 or M28Team.iPlayersAtGameStart <= 4 or M28Conditions.GetHighestAirToGroundThreatForIndividualEnemyBrain(iTeam) > 400)
-                        and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and (M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 180 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75) and (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.55 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and M28Map.iMapSize >= 1024))) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.95 or oACU[refiUpgradeCount] <= 1 or M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 0) > math.max(100, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2.5))))
+                    and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and (M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 180 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75) and (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.55 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and M28Map.iMapSize >= 1024))) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.95 or oACU[refiUpgradeCount] <= 1 or M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 0) > math.max(100, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2.5))))
             ) then
         if bDebugMessages == true then LOG(sFunctionRef..': Is dangerous for ACU or low health or large enemy air to ground threat so returning to base; First condition row='..tostring(((M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and (GetGameTimeSeconds() >= 1080 or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.35 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 175))) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 or (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= 400) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 or (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= 400)..'; 2nd row condition='..tostring((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(500, 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA] or 0))))..'; 3rd row condition='..tostring((M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or (not(M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1200 or M28Team.iPlayersAtGameStart <= 4 or M28Conditions.GetHighestAirToGroundThreatForIndividualEnemyBrain(iTeam) > 400))))..'; 4th row condition='..tostring((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and (M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 180 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75) and (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.55 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and M28Map.iMapSize >= 1024))) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.95 or oACU[refiUpgradeCount] <= 1 or M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 0) > math.max(100, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2.5)))) end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2701,8 +2743,8 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
 
         --Return to base if enemy has signiifcant air to ground threat and we lack air control, and our mod dist isnt low
         if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(math.min(1000, 400 + math.max(250 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1), (M28Team.iPlayersAtGameStart or 1) * 100)), math.min(750, (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 2), math.min(4000, (M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.subrefiOurAirAAThreat] or 0))) and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbFarBehindOnAir] and ((oACU[refiUpgradeCount] or 0) < 3 or not(oACU:GetHealth() >= 15000 - 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (oACU.MyShield.GetHealth and oACU.MyShield:GetHealth()) >= 7000))
-        --Unless ACU is relatively near our base already and has good health and upgrades
-        and (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.4 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.2 and (oACU[refiUpgradeCount] < 2 or tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.8 or (M28Map.iMapSize >= 1024 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 150))))
+                --Unless ACU is relatively near our base already and has good health and upgrades
+                and (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.4 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.2 and (oACU[refiUpgradeCount] < 2 or tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.8 or (M28Map.iMapSize >= 1024 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 150))))
         then
             if bDebugMessages == true then LOG(sFunctionRef..': Vulnerable to an air snipe so want to retreat, oACU[refiUpgradeCount]='..oACU[refiUpgradeCount]) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2918,8 +2960,6 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
         local iCurDist
@@ -3109,9 +3149,39 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     oACU[refiLastPlateauAndZoneToAttackUnitIn] = {iUnitPlateau, iUnitZone}
                 end
                 if oACU[M28UnitInfo.refbLastShotBlocked] then
-                    --Shot blocked, but we must think we can win the fight or we would be running, so move towards enemy
-                    M28Orders.IssueTrackedMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUBl', false)
-                    if bDebugMessages == true then LOG(sFunctionRef..': ACU shot blocked so will move to enemy') end
+                    --Shot blocked, but we must think we can win the fight or we would be running, so move towards enemy, or (if there is an enemy in range we can hit attack that enemy)
+                    local oEnemyToAttack
+                    if iPlateau > 0 then
+                        --Are we akready targeting an enemy? in which case keep targeting if not blocked
+                        if oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack and M28UnitInfo.IsUnitValid(oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(),oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]:GetPosition()) <= oACU[M28UnitInfo.refiDFRange] and not(M28Logic.IsShotBlocked(oACU, oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget], false, nil)) then
+                            oEnemyToAttack = oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will continue attacking last order target') end
+                        else
+                            local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryLandCombat, oACU:GetPosition(), (oACU[M28UnitInfo.refiDFRange] or 2) - 1, 'Enemy')
+                            local iClosestEnemyNotBlocked = 10000
+                            local iCurDist
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemiesInRange empty='..tostring(M28Utilities.IsTableEmpty( tEnemiesInRange))) end
+                            if M28Utilities.IsTableEmpty( tEnemiesInRange) == false then
+                                for iEnemy, oEnemy in tEnemiesInRange do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Is shot blocked='..tostring(M28Logic.IsShotBlocked(oACU, oEnemy, false, nil))..'; Dist to our ACU='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition())) end
+                                    if not(M28Logic.IsShotBlocked(oACU, oEnemy, false, nil)) then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition())
+                                        if iCurDist < iClosestEnemyNotBlocked then
+                                            oEnemyToAttack = oEnemy
+                                            iClosestEnemyNotBlocked = iCurDist
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Shot is blocked, have chekced if enemy we dont htink will be blocked iwthin our DF range to attack, oEnemyToAttack='..(oEnemyToAttack.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemyToAttack) or 'nil')) end
+                    if oEnemyToAttack then
+                        M28Orders.IssueTrackedAttack(oACU, oEnemyToAttack, false, 'ACUBAt', false)
+                    else
+                        M28Orders.IssueTrackedMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUBl', false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU shot blocked so will move to enemy') end
+                    end
                 else
                     iMaxDistToBeInRange = 1.5
                     local iEnemyHighestDFInThisLZ = 0
@@ -5893,11 +5963,11 @@ function GetACUOrder(aiBrain, oACU)
                                                             if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] >= 30 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 16 or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 11 + (oACU[refiUpgradeCount] or 0) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.8))) then
                                                                 --Consider running if enemy is at T3 or has large air to ground threat, or we have built ltos of T3
                                                                 if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat] or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
-                                                                    if not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]) or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 3) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 then
+                                                                    if not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] <= 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]) or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] >= 3) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 then
                                                                         if bDebugMessages == true then LOG(sFunctionRef..': Although it is quite dangerous for ACUs we wont flag that it is very dangerous just yet due to full share') end
                                                                     else
                                                                         M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] = true
-                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Dangerous for ACU due to general mass income level so will retreat with ACU if not in adjacent LZ from now on. M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat])..'; Is table of engis building experimetnals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]))) end
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': refbDangerousForACUs true for ACU due to general mass income level so will retreat with ACU if not in adjacent LZ from now on. M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat])..'; Is table of engis building experimetnals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]))) end
                                                                     end
                                                                 end
                                                             end
@@ -6597,6 +6667,11 @@ function HaveActionForACUAsEngineer(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateau
 end
 
 function HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData)
+    local sFunctionRef = 'HaveACUSnipeAction'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
     if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) and (oACU[M28UnitInfo.refiDFRange] or 0) >= 20 then
         local oClosestEnemyTarget
         local iClosestEnemyTarget = oACU[M28UnitInfo.refiDFRange] + 30 --dont want ACU to try and attack if its further away than this
@@ -6610,7 +6685,9 @@ function HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOr
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyTarget='..(oClosestEnemyTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyTarget) or 'nil')..'; iClosestEnemyTarget='..(iClosestEnemyTarget or 'nil')..'; Our ACU range='..(oACU[M28UnitInfo.refiDFRange] or 'nil')) end
         if oClosestEnemyTarget then
+            if bDebugMessages == true then LOG(sFunctionRef..': Our ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Target ACU health%='..M28UnitInfo.GetUnitHealthPercent(oClosestEnemyTarget)) end
             if iClosestEnemyTarget < oACU[M28UnitInfo.refiDFRange] - 6 then
                 M28Orders.IssueTrackedAggressiveMove(oACU, oClosestEnemyTarget:GetPosition(), 6, false, 'ACUSni', false)
             else
@@ -6618,6 +6695,7 @@ function HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOr
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 
@@ -6947,6 +7025,7 @@ function SuicideACUIntoSnipeTarget(oACU, oSnipeTarget)
     local iTimeOriginallyInSnipeMode = GetGameTimeSeconds()
     local aiBrain = oACU:GetAIBrain()
     while M28UnitInfo.IsUnitValid(oACU) do
+
         bOnlyAttackIfInExplosionRange = false
         if not(oSnipeTarget.Dead) and GetGameTimeSeconds() - iTimeOriginallyInSnipeMode >= 5 then --5s delay in case could get into a cycle where we say we shoudl suicide in the main logic, then we abort immediately in this loop. at least this way we have 5s of trying to kill them first
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, aiBrain.M28Team)
@@ -6955,13 +7034,16 @@ function SuicideACUIntoSnipeTarget(oACU, oSnipeTarget)
         if IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition()), oACU[M28UnitInfo.refiDFRange], bOnlyAttackIfInExplosionRange) then
             --Move towards enemy unless well within range
             iCurDist = M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), oACU:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to move closer to target or attackmove, oSnipeTarget owner='..oSnipeTarget:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; Is shot blocked='..tostring(M28Logic.IsShotBlocked(oACU, oSnipeTarget, false, nil))) end
             if iCurDist <= 10 and not(M28Logic.IsShotBlocked(oACU, oSnipeTarget, false, nil)) then
                 --Attack target
                 M28Orders.IssueTrackedAggressiveMove(oACU, oSnipeTarget:GetPosition(), 3, false, 'ACUSnipAM', true)
+                if bDebugMessages == true then LOG(sFunctionRef..'L Will attackmove to enemy ACU') end
 
             else
                 --Move to target
                 M28Orders.IssueTrackedMove(oACU, oSnipeTarget:GetPosition(), 3, false, 'ACUSnipM', true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will move to enemy ACU, enemy ACU position='..repru(oSnipeTarget:GetPosition())) end
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)

@@ -352,7 +352,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefGEbDontNeedEngineers = 11
                 subrefbFailedToGetArtiLocation = 12
                 subrefGEbActiveShieldMonitor = 13
-                subrefiCyclesWaitingForEngineer = 14
+                subrefiCyclesWaitingForEngineer = 14 --counts how long we are waiting before we have a valid blueprint we can build; see subrefiCyclesWaitingForConstructionToStart for if we are waiting for construction to start once we have a valid unit
                 subrefGEShieldBlockedFailureCount = 15 --used to stop constantly searching for blocking buildings for a shield
                 subrefGEArtiBlockedFailureCount = 16 --used to stop constantly searching for blocking buildings for an arti
                 subrefGEDefenceBlockedFailureCount = 17
@@ -360,6 +360,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefGEDefenceUnits = 19 --i.e. any 'size 4' units that have been built in defence locations
                 subrefbHaveTooSmallShields = 20 --true if we have a shield that is too small to cover other shields
                 subrefGEbSACUAssigned = 21 --true if at some point we have assigned an SACU (so we will then check for SACUs wanting upgrades in mass overflow)
+                subrefiCyclesWaitingForConstructionToStart = 22 --counts how long we are waiting for construction to actually start before we last did a reassessment
+                subrefbForceRefreshOfArtiToBuild = 23 --true if want to do a GETemplate reassess
 
 
 
@@ -3223,11 +3225,16 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData, tOptionalSt
         iMinZ = tMinPosition[3]
         iMaxX = tMaxPosition[1]
         iMaxZ = tMaxPosition[3]
-        for iSegment, tSegmentXZ in tLZData[subrefLZSegments] do
-            if not(iBaseIslandWanted) then iBaseIslandWanted = NavUtils.GetTerrainLabel(refPathingTypeLand, GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])) end
-            break
-        end
         if bDebugMessages == true then LOG(sFunctionRef..': Min and max position: iMinX='..iMinX..'; iMaxX='..iMaxX..'; iMinZ='..iMinZ..'; iMaxZ='..iMaxZ) end
+    end
+    if not(iBaseIslandWanted) then
+        for iSegment, tSegmentXZ in tLZData[subrefLZSegments] do
+            iBaseIslandWanted = NavUtils.GetTerrainLabel(refPathingTypeLand, GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2]))
+            if iBaseIslandWanted then
+                if bDebugMessages == true then LOG(sFunctionRef..': Didnt have a valid base island (e.g. no mexes, or the mexes we had are on a very small pool of water) so setting iBaseIslandWanted equal to iSegment recorded in the zone='..iSegment) end
+                break
+            end
+        end
     end
     local bUseStartPosition = false
     if tOptionalStartPositionsInZone then
@@ -3242,6 +3249,7 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData, tOptionalSt
     end
     if not(bUseStartPosition) then
         tAverage = {(iMinX + iMaxX)*0.5, 0, (iMinZ + iMaxZ) * 0.5}
+        if bDebugMessages == true then LOG(sFunctionRef..': Setting average position based on min and max X and Z='..repru(tAverage)) end
     end
     iAveragePlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tAverage)
     local iAverageIsland
@@ -3311,6 +3319,7 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData, tOptionalSt
     if not(iAveragePlateau == iPlateau and iAverageLandZone == iZone) then
         iAveragePlateau, iAverageLandZone = GetPlateauAndLandZoneReferenceFromPosition(tAverage, false)
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': iAveragePlateau='..iAveragePlateau..'; iAverageLandZone='..iAverageLandZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]))) end
     if (iAveragePlateau == iPlateau and iAverageLandZone == iZone) or M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]) then
         --Either we have a valid location (in which case fine), or we have no mexes to use as a backup so will just use the midpoint (will cause some issues down the line though e.g. with the LZ not registering as being pathable to other land zones)
         tLZData[subrefMidpoint] = {tAverage[1], GetSurfaceHeight(tAverage[1], tAverage[3]), tAverage[3]}
@@ -3657,12 +3666,11 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
     local sFunctionRef = 'ConsiderAddingTargetLandZoneToDistanceFromBaseTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     --Have we not already considered this?
     if not(tbTempConsideredLandPathingForLZ[iPlateau][iStartLandZone][iTargetLandZone]) then
         local tEnd = tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefMidpoint]
         local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeLand, tStart, tEnd, nil)
-        if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get land path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; tFullPath='..repru(tFullPath)..'; iPathSize='..iPathSize..'; will draw midpoint of the target LZ, and draw the start point, in blue, iDistance='..iDistance..'; straight line dist='..M28Utilities.GetDistanceBetweenPositions(tStart, tEnd))
+        if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get land path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; tFullPath='..repru(tFullPath)..'; iPathSize='..iPathSize..'; will draw midpoint of the target LZ, and draw the start point, in blue, iDistance='..(iDistance or 'nil')..'; straight line dist='..M28Utilities.GetDistanceBetweenPositions(tStart, tEnd))
             M28Utilities.DrawLocation(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefMidpoint])
             M28Utilities.DrawLocation(tStart)
         end
@@ -5891,7 +5899,10 @@ function RecordPondToExpandTo(aiBrain)
                                 end
                             end
                             iCurPondValue = iCurPondValue + iCurMexValue
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adjusting mex value based on mod distance, iCurModDistance='..iCurModDistance..'; iMinModDistanceWanted='..iMinModDistanceWanted..'; iCurMexValue='..iCurMexValue..'; Mod dist%='..(tMexWZTeamData[refiModDistancePercent] or 'nil')) end
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Adjusting mex value based on mod distance, iCurModDistance='..iCurModDistance..'; iMinModDistanceWanted='..iMinModDistanceWanted..'; Dist to our start='..M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tMexInfo[subrefMexLocation])..'; MexX='..tMexInfo[subrefMexLocation][1]..'Z'..tMexInfo[subrefMexLocation][3]..'; iCurMexValue='..iCurMexValue..'; Mod dist%='..(tMexWZTeamData[refiModDistancePercent] or 'nil'))
+                                --if iCurModDistance < iMinModDistanceWanted * 0.75 then M28Utilities.DrawLocation(tMexInfo[subrefMexLocation]) end
+                            end
                         end
 
 
@@ -7873,11 +7884,11 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
     local bDebugMessages = false
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Start of code, GameTime=' .. GetGameTimeSeconds() .. '; aiBrain army index=' .. aiBrain:GetArmyIndex() .. '; tTarget=' .. repru(tTarget) .. '; bUseEnemyStartInstead=' .. tostring((bUseEnemyStartInstead or false)) .. '; will draw the location in white')
         M28Utilities.DrawLocation(tTarget, false, 7, 20, nil)
     end
-
     local iEmergencyRangeToUse = 50
 
     local tStartPos
@@ -7907,6 +7918,9 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
             return iEmergencyRangeToUse, math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
         else
             local bIsBehindUs = true
+            local oClosestEnemyBrainToTarget
+            local iClosestEnemyBrainDistToTarget = 100000
+            local iCurBrainDist
             if bDebugMessages == true then LOG(sFunctionRef .. ': Is table of enemy brains empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]))) end
 
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
@@ -7916,10 +7930,13 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
             else
                 for iEnemyGroup, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
                     if bDebugMessages == true then LOG(sFunctionRef .. ': Distance from target to start=' .. M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) .. '; Distance from start to enemy base=' .. M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain))) end
-
-                    if M28Utilities.GetDistanceBetweenPositions(tTarget, GetPlayerStartPosition(oBrain)) < M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain)) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain)) then
+                    iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tTarget, GetPlayerStartPosition(oBrain))
+                    if iCurBrainDist < iClosestEnemyBrainDistToTarget then
+                        iClosestEnemyBrainDistToTarget = iCurBrainDist
+                        oClosestEnemyBrainToTarget = oBrain
+                    end
+                    if bIsBehindUs and iCurBrainDist < M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain)) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, GetPlayerStartPosition(oBrain)) then
                         bIsBehindUs = false
-                        break
                     end
                 end
             end
@@ -7931,7 +7948,6 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                 return iEmergencyRangeToUse
             else
                 --Cycle through each enemy group and get lowest value, but stop if <= emergency range
-                local iCurDist
                 local iLowestDist = 10000
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
                     iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
@@ -7939,18 +7955,27 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                     --LOUD - even after 10s this can trigger when enemy team is all dead, so only display error after 37s
                     if not(bIsCampaignMap) and GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 5 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 80) then M28Utilities.ErrorHandler('Dont have any enemy brains recorded for team '..aiBrain.M28Team..' so possible something has gone wrong') end
                 else
-                    for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
-                        iCurDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPlayerStartPosition(oBrain))))) * iDistStartToTarget
-                        if bDebugMessages == true then LOG(sFunctionRef .. ': iCurDist for enemy oBrain index ' .. oBrain:GetArmyIndex() .. ' = ' .. iCurDist .. '; Enemy base=' .. repru(PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; tEnemyBase=' .. repru(tEnemyBase) .. '; Angle from start to target=' .. M28Utilities.GetAngleFromAToB(tStartPos, tTarget) .. '; Angle from Start to enemy base=' .. M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; iDistStartToTarget=' .. iDistStartToTarget) end
-
-                        if iCurDist < iLowestDist then
-                            iLowestDist = iCurDist
-                            if iLowestDist < iEmergencyRangeToUse then
-                                iLowestDist = iEmergencyRangeToUse
-                                break
+                    --Redundancy - work out closest enemy brain to the target
+                    if not(oClosestEnemyBrainToTarget) then
+                        for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+                            iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tTarget, GetPlayerStartPosition(oBrain))
+                            if iCurBrainDist < iClosestEnemyBrainDistToTarget then
+                                iClosestEnemyBrainDistToTarget = iCurBrainDist
+                                oClosestEnemyBrainToTarget = oBrain
                             end
                         end
                     end
+                    --Find the closest enemy brain to this position
+                    --for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+
+                    --Make a triangle with the 3 points being our base, the target position, and the enemy base; then fight the rignt angle of that triangle for a line from our base to enemy base; if divide by the dist to enemy base it means we essentially have a % of how close to the enemy baes we are:
+                    iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPlayerStartPosition(oClosestEnemyBrainToTarget))))) * iDistStartToTarget
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': iLowestDist for enemy oBrain index ' .. oClosestEnemyBrainToTarget:GetArmyIndex() .. ' = ' .. iLowestDist .. '; Enemy base=' .. repru(PlayerStartPoints[oClosestEnemyBrainToTarget:GetArmyIndex()]) .. '; tEnemyBase=' .. repru(tEnemyBase) .. '; Angle from start to target=' .. M28Utilities.GetAngleFromAToB(tStartPos, tTarget) .. '; Angle from Start to enemy base=' .. M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oClosestEnemyBrainToTarget:GetArmyIndex()]) .. '; iDistStartToTarget=' .. iDistStartToTarget..'; oClosestEnemyBrainToTarget='..oClosestEnemyBrainToTarget.Nickname) end
+
+                    if iLowestDist < iEmergencyRangeToUse then
+                        iLowestDist = iEmergencyRangeToUse
+                    end
+                    --end
                 end
 
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
