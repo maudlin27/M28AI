@@ -3107,9 +3107,39 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     oACU[refiLastPlateauAndZoneToAttackUnitIn] = {iUnitPlateau, iUnitZone}
                 end
                 if oACU[M28UnitInfo.refbLastShotBlocked] then
-                    --Shot blocked, but we must think we can win the fight or we would be running, so move towards enemy
-                    M28Orders.IssueTrackedMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUBl', false)
-                    if bDebugMessages == true then LOG(sFunctionRef..': ACU shot blocked so will move to enemy') end
+                    --Shot blocked, but we must think we can win the fight or we would be running, so move towards enemy, or (if there is an enemy in range we can hit attack that enemy)
+                    local oEnemyToAttack
+                    if iPlateau > 0 then
+                        --Are we akready targeting an enemy? in which case keep targeting if not blocked
+                        if oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack and M28UnitInfo.IsUnitValid(oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(),oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]:GetPosition()) <= oACU[M28UnitInfo.refiDFRange] and not(M28Logic.IsShotBlocked(oACU, oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget], false, nil)) then
+                            oEnemyToAttack = oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will continue attacking last order target') end
+                        else
+                            local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryLandCombat, oACU:GetPosition(), (oACU[M28UnitInfo.refiDFRange] or 2) - 1, 'Enemy')
+                            local iClosestEnemyNotBlocked = 10000
+                            local iCurDist
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemiesInRange empty='..tostring(M28Utilities.IsTableEmpty( tEnemiesInRange))) end
+                            if M28Utilities.IsTableEmpty( tEnemiesInRange) == false then
+                                for iEnemy, oEnemy in tEnemiesInRange do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Is shot blocked='..tostring(M28Logic.IsShotBlocked(oACU, oEnemy, false, nil))..'; Dist to our ACU='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition())) end
+                                    if not(M28Logic.IsShotBlocked(oACU, oEnemy, false, nil)) then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition())
+                                        if iCurDist < iClosestEnemyNotBlocked then
+                                            oEnemyToAttack = oEnemy
+                                            iClosestEnemyNotBlocked = iCurDist
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Shot is blocked, have chekced if enemy we dont htink will be blocked iwthin our DF range to attack, oEnemyToAttack='..(oEnemyToAttack.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemyToAttack) or 'nil')) end
+                    if oEnemyToAttack then
+                        M28Orders.IssueTrackedAttack(oACU, oEnemyToAttack, false, 'ACUBAt', false)
+                    else
+                        M28Orders.IssueTrackedMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUBl', false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU shot blocked so will move to enemy') end
+                    end
                 else
                     iMaxDistToBeInRange = 1.5
                     local iEnemyHighestDFInThisLZ = 0
