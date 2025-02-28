@@ -4410,7 +4410,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Emergency gunship builder for enemies in this zone, iOurGunshipThreat='..iOurGunshipThreat..'; M28Team.tAirSubteamData[iTeam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iTeam][M28Team.subrefiOurAirAAThreat]) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Emergency gunship builder for enemies in this zone, iOurGunshipThreat='..(iOurGunshipThreat or 'nil')..'; M28Team.tAirSubteamData[iTeam][M28Team.subrefiOurAirAAThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil')) end
             if iOurGunshipThreat == 0 or (iOurGunshipThreat < 600 and (iOurGunshipThreat < 200 * iFactoryTechLevel or iOurGunshipThreat < M28Team.tAirSubteamData[iTeam][M28Team.subrefiOurAirAAThreat]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] == 0 or (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > math.min(500, (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 0.5) and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) < 20 and ((tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) == 0 or tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iFactoryTechLevel * iFactoryTechLevel * 50)))) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have no or almost no gunship threat and enemy lacks airaa so will try and build some, iOurGunshipThreat='..iOurGunshipThreat) end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
@@ -4854,7 +4854,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 end
             end
         else
-            --Adjacent LZs - gunship (enemy ground) or AirAA (enemy air)
+            --Adjacent LZs - gunship (enemy ground) subject to gunship ratio, or AirAA (enemy air)
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -4871,7 +4871,11 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         break
                     end --e.g. some 5km maps the enemy ACU being closer to enemy base than ours can trigger an emergency type response!
                     if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 and (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10 or (not(tLZTeamData[M28Map.refbBaseInSafePosition]) and (M28Map.iMapSize > 512 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.5 > math.min(2000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat])))) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adjacent zone has enemy threat so will try and build gunship, tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Our AirAA='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; Our gunship='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]..'; Our bomber='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adjacent zone has enemy threat so will try and build gunship unless we lack air control and have more mass in air to ground than airaa, tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Our AirAA='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; Our gunship='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]..'; Our bomber='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]) end
+                        if (tAdjLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) <= 1500 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 200 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try getting more AirAA so enemy cant just kill our gunships') end
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
+                        end
                         if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
                         if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
                     end

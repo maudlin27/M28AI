@@ -3236,7 +3236,7 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
                         end
                     end
                 end
-                if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2) then
+                if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or (oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2 and (M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) or oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2))) then
                     if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ)) then
                         tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH2, false, true)
                         if M28Utilities.IsTableEmpty(tPotentialUnits) == false then
