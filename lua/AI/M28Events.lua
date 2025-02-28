@@ -2141,7 +2141,7 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oJustBuilt.UnitId) then M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] = (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) + 1 end
                         if oJustBuilt[M28Building.reftArtiTemplateRefs] then
-                            --Reassess the game-ender to build                            bDebugMessages = true
+                            --Reassess the game-ender to build
                             local tTableRef = M28Map.tAllPlateaus[oJustBuilt[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oJustBuilt[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][iTeam][M28Map.reftActiveGameEnderTemplates][oJustBuilt[M28Building.reftArtiTemplateRefs][3]]
                             if tTableRef then tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] = true end
                             if bDebugMessages == true then LOG(sFunctionRef..': Flagging that we want to refresh the Arti to build for GE template, P'..oJustBuilt[M28Building.reftArtiTemplateRefs][1]..'Z'..oJustBuilt[M28Building.reftArtiTemplateRefs][2]..'T'..oJustBuilt[M28Building.reftArtiTemplateRefs][3]..'; tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild]='..tostring(tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] or false)..'; Is tTableRef nil='..tostring(tTableRef == nil)..'; Time='..GetGameTimeSeconds()) end

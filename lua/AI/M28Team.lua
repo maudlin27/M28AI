@@ -4691,7 +4691,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
     local sFunctionRef = 'ConsiderAddingUnitAsSnipeTarget'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iTeam == 2 and M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2 then bDebugMessages = true end
+
     local bAddAsSnipeTarget = false
     local bIsUnderwater
     --Low health%:
@@ -5028,7 +5028,6 @@ function SnipeOverseer(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     while true do
-        if iTeam == 2 then bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

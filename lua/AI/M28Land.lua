@@ -6818,7 +6818,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             if iOutrangedThreat / iAvailableCombatUnitThreat >= 0.8 then
                                                 bAttackWithOutrangedDFUnits = true
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Our long ranged threat is only a small proportion of our total combat threat so we will attack with everything') end
-                                            elseif GetGameTimeSeconds() >= 4*60 and iEnemyBestDFRange <= 26 and iFriendlyBestMobileDFRange <= 33 and iOutrangedThreat / iAvailableCombatUnitThreat >= 0.25 and (iEnemyBestStructureDFRange or 0) == 0 and iFirebaseThreatAdjust == 0 and (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) <= 26 then
+                                            elseif iEnemyBestDFRange <= 26 and iFriendlyBestMobileDFRange <= 33 and iOutrangedThreat / iAvailableCombatUnitThreat >= 0.25 and (iEnemyBestStructureDFRange or 0) == 0 and iFirebaseThreatAdjust == 0 and (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) <= 26 then
                                                 bAttackWithOutrangedDFUnits = true
                                                 if bDebugMessages == true then LOG(sFunctionRef..': our and enemy ranges suggest may still be at the t1 stage so will attack as a significant part of our force is SR units, and overall we think we have enough threat to handle enemy') end
                                             elseif iOutrangedThreat > iEnemyCombatThreat * 1.5 then

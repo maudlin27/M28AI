@@ -4961,7 +4961,6 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                 end
             end
         end
-        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoPriorityTorpedoUnitTargets]) == false then bDebugMessages = true end
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of defence water zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]))..'; Is reftoPriorityTorpedoUnitTargets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoPriorityTorpedoUnitTargets]))) end
         local tiWaterZoneByDistance = {}
         local tStartLZOrWZData
