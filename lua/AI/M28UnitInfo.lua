@@ -103,6 +103,7 @@ refiUnitMassCost = 'M28UMCs' --for profiling testing
 refbNonM28ExpConstruction = 'M28UUcE' --true if unit has been recorded against the table of non-M28 experimentals being constructed
 refbHaveSeenUnitByTeam = 'M28UHvSn' --true if we have detected the unit in some way
 refbScoutCombatOverride = 'M28ScCmO' --true if we want the scout to be treated as a normal combat unit
+refbTriedUpgrading = 'M28TrUpgr' --used for buildings like pgens, true if have tried upgrading (for redundancy to avoid trying to upgrade multiple times)
 
     --Unit micro related
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI

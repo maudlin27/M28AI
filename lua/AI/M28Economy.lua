@@ -3326,8 +3326,8 @@ function ConsiderPowerPgenUpgrade(oUnit, iOverrideSecondsToWait)
         WaitSeconds(iTimeToWait)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Is oUnit still valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-    if M28UnitInfo.IsUnitValid(oUnit) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Is oUnit still valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; oUnit[M28UnitInfo.refbTriedUpgrading]='..tostring(oUnit[M28UnitInfo.refbTriedUpgrading] or false)) end
+    if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit[M28UnitInfo.refbTriedUpgrading]) then
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
         local iTeam = oUnit:GetAIBrain().M28Team
         local tLZOrWZData, tLZOrWZTeamData
@@ -3347,6 +3347,7 @@ function ConsiderPowerPgenUpgrade(oUnit, iOverrideSecondsToWait)
                 --Wnat to upgrade pgen
                 if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                 UpgradeUnit(oUnit, true)
+                oUnit[M28UnitInfo.refbTriedUpgrading] = true
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Want t1 spam so will reconsider later') end
                 ForkThread(ConsiderPowerPgenUpgrade, oUnit, 10)
