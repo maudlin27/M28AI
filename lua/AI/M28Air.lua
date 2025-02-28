@@ -4870,9 +4870,9 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
         local tbWaterZonesConsidered = {}
         function AddEnemyTargetsInWaterZone(iWaterZone, bIsPrimaryZoneToAttack, iMaxDistFromAirRallyPointForAdjacentZones)
             --See above for refiAASearchTypes, i.e. refiAvoidAllAA, refiAvoidOnlyGroundAA, refiIgnoreAllAA
-            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemytargetsi n water zone '..iWaterZone..'; bIsPrimaryZoneToAttack='..tostring(bIsPrimaryZoneToAttack or false)..'; tbAdjacentWaterZonesConsidered[iWaterZone]='..tostring(tbAdjacentWaterZonesConsidered[iWaterZone] or false)..'; tbWaterZonesConsidered[iWaterZone]='..tostring(tbWaterZonesConsidered[iWaterZone] or false)) end            
+            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemytargetsi n water zone '..iWaterZone..'; bIsPrimaryZoneToAttack='..tostring(bIsPrimaryZoneToAttack or false)..'; tbAdjacentWaterZonesConsidered[iWaterZone]='..tostring(tbAdjacentWaterZonesConsidered[iWaterZone] or false)..'; tbWaterZonesConsidered[iWaterZone]='..tostring(tbWaterZonesConsidered[iWaterZone] or false)) end
             if not(tbAdjacentWaterZonesConsidered[iWaterZone]) and (bIsPrimaryZoneToAttack or not(tbWaterZonesConsidered[iWaterZone])) then
-                local iFurthestUnitFromRallyForZone = 0                
+                local iFurthestUnitFromRallyForZone = 0
                 tbWaterZonesConsidered[iWaterZone] = true
                 local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
                 local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
@@ -4959,10 +4959,10 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                     end
                     tbAdjacentWaterZonesConsidered[iWaterZone] = true
                 end
-            end            
+            end
         end
-
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of defence water zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]))) end
+        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoPriorityTorpedoUnitTargets]) == false then bDebugMessages = true end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of defence water zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]))..'; Is reftoPriorityTorpedoUnitTargets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoPriorityTorpedoUnitTargets]))) end
         local tiWaterZoneByDistance = {}
         local tStartLZOrWZData
         local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyPoint)
@@ -5012,17 +5012,19 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                     break
                 end
                 for iPriority, oPriority in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoPriorityTorpedoUnitTargets] do
-                    if M28UnitInfo.IsUnitUnderwater(oPriority) then
-                        iAAThreatThreshold = iTorpBomberThreat * 0.4
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering priority unit target='..oPriority.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPriority)..' owned by '..oPriority:GetAIBrain().Nickname..'; Current height='..oPriority:GetPosition()[2]..'; Map water height='..M28Map.iMapWaterHeight..'; Water zone at position='..(M28Map.GetWaterZoneFromPosition(oPriority:GetPosition()) or 'nil')) end
+                    if oPriority:GetPosition()[2] <= M28Map.iMapWaterHeight and (M28Map.GetWaterZoneFromPosition(oPriority:GetPosition()) or M28UnitInfo.IsUnitUnderwater(oPriority))  then
+                        iAAThreatThreshold = iTorpBomberThreat * 2
                         iTargetWZ = oPriority[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]
                         if not(iTargetWZ) then
                             iCurSegmentX, iCurSegmentZ = M28Map.GetPathingSegmentFromPosition(oPriority:GetPosition())
                             iTargetWZ = M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
                         end
-                        if iTargetWZ then bTooMuchAA = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iTargetWZ, false,      iAAThreatThreshold,     iAirAAThreatThreshold, true, iAirSubteam)
+                        if iTargetWZ then bTooMuchAA = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iTargetWZ, false,      iAAThreatThreshold,     iAirAAThreatThreshold * 3, true, iAirSubteam)
                         else
                             bTooMuchAA = false
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': bTooMuchAA='..tostring(bTooMuchAA)..'; iTargetWZ='..(iTargetWZ or 'nil')) end
                         if not(bTooMuchAA) then
                             --Can we either see the unit, or have torpedo bombers already attacking it?
                             bHaveSeenTargetRecently = M28UnitInfo.CanSeeUnit(aiBrain, oPriority)
@@ -5036,12 +5038,14 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                                     end
                                 end
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bHaveSeenTargetRecently='..tostring(bHaveSeenTargetRecently or false)) end
                             if bHaveSeenTargetRecently then
                                 table.insert(toPriorityTargets, oPriority)
                             end
                         end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority targets empty='..tostring(M28Utilities.IsTableEmpty(toPriorityTargets))) end
                 if M28Utilities.IsTableEmpty(toPriorityTargets) == false then
                     AssignTorpOrBomberTargets(tAvailableBombers, toPriorityTargets, iAirSubteam)
                 end

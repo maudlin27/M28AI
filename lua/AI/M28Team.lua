@@ -4691,16 +4691,17 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
     local sFunctionRef = 'ConsiderAddingUnitAsSnipeTarget'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-
-
+    if iTeam == 2 and M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2 then bDebugMessages = true end
     local bAddAsSnipeTarget = false
+    local bIsUnderwater
     --Low health%:
-    if not(M28UnitInfo.IsUnitUnderwater(oUnit)) and M28UnitInfo.IsUnitValid(oUnit) then
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        bIsUnderwater = M28UnitInfo.IsUnitUnderwater(oUnit)
         local iCurHealth = oUnit:GetHealth() oUnit:GetMaxHealth()
         local iMaxHealth = oUnit:GetMaxHealth()
         local iHealthPercent = iCurHealth / iMaxHealth
         local iBaseHealthThreshold = 0.5
+        if bIsUnderwater then iBaseHealthThreshold = 0.3 end
         if oUnit[M28UnitInfo.refbIsSnipeTarget] then iBaseHealthThreshold = iBaseHealthThreshold+ 0.1 end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
         if iHealthPercent < iBaseHealthThreshold then
@@ -4727,9 +4728,11 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                     local iBrainCount = 0
                     local iHighestRating = -1000
                     for iBrain, oBrain in tTeamData[oUnit:GetAIBrain().M28Team][subreftoFriendlyHumanAndAIBrains] do
-                        iTotalRating = iTotalRating + (oBrain.Rating or 0)
-                        iBrainCount = iBrainCount + 1
-                        iHighestRating = math.max(iHighestRating, oBrain.Rating)
+                        if not(oBrain:IsDefeated()) then
+                            iTotalRating = iTotalRating + (oBrain.Rating or 0)
+                            iBrainCount = iBrainCount + 1
+                            iHighestRating = math.max(iHighestRating, oBrain.Rating)
+                        end
                     end
                     if iBrainCount > 1 and oUnit:GetAIBrain().Rating < math.min(iTotalRating / iBrainCount, iHighestRating - 500) then
                         bLowRatedTarget = true
@@ -4837,27 +4840,34 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                         end
                     end
                     if bAddAsSnipeTarget then
-                        --Does the target have fixed shield coverage?
+                        --Does the target have fixed shield coverage, or significant mobile shield coverage (WZ)?
                         local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether enemy target has fixed shield coverage, (tTargetLZTeamData[M28Map.subrefThreatEnemyShield]='..(tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0)) end
-                        if (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
-                            local tFixedAndMobileShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
-                            local iMaxDistanceToShield = 10
-                            local iCurDist, iCurShield, iMaxShield
-                            if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMaxDistanceToShield = 0 end
-                            if M28Utilities.IsTableEmpty(tFixedAndMobileShields) == false then
-                                for iShield, oShield in tFixedAndMobileShields do
-                                    if M28UnitInfo.IsUnitValid(oShield) then
-                                        iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurShield='..iCurShield..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oUnit:GetPosition())..'; Shield radius='..(oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5) end
-                                        if iCurShield >= 4000 or (iCurShield >= 2000 and iCurShield / iMaxShield >= 0.4) then
-                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition())
-                                            if iCurDist <= iMaxDistanceToShield then
-                                                bAddAsSnipeTarget = false
-                                            else
-                                                local iShieldRadius = (oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5
-                                                if iCurDist - iShieldRadius <= iMaxDistanceToShield then
+                        if bIsUnderwater then
+                            if (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
+                                bAddAsSnipeTarget = false
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has shields in this WZ') end
+                            end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether enemy target has fixed shield coverage, (tTargetLZTeamData[M28Map.subrefThreatEnemyShield]='..(tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0)) end
+                            if (tTargetLZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
+                                local tFixedAndMobileShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+                                local iMaxDistanceToShield = 10
+                                local iCurDist, iCurShield, iMaxShield
+                                if oUnit[M28UnitInfo.refbIsSnipeTarget] then iMaxDistanceToShield = 0 end
+                                if M28Utilities.IsTableEmpty(tFixedAndMobileShields) == false then
+                                    for iShield, oShield in tFixedAndMobileShields do
+                                        if M28UnitInfo.IsUnitValid(oShield) then
+                                            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, false)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurShield='..iCurShield..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oUnit:GetPosition())..'; Shield radius='..(oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5) end
+                                            if iCurShield >= 4000 or (iCurShield >= 2000 and iCurShield / iMaxShield >= 0.4) then
+                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition())
+                                                if iCurDist <= iMaxDistanceToShield then
                                                     bAddAsSnipeTarget = false
+                                                else
+                                                    local iShieldRadius = (oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5
+                                                    if iCurDist - iShieldRadius <= iMaxDistanceToShield then
+                                                        bAddAsSnipeTarget = false
+                                                    end
                                                 end
                                             end
                                         end
@@ -4870,8 +4880,46 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Near end of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for iTeam='..iTeam..', was this a snipe target before='..tostring((oUnit[M28UnitInfo.refbIsSnipeTarget] or false))..'; bAddAsSnipeTarget='..tostring(bAddAsSnipeTarget)..'; Time='..GetGameTimeSeconds()) end
-    if bAddAsSnipeTarget == (oUnit[M28UnitInfo.refbIsSnipeTarget] or false) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished deciding if want to add as a snipe target, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for iTeam='..iTeam..', was this a snipe target before='..tostring((oUnit[M28UnitInfo.refbIsSnipeTarget] or false))..'; bAddAsSnipeTarget='..tostring(bAddAsSnipeTarget)..'; bIsUnderwater='..tostring(bIsUnderwater)..'; Time='..GetGameTimeSeconds()) end
+    if bIsUnderwater then
+        local bRecordedAlready
+        local tbSubteamsChecked = {}
+        local iAirSubteam
+        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+            iAirSubteam = oBrain.M28AirSubteam
+            if not(tbSubteamsChecked[iAirSubteam]) then
+                tbSubteamsChecked[iAirSubteam] = true
+                bRecordedAlready = false
+                if M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) == false then
+                    for iRecorded, oRecorded in tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] do
+                        if oRecorded == oUnit then
+                            bRecordedAlready = true
+                            break
+                        end
+                    end
+                end
+                if bAddAsSnipeTarget == bRecordedAlready then
+                    --Do nothing
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to add to the air subteam '..iAirSubteam..'; bAddAsSnipeTarget='..tostring(bAddAsSnipeTarget)..'; havent recorded already') end
+                    if bAddAsSnipeTarget then
+                        if tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] == nil then tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] = {} end
+                        table.insert(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets], oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding to priority torpedo unit targets') end
+                    else
+                        if M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) == false then --redundancy
+                            for iRecorded, oRecorded in M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) do
+                                if oRecorded == oUnit then
+                                    table.remove(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets], iRecorded)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    elseif bAddAsSnipeTarget == (oUnit[M28UnitInfo.refbIsSnipeTarget] or false) then
         --Do nothing
     else
         --Are either removing or adding to snipe table
@@ -4893,9 +4941,9 @@ end
 function CheckForHidingACU(iTeam, iAirSubteam)
     --Intended to cover humans trying to keep their ACU hidden e.g. in a transport or underwater; called via air team overseer on a loop
     local sFunctionRef = 'CheckForHidingACU'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering for iTeam='..iTeam..'; iAirSubteam='..iAirSubteam..'; Have air control='..tostring(tAirSubteamData[iAirSubteam][refbHaveAirControl] or false)..'; Highest friendly air fac tech='..tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech]..'; Gross mass='..tTeamData[iTeam][subrefiTeamGrossMass]..'; Enemy air to ground='..tTeamData[iAirSubteam][refiEnemyAirToGroundThreat]..'; Our bomber threat='..tAirSubteamData[iAirSubteam][subrefiOurBomberThreat]..'; Our gunship threat='..tAirSubteamData[iAirSubteam][subrefiOurGunshipThreat]..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering for iTeam='..iTeam..'; iAirSubteam='..iAirSubteam..'; Have air control='..tostring(tAirSubteamData[iAirSubteam][refbHaveAirControl] or false)..'; Highest friendly air fac tech='..(tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] or 'nil')..'; Gross mass='..(tTeamData[iTeam][subrefiTeamGrossMass] or 'nil')..'; Enemy air to ground='..(tTeamData[iAirSubteam][refiEnemyAirToGroundThreat] or 'nil')..'; Our bomber threat='..(tAirSubteamData[iAirSubteam][subrefiOurBomberThreat] or 'nil')..'; Our gunship threat='..(tAirSubteamData[iAirSubteam][subrefiOurGunshipThreat] or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if tAirSubteamData[iAirSubteam][refbHaveAirControl] and tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] >= 3 and tTeamData[iTeam][subrefiTeamGrossMass] >= 20 and math.max(tTeamData[iAirSubteam][refiEnemyAirToGroundThreat], 500) < math.max(tAirSubteamData[iAirSubteam][subrefiOurBomberThreat], tAirSubteamData[iAirSubteam][subrefiOurGunshipThreat]) * 0.1 then
         if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyACUs]) == false then
             --Check we have much more mass than all enemies
@@ -4980,6 +5028,7 @@ function SnipeOverseer(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     while true do
+        if iTeam == 2 then bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
