@@ -11656,21 +11656,26 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iBPWanted = math.min(15, iBPWanted)
                 if bHaveLowMass or bHaveLowPower or GetGameTimeSeconds() <= 300 then iBPWanted = math.min(10, iBPWanted) end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Will try and build factory, iBPWanted='..iBPWanted) end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and build factory, iBPWanted='..iBPWanted..'; iFactoriesInLZ='..(iFactoriesInLZ or 'nil')) end
             local bWantAirNotLand
-            if iFactoriesInLZ == 0 then bWantAirNotLand = false
+            if iFactoriesInLZ == 0 then
+                bWantAirNotLand = false
+                if bDebugMessages == true then LOG(sFunctionRef..': No factoreis in LZ so will get land fac') end
             else bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
             end
             local iFactoryAction
-            if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
+            if bWantAirNotLand then
+                if bDebugMessages == true then LOG(sFunctionRef..': want to get air fac instead of land factory') end
+                iFactoryAction = refActionBuildAirFactory
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory not air factory1') end
                 iFactoryAction = refActionBuildLandFactory
             end
             if bHaveLowPower and bWantAirNotLand then iBPWanted = iBPWanted * 0.5 end
 
-            --Change factory action if we already have a particular type under construction
-            local tFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            --Change factory action if we already have a particular type under construction - not sure why added this, but it causes some issues e.g. with building air/land fac when we dont want to
+            --[[local tFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
                 for iUnit, oUnit in tFactoriesInZone do
                     if oUnit:GetFractionComplete() < 1 then
@@ -11679,11 +11684,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         end
                     end
                 end
-            end
+            end--]]
             if iFactoriesInLZ > 1 and bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
                 iBPWanted = 0
             end
             if iBPWanted > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering building factory (or gateway); iFactoryAction= land fac='..tostring(iFactoryAction == refActionBuildLandFactory)) end
                 if M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] >= 2.0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ArmyBrains[M28Map.reftiClosestFriendlyM28BrainIndex][M28Economy.refiOurHighestFactoryTechLevel] >= 3 then
                     --Get quantum gateway instead if we dont already have one (but ignore building anything if we dont have much mass)
                     if (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.05) or tLZTeamData[M28Map.subrefMexCountByTech][2] < 2 then
