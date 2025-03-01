@@ -2942,22 +2942,32 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
             if aiBrain[M28Overseer.refbPrioritiseLowTech] then iBuildCountAdjust = iBuildCountAdjust + math.max(10, iBuildCountAdjust * 0.5)
             elseif aiBrain[M28Overseer.refbPrioritiseHighTech] then iBuildCountAdjust = iBuildCountAdjust - math.max(5, math.min(10, iBuildCountAdjust * 0.5))
             end
-            --Naval fac and this brain doesnt have any upgrading to T2 yet, and enemy has torps
+            --Naval fac and this brain doesnt have any upgrading to T2 yet, and enemy has torps or T2 navy
             if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and iFactoryTechLevel == 1 then
                 local bUpgradingHQForBrain = false
+                local bUpgradingNavalHQForBrain = false
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
                     for iHQ, oHQ in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                         if M28UnitInfo.IsUnitValid(oHQ) and oHQ:GetAIBrain() == aiBrain then
-                            bUpgradingHQForBrain = true
+                            if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oHQ.UnitId) then
+                                bUpgradingHQForBrain = true
+                                bUpgradingNavalHQForBrain = true
+                            elseif M28UnitInfo.GetUnitTechLevel(oHQ) <= iFactoryTechLevel then
+                                bUpgradingHQForBrain = true
+                            end
+
                         end
                     end
                 end
-                if not(bUpgradingHQForBrain) then
-                    if M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': bUpgradingHQForBrain='..tostring(bUpgradingHQForBrain)..'; bUpgradingNavalHQForBrain='..tostring(bUpgradingNavalHQForBrain)) end
+                if not(bUpgradingHQForBrain) or (not(bUpgradingNavalHQForBrain) and not(HaveLowMass(aiBrain)) and not(HaveLowPower(aiBrain.M28Team)))  then
+                    if M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] > iFactoryTechLevel then
                         iBuildCountAdjust = iBuildCountAdjust - math.max(20, iBuildCountAdjust * 0.5)
                     else
                         iBuildCountAdjust = iBuildCountAdjust - math.max(10, iBuildCountAdjust * 0.25)
                     end
+                elseif not(bUpgradingNavalHQForBrain) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] > iFactoryTechLevel) then
+                    iBuildCountAdjust = iBuildCountAdjust - math.max(8,  iBuildCountAdjust * 0.2)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Naval fac, bUpgradingHQForBrain='..tostring(bUpgradingHQForBrain)..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]..'; iBuildCountAdjust='..iBuildCountAdjust) end
             end

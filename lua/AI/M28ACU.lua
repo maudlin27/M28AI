@@ -3364,9 +3364,17 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     end
 
                     --Consider override for kiting retreat if enemy ACU in our range, and we have more health than them, and enemy lacks T2 PD/similar
-                    if oUnitToMoveTo and bWantKitingRetreat and oClosestACU and iClosestACU <= oACU[M28UnitInfo.refiDFRange] and bOutrangeAllACUs and oACU[M28UnitInfo.refiDFRange]  >= math.max((tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)) and (iEnemyT1ArtiAndDFThreatCloseToOurRange <= 1500 or (iOurACUHealthPercent > 0.2 + M28UnitInfo.GetUnitHealthPercent(oClosestACU) and M28UnitInfo.GetUnitHealthPercent(oClosestACU) <= 0.55 and (not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) or oClosestACU:GetHealth() <= 4000))) and (iClosestACU > oClosestACU[M28UnitInfo.refiDFRange] or (iOurACUHealthPercent > 0.2 + M28UnitInfo.GetUnitHealthPercent(oClosestACU) and (oACU[M28UnitInfo.refbLastShotBlocked] or iOurACUHealthPercent > 0.4 + M28UnitInfo.GetUnitHealthPercent(oClosestACU)))) then
-                        if iOurACUHealthPercent >= M28UnitInfo.GetUnitHealthPercent(oClosestACU) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': We are in range of an enemy ACU that we outrange, so want to ignore kiting retreat and go for the kill') end
+                    if oUnitToMoveTo and bWantKitingRetreat and oClosestACU and iClosestACU <= oACU[M28UnitInfo.refiDFRange] then
+                        if bOutrangeAllACUs and oACU[M28UnitInfo.refiDFRange]  >= math.max((tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)) and (iEnemyT1ArtiAndDFThreatCloseToOurRange <= 1500 or (iOurACUHealthPercent > 0.2 + M28UnitInfo.GetUnitHealthPercent(oClosestACU) and M28UnitInfo.GetUnitHealthPercent(oClosestACU) <= 0.55 and (not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) or oClosestACU:GetHealth() <= 4000))) and (iClosestACU > oClosestACU[M28UnitInfo.refiDFRange] or (iOurACUHealthPercent > 0.2 + M28UnitInfo.GetUnitHealthPercent(oClosestACU) and (oACU[M28UnitInfo.refbLastShotBlocked] or iOurACUHealthPercent > 0.4 + M28UnitInfo.GetUnitHealthPercent(oClosestACU)))) then
+                            if iOurACUHealthPercent >= M28UnitInfo.GetUnitHealthPercent(oClosestACU) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': We are in range of an enemy ACU that we outrange, so want to ignore kiting retreat and go for the kill') end
+                                bWantKitingRetreat = false
+                            end
+                        end
+                        --Up against a stealthed ACU and we have good health
+                        if bDebugMessages == true then LOG(sFunctionRef..': iClosestACU='..iClosestACU..'; iOurACUHealthPercent='..iOurACUHealthPercent..'; Does enemy ACU have stealth or nano='..tostring((oClosestACU:HasEnhancement('Stealth') or oClosestACU:HasEnhancement('FAF_SelfRepairSystem')))) end
+                        if bWantKitingRetreat and iClosestACU >= (oACU:GetBlueprint().Intel.VisionRadius or 26) - 4 and iOurACUHealthPercent >= 0.8 and EntityCategoryContains(categories.CYBRAN, oClosestACU.UnitId) and (oClosestACU:HasEnhancement('Stealth') or oClosestACU:HasEnhancement('FAF_SelfRepairSystem')) and (tLZTeamData[M28Map.refiOmniCoverage] or 0) < 50 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Up against cybran acu with stealth so want to stay close to it so we can keep firing') end
                             bWantKitingRetreat = false
                         end
                     end
