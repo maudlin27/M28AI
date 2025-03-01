@@ -3730,6 +3730,9 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     elseif (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with antinavy range '..oUnit[M28UnitInfo.refiAntiNavyRange]..' to combat units of use') end
                         table.insert(tCombatUnitsOfUse, oUnit)
+                    elseif oNearestEnemySurfaceToFriendlyBase and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': since enemy has surface unit and we ahve DF attack we are still of use in combat, adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to combat units of use') end
+                        table.insert(tCombatUnitsOfUse, oUnit)
                     else
                         table.insert(tCombatUnitsWithNoTarget, oUnit)
                         if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with no antinavy range and aoe of '..(oUnit[M28UnitInfo.refiDFAOE] or 0)..' to tCombatUnitsWithNoTarget') end
@@ -4403,7 +4406,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 if not(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSubCombatTargetByPond]) then M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSubCombatTargetByPond] = {} end
                 M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSubCombatTargetByPond][iPond] = GetGameTimeSeconds()
             end
-            if M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false then
+            if M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false and not(oNearestEnemyNonHoverToFriendlyBase) then
                 if not(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSurfaceCombatTargetByPond]) then M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSurfaceCombatTargetByPond] = {} end
                 M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSurfaceCombatTargetByPond][iPond] = GetGameTimeSeconds()
             end
