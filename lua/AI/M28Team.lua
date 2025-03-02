@@ -5078,17 +5078,26 @@ function MonitorLeavingT1SpamMode(iTeam)
                     or tTeamData[iTeam][subrefiHighestFriendlyFactoryTech] >= 3 or tTeamData[iTeam][subrefiHighestFriendlyNavalFactoryTech] >= 2
                     or M28Utilities.IsTableEmpty(tTeamData[iTeam][reftLongRangeEnemyDFUnits]) == false
                     or M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) >= 2 or M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyLandExperimentals]) == false or M28Utilities.IsTableEmpty(tTeamData[iTeam][refiConstructedExperimentalCount]) == false
-                    or M28Overseer.bNoRushActive then
+                    or M28Overseer.bNoRushActive
+            then
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to cancel t1 spam based on one of basic flags') end
                 break
             else
+                local bAllPersonalitiesDontWantSpam = true
+
                 --How many mexes do we have
                 local iTotalMexCount = 0
                 for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                     iTotalMexCount = iTotalMexCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex)
+                    if not(oBrain[M28Overseer.refbPrioritiseDefence] or oBrain[M28Overseer.refbPrioritiseHighTech] or oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Overseer.refbPrioritiseAir]) then
+                        bAllPersonalitiesDontWantSpam = false
+                    end
                 end
                 if (iTotalMexCount >= iMexesWantedToExitPre10m and GetGameTimeSeconds() <= 600) or (iTotalMexCount >= iMexesWantedToExitPost10mOrEnemyT2 and (GetGameTimeSeconds() >= 600 or tTeamData[iTeam][subrefiHighestEnemyGroundTech] >= 2 or tTeamData[iTeam][subrefiHighestEnemyAirTech] >= 2)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to leave as have most of hte mexes on the map') end
+                    break
+                elseif bAllPersonalitiesDontWantSpam then
+                    if bDebugMessages == true then LOG(sFunctionRef..': bAllPersonalitiesDontWantSpam is true so wont do t1 spam') end
                     break
                 end
                 --Exit t1 spam mode early on 10km maps
