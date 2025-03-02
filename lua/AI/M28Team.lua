@@ -4816,7 +4816,10 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                                     local aiBrain = GetFirstActiveM28Brain(iTeam)
                                     local iNearbyThreatToACUSearchDist = 35
                                     if oUnit[M28UnitInfo.refbIsSnipeTarget] then iNearbyThreatToACUSearchDist = 45 end
-                                    local toNearbyDFUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank - M28UnitInfo.refCategorySkirmisher, oUnit:GetPosition(), iNearbyThreatToACUSearchDist, 'Ally')
+                                    local toNearbyDFUnits
+                                    if aiBrain and not(aiBrain:IsDefeated()) then
+                                        toNearbyDFUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank - M28UnitInfo.refCategorySkirmisher, oUnit:GetPosition(), iNearbyThreatToACUSearchDist, 'Ally')
+                                    end
                                     if M28Utilities.IsTableEmpty(toNearbyDFUnits) == false then
                                         local iNearbyFriendlyDFThreat = M28UnitInfo.GetCombatThreatRating(toNearbyDFUnits, false, false)
                                         local iMinThreatWanted

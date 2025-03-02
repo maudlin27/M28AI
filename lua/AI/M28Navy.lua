@@ -1442,7 +1442,37 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                         if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious destination; Unit last orders='..reprs(oUnit[M28Orders.reftiLastOrders])..'; Is command queue empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetCommandQueue()))) end
                             if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                M28Orders.IssueTrackedMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAToLZ'..iLZToSupport..'Fr'..iWaterZone)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Land zone of last order='..(M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) or 'nil')..'; Last order position='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])..'; Unit LC='..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit antinavy='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
+                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 3 and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 and M28Utilities.IsTableEmpty(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) == false and M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) then
+                                    local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
+                                    if iDistToLastOrder <= 125 then
+                                        --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Exp wants to move somewhere to support but land target htat isnt too far away so will go there') end
+                                    else
+                                        local iAngleToLastOrder = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
+                                        local bHaveLandZoneNearby = false
+                                        local iAmphibPathingRef = NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oUnit:GetPosition())
+                                        for iDist = 125, 25, -25 do
+                                            local tInbetweenPosition = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToLastOrder, iDist, true, true, false)
+
+                                            if M28Utilities.IsTableEmpty(tInbetweenPosition) and M28Map.GetLandZoneFromPosition(tInbetweenPosition) and NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, tInbetweenPosition) == iAmphibPathingRef then
+                                                bHaveLandZoneNearby = true
+                                                break
+                                            end
+                                        end
+                                        if bHaveLandZoneNearby then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': will proceed to land for Exp instead of moving') end
+                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                        else
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Sending exp to move, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
+                                            oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
+                                            M28Orders.IssueTrackedMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAEToLZ'..iLZToSupport..'Fr'..iWaterZone)
+                                        end
+                                    end
+                                else
+                                    M28Orders.IssueTrackedMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAToLZ'..iLZToSupport..'Fr'..iWaterZone)
+                                end
                             end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending hover unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to hover destination') end
@@ -1452,9 +1482,40 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                         end
                     else
                         if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
-                            oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                            M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NACons'..iWaterZone)
+                            --Land experimental exception - make landfall if we are close and were headed there
+                            if bDebugMessages == true then LOG(sFunctionRef..': Land zone of last order='..(M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) or 'nil')..'; Last order position='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])..'; Unit LC='..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit antinavy='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
+                            if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 3 and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 and M28Utilities.IsTableEmpty(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) == false and M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) then
+                                local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
+                                if iDistToLastOrder <= 125 then
+                                    --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
+                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Exp wants to consolidate but land target htat isnt too far away so will go there') end
+                                else
+                                    local iAngleToLastOrder = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
+                                    local bHaveLandZoneNearby = false
+                                    local iAmphibPathingRef = NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oUnit:GetPosition())
+                                    for iDist = 125, 25, -25 do
+                                        local tInbetweenPosition = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToLastOrder, iDist, true, true, false)
+
+                                        if M28Utilities.IsTableEmpty(tInbetweenPosition) and M28Map.GetLandZoneFromPosition(tInbetweenPosition) and NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, tInbetweenPosition) == iAmphibPathingRef then
+                                            bHaveLandZoneNearby = true
+                                            break
+                                        end
+                                    end
+                                    if bHaveLandZoneNearby then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': will proceed to land for Exp instead of consolidating') end
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Sending exp to consolidate, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
+                                        oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
+                                        M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NAECons'..iWaterZone)
+                                    end
+                                end
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
+                                oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
+                                M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NACons'..iWaterZone)
+                            end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending hover unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to hover rally point') end
                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime

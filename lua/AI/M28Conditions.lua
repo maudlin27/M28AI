@@ -119,7 +119,9 @@ function IsCivilianBrain(aiBrain)
             if not(ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality) or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == "" then
                 if bDebugMessages == true then LOG(sFunctionRef..': Index='..aiBrain:GetArmyIndex()..'; Has no AI personality so will treat as being a civilian brain unless nickname contains AI or AIX and doesnt contain civilian') end
                 bIsCivilian = true
-                if string.find(aiBrain.Nickname or aiBrain.Name, '%(AI') and not(string.find(aiBrain.Nickname or aiBrain.Name, "civilian")) then
+                if not(aiBrain.Nickname or aiBrain.Name) and aiBrain:IsDefeated() then
+                    bIsCivilian = false --Had error when players were killed so adding this as a redundancy
+                elseif string.find(aiBrain.Nickname or aiBrain.Name, '%(AI') and not(string.find(aiBrain.Nickname or aiBrain.Name, "civilian")) then
                     if bDebugMessages == true then LOG(sFunctionRef..': AI nickanme suggests its an actual AI and the developer has forgotten to give it a personality') end
                     bIsCivilian = false
                 end
