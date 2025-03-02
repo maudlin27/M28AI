@@ -1539,34 +1539,51 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     --AI personality adjustments - get fewer factories for certain AI types
     if bWantMoreFactories and aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 then
         --Tech and turtle, and navy (except for water zones, but i think this condition is only used for land zones) - dont want as many
-        if aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] then
-            --Only get more if have lots of mass
-            if aiBrain:GetEconomyStoredRatio('MASS') < 0.2 or (aiBrain:GetEconomyStoredRatio('MASS') < 0.35 and aiBrain[M28Economy.refiNetMassBaseIncome] < 0) then
-                if aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] < 3
-                        --Naval facs - want to get more land/air facs if we have lost navy
-                        or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0))) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want more facs as want to tech or turtle, unless this zone has no factories') end
-                    bWantMoreFactories = false
-                    if not(iLandFacsInZone) or not(iAirFacsInZone) then
-                        iLandFacsInZone = 0
-                        iAirFacsInZone = 0
-                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                            local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                            if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
-                                for iUnit, oUnit in tFriendlyFactory do
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
-                                        iLandFacsInZone = iLandFacsInZone + 1
-                                    else
-                                        iAirFacsInZone = iAirFacsInZone + 1
-                                    end
-                                end
+        if aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Overseer.refbPrioritiseNavy] then
+            --Only get more if have lots of mass and (if have lots of land facs) are at T3
+            if not(iLandFacsInZone) or not(iAirFacsInZone) then
+                iLandFacsInZone = 0
+                iAirFacsInZone = 0
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                    local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
+                        for iUnit, oUnit in tFriendlyFactory do
+                            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
+                                iLandFacsInZone = iLandFacsInZone + 1
+                            else
+                                iAirFacsInZone = iAirFacsInZone + 1
                             end
                         end
                     end
-                    if iLandFacsInZone + iAirFacsInZone == 0 then
-                        bWantMoreFactories = true --i.e. revert back to previous conclusion
-                    end
                 end
+            end
+            if iLandFacsInZone + iAirFacsInZone == 0 then
+                bWantMoreFactories = true --i.e. revert back to previous conclusion
+            elseif aiBrain:GetEconomyStoredRatio('MASS') > 0.2 then
+                if iLandFacsInZone == 0 or (iAirFacsInZone == 0 and tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                    bWantMoreFactories = true --i.e. revert back to previous conclusion
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality- no land or air fac in zone, and either core base or no land fac') end
+                elseif aiBrain[M28Overseer.refbPrioritiseHighTech] and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 then
+                    bWantMoreFactories = true --i.e. revert back to previous conclusion
+                elseif (aiBrain:GetEconomyStoredRatio('MASS') < 0.35 and aiBrain[M28Economy.refiNetMassBaseIncome] < 0) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont want more facs as want to tech or turtle or get navy') end
+                    bWantMoreFactories = false
+                elseif iLandFacsInZone + iAirFacsInZone <= 4 and (iLandFacsInZone + iAirFacsInZone <= 3 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.45 and ((tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] or aiBrain:GetEconomyStoredRatio('MASS') >= 0.6))) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont have that many facs and got quite a lot of mass so will get another fac') end
+                    bWantMoreFactories = false
+                elseif tLZTeamData[M28Map.subrefMexCountByTech][3] + (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= tLZData[M28Map.subrefLZMexCount] and (aiBrain[M28Economy.refiNetMassBaseIncome] > 0 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.9) then
+                    bWantMoreFactories = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-we are upgrading every mex in this zone but still have good mass so want to build another factory') end
+                elseif aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and not(HaveLowPower(iTeam)) then
+                    bWantMoreFactories = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Too much mass so want more factories') end
+                else
+                    bWantMoreFactories = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont want more factories due to personality') end
+                end
+            else
+                bWantMoreFactories = false
+                if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont have lots of mass and personality doesnt want lots of factories') end
             end
         end
     end
