@@ -3893,3 +3893,24 @@ function GetHighestAirToGroundThreatForIndividualEnemyBrain(iTeam)
         return iHighestThreat
     end
 end
+
+function BaseIsSafeToRetreatTo(tPosition, iTeam)
+    --E.g. send the position of the closest friendly base - used so ACU doesnt retreat to closest friendly base if it has lots of enemy units in it
+    if true and GetGameTimeSeconds() <= 12.5*60 then return true end
+    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
+    if iLandOrWaterZone then
+        if iPlateauOrZero == 0 then
+            --Only retreat here if no enemy antinavy threat
+            local tTargetWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+            if (tTargetWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) > 0 then
+                return false
+            end
+        else
+            local tTargetLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+            if (tTargetLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 0 and tTargetLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] < (tTargetLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 0.8 then
+                return false
+            end
+        end
+    end
+    return true
+end
