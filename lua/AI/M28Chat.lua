@@ -484,7 +484,7 @@ function SendForkedMessageForSpecialUseOnly(aiBrain, sMessageType, sMessage, iOp
                     if oOptionalOnlyBrainToSendTo then
                         if not(oOptionalOnlyBrainToSendTo[reftiPersonalMessages]) then oOptionalOnlyBrainToSendTo[reftiPersonalMessages] = {} end
                         oOptionalOnlyBrainToSendTo[reftiPersonalMessages][sMessageType] = GetGameTimeSeconds()
-                        SUtils.AISendChat(oOptionalOnlyBrainToSendTo:GetArmyIndex(), aiBrain.Nickname, sMessage..'Index')
+                        SUtils.AISendChat(oOptionalOnlyBrainToSendTo:GetArmyIndex(), aiBrain.Nickname, sMessage)
                     elseif bOnlySendToTeam then
                         SUtils.AISendChat('allies', aiBrain.Nickname, sMessage)
                         if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages]) then M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages] = {} end

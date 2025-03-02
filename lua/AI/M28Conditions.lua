@@ -1237,17 +1237,24 @@ function TeamIsFarBehindOnAir(iTeam)
 end
 
 function ZoneWantsT1Spam(tLZTeamData, iTeam)
+    local bWantT1Spam = false
     if M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] then
-        return true
+        bWantT1Spam = true
     elseif IsTableOfUnitsStillValid(tLZTeamData[M28Map.subrefoNearbyEnemyLandFacs]) and GetGameTimeSeconds() <= 900 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] <= 2 then
-        return true
+        bWantT1Spam = true
     elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 then
         local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
         if aiBrain[M28Overseer.refbPrioritiseLowTech] and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] < 2 then
-            return true
+            bWantT1Spam = true
         end
     end
-    return false
+    if bWantT1Spam then
+        local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+        if aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Overseer.refbPrioritiseAir] then
+            bWantT1Spam = false
+        end
+    end
+    return bWantT1Spam
 end
 
 function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
@@ -1539,34 +1546,51 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     --AI personality adjustments - get fewer factories for certain AI types
     if bWantMoreFactories and aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 then
         --Tech and turtle, and navy (except for water zones, but i think this condition is only used for land zones) - dont want as many
-        if aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] then
-            --Only get more if have lots of mass
-            if aiBrain:GetEconomyStoredRatio('MASS') < 0.2 or (aiBrain:GetEconomyStoredRatio('MASS') < 0.35 and aiBrain[M28Economy.refiNetMassBaseIncome] < 0) then
-                if aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] < 3
-                        --Naval facs - want to get more land/air facs if we have lost navy
-                        or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0))) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want more facs as want to tech or turtle, unless this zone has no factories') end
-                    bWantMoreFactories = false
-                    if not(iLandFacsInZone) or not(iAirFacsInZone) then
-                        iLandFacsInZone = 0
-                        iAirFacsInZone = 0
-                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                            local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                            if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
-                                for iUnit, oUnit in tFriendlyFactory do
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
-                                        iLandFacsInZone = iLandFacsInZone + 1
-                                    else
-                                        iAirFacsInZone = iAirFacsInZone + 1
-                                    end
-                                end
+        if aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Overseer.refbPrioritiseNavy] then
+            --Only get more if have lots of mass and (if have lots of land facs) are at T3
+            if not(iLandFacsInZone) or not(iAirFacsInZone) then
+                iLandFacsInZone = 0
+                iAirFacsInZone = 0
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                    local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
+                        for iUnit, oUnit in tFriendlyFactory do
+                            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
+                                iLandFacsInZone = iLandFacsInZone + 1
+                            else
+                                iAirFacsInZone = iAirFacsInZone + 1
                             end
                         end
                     end
-                    if iLandFacsInZone + iAirFacsInZone == 0 then
-                        bWantMoreFactories = true --i.e. revert back to previous conclusion
-                    end
                 end
+            end
+            if iLandFacsInZone + iAirFacsInZone == 0 then
+                bWantMoreFactories = true --i.e. revert back to previous conclusion
+            elseif aiBrain:GetEconomyStoredRatio('MASS') > 0.2 then
+                if iLandFacsInZone == 0 or (iAirFacsInZone == 0 and tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                    bWantMoreFactories = true --i.e. revert back to previous conclusion
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality- no land or air fac in zone, and either core base or no land fac') end
+                elseif aiBrain[M28Overseer.refbPrioritiseHighTech] and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 then
+                    bWantMoreFactories = true --i.e. revert back to previous conclusion
+                elseif (aiBrain:GetEconomyStoredRatio('MASS') < 0.35 and aiBrain[M28Economy.refiNetMassBaseIncome] < 0) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont want more facs as want to tech or turtle or get navy') end
+                    bWantMoreFactories = false
+                elseif iLandFacsInZone + iAirFacsInZone <= 4 and (iLandFacsInZone + iAirFacsInZone <= 3 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.45 and ((tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] or aiBrain:GetEconomyStoredRatio('MASS') >= 0.6))) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont have that many facs and got quite a lot of mass so will get another fac') end
+                    bWantMoreFactories = false
+                elseif tLZTeamData[M28Map.subrefMexCountByTech][3] + (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= tLZData[M28Map.subrefLZMexCount] and (aiBrain[M28Economy.refiNetMassBaseIncome] > 0 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.9) then
+                    bWantMoreFactories = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-we are upgrading every mex in this zone but still have good mass so want to build another factory') end
+                elseif aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and not(HaveLowPower(iTeam)) then
+                    bWantMoreFactories = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Too much mass so want more factories') end
+                else
+                    bWantMoreFactories = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont want more factories due to personality') end
+                end
+            else
+                bWantMoreFactories = false
+                if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont have lots of mass and personality doesnt want lots of factories') end
             end
         end
     end
@@ -2097,16 +2121,18 @@ function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPla
     local iTotalACUThreat = 0
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of enemy ACUs empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+        local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
         local tMidpoint = tLZData[M28Map.subrefMidpoint]
         local iDistanceThreshold = math.max(math.min(M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tMidpoint) * 0.75, 250), 140)
         if M28Map.iMapSize > 256 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 4 then iDistanceThreshold = math.max(iDistanceThreshold, 175) end
+        if aiBrain[M28Overseer.refbPrioritiseDefence] then iDistanceThreshold = iDistanceThreshold + math.max(iDistanceThreshold * 0.35, 50) end
         if bDebugMessages == true then LOG(sFunctionRef..': iDistanceThreshold='..iDistanceThreshold..'; iMapSize='..M28Map.iMapSize..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tMidpoint)) end
         local tACUsInRange = {}
         local iNearestACUDist = 100000
         local oNearestACU
         local iCurDist
         local iWaterDistanceThreshold = math.min(iDistanceThreshold, 175)
-
+        if aiBrain[M28Overseer.refbPrioritiseDefence] then iWaterDistanceThreshold = iWaterDistanceThreshold + 50 end
         function DoWePathThroughOtherCoreBaseFirst(oACU)
             if bDebugMessages == true then LOG(sFunctionRef..': ACU assigned plateua='..(oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 'nil')..'; iPlateau='..iPlateau..'; Nav utils plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition()) or 'nil')) end
             if not((oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition())) == iPlateau) then
@@ -2180,7 +2206,7 @@ function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPla
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..'; iCurDist Distance to midpoint='..iCurDist..'; iDistanceThreshold='..iDistanceThreshold) end
                 if iCurDist <= iDistanceThreshold then
                     --Consider whether we pass through another core base first
-                    if iCurDist <= 90 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (iCurDist <= 120 and not(tLZTeamData[M28Map.refbBaseInSafePosition])) or not(DoWePathThroughOtherCoreBaseFirst(oACU)) then
+                    if iCurDist <= 90 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (iCurDist <= 120 and not(tLZTeamData[M28Map.refbBaseInSafePosition])) or (aiBrain[M28Overseer.refbPrioritiseDefence] and iCurDist <= 180) or not(DoWePathThroughOtherCoreBaseFirst(oACU)) then
                         table.insert(tACUsInRange, oACU)
                         if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU as an in range enemy unit') end
                         if iCurDist < iNearestACUDist then
@@ -3892,4 +3918,24 @@ function GetHighestAirToGroundThreatForIndividualEnemyBrain(iTeam)
         end
         return iHighestThreat
     end
+end
+
+function BaseIsSafeToRetreatTo(tPosition, iTeam)
+    --E.g. send the position of the closest friendly base - used so ACU doesnt retreat to closest friendly base if it has lots of enemy units in it
+    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
+    if iLandOrWaterZone then
+        if iPlateauOrZero == 0 then
+            --Only retreat here if no enemy antinavy threat
+            local tTargetWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+            if (tTargetWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) > 0 then
+                return false
+            end
+        else
+            local tTargetLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+            if (tTargetLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 0 and tTargetLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] < (tTargetLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 0.8 then
+                return false
+            end
+        end
+    end
+    return true
 end

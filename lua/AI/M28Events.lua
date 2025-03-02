@@ -129,7 +129,21 @@ function OnACUKilled(oUnit)
                 --Possibility that we have already recorded the unit death, so wait 1 second and then if any brains show as defeated but not M28Defeated then run the function
                 ForkThread(M28Team.DelayedPlayerDeathCheck)
             end
+        else
+            local aiBrain = oUnit:GetAIBrain()
+            local iStartPlateauOrZero, iStartZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.GetPlayerStartPosition(aiBrain))
+            local tLZOrWZData, tLZOrWZTeamData
+            local iTeam = aiBrain.M28Team
+            if iStartPlateauOrZero == 0 then
+                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartZone]][M28Map.subrefPondWaterZones][iStartZone]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+            else
+                tLZOrWZData = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartZone]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+            end
+            ForkThread(M28Map.DelayedConsiderationOfWhetherToIgnoreFriendlyBase, tLZOrWZData, tLZOrWZTeamData, aiBrain.M28Team, iStartPlateauOrZero, iStartZone, M28Land.iTicksPerLandCycle * 0.1 + 0.1)
         end
+
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
