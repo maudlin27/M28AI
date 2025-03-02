@@ -572,8 +572,8 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
     if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnitJustDestroyed.UnitId) then
         UpdateFactoryCountForFactoryKilledOrBuilt(oUnitJustDestroyed, true)
         if bDebugMessages == true then LOG(sFunctionRef..': Factory was destroyed, oUnitJustDestroyed='..oUnitJustDestroyed.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustDestroyed)..'; is this an HQ factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustDestroyed.UnitId))..'; Time='..GetGameTimeSeconds()) end
+        local aiBrain = oUnitJustDestroyed:GetAIBrain()
         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustDestroyed.UnitId) then
-            local aiBrain = oUnitJustDestroyed:GetAIBrain()
             local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustDestroyed)
             if bDebugMessages == true then LOG(sFunctionRef..': iUnitTechLevel='..iUnitTechLevel..'; owned by brain '..aiBrain.Nickname) end
             function UnitsStillValid(iCategory)
@@ -638,6 +638,27 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
             M28Team.CheckForSubteamFactoryChange(oUnitJustDestroyed, false)
         elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oUnitJustDestroyed.UnitId) then
             M28Team.CheckForSubteamFactoryChange(oUnitJustDestroyed, false)
+        end
+        --Check for if we have lost a teammate base (i.e. in full share type scenario) so no longer want to treat it as a closest friendly base
+        if aiBrain.M28AI then
+            local iTeam = aiBrain.M28Team
+            if bDebugMessages == true then LOG(sFunctionRef..': Have lost factory for brain '..aiBrain.Nickname..'; M28Team.tTeamData[iTeam][M28Team.subrefiOrigM28BrainCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiOrigM28BrainCount]..'; M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiOrigM28BrainCount] > M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then --we have lost a friendly M28AI, so want to check if the base of the killed AI is no more
+                local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnitJustDestroyed:GetPosition(), true, aiBrain.M28Team)
+                if bDebugMessages == true then LOG(sFunctionRef..': Dist from the zone this unit is in to the closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) end
+                if M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= 10 then
+                    --Is this the start position of a dead AI?
+                    for iBrain, oBrain in ArmyBrains do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; IsDefeated='..tostring(oBrain:IsDefeated())..'; Dist from brain start position to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(M28Map.GetPlayerStartPosition(oBrain), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) end
+                        if oBrain.M28Team == iTeam and oBrain:IsDefeated() and M28Utilities.GetDistanceBetweenPositions(M28Map.GetPlayerStartPosition(oBrain), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= 10 then
+                            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider if friendly base is destroyed now') end
+                            ForkThread(M28Map.DelayedConsiderationOfWhetherToIgnoreFriendlyBase, tLZOrWZData, tLZOrWZTeamData, aiBrain.M28Team, iPlateauOrZero, iLandOrWaterZone, M28Land.iTicksPerLandCycle * 0.1 + 0.1)
+                            break
+                        end
+                    end
+                end
+            end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, aiBrain[refiOurHighestAirFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestAirFactoryTech]..'; aiBrain[refiOurHighestLandFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestLandFactoryTech]..'; aiBrain[refiOurHighestNavalFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestNavalFactoryTech]..'; aiBrain[refiOurHighestFactoryTechLevel]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestFactoryTechLevel]) end
     end
