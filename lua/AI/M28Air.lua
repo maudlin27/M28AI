@@ -7755,9 +7755,9 @@ function UpdateTransportShortlistForPondDrops(iTeam, tbPlateausWithPlayerStartOr
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function UpdateTransportLocationShortlist(iTeam, bUpdateCombatDropShortlist)
+function UpdateTransportPlateauDropLocationShortlist(iTeam, bUpdateCombatDropShortlist)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'UpdateTransportLocationShortlist'
+    local sFunctionRef = 'UpdateTransportPlateauDropLocationShortlist'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -7803,7 +7803,7 @@ function UpdateTransportLocationShortlist(iTeam, bUpdateCombatDropShortlist)
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iIsland='..iIsland..'; tiPlayerStartByPlateauAndIsland[iPlateau][iIsland]='..reprs(tiPlayerStartByPlateauAndIsland[iPlateau][iIsland])..'; Mex count='..(tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0)) end
                     if not(tiPlayerStartByPlateauAndIsland[iPlateau][iIsland]) then
                         --Does the island have mexes? (v90 - effectively removed this requirement and just require that it has land zones, while later on have a requirement for there to be mexes or reclaim)
-                        if (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) > 0 or M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland]) == false then
+                        if (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) > 0 or M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland]) == false or M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture][iIsland]) == false then
                             if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland]) then M28Utilities.ErrorHandler('Island has mexes but no land zone')
                             else
                                 local iSignificantReclaimValue = 0
@@ -7818,6 +7818,8 @@ function UpdateTransportLocationShortlist(iTeam, bUpdateCombatDropShortlist)
                                     --M28Map.RefreshLandOrWaterZoneReclaimValue(iPlateau, iLandZone, false, true, true) --end --reworked how reclaim zones are updated so this should no longer be necessary
                                     iSignificantReclaimValue = iSignificantReclaimValue + (tLZData[M28Map.subrefTotalSignificantMassReclaim] or 0)
                                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                                    --Treat capturable units as being worth 70% of their mass cost
+                                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then iSignificantReclaimValue = iSignificantReclaimValue + M28UnitInfo.GetMassCostOfUnits(tLZData[M28Map.subreftoUnitsToCapture]) * 0.7 end
                                     --Get plateau of the nearest allied base for the first entry, since presumably all land zones have the same plateau, so stop searching if the first one is on a dif plateau
                                     if not(iClosestBasePlateau) then
                                         iClosestBasePlateau, iClosestBaseLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZTeamData[M28Map.reftClosestFriendlyBase])
@@ -7828,7 +7830,7 @@ function UpdateTransportLocationShortlist(iTeam, bUpdateCombatDropShortlist)
                                     if iCurDistToFriendlyBase < iClosestLZToBase then
                                         iClosestLZToBase = iCurDistToFriendlyBase
                                     end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': P'..iPlateau..'Z'..iLandZone..'; tLZOrWZData[subrefLastReclaimRefresh]='..(tLZData[M28Map.subrefLastReclaimRefresh] or 'nil')..'; iCurDistToFriendlyBase='..iCurDistToFriendlyBase..'; Signif reclaim val for just this zone='..(tLZData[M28Map.subrefTotalSignificantMassReclaim] or 0)) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': P'..iPlateau..'Z'..iLandZone..'; tLZOrWZData[subrefLastReclaimRefresh]='..(tLZData[M28Map.subrefLastReclaimRefresh] or 'nil')..'; iCurDistToFriendlyBase='..iCurDistToFriendlyBase..'; Signif reclaim val for just this zone='..(tLZData[M28Map.subrefTotalSignificantMassReclaim] or 0)..'; Is table of units to capture empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering island '..iIsland..'; iClosestLZToBase='..iClosestLZToBase..'; iClosestBasePlateau='..(iClosestBasePlateau or 'nil')..'; iClosestLZToBase='..(iClosestLZToBase or 'nil')..'; Island mex count='..tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland]..'; iSignificantReclaimValue='..iSignificantReclaimValue) end
                                 if iClosestLZToBase >= 190 or (iClosestLZToBase >= 140 and tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] >= 7) or (not(iClosestBasePlateau == iPlateau) and (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) > 0) then
@@ -7900,6 +7902,7 @@ function UpdateTransportLocationShortlist(iTeam, bUpdateCombatDropShortlist)
                         local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                         iSignificantReclaimValue = iSignificantReclaimValue + (tLZData[M28Map.subrefTotalSignificantMassReclaim] or 0)
                         local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then iSignificantReclaimValue = iSignificantReclaimValue + M28UnitInfo.GetMassCostOfUnits(tLZData[M28Map.subreftoUnitsToCapture]) * 0.7 end
                         if bDontHaveLocationInPlayableArea then bDontHaveLocationInPlayableArea = not(M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint])) end
                         iMexesAlreadyBuiltOn = 0
                         iRecentDropCount = iRecentDropCount + (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0)
@@ -8556,7 +8559,7 @@ function ManageTransports(iTeam, iAirSubteam)
         local bUpdateCombatDropShortlist = false
         --Only consider combat drops if we already have a transport (for now)
         if M28Utilities.IsTableEmpty(tAvailableTransports) == false or M28Utilities.IsTableEmpty(tUnavailableUnits) == false or (GetGameTimeSeconds() >= 420 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportCombatShortlistUpdate] or 0) >= 60) then bUpdateCombatDropShortlist = true end
-        UpdateTransportLocationShortlist(iTeam, bUpdateCombatDropShortlist)
+        UpdateTransportPlateauDropLocationShortlist(iTeam, bUpdateCombatDropShortlist)
     end
     local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
 

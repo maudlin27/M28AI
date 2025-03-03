@@ -587,7 +587,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
         --Are we already building something?
         if bDebugMessages == true then LOG(sFunctionRef..': ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
         if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Repairing')) and (aiBrain:GetEconomyStoredRatio('MASS') <= 0.95 or not(oACU:IsUnitState('Reclaiming'))) then
-            M28Air.UpdateTransportLocationShortlist(iTeam) --Redundancy
+            M28Air.UpdateTransportPlateauDropLocationShortlist(iTeam) --Redundancy
 
             --local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
 
@@ -3796,7 +3796,7 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
             end
 
             --High value islands (we consider islands more generally below) - Consider moving if have high value island that isnt that far with a lot of mexes - do it based on drop locations
-            if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau]) then M28Air.UpdateTransportLocationShortlist(iTeam, false) end
+            if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau]) then M28Air.UpdateTransportPlateauDropLocationShortlist(iTeam, false) end
             local iBackupLZToMoveTo = iLZToMoveTo
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have high value islands to consider, iBackupLZToMoveTo='..(iBackupLZToMoveTo or 'nil')..'; Is table of drop islands by plateau empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau]))..'; Is table of pathing to other islands empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]))..'; bBestZoneHasNearbyEnemies='..tostring(bBestZoneHasNearbyEnemies)..'; iBestZoneValue='..iBestZoneValue..'; Can path to enemy with land='..tostring(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithLand] or false)) end
             if (not(iLZToMoveTo) or (not(bBestZoneHasNearbyEnemies) and (iBestZoneValue <= 300 or not(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithLand])))) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau]) == false and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then

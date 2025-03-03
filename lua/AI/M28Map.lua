@@ -118,6 +118,7 @@ reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing grou
     --Plateaus: Island variables (against tAllPlateaus[iPlateau])
     subrefPlateauIslandLandZones = 'M28PlateauIslands' --[x] is the island, returns a table of land zones in that island for this plateau; the table returned has a key 1....x, and returns the land zone reference number
     subrefPlateauIslandMexCount = 'M28IslandMexCount' --[x] is the island, returns the number of mexes in the island
+    subrefPlateauIslandUnitsToCapture = 'M28IslCapU' --[x] is the island, return table of units on the island we want to capture
     subrefPlateauIslandLurkerZones = 'M28IslLurkZn' --[x] is the island, returns a tabe listing out any zones on the island that we want to consider assigning selens to in lurker mode
     subrefPlateauIslandTimeLastFailedLandScoutByTeam = 'M28IslLstLSc' --[x] is the team, [y] is the island, returns the gametimeseconds that we last had scouts assigned to patrol due to a lack of zones for them to travel to
 
@@ -1217,7 +1218,7 @@ local function RecordAllPlateaus()
     local bSearchingForBoundary
     local iCurCount
     local tSegmentPositionMin, tSegmentPositionMax
-    local iReclaimSegmentStartX, iReclaimSegmentStartZ, iReclaimSegmentEndX, iReclaimSegmentEndZ
+
     local sPathing = refPathingTypeHover
 
 
@@ -1238,7 +1239,7 @@ local function RecordAllPlateaus()
             --Record additional information if the plateau has mexes (v101 - removed this so we can drop mexless plateaus with reclaim):
             if iCurPlateauMex > 0 then
                 --NOTE: Minor plateaus will have details added later on after zones have been recorded along with zone min and max values
-                                
+
                 --Record information on the size of the plateau:
                 --Start from mex, and move up on map to determine top point; then move left to determine left point, and right to determine right point etc.
                 --i.e. dont want to go through every segment on map since could take ages if lots of plateaus and may only be dealing with small area
@@ -1362,7 +1363,7 @@ local function RecordAllPlateaus()
 
                 --Have now got the min and max land segment X and Z values for the plateau
                 tSegmentPositionMin = GetPositionFromPathingSegments(iMinSegmentX, iMinSegmentZ)
-                tAllPlateaus[iSegmentGroup][subrefPlateauMinXZ] = {tSegmentPositionMin[1], tSegmentPositionMin[3]}                
+                tAllPlateaus[iSegmentGroup][subrefPlateauMinXZ] = {tSegmentPositionMin[1], tSegmentPositionMin[3]}
 
                 tSegmentPositionMax = GetPositionFromPathingSegments(iMaxSegmentX, iMaxSegmentZ)
                 tAllPlateaus[iSegmentGroup][subrefPlateauMaxXZ] = {tSegmentPositionMax[1], tSegmentPositionMax[3]}
@@ -4664,6 +4665,10 @@ function RecordWaterZonePatrolPaths()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function RecordMinorPlateau()
+
+end
+
 local function RecordMinorPlateaus()
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordMinorPlateaus'
@@ -4825,6 +4830,18 @@ local function SetupLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function AddLandZoneToIsland(iPlateau, iLandZone, iIsland, tLZData)
+    if not(tAllPlateaus[iPlateau][subrefPlateauIslandLandZones][iIsland]) then
+        if not(tAllPlateaus[iPlateau][subrefPlateauIslandLandZones]) then tAllPlateaus[iPlateau][subrefPlateauIslandLandZones] = {} end
+        if not(tAllPlateaus[iPlateau][subrefPlateauIslandMexCount]) then tAllPlateaus[iPlateau][subrefPlateauIslandMexCount] = {} end
+        tAllPlateaus[iPlateau][subrefPlateauIslandLandZones][iIsland] = {}
+    end
+
+    table.insert(tAllPlateaus[iPlateau][subrefPlateauIslandLandZones][iIsland], iLandZone)
+    tAllPlateaus[iPlateau][subrefPlateauIslandMexCount][iIsland] = (tAllPlateaus[iPlateau][subrefPlateauIslandMexCount][iIsland] or 0) + (tLZData[subrefLZMexCount] or 0)
+    if not(tLZData[subrefLZIslandRef]) then tLZData[subrefLZIslandRef] = iIsland end --redundancy
+end
+
 function RecordIslands()
     --Assumes have already setup every land zone on the map - will now record details of islands
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -4861,9 +4878,7 @@ function RecordIslands()
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; in Plateau '..iPlateau..'; Amphibious label='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tLZData[subrefMidpoint]) or 'nil')..'; LZData[subrefMidpoint]='..repru(tLZData[subrefMidpoint])) end
                     tLZData[subrefLZIslandRef] = NavUtils.GetTerrainLabel(refPathingTypeLand, tLZData[subrefMidpoint])
                     if (tLZData[subrefLZIslandRef] or -1) > 0 then
-                        if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end
-                        table.insert(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]], iLandZone)
-                        tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] = (tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] or 0) + tLZData[subrefLZMexCount]
+                        AddLandZoneToIsland(iPlateau, iLandZone, tLZData[subrefLZIslandRef], tLZData)
                     else
                         table.insert(tLandZonesWithoutIslands, iLandZone)
                         if bDebugMessages == true then LOG(sFunctionRef..': Dont have an island ref for iLandZone='..iLandZone..'; so will record in tLandZonesWithoutIslands') end
@@ -4881,9 +4896,7 @@ function RecordIslands()
                                 if (tPlateauSubtable[subrefPlateauLandZones][tSubtable[subrefLZNumber]][subrefLZIslandRef] or 0) > 0 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will use htis island ref') end
                                     tLZData[subrefLZIslandRef] = tPlateauSubtable[subrefPlateauLandZones][tSubtable[subrefLZNumber]][subrefLZIslandRef]
-                                    if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end
-                                    table.insert(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]], iLandZone)
-                                    tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] = (tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] or 0) + tLZData[subrefLZMexCount]
+                                    AddLandZoneToIsland(iPlateau, iLandZone, tLZData[subrefLZIslandRef], tLZData)
                                     break
                                 end
                             end

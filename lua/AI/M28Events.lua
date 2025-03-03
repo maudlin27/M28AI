@@ -3698,7 +3698,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add location as a drop zone target, bAdjacentToCoreBase='..tostring(bAdjacentToCoreBase)..'; iTeam='..iTeam) end
                                     if not(bAdjacentToCoreBase) then
                                         --Add to locations for priority transport drop
-                                        M28Air.UpdateTransportLocationShortlist(iTeam) --incase not already run
+                                        M28Air.UpdateTransportPlateauDropLocationShortlist(iTeam) --incase not already run
                                         M28Air.AddZoneToPotentialDropZonesSameIslandOrDifPond(iTeam, iPlateauOrZero, iLandOrWaterZone)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Have tried toa dd to same island drop list, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam) end
                                     end

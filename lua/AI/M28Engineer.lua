@@ -15405,11 +15405,12 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Reclaim specific units
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Checking if have units to reclaim, is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]))) end
-    if tLZTeamData[M28Map.subreftoUnitsToReclaim] and M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoUnitsToReclaim]) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if have units to reclaim, is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]))..'; Is table of units still valid='..tostring(M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoUnitsToReclaim]))) end
+    if tLZTeamData[M28Map.subreftoUnitsToReclaim] and M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoUnitsToReclaim]) == true then
         local bObjectiveToReclaim = false
         if M28Map.bIsCampaignMap then
             for iUnit, oUnit in tLZTeamData[M28Map.subreftoUnitsToReclaim] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit to reclaim, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                 if oUnit[M28UnitInfo.refbIsReclaimTarget] then bObjectiveToReclaim = true break end
             end
         end
@@ -18726,9 +18727,7 @@ function RecordUnitAsCaptureTarget(oUnit, bOptionalOnlyRecordIfSameUnitIdInCaptu
             --Record unit against zone as a capture target and flag so we dont try and reclaim it
             if bDebugMessages == true then LOG(sFunctionRef..': bWantToCaptureUnit='..tostring(bWantToCaptureUnit)..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
             if bWantToCaptureUnit then
-                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) then tLZOrWZData[M28Map.subreftoUnitsToCapture] = {} end
-                table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
-                oUnit[M28UnitInfo.refbIsCaptureTarget] = true
+                M28Overseer.RecordUnitAsCaptureTarget(oUnit, iPlateauOrZero, iLandOrWaterZone)
                 if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to capture') end
             end
         end

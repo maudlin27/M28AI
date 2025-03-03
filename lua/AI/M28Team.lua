@@ -2123,6 +2123,14 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     if oReclaimUnit == oUnit then bIncluded = true break end
                                 end
                             end
+                            --Check not recorded as a capture target
+                            if oUnit[M28UnitInfo.refbIsCaptureTarget] then
+                                bIncluded = true
+                            elseif not(bIncluded) and M28Conditions.IsTableOfUnitsStillValid(tUnitLZData[M28Map.subreftoUnitsToCapture]) then
+                                for iCaptureUnit, oCaptureUnit in tUnitLZData[M28Map.subreftoUnitsToCapture] do
+                                    if oCaptureUnit == oUnit then bIncluded = true break end
+                                end
+                            end
                             if bDebugMessages == true then LOG(sFunctionRef..': Want to include unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in table of units to reclaim for team '..aiBrain.M28Team) end
                             if not(bIncluded) then
                                 table.insert(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], oUnit)
