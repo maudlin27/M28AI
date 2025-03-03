@@ -844,7 +844,7 @@ LobbyGlobalOptions = {
                 key = 10,
             },
             {
-                text = '1.2',
+                text = '1.1',
                 help = 'Enemy threat factor',
                 key = 11,
             },
