@@ -18152,13 +18152,8 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tNearestEnemy='..repru(tNearestEnemy)..'; Time='..GetGameTimeSeconds()) end
     local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tLZMidpoint)
     local iDistToPointToMove = iDistToTarget
-    local iDistToMove = math.max(32, iDistToTarget * 0.6) --will adjust later on
     local iBaseLZAverageSize = 0.5*((tLZData[M28Map.subrefLZMaxSegX] - tLZData[M28Map.subrefLZMinSegX])*M28Map.iLandZoneSegmentSize + (tLZData[M28Map.subrefLZMaxSegZ] - tLZData[M28Map.subrefLZMinSegZ])*M28Map.iLandZoneSegmentSize)
-    iDistToMove = math.min(iDistToMove, iBaseLZAverageSize)
-    if iDistToTarget - iDistToMove >= 60 then
-        iDistToMove = math.min(iDistToTarget - 60, 100) --will adjust below e.g. if are using land travel logic
-    end
-
+    local iDistToMove --We set this later on
 
     local iAngleFromTargetToMidpoint
     local bUseLandTravelPath
@@ -18169,6 +18164,7 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     if iExpectedPDTechLevel >= 2 then iDistanceToIgnorePathingAndBuildAwayFromEnemy = 70
     else iDistanceToIgnorePathingAndBuildAwayFromEnemy = 45
     end
+
     if iDistToTarget >= iDistanceToIgnorePathingAndBuildAwayFromEnemy and NavUtils.GetLabel(M28Map.refPathingTypeLand, tNearestEnemy) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZMidpoint) then bUseLandTravelPath = true
         --Generate the land travel path from the enemy to our base
         tFullPath, iPathSize, iDistance = NavUtils.PathTo(M28Map.refPathingTypeLand, tLZMidpoint, tNearestEnemy)
@@ -18179,7 +18175,14 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
     if bUseLandTravelPath then
 
         iDistToMove = math.max(math.min(30, iDistance), math.min(iDistance * 0.6, iDistToTarget))
+        iDistToMove = math.min(iDistToMove, iBaseLZAverageSize)
         if iDistToMove > 60 then iDistToMove = math.max(60, iDistToMove * 0.95) end
+        --If dist to target is far away from dist to move then increase slightly
+        if iDistToMove < 100 and iDistToTarget >= 225 then
+            iDistToMove = math.max(iDistToMove, math.min(iBaseLZAverageSize * 2, 150, iDistToTarget * 0.3))
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iDistance='..iDistance..'; iDistToMove after adjustment='..iDistToMove..'; iDistToTarget='..iDistToTarget..'; iBaseLZAverageSize='..iBaseLZAverageSize) end
+
         local iCurPathDistance = 0
         local iCumulativePathDistance = 0
         --If nearest enemy is close to the pathing point then just replace the first entry with nearest enemy
@@ -18254,7 +18257,12 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
             iDistToPointToMove = M28Utilities.GetDistanceBetweenPositions(tPointToMoveFrom, tLZMidpoint)
             if bDebugMessages == true then LOG(sFunctionRef..': We have a point to move from based on the detailed travel path, which should already be sufficient distance from the nearest enemy, dist to midpoint (iDistToPointToMove)='..iDistToPointToMove) end
         end
-        --else
+    else
+        iDistToMove = math.max(32, iDistToTarget * 0.6)
+        iDistToMove = math.min(iDistToMove, iBaseLZAverageSize)
+        if iDistToTarget - iDistToMove >= 60 then
+            iDistToMove = math.min(iDistToTarget - 60, 100) --will adjust below e.g. if are using land travel logic
+        end
     end
     if not(bUseLandTravelPath) then
         tPointToMoveFrom = {tNearestEnemy[1], tNearestEnemy[2], tNearestEnemy[3]}
@@ -18348,17 +18356,34 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
 
     --Adjust if likely to be on elevated ground and unable to hit the enemy as a result (move closer so are on edge of cliff); if the reverse (we are on lower ground) then move away
     if bDebugMessages == true then LOG(sFunctionRef..': Y height of target location='..tTargetLocation[2]..'; Y height of nearest enemy='..tNearestEnemy[2]..'; iDistToMove='..iDistToMove..'; bMovedDueToLRThreat='..tostring(bMovedDueToLRThreat)) end
+    local bMoveBackFromBlockingCliff = false
     if not(bMovedDueToLRThreat) and tTargetLocation[2] > tNearestEnemy[2] + 1 and iDistToMove >= 35 then
         local iDistToCliff
+        local iMaxHeightBeforeConsideringMovingBack = tTargetLocation[2] + 1 --if changing here also change below for iHeightThreshold
         for iCurCliffAdjust = 1, 20 do
             local tAltLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove - iCurCliffAdjust, true, false, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurCliffAdjust='..iCurCliffAdjust..'; tAltLocation plateau='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tAltLocation) or 'nil')..'; Height='..tAltLocation[2]..'; iMaxHeightBeforeConsideringMovingBack='..iMaxHeightBeforeConsideringMovingBack) end
+            if tAltLocation[2] >= iMaxHeightBeforeConsideringMovingBack then
+                if bDebugMessages == true then LOG(sFunctionRef..': Might have a blocking cliff that is taller, despite us being taller than enemy, so actually want to move back') end
+                bMoveBackFromBlockingCliff = true break
+            end
             if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tAltLocation) == iPlateau) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have reahced location with dif hover pathing label suggesting a cliff, iCurCliffAdjust='..iCurCliffAdjust) end
                 iDistToCliff = iCurCliffAdjust - 1
                 break
             end
         end
-        if iDistToCliff then
+        if iDistToCliff and not(bMoveBackFromBlockingCliff) then
+            for iCurCliffAdjust = iDistToCliff + 2, iDistToCliff + 22, 2 do
+                local tAltLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove - iCurCliffAdjust, true, false, true)
+                if tAltLocation[2] >= iMaxHeightBeforeConsideringMovingBack then
+                    if bDebugMessages == true then LOG(sFunctionRef..': 2nd check, may have a blocking cliff that is taller, despite us being taller than enemy, so actually want to move back') end
+                    bMoveBackFromBlockingCliff = true break
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking cliff adj, bMoveBackFromBlockingCliff='..tostring(bMoveBackFromBlockingCliff or false)..'; iDistToCliff='..(iDistToCliff or 'nil')) end
+        if not(bMoveBackFromBlockingCliff) and iDistToCliff then
             tTargetLocation = M28Utilities.MoveInDirection(tNearestEnemy, iAngleFromTargetToMidpoint, iDistToMove - iDistToCliff, true, false, true)
         end
     elseif tTargetLocation[2] < tNearestEnemy[2] - 1 then
@@ -18385,13 +18410,16 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
             end
         end
     else
-        --Consider if there is a cliff inbetween us and the enemy that is a higher height (even if the enemy itself is on the same height)
+        bMoveBackFromBlockingCliff = true
+    end
+    if bMoveBackFromBlockingCliff then
+        --Consider if there is a cliff inbetween us and the enemy that is a higher height (even if the enemy itself is on the same or lower height)
         local iMaxSearchRange
         if iDistToMove > 30 then iMaxSearchRange = 30 else iMaxSearchRange = math.floor(iDistToMove / 5)*5 - 5 end
         if iMaxSearchRange >= 5 then
             local iAngleFromBuildLocation = iAngleFromTargetToMidpoint + 180
             if iAngleFromBuildLocation > 360 then iAngleFromBuildLocation = iAngleFromBuildLocation - 360 end
-            local iHeightThreshold = tTargetLocation[2] + 1
+            local iHeightThreshold = tTargetLocation[2] + 1 --if changing here also change above for iMaxHeightBeforeConsideringMovingBack
             local iBlockingCliffDist
             for iCurSearchDist = 5, iMaxSearchRange, 5 do
                 local tCliffCheckLocation = M28Utilities.MoveInDirection(tTargetLocation, iAngleFromBuildLocation, iCurSearchDist, false)
