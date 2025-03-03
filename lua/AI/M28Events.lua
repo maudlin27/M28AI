@@ -1387,9 +1387,10 @@ function OnWeaponFired(oWeapon)
                 --M28 owned unit specific logic
                 if oUnit:GetAIBrain().M28AI then
                     --Shot is blocked logic
+                    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uab23017' then bDebugMessages = true end
                     if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..((oWeapon.Blueprint or oWeapon.bp).RangeCategory or 'nil')..'; reprs of .RangeCategory='..reprs((oWeapon.Blueprint or oWeapon.bp).RangeCategory)..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer + categories.uas0401 - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))..'; repr of oWeapon.Blueproint='..reprs((oWeapon.Blueprint or oWeapon.bp))) end
                     local iWeaponRangeCategory = ((oWeapon.Blueprint or oWeapon.bp).RangeCategory)
-                    if (iWeaponRangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryCombatScout + M28UnitInfo.refCategoryLightAttackBot + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer + categories.uas0401 - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (iWeaponRangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
+                    if (iWeaponRangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryCombatScout + M28UnitInfo.refCategoryLightAttackBot + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer + categories.uas0401 - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (iWeaponRangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
                         --Get weapon target if it is a DF weapon or sub torpedo
                         local oTarget
                         if oWeapon.GetCurrentTarget and not(oWeapon:BeenDestroyed()) then oTarget = oWeapon:GetCurrentTarget() end
@@ -1407,6 +1408,10 @@ function OnWeaponFired(oWeapon)
                                 --Increase shot blocked count if this is a longer ranged naval unit firing at a structure
                                 if oUnit[M28UnitInfo.refiCombatRange] > 50 and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oTarget.UnitId) then
                                     oTarget[M28UnitInfo.refiTargetShotBlockedCount] = (oTarget[M28UnitInfo.refiTargetShotBlockedCount] or 0) + 1
+                                end
+                                --PD - consider manual control
+                                if EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
+                                    ForkThread(M28Building.GetManualPDTarget, oUnit, oTarget)
                                 end
                             elseif oUnit[M28UnitInfo.refiCombatRange] > 50 and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oTarget.UnitId) then
                                 oTarget[M28UnitInfo.refiTargetShotBlockedCount] = 0
