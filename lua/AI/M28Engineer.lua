@@ -13014,7 +13014,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     local tSecondBuildLocation = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], oClosestUnit:GetPosition()), 15, true)
                     if not(NavUtils.GetLabel(M28Map.refPathingTypeLand, tSecondBuildLocation) == tLZData[M28Map.subrefLZIslandRef]) then tSecondBuildLocation = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]} end
                     HaveActionToAssign(refActionBuildSecondPD, 2, iBPWanted * 0.5, tSecondBuildLocation)
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and build some more PD, including second bd builder') end
                 elseif bDebugMessages == true then LOG(sFunctionRef..': Will try and build some more emergency PD, but not a second PD at the same time')
                 end
