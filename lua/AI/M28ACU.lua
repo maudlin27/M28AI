@@ -2752,52 +2752,64 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
         else
             --If ACU is upgrading then we wont have checked if we want to run, so do a check of enemy threat and consider running
             if bDebugMessages == true then LOG(sFunctionRef..': Is ACU upgrading='..tostring(oACU:IsUnitState('Upgrading'))..'; ACU work progress='..(oACU:GetWorkProgress() or 'nil')..'; Core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Dangerous enemies in this LZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Is table of DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; Enemy mobile DF total='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 'nil')) end
-            if oACU:IsUnitState('Upgrading') and iPlateauOrZero > 0 and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.99 and oACU:GetWorkProgress() <= 0.8 and (tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or oACU:GetWorkProgress() <= 0.6) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
-                if bDebugMessages == true then LOG(sFunctionRef..': ACU is upgrading, will consider if a really large threat such that we should run, safe to get upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))) end
-                if not(M28Conditions.SafeToUpgradeUnit(oACU)) then
-                    local toNearbyEnemyUnits = {}
-                    local toApproachingEnemies = {}
-                    local iNearbyThreshold = 10
-                    local iApproachingThreshold = 40
-                    local iCurDist
-                    function AddNearbyEnemyThreats(tCurLZTeamData)
-                        if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                            for iEnemy, oEnemy in tCurLZTeamData[M28Map.subrefTEnemyUnits] do
-                                if not(oEnemy.Dead) and oEnemy[M28UnitInfo.refiCombatRange] > 10 then
-                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange]
-                                    if iCurDist <= iNearbyThreshold then
-                                        table.insert(toNearbyEnemyUnits, oEnemy)
-                                    elseif iCurDist <= iApproachingThreshold then
-                                        table.insert(toApproachingEnemies, oEnemy)
-                                    end
+            if oACU:IsUnitState('Upgrading') then
+                if iPlateauOrZero > 0 and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.99 and oACU:GetWorkProgress() <= 0.8 and (tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or oACU:GetWorkProgress() <= 0.6) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                    if bDebugMessages == true then LOG(sFunctionRef..': ACU is upgrading, will consider if a really large threat such that we should run, safe to get upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))) end
+                    if not(M28Conditions.SafeToUpgradeUnit(oACU)) then
+                        local toNearbyEnemyUnits = {}
+                        local toApproachingEnemies = {}
+                        local iNearbyThreshold = 10
+                        local iApproachingThreshold = 40
+                        local iCurDist
+                        function AddNearbyEnemyThreats(tCurLZTeamData)
+                            if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                for iEnemy, oEnemy in tCurLZTeamData[M28Map.subrefTEnemyUnits] do
+                                    if not(oEnemy.Dead) and oEnemy[M28UnitInfo.refiCombatRange] > 10 then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange]
+                                        if iCurDist <= iNearbyThreshold then
+                                            table.insert(toNearbyEnemyUnits, oEnemy)
+                                        elseif iCurDist <= iApproachingThreshold then
+                                            table.insert(toApproachingEnemies, oEnemy)
+                                        end
 
+                                    end
+                                end
+                            end
+                        end
+                        AddNearbyEnemyThreats(tLZOrWZTeamData)
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            for _, iAdjLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                                AddNearbyEnemyThreats(tAdjLZTeamData)
+                            end
+                        end
+                        local iNearbyEnemyThreat = M28UnitInfo.GetCombatThreatRating(toNearbyEnemyUnits, true, false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iNearbyEnemyThreat='..iNearbyEnemyThreat) end
+                        if iNearbyEnemyThreat >= 400 then
+                            local iApproachingEnemyThreat = M28UnitInfo.GetCombatThreatRating(toApproachingEnemies, true, false)
+                            if iNearbyEnemyThreat + iApproachingEnemyThreat >= 800 then
+                                local iThreatFactor = 1.5 + oACU:GetWorkProgress() * 0.5
+                                if not(oACU[refbUseACUAggressively]) and M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] then iThreatFactor = iThreatFactor - 0.5 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iApproachingEnemyThreat='..iApproachingEnemyThreat..'; Cur LZ friendly combat='..tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; iThreatFactor='..iThreatFactor) end
+                                if (iNearbyEnemyThreat + iApproachingEnemyThreat) * iThreatFactor > math.max(tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal], M28UnitInfo.GetCombatThreatRating(oACU)) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will return to base if we also want to run') end
+                                    if DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Want to cancel upgrade and return to base') end
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                        return true
+                                    end
                                 end
                             end
                         end
                     end
-                    AddNearbyEnemyThreats(tLZOrWZTeamData)
-                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
-                        for _, iAdjLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
-                            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                            AddNearbyEnemyThreats(tAdjLZTeamData)
-                        end
-                    end
-                    local iNearbyEnemyThreat = M28UnitInfo.GetCombatThreatRating(toNearbyEnemyUnits, true, false)
-                    if bDebugMessages == true then LOG(sFunctionRef..': iNearbyEnemyThreat='..iNearbyEnemyThreat) end
-                    if iNearbyEnemyThreat >= 400 then
-                        local iApproachingEnemyThreat = M28UnitInfo.GetCombatThreatRating(toApproachingEnemies, true, false)
-                        if iNearbyEnemyThreat + iApproachingEnemyThreat >= 800 then
-                            local iThreatFactor = 1.5 + oACU:GetWorkProgress() * 0.5
-                            if not(oACU[refbUseACUAggressively]) and M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] then iThreatFactor = iThreatFactor - 0.5 end
-                            if bDebugMessages == true then LOG(sFunctionRef..': iApproachingEnemyThreat='..iApproachingEnemyThreat..'; Cur LZ friendly combat='..tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; iThreatFactor='..iThreatFactor) end
-                            if (iNearbyEnemyThreat + iApproachingEnemyThreat) * iThreatFactor > math.max(tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal], M28UnitInfo.GetCombatThreatRating(oACU)) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will return to base if we also want to run') end
-                                if DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to cancel upgrade and return to base') end
-                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                    return true
-                                end
-                            end
+                end
+                --If enemy has approaching experimental also run
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and oACU:GetWorkProgress() <= 0.7 then
+                    for iExp, oExp in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                        if not(oExp.Dead) and oExp[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateauOrZero and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oExp:GetPosition()) <= 100 and DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': want to cancel upgrade due to approaching enemy experimental') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
                         end
                     end
                 end
@@ -5212,6 +5224,7 @@ function GetACUOrder(aiBrain, oACU)
         if bDebugMessages == true then LOG(sFunctionRef..': ACU upgrading so will only cancel if in dangerous situation. is ACU doing initial BO='..tostring(oACU[refbDoingInitialBuildOrder])) end
         if not(oACU[refbDoingInitialBuildOrder]) then
             if bDebugMessages == true then LOG(sFunctionRef..': ACU is upgrading') end
+            local bCanceledUpgrade = false
             if DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
                 if bDebugMessages == true then LOG(sFunctionRef..': ACU wants to run to core base, considering if need emergency support and, if ACU health is low, will consider cancelling, ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; use acu aggressively='..tostring(oACU[refbUseACUAggressively] or false)) end
                 ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
@@ -5225,10 +5238,33 @@ function GetACUOrder(aiBrain, oACU)
                             --Cancel upgrade
                             if bDebugMessages == true then LOG(sFunctionRef..': Want to cancel ACU upgrade') end
                             M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'CURun')
+                            bCanceledUpgrade = true
                         end
                     end
                 end
-            elseif tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) >= 35 and DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                if not(bCanceledUpgrade) and not(M28Conditions.SafeToUpgradeUnit(oACU)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and oACU:GetWorkProgress() <= 0.7 then
+                    local iClosestExp = 100
+                    local oClosestExp
+                    local iCurDist
+                    for iExp, oExp in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                        if not(oExp.Dead) and oExp[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateauOrZero then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oExp:GetPosition())
+                            if iCurDist < iClosestExp then
+                                oClosestExp = oExp
+                                iClosestExp = iCurDist
+                            end
+                        end
+                    end
+                    if oClosestExp then
+                        --Just return to base, as normal 'no-upgrade' logic will kick in next cycle
+                        M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'CUExRun')
+                        if bDebugMessages == true then LOG(sFunctionRef..': will cancel upgrade and reun to base') end
+                        bCanceledUpgrade = true
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bCanceledUpgrade='..tostring(bCanceledUpgrade or false)) end
+            if not(bCanceledUpgrade) and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) >= 35 and DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
                 local iACUHealthPercent = M28UnitInfo.GetUnitHealthPercent(oACU)
                 if iACUHealthPercent < 0.6 and (1 - iACUHealthPercent) + 0.1 > oACU:GetWorkProgress() then
                     --Do we no longer consider this location safe?
