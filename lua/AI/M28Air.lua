@@ -1695,10 +1695,12 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         local tUnitsToProtect = {}
         if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam]) == false then
             for iUnit, oUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to protect='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to air support team, unit owner='..oUnit:GetAIBrain().Nickname) end
                 table.insert(tUnitsToProtect, oUnit)
             end
         end
         if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Adding front gunship='..M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship].UnitId..M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship])..' owned by '..M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetAIBrain().Nickname..' to air support team') end
             table.insert(tUnitsToProtect, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship])
         end
         --[[if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftoSpecialUnitsToProtect]) then
@@ -1750,6 +1752,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..' Finished considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; iCurPlateau='..(iCurPlateauOrZero or 'nil')..'; iCurWZ='..(iCurLZOrWZ or 'nil')..'; iCurDistToEnemyBase='..(iCurDistToEnemyBase or 'nil')..'; iClosestDistToEnemyBase='..(iClosestDistToEnemyBase or 'nil')..'; tClosestMidpoint='..repru(tClosestMidpoint)) end
             end
+
             if oPriorityUnitBeingSupported then
                 if EntityCategoryContains(M28UnitInfo.refCategoryAirNonScout, oPriorityUnitBeingSupported.UnitId) then
                     iFriendlyAAFromUnitToProtect = M28UnitInfo.GetAirThreatLevel({ oPriorityUnitBeingSupported }, false, true, false)
@@ -1786,7 +1789,37 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                             end
                         end
                     end
-                    if tClosestSafeMidpoint then tClosestBase = tClosestSafeMidpoint end
+                    if tClosestSafeMidpoint then tClosestBase = tClosestSafeMidpoint
+                    else
+                        --We couldnt find any safer bases; however its possible our unit itself is just too dangerous to try and support, so consider switching to another air subteam just based on in zone threat
+                        --Update closest base if enemy threats in it, to cover scenario where e.g. it is for a non-air subteam member who has just died (but not had their base entirely wiped out)
+                        if M28Utilities.IsTableEmpty(tClosestBase) == false and table.getn(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) > 1 then
+                            local tClosestBaseLZData, tClosestBaseLZTeamData = M28Map.GetLandOrWaterZoneData(tClosestBase, true, iTeam)
+                            if bDebugMessages == true then LOG(sFunctionRef..': tClosestBaseLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tClosestBaseLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')) end
+                            if tClosestBaseLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and tClosestBaseLZTeamData[M28Map.subrefiThreatEnemyGroundAA] > 0 then
+                                --Find another safer base
+                                local tAltBase, iCurDist
+                                local iClosestAltBase = 100000
+                                for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+                                    local tStartPosition = M28Map.GetPlayerStartPosition(oBrain)
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tStartPosition, tClosestBase)
+                                    if iCurDist < iClosestAltBase and iCurDist > 5 then
+                                        local tAltBaseLZData, tAltBaseLZTeamData = M28Map.GetLandOrWaterZoneData(tStartPosition, true, iTeam)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': considering start position for brain '..oBrain.Nickname..'; Enemy GroundAA in this s tart='..(tAltBaseLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)) end
+                                        if (tAltBaseLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) == 0 then
+                                            iClosestAltBase = iCurDist
+                                            tAltBase = tStartPosition
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Closest base is dangerous so looking for alt base, is table of tAltBase empty='..tostring(M28Utilities.IsTableEmpty(tAltBase))..'; iClosestAltBase='..iClosestAltBase) end
+                                if M28Utilities.IsTableEmpty(tAltBase) == false then
+                                    tClosestBase = {tAltBase[1], tAltBase[2], tAltBase[3]}
+                                end
+                            end
+                        end
+
+                    end
                 end
 
 
@@ -6237,58 +6270,40 @@ function ManageGunships(iTeam, iAirSubteam)
             if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
                 iStartPositionGunshipThreatFactorWanted = math.min(1.2, 0.3 + 0.3 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])
             end
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) == false then
-                if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each core base by plateau and adding to friendly start position P and Z table, repru='..repru(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau])..'; M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau]='..repru(M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau])) end
-                for iPlateau, tZones in M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] do
-                    for iZone, bCoreZone in tZones do
-                        table.insert(tiFriendlyStartPositionPlateauAndZones, {iPlateau, iZone})
-                    end
-                end
-                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau]) == false then
-                    for iPlateau, tZones in M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau] do
-                        for iZone, bZone in tZones do
-                            --Only include if we have friendly SValue in the zone
-                            local tLZOrWZData
-                            local tLZOrWZTeamData
-                            if iPlateau > 0 then
-                                tLZOrWZData  = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone]
-                                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-                            else
-                                --Water zone
-                                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPlateau]][M28Map.subrefPondWaterZones][iZone]
-                                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                            end
-                            if tLZOrWZTeamData[M28Map.subrefLZSValue] > 0 then
-                                table.insert(tiFriendlyStartPositionPlateauAndZones, {iPlateau, iZone})
-                            end
+            --Dont want ot consider non-air subteam incase we cross half the map and lose our gunships to air (which happend in RC on v204)
+            for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+                local iBasePlateau, iBaseZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.GetPlayerStartPosition(oBrain))
+                if (iBasePlateau or 0) > 0 then
+                    if (iBaseZone or 0) == 0 then
+                        iBaseZone = M28Map.GetWaterZoneFromPosition(M28Map.GetPlayerStartPosition(oBrain))
+                        if (iBaseZone or 0) > 0 then
+                            iBasePlateau = 0
                         end
                     end
                 end
-            else
-                M28Utilities.ErrorHandler('Dont have any core zones so will revert to player start points')
-                --Old code - left in as redundancy
-                for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
-                    local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
-                    iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
-                    if (iCurPlateauOrZero or 0) > 0 then
-                        if (iCurLZOrWZ or 0) == 0 then
-                            iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartPoint)
-                            if (iCurLZOrWZ or 0) > 0 then
-                                iCurPlateauOrZero = 0
-                            end
+                table.insert(tiFriendlyStartPositionPlateauAndZones, {iBasePlateau, iBaseZone})
+            end
+
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau]) == false then
+                for iPlateau, tZones in M28Team.tTeamData[iTeam][M28Team.reftiFortifyZonesByPlateau] do
+                    for iZone, bZone in tZones do
+                        --Only include if we have friendly SValue in the zone
+                        local tLZOrWZData
+                        local tLZOrWZTeamData
+                        if iPlateau > 0 then
+                            tLZOrWZData  = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone]
+                            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                        else
+                            --Water zone
+                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPlateau]][M28Map.subrefPondWaterZones][iZone]
+                            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
                         end
-                    end
-                    if (iCurLZOrWZ or 0) > 0 then
-                        if not(iClosestSnipeTarget) or M28Utilities.GetDistanceBetweenPositions(tStartPoint, oFrontGunship:GetPosition()) < iClosestSnipeTarget + 25 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will be soon checking for enemies in the start position for friendly brain '..oBrain.Nickname..' in iCurLZOrWZ='..iCurLZOrWZ..'; iCurPlateauOrZero='..iCurPlateauOrZero) end
-                            table.insert(tiFriendlyStartPositionPlateauAndZones, {iCurPlateauOrZero, iCurLZOrWZ})
-                            --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
-                            AddEnemyGroundUnitsToTargetsSubjectToAA(iCurPlateauOrZero, iCurLZOrWZ, iStartPositionGunshipThreatFactorWanted, false, nil,nil,true)
+                        if tLZOrWZTeamData[M28Map.subrefLZSValue] > 0 then
+                            table.insert(tiFriendlyStartPositionPlateauAndZones, {iPlateau, iZone})
                         end
                     end
                 end
             end
-
 
             local bAlwaysInclAdjToStart = M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]
             if not(bAlwaysInclAdjToStart) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) < iOurGunshipThreat * 0.1 then bAlwaysInclAdjToStart = true end
