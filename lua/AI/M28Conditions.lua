@@ -3941,3 +3941,13 @@ function BaseIsSafeToRetreatTo(tPosition, iTeam)
     end
     return true
 end
+
+function GetBestCombatRangeOfUnitsOnPlateau(tUnits, iPlateau, iTeam)
+    local iCombatRange = 0
+    for iUnit, oUnit in tUnits do
+        if not(oUnit.Dead) and (oUnit[M28UnitInfo.refiCombatRange] or 0) > iCombatRange and oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
+            iCombatRange = oUnit[M28UnitInfo.refiCombatRange]
+        end
+    end
+    return oUnit[M28UnitInfo.refiCombatRange]
+end
