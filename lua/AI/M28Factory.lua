@@ -3958,18 +3958,24 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                         local iExistingT3Factories = 0
                         --Adjust flag for destroying for mass if dealing with a land factory, and we dont have much mass stored, and we have multiple in this zone, and are a core base
                         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+                        local oBrain = oFactory:GetAIBrain()
+                        local iTeam = oBrain.M28Team
+                        local tLZOrWZTeamData
                         if iPlateauOrZero > 0 then
-                            local oBrain = oFactory:GetAIBrain()
-                            local iTeam = oBrain.M28Team
-                            local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                            tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                        elseif iLandOrWaterZone then
+                            tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+                        end
+                        if tLZOrWZTeamData then
+                            local tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
                             local iFactoryType = M28UnitInfo.GetFactoryType(oFactory)
 
                             --When factory completes something, oFactory[refiFirstTimeOfLastOrder] should get set to nil (unless it has already started construction)
-                            if not(bConsiderDestroyingForMass) and not(oFactory[refiFirstTimeOfLastOrder]) and oBrain:GetEconomyStoredRatio('MASS') <= 0.01 and tLZTeamData[M28Map.subrefLZbCoreBase] and iFactoryType == refiFactoryTypeLand then
-                                if oBrain[M28Overseer.refbPrioritiseDefence] or oBrain[M28Overseer.refbPrioritiseHighTech] or oBrain[M28Overseer.refbPrioritiseLowTech] or oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Overseer.refbPrioritiseAir] or not(oBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
-                                    bConsiderDestroyingForMass = true
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider destroying for mass afterall') end
-                                end
+                            if not(bConsiderDestroyingForMass) and not(oFactory[refiFirstTimeOfLastOrder]) and oBrain:GetEconomyStoredRatio('MASS') <= 0.01 and not(oBrain[M28Overseer.refbPrioritiseLowTech]) and
+                                    ((tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and iFactoryType == refiFactoryTypeLand and oBrain[M28Overseer.refbPrioritiseDefence] or oBrain[M28Overseer.refbPrioritiseHighTech] or oBrain[M28Overseer.refbPrioritiseLowTech] or oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Overseer.refbPrioritiseAir] or not(oBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory) >= 4) or
+                                            (iFactoryType == refiFactoryTypeNaval and not(oFactory[refbPrimaryFactoryForIslandOrPond]) and GetUnitTechLevel(oFactory) < aiBrain[M28Economy.refiOurHighestNavalFactoryTech] and M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory) > 1)) then
+                                bConsiderDestroyingForMass = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will consider destroying for mass afterall') end
                             end
                             if bDebugMessages == true then
                                 LOG(sFunctionRef .. ': Considering at time ' .. GetGameTimeSeconds() .. ' whether to ctrlk factory tech level ' .. M28UnitInfo.GetUnitTechLevel(oFactory) .. ' when bHaveLowMass=' .. tostring(M28Conditions.HaveLowMass(aiBrain)) .. ' and highest tech=' .. M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] .. '; factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; bConsiderDestroyingForMass=' .. tostring(bConsiderDestroyingForMass or false)..'; oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil'))
@@ -3983,7 +3989,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                                         if iFactoryTechLevel == 1 then iSearchCategory = M28UnitInfo.refCategoryLandFactory - categories.TECH1
                                         else iSearchCategory = M28UnitInfo.refCategoryLandFactory * categories.TECH3
                                         end
-                                        local tExistingFactories = EntityCategoryFilterDown(iSearchCategory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                        local tExistingFactories = EntityCategoryFilterDown(iSearchCategory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                         if M28Utilities.IsTableEmpty(tExistingFactories) == false then
                                             iExistingFactoriesOfHigherTech = table.getn(tExistingFactories)
                                         end
@@ -4003,7 +4009,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                                     elseif iFactoryType == refiFactoryTypeAir then
                                         --Consider ctrlking t1 air facs if we have t3 air
                                         if iFactoryTechLevel == 1 and oBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 then
-                                            local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                            local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory * categories.TECH3, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                             if bDebugMessages == true then
                                                 LOG(sFunctionRef .. ': Is table of existing T3 air factories empty=' .. tostring(M28Utilities.IsTableEmpty(tExistingT3Factories)) .. ' Brain cur T3 factories=' .. oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH3))
                                             end
