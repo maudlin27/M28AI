@@ -2659,6 +2659,11 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
     local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if tWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to be very aggressive with all nearby naval units') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
+    end
 
     local bAreInScenario2 = false
     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then bAreInScenario2 = true
@@ -2693,6 +2698,7 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
 
                     local tFriendlyNavalFac
                     if tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] == false then tFriendlyNavalFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Is tFriendlyNavalFac empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyNavalFac))) end
                     if M28Utilities.IsTableEmpty(tFriendlyNavalFac) then
                         --Greater search range as dont know how close to midpoint the naval fac build location would be
                         if CloseToEnemyUnit(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftoNearestCombatEnemies], 30, iTeam, true) then
