@@ -1546,21 +1546,31 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     end
 
     --AI personality adjustments - get fewer factories for certain AI types
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering personality adjustment if want more facs, bWantMoreFactories='..tostring(bWantMoreFactories)..'; Highest air='..aiBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Land='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]..'; Prioritise tech='..tostring(aiBrain[M28Overseer.refbPrioritiseHighTech] or false)..'; Prioritise defence='..tostring(aiBrain[M28Overseer.refbPrioritiseDefence] or false)..'; Prioritise navy='..tostring(aiBrain[M28Overseer.refbPrioritiseNavy] or false)) end
     if bWantMoreFactories and aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 then
         --Tech and turtle, and navy (except for water zones, but i think this condition is only used for land zones) - dont want as many
         if aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Overseer.refbPrioritiseNavy] then
-            --Only get more if have lots of mass and (if have lots of land facs) are at T3
-            if not(iLandFacsInZone) or not(iAirFacsInZone) then
-                iLandFacsInZone = 0
-                iAirFacsInZone = 0
-                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                    local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                    if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
-                        for iUnit, oUnit in tFriendlyFactory do
-                            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
-                                iLandFacsInZone = iLandFacsInZone + 1
-                            else
-                                iAirFacsInZone = iAirFacsInZone + 1
+            --Only get more if have lots of mass
+            if bDebugMessages == true then LOG(sFunctionRef..': Mass %='..aiBrain:GetEconomyStoredRatio('MASS')..'; Net income='..aiBrain[M28Economy.refiNetMassBaseIncome]..'; Highest fac tech='..aiBrain[M28Economy.refiOurHighestFactoryTechLevel]..'; Naval fac tech='..aiBrain[M28Economy.refiOurHighestNavalFactoryTech]..'; Team net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Energy % stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Have low power='..tostring(HaveLowPower(iTeam))) end
+            if aiBrain:GetEconomyStoredRatio('MASS') < 0.2 or (aiBrain:GetEconomyStoredRatio('MASS') < 0.75 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]  < 0 or GetGameTimeSeconds() <= 600) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.4 or (aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 or HaveLowPower(iTeam)))) then
+                if aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] < 3
+                        --Naval facs - want to get more land/air facs if we have lost navy
+                        or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0))) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want more facs as want to tech or turtle, unless this zone has no factories') end
+                    bWantMoreFactories = false
+                    if not(iLandFacsInZone) or not(iAirFacsInZone) then
+                        iLandFacsInZone = 0
+                        iAirFacsInZone = 0
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                            local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
+                                for iUnit, oUnit in tFriendlyFactory do
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
+                                        iLandFacsInZone = iLandFacsInZone + 1
+                                    else
+                                        iAirFacsInZone = iAirFacsInZone + 1
+                                    end
+                                end
                             end
                         end
                     end

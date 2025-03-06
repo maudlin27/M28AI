@@ -3214,7 +3214,7 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
                 AddPotentialUnitsToShortlist(toSafeUnitsToUpgrade, tPotentialUnits)
             end
         end
-        if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2) then
+        if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2) and (not(oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Economy.refiOurHighestNavalFactoryTech] >= 2 or oBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3)) then
             if bDebugMessages == true then LOG(sFunctionRef..': Does brain have active Land HQ upgrades='..tostring(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ))) end
             if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ)) then
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH1, false, true)
@@ -3244,7 +3244,7 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
                         end
                     end
                 end
-                if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or (oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2 and (M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) or oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2))) then
+                if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or (oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2 and (M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) or oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2))) and (not(oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Economy.refiOurHighestNavalFactoryTech] >= 3)) then
                     if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ)) then
                         tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH2, false, true)
                         if M28Utilities.IsTableEmpty(tPotentialUnits) == false then
