@@ -4794,9 +4794,20 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         end
 
         --Multiple mex upgrades so want more engineers (air fac have power), if only to assist the upgrade (and also so once upgraded we have enough build power)
+            --Also get more engineers if have lots of mass and not many engineers being built
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if M28Conditions.WantMoreEngineersToAssistMexUpgradeAsPriority(tLZTeamData, iTeam) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        elseif not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3 and tLZTeamData[M28Map.subrefTbWantBP] then
+            local iEngineersUnderConstruction = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryEngineer)
+            local iFactoriesInZone = M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryFactory)
+            if bDebugMessages == true then LOG(sFunctionRef..': Higher priority engi builder, iEngineersUnderConstruction='..iEngineersUnderConstruction..'; iFactoriesInZone='..iFactoriesInZone) end
+            if iEngineersUnderConstruction < iFactoriesInZone * 0.5 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.45 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0) then
+                --Check we have at least 2 air facs (or not many facs)
+                if iFactoriesInZone <= 2 or iEngineersUnderConstruction < iFactoriesInZone * 0.25 or iEngineersUnderConstruction < M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryAirFactory) - 1 then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                end
+            end
         end
 
         --Upgrade to T2 if at T1 air and have a certain level of mass and energy, and either cant path to enemy by land or it will take a while or we have good gross mass and energy income
@@ -5832,6 +5843,17 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
     end
 
+    --Engineer if close to overflowing and dont have low power
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if not(bHaveLowMass) and not(bHaveLowPower) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.5 and tWZTeamData[M28Map.subrefTbWantBP] then
+        local iEngineersUnderConstruction = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tWZTeamData, M28UnitInfo.refCategoryEngineer)
+        local iFactoriesInZone = M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tWZTeamData, M28UnitInfo.refCategoryFactory)
+        if bDebugMessages == true then LOG(sFunctionRef..': Higher priority naval engi builder, iEngineersUnderConstruction='..iEngineersUnderConstruction..'; iFactoriesInZone='..iFactoriesInZone..'; Factory engi LC='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer)..'; Total build count='..oFactory[refiTotalBuildCount]) end
+        if (iFactoriesInZone >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0) and iEngineersUnderConstruction < iFactoriesInZone * 0.5 and (iFactoriesInZone > 1 or M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer) < oFactory[refiTotalBuildCount] * 0.5) then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
+    end
+
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bConsiderBuildingShieldOrStealthBoats and tWZTeamData[M28Map.refbWZWantsMobileShield] then
         if bDebugMessages == true then
@@ -5879,8 +5901,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; About ot check if want to upgrade factory, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Is table of active upgrades for WZ empty=' .. tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]))..'; Are we stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Does this brain have active naval upgrade='..tostring(M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, M28UnitInfo.refCategoryNavalFactory))..'; Highest enemy naval tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech]..'; Build count='..oFactory[refiTotalBuildCount]..'; Brain gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Is this primary factory='..tostring((oFactory[refbPrimaryFactoryForIslandOrPond] or false))) end
     if iFactoryTechLevel < 3 and (oFactory[refiTotalBuildCount] >= 5 or iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestNavalFactoryTech] or (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or -10) <= 4.1) or (iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0)
-    --Primary factory, and enemy is getting t2 navy, and we have o ther factories in this WZ, and we are at t1
-    or (iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] > 1 and oFactory[refiTotalBuildCount] >= 2 and (oFactory[refbPrimaryFactoryForIslandOrPond] or oFactory[refiTotalBuildCount] >= 4) and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 1 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4.5 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, M28UnitInfo.refCategoryNavalFactory)))
+            --Primary factory, and enemy is getting t2 navy, and we have o ther factories in this WZ, and we are at t1
+            or (iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] > 1 and oFactory[refiTotalBuildCount] >= 2 and (oFactory[refbPrimaryFactoryForIslandOrPond] or oFactory[refiTotalBuildCount] >= 4) and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 1 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4.5 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, M28UnitInfo.refCategoryNavalFactory)))
     ) then
         local iActiveFactoryUpgrades = 0
         if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
