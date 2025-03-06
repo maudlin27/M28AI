@@ -15133,8 +15133,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if aiBrain[M28Economy.refbBuiltParagon] and not(bTeammateHasBuiltHere) and iFactoriesWanted <= 0 and tLZData[M28Map.subrefLZTotalSegmentCount] >= 20 and M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] >= 1 then iFactoriesWanted = math.max(iFactoriesWanted, 1) end
 
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': iExistingFactory='..GetExistingFactoryNumber()..'; iFactoriesWanted='..iFactoriesWanted..'; P'..iPlateau..'Z'..iLandZone..'; Time='..GetGameTimeSeconds()) end
-    if GetExistingFactoryNumber() < iFactoriesWanted then
+    if bDebugMessages == true then LOG(sFunctionRef..': iExistingFactory='..GetExistingFactoryNumber()..'; iFactoriesWanted='..iFactoriesWanted..'; P'..iPlateau..'Z'..iLandZone..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; Signif mass reclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]..'; Time='..GetGameTimeSeconds()) end
+    --If we have dropped here recently, and mod dist is high, then prioritise getting reclaim over land fac as enemy will likely kill us soon
+    if GetExistingFactoryNumber() < iFactoriesWanted and (tLZTeamData[M28Map.refiModDistancePercent] <= 0.75 or tLZData[M28Map.subrefTotalSignificantMassReclaim] < 250 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.75) then
         iBPWanted = 10
         if bExistingFactoryIsComplete and bHaveLowMass then iBPWanted = 5 end
         --If we have dropped engineerz in this zone then prioritise the first land fac more
@@ -15166,9 +15167,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     end
 
 
-    --High reclaim zone when ahve low mass - want to be reclaiming ahead of building mexes
+    --High reclaim zone when ahve low mass - want to be reclaiming ahead of building mexes; also if high reclaim and on enemy side of map (as less likely to hold onto any mexes)
     iCurPriority = iCurPriority + 1
-    if (bHaveLowMass and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 250) or (tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.15) then
+    if (bHaveLowMass and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 250) or (tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 250 and tLZTeamData[M28Map.refiModDistancePercent] > 0.75 and aiBrain:GetEconomyStoredRatio('MASS') < 0.75) or (tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.15) then
         if bDebugMessages == true then LOG(sFunctionRef..': High priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]..'; Signif mass='..tLZData[M28Map.subrefTotalSignificantMassReclaim]) end
 
         --Have 1 engi search for high value wrecks
