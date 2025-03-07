@@ -1442,7 +1442,37 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                         if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious destination; Unit last orders='..reprs(oUnit[M28Orders.reftiLastOrders])..'; Is command queue empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetCommandQueue()))) end
                             if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                M28Orders.IssueTrackedMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAToLZ'..iLZToSupport..'Fr'..iWaterZone)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Land zone of last order='..(M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) or 'nil')..'; Last order position='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])..'; Unit LC='..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit antinavy='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
+                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 3 and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 and M28Utilities.IsTableEmpty(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) == false and M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) then
+                                    local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
+                                    if iDistToLastOrder <= 125 then
+                                        --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Exp wants to move somewhere to support but land target htat isnt too far away so will go there') end
+                                    else
+                                        local iAngleToLastOrder = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
+                                        local bHaveLandZoneNearby = false
+                                        local iAmphibPathingRef = NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oUnit:GetPosition())
+                                        for iDist = 125, 25, -25 do
+                                            local tInbetweenPosition = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToLastOrder, iDist, true, true, false)
+
+                                            if M28Utilities.IsTableEmpty(tInbetweenPosition) and M28Map.GetLandZoneFromPosition(tInbetweenPosition) and NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, tInbetweenPosition) == iAmphibPathingRef then
+                                                bHaveLandZoneNearby = true
+                                                break
+                                            end
+                                        end
+                                        if bHaveLandZoneNearby then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': will proceed to land for Exp instead of moving') end
+                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                        else
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Sending exp to move, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
+                                            oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
+                                            M28Orders.IssueTrackedMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAEToLZ'..iLZToSupport..'Fr'..iWaterZone)
+                                        end
+                                    end
+                                else
+                                    M28Orders.IssueTrackedMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAToLZ'..iLZToSupport..'Fr'..iWaterZone)
+                                end
                             end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending hover unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to hover destination') end
@@ -1452,9 +1482,40 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                         end
                     else
                         if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
-                            oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                            M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NACons'..iWaterZone)
+                            --Land experimental exception - make landfall if we are close and were headed there
+                            if bDebugMessages == true then LOG(sFunctionRef..': Land zone of last order='..(M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) or 'nil')..'; Last order position='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])..'; Unit LC='..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit antinavy='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
+                            if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 3 and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 and M28Utilities.IsTableEmpty(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) == false and M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) then
+                                local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
+                                if iDistToLastOrder <= 125 then
+                                    --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
+                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Exp wants to consolidate but land target htat isnt too far away so will go there') end
+                                else
+                                    local iAngleToLastOrder = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
+                                    local bHaveLandZoneNearby = false
+                                    local iAmphibPathingRef = NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oUnit:GetPosition())
+                                    for iDist = 125, 25, -25 do
+                                        local tInbetweenPosition = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToLastOrder, iDist, true, true, false)
+
+                                        if M28Utilities.IsTableEmpty(tInbetweenPosition) and M28Map.GetLandZoneFromPosition(tInbetweenPosition) and NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, tInbetweenPosition) == iAmphibPathingRef then
+                                            bHaveLandZoneNearby = true
+                                            break
+                                        end
+                                    end
+                                    if bHaveLandZoneNearby then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': will proceed to land for Exp instead of consolidating') end
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Sending exp to consolidate, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
+                                        oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
+                                        M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NAECons'..iWaterZone)
+                                    end
+                                end
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
+                                oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
+                                M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NACons'..iWaterZone)
+                            end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending hover unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to hover rally point') end
                             oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
@@ -3095,7 +3156,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
 
     local tUnassignedLandUnits
-    if bDebugMessages == true then LOG(sFunctionRef..': start of code for time '..GetGameTimeSeconds()..', iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Are there enemy units in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; Is table of missile ships empty='..tostring(M28Utilities.IsTableEmpty(tMissileShips))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': start of code for time '..GetGameTimeSeconds()..', iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Are there enemy units in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; Is table of missile ships empty='..tostring(M28Utilities.IsTableEmpty(tMissileShips))..'; subrefWZbSuicideIntoEnemy='..tostring(tWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] or false)) end
 
     local bWantReinforcements = false
 
@@ -3558,8 +3619,8 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         else
                             --Are we not in range of any enemy, or are easy M28? Then attack move
                             --CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                                               iDistThreshold,                    iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
-                            if oUnit[M28UnitInfo.refbEasyBrain] or bMoveAntiNavyForwardsAsCantSee or bEnemyHasNoCombatUnits or (not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], oUnit[M28UnitInfo.refiAntiNavyRange] * 0.94, iTeam, false,                nil,                    nil,                                    oUnit)) and (not(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) or (oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiAntiNavyRange] or 0) == 0 or M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit:GetPosition()) >= oUnit[M28UnitInfo.refiAntiNavyRange] or not(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false)))) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Not in range of enemy yet, and we outrange enemy; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Antinavy range='..oUnit[M28UnitInfo.refiAntiNavyRange]..'; oNearestEnemyNonHoverToFriendlyBase='..oNearestEnemyNonHoverToFriendlyBase.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase)..'; oNearestEnemyNonHoverToFriendlyBase antinavy range='..(oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; Distance to the nearest enemy to midpoint='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit:GetPosition())..'; Enemy unit actual position='..repru(oNearestEnemyNonHoverToFriendlyBase:GetPosition())..'; Enemy last recorded position='..repru(oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Our unit position='..repru(oUnit:GetPosition())..'; WZ midpoint position='..repru(tWZData[M28Map.subrefMidpoint])) end
+                            if oUnit[M28UnitInfo.refbEasyBrain] or bMoveAntiNavyForwardsAsCantSee or bEnemyHasNoCombatUnits or iScenario1AntiNavyRangeThreshold <= 5 or (iScenario1AntiNavyRangeThreshold + 10 < oUnit[M28UnitInfo.refiAntiNavy] and (oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.oNearestEnemyNonHoverToFriendlyBase] or 0) == 0) or (not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], oUnit[M28UnitInfo.refiAntiNavyRange] * 0.94, iTeam, false,                nil,                    nil,                                    oUnit)) and (not(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) or (oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiAntiNavyRange] or 0) == 0 or M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit:GetPosition()) >= oUnit[M28UnitInfo.refiAntiNavyRange] or not(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false)))) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Not in range of enemy yet (or enemy ahs no antinavy), and we outrange enemy; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Antinavy range='..oUnit[M28UnitInfo.refiAntiNavyRange]..'; oNearestEnemyNonHoverToFriendlyBase='..oNearestEnemyNonHoverToFriendlyBase.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase)..'; oNearestEnemyNonHoverToFriendlyBase antinavy range='..(oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; Distance to the nearest enemy to midpoint='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit:GetPosition())..'; Enemy unit actual position='..repru(oNearestEnemyNonHoverToFriendlyBase:GetPosition())..'; Enemy last recorded position='..repru(oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Our unit position='..repru(oUnit:GetPosition())..'; WZ midpoint position='..repru(tWZData[M28Map.subrefMidpoint])) end
                                 --Not in range yet, so attack move to the nearest enemy
                                 if not(IgnoreOrderDueToStuckUnit(oUnit)) then
                                     M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit[M28UnitInfo.refiAntiNavyRange] * 0.5, false, 'NSKAMve'..iWaterZone)
@@ -3626,8 +3687,39 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 end
             else
                 --WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease)
-                if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to attack enemy even if outranged, iAdjacentAlliedSubmersibleThreat='..iAdjacentAlliedSubmersibleThreat..'; iAdjacentEnemyAntiNavyThreat='..iAdjacentEnemyAntiNavyThreat..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat..'; iModForEnemyScenario2Threat='..iModForEnemyScenario2Threat..'; Want to attack='..tostring(M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, true                             ,iModForEnemyScenario2Threat ))) end
-                if M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, true                             ,iModForEnemyScenario2Threat ) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to attack enemy even if outranged, iAdjacentAlliedSubmersibleThreat='..iAdjacentAlliedSubmersibleThreat..'; iAdjacentEnemyAntiNavyThreat='..iAdjacentEnemyAntiNavyThreat..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat..'; iModForEnemyScenario2Threat='..iModForEnemyScenario2Threat..'; Want to attack='..tostring(M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, true                             ,iModForEnemyScenario2Threat ))..'; tWZTeamData[M28Map.subrefWZbSuicideIntoEnemy]='..tostring(tWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] or false)) end
+                local bSubInScenario2
+                if tWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] then
+
+                    bSubInScenario2 = true
+                else
+                    bSubInScenario2 = M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, true                             ,iModForEnemyScenario2Threat )
+                    if bSubInScenario2 and tWZTeamData[M28Map.subrefWZbCoreBase] then
+                        tWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
+                        M28Utilities.ForkedDelayedChangedVariable(tWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Subs Setting suicide flag to true, is table of adj WZs empty='..tostring( M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]))) end
+                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                            for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                                local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to set Suicide flag to true for iAdjWZ='..iAdjWZ..' (based on base iWZ='..iWaterZone..'); tAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy]='..tostring(tAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] or false)) end
+                                if not(tAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy]) then
+                                    tAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
+                                    M28Utilities.ForkedDelayedChangedVariable(tAdjWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
+                                    if tAdjWZTeamData[M28Map.subrefWZbCoreBase] and M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ]) == false then
+                                        for _, iSecondAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ] do
+                                            local tSecondAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iSecondAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                            if not(tSecondAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy]) then
+                                                tSecondAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
+                                                M28Utilities.ForkedDelayedChangedVariable(tSecondAdjWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                if bSubInScenario2 then
                     --SCENARIO 2 - We are either near our core naval factory or we have a greater threat than the enemy - attack
                     if bDebugMessages == true then LOG(sFunctionRef..': Are in scenario 2 for subs, bMoveBlockedNotAttackMove='..tostring(bMoveBlockedNotAttackMove or false)) end
                     for iUnit, oUnit in tAvailableSubmarines do
@@ -4070,23 +4162,52 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 if M28Utilities.IsTableEmpty(tCombatUnitsOfUse) == false then
                     --Add in adjacnet land zone DF threats to decision on whether to engage - determine based on tWZTeamData[M28Map.reftoNearestCombatEnemies]
                     --WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease)
-                    local bAreInScenario2 = M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, false                               ,iModForEnemyScenario2Threat, iEnemyNearbySubmersibleThreat, iOurAntiNavyThreat)
-                    if bAreInScenario2 and iEnemyBestCombatRange >= 45 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
-                        --Extra check in case we have included enemies from an adjacent land zone in the nearest enemies
-                        local toEnemiesFromAdjacentLandZone = {}
-                        for iUnit, oUnit in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
-                            if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] and not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Adding nearby DF unit assigned to a land zone to toEnemiesFromAdjacentLandZone, nearby enemy unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                                table.insert(toEnemiesFromAdjacentLandZone, oUnit)
+                    local bAreInScenario2
+                    if tWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] then
+                        bAreInScenario2 = true
+                    else
+                        bAreInScenario2 = M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, false                               ,iModForEnemyScenario2Threat, iEnemyNearbySubmersibleThreat, iOurAntiNavyThreat)
+                        if bAreInScenario2 and iEnemyBestCombatRange >= 45 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                            --Extra check in case we have included enemies from an adjacent land zone in the nearest enemies
+                            local toEnemiesFromAdjacentLandZone = {}
+                            for iUnit, oUnit in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
+                                if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] and not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding nearby DF unit assigned to a land zone to toEnemiesFromAdjacentLandZone, nearby enemy unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                    table.insert(toEnemiesFromAdjacentLandZone, oUnit)
+                                end
+                            end
+                            if M28Utilities.IsTableEmpty(toEnemiesFromAdjacentLandZone) == false then
+                                local iAdjacentLandThreat = M28UnitInfo.GetCombatThreatRating(toEnemiesFromAdjacentLandZone, true, false)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iAdjacentLandThreat='..iAdjacentLandThreat..'; will increase adjacent enemy threat for this if it is significant') end
+                                if iAdjacentLandThreat > 100 and iAdjacentLandThreat > iAdjacentEnemyCombatThreat * 0.1 then
+                                    iAdjacentEnemyCombatThreat = iAdjacentEnemyCombatThreat + iAdjacentLandThreat
+                                    bAreInScenario2 = M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, false                               ,iModForEnemyScenario2Threat, iEnemyNearbySubmersibleThreat, iOurAntiNavyThreat)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Finished rechecking if are in scenario2, bAreInScenario2='..tostring(bAreInScenario2)) end
+                                end
                             end
                         end
-                        if M28Utilities.IsTableEmpty(toEnemiesFromAdjacentLandZone) == false then
-                            local iAdjacentLandThreat = M28UnitInfo.GetCombatThreatRating(toEnemiesFromAdjacentLandZone, true, false)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iAdjacentLandThreat='..iAdjacentLandThreat..'; will increase adjacent enemy threat for this if it is significant') end
-                            if iAdjacentLandThreat > 100 and iAdjacentLandThreat > iAdjacentEnemyCombatThreat * 0.1 then
-                                iAdjacentEnemyCombatThreat = iAdjacentEnemyCombatThreat + iAdjacentLandThreat
-                                bAreInScenario2 = M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, false                               ,iModForEnemyScenario2Threat, iEnemyNearbySubmersibleThreat, iOurAntiNavyThreat)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Finished rechecking if are in scenario2, bAreInScenario2='..tostring(bAreInScenario2)) end
+                        if bAreInScenario2 and tWZTeamData[M28Map.subrefWZbCoreBase] then
+                            tWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
+                            M28Utilities.ForkedDelayedChangedVariable(tWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Surface setting suicide flag to true, is table of adj WZs empty='..tostring( M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]))) end
+                            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                                for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                                    local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Nonsub suicide flag, considering iAdjWZ='..iAdjWZ..'; tAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy]='..tostring(tAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] or false)) end
+                                    if not(tAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy]) then
+                                        tAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
+                                        M28Utilities.ForkedDelayedChangedVariable(tAdjWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
+                                        if tAdjWZTeamData[M28Map.subrefWZbCoreBase] and M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ]) == false then
+                                            for _, iSecondAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ] do
+                                                local tSecondAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iSecondAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                                if not(tSecondAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy]) then
+                                                    tSecondAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
+                                                    M28Utilities.ForkedDelayedChangedVariable(tSecondAdjWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
                             end
                         end
                     end

@@ -5606,3 +5606,65 @@ function ConsiderGettingPreemptiveTMD(oPD)
         end
     end
 end
+
+function GetManualPDTarget(oUnit, oOptionalTargetToIgnore)    
+    --Intended for use where PD shot is blocked
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetManualPDTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+        local aiBrain = oUnit:GetAIBrain()
+
+        local tNearbyEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange], 'Enemy')
+        if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyEnemies empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemies))..'; PD oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()) end
+        if M28Utilities.IsTableEmpty(tNearbyEnemies) == false then
+            local toUnitByPriorityType = {}
+            local iPriorityExperimental = 1
+            local iPriorityIndirect = 2
+            local iPriorityCombat = 3
+            local iPriorityOther = 4
+            local iUnitPriority
+            local oExperimentalToTarget
+            local oIndirectToTarget
+            local oCombatToTarget
+            local oOtherToTarget
+
+            for iEnemy, oEnemy in tNearbyEnemies do
+                if not(oOptionalTargetToIgnore) or not(oOptionalTargetToIgnore == oEnemy) then
+                    iUnitPriority = nil
+                    if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oExperimentalToTarget.UnitId) then
+                        iUnitPriority = 1
+                    elseif not(oIndirectToTarget) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryIndirect, oEnemy.UnitId) then
+                            iUnitPriority = 2
+                        elseif not(oCombatToTarget) then
+                            if (oEnemy[M28UnitInfo.refiCombatRange] or 0) > 0 then
+                                iUnitPriority = 3
+                            elseif not(oOtherToTarget) then
+                                iUnitPriority = 4
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if shot blocked for oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; is shot blocked='..tostring(M28Logic.IsShotBlocked(oUnit, oEnemy))..'; iUnitPriority='..(iUnitPriority or 'nil')) end
+                    if iUnitPriority and not(M28Logic.IsShotBlocked(oUnit, oEnemy)) then
+                        toUnitByPriorityType[iUnitPriority] = oEnemy
+                        if iUnitPriority == 1 then break end
+                    end
+                end
+            end
+            if M28Utilities.IsTableEmpty(toUnitByPriorityType) == false then
+                local iLowestPriority = 100
+                local oEnemyToTarget
+                for iPriority, oEnemy in toUnitByPriorityType do
+                    if iPriority < iLowestPriority then
+                        iLowestPriority = iPriority
+                        oEnemyToTarget = oEnemy
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try manual attack of unit '..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)) end
+                M28Orders.IssueTrackedAttack(oUnit, oEnemyToTarget, false, 'PDManAtck', false)
+            end
+        end
+    end
+end

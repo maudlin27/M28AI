@@ -2123,6 +2123,14 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     if oReclaimUnit == oUnit then bIncluded = true break end
                                 end
                             end
+                            --Check not recorded as a capture target
+                            if oUnit[M28UnitInfo.refbIsCaptureTarget] then
+                                bIncluded = true
+                            elseif not(bIncluded) and M28Conditions.IsTableOfUnitsStillValid(tUnitLZData[M28Map.subreftoUnitsToCapture]) then
+                                for iCaptureUnit, oCaptureUnit in tUnitLZData[M28Map.subreftoUnitsToCapture] do
+                                    if oCaptureUnit == oUnit then bIncluded = true break end
+                                end
+                            end
                             if bDebugMessages == true then LOG(sFunctionRef..': Want to include unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in table of units to reclaim for team '..aiBrain.M28Team) end
                             if not(bIncluded) then
                                 table.insert(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], oUnit)
@@ -3206,7 +3214,7 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
                 AddPotentialUnitsToShortlist(toSafeUnitsToUpgrade, tPotentialUnits)
             end
         end
-        if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2) then
+        if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2) and (not(oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Economy.refiOurHighestNavalFactoryTech] >= 2 or oBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3)) then
             if bDebugMessages == true then LOG(sFunctionRef..': Does brain have active Land HQ upgrades='..tostring(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ))) end
             if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ)) then
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH1, false, true)
@@ -3236,7 +3244,7 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
                         end
                     end
                 end
-                if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or (oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2 and (M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) or oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2))) then
+                if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and (not(oBrain[M28Overseer.refbPrioritiseAir]) or (oBrain[M28Economy.refiOurHighestAirFactoryTech] > 2 and (M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) or oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2))) and (not(oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Economy.refiOurHighestNavalFactoryTech] >= 3)) then
                     if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ)) then
                         tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH2, false, true)
                         if M28Utilities.IsTableEmpty(tPotentialUnits) == false then
@@ -4816,7 +4824,10 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                                     local aiBrain = GetFirstActiveM28Brain(iTeam)
                                     local iNearbyThreatToACUSearchDist = 35
                                     if oUnit[M28UnitInfo.refbIsSnipeTarget] then iNearbyThreatToACUSearchDist = 45 end
-                                    local toNearbyDFUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank - M28UnitInfo.refCategorySkirmisher, oUnit:GetPosition(), iNearbyThreatToACUSearchDist, 'Ally')
+                                    local toNearbyDFUnits
+                                    if aiBrain and not(aiBrain:IsDefeated()) then
+                                        toNearbyDFUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank - M28UnitInfo.refCategorySkirmisher, oUnit:GetPosition(), iNearbyThreatToACUSearchDist, 'Ally')
+                                    end
                                     if M28Utilities.IsTableEmpty(toNearbyDFUnits) == false then
                                         local iNearbyFriendlyDFThreat = M28UnitInfo.GetCombatThreatRating(toNearbyDFUnits, false, false)
                                         local iMinThreatWanted

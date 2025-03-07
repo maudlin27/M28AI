@@ -119,7 +119,9 @@ function IsCivilianBrain(aiBrain)
             if not(ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality) or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == "" then
                 if bDebugMessages == true then LOG(sFunctionRef..': Index='..aiBrain:GetArmyIndex()..'; Has no AI personality so will treat as being a civilian brain unless nickname contains AI or AIX and doesnt contain civilian') end
                 bIsCivilian = true
-                if string.find(aiBrain.Nickname or aiBrain.Name, '%(AI') and not(string.find(aiBrain.Nickname or aiBrain.Name, "civilian")) then
+                if not(aiBrain.Nickname or aiBrain.Name) and aiBrain:IsDefeated() then
+                    bIsCivilian = false --Had error when players were killed so adding this as a redundancy
+                elseif string.find(aiBrain.Nickname or aiBrain.Name, '%(AI') and not(string.find(aiBrain.Nickname or aiBrain.Name, "civilian")) then
                     if bDebugMessages == true then LOG(sFunctionRef..': AI nickanme suggests its an actual AI and the developer has forgotten to give it a personality') end
                     bIsCivilian = false
                 end
@@ -1544,21 +1546,31 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     end
 
     --AI personality adjustments - get fewer factories for certain AI types
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering personality adjustment if want more facs, bWantMoreFactories='..tostring(bWantMoreFactories)..'; Highest air='..aiBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Land='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]..'; Prioritise tech='..tostring(aiBrain[M28Overseer.refbPrioritiseHighTech] or false)..'; Prioritise defence='..tostring(aiBrain[M28Overseer.refbPrioritiseDefence] or false)..'; Prioritise navy='..tostring(aiBrain[M28Overseer.refbPrioritiseNavy] or false)) end
     if bWantMoreFactories and aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 then
         --Tech and turtle, and navy (except for water zones, but i think this condition is only used for land zones) - dont want as many
         if aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Overseer.refbPrioritiseNavy] then
-            --Only get more if have lots of mass and (if have lots of land facs) are at T3
-            if not(iLandFacsInZone) or not(iAirFacsInZone) then
-                iLandFacsInZone = 0
-                iAirFacsInZone = 0
-                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                    local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                    if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
-                        for iUnit, oUnit in tFriendlyFactory do
-                            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
-                                iLandFacsInZone = iLandFacsInZone + 1
-                            else
-                                iAirFacsInZone = iAirFacsInZone + 1
+            --Only get more if have lots of mass
+            if bDebugMessages == true then LOG(sFunctionRef..': Mass %='..aiBrain:GetEconomyStoredRatio('MASS')..'; Net income='..aiBrain[M28Economy.refiNetMassBaseIncome]..'; Highest fac tech='..aiBrain[M28Economy.refiOurHighestFactoryTechLevel]..'; Naval fac tech='..aiBrain[M28Economy.refiOurHighestNavalFactoryTech]..'; Team net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Energy % stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Have low power='..tostring(HaveLowPower(iTeam))) end
+            if aiBrain:GetEconomyStoredRatio('MASS') < 0.2 or (aiBrain:GetEconomyStoredRatio('MASS') < 0.75 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]  < 0 or GetGameTimeSeconds() <= 600) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.4 or (aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 or HaveLowPower(iTeam)))) then
+                if aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] < 3
+                        --Naval facs - want to get more land/air facs if we have lost navy
+                        or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0))) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want more facs as want to tech or turtle, unless this zone has no factories') end
+                    bWantMoreFactories = false
+                    if not(iLandFacsInZone) or not(iAirFacsInZone) then
+                        iLandFacsInZone = 0
+                        iAirFacsInZone = 0
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                            local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
+                                for iUnit, oUnit in tFriendlyFactory do
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
+                                        iLandFacsInZone = iLandFacsInZone + 1
+                                    else
+                                        iAirFacsInZone = iAirFacsInZone + 1
+                                    end
+                                end
                             end
                         end
                     end
@@ -1702,14 +1714,18 @@ function WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
     return false
 end
 
-function HaveEnoughThreatToAttack(iPlateau, iLandZone, tLZData, tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, iFirebaseThreatAdjust, bHaveSignificantCombatCloserToFirebase, iTeam, iOptionalOverrideDefaultThreatRatioWanted)
+function HaveEnoughThreatToAttack(iPlateau, iLandZone, tLZData, tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, iFirebaseThreatAdjust, bHaveSignificantCombatCloserToFirebase, iTeam, iOptionalOverrideDefaultThreatRatioWanted, bOptionalUseSlightlyLowerThreatRatio)
     local sFunctionRef = 'HaveEnoughThreatToAttack'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
 
 
 
-    local iDefaultThreatRatioWanted = iOptionalOverrideDefaultThreatRatioWanted or 1.4
+    local iDefaultThreatRatioWanted
+    if iOptionalOverrideDefaultThreatRatioWanted then iDefaultThreatRatioWanted = iOptionalOverrideDefaultThreatRatioWanted
+    elseif bOptionalUseSlightlyLowerThreatRatio then iDefaultThreatRatioWanted = 1.25
+    else iDefaultThreatRatioWanted = 1.4
+    end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have enough combat threat to attack, iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase)..'; iTeam='..(iTeam or 'nil')..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Map size='..M28Map.iMapSize..'; Time='..GetGameTimeSeconds()..'; subrefLZSValue='..tLZTeamData[M28Map.subrefLZSValue]..'; tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]) end
     if iOurCombatThreat > iEnemyCombatThreat * iDefaultThreatRatioWanted then
@@ -2657,6 +2673,11 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
     local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if tWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to be very aggressive with all nearby naval units') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
+    end
 
     local bAreInScenario2 = false
     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then bAreInScenario2 = true
@@ -2691,6 +2712,7 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
 
                     local tFriendlyNavalFac
                     if tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] == false then tFriendlyNavalFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Is tFriendlyNavalFac empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyNavalFac))) end
                     if M28Utilities.IsTableEmpty(tFriendlyNavalFac) then
                         --Greater search range as dont know how close to midpoint the naval fac build location would be
                         if CloseToEnemyUnit(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftoNearestCombatEnemies], 30, iTeam, true) then
@@ -3938,4 +3960,14 @@ function BaseIsSafeToRetreatTo(tPosition, iTeam)
         end
     end
     return true
+end
+
+function GetBestCombatRangeOfUnitsOnPlateau(tUnits, iPlateau, iTeam)
+    local iCombatRange = 0
+    for iUnit, oUnit in tUnits do
+        if not(oUnit.Dead) and (oUnit[M28UnitInfo.refiCombatRange] or 0) > iCombatRange and oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
+            iCombatRange = oUnit[M28UnitInfo.refiCombatRange]
+        end
+    end
+    return iCombatRange
 end

@@ -21,6 +21,7 @@ local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
+local NavUtils = M28Utilities.NavUtils
 
 
 bInitialSetup = false
@@ -1017,6 +1018,13 @@ function GetCivilianCaptureTargets(aiBrain)
         end
     end
 
+    if M28Utilities.IsTableEmpty(tUnitsOfInterest) then
+        --Search for lower priority capture targets
+        iCategoriesOfInterest = iCategoriesOfInterest + (categories.MOBILE * categories.LAND * categories.RECLAIMABLE - categories.TECH1) + M28UnitInfo.refCategoryT1Radar * categories.RECLAIMABLE + (M28UnitInfo.refCategoryStructureAA * categories.RECLAIMABLE - categories.TECH1) + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti
+        iSearchRange = math.max(math.min(350, M28Map.iMapSize * 0.5), iSearchRange + 25)
+        tUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iCategoriesOfInterest, tStartPoint, iSearchRange, 'Neutral')
+    end
+
     --local sPathing = M28Map.refPathingTypeAmphibious
 
 
@@ -1029,21 +1037,65 @@ function GetCivilianCaptureTargets(aiBrain)
                 iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering civilian unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iPlateauWanted='..iPlateauWanted..'; Dist to our base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartPoint)..'; Mod dist='..M28Map.GetModDistanceFromStart(aiBrain, oUnit:GetPosition())) end
-                if (iCurLandZone or 0) > 0 and iCurPlateau == iPlateauWanted then
+                if (iCurLandZone or 0) > 0 and (iCurPlateau or 0) > 0 then
                     --Is it one of the civilian brains we temporarily moved to be our ally?
                     if M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()) then
                         local tNearbyThreats = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti, oUnit:GetPosition(), 140, 'Enemy')
                         if M28Utilities.IsTableEmpty(tNearbyThreats) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to the table of civilians to capture; unit brain='..(oUnit:GetAIBrain().Nickname or 'nil')..'; is civilian='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; iCurPlateau='..iCurPlateau..'; iCurLandZone='..iCurLandZone) end
-                            local tUnitLZData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone]
-                            if not(tUnitLZData[M28Map.subreftoUnitsToCapture]) then tUnitLZData[M28Map.subreftoUnitsToCapture] = {} end
-                            table.insert(tUnitLZData[M28Map.subreftoUnitsToCapture], oUnit)
+                            RecordUnitAsCaptureTarget(oUnit, iCurPlateau, iCurLandZone)
                         end
                     end
                 end
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RecordUnitAsCaptureTarget(oUnit, iPlateau, iLandZone)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RevealCiviliansToAI'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tUnitLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    if not(tUnitLZData[M28Map.subreftoUnitsToCapture]) then tUnitLZData[M28Map.subreftoUnitsToCapture] = {} end
+    table.insert(tUnitLZData[M28Map.subreftoUnitsToCapture], oUnit)
+    oUnit[M28UnitInfo.refbIsCaptureTarget] = true
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to the table of civilians to capture; unit brain='..(oUnit:GetAIBrain().Nickname or 'nil')..'; is civilian='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Island ref='..(tUnitLZData[M28Map.subrefLZIslandRef] or 'nil')..'; Land ref of LZData midpoint='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tUnitLZData[M28Map.subrefMidpoint]) or 'nil')..'; Land ref of the unit='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) or 'nil')) end
+    if not(tUnitLZData[M28Map.subrefLZIslandRef]) then
+        local iIslandRef = (NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) or NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tUnitLZData[M28Map.subrefMidpoint]))
+        if iIslandRef then
+            if bDebugMessages == true then LOG(sFunctionRef..': will record P'..iPlateau..'Z'..iLandZone..' as having iIslandRef='..iIslandRef) end
+            M28Map.AddLandZoneToIsland(iPlateau, iLandZone, iIslandRef, tUnitLZData)
+        end
+    end
+
+    if tUnitLZData[M28Map.subrefLZIslandRef] then
+        if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture][tUnitLZData[M28Map.subrefLZIslandRef]]) then
+            if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture]) then M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture] = {} end
+            M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture][tUnitLZData[M28Map.subrefLZIslandRef]] = {}
+        end
+        table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture][tUnitLZData[M28Map.subrefLZIslandRef]], oUnit)
+        if bDebugMessages == true then LOG(sFunctionRef..': Recording unit against the island '..tUnitLZData[M28Map.subrefLZIslandRef]) end
+    end
+
+    --Check not recorded as a reclaim target for any team
+    for iTeam = 1, M28Team.iTotalTeamCount do
+        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+            local tUnitLZTeamData = tUnitLZData[M28Map.subrefLZTeamData][iTeam]
+            --Check if unit is recorded to be reclaimed, and if so then remove it
+            if M28Utilities.IsTableEmpty(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
+                for iCurEntry = table.getn(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]), 1, -1 do
+                    if tUnitLZTeamData[M28Map.subreftoUnitsToReclaim][iCurEntry] == oUnit then
+                        table.remove(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], iCurEntry)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Removed unit from the list of units to be reclaimed') end
+                    end
+                end
+            end
+        end
+    end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
