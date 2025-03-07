@@ -4730,9 +4730,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
         end
 
-        --Enemy ground threat and haven't built many bombers and enemy lacks AirAA and we havent built many gunships or bombers
+        --Enemy ground threat and enemy lacks AirAA and we havent built many gunships or bombers
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] == 0 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 30 then
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] == 0 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 30 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] <= 5000 then
             local iBomberAndGunshipLC = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryGunship)
             if bDebugMessages == true then LOG(sFunctionRef..': iBomberAndGunshipLC='..iBomberAndGunshipLC..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; OurAirAAThreat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; EnemyAirAA='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]..'; AirAA LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirAA)) end
             if iBomberAndGunshipLC <= 6 and (iBomberAndGunshipLC < 2 or tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (M28Conditions.TeamHasAirControl(iTeam) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > 150) or M28Map.iMapSize > 512 or (iFactoryTechLevel < 3 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > math.max(150, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirAA) > iBomberAndGunshipLC * 2)) then
@@ -4874,7 +4874,11 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         else
             --Adjacent LZs - gunship (enemy ground) subject to gunship ratio, or AirAA (enemy air)
             iCurrentConditionToTry = iCurrentConditionToTry + 1
-            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+            if M28Map.iMapSize > 512 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < 5 * (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat])
+                    and (iFactoryTechLevel >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3) and ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then
+                if bDebugMessages == true then LOG(sFunctionRef..': We dont have air control so want to prioritise asfs over bombers/gunships until we have most of our mass invested in airaa') end
+                return sBPIDToBuild
+            elseif M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                     local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                     if bDebugMessages == true then LOG(sFunctionRef .. ': Considering adjacent land zone ' .. iAdjLZ .. '; Is table of enemy air untis empty=' .. tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftLZEnemyAirUnits])) .. '; tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]=' .. tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Mod dist%='..tAdjLZTeamData[M28Map.refiModDistancePercent]..'; Have air control='..tostring(M28Conditions.TeamHasAirControl(iTeam))) end

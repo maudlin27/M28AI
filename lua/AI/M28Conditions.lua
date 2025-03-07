@@ -1723,7 +1723,7 @@ function HaveEnoughThreatToAttack(iPlateau, iLandZone, tLZData, tLZTeamData, iOu
 
     local iDefaultThreatRatioWanted
     if iOptionalOverrideDefaultThreatRatioWanted then iDefaultThreatRatioWanted = iOptionalOverrideDefaultThreatRatioWanted
-    elseif bOptionalUseSlightlyLowerThreatRatio then iDefaultThreatRatioWanted = 1.2
+    elseif bOptionalUseSlightlyLowerThreatRatio then iDefaultThreatRatioWanted = 1.25
     else iDefaultThreatRatioWanted = 1.4
     end
 
