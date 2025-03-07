@@ -3969,5 +3969,5 @@ function GetBestCombatRangeOfUnitsOnPlateau(tUnits, iPlateau, iTeam)
             iCombatRange = oUnit[M28UnitInfo.refiCombatRange]
         end
     end
-    return oUnit[M28UnitInfo.refiCombatRange]
+    return iCombatRange
 end
