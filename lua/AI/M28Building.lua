@@ -5609,7 +5609,7 @@ end
 
 function GetManualPDTarget(oUnit, oOptionalTargetToIgnore)    
     --Intended for use where PD shot is blocked
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetManualPDTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

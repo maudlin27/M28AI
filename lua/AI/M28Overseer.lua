@@ -984,7 +984,7 @@ function RevealCivilainsToAIByGivingVision(aiBrain)
 end
 
 function GetCivilianCaptureTargets(aiBrain)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCivilianCaptureTargets'
 
     WaitTicks(2) --tried 1 tick but not working for civilian mexes

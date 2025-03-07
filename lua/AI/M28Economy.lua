@@ -1139,7 +1139,7 @@ function EconomyInitialisation(aiBrain)
 end
 
 function RecordUnitsOfCategoryToBeReclaimed(iTeam, iCategory)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordUnitsOfCategoryToBeReclaimed'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
