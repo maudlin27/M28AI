@@ -5745,8 +5745,33 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local iCombatCategory
     if iFactoryTechLevel <= 1 then
         iCombatCategory = M28UnitInfo.refCategoryFrigate
-        if iCurFrigates >= 75 then bConsiderBuildingMoreCombat = false end
-        if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to just build frigates') end
+        if iCurFrigates >= 75 then
+            bConsiderBuildingMoreCombat = false
+            --Consider building subs instead early on
+        elseif (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyNavalFactoryTech] < 3 then
+            local iSubLC = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategorySubmarine)
+            if iSubLC <= 6 or (iSubLC <= 12 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 2 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyNavalFactoryTech] < 2) then
+                --Check no nearby hover
+                local bNearbyHover = tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]
+
+                if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                    for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                        local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                        if tAdjWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] then
+                            bNearbyHover = true
+                            break
+                        end
+                    end
+                end
+                if not(bNearbyHover) then
+                    iCombatCategory = M28UnitInfo.refCategorySubmarine
+                    if bDebugMessages == true then LOG(sFunctionRef..': will have subs as our main combat unit not frigates') end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..' Cnosidering if want to build subs as main combat category instead of frigates, iSubLC='..iSubLC..'; iCurFrigates='..iCurFrigates) end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to just build frigates') end
+        end
     elseif iFactoryTechLevel <= 2 then
         local iCurDestroyer = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDestroyer)
         local iCurCruiser = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryCruiser)
@@ -5827,6 +5852,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tWZTeamData[M28Map.subrefWZThreatEnemySurface] > 0 then
+        --Get frigates instead of subs, because subs die easily to ground-fire from frigates, and its possible enemy has hover units
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Immediate threat - want frigate')
         end
