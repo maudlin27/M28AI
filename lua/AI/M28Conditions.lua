@@ -1714,14 +1714,18 @@ function WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
     return false
 end
 
-function HaveEnoughThreatToAttack(iPlateau, iLandZone, tLZData, tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, iFirebaseThreatAdjust, bHaveSignificantCombatCloserToFirebase, iTeam, iOptionalOverrideDefaultThreatRatioWanted)
+function HaveEnoughThreatToAttack(iPlateau, iLandZone, tLZData, tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, iFirebaseThreatAdjust, bHaveSignificantCombatCloserToFirebase, iTeam, iOptionalOverrideDefaultThreatRatioWanted, bOptionalUseSlightlyLowerThreatRatio)
     local sFunctionRef = 'HaveEnoughThreatToAttack'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
 
 
 
-    local iDefaultThreatRatioWanted = iOptionalOverrideDefaultThreatRatioWanted or 1.4
+    local iDefaultThreatRatioWanted
+    if iOptionalOverrideDefaultThreatRatioWanted then iDefaultThreatRatioWanted = iOptionalOverrideDefaultThreatRatioWanted
+    elseif bOptionalUseSlightlyLowerThreatRatio then iDefaultThreatRatioWanted = 1.2
+    else iDefaultThreatRatioWanted = 1.4
+    end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have enough combat threat to attack, iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase)..'; iTeam='..(iTeam or 'nil')..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Map size='..M28Map.iMapSize..'; Time='..GetGameTimeSeconds()..'; subrefLZSValue='..tLZTeamData[M28Map.subrefLZSValue]..'; tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]) end
     if iOurCombatThreat > iEnemyCombatThreat * iDefaultThreatRatioWanted then
