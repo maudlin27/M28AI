@@ -1315,6 +1315,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TurnAirUnitAndMoveToTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; GameTime='..GetGameTimeSeconds()) end
     --First delay microing until finished our salvo if dealing with T1-T3 bomber
     if M28UnitInfo.DoesBomberFireSalvo(oBomber) and EntityCategoryContains(M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL, oBomber.UnitId) then
@@ -1438,6 +1439,7 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TurnAirUnitAndAttackTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; bDontAdjustMicroFlag='..tostring(bDontAdjustMicroFlag or false)..'; GameTime='..GetGameTimeSeconds()) end
     if M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) then
         local iStartTime = GetGameTimeSeconds()
@@ -1456,6 +1458,8 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
         --local iTimeUntilCanFire = GetGameTimeSeconds() + math.max(0, iReloadTime - GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0))
 
         --Other variables:
+        local bConsiderIfTooFast = true
+        local iTooCloseIfFastDist, iFastSpeedThreshold, iCurSpeed
         local iActualAngleToUse
         local iCurAngleDif
         local iAngleAdjustToUse
@@ -1469,7 +1473,12 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
         local iMaxMicroTime = 5 --will micro for up to 5 seconds
         if EntityCategoryContains(categories.EXPERIMENTAL, oBomber.UnitId) then
             iMaxMicroTime = 10
+            bConsiderIfTooFast = false
         elseif bContinueAttackingUntilTargetDead then iMaxMicroTime = 1000
+        end
+        if bConsiderIfTooFast then
+            iTooCloseIfFastDist = (oBomber[M28UnitInfo.refiBomberRange] or 40) * 0.75
+            iFastSpeedThreshold = oBomber:GetBlueprint().Air.MaxAirspeed * 0.85 --the function to get a units speed typically gives higher than actual speed since it is measuring 2 axis
         end
 
         if not(bDontAdjustMicroFlag) then
@@ -1516,10 +1525,18 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
                     tGroundTarget = oTarget:GetPosition()
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurAngleDif='..iCurAngleDif..'; iMaxAcceptableAngleDif='..iMaxAcceptableAngleDif..'; iDistToTarget='..iDistToTarget..'; iPotentialAbortDistance='..iPotentialAbortDistance..'; Is tGroundTarget empty='..tostring(M28Utilities.IsTableEmpty(tGroundTarget))..'; Time='..GetGameTimeSeconds()) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurAngleDif='..iCurAngleDif..'; iMaxAcceptableAngleDif='..iMaxAcceptableAngleDif..'; iDistToTarget='..iDistToTarget..'; iTooCloseIfFastDist='..(iTooCloseIfFastDist or 'nil')..'; iPotentialAbortDistance='..iPotentialAbortDistance..'; Is tGroundTarget empty='..tostring(M28Utilities.IsTableEmpty(tGroundTarget))..'; Time='..GetGameTimeSeconds()) end
             if tGroundTarget and M28UnitInfo.GetTimeUntilReadyToFireBomb(oBomber) > 0 then
                 --If we cant fire yet then clear the ground target and keep microing
                 tGroundTarget = nil
+            elseif bConsiderIfTooFast and iDistToTarget < iTooCloseIfFastDist then
+                iCurSpeed = M28UnitInfo.GetUnitSpeed(oBomber)
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurSpeed='..iCurSpeed..'; iFastSpeedThreshold='..iFastSpeedThreshold) end
+                if iCurSpeed > iFastSpeedThreshold then
+
+                    tGroundTarget = nil
+                end
+
             end
             if tGroundTarget then
                 break
@@ -1547,7 +1564,13 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
                 oBomber[M28UnitInfo.refbSpecialMicroActive] = false
                 oBomber[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()
             end
-            M28Orders.IssueTrackedGroundAttack(oBomber, tGroundTarget, 1, false, 'BMicGA', true, oTarget)
+            --T1 bombers - dont ground-fire engineers that are moving or else we wont hit them
+            if iAOE <= 4 and oTarget:IsUnitState('Moving') and M28UnitInfo.GetUnitSpeed(oTarget) >= 0.5 then
+                M28Orders.IssueTrackedAttack(oBomber, oTarget, false, 'BMicMA', true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will do manual attack order') end
+            else
+                M28Orders.IssueTrackedGroundAttack(oBomber, tGroundTarget, 1, false, 'BMicGA', true, oTarget)
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': Just cleared bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' commands and told it to attack tGroundTarget='..repru(tGroundTarget)..'which is expected to hit oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; bContinueAttackingUntilTargetDead='..tostring(bContinueAttackingUntilTargetDead or false)..'; GameTime='..GetGameTimeSeconds()) end
             if bContinueAttackingUntilTargetDead then
                 local iDelayForHoverBomb = 0
