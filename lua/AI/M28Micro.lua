@@ -2211,3 +2211,74 @@ function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function ConsiderAllInLandPushOnACU(aiBrain, oACU)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderAllInLandPushOnACU'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --Separate to the snipe logic, this instead considers if we have enough threat in the vicinity to do an all-in push with just our tanks
+    if M28UnitInfo.IsUnitValid(oACU) and not(aiBrain.M28IsDefeated) then
+        local iEnemyACUThreat = M28UnitInfo.GetCombatThreatRating({ oACU}, true)
+        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyACUThreat='..iEnemyACUThreat..'; ACU owner='..oACU:GetAIBrain().Nickname..'; our brain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()) end
+        if iEnemyACUThreat <= 3000 then
+            local tNearbyFriendlyTanks = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank - M28UnitInfo.refCategorySkirmisher - categories.COMMAND, oACU:GetPosition(), 60, 'Ally')
+            if M28Utilities.IsTableEmpty(tNearbyFriendlyTanks) == false then
+                local iFriendlyTankThreat = M28UnitInfo.GetCombatThreatRating(tNearbyFriendlyTanks, false)
+                if bDebugMessages == true then LOG(sFunctionRef..': iFriendlyTankThreat='..iFriendlyTankThreat) end
+                if iFriendlyTankThreat > math.max(800, iEnemyACUThreat + math.max(400, iEnemyACUThreat * 0.4)) then --Min wanted for an unupgraded enemy ACU
+                    local tEnemyThreat = oACU:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryPD  - M28UnitInfo.refCategorySkirmisher + categories.COMMAND, oACU:GetPosition(), 90, 'Ally')
+                    local iEnemyTotalThreat = M28UnitInfo.GetCombatThreatRating(tEnemyThreat, true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemyTotalThreat='..iEnemyTotalThreat) end
+                    if iFriendlyTankThreat > iEnemyTotalThreat then
+                        --Suicide all the tanks into the ACU
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will suicide tanks into enemy ACU') end
+                        for iUnit, oUnit in tNearbyFriendlyTanks do
+                            if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+                                ForkThread(MoveLandUnitNearACU, oUnit, oACU)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will send unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to suicide into enemy ACU') end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function MoveLandUnitNearACU(oUnit, oACU)
+    --If we are on the same island/plateau as the ACU then will move towards it, switching to attack-move once close
+    if M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oACU) then
+        TrackTemporaryUnitMicro(oUnit, 0, nil, true) --i.e. still want to dodge t1 arti shots
+        local sPathingRef
+        if EntityCategoryContains(categories.HOVER, oUnit.UnitId) then sPathingRef = M28Map.refPathingTypeHover
+        elseif (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then sPathingRef = M28Map.refPathingTypeAmphibious
+        else sPathingRef = M28Map.refPathingTypeLand
+        end
+        local iNavUtilsWanted = NavUtils.GetLabel(sPathingRef, oUnit:GetPosition())
+        if NavUtils.GetLabel(sPathingRef, oACU:GetPosition()) == iNavUtilsWanted then
+            --Focus down ACU
+            M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityExpSnipeACU, false)
+            local tLastMovePosition
+            local iTimeSinceLastUpdate = 0
+
+            while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oACU) and not(oACU:IsUnitState('Attached')) and NavUtils.GetLabel(sPathingRef, oACU:GetPosition()) == iNavUtilsWanted do
+                if not(tLastMovePosition) or M28Utilities.GetDistanceBetweenPositions(tLastMovePosition, oACU:GetPosition()) >= 6 then
+                    tLastMovePosition = M28Utilities.MoveInDirection(oACU:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oACU:GetPosition()), 4, true, true, M28Map.bIsCampaignMap)
+                    if M28Utilities.IsTableEmpty(tLastMovePosition) or not(NavUtils.GetLabel(sPathingRef, tLastMovePosition) == iNavUtilsWanted) then
+                        tLastMovePosition = oACU:GetPosition()
+                    end
+                    M28Orders.IssueTrackedMove(oUnit, tLastMovePosition, 3, false, 'ACUAllIn', true)
+                else
+                    iTimeSinceLastUpdate = iTimeSinceLastUpdate + 1
+                    if iTimeSinceLastUpdate >= 5 then iTimeSinceLastUpdate = 0 tLastMovePosition = nil end --Otherwise if we micro the unit for something else like avoiding t1 arti it will be stuck
+                end
+                WaitSeconds(1)
+            end
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+                oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()
+            end
+        end
+    end
+end
