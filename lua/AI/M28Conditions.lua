@@ -3971,3 +3971,13 @@ function GetBestCombatRangeOfUnitsOnPlateau(tUnits, iPlateau, iTeam)
     end
     return iCombatRange
 end
+
+function GetFriendlyMAAInThisAndAdjacentLandZones(tLZData, tLZTeamData, iPlateau, iTeam)
+    local iMAAThreat =  (tLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+            iMAAThreat = iMAAThreat + (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatAllyMAA] or 0)
+        end
+    end
+    return iMAAThreat
+end
