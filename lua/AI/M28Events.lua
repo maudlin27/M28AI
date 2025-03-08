@@ -1131,7 +1131,7 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                         end
                     end
                     --If damaging enemy ACU consider all-in attack to kill it
-                    if not(self.Dead) and EntityCategoryContains(categories.COMMAND, self.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryDFTank, oUnitCausingDamage.UnitId) and self:GetHealth() <= 10000 then
+                    if not(self.Dead) and EntityCategoryContains(categories.COMMAND, self.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryDFTank, oUnitCausingDamage.UnitId) and self:GetHealth() <= 12500 then
                         ForkThread(M28Micro.ConsiderAllInLandPushOnACU, oUnitCausingDamage:GetAIBrain(), self)
                     end
                 end
