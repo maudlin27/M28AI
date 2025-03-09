@@ -2213,7 +2213,7 @@ function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit)
 end
 
 function ConsiderAllInLandPushOnACU(aiBrain, oACU)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderAllInLandPushOnACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Separate to the snipe logic, this instead considers if we have enough threat in the vicinity to do an all-in push with just our tanks
@@ -2232,6 +2232,7 @@ function ConsiderAllInLandPushOnACU(aiBrain, oACU)
                     if iFriendlyTankThreat > iEnemyTotalThreat then
                         --Suicide all the tanks into the ACU
                         if bDebugMessages == true then LOG(sFunctionRef..': Will suicide tanks into enemy ACU') end
+                        AssignACUAttackGridSlot(tNearbyFriendlyTanks, oACU)
                         for iUnit, oUnit in tNearbyFriendlyTanks do
                             if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
                                 ForkThread(MoveLandUnitNearACU, oUnit, oACU)
@@ -2259,20 +2260,27 @@ function MoveLandUnitNearACU(oUnit, oACU)
         if NavUtils.GetLabel(sPathingRef, oACU:GetPosition()) == iNavUtilsWanted then
             --Focus down ACU
             M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityExpSnipeACU, false)
-            local tLastMovePosition
-            local iTimeSinceLastUpdate = 0
+            local tMovePosition            
+            local iXOffset
+            local iZOffset
+            if oUnit[M28UnitInfo.refiACUGridSlot] and oACU[M28UnitInfo.reftoGridXZAdjust][oUnit[M28UnitInfo.refiACUGridSlot]] then
+                iXOffset = oACU[M28UnitInfo.reftoGridXZAdjust][oUnit[M28UnitInfo.refiACUGridSlot]][1]
+                iZOffset = oACU[M28UnitInfo.reftoGridXZAdjust][oUnit[M28UnitInfo.refiACUGridSlot]][2]
+            else
+                iXOffset = 0
+                iZOffset = 0
+                M28Utilities.ErrorHandler('Dont have a valid ACU grid slot assigned')
+            end
 
-            while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oACU) and not(oACU:IsUnitState('Attached')) and NavUtils.GetLabel(sPathingRef, oACU:GetPosition()) == iNavUtilsWanted do
-                if not(tLastMovePosition) or M28Utilities.GetDistanceBetweenPositions(tLastMovePosition, oACU:GetPosition()) >= 6 then
-                    tLastMovePosition = M28Utilities.MoveInDirection(oACU:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oACU:GetPosition()), 4, true, true, M28Map.bIsCampaignMap)
-                    if M28Utilities.IsTableEmpty(tLastMovePosition) or not(NavUtils.GetLabel(sPathingRef, tLastMovePosition) == iNavUtilsWanted) then
-                        tLastMovePosition = oACU:GetPosition()
-                    end
-                    M28Orders.IssueTrackedMove(oUnit, tLastMovePosition, 3, false, 'ACUAllIn', true)
-                else
-                    iTimeSinceLastUpdate = iTimeSinceLastUpdate + 1
-                    if iTimeSinceLastUpdate >= 5 then iTimeSinceLastUpdate = 0 tLastMovePosition = nil end --Otherwise if we micro the unit for something else like avoiding t1 arti it will be stuck
+            while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oACU) and not(oACU:IsUnitState('Attached')) and NavUtils.GetLabel(sPathingRef, oACU:GetPosition()) == iNavUtilsWanted do                 
+                tMovePosition = oACU:GetPosition()
+                tMovePosition[1] = tMovePosition[1] + iXOffset
+                tMovePosition[3] = tMovePosition[3] + iZOffset
+                tMovePosition[2] = GetSurfaceHeight(tMovePosition[1], tMovePosition[3])                     
+                if M28Utilities.IsTableEmpty(tMovePosition) or not(NavUtils.GetLabel(sPathingRef, tMovePosition) == iNavUtilsWanted) then
+                    tMovePosition = oACU:GetPosition()
                 end
+                M28Orders.IssueTrackedMove(oUnit, tMovePosition, 3, false, 'ACUAllIn', true)                
                 WaitSeconds(1)
             end
             if M28UnitInfo.IsUnitValid(oUnit) then
@@ -2281,4 +2289,170 @@ function MoveLandUnitNearACU(oUnit, oACU)
             end
         end
     end
+end
+
+function AssignACUAttackGridSlot(tUnits, oACU)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssignACUAttackGridSlot'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --First setup the grid slots for the ACU - for now will just do the same every time, but in theory could adjust these baesd on the size of tUnits
+
+    local iMaxGridSize = 64 --8x8
+    if not(oACU[M28UnitInfo.reftoGridXZAdjust]) then
+        oACU[M28UnitInfo.reftoUnitAssignedToGridSlot] = {}
+        oACU[M28UnitInfo.reftoGridXZAdjust] = {}
+        local iSpacingBetweenPositions = 3 --so for an 8x8 grid this means a radius of 12
+        local iCurSlot = 1
+        local iCycleLength = 1
+        local iCurX = 0
+        local iCurZ = 0
+        local iXAdj = 0
+        local iPrevXAdj = iSpacingBetweenPositions
+        local iZAdj = iSpacingBetweenPositions
+        local iPrevZAdj = -iSpacingBetweenPositions
+        local iTimeOfXAdjust = 0
+        local iTimeOfZAdjust = 0
+        local iSwitchCount = 0
+        while iCurSlot <= iMaxGridSize do --i.e. an 8x8 grid around the ACU
+            --Move in clockwise manner
+            if iZAdj == 0 then
+                iCurX = iCurX + iXAdj
+                iTimeOfXAdjust = iTimeOfXAdjust + 1
+                if iTimeOfXAdjust == iCycleLength then
+                    iTimeOfXAdjust = 0
+                    iPrevXAdj = iXAdj
+                    iXAdj = 0
+                    --Move up/down for Z now
+                    iZAdj = iPrevZAdj * -1
+                    iSwitchCount = iSwitchCount + 1
+                end
+            else
+                --Presumably have iXAdj that is zero
+                iCurZ = iCurZ + iZAdj
+                iTimeOfZAdjust = iTimeOfZAdjust + 1
+                if iTimeOfZAdjust == iCycleLength then
+                    iTimeOfZAdjust = 0
+                    iPrevZAdj = iZAdj
+                    iZAdj = 0
+                    --Move up/down for Z now
+                    iXAdj = iPrevXAdj * -1
+                    iSwitchCount = iSwitchCount + 1
+                end
+            end
+            if iSwitchCount >= 2 then
+                iCycleLength = iCycleLength + 1
+                iSwitchCount = 0
+            end
+            oACU[M28UnitInfo.reftoGridXZAdjust][iCurSlot] = {iCurX, iCurZ}
+
+            iCurSlot = iCurSlot + 1
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished recording, iMaxGridSize='..iMaxGridSize..'; iCurX and Z for this=X'..oACU[M28UnitInfo.reftoGridXZAdjust][iMaxGridSize][1]..'Z'..oACU[M28UnitInfo.reftoGridXZAdjust][iMaxGridSize][2]) end
+    end
+
+    local iUnitsWithoutAssignment = 0
+    local toUnassignedUnits = {}
+    local toUnassignedRefByDistance = {}
+    for iUnit, oUnit in tUnits do
+        if not(oUnit[M28UnitInfo.refiACUGridSlot]) then
+            iUnitsWithoutAssignment = iUnitsWithoutAssignment + 1
+            table.insert(toUnassignedUnits, oUnit)
+            table.insert(toUnassignedRefByDistance, M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition()))
+        end
+    end
+
+    if iUnitsWithoutAssignment > 0 then
+        --Check we have enough slots
+        local iSlotsAvailable = 0
+        local iSlotsWanted = math.max(30, iUnitsWithoutAssignment) --i.e. 8+8+7+7
+        local iCurUnitCount = table.getn(tUnits)
+        if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitCount='..iCurUnitCount..'; Do we have a slot for this already? repru='..repru(oACU[M28UnitInfo.reftoGridXZAdjust][iCurUnitCount] or 'nil')) end
+
+        --Record available slots
+        local iCurSlot = 0
+        local tiAvailableSlots = {}
+        local iLastAvailableSlot
+        while iSlotsAvailable < iSlotsWanted do
+            iCurSlot = iCurSlot + 1
+            if not(M28UnitInfo.IsUnitValid(oACU[M28UnitInfo.reftoUnitAssignedToGridSlot][iCurSlot])) then
+                oACU[M28UnitInfo.reftoUnitAssignedToGridSlot][iCurSlot] = nil
+                iSlotsAvailable = iSlotsAvailable + 1
+                table.insert(tiAvailableSlots, iCurSlot)
+                if bDebugMessages == true then LOG(sFunctionRef..': No valid unit is assigned to slot '..iCurSlot..' so will increase available slots by 1 to '..iSlotsAvailable) end
+            end
+            if not(oACU[M28UnitInfo.reftoGridXZAdjust][iCurSlot]) then
+                iLastAvailableSlot = iCurSlot - 1
+                break
+            end
+        end
+
+        if iLastAvailableSlot then
+            local iExtraSlotsWanted = iSlotsWanted - iLastAvailableSlot
+            if iExtraSlotsWanted <= 0 then iExtraSlotsWanted= 1 end --redundancy
+            local iRecordedSize = iMaxGridSize
+            while oACU[M28UnitInfo.reftoGridXZAdjust][iRecordedSize] do
+                iRecordedSize = iRecordedSize + iMaxGridSize
+            end
+            iRecordedSize = iRecordedSize - iMaxGridSize
+            local iSizeToRecord = math.round(iExtraSlotsWanted / iMaxGridSize) * iMaxGridSize + iRecordedSize
+            if bDebugMessages == true then LOG(sFunctionRef..': iRecordedSize by interval='..iRecordedSize..'; iSizeToRecord='..iSizeToRecord..'; iSlotsWanted='..iSlotsWanted..'; iLastAvailableSlot='..iLastAvailableSlot..'; iExtraSlotsWanted='..iExtraSlotsWanted) end
+            for iCurSlot = iRecordedSize + 1, iSizeToRecord, 1 do
+                oACU[M28UnitInfo.reftoGridXZAdjust][iCurSlot] = {oACU[M28UnitInfo.reftoGridXZAdjust][iCurSlot - iMaxGridSize][1], oACU[M28UnitInfo.reftoGridXZAdjust][iCurSlot - iMaxGridSize][2]}
+                if iSlotsAvailable <= iSlotsWanted then
+                    table.insert(tiAvailableSlots, iCurSlot)
+                    iSlotsAvailable = iSlotsAvailable + 1
+                    if bDebugMessages == true then LOG(sFunctionRef..': Recording new slot as available, iCurSLot='..iCurSlot..'; oACU[M28UnitInfo.reftoGridXZAdjust][iCurSlot]=X'..oACU[M28UnitInfo.reftoGridXZAdjust][iCurSlot][1]..'Z'..oACU[M28UnitInfo.reftoGridXZAdjust][iCurSlot][2]) end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished recording extra slots, iSizeToRecord='..iSizeToRecord..'; oACU[M28UnitInfo.reftoGridXZAdjust][iSizeToRecord]='..repru(oACU[M28UnitInfo.reftoGridXZAdjust][iSizeToRecord] or 'nil')..'; iSlotsAvailable (stopping once reach iSlotsWanted)='..iSlotsAvailable..'; iSlotsWanted='..iSlotsWanted) end
+        end
+
+
+        --Sort units awaiting for assignment by distance to the ACU, starting with the fursthest away
+        local iClosestDist, iCurDist
+        local iClosestSlot
+        local iClosestAvailableSlotRef
+        local iBaseX = oACU:GetPosition()[1]
+        local iBaseZ = oACU:GetPosition()[3]
+        local tGrid = oACU[M28UnitInfo.reftoGridXZAdjust]
+        if bDebugMessages == true then LOG(sFunctionRef..': iSlotsAvailable='..iSlotsAvailable..'; iUnitsWithoutAssignment='..iUnitsWithoutAssignment) end
+        for iUnitRef, iDistance in M28Utilities.SortTableByValue(toUnassignedRefByDistance, true) do
+            local oUnit = toUnassignedUnits[iUnitRef]
+            --Find the closest available slot
+            iClosestSlot = nil
+            iClosestAvailableSlotRef = nil
+            iClosestDist = 10000
+            if iSlotsAvailable > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Sorting through available slots for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                for iAvailableTableEntry, iSlot in tiAvailableSlots do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAvailableTableEntry='..iAvailableTableEntry..'; iSlot='..iSlot..'; Is tGrid[iSlot] nil='..tostring(tGrid[iSlot] == nil)) end
+                    if tGrid[iSlot] then --Im guessing that removing slots can lead to the table having nil entries at the end
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions({iBaseX + tGrid[iSlot][1], 0, iBaseZ + tGrid[iSlot][2]}, oUnit:GetPosition())
+                        if iCurDist < iClosestDist then
+                            iClosestDist = iCurDist
+                            iClosestSlot = iSlot
+                            iClosestAvailableSlotRef = iAvailableTableEntry
+                        end
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': No valid ref so will abort if have a valid ref from earlier') end
+                        if iClosestAvailableSlotRef then break end
+                    end
+                end
+                if iClosestSlot and iClosestAvailableSlotRef then
+                    oUnit[M28UnitInfo.refiACUGridSlot] = iClosestSlot
+                    oACU[M28UnitInfo.reftoUnitAssignedToGridSlot][iClosestSlot] = oUnit
+                    if bDebugMessages == true then LOG(sFunctionRef..': removing entry '..iClosestAvailableSlotRef..' from the table of available slots, iClosestSlot='..iClosestSlot) end
+                    table.remove(tiAvailableSlots, iClosestAvailableSlotRef)
+                else
+                    --Redundancy
+                    oUnit[M28UnitInfo.refiACUGridSlot] = 1
+                end
+            else
+                --Redundancy
+                oUnit[M28UnitInfo.refiACUGridSlot] = 1
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
