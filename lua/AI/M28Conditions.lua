@@ -2088,8 +2088,9 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                             end
                                         end
                                         local iAirFactoriesWanted = math.ceil(iLandFactoriesHave * iAirFactoriesForEveryLandFactory)
+                                        if iAirFactoriesWanted < 2 and M28Map.iMapSize >= 512 and iLandFactoriesHave >= 3 and not(aiBrain[M28Overseer.refbPrioritiseLand]) then iAirFactoriesWanted = 2 end
                                         if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesWanted='..iAirFactoriesWanted..'; iAirFactoriesHave='..iAirFactoriesHave..'; In t1 spam mode='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])) end
-                                        if iAirFactoriesHave >= 1 and ZoneWantsT1Spam(tLZTeamData, iTeam) then
+                                        if iAirFactoriesHave >= 1 and ZoneWantsT1Spam(tLZTeamData, iTeam) and (iAirFactoriesHave >= 2 or iAirFactoriesWanted < 2 or M28Map.iMapSize < 512 or iLandFactoriesHave < 3 or aiBrain[M28Overseer.refbPrioritiseLand]) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Want to focus on t1 spam so want more land facs') end
                                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                             return false
@@ -3970,4 +3971,14 @@ function GetBestCombatRangeOfUnitsOnPlateau(tUnits, iPlateau, iTeam)
         end
     end
     return iCombatRange
+end
+
+function GetFriendlyMAAInThisAndAdjacentLandZones(tLZData, tLZTeamData, iPlateau, iTeam)
+    local iMAAThreat =  (tLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+            iMAAThreat = iMAAThreat + (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatAllyMAA] or 0)
+        end
+    end
+    return iMAAThreat
 end

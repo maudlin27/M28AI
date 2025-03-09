@@ -114,6 +114,10 @@ refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
 refbWeaponDisabled = 'M28UnitWeaponDisabled' --True if unit weapon has been disabled by M28 code
 refiTimeLastDisabledWeapon = 'M28UnitTimeDsblW' --Gametimeseconds that we wanted the unit's weapon to be disabled
 refbLurkerMode = 'M28ULrkMd' --true if unit is adopting selen 'engi lurker' mode logic
+refiACUGridSlot = 'M28ACUGS' --the reference against the target ACU[reftoGridXZAdjust]
+reftoGridXZAdjust = 'M28GridXZA' --against the ACU, [x] is the refiACUGridSlot reference, returns {Xadj,Zadj} from the ACU position
+reftoUnitAssignedToGridSlot = 'M28GridUn' --against the ACU, [x] is the slot reference, returns the unit assigned to this slot
+
 
     --Ranges and weapon details
 refiWeaponScanRange = 'M28WpSRn' --I.e. the range the unit will move to for attack-move in LOUD; nil if unit doesnt have one

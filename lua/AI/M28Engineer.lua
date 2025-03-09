@@ -4105,6 +4105,7 @@ function MonitorToReissueReclaimOrder(oEngineer, oNearestReclaimableEnemy, iDist
     local iCurDist
     local iEngineerActionRequired = oEngineer[refiAssignedAction]
     local iEngineerPriorityRequired = oEngineer[refiAssignedActionPriority]
+    local bGivenNewOrder = false
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy '..oNearestReclaimableEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy)..'; iDistanceToReissue='..iDistanceToReissue..'; iTicksToCheck='..iTicksToCheck..'; Time='..GetGameTimeSeconds()) end
     while iRemainingTicksToWait > 0 do
@@ -4125,6 +4126,7 @@ function MonitorToReissueReclaimOrder(oEngineer, oNearestReclaimableEnemy, iDist
             if iCurDist <= iDistanceToReissue then
                 if bDebugMessages == true then LOG(sFunctionRef..': Engineer is close to target so will issue a reclaim order') end
                 M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'ReclByT', false)
+                bGivenNewOrder = true
                 break --Dont want to risk clearing engineer every tick and never reclaiming
             elseif iCurDist <= iDistanceToReissue + 0.5 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oNearestReclaimableEnemy.UnitId) and oEngineer:IsUnitState('Moving') and oNearestReclaimableEnemy:IsUnitState('Moving') then
                 --If enemy unit is moving and we are moving, then likely will be in range by the time the reclaim order goes through - check enemy engi is moving towards us
@@ -4132,6 +4134,7 @@ function MonitorToReissueReclaimOrder(oEngineer, oNearestReclaimableEnemy, iDist
                 if M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oNearestReclaimableEnemy:GetPosition(), oEngineer:GetPosition()), M28UnitInfo.GetUnitFacingAngle(oNearestReclaimableEnemy)) <= 35 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Repeating reclaim order') end
                     M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'ReclByET', false)
+                    bGivenNewOrder = true
                     break --Dont want to risk clearing engineer every tick and never reclaiming
                 end
             end
@@ -4139,6 +4142,24 @@ function MonitorToReissueReclaimOrder(oEngineer, oNearestReclaimableEnemy, iDist
             break
         end
 
+    end
+    --Consider clearing orders and reissuing the reclaim command if enemy is moving in a dif angle to us
+    if bDebugMessages == true and M28UnitInfo.IsUnitValid(oEngineer) and M28UnitInfo.IsUnitValid(oNearestReclaimableEnemy) then LOG(sFunctionRef..': end of monitoring, but engi and target both alive, bGivenNewOrder='..tostring(bGivenNewOrder)..'; Engi state='..M28UnitInfo.GetUnitState(oEngineer)..'; Special micro active='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)) end
+    if not(bGivenNewOrder) and M28UnitInfo.IsUnitValid(oEngineer) and M28UnitInfo.IsUnitValid(oNearestReclaimableEnemy) and not(oEngineer:IsUnitState('Reclaiming')) and not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) then
+        local iOurFacingDirection = M28UnitInfo.GetUnitFacingAngle(oEngineer)
+        local iAngleToEnemy = M28Utilities.GetAngleFromAToB(oEngineer:GetPosition(), oNearestReclaimableEnemy:GetPosition())
+        if bDebugMessages == true then LOG(sFunctionRef..': iOurFacingDirection='..iOurFacingDirection..'; iAngleToEnemy='..iAngleToEnemy) end
+        if M28Utilities.GetAngleDifference(iAngleToEnemy, iOurFacingDirection) >= 20 then
+            local iEnemyFacingDirection = M28UnitInfo.GetUnitFacingAngle(oNearestReclaimableEnemy)
+            local iAngleDif = M28Utilities.GetAngleDifference(iEnemyFacingDirection, iOurFacingDirection)
+            if bDebugMessages == true then LOG(sFunctionRef..': iEnemyFacingDirection='..iEnemyFacingDirection..'; iAngleDif='..iAngleDif) end
+            if iAngleDif >= 20 then
+                M28Orders.IssueTrackedClearCommands(oEngineer)
+                M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'ReclERefr', false)
+                bGivenNewOrder = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Cleared and reissued reclaim order as we seem to be going in the wrong direction') end
+            end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
