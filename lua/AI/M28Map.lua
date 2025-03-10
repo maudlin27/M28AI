@@ -6221,6 +6221,7 @@ function RecordPondToExpandTo(aiBrain)
                 if not(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues]) then M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues] = {} end
                 M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][iBestPondRef] = math.max((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][iBestPondRef] or 0), iBestPondValue)
             end
+            if iBestPondValue >= 12 and not(bIsCampaignMap) then ForkThread(ConsiderManualNavalPrioritisationFlag, aiBrain) end --do via forked thread so can wait 1 tick to ensure that SetWhetherCanPathToEnemy has been run
         elseif bDebugMessages == true then LOG(sFunctionRef..'; Etiher dont have a pond to expand to, or the value is too low to want to expand')
         end
     end
@@ -9657,4 +9658,17 @@ function RecordLurkerZonesForIsland(iPlateau, iIsland, iTeam)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderManualNavalPrioritisationFlag(oBrain)
+    --Called if we have a high value pond to expand to
+    --Prioritise navy if not in a safe position (in which case we want to favour air more), and not prioritising air or land
+    WaitTicks(1) --more of a chance for other code to run
+    if not(oBrain[refbCanPathToEnemyBaseWithLand]) and oBrain[refbCanPathToEnemyBaseWithAmphibious] and not(oBrain[M28Overseer.refbPrioritiseLand]) and not(oBrain[M28Overseer.refbPrioritiseHighTech]) and not(oBrain[M28Overseer.refbPrioritiseDefence]) and not(oBrain[M28Overseer.refbPrioritiseAir]) and not(oBrain[M28Overseer.refbPrioritiseNavy]) then
+        local iTeam = oBrain.M28Team
+        local tStartLZData, tStartLZTeamData = GetLandOrWaterZoneData(GetPlayerStartPosition(oBrain), true, iTeam)
+        if not(tStartLZTeamData[refbBaseInSafePosition]) and M28Utilities.IsTableEmpty(tStartLZData[subrefAdjacentWaterZones]) == false then
+            oBrain[M28Overseer.refbPrioritiseNavy] = true
+        end
+    end
 end
