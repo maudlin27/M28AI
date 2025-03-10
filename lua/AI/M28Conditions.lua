@@ -1552,28 +1552,28 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
         if aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Overseer.refbPrioritiseNavy] then
             --Only get more if have lots of mass
             if bDebugMessages == true then LOG(sFunctionRef..': Mass %='..aiBrain:GetEconomyStoredRatio('MASS')..'; Net income='..aiBrain[M28Economy.refiNetMassBaseIncome]..'; Highest fac tech='..aiBrain[M28Economy.refiOurHighestFactoryTechLevel]..'; Naval fac tech='..aiBrain[M28Economy.refiOurHighestNavalFactoryTech]..'; Team net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Energy % stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Have low power='..tostring(HaveLowPower(iTeam))) end
+            if not(iLandFacsInZone) or not(iAirFacsInZone) then
+                iLandFacsInZone = 0
+                iAirFacsInZone = 0
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                    local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
+                        for iUnit, oUnit in tFriendlyFactory do
+                            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
+                                iLandFacsInZone = iLandFacsInZone + 1
+                            else
+                                iAirFacsInZone = iAirFacsInZone + 1
+                            end
+                        end
+                    end
+                end
+            end
             if aiBrain:GetEconomyStoredRatio('MASS') < 0.2 or (aiBrain:GetEconomyStoredRatio('MASS') < 0.75 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]  < 0 or GetGameTimeSeconds() <= 600) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.4 or (aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 or HaveLowPower(iTeam)))) then
                 if aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] < 3
                         --Naval facs - want to get more land/air facs if we have lost navy
                         or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0))) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want more facs as want to tech or turtle, unless this zone has no factories') end
                     bWantMoreFactories = false
-                    if not(iLandFacsInZone) or not(iAirFacsInZone) then
-                        iLandFacsInZone = 0
-                        iAirFacsInZone = 0
-                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                            local tFriendlyFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                            if M28Utilities.IsTableEmpty(tFriendlyFactory) == false then
-                                for iUnit, oUnit in tFriendlyFactory do
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
-                                        iLandFacsInZone = iLandFacsInZone + 1
-                                    else
-                                        iAirFacsInZone = iAirFacsInZone + 1
-                                    end
-                                end
-                            end
-                        end
-                    end
                 end
             end
             if iLandFacsInZone + iAirFacsInZone == 0 then
@@ -1922,7 +1922,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                             --Cant path to enemy except with amphibious, so dont want lots of land factories
                                             iLandFactoriesWantedBeforeAir = 1
                                             --Exception if low gross power
-                                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 then
+                                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 and not(aiBrain[M28Overseer.refbPrioritiseNavy]) and not(aiBrain[M28Overseer.refbPrioritiseAir]) then
                                                 iLandFactoriesWantedBeforeAir = 2
                                             end
                                             iAirFactoriesForEveryLandFactory = 5
@@ -1994,6 +1994,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                                 iAirFactoriesForEveryLandFactory = math.min(math.max(iAirFactoriesForEveryLandFactory, 6), iAirFactoriesForEveryLandFactory * 1.5)
                                             end
                                         end
+                                        if aiBrain[M28Overseer.refbPrioritiseNavy] then iAirFactoriesForEveryLandFactory = math.max(iAirFactoriesForEveryLandFactory, 1) end
                                     end
                                     if iAirFactoriesForEveryLandFactory > 0.5 and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > math.max(20000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] * 1.2)) then
                                         if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] then
