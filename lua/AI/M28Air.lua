@@ -4179,7 +4179,6 @@ function EnemyBaseEarlyBomber(oBomber)
                                     if iCurDamage > iSingleEngiValue then
                                         --Prioritise bombs that might hit multiple engineers
                                         iModDist = iModDist - math.min(70, 40 * iCurDamage / iSingleEngiValue)
-                                        bDebugMessages = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Adjusting mod dist to factor aoe') end
                                     end
                                 end
