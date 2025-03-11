@@ -1437,8 +1437,13 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                 elseif iAverageCurAirAndLandFactories <= math.max(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat], M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]) * 0.003 / M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] and M28Map.iMapSize >= 512 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.1 or iAverageCurAirAndLandFactories * 2.25 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] - 3) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or -100) >= 10 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]) and not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10 and (not(bCanBuildAirFac) or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) > 10) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Enemy has large air to ground threat so want more factories (on the assumption we will end up getting more air factories) to deal with it') end
                     bWantMoreFactories = true
-                elseif not(TeamHasAirControl(iTeam)) and bCanBuildAirFac and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 1000 or iAverageCurAirAndLandFactories < tiFactoryToMassByTechRatioWanted[3] * 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                elseif bCanBuildAirFac and
+                        --If our next fac would be an air fac, and either: (first row) we are at T3 air without air control, and we have ok eco; or (second row) we dont have 2 air facs but want to build torp bombers (and we have t2 air), then get another
+                        ((not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 1000 or iAverageCurAirAndLandFactories < tiFactoryToMassByTechRatioWanted[3] * 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]))
+                                or (aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 2 and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and (iAirFacsInZone or 2) < 2 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])))
+                        and DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then
                     bWantMoreFactories = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want another air fac') end
                 elseif bCanBuildAirFac and (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0) / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] < 1 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) > 10  and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) then
                     --Fewer than 1 air fac per player; if have no air facs in this zone then get more factories
                     bWantMoreFactories = true
@@ -1568,41 +1573,51 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                     end
                 end
             end
-            if aiBrain:GetEconomyStoredRatio('MASS') < 0.2 or (aiBrain:GetEconomyStoredRatio('MASS') < 0.75 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]  < 0 or GetGameTimeSeconds() <= 600) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.4 or (aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 or HaveLowPower(iTeam)))) then
+            --If only 1 air fac in zone and lack torp bombers, then get a second air fac
+            local bDecided = false
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want 2 air facs due to enemy torp bombers despite personality, iAirFacsInZone='..iAirFacsInZone..'; No avialable torps='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies])..'; Do we want air instead of land='..tostring(DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))) end
+            if iAirFacsInZone <= 1 and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)  then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want another air fac due to needing torp bombers and wanting an air fac as our next factory') end
+                bDecided = true
+                bWantMoreFactories = true
+            elseif iLandFacsInZone + iAirFacsInZone > 0 and aiBrain:GetEconomyStoredRatio('MASS') < 0.2 or (aiBrain:GetEconomyStoredRatio('MASS') < 0.75 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]  < 0 or GetGameTimeSeconds() <= 600) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.4 or (aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 or HaveLowPower(iTeam)))) then
                 if aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] < 3
                         --Naval facs - want to get more land/air facs if we have lost navy
                         or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0))) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want more facs as want to tech or turtle, unless this zone has no factories') end
                     bWantMoreFactories = false
+                    bDecided = true
                 end
             end
-            if iLandFacsInZone + iAirFacsInZone == 0 then
-                bWantMoreFactories = true --i.e. revert back to previous conclusion
-            elseif aiBrain:GetEconomyStoredRatio('MASS') > 0.2 then
-                if iLandFacsInZone == 0 or (iAirFacsInZone == 0 and tLZTeamData[M28Map.subrefLZbCoreBase]) then
+            if not(bDecided) then
+                if iLandFacsInZone + iAirFacsInZone == 0 then
                     bWantMoreFactories = true --i.e. revert back to previous conclusion
-                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality- no land or air fac in zone, and either core base or no land fac') end
-                elseif aiBrain[M28Overseer.refbPrioritiseHighTech] and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 then
-                    bWantMoreFactories = true --i.e. revert back to previous conclusion
-                elseif (aiBrain:GetEconomyStoredRatio('MASS') < 0.35 and aiBrain[M28Economy.refiNetMassBaseIncome] < 0) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont want more facs as want to tech or turtle or get navy') end
-                    bWantMoreFactories = false
-                elseif iLandFacsInZone + iAirFacsInZone <= 4 and (iLandFacsInZone + iAirFacsInZone <= 3 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.45 and ((tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] or aiBrain:GetEconomyStoredRatio('MASS') >= 0.6))) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont have that many facs and got quite a lot of mass so will get another fac') end
-                    bWantMoreFactories = false
-                elseif tLZTeamData[M28Map.subrefMexCountByTech][3] + (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= tLZData[M28Map.subrefLZMexCount] and (aiBrain[M28Economy.refiNetMassBaseIncome] > 0 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.9) then
-                    bWantMoreFactories = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-we are upgrading every mex in this zone but still have good mass so want to build another factory') end
-                elseif aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and not(HaveLowPower(iTeam)) then
-                    bWantMoreFactories = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Too much mass so want more factories') end
+                elseif aiBrain:GetEconomyStoredRatio('MASS') > 0.2 then
+                    if iLandFacsInZone == 0 or (iAirFacsInZone == 0 and tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                        bWantMoreFactories = true --i.e. revert back to previous conclusion
+                        if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality- no land or air fac in zone, and either core base or no land fac') end
+                    elseif aiBrain[M28Overseer.refbPrioritiseHighTech] and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 then
+                        bWantMoreFactories = true --i.e. revert back to previous conclusion
+                    elseif (aiBrain:GetEconomyStoredRatio('MASS') < 0.35 and aiBrain[M28Economy.refiNetMassBaseIncome] < 0) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont want more facs as want to tech or turtle or get navy') end
+                        bWantMoreFactories = false
+                    elseif iLandFacsInZone + iAirFacsInZone <= 4 and (iLandFacsInZone + iAirFacsInZone <= 3 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.45 and ((tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] or aiBrain:GetEconomyStoredRatio('MASS') >= 0.6))) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont have that many facs and got quite a lot of mass so will get another fac') end
+                        bWantMoreFactories = false
+                    elseif tLZTeamData[M28Map.subrefMexCountByTech][3] + (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) >= tLZData[M28Map.subrefLZMexCount] and (aiBrain[M28Economy.refiNetMassBaseIncome] > 0 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.9) then
+                        bWantMoreFactories = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-we are upgrading every mex in this zone but still have good mass so want to build another factory') end
+                    elseif aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and not(HaveLowPower(iTeam)) then
+                        bWantMoreFactories = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Too much mass so want more factories') end
+                    else
+                        bWantMoreFactories = false
+                        if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont want more factories due to personality') end
+                    end
                 else
                     bWantMoreFactories = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont want more factories due to personality') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont have lots of mass and personality doesnt want lots of factories') end
                 end
-            else
-                bWantMoreFactories = false
-                if bDebugMessages == true then LOG(sFunctionRef..': low fac Personality-Dont have lots of mass and personality doesnt want lots of factories') end
             end
         end
     end

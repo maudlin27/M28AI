@@ -9298,7 +9298,7 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ShouldTransportDropEarlyOrAlwaysDropAtTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iTeam == 4 and oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uaa01071' and GetGameTimeSeconds() >= 5*60 then bDebugMessages = true end
+
     local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
     if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
         --Consider dropping immediately due to enemy AirAA threat

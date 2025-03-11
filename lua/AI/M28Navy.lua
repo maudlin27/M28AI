@@ -3706,11 +3706,15 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                     tAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
                                     M28Utilities.ForkedDelayedChangedVariable(tAdjWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
                                     if tAdjWZTeamData[M28Map.subrefWZbCoreBase] and M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ]) == false then
-                                        for _, iSecondAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ] do
+                                        for _, iSecondAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZAdjacentWaterZones] do
                                             local tSecondAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iSecondAdjWZ][M28Map.subrefWZTeamData][iTeam]
                                             if not(tSecondAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy]) then
-                                                tSecondAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
-                                                M28Utilities.ForkedDelayedChangedVariable(tSecondAdjWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
+                                                if tSecondAdjWZTeamData then
+                                                    tSecondAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
+                                                    M28Utilities.ForkedDelayedChangedVariable(tSecondAdjWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
+                                                else
+                                                    M28Utilities.ErrorHandler('Dont have a valid second WZ ref')
+                                                end
                                             end
                                         end
                                     end
@@ -4197,12 +4201,16 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                     if not(tAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy]) then
                                         tAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
                                         M28Utilities.ForkedDelayedChangedVariable(tAdjWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
-                                        if tAdjWZTeamData[M28Map.subrefWZbCoreBase] and M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ]) == false then
-                                            for _, iSecondAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ] do
+                                        if tAdjWZTeamData[M28Map.subrefWZbCoreBase] and M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZAdjacentWaterZones]) == false then
+                                            for _, iSecondAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZAdjacentWaterZones] do
                                                 local tSecondAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iSecondAdjWZ][M28Map.subrefWZTeamData][iTeam]
                                                 if not(tSecondAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy]) then
-                                                    tSecondAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
-                                                    M28Utilities.ForkedDelayedChangedVariable(tSecondAdjWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
+                                                    if tSecondAdjWZTeamData then
+                                                        tSecondAdjWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] = true
+                                                        M28Utilities.ForkedDelayedChangedVariable(tSecondAdjWZTeamData, M28Map.subrefWZbSuicideIntoEnemy, false, 30)
+                                                    else
+                                                        M28Utilities.ErrorHandler('Dont have a valid second WZ ref')
+                                                    end
                                                 end
                                             end
                                         end
@@ -4228,9 +4236,10 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         local bOutrangeClosestEnemy
                         local iDistUntilEnemyOutOfOurRange
                         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                        local bNearestEnemyToMidpointIsVisible = M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemyToFriendlyBase)
+                        local bNearestEnemyToMidpointIsVisible
+                        if M28UnitInfo.IsUnitValid(oNearestEnemyToFriendlyBase) then bNearestEnemyToMidpointIsVisible = M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemyToFriendlyBase) end
                         local bNearestEnemySurfaceIsVisible
-                        if oNearestEnemySurfaceToFriendlyBase then bNearestEnemySurfaceIsVisible = M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemySurfaceToFriendlyBase) end
+                        if M28UnitInfo.IsUnitValid(oNearestEnemySurfaceToFriendlyBase) then bNearestEnemySurfaceIsVisible = M28UnitInfo.CanSeeUnit(aiBrain, oNearestEnemySurfaceToFriendlyBase) end
                         local bNearestEnemyIsUnderwater = M28UnitInfo.IsUnitUnderwater(oNearestEnemyToFriendlyBase)
                         local bNearestEnemyIsHover = EntityCategoryContains(categories.HOVER, oNearestEnemyToFriendlyBase.UnitId)
                         local iAmountWeOutrangeNearestEnemy
@@ -4313,6 +4322,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                     if M28Conditions.GroundAttackTargetUnitInsteadOfAttackMove(oUnit, oEnemyToFocusOn) then
                                         M28Orders.IssueTrackedGroundAttack(oUnit, oEnemyToFocusOn:GetPosition(), 1, false, 'WAWagE'..iWaterZone, false, oEnemyToFocusOn)
                                     else
+                                        --Had strange issue where oUnit was invalid; despite adding extra check in the managespecificwaterzone to check unit is valid in same zone, and checking we had this check for adjWZ, still occurred; so will just accept as rare error
                                         M28Orders.IssueTrackedAggressiveMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], iOrderReissueDistToUse, false, 'WAWE'..iWaterZone)
                                     end
                                 end
@@ -4480,7 +4490,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             end
                         end
                     end
-                end
+                    end
             end
 
             --Ground fire subs
@@ -6345,7 +6355,9 @@ function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZ
             oClosestNonHoverToMidpointByDist = nil
 
             for iUnit, oUnit in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam][M28Map.subrefTEnemyUnits] do
-                ConsiderIfUnitIsClosest(oUnit, true)
+                if not(oUnit.Dead) then
+                    ConsiderIfUnitIsClosest(oUnit, true)
+                end
             end
             --Add closest unit from adj zone (by dist, and if different by range) to tables of enemy surface/non hover units:
             if bDebugMessages == true then LOG(sFunctionRef..': Finished considering units in iAdjWZ='..iAdjWZ..'; oClosestSurfaceToMidpointByDist='..(oClosestSurfaceToMidpointByDist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestSurfaceToMidpointByDist) or 'nil')..'; oClosestSurfaceToMidpointByRange='..(oClosestSurfaceToMidpointByRange.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestSurfaceToMidpointByRange) or 'nil')..'; oClosestNonHoverToMidpointByDist='..(oClosestNonHoverToMidpointByDist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestNonHoverToMidpointByDist) or 'nil')..'; oClosestNonHoverToMidpointByRange='..(oClosestNonHoverToMidpointByRange.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestNonHoverToMidpointByRange) or 'nil')) end
