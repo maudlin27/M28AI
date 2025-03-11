@@ -4158,7 +4158,11 @@ function EnemyBaseEarlyBomber(oBomber)
                             local oSecondNearestEnemy
                             local iClosestDist = 10000
                             local iSecondClosestDist = 10000
-                            local iModDist
+                            local iModDist, iCurDamage
+                            local iAOE, iStrikeDamage = M28UnitInfo.GetBomberAOEAndStrikeDamage(oBomber)
+                            local iSingleEngiValue = 52
+                            iStrikeDamage = math.max(150, iStrikeDamage) --assume we can 1-shot all engineers in case it gives strange results if we cant
+
                             for iUnit, oUnit in tEnemyTargets do
                                 iModDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oBomber:GetPosition())
                                 if iModDist < iSecondClosestDist and oUnit:GetHealth() > oBomber[M28UnitInfo.refiStrikeDamage] then
@@ -4168,6 +4172,17 @@ function EnemyBaseEarlyBomber(oBomber)
                                         iModDist = iModDist + 15
                                     end
                                 end --Prioritise targets we think we can kill in 1-2 hits
+                                if oUnit[M28UnitInfo.refiBombMissedCount] then iModDist = iModDist + 40 * oUnit[M28UnitInfo.refiBombMissedCount] end
+                                --Reduce mod dist if there are other engineers nearby
+                                if iModDist - 40 < iClosestDist then
+                                    iCurDamage = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iStrikeDamage, nil, nil, nil, nil, nil, 0.8, nil, nil, true, nil, nil, nil, nil, nil)
+                                    if iCurDamage > iSingleEngiValue then
+                                        --Prioritise bombs that might hit multiple engineers
+                                        iModDist = iModDist - math.min(70, 40 * iCurDamage / iSingleEngiValue)
+                                        bDebugMessages = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Adjusting mod dist to factor aoe') end
+                                    end
+                                end
                                 if iModDist < iClosestDist then
                                     oSecondNearestEnemy = oNearestEnemy
                                     iSecondClosestDist = iClosestDist
@@ -4187,7 +4202,7 @@ function EnemyBaseEarlyBomber(oBomber)
                                 --M28Micro.HoverBombTarget(oBomber, oNearestEnemy)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will call hoverbomb logic') end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                M28Micro.T1HoverBombTarget(oBomber, oNearestEnemy, true, true, true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
+                                M28Micro.T1HoverBombTarget(oBomber, oNearestEnemy, true, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemy.UnitId) or oNearestEnemy:GetFractionComplete() < 1), true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                                 iTicksToWait = 1 --Just to avoid infinite loop risk
                             else
@@ -4357,6 +4372,7 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                                 if iCurDist <= iMaxDist then
 
                                     iCurDamage = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iStrikeDamage, nil, nil, nil, nil, nil, 0.8, nil, nil, true, nil, nil, nil, nil, nil)
+                                    if oUnit[M28UnitInfo.refiBombMissedCount] then iCurDamage = iCurDamage / (oUnit[M28UnitInfo.refiBombMissedCount] + 1) end
                                     if iCurDamage > iBestDamage and (iCurDist <= iClosestEnemy + 40 or iCurDamage > iBestDamage * 1.4) then
                                         iBestDamage = iCurDamage
                                         oBestEnemyTarget = oUnit
@@ -4377,7 +4393,7 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                             --If we have recently fired and enemy is close then hover-bomb
                             if iDistToTarget <= oBomber[M28UnitInfo.refiBomberRange] + 10 and iTimeUntilReadyToFire >= 2 and oBestEnemyTarget:GetHealth() <= 250 and not(oBomber[M28UnitInfo.refbEasyBrain]) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Bomber recently fired and isnt able to fire again for a few seconds so will hoverbomb to attack '..oBestEnemyTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestEnemyTarget)) end
-                                ForkThread(M28Micro.T1HoverBombTarget, oBomber, oBestEnemyTarget, false, true, false)
+                                ForkThread(M28Micro.T1HoverBombTarget, oBomber, oBestEnemyTarget, false, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) or oBestEnemyTarget:GetFractionComplete() < 1), false)
                                 tEnemyTargets = nil
                                 tAltEnemyTargets = nil
                                 tBomberTable = nil
