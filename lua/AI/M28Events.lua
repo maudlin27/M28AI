@@ -1094,7 +1094,8 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                     oUnitCausingDamage[M28UnitInfo.refiTimeOfLastUnblockedShot] = GetGameTimeSeconds()
                     if M28UnitInfo.IsUnitValid(self) and (self[M28UnitInfo.refiTargetShotBlockedCount] or 0) > 0 then self[M28UnitInfo.refiTargetShotBlockedCount] = self[M28UnitInfo.refiTargetShotBlockedCount] - 10 end
 
-                    --T3/experimental arti specific
+                    --Unit category specific:
+                        --T3/experimental arti specific
                     if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitCausingDamage.UnitId) then
                         --Reset the arti shot count if damaged a high value unit
                         if M28UnitInfo.IsUnitValid(self) then
@@ -1122,8 +1123,12 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                                 tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = math.max(0, (tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) - iReductionValue)
                             end
                         end
+                    --TML - update shots hit
                     elseif self[M28Building.refiTMLShotsFired] or 0 > 0 and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
                         self[M28Building.refiTMLShotsHit] = (self[M28Building.refiTMLShotsHit] or 0) + 1
+                    --Bombers - record that have successfully damaged the target (i.e. that our bomb didnt miss after all)
+                    elseif self[M28UnitInfo.refiBombMissedCount] and EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnitCausingDamage.UnitId) then
+                        self[M28UnitInfo.refiBombMissedCount] = nil
                     end
                     if EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId) and self:GetFractionComplete() < 1 and self:GetFractionComplete() > 0.1 then
                         if (M28Orders.bDontConsiderCombinedArmy or oUnitCausingDamage.M28Active) then
@@ -1245,13 +1250,16 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
                     if EntityCategoryContains(categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber, sUnitID) and ((not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and not(oUnit[M28Air.rebEarlyBomberTargetBase])) or not(EntityCategoryContains(categories.TECH1, sUnitID))) then
                         --bombers - micro to turn around and go to rally point
                         if oUnit:GetAIBrain().M28AI then
+                            local oTargetUnit = oUnit[M28Orders.reftiLastOrders][M28Orders.subrefoOrderUnitTarget]
+                            if M28UnitInfo.IsUnitValid(oUnit) then
+                                oUnit[M28UnitInfo.refiBombMissedCount] = ( oUnit[M28UnitInfo.refiBombMissedCount] or 0) + 1
+                            end
                             if oUnit[M28Air.refbBomberUsingMexHunterLogic] then
                                 ForkThread(M28Air.AttackTargetForMexHuntingBomber, oUnit, true)
                             elseif not(oUnit[M28UnitInfo.refbEasyBrain]) then
                                 --Track exp bombs fired (relevant for when trying to use our aoe to hit mobile targets safely)
-                                local oTargetUnit = oUnit[M28Orders.reftiLastOrders][M28Orders.subrefoOrderUnitTarget]
                                 if bDebugMessages == true then LOG(sFunctionRef..': will get bomber to head towards rally point, bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Bomber position='..repru(oUnit:GetPosition())..'; Rally point='..repru(M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist to rally point='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to its owners start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Map.GetPlayerStartPosition(oUnit:GetAIBrain()))..'; oTargetUnit='..(oTargetUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTargetUnit) or 'nil')) end
-                                if M28UnitInfo.IsUnitValid(oTargetUnit) then
+                                if M28UnitInfo.IsUnitValid(oTargetUnit) and EntityCategoryContains(categories.EXPERIMENTAL, sUnitID) then
                                     oTargetUnit[M28Air.refiExpBomberShotCount] = (oTargetUnit[M28Air.refiExpBomberShotCount] or 0) + 1
                                 end
 

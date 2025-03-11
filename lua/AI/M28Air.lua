@@ -4158,7 +4158,11 @@ function EnemyBaseEarlyBomber(oBomber)
                             local oSecondNearestEnemy
                             local iClosestDist = 10000
                             local iSecondClosestDist = 10000
-                            local iModDist
+                            local iModDist, iCurDamage
+                            local iAOE, iStrikeDamage = M28UnitInfo.GetBomberAOEAndStrikeDamage(oBomber)
+                            local iSingleEngiValue = 52
+                            iStrikeDamage = math.max(150, iStrikeDamage) --assume we can 1-shot all engineers in case it gives strange results if we cant
+
                             for iUnit, oUnit in tEnemyTargets do
                                 iModDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oBomber:GetPosition())
                                 if iModDist < iSecondClosestDist and oUnit:GetHealth() > oBomber[M28UnitInfo.refiStrikeDamage] then
@@ -4168,6 +4172,16 @@ function EnemyBaseEarlyBomber(oBomber)
                                         iModDist = iModDist + 15
                                     end
                                 end --Prioritise targets we think we can kill in 1-2 hits
+                                if oUnit[M28UnitInfo.refiBombMissedCount] then iModDist = iModDist + 40 * oUnit[M28UnitInfo.refiBombMissedCount] end
+                                --Reduce mod dist if there are other engineers nearby
+                                if iModDist - 40 < iClosestDist then
+                                    iCurDamage = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iStrikeDamage, nil, nil, nil, nil, nil, 0.8, nil, nil, true, nil, nil, nil, nil, nil)
+                                    if iCurDamage > iSingleEngiValue then
+                                        --Prioritise bombs that might hit multiple engineers
+                                        iModDist = iModDist - math.min(70, 40 * iCurDamage / iSingleEngiValue)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Adjusting mod dist to factor aoe') end
+                                    end
+                                end
                                 if iModDist < iClosestDist then
                                     oSecondNearestEnemy = oNearestEnemy
                                     iSecondClosestDist = iClosestDist
@@ -4187,7 +4201,7 @@ function EnemyBaseEarlyBomber(oBomber)
                                 --M28Micro.HoverBombTarget(oBomber, oNearestEnemy)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will call hoverbomb logic') end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                M28Micro.T1HoverBombTarget(oBomber, oNearestEnemy, true, true, true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
+                                M28Micro.T1HoverBombTarget(oBomber, oNearestEnemy, true, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemy.UnitId) or oNearestEnemy:GetFractionComplete() < 1), true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                                 iTicksToWait = 1 --Just to avoid infinite loop risk
                             else
@@ -4357,6 +4371,7 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                                 if iCurDist <= iMaxDist then
 
                                     iCurDamage = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iStrikeDamage, nil, nil, nil, nil, nil, 0.8, nil, nil, true, nil, nil, nil, nil, nil)
+                                    if oUnit[M28UnitInfo.refiBombMissedCount] then iCurDamage = iCurDamage / (oUnit[M28UnitInfo.refiBombMissedCount] + 1) end
                                     if iCurDamage > iBestDamage and (iCurDist <= iClosestEnemy + 40 or iCurDamage > iBestDamage * 1.4) then
                                         iBestDamage = iCurDamage
                                         oBestEnemyTarget = oUnit
@@ -4377,7 +4392,7 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                             --If we have recently fired and enemy is close then hover-bomb
                             if iDistToTarget <= oBomber[M28UnitInfo.refiBomberRange] + 10 and iTimeUntilReadyToFire >= 2 and oBestEnemyTarget:GetHealth() <= 250 and not(oBomber[M28UnitInfo.refbEasyBrain]) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Bomber recently fired and isnt able to fire again for a few seconds so will hoverbomb to attack '..oBestEnemyTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestEnemyTarget)) end
-                                ForkThread(M28Micro.T1HoverBombTarget, oBomber, oBestEnemyTarget, false, true, false)
+                                ForkThread(M28Micro.T1HoverBombTarget, oBomber, oBestEnemyTarget, false, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) or oBestEnemyTarget:GetFractionComplete() < 1), false)
                                 tEnemyTargets = nil
                                 tAltEnemyTargets = nil
                                 tBomberTable = nil
@@ -8703,14 +8718,30 @@ function ManageTransports(iTeam, iAirSubteam)
                 if bRemoveFromShortlist and oUnit[refiTargetPlateauForDrop] then
                     RemoveDropFromShortlist(oUnit[refiTargetPlateauForDrop], (oUnit[refiTargetIslandForDrop] or NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, (oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition] or M28Map.GetPlayerStartPosition(oUnit:GetAIBrain())))), (oUnit[refiTargetZoneForDrop] or 0))
                 end
-                local bDropNow, bAlwaysDropAtTarget = ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, false)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering transport with a cargo, oUnit='..(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))..'; bDropNow='..tostring(bDropNow)..'; oUnit[refbCombatDrop]='..tostring(oUnit[refbCombatDrop] or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; LastOrder subreftOrderPosition='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])..'; Cur unit position='..repru(oUnit:GetPosition())..'; Transport target drop=P'..(oUnit[refiTargetPlateauForDrop] or 'nil')..'Z'..(oUnit[refiTargetZoneForDrop] or 'nil')..'; bRemoveFromShortlist='..tostring(bRemoveFromShortlist or false)) end
+                local bDropNow, bAlwaysDropAtTarget, bAbortDrop = ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, false)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering transport with a cargo, oUnit='..(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))..'; owned by '..oUnit:GetAIBrain().Nickname..'; bDropNow='..tostring(bDropNow)..'; oUnit[refbCombatDrop]='..tostring(oUnit[refbCombatDrop] or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; LastOrder subreftOrderPosition='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])..'; Cur unit position='..repru(oUnit:GetPosition())..'; Transport target drop=P'..(oUnit[refiTargetPlateauForDrop] or 'nil')..'Z'..(oUnit[refiTargetZoneForDrop] or 'nil')..'; bRemoveFromShortlist='..tostring(bRemoveFromShortlist or false)) end
                 if bDropNow then
                     --Drop early
                     M28Orders.IssueTrackedTransportUnload(oUnit, oUnit:GetPosition(), 8, false, 'EmergBDr', false)
                     oUnit[refbEmergencyDropActive] = true
                     if bRemoveFromTableIfEmergencyDrop then table.remove(tUnitsToConsider, iUnit) end
                     --Transports that are about to do a combat drop in range of enemy PD that have just detected - adjust drop location slightly
+                elseif bAbortDrop then
+                    --Go to the nearest base
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will abort and return to base') end
+                    local tNewDropLocation
+                    local tCurLZData, tCurLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                    if tCurLZTeamData[M28Map.reftClosestFriendlyBase] then
+                        tNewDropLocation = {tCurLZTeamData[M28Map.reftClosestFriendlyBase][1], tCurLZTeamData[M28Map.reftClosestFriendlyBase][2], tCurLZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                    else
+                        tNewDropLocation = M28Map.GetPlayerStartPosition(oUnit:GetAIBrain())
+                    end
+                    if M28Utilities.IsTableEmpty(tNewDropLocation) == false then
+                        --Emergency drop at this new location
+                        M28Orders.IssueTrackedTransportUnload(oUnit, tNewDropLocation, 2, false, 'EmergPDDr', false)
+                        --oUnit[refbEmergencyDropActive] = true --Dont treat as emergency drop because we want the transport to receive new orders, i.e. we are presumably aborting because of the ground threat in the zone we were about to drop
+                        if bRemoveFromTableIfEmergencyDrop then table.remove(tUnitsToConsider, iUnit) end
+                    end
                 elseif oUnit[refbCombatDrop] then
                     local tOrderTarget = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]
                     if M28Utilities.IsTableEmpty(tOrderTarget) == false then
@@ -8770,12 +8801,12 @@ function ManageTransports(iTeam, iAirSubteam)
                         end
                     end
                 end
-                --[[if not(bDropNow) and bRefreshDropOrderIfNoUnitState and oUnit[M28Orders.refiOrderCount] <= 1 then
-                    local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
-                    if tLastOrder[M28Orders.subrefiOrderType]
-                    M28Orders.UpdateRecordedOrders(oUnit)
-                    if
-                end--]]
+                    --[[if not(bDropNow) and bRefreshDropOrderIfNoUnitState and oUnit[M28Orders.refiOrderCount] <= 1 then
+                        local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
+                        if tLastOrder[M28Orders.subrefiOrderType]
+                        M28Orders.UpdateRecordedOrders(oUnit)
+                        if
+                    end--]]
             elseif oUnit[refbEmergencyDropActive] then oUnit[refbEmergencyDropActive] = nil --redundancy (shouldnt ever trigger)
             end
         end
@@ -9187,7 +9218,7 @@ function ManageTransports(iTeam, iAirSubteam)
                         local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
                         if bDebugMessages == true then LOG(sFunctionRef..': Last order='..reprs(tLastOrder)..'; Is last order tyep unoad transport='..tostring(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport)) end
 
-                        local bDropNow, bAlwaysDropAtTarget = ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, true)
+                        local bDropNow, bAlwaysDropAtTarget, bAbortDrop = ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, true)
                         if bDropNow then
                             --For completeness - since adding logic earlier on to consider available transports in all cases for emergency drops where they have a cargo, this shouldn't ever trigger; have also added flag to considering whether to drop early so logic shouldn't even be run
                             M28Orders.IssueTrackedTransportUnload(oUnit, oUnit:GetPosition(), 8, false, 'EmergDr', false)
@@ -9276,7 +9307,7 @@ function ManageTransports(iTeam, iAirSubteam)
 end
 
 function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConsiderAlwaysDropping)
-    --Return bDropNow, bAlwaysDropAtTarget values (i.e. true if should drop now; false true if should proceed to target regardless since we are close; and false false if should either proceed with other logic such as retreating to rally (if no where to drop) or proceeding with the drop (if unit alreayd has drop order queued up and is close enough to be busy)
+    --Return bDropNow, bAlwaysDropAtTarget and bAbortDrop values (i.e. true if should drop now; false true if should proceed to target regardless since we are close; and false false if should either proceed with other logic such as retreating to rally (if no where to drop) or proceeding with the drop (if unit alreayd has drop order queued up and is close enough to be busy)
     --bJustConsiderAlwaysDropping - if this is true, then will only consider the distance based check for this - i.e. intended where we have already considered whether to dropnow for the unit
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -9318,7 +9349,7 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
                         if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater({oUnit:GetPosition()[1], GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]), oUnit:GetPosition()[3]}))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Dropping early as enemy has AirAA') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            return true, false
+                            return true, false, false
                         end
                     end
                 end
@@ -9327,42 +9358,77 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
         --We arent worried about a nearby AirAA threat; what about groundAA threat?
         local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])
         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to drop due to target being dangerous, iDistToTarget='..iDistToTarget) end
-        if M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.35 and (iDistToTarget <= 50 or oUnit[refbCombatDrop]) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.GetUnitHealthPercent] or 0) <= 8 then
+        if M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.35 and (iDistToTarget <= 50 or oUnit[refbCombatDrop]) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastDamaged] or 0) <= 8 then
             if bDebugMessages == true then LOG(sFunctionRef..': Transport is low health so want to drop immediately unless it isnt likely to be a valid drop location') end
             if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater(GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3])))) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will drop') end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will drop early (i.e. where we are)') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return true, false
+                return true, false, false
             elseif iDistToTarget <= 40 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Target within 40 so will proceed to drop') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return false, true --i.e. carry on to destination
+                return false, true, false --i.e. carry on to destination
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Returning false') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return false, false --i.e. consider retreating or changing targets if called this as part of retreat to rally logic
+                return false, false, false --i.e. consider retreating or changing targets if called this as part of retreat to rally logic, but dont force an abort
             end
-        elseif iDistToTarget <= 30 or (iDistToTarget <= 60 and oUnit[refbCombatDrop]) then
-            --Might as well proceed to destination and unload - significant risk we just die if we return by this stage anyway, while a combat drop loses its effectiveness if keep changing our mind
-            if bDebugMessages == true then LOG(sFunctionRef..': Will proceed to destination') end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            return false, true
-        elseif iDistToTarget <= 250 then
+
+        else
             local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tLastOrder[M28Orders.subreftOrderPosition], true, iTeam)
-            local tCargo = oUnit:GetCargo()
-            local iCargoSize = table.getn(tCargo)
-            if bDebugMessages == true then LOG(sFunctionRef..': Will cnosider proceeding to destination, tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; oUnit[refbCombatDrop]='..tostring(oUnit[refbCombatDrop] or false)) end
-            if (tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) < iCargoSize * 30 or oUnit[refbCombatDrop] then
-                --Might as well proceed to destination and unload given minimal enemy combat threat
-                if bDebugMessages == true then LOG(sFunctionRef..': Minimal combat threat so will proceed to destination') end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return false, true
+            --Engineer drop where enemies are at the target
+            if bDebugMessages == true then LOG(sFunctionRef..': Enemy combat in target LZ='..(tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; Friendly threat='..(tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)..'; Is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tTargetLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))) end
+            if not(oUnit[refbCombatDrop]) and not(tTargetLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tTargetLZOrWZTeamData[M28Map.subrefWZbCoreBase]) and (tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 50 and (tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) < 50 and M28Utilities.IsTableEmpty(tTargetLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                --Check for enemies near the drop location specifically that have a DF attack
+                local iDistUntilInRange
+                for iEnemy, oEnemy in tTargetLZOrWZTeamData[M28Map.reftoNearestDFEnemies] do
+                    if not(oEnemy.Dead) and oEnemy:GetFractionComplete() >= 0.8 then
+                        iDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oEnemy:GetPosition()) - (oEnemy[M28UnitInfo.refiDFRange] or 0)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iDistUntilInRange='..iDistUntilInRange) end
+                        if iDistUntilInRange <= 18 and (iDistUntilInRange <= 8 or EntityCategoryContains(categories.MOBILE, oEnemy.UnitId)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': If we drop as planned we will probaboy just die to enemy so will abort') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return false, false, true --i.e. want to abort and pick a different target/retreat
+                        end
+                    end
+                end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': iCargoSize='..iCargoSize..'; Enemy combat threat='..tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bUnloadAtRallyOrOtherZone='..tostring(bUnloadAtRallyOrOtherZone)) end
+            --Further check if we are almost there - no tanks or ACUs doing getunitsaroundpoint (since there might be a delay in updating units)
+            if iDistToTarget <= 5 and not(oUnit[refbCombatDrop]) and not(tTargetLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tTargetLZOrWZTeamData[M28Map.subrefWZbCoreBase]) then
+                local tEnemyUnits = oUnit:GetAIBrain():GetUnitsAroundPoint(categories.COMMAND + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryDFTank, tLastOrder[M28Orders.subreftOrderPosition], 35, 'Enemy')
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
+                if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
+                    for iEnemy, oEnemy in tEnemyUnits do
+                        if oEnemy:GetFractionComplete() >= 0.8 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Detected enemy, oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)) end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return false, false, true --i.e. want to abort and pick a different target/retreat
+                        end
+                    end
+                end
+            end
+
+            if iDistToTarget <= 30 or (iDistToTarget <= 60 and oUnit[refbCombatDrop]) then
+                --Might as well proceed to destination and unload - significant risk we just die if we return by this stage anyway, while a combat drop loses its effectiveness if keep changing our mind
+                if bDebugMessages == true then LOG(sFunctionRef..': Will proceed to destination as we are close to it now') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return false, true, false
+            elseif iDistToTarget <= 250 then
+                local tCargo = oUnit:GetCargo()
+                local iCargoSize = table.getn(tCargo)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will cnosider proceeding to destination, tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; oUnit[refbCombatDrop]='..tostring(oUnit[refbCombatDrop] or false)) end
+                if (tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) < iCargoSize * 30 or oUnit[refbCombatDrop] then
+                    --Might as well proceed to destination and unload given minimal enemy combat threat
+                    if bDebugMessages == true then LOG(sFunctionRef..': Minimal combat threat so will proceed to destination') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return false, true, false
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iCargoSize='..iCargoSize..'; Enemy combat threat='..tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bUnloadAtRallyOrOtherZone='..tostring(bUnloadAtRallyOrOtherZone)) end
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return false, false
+    return false, false, false
 end
 
 function ManageNovax(iTeam, iAirSubteam)

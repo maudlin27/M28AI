@@ -340,14 +340,14 @@ function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted, iOptionalMinUnit
     local sFunctionRef = 'FindAndUpgradeUnitOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     local tUnitsOfCategory = aiBrain:GetListOfUnits(iCategoryWanted, false, true)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for brain '..aiBrain.Nickname..'; is tUnitsOfCategory empty='..tostring(M28Utilities.IsTableEmpty(tUnitsOfCategory))..'; iOptionalMinUnitsToHaveBuilt='..(iOptionalMinUnitsToHaveBuilt or 'nil')) end
     if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
         local tUnitsToSearch = {}
         local tUnsafeUnitsOfCategory = {}
         local iCurPlateau, iCurLZ
         for iUnit, oUnit in tUnitsOfCategory do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Do we want more engis before upgrading='..tostring(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oUnit))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Do we want more engis before upgrading='..tostring(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oUnit))..'; Unit build count='.. oUnit[M28Factory.refiTotalBuildCount]) end
             if not(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oUnit)) then
                 if oUnit:GetFractionComplete() == 1 and not(oUnit:IsUnitState('Upgrading')) and not(oUnit.Dead) then
                     if not(iOptionalMinUnitsToHaveBuilt) or oUnit[M28Factory.refiTotalBuildCount] >= iOptionalMinUnitsToHaveBuilt then

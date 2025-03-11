@@ -50,6 +50,7 @@ refClampStinger = 5
 --Variables against units;
 refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
 refiLastBombFired = 'M28LastBmb' --Gametimeseconds that last fired a bomb
+refiBombMissedCount = 'M28BmbMis' --increases by 1 when fire a bomb at the unit, resets to 0 when bomber damages unit
 refiLastDodgeBombEvent = 'M28LastDodB' --gametimeseconds that last triggered the onbombfired logic
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
 reftRecentUnitPositions = 'M28RcUnP' --[x] = 1, 2, 3; based on previous recorded positions; used for TML targeting logic; note that this isnt by team to reduce tables required, since if have multiple M28 then only the first one will try and record this in MonitorUnitRecentPositions

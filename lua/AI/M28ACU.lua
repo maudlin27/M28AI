@@ -623,6 +623,10 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     end
 
                 end
+                if not(bGoSecondAir) and (aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseAir]) and M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData, aiBrain) then
+                    bGoSecondAir = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Navy or air focus, we want air fac instead of land so will go second air') end
+                end
                 --Personality override
                 if bGoSecondAir and (aiBrain[M28Overseer.refbPrioritiseLand] or aiBrain[M28Overseer.refbPrioritiseLowTech]) then bGoSecondAir = false end
                 if bDebugMessages == true then LOG(sFunctionRef..': Deciding on min energy wanted, bGoSecondAir='..tostring(bGoSecondAir)..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end

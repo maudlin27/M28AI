@@ -14854,6 +14854,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
     local bExistingFactoryIsComplete = false
+
     if bDebugMessages == true then LOG(sFunctionRef..': About to determine factories wanted, tLZTeamData[M28Map.subrefLZCoreExpansion]='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; bAdjacentToCoreZone='..tostring(bAdjacentToCoreZone or false)..'; bHaveLowMass='..tostring(bHaveLowMass or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
     if tLZTeamData[M28Map.subrefLZCoreExpansion] or tLZTeamData[M28Map.subrefLZFortify] then
         if not(bTeammateHasBuiltHere) and (tLZTeamData[M28Map.subrefLZCoreExpansion] or (not(bHaveLowMass) and (bAdjacentToCoreZone and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 750) or (M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) and ((bAdjacentToCoreZone and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.75 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or tLZData[M28Map.subrefLZMexCount] >= 4) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3))) then
@@ -14903,13 +14904,22 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iIslandZoneCount='..iIslandZoneCount..'; iFactoriesWanted pre adj='..iFactoriesWanted) end
             if (iIslandZoneCount > 2 or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(bWantMorePower) and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 then
-
-                if not(bExpansionOnSameIslandAsBase) or M28Map.iMapSize >= 750 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.6 then iFactoriesWanted = iFactoriesWanted + 1 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Likely want an extra factory, bExpansionOnSameIslandAsBase='..tostring(bExpansionOnSameIslandAsBase)..'; Map size='..M28Map.iMapSize..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Dist to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase])..'; Mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Enemies in this or adj LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Can path to enemy with land='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])) end
+                if not(bExpansionOnSameIslandAsBase) or (M28Map.iMapSize >= 750 and (tLZTeamData[M28Map.refiModDistancePercent] >= 0.5 or M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]) >= 200 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.6 or (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]))) then
+                    iFactoriesWanted = iFactoriesWanted + 1
+                    if bDebugMessages == true then LOG(sFunctionRef..': Increasing factories wanted by 1') end
+                end
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 then
-                    if not(bExpansionOnSameIslandAsBase) or M28Map.iMapSize >= 750 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 then iFactoriesWanted = iFactoriesWanted + math.max(1, iFactoriesWanted / 3) end
+                    if not(bExpansionOnSameIslandAsBase) or M28Map.iMapSize >= 750 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 then
+                        iFactoriesWanted = iFactoriesWanted + math.max(1, iFactoriesWanted / 3)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Increasing factories wanted by higher of 1 and 1/3') end
+                    end
                 end
             end
-            if iFactoriesWanted >= 1 and M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] and not(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone)) then iFactoriesWanted = 1 end
+            if iFactoriesWanted >= 1 and ((bExpansionOnSameIslandAsBase and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap]) and not(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': We dont actually want more factories in this zone, so limiting factories wanted to just 1') end
+                iFactoriesWanted = 1
+            end
             if iFactoriesWanted < 4 and tLZTeamData[M28Map.subrefLZFortify] then
                 if not(bHaveLowMass) then iFactoriesWanted = 4
                 elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8 then
@@ -14917,6 +14927,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 else
                     iFactoriesWanted = math.max(iFactoriesWanted, 2)
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Increasing factories wanted due to fortification desire') end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesWanted='..iFactoriesWanted..'; bWantMorePower='..tostring(bWantMorePower)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Map size='..M28Map.iMapSize..'; bExpansionOnSameIslandAsBase='..tostring(bExpansionOnSameIslandAsBase)..'; Island mex count='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]]..'; LZ mex count='..tLZData[M28Map.subrefLZMexCount]) end
             if iFactoriesWanted > 2 then
@@ -15100,6 +15111,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Consider making a zone with lots of mexes a core expansion in some cases in the early game
     iCurPriority = iCurPriority + 1
+
     if bDebugMessages == true then LOG(sFunctionRef..': LZ mex count='..tLZData[M28Map.subrefLZMexCount]..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Air fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; Team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]..'; P='..iPlateau..'Z='..iLandZone..'; subrefTotalSignificantMassReclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]) end
     if not(tLZTeamData[M28Map.subrefLZCoreExpansion]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
         local bLotsOfReclaim = false

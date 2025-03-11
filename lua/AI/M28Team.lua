@@ -2852,7 +2852,18 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
                                 --Do we have any active air factory upgrades? (redundancy - should already have excluded via above)
                                 bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ))
                                 if bWantUpgrade then
-                                    M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestAirFactoryTech]))
+                                    local iMinUnits = 4
+                                    --Added below due to one scenario where our t2 air fac started a t3 upgrade despite nearby enemy navy
+                                    if tTeamData[iM28Team][subrefiHighestEnemyAirTech] < 3 and oBrain[M28Economy.refiOurHighestAirFactoryTech] == 2 then
+                                        local iCurAirFactories = oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH2)
+                                        if iCurAirFactories <= 1 then
+                                            iMinUnits = 10
+                                        elseif iCurAirFactories == 2 then
+                                            iMinUnits = 7
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iMinUnits='..iMinUnits..'; oBrain='..oBrain.Nickname) end
+                                    M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestAirFactoryTech]), iMinUnits)
                                 end
                             end
                         end
