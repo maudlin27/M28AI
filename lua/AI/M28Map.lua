@@ -367,6 +367,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
 
 
             subreftoUnitsToReclaim = 'UnitToRec' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], table of units that we should reclaim
+            subrefoBrainWantingEngi = 'BRWnE' --aiBrain that we should try and gift an engineer to
             subrefiTimeLandFacHadNothingToBuild = 'TimeLFNoB' --Gametimeseconds that had a land fac in this zone with nothing to build
             subrefiTimeAirFacHadNothingToBuild = 'TimeAFNoB' --Gametimeseconds that had an air fac in this zone with nothing to build
             subrefiTimeNavalFacHadNothingToBuild = 'TimeNNoB' --Gametimeseconds that had a naval fac with nothing to build

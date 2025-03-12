@@ -34,4 +34,5 @@ NewAIBrain = Class(StandardBrain) {
         StandardBrain.OnCreateHuman(self, planName)
         ForkThread(M28Events.OnCreateBrain, self, planName, true)
     end,
+
 }

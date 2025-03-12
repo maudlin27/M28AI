@@ -163,6 +163,7 @@ refActionRepairAllyUnit = 77 --can be used to give engineers orders to repair a 
 refActionAttackMoveToLandZone = 78 --works similar to movetolandzone but with an attackmove order
 refActionAssistQuantumGateway = 79
 refActionBuildSecondPD = 80
+refActionGiveEngineerToTeammate = 81 --Transfers engineer to subrefoBrainWantingEngi
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOntoTransport, refActionAssistShield}
 
@@ -318,6 +319,7 @@ tbActionsThatDontHaveCategory = {
     [refActionSpecialShieldDefence] = true,
     [refActionRepairAllyUnit] = true,
     [refActionAttackMoveToLandZone] = true,
+    [refActionGiveEngineerToTeammate] = true,
     --Not set for refActionManageGameEnderTemplate as will treat it as having a category ref equal to the action ref itself
 }
 
@@ -9684,7 +9686,25 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                             UpdateBPTracking()
                         end
                     end
-
+                elseif iActionToAssign == refActionGiveEngineerToTeammate then
+                    if iEngiCount > 0 then
+                        --Check the brain still exists
+                        if tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi] and not(tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi].M28IsDefeated) and not(tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi]:IsDefeated()) then
+                            while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to gift engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to brain '..tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi].Nickname) end
+                                --Check the engineer isnt owned by the same brain
+                                local oEngiBrain = tEngineersOfTechWanted[iEngiCount]:GetAIBrain()
+                                if not(oEngiBrain == tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi]) then
+                                    ForkThread(M28Team.TransferUnitsToPlayer, { tEngineersOfTechWanted[iEngiCount] }, tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi]:GetArmyIndex(), false)
+                                    M28Chat.SendMessage(oEngiBrain, 'EngiXfer', 'I\'ve just given you an engineer '..tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi].Nickname..', maybe you could give me one of yours in exchange?', 5, 5, true, false, nil, nil, nil)
+                                    --TRACKING NOTE - our engineer unit will be killed from being transferred, this is primarily so iEngiCount gets updated/avid infinite loop
+                                    TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority, nil, nil, bMarkAsSpare)
+                                    UpdateBPTracking()
+                                end
+                            end
+                        end
+                        tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi] = nil
+                    end
                 else
                     if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
                         --Exception for experimentals where in low mass scenarios where we are building experimentals in another zone already we wont build in this zone
@@ -12004,6 +12024,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if not(bHaveLowMass) then iBPWanted = iBPWanted * 2 end
             HaveActionToAssign(refActionBuildAirStaging, M28Building.iLowestAirStagingTechAvailable, iBPWanted, nil, false)
             if bDebugMessages == true then LOG(sFunctionRef..': Have flagged we want air staging with iBPWanted='..iBPWanted) end
+        end
+    end
+
+    --Teammate asked for engi (core zone)
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.subrefoBrainWantingEngi] then
+        UpdateSpareEngineerNumber(tLZTeamData, toAvailableEngineersByTech)
+        if iHighestTechEngiAvailable > 0 then
+            HaveActionToAssign(refActionGiveEngineerToTeammate, 1, 5)
         end
     end
 
@@ -15662,6 +15691,15 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         iBPWanted = GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, bHaveLowMass)
         if iBPWanted > 0 then
             HaveActionToAssign(refActionBuildTML, 2, iBPWanted)
+        end
+    end
+
+    --Teammate asked for engi (minor zone)
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.subrefoBrainWantingEngi] then
+        UpdateSpareEngineerNumber(tLZTeamData, toAvailableEngineersByTech)
+        if iHighestTechEngiAvailable > 0 then
+            HaveActionToAssign(refActionGiveEngineerToTeammate, 1, 5)
         end
     end
 

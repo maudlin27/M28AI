@@ -235,6 +235,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
 
     --Misc details
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
+    refiTimeSinceLastEngiRequest = 'M28LstEngR' --Gametimeseconds since we last registered a 'give me engineer' request
     subrefNukeLaunchLocations = 'M28NukeLocations' --locations that we have nuked recently, or enemy nuke locations we have got intel of
     reftoRecentlyFiredAlliedNukeLaunchers = 'M28ANukeLaunchers' --table of M28 owned nuke launchers that have recently fired a missile
     refbSMDBlockingLastNukeTarget = 'SMDBlNuk' --true if last nuke target was blocked by SMD
