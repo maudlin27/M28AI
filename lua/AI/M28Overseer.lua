@@ -617,7 +617,7 @@ function TestCustom(aiBrain)
 
         iCurSlot = iCurSlot + 1
     end
-    LOG('TEMPCODE tGridAdjust='..repru(tGridAdjust))
+    --LOG('TEMPCODE tGridAdjust='..repru(tGridAdjust))
 
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end
