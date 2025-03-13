@@ -4261,7 +4261,7 @@ function PingCreated(data)
     if bDebugMessages == true then LOG('Ping created, reprs='..reprs(data)..'; Is this a marker='..tostring(data.Type == 'Marker')) end
 
     --Check for marker ping and get the message and brain creator
-    if data.Type == 'Marker' then
+    if data.Type == 'Marker' or data.Type == 'marker' then --(QUIET is lowercase marker)
         local iIndex = data.Owner + 1
         local aiBrain
         for iBrain, oBrain in ArmyBrains do
