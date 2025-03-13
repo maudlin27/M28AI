@@ -4286,416 +4286,419 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         local bIgnoreIfEnemyUnderwater = false
         local bConsiderReclaimableEnemiesInBuildRangeOnly
         for iEngineer, oEngineer in tEngineers do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')..'; oEngineer[M28UnitInfo.refbSpecialMicroActive]='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; refiGameTimeToResetMicroActive='..(oEngineer[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; bCheckForEnemies='..tostring(bCheckForEnemies)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
-            bWantEngiToRun = false
-            bEngiIsUnavailable = false
-            if not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) and not(oEngineer:IsUnitState('Capturing')) then --even when adding a not(oEngineer.Dead) to this, in LOUD it can sometimes have an error when checking unit state; however it should only last a short while
-                if bIsWaterZone and EntityCategoryContains(categories.HOVER, oEngineer.UnitId) then bIgnoreIfEnemyUnderwater = true end
-                --First check for enemies that we want to run from/take action from
-                if bCheckForEnemies or bCheckForWallsToReclaim then
-                    local bReclaimingDangerousEnemy = false
-                    iNearestReclaimableEnemy = 10000
-                    iNearestReclaimableDangerousEnemy = 10000
-                    iClosestDistUntilInRangeOfMobileEnemy = 10000
-                    iClosestDistUntilInRangeOfStaticEnemy = 10000
-                    oNearestReclaimableDangerousEnemy = nil
-                    oNearestReclaimableEnemy = nil
-                    oNearestEnemy = nil
-                    bConsiderReclaimableEnemiesInBuildRangeOnly = false
+            if not(oEngineer.Dead) then --redundancy for rare error
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')..'; oEngineer[M28UnitInfo.refbSpecialMicroActive]='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; refiGameTimeToResetMicroActive='..(oEngineer[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; bCheckForEnemies='..tostring(bCheckForEnemies)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
+                bWantEngiToRun = false
+                bEngiIsUnavailable = false
+                if not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) and not(oEngineer:IsUnitState('Capturing')) then --even when adding a not(oEngineer.Dead) to this, in LOUD it can sometimes have an error when checking unit state; however it should only last a short while
+                    if bIsWaterZone and EntityCategoryContains(categories.HOVER, oEngineer.UnitId) then bIgnoreIfEnemyUnderwater = true end
+                    --First check for enemies that we want to run from/take action from
+                    if bCheckForEnemies or bCheckForWallsToReclaim then
+                        local bReclaimingDangerousEnemy = false
+                        iNearestReclaimableEnemy = 10000
+                        iNearestReclaimableDangerousEnemy = 10000
+                        iClosestDistUntilInRangeOfMobileEnemy = 10000
+                        iClosestDistUntilInRangeOfStaticEnemy = 10000
+                        oNearestReclaimableDangerousEnemy = nil
+                        oNearestReclaimableEnemy = nil
+                        oNearestEnemy = nil
+                        bConsiderReclaimableEnemiesInBuildRangeOnly = false
 
-                    --If engi is building emergency PD or Arti or torp launcher then dont run
-                    if not(oEngineer[refiAssignedAction] == refActionBuildEmergencyPD or oEngineer[refiAssignedAction] == refActionBuildSecondPD or oEngineer[refiAssignedAction] == refActionBuildEmergencyArti or oEngineer[refiAssignedAction] == refActionBuildWall or oEngineer[refiAssignedAction] == refActionBuildT1TorpLauncher or oEngineer[refiAssignedAction] == refActionBuildTorpLauncher) then
-                        --Is the engineer reclaiming an engineer or combat unit, or alternatively building something whose fraction complete is almost done?
-                        if oEngineer:IsUnitState('Reclaiming') then
-                            local oReclaimTarget = oEngineer:GetFocusUnit()
-                            if oReclaimTarget and not(oReclaimTarget.Dead) and ((oReclaimTarget[M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(categories.RECLAIM, oReclaimTarget.UnitId)) then
-                                bReclaimingDangerousEnemy = true
-                            end
-                        end
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef..': Engineer unit state='..M28UnitInfo.GetUnitState(oEngineer))
-                            local oFocusUnit = oEngineer:GetFocusUnit()
-                            if oFocusUnit then
-                                LOG(sFunctionRef..': Engineer focus unit='..oFocusUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFocusUnit)..'; Focus unit fraction complete='..oEngineer:GetFocusUnit():GetFractionComplete())
-                            end
-                        end
-                        if (oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) then
-                            local oFocusUnit = oEngineer:GetFocusUnit()
-                            if oFocusUnit and oFocusUnit:GetFractionComplete() >= 0.75 and oFocusUnit:GetFractionComplete() < 1 then
-                                if oFocusUnit:GetFractionComplete() >= 0.9 then
-                                    bConsiderReclaimableEnemiesInBuildRangeOnly = true
-                                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oFocusUnit.UnitId) and M28UnitInfo.GetUnitHealthPercent(oEngineer) >= 0.99 then
-                                    bConsiderReclaimableEnemiesInBuildRangeOnly = true
+                        --If engi is building emergency PD or Arti or torp launcher then dont run
+                        if not(oEngineer[refiAssignedAction] == refActionBuildEmergencyPD or oEngineer[refiAssignedAction] == refActionBuildSecondPD or oEngineer[refiAssignedAction] == refActionBuildEmergencyArti or oEngineer[refiAssignedAction] == refActionBuildWall or oEngineer[refiAssignedAction] == refActionBuildT1TorpLauncher or oEngineer[refiAssignedAction] == refActionBuildTorpLauncher) then
+                            --Is the engineer reclaiming an engineer or combat unit, or alternatively building something whose fraction complete is almost done?
+                            if oEngineer:IsUnitState('Reclaiming') then
+                                local oReclaimTarget = oEngineer:GetFocusUnit()
+                                if oReclaimTarget and not(oReclaimTarget.Dead) and ((oReclaimTarget[M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(categories.RECLAIM, oReclaimTarget.UnitId)) then
+                                    bReclaimingDangerousEnemy = true
                                 end
                             end
-                            if bDebugMessages == true and M28UnitInfo.IsUnitValid(oFocusUnit) then LOG(sFunctionRef..': We are currently building '..oFocusUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFocusUnit)..'; Fraction complete='..oFocusUnit:GetFractionComplete()..'; Engi work progress='..oEngineer:GetWorkProgress()..'; bConsiderReclaimableEnemiesInBuildRangeOnly='..tostring(bConsiderReclaimableEnemiesInBuildRangeOnly)) end
-                        end
-                        if not(bReclaimingDangerousEnemy) and not(bConsiderReclaimableEnemiesInBuildRangeOnly) and not(oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75) then
-                            if not(oEngineer[M28UnitInfo.refbEasyBrain]) or (not(oEngineer:IsUnitState('Reclaiming')) and not(oEngineer:IsUnitState('Repairing')) and not(oEngineer:IsUnitState('Building'))) then
-                                if aiBrain.GetUnitsAroundPoint then
-                                    if oEngineer[M28UnitInfo.refbEasyBrain] then
-                                        iActualEnemySearchRange = math.min(10, iEnemyUnitSearchRange)
-                                        iActualEnemyCategorySearch = iEasyEnemyCategorySearch
-                                    else
-                                        iActualEnemySearchRange = iEnemyUnitSearchRange
-                                        iActualEnemyCategorySearch = iNormalEnemyCategorySearch
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Engineer unit state='..M28UnitInfo.GetUnitState(oEngineer))
+                                local oFocusUnit = oEngineer:GetFocusUnit()
+                                if oFocusUnit then
+                                    LOG(sFunctionRef..': Engineer focus unit='..oFocusUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFocusUnit)..'; Focus unit fraction complete='..oEngineer:GetFocusUnit():GetFractionComplete())
+                                end
+                            end
+                            if (oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) then
+                                local oFocusUnit = oEngineer:GetFocusUnit()
+                                if oFocusUnit and oFocusUnit:GetFractionComplete() >= 0.75 and oFocusUnit:GetFractionComplete() < 1 then
+                                    if oFocusUnit:GetFractionComplete() >= 0.9 then
+                                        bConsiderReclaimableEnemiesInBuildRangeOnly = true
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oFocusUnit.UnitId) and M28UnitInfo.GetUnitHealthPercent(oEngineer) >= 0.99 then
+                                        bConsiderReclaimableEnemiesInBuildRangeOnly = true
                                     end
-                                    local tNearbyEnemiesByZone
-                                    if M28Utilities.bCPUPerformanceMode then
-                                        tNearbyEnemiesByZone = tLZTeamData[M28Map.subrefTEnemyUnits]
-                                        iNearestEnemy = iActualEnemySearchRange
-                                        iNearestReclaimableDangerousEnemy = iActualEnemySearchRange
-                                        iNearestReclaimableEnemy = iActualEnemySearchRange
-                                    elseif tLZTeamData[M28Map.refiRadarCoverage] >= 60 or not(bCheckForEnemies) then
-                                        tNearbyEnemiesByZone = aiBrain:GetUnitsAroundPoint(iActualEnemyCategorySearch, oEngineer:GetPosition(), iActualEnemySearchRange, 'Enemy')
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Using getunitsaroundpoint to check for enemies, tLZTeamData[M28Map.refiRadarCoverage]='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')) end
-                                    else
-                                        --Rely on memory
-                                        tNearbyEnemiesByZone = {}
-                                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                                            for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
-                                                table.insert(tNearbyEnemiesByZone, oUnit)
-                                            end
-                                        end
-                                        --Include adjacent zones
-                                        if bIsWaterZone then
-                                            --Water zone
-                                            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
-                                                for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestCombatEnemies] do
-                                                    if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iLandZone) then
-                                                        table.insert( tNearbyEnemiesByZone, oUnit)
-                                                    end
-                                                end
-                                            end
+                                end
+                                if bDebugMessages == true and M28UnitInfo.IsUnitValid(oFocusUnit) then LOG(sFunctionRef..': We are currently building '..oFocusUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFocusUnit)..'; Fraction complete='..oFocusUnit:GetFractionComplete()..'; Engi work progress='..oEngineer:GetWorkProgress()..'; bConsiderReclaimableEnemiesInBuildRangeOnly='..tostring(bConsiderReclaimableEnemiesInBuildRangeOnly)) end
+                            end
+                            if not(bReclaimingDangerousEnemy) and not(bConsiderReclaimableEnemiesInBuildRangeOnly) and not(oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75) then
+                                if not(oEngineer[M28UnitInfo.refbEasyBrain]) or (not(oEngineer:IsUnitState('Reclaiming')) and not(oEngineer:IsUnitState('Repairing')) and not(oEngineer:IsUnitState('Building'))) then
+                                    if aiBrain.GetUnitsAroundPoint then
+                                        if oEngineer[M28UnitInfo.refbEasyBrain] then
+                                            iActualEnemySearchRange = math.min(10, iEnemyUnitSearchRange)
+                                            iActualEnemyCategorySearch = iEasyEnemyCategorySearch
                                         else
-                                            --Land zone
-                                            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
-                                                for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
-                                                    if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
-                                                        table.insert( tNearbyEnemiesByZone, oUnit)
-                                                    end
+                                            iActualEnemySearchRange = iEnemyUnitSearchRange
+                                            iActualEnemyCategorySearch = iNormalEnemyCategorySearch
+                                        end
+                                        local tNearbyEnemiesByZone
+                                        if M28Utilities.bCPUPerformanceMode then
+                                            tNearbyEnemiesByZone = tLZTeamData[M28Map.subrefTEnemyUnits]
+                                            iNearestEnemy = iActualEnemySearchRange
+                                            iNearestReclaimableDangerousEnemy = iActualEnemySearchRange
+                                            iNearestReclaimableEnemy = iActualEnemySearchRange
+                                        elseif tLZTeamData[M28Map.refiRadarCoverage] >= 60 or not(bCheckForEnemies) then
+                                            tNearbyEnemiesByZone = aiBrain:GetUnitsAroundPoint(iActualEnemyCategorySearch, oEngineer:GetPosition(), iActualEnemySearchRange, 'Enemy')
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Using getunitsaroundpoint to check for enemies, tLZTeamData[M28Map.refiRadarCoverage]='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')) end
+                                        else
+                                            --Rely on memory
+                                            tNearbyEnemiesByZone = {}
+                                            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                                for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
+                                                    table.insert(tNearbyEnemiesByZone, oUnit)
                                                 end
                                             end
-                                        end
-                                    end
-                                    --for iSubtable, tSubtable in tNearbyEnemiesByZone do
-                                    --if M28Utilities.IsTableEmpty(tSubtable) == false then
-                                    --for iUnit, oUnit in tSubtable do
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby enemies empty for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemiesByZone))) end
-                                    if M28Utilities.IsTableEmpty(tNearbyEnemiesByZone) == false then
-                                        for iUnit, oUnit in tNearbyEnemiesByZone do
-                                            --It's not possible to reclaim an under construction building
-                                            if not(oUnit.Dead) and (oUnit:GetFractionComplete() == 1 or not(oUnit:IsBeingBuilt()) or M28Conditions.BuildingWasBeingBuiltButCanBeReclaimedNow(oUnit)) then
-                                                if (not(bCheckIfEnemyIsActuallyEnemy) or (IsEnemy(oEngineer:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) and not(oUnit:IsUnitState('Attached')) then
-                                                    if not(bIgnoreIfEnemyUnderwater) or not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
-                                                        iCurUnitRange = (oUnit[M28UnitInfo.refiDFRange] or 0) + (oUnit[M28UnitInfo.refiIndirectRange] or 0)
-                                                        if bIsWaterZone then iCurUnitRange = math.max(iCurUnitRange, (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
-                                                        iCurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())
-                                                        if iCurDistToEnemy < iNearestEnemy then
-                                                            iNearestEnemy = iCurDistToEnemy
-                                                            oNearestEnemy = oUnit
-                                                        end
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurUnitRange='..iCurUnitRange..'; iCurDistToEnemy='..iCurDistToEnemy..'; Is reclaimable='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId))..'; Does the unit contain the reclaim category='..tostring(EntityCategoryContains(categories.RECLAIM, oUnit.UnitId))..'; iNearestReclaimableDangerousEnemy='..iNearestReclaimableDangerousEnemy) end
-                                                        if iCurDistToEnemy < iNearestReclaimableDangerousEnemy and EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId) then
-                                                            if (oUnit[M28UnitInfo.refiCombatRange] > 0 or EntityCategoryContains(categories.RECLAIM, oUnit.UnitId)) and oUnit:GetFractionComplete() == 1 then
-                                                                --Dangerous enemy
-                                                                iNearestReclaimableDangerousEnemy = iCurDistToEnemy
-                                                                oNearestReclaimableDangerousEnemy = oUnit
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Updating nearest dangerous enemy to be '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                                                            end
-                                                            if iCurDistToEnemy < iNearestReclaimableEnemy then
-                                                                iNearestReclaimableEnemy = iCurDistToEnemy
-                                                                oNearestReclaimableEnemy = oUnit
-                                                            end
-                                                        end
-                                                        --Ignore land scouts and similar unthreatening units
-                                                        if iCurUnitRange > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
-                                                            iCurDistUntilInRange = iCurDistToEnemy - iCurUnitRange
-                                                            if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
-                                                                if iCurDistUntilInRange < iClosestDistUntilInRangeOfMobileEnemy then iClosestDistUntilInRangeOfMobileEnemy = iCurDistUntilInRange end
-                                                            else
-                                                                if iCurDistUntilInRange < iClosestDistUntilInRangeOfStaticEnemy then iClosestDistUntilInRangeOfStaticEnemy = iCurDistUntilInRange end
-                                                            end
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistUntilInRange='..iCurDistUntilInRange) end
+                                            --Include adjacent zones
+                                            if bIsWaterZone then
+                                                --Water zone
+                                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                                                    for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestCombatEnemies] do
+                                                        if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iLandZone) then
+                                                            table.insert( tNearbyEnemiesByZone, oUnit)
                                                         end
                                                     end
                                                 end
                                             else
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' is dead or is being built (cant reclaim under construction units), is table of g etguards empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetGuards()))) end
-                                            end
-                                        end
-                                        --end
-                                    end
-                                    --Consider reclaiming wall segment instead
-                                    if bDebugMessages == true then LOG(sFunctionRef..': bCheckForWallsToReclaim='..tostring(bCheckForWallsToReclaim or false)..'; iNearestReclaimableEnemy='..(iNearestReclaimableEnemy or 'nil')..'; iClosestDistUntilInRangeOfStaticEnemy='..(iClosestDistUntilInRangeOfStaticEnemy or 'nil')..'; iClosestDistUntilInRangeOfMobileEnemy='..(iClosestDistUntilInRangeOfMobileEnemy or 'nil')) end
-                                    if bCheckForWallsToReclaim and (iNearestReclaimableEnemy or 100) >= 10 and (iClosestDistUntilInRangeOfStaticEnemy or 100) >= 8 and (iClosestDistUntilInRangeOfMobileEnemy or 100) >= 10 then
-                                        local iEngiIndex = oEngineer:GetAIBrain():GetArmyIndex()
-                                        for iUnit, oUnit in tLZData[M28Map.subrefLZPlayerWallSegments] do
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering wall '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Dist to engi='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())..'; Is enemy='..tostring(IsEnemy(iEngiIndex, oUnit:GetAIBrain():GetArmyIndex()))) end
-                                            if M28UnitInfo.IsUnitValid(oUnit) and IsEnemy(iEngiIndex, oUnit:GetAIBrain():GetArmyIndex()) then
-                                                iCurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())
-                                                if iCurDistToEnemy < (iNearestReclaimableEnemy or 10000) then
-                                                    iNearestReclaimableEnemy = iCurDistToEnemy
-                                                    oNearestReclaimableEnemy = oUnit
-                                                end
-                                            end
-                                        end
-                                    end
-                                    local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; oNearestReclaimableDangerousEnemy='..(oNearestReclaimableDangerousEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableDangerousEnemy) or 'nil')..'; iEngiBuildDistance='..iEngiBuildDistance..'; iNearestReclaimableDangerousEnemy='..iNearestReclaimableDangerousEnemy) end
-                                    if oNearestReclaimableEnemy and iNearestReclaimableEnemy < 20 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= iEngiBuildDistance) or iNearestReclaimableEnemy <= (iEngiBuildDistance + 7) or (iNearestReclaimableEnemy <= iEngiBuildDistance + 14 and (tLZTeamData[M28Map.subrefLZbCoreBase] or tLZTeamData[M28Map.subrefLZCoreExpansion]))) then
-                                        --Reclaim enemy
-                                        --Switch the target to the nearest dangerous enemy if it is in our build range
-                                        if iNearestReclaimableDangerousEnemy <= iEngiBuildDistance + 0.5 and oNearestReclaimableDangerousEnemy
-                                                and (iNearestReclaimableDangerousEnemy <= iEngiBuildDistance or iNearestReclaimableDangerousEnemy <= iEngiBuildDistance + math.min(oNearestReclaimableDangerousEnemy:GetBlueprint().Physics.SkirtSizeX, oNearestReclaimableDangerousEnemy:GetBlueprint().Physics.SkirtSizeZ) * 0.5) then
-
-                                            oNearestReclaimableEnemy = oNearestReclaimableDangerousEnemy
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Switching so nearest reclaimable enemy is the nearest reclaimable dangerous enemy='..oNearestReclaimableDangerousEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableDangerousEnemy)) end
-                                            --Niche case - nearby enemy engineer building PD or factory - want to stop the engineer before construction completes
-                                        elseif iNearestReclaimableDangerousEnemy <= iEngiBuildDistance + 10 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oNearestReclaimableDangerousEnemy.UnitId) and oNearestReclaimableDangerousEnemy:GetWorkProgress() >= 0.5 then
-                                            local oEnemyConstructingUnit = oNearestReclaimableDangerousEnemy:GetFocusUnit()
-                                            if M28UnitInfo.IsUnitValid(oEnemyConstructingUnit) and oEnemyConstructingUnit:GetFractionComplete() <= 0.9 and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryTorpedoLauncher, oEnemyConstructingUnit.UnitId) then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy engi is building a PD or factory so will try and stop it by reclaiming it') end
-                                                oNearestReclaimableEnemy = oNearestReclaimableDangerousEnemy
-                                            end
-                                        end
-                                        bEngiIsUnavailable = true
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will reclaim or capture unit, is capture target='..tostring(oNearestReclaimableEnemy[M28UnitInfo.refbIsCaptureTarget])..'; Is oNearestReclaimableEnemy valid='..tostring(M28UnitInfo.IsUnitValid(oNearestReclaimableEnemy))) end
-                                        if oNearestReclaimableEnemy[M28UnitInfo.refbIsCaptureTarget] then
-                                            TrackEngineerAction(oEngineer, refActionCaptureUnit, false, 1)
-                                            --Dont capture if already capturing (redundancy)
-                                            if not(oEngineer:IsUnitState('Capturing')) then
-                                                M28Orders.IssueTrackedCapture(oEngineer, oNearestReclaimableEnemy, false, 'CapE')
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to capture enemy unit') end
-                                            end
-                                        else
-                                            local oEnemyBP = oNearestReclaimableEnemy:GetBlueprint()
-                                            local iDistanceUntilInRange = iEngiBuildDistance + math.min(oEnemyBP.Physics.SkirtSizeX, oEnemyBP.Physics.SkirtSizeZ) * 0.5
-                                            local bReclaimingNearbyCivilianWalls = false
-                                            if iNearestReclaimableEnemy > iDistanceUntilInRange and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestReclaimableEnemy.UnitId) and (iPlateauOrPond == 0 or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaimableEnemy:GetPosition()) == iPlateauOrPond) then
-                                                --If targeting a civilian building then check if are walls nearby and if so reclaim teh walls as they may be blocking our orders
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Brain of nearest reclaimable enemy='..(oNearestReclaimableEnemy:GetAIBrain().Nickname or 'nil')..'; Is civilian='..tostring(M28Conditions.IsCivilianBrain(oNearestReclaimableEnemy:GetAIBrain()))) end
-                                                if M28Conditions.IsCivilianBrain(oNearestReclaimableEnemy:GetAIBrain()) then
-                                                    local tMidpoint = M28Utilities.MoveInDirection(oEngineer:GetPosition(), M28Utilities.GetAngleFromAToB(oEngineer:GetPosition(), oNearestReclaimableEnemy:GetPosition()), iNearestReclaimableEnemy * 0.5)
-                                                    local rRect = M28Utilities.GetRectAroundLocation(tMidpoint, math.min(15, iNearestReclaimableEnemy * 0.5))
-                                                    local tNearbyUnits = GetUnitsInRect(rRect)
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': is table of nearby units empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits))) end
-                                                    if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
-                                                        local tNearbyWalls = EntityCategoryFilterDown(M28UnitInfo.refCategoryWall, tNearbyUnits)
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': is table of nearby walls empty='..tostring(M28Utilities.IsTableEmpty(tNearbyWalls))) end
-                                                        if M28Utilities.IsTableEmpty(tNearbyWalls) == false and table.getn(tNearbyWalls) >= 5 then
-                                                            local iNearestWall = 30 --dont move to reclaim walls further away than this (more of a redundancy as doubt would have a reclaim order anyway)
-                                                            local oNearestWall, iCurWallDist
-                                                            for iWall, oWall in tNearbyWalls do
-                                                                if not(oWall:GetAIBrain().M28Team == iTeam) then
-                                                                    iCurWallDist = M28Utilities.GetDistanceBetweenPositions(oWall:GetPosition(), oEngineer:GetPosition())
-                                                                    if iCurWallDist < iNearestWall then
-                                                                        iNearestWall = iCurWallDist
-                                                                        oNearestWall = oWall
-                                                                    end
-                                                                end
-                                                            end
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': oNearestWall='..(oNearestWall.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestWall) or 'nil')) end
-                                                            if oNearestWall then
-                                                                bReclaimingNearbyCivilianWalls = true
-                                                                M28Orders.IssueTrackedReclaim(oEngineer, oNearestWall, false, 'RecCivWal')
-                                                            end
+                                                --Land zone
+                                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                                    for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                                                        if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
+                                                            table.insert( tNearbyEnemiesByZone, oUnit)
                                                         end
-
                                                     end
                                                 end
                                             end
-                                            if not(bReclaimingNearbyCivilianWalls) then
-                                                M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
-                                            end
-
-
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy unit '..oNearestReclaimableEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy)..'; Is getguards empty='..tostring(M28Utilities.IsTableEmpty(oNearestReclaimableEnemy:GetGuards()))..'; Unit:IsBeingBuilt()='..tostring(oNearestReclaimableEnemy:IsBeingBuilt())) end
-                                            --Monitor every tick for the next 9 ticks to see if enemy gets in-range
-
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to monitor reclaim distance, iDistanceUntilInRange='..iDistanceUntilInRange..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; Speed of us and them='..(oEnemyBP.Physics.MaxSpeed or 0) + oEngineer:GetBlueprint().Physics.MaxSpeed) end
-                                            if iNearestReclaimableEnemy > iDistanceUntilInRange and iNearestReclaimableEnemy - iDistanceUntilInRange <= (oEnemyBP.Physics.MaxSpeed or 0) + oEngineer:GetBlueprint().Physics.MaxSpeed + 0.2 then
-                                                ForkThread(MonitorToReissueReclaimOrder, oEngineer, oNearestReclaimableEnemy, iDistanceUntilInRange, 9)
-                                            end
                                         end
-                                    else
-                                        --Enemy not close enough to reclaim, do we want to run?
-                                        if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
-                                            --Above will have done getunitsaroundpoint; if dont have enemies that want to run from and we lack good intel in this zone, then do a more detailed check based on memory
-                                            if bCheckForEnemies and iClosestDistUntilInRangeOfMobileEnemy > iThresholdToRunFromMobileEnemies and (tLZTeamData[M28Map.refiOmniCoverage] or 0) < 50 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Are enemy DF units close to this engineer='..tostring(M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iThresholdToRunFromMobileEnemies, iTeam, true))) end
-                                                if M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iThresholdToRunFromMobileEnemies, iTeam, true) then
-                                                    iClosestDistUntilInRangeOfMobileEnemy = iThresholdToRunFromMobileEnemies - 0.1
+                                        --for iSubtable, tSubtable in tNearbyEnemiesByZone do
+                                        --if M28Utilities.IsTableEmpty(tSubtable) == false then
+                                        --for iUnit, oUnit in tSubtable do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby enemies empty for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemiesByZone))) end
+                                        if M28Utilities.IsTableEmpty(tNearbyEnemiesByZone) == false then
+                                            for iUnit, oUnit in tNearbyEnemiesByZone do
+                                                --It's not possible to reclaim an under construction building
+                                                if not(oUnit.Dead) and (oUnit:GetFractionComplete() == 1 or not(oUnit:IsBeingBuilt()) or M28Conditions.BuildingWasBeingBuiltButCanBeReclaimedNow(oUnit)) then
+                                                    if (not(bCheckIfEnemyIsActuallyEnemy) or (IsEnemy(oEngineer:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) and not(oUnit:IsUnitState('Attached')) then
+                                                        if not(bIgnoreIfEnemyUnderwater) or not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                                                            iCurUnitRange = (oUnit[M28UnitInfo.refiDFRange] or 0) + (oUnit[M28UnitInfo.refiIndirectRange] or 0)
+                                                            if bIsWaterZone then iCurUnitRange = math.max(iCurUnitRange, (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
+                                                            iCurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())
+                                                            if iCurDistToEnemy < iNearestEnemy then
+                                                                iNearestEnemy = iCurDistToEnemy
+                                                                oNearestEnemy = oUnit
+                                                            end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurUnitRange='..iCurUnitRange..'; iCurDistToEnemy='..iCurDistToEnemy..'; Is reclaimable='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId))..'; Does the unit contain the reclaim category='..tostring(EntityCategoryContains(categories.RECLAIM, oUnit.UnitId))..'; iNearestReclaimableDangerousEnemy='..iNearestReclaimableDangerousEnemy) end
+                                                            if iCurDistToEnemy < iNearestReclaimableDangerousEnemy and EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId) then
+                                                                if (oUnit[M28UnitInfo.refiCombatRange] > 0 or EntityCategoryContains(categories.RECLAIM, oUnit.UnitId)) and oUnit:GetFractionComplete() == 1 then
+                                                                    --Dangerous enemy
+                                                                    iNearestReclaimableDangerousEnemy = iCurDistToEnemy
+                                                                    oNearestReclaimableDangerousEnemy = oUnit
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Updating nearest dangerous enemy to be '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                                                end
+                                                                if iCurDistToEnemy < iNearestReclaimableEnemy then
+                                                                    iNearestReclaimableEnemy = iCurDistToEnemy
+                                                                    oNearestReclaimableEnemy = oUnit
+                                                                end
+                                                            end
+                                                            --Ignore land scouts and similar unthreatening units
+                                                            if iCurUnitRange > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
+                                                                iCurDistUntilInRange = iCurDistToEnemy - iCurUnitRange
+                                                                if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
+                                                                    if iCurDistUntilInRange < iClosestDistUntilInRangeOfMobileEnemy then iClosestDistUntilInRangeOfMobileEnemy = iCurDistUntilInRange end
+                                                                else
+                                                                    if iCurDistUntilInRange < iClosestDistUntilInRangeOfStaticEnemy then iClosestDistUntilInRangeOfStaticEnemy = iCurDistUntilInRange end
+                                                                end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistUntilInRange='..iCurDistUntilInRange) end
+                                                            end
+                                                        end
+                                                    end
+                                                else
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' is dead or is being built (cant reclaim under construction units), is table of g etguards empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetGuards()))) end
                                                 end
                                             end
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Not close enough to reclaim enemy, and not a core LZ, iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; iClosestDistUntilInRangeOfMobileEnemy='..iClosestDistUntilInRangeOfMobileEnemy..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies) end
-                                            if iClosestDistUntilInRangeOfStaticEnemy < 8 or iClosestDistUntilInRangeOfMobileEnemy <= iThresholdToRunFromMobileEnemies then
-                                                --Dont run if we are building a land factory and have a friendly combat threat in the zone or factory is near-complete
-                                                if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 40 and (oEngineer:IsUnitState('Building') or oEngineer:IsUnitState('Reclaiming')) and (oEngineer:GetWorkProgress() >= 0.75 or (oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryPD, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]))) then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to risk engineer sticking around to try and complete its building') end
-                                                else
-                                                    local tPositionToRunFrom
-                                                    if oNearestEnemy then tPositionToRunFrom = oNearestEnemy:GetPosition() end
-                                                    if not(bIsWaterZone) then
-                                                        iLZOrWZToRunTo =  M28Land.GetLandZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
-                                                        if not(iLZOrWZToRunTo == iLandZone) and iLZOrWZToRunTo then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
-                                                            --Run to the LZ
-                                                            M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'RunTo'..iLZOrWZToRunTo)
-                                                            bEngiIsUnavailable = true
-                                                            TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateauOrPond, iLZOrWZToRunTo})
-                                                        end
-                                                    else
-                                                        iLZOrWZToRunTo = M28Navy.GetWaterZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
-                                                        if not(iLZOrWZToRunTo == iLandZone) then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
-                                                            --Run to the LZ
-                                                            M28Orders.IssueTrackedMove(oEngineer, M28Map.tPondDetails[iPlateauOrPond][M28Map.subrefPondWaterZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'NRunTo'..iLZOrWZToRunTo)
-                                                            bEngiIsUnavailable = true
-                                                            TrackEngineerAction(oEngineer, refActionRunToWaterZone, false, 1, nil, iLZOrWZToRunTo)
-                                                        else
-                                                            --Consider moving to land zone instead if there is an adjacent LZ
-                                                            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentLandZones]) == false then
-                                                                local tClosestRallyPoint
-                                                                local iClosestRallyPointDist = 100000
-                                                                local iCurRallyPointDist
-                                                                for iEntry, tLZSubtable in tLZData[M28Map.subrefAdjacentLandZones] do
-                                                                    local tCurRallyPoint = M28Land.GetNearestLandRallyPoint(tLZData, iTeam, tLZSubtable[M28Map.subrefWPlatAndLZNumber][1], tLZSubtable[M28Map.subrefWPlatAndLZNumber][2], nil)
-                                                                    if tCurRallyPoint then
-                                                                        iCurRallyPointDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tCurRallyPoint)
-                                                                        if iCurRallyPointDist < iClosestRallyPointDist then
-                                                                            tClosestRallyPoint = {tCurRallyPoint[1], tCurRallyPoint[2], tCurRallyPoint[3]}
-                                                                            iClosestRallyPointDist = iCurRallyPointDist
+                                            --end
+                                        end
+                                        --Consider reclaiming wall segment instead
+                                        if bDebugMessages == true then LOG(sFunctionRef..': bCheckForWallsToReclaim='..tostring(bCheckForWallsToReclaim or false)..'; iNearestReclaimableEnemy='..(iNearestReclaimableEnemy or 'nil')..'; iClosestDistUntilInRangeOfStaticEnemy='..(iClosestDistUntilInRangeOfStaticEnemy or 'nil')..'; iClosestDistUntilInRangeOfMobileEnemy='..(iClosestDistUntilInRangeOfMobileEnemy or 'nil')) end
+                                        if bCheckForWallsToReclaim and (iNearestReclaimableEnemy or 100) >= 10 and (iClosestDistUntilInRangeOfStaticEnemy or 100) >= 8 and (iClosestDistUntilInRangeOfMobileEnemy or 100) >= 10 then
+                                            local iEngiIndex = oEngineer:GetAIBrain():GetArmyIndex()
+                                            for iUnit, oUnit in tLZData[M28Map.subrefLZPlayerWallSegments] do
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering wall '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Dist to engi='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())..'; Is enemy='..tostring(IsEnemy(iEngiIndex, oUnit:GetAIBrain():GetArmyIndex()))) end
+                                                if M28UnitInfo.IsUnitValid(oUnit) and IsEnemy(iEngiIndex, oUnit:GetAIBrain():GetArmyIndex()) then
+                                                    iCurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())
+                                                    if iCurDistToEnemy < (iNearestReclaimableEnemy or 10000) then
+                                                        iNearestReclaimableEnemy = iCurDistToEnemy
+                                                        oNearestReclaimableEnemy = oUnit
+                                                    end
+                                                end
+                                            end
+                                        end
+                                        local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; oNearestReclaimableDangerousEnemy='..(oNearestReclaimableDangerousEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableDangerousEnemy) or 'nil')..'; iEngiBuildDistance='..iEngiBuildDistance..'; iNearestReclaimableDangerousEnemy='..iNearestReclaimableDangerousEnemy) end
+                                        if oNearestReclaimableEnemy and iNearestReclaimableEnemy < 20 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= iEngiBuildDistance) or iNearestReclaimableEnemy <= (iEngiBuildDistance + 7) or (iNearestReclaimableEnemy <= iEngiBuildDistance + 14 and (tLZTeamData[M28Map.subrefLZbCoreBase] or tLZTeamData[M28Map.subrefLZCoreExpansion]))) then
+                                            --Reclaim enemy
+                                            --Switch the target to the nearest dangerous enemy if it is in our build range
+                                            if iNearestReclaimableDangerousEnemy <= iEngiBuildDistance + 0.5 and oNearestReclaimableDangerousEnemy
+                                                    and (iNearestReclaimableDangerousEnemy <= iEngiBuildDistance or iNearestReclaimableDangerousEnemy <= iEngiBuildDistance + math.min(oNearestReclaimableDangerousEnemy:GetBlueprint().Physics.SkirtSizeX, oNearestReclaimableDangerousEnemy:GetBlueprint().Physics.SkirtSizeZ) * 0.5) then
+
+                                                oNearestReclaimableEnemy = oNearestReclaimableDangerousEnemy
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Switching so nearest reclaimable enemy is the nearest reclaimable dangerous enemy='..oNearestReclaimableDangerousEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableDangerousEnemy)) end
+                                                --Niche case - nearby enemy engineer building PD or factory - want to stop the engineer before construction completes
+                                            elseif iNearestReclaimableDangerousEnemy <= iEngiBuildDistance + 10 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oNearestReclaimableDangerousEnemy.UnitId) and oNearestReclaimableDangerousEnemy:GetWorkProgress() >= 0.5 then
+                                                local oEnemyConstructingUnit = oNearestReclaimableDangerousEnemy:GetFocusUnit()
+                                                if M28UnitInfo.IsUnitValid(oEnemyConstructingUnit) and oEnemyConstructingUnit:GetFractionComplete() <= 0.9 and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryTorpedoLauncher, oEnemyConstructingUnit.UnitId) then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy engi is building a PD or factory so will try and stop it by reclaiming it') end
+                                                    oNearestReclaimableEnemy = oNearestReclaimableDangerousEnemy
+                                                end
+                                            end
+                                            bEngiIsUnavailable = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will reclaim or capture unit, is capture target='..tostring(oNearestReclaimableEnemy[M28UnitInfo.refbIsCaptureTarget])..'; Is oNearestReclaimableEnemy valid='..tostring(M28UnitInfo.IsUnitValid(oNearestReclaimableEnemy))) end
+                                            if oNearestReclaimableEnemy[M28UnitInfo.refbIsCaptureTarget] then
+                                                TrackEngineerAction(oEngineer, refActionCaptureUnit, false, 1)
+                                                --Dont capture if already capturing (redundancy)
+                                                if not(oEngineer:IsUnitState('Capturing')) then
+                                                    M28Orders.IssueTrackedCapture(oEngineer, oNearestReclaimableEnemy, false, 'CapE')
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to capture enemy unit') end
+                                                end
+                                            else
+                                                local oEnemyBP = oNearestReclaimableEnemy:GetBlueprint()
+                                                local iDistanceUntilInRange = iEngiBuildDistance + math.min(oEnemyBP.Physics.SkirtSizeX, oEnemyBP.Physics.SkirtSizeZ) * 0.5
+                                                local bReclaimingNearbyCivilianWalls = false
+                                                if iNearestReclaimableEnemy > iDistanceUntilInRange and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestReclaimableEnemy.UnitId) and (iPlateauOrPond == 0 or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaimableEnemy:GetPosition()) == iPlateauOrPond) then
+                                                    --If targeting a civilian building then check if are walls nearby and if so reclaim teh walls as they may be blocking our orders
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Brain of nearest reclaimable enemy='..(oNearestReclaimableEnemy:GetAIBrain().Nickname or 'nil')..'; Is civilian='..tostring(M28Conditions.IsCivilianBrain(oNearestReclaimableEnemy:GetAIBrain()))) end
+                                                    if M28Conditions.IsCivilianBrain(oNearestReclaimableEnemy:GetAIBrain()) then
+                                                        local tMidpoint = M28Utilities.MoveInDirection(oEngineer:GetPosition(), M28Utilities.GetAngleFromAToB(oEngineer:GetPosition(), oNearestReclaimableEnemy:GetPosition()), iNearestReclaimableEnemy * 0.5)
+                                                        local rRect = M28Utilities.GetRectAroundLocation(tMidpoint, math.min(15, iNearestReclaimableEnemy * 0.5))
+                                                        local tNearbyUnits = GetUnitsInRect(rRect)
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': is table of nearby units empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits))) end
+                                                        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                                                            local tNearbyWalls = EntityCategoryFilterDown(M28UnitInfo.refCategoryWall, tNearbyUnits)
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': is table of nearby walls empty='..tostring(M28Utilities.IsTableEmpty(tNearbyWalls))) end
+                                                            if M28Utilities.IsTableEmpty(tNearbyWalls) == false and table.getn(tNearbyWalls) >= 5 then
+                                                                local iNearestWall = 30 --dont move to reclaim walls further away than this (more of a redundancy as doubt would have a reclaim order anyway)
+                                                                local oNearestWall, iCurWallDist
+                                                                for iWall, oWall in tNearbyWalls do
+                                                                    if not(oWall:GetAIBrain().M28Team == iTeam) then
+                                                                        iCurWallDist = M28Utilities.GetDistanceBetweenPositions(oWall:GetPosition(), oEngineer:GetPosition())
+                                                                        if iCurWallDist < iNearestWall then
+                                                                            iNearestWall = iCurWallDist
+                                                                            oNearestWall = oWall
                                                                         end
                                                                     end
                                                                 end
-                                                                if tClosestRallyPoint then
-                                                                    local iPlateau, iLZToRunTo = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tClosestRallyPoint)
-                                                                    M28Orders.IssueTrackedMove(oEngineer, (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefMidpoint] or tClosestRallyPoint), 8, false, 'WLRunTo'..iLZOrWZToRunTo)
-                                                                    bEngiIsUnavailable = true
-                                                                    TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateau, iLZToRunTo})
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': oNearestWall='..(oNearestWall.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestWall) or 'nil')) end
+                                                                if oNearestWall then
+                                                                    bReclaimingNearbyCivilianWalls = true
+                                                                    M28Orders.IssueTrackedReclaim(oEngineer, oNearestWall, false, 'RecCivWal')
+                                                                end
+                                                            end
+
+                                                        end
+                                                    end
+                                                end
+                                                if not(bReclaimingNearbyCivilianWalls) then
+                                                    M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
+                                                end
+
+
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy unit '..oNearestReclaimableEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy)..'; Is getguards empty='..tostring(M28Utilities.IsTableEmpty(oNearestReclaimableEnemy:GetGuards()))..'; Unit:IsBeingBuilt()='..tostring(oNearestReclaimableEnemy:IsBeingBuilt())) end
+                                                --Monitor every tick for the next 9 ticks to see if enemy gets in-range
+
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to monitor reclaim distance, iDistanceUntilInRange='..iDistanceUntilInRange..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; Speed of us and them='..(oEnemyBP.Physics.MaxSpeed or 0) + oEngineer:GetBlueprint().Physics.MaxSpeed) end
+                                                if iNearestReclaimableEnemy > iDistanceUntilInRange and iNearestReclaimableEnemy - iDistanceUntilInRange <= (oEnemyBP.Physics.MaxSpeed or 0) + oEngineer:GetBlueprint().Physics.MaxSpeed + 0.2 then
+                                                    ForkThread(MonitorToReissueReclaimOrder, oEngineer, oNearestReclaimableEnemy, iDistanceUntilInRange, 9)
+                                                end
+                                            end
+                                        else
+                                            --Enemy not close enough to reclaim, do we want to run?
+                                            if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                                                --Above will have done getunitsaroundpoint; if dont have enemies that want to run from and we lack good intel in this zone, then do a more detailed check based on memory
+                                                if bCheckForEnemies and iClosestDistUntilInRangeOfMobileEnemy > iThresholdToRunFromMobileEnemies and (tLZTeamData[M28Map.refiOmniCoverage] or 0) < 50 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Are enemy DF units close to this engineer='..tostring(M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iThresholdToRunFromMobileEnemies, iTeam, true))) end
+                                                    if M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iThresholdToRunFromMobileEnemies, iTeam, true) then
+                                                        iClosestDistUntilInRangeOfMobileEnemy = iThresholdToRunFromMobileEnemies - 0.1
+                                                    end
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Not close enough to reclaim enemy, and not a core LZ, iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; iClosestDistUntilInRangeOfMobileEnemy='..iClosestDistUntilInRangeOfMobileEnemy..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies) end
+                                                if iClosestDistUntilInRangeOfStaticEnemy < 8 or iClosestDistUntilInRangeOfMobileEnemy <= iThresholdToRunFromMobileEnemies then
+                                                    --Dont run if we are building a land factory and have a friendly combat threat in the zone or factory is near-complete
+                                                    if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 40 and (oEngineer:IsUnitState('Building') or oEngineer:IsUnitState('Reclaiming')) and (oEngineer:GetWorkProgress() >= 0.75 or (oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryPD, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]))) then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Want to risk engineer sticking around to try and complete its building') end
+                                                    else
+                                                        local tPositionToRunFrom
+                                                        if oNearestEnemy then tPositionToRunFrom = oNearestEnemy:GetPosition() end
+                                                        if not(bIsWaterZone) then
+                                                            iLZOrWZToRunTo =  M28Land.GetLandZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
+                                                            if not(iLZOrWZToRunTo == iLandZone) and iLZOrWZToRunTo then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
+                                                                --Run to the LZ
+                                                                M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'RunTo'..iLZOrWZToRunTo)
+                                                                bEngiIsUnavailable = true
+                                                                TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateauOrPond, iLZOrWZToRunTo})
+                                                            end
+                                                        else
+                                                            iLZOrWZToRunTo = M28Navy.GetWaterZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
+                                                            if not(iLZOrWZToRunTo == iLandZone) then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
+                                                                --Run to the LZ
+                                                                M28Orders.IssueTrackedMove(oEngineer, M28Map.tPondDetails[iPlateauOrPond][M28Map.subrefPondWaterZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'NRunTo'..iLZOrWZToRunTo)
+                                                                bEngiIsUnavailable = true
+                                                                TrackEngineerAction(oEngineer, refActionRunToWaterZone, false, 1, nil, iLZOrWZToRunTo)
+                                                            else
+                                                                --Consider moving to land zone instead if there is an adjacent LZ
+                                                                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentLandZones]) == false then
+                                                                    local tClosestRallyPoint
+                                                                    local iClosestRallyPointDist = 100000
+                                                                    local iCurRallyPointDist
+                                                                    for iEntry, tLZSubtable in tLZData[M28Map.subrefAdjacentLandZones] do
+                                                                        local tCurRallyPoint = M28Land.GetNearestLandRallyPoint(tLZData, iTeam, tLZSubtable[M28Map.subrefWPlatAndLZNumber][1], tLZSubtable[M28Map.subrefWPlatAndLZNumber][2], nil)
+                                                                        if tCurRallyPoint then
+                                                                            iCurRallyPointDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tCurRallyPoint)
+                                                                            if iCurRallyPointDist < iClosestRallyPointDist then
+                                                                                tClosestRallyPoint = {tCurRallyPoint[1], tCurRallyPoint[2], tCurRallyPoint[3]}
+                                                                                iClosestRallyPointDist = iCurRallyPointDist
+                                                                            end
+                                                                        end
+                                                                    end
+                                                                    if tClosestRallyPoint then
+                                                                        local iPlateau, iLZToRunTo = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tClosestRallyPoint)
+                                                                        M28Orders.IssueTrackedMove(oEngineer, (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefMidpoint] or tClosestRallyPoint), 8, false, 'WLRunTo'..iLZOrWZToRunTo)
+                                                                        bEngiIsUnavailable = true
+                                                                        TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateau, iLZToRunTo})
+                                                                    end
                                                                 end
                                                             end
                                                         end
                                                     end
+                                                else
+                                                    --We arent yet close enough that we want to run so do nothing
                                                 end
-                                            else
-                                                --We arent yet close enough that we want to run so do nothing
                                             end
                                         end
                                     end
                                 end
+                            else
+                                if not(bReclaimingDangerousEnemy) then
+                                    bConsiderReclaimableEnemiesInBuildRangeOnly = true
+                                end
                             end
                         else
+                            --Check we arent reclaiming dangerous enemy
+                            if oEngineer:IsUnitState('Reclaiming') then
+                                local oReclaimTarget = oEngineer:GetFocusUnit()
+                                if oReclaimTarget and not(oReclaimTarget.Dead) and ((oReclaimTarget[M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(categories.RECLAIM, oReclaimTarget.UnitId)) then
+                                    bReclaimingDangerousEnemy = true
+                                end
+                            end
                             if not(bReclaimingDangerousEnemy) then
                                 bConsiderReclaimableEnemiesInBuildRangeOnly = true
                             end
                         end
-                    else
-                        --Check we arent reclaiming dangerous enemy
-                        if oEngineer:IsUnitState('Reclaiming') then
-                            local oReclaimTarget = oEngineer:GetFocusUnit()
-                            if oReclaimTarget and not(oReclaimTarget.Dead) and ((oReclaimTarget[M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(categories.RECLAIM, oReclaimTarget.UnitId)) then
-                                bReclaimingDangerousEnemy = true
+                    end
+                    if bConsiderReclaimableEnemiesInBuildRangeOnly then
+                        --We are doing a high priority action, so only consider reclaimable enemies that are in our build range
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer doing high priority action so will only consider enemies in build range unless close to completion, work progress='..oEngineer:GetWorkProgress()..'; Is primary builder='..tostring(oEngineer[refbPrimaryBuilder])) end
+                        if not(oEngineer:GetWorkProgress() >= 0.9) and (not(oEngineer[refbPrimaryBuilder]) or oEngineer:GetWorkProgress() <= 0.6) then
+                            local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
+                            if oEngineer[M28UnitInfo.refbEasyBrain] then
+                                iActualEnemyCategorySearch = iEasyEnemyCategorySearch
+                            else
+                                iActualEnemyCategorySearch = iNormalEnemyCategorySearch
+                            end
+                            local tReclaimableEnemies = aiBrain:GetUnitsAroundPoint(iActualEnemyCategorySearch, oEngineer:GetPosition(), iEngiBuildDistance, 'Enemy')
+                            local oEnemyCombatOrReclaimer
+                            local oOtherEnemy
+                            if M28Utilities.IsTableEmpty(tReclaimableEnemies) == false then
+                                for iEnemy, oEnemy in tReclaimableEnemies do
+                                    if (oEnemy[M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(categories.RECLAIM, oEnemy.UnitId) then
+                                        oEnemyCombatOrReclaimer = oEnemy
+                                        break
+                                    elseif not(oOtherEnemy) then oOtherEnemy = oEnemy
+                                    end
+                                end
+                            end
+                            local oReclaimTarget = oEnemyCombatOrReclaimer or oOtherEnemy
+                            if oReclaimTarget then
+                                TrackEngineerAction(oEngineer, refActionReclaimEnemyUnit, false, 1)
+                                M28Orders.IssueTrackedReclaim(oEngineer, oReclaimTarget, false, 'RecPE')
+                                if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy that is in its range, enemy='..oReclaimTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oReclaimTarget)) end
+                                bEngiIsUnavailable = true
                             end
                         end
-                        if not(bReclaimingDangerousEnemy) then
-                            bConsiderReclaimableEnemiesInBuildRangeOnly = true
-                        end
                     end
+                else
+                    bEngiIsUnavailable = true
                 end
-                if bConsiderReclaimableEnemiesInBuildRangeOnly then
-                    --We are doing a high priority action, so only consider reclaimable enemies that are in our build range
-                    if bDebugMessages == true then LOG(sFunctionRef..': Engineer doing high priority action so will only consider enemies in build range unless close to completion, work progress='..oEngineer:GetWorkProgress()..'; Is primary builder='..tostring(oEngineer[refbPrimaryBuilder])) end
-                    if not(oEngineer:GetWorkProgress() >= 0.9) and (not(oEngineer[refbPrimaryBuilder]) or oEngineer:GetWorkProgress() <= 0.6) then
-                        local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
-                        if oEngineer[M28UnitInfo.refbEasyBrain] then
-                            iActualEnemyCategorySearch = iEasyEnemyCategorySearch
-                        else
-                            iActualEnemyCategorySearch = iNormalEnemyCategorySearch
+
+
+
+                --Finished checking for enemies; now check more generally if engineer is busy
+                if bDebugMessages == true then LOG(sFunctionRef..': Is engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' unavailable='..tostring(bEngiIsUnavailable)) end
+                if not(bEngiIsUnavailable) then
+                    bEngiIsUnavailable = not(M28Conditions.IsEngineerAvailable(oEngineer))
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer, true) or false)..'; Eng unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; bEngiIsUnavailable='..tostring(bEngiIsUnavailable or false)..'; oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] ='..repru(oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] )) end
+                    if oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] and not(oEngineer[refiAssignedAction] == refActionMoveToLandZone) and not(oEngineer[refiAssignedAction] == refActionAttackMoveToLandZone) and not(oEngineer:IsUnitState('Reclaiming')) then
+                        local iTargetPlateau = oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder][1]
+                        local iTargetZone = oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder][2]
+
+                        oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] = nil
+
+                        local tTargetZoneData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetZone]
+
+                        if bDebugMessages == true then
+                            if not(tTargetZoneData[M28Map.subrefMidpoint]) then LOG(sFunctionRef..': Dont have valid midpoint data for target P='..iTargetPlateau..';Z='..iTargetZone)
+                            else
+                                LOG(sFunctionRef..': Considering if engi is closer to the target sone P'..iTargetPlateau..'Z'..iTargetZone..' zone it used to be traveling to than this midpoint, dist from engi to prev zone midpoint='..M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], oEngineer:GetPosition())..'; Dist from this zone midpoint='..M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]))
+                            end
                         end
-                        local tReclaimableEnemies = aiBrain:GetUnitsAroundPoint(iActualEnemyCategorySearch, oEngineer:GetPosition(), iEngiBuildDistance, 'Enemy')
-                        local oEnemyCombatOrReclaimer
-                        local oOtherEnemy
-                        if M28Utilities.IsTableEmpty(tReclaimableEnemies) == false then
-                            for iEnemy, oEnemy in tReclaimableEnemies do
-                                if (oEnemy[M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(categories.RECLAIM, oEnemy.UnitId) then
-                                    oEnemyCombatOrReclaimer = oEnemy
-                                    break
-                                elseif not(oOtherEnemy) then oOtherEnemy = oEnemy
+                        if tTargetZoneData and M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], oEngineer:GetPosition()) <= M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) then
+
+                            M28Orders.IssueTrackedMove(oEngineer, tTargetZoneData[M28Map.subrefMidpoint], 3, false, 'ResumeeMTP'..iTargetPlateau..'Z'..iTargetZone)
+                            TrackEngineerAction(oEngineer, refActionMoveToLandZone, false, 1, { iTargetPlateau, iTargetZone })
+                            bEngiIsUnavailable = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': will send engi '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to this zone, oEngineer[M28Land.reftiPlateauAndLZToMoveTo]='..repru(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])) end
+                        end
+                    elseif bCheckForReclaim then
+                        if not(bEngiIsUnavailable) then
+                            if M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrPond, iLandZone, tLZData, tLZTeamData, oEngineer, true, 20) then
+                                bEngiIsUnavailable = true
+                            end
+                        elseif oEngineer:IsUnitState('Moving') and oEngineer[refiAssignedAction] == refActionMoveToLandZone then
+                            --Engineer is already busy; exception if engineer is traveling to another zone where want to reissue its old order after issuing a reclaim order
+                            local iTargetPlateau = oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1]
+                            local iTargetZone = oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2]
+
+                            if M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrPond, iLandZone, tLZData, tLZTeamData, oEngineer, true, 50) then
+                                if iTargetPlateau and iTargetZone then
+
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Recording plateau and LZ that engi was going to move to but has been diverted from, iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetZone='..(iTargetZone or 'nil')) end
+                                    bEngiIsUnavailable = true
+                                    oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] = {iTargetPlateau, iTargetZone}
+                                elseif bDebugMessages == true then LOG(sFunctionRef..': engi '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; had an action to move to a land zone but didnt have a target plateau or zone recorded (maybe it ran from enemy units?), so it wont resume its orders later')
                                 end
                             end
                         end
-                        local oReclaimTarget = oEnemyCombatOrReclaimer or oOtherEnemy
-                        if oReclaimTarget then
-                            TrackEngineerAction(oEngineer, refActionReclaimEnemyUnit, false, 1)
-                            M28Orders.IssueTrackedReclaim(oEngineer, oReclaimTarget, false, 'RecPE')
-                            if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy that is in its range, enemy='..oReclaimTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oReclaimTarget)) end
-                            bEngiIsUnavailable = true
-                        end
                     end
                 end
-            else
-                bEngiIsUnavailable = true
-            end
+                if bEngiIsUnavailable then
+                    table.insert(toAssignedEngineers, oEngineer)
+                else
+                    --Clear engineer trackers as redundancy in case failed to clear previously
+                    if oEngineer[refiAssignedAction] then ClearEngineerTracking(oEngineer) end
 
-
-            --Finished checking for enemies; now check more generally if engineer is busy
-            if bDebugMessages == true then LOG(sFunctionRef..': Is engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' unavailable='..tostring(bEngiIsUnavailable)) end
-            if not(bEngiIsUnavailable) then
-                bEngiIsUnavailable = not(M28Conditions.IsEngineerAvailable(oEngineer))
-
-                if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer, true) or false)..'; Eng unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; bEngiIsUnavailable='..tostring(bEngiIsUnavailable or false)..'; oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] ='..repru(oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] )) end
-                if oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] and not(oEngineer[refiAssignedAction] == refActionMoveToLandZone) and not(oEngineer[refiAssignedAction] == refActionAttackMoveToLandZone) and not(oEngineer:IsUnitState('Reclaiming')) then
-                    local iTargetPlateau = oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder][1]
-                    local iTargetZone = oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder][2]
-
-                    oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] = nil
-
-                    local tTargetZoneData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetZone]
-
-                    if bDebugMessages == true then
-                        if not(tTargetZoneData[M28Map.subrefMidpoint]) then LOG(sFunctionRef..': Dont have valid midpoint data for target P='..iTargetPlateau..';Z='..iTargetZone)
-                        else
-                            LOG(sFunctionRef..': Considering if engi is closer to the target sone P'..iTargetPlateau..'Z'..iTargetZone..' zone it used to be traveling to than this midpoint, dist from engi to prev zone midpoint='..M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], oEngineer:GetPosition())..'; Dist from this zone midpoint='..M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]))
-                        end
-                    end
-                    if tTargetZoneData and M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], oEngineer:GetPosition()) <= M28Utilities.GetDistanceBetweenPositions(tTargetZoneData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) then
-
-                        M28Orders.IssueTrackedMove(oEngineer, tTargetZoneData[M28Map.subrefMidpoint], 3, false, 'ResumeeMTP'..iTargetPlateau..'Z'..iTargetZone)
-                        TrackEngineerAction(oEngineer, refActionMoveToLandZone, false, 1, { iTargetPlateau, iTargetZone })
-                        bEngiIsUnavailable = true
-                        if bDebugMessages == true then LOG(sFunctionRef..': will send engi '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to this zone, oEngineer[M28Land.reftiPlateauAndLZToMoveTo]='..repru(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])) end
-                    end
-                elseif bCheckForReclaim then
-                    if not(bEngiIsUnavailable) then
-                        if M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrPond, iLandZone, tLZData, tLZTeamData, oEngineer, true, 20) then
-                            bEngiIsUnavailable = true
-                        end
-                    elseif oEngineer:IsUnitState('Moving') and oEngineer[refiAssignedAction] == refActionMoveToLandZone then
-                        --Engineer is already busy; exception if engineer is traveling to another zone where want to reissue its old order after issuing a reclaim order
-                        local iTargetPlateau = oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1]
-                        local iTargetZone = oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2]
-
-                        if M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrPond, iLandZone, tLZData, tLZTeamData, oEngineer, true, 50) then
-                            if iTargetPlateau and iTargetZone then
-
-                                if bDebugMessages == true then LOG(sFunctionRef..': Recording plateau and LZ that engi was going to move to but has been diverted from, iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetZone='..(iTargetZone or 'nil')) end
-                                bEngiIsUnavailable = true
-                                oEngineer[refiPlateauAndZoneTravelingBeforeTempReclaimOrder] = {iTargetPlateau, iTargetZone}
-                            elseif bDebugMessages == true then LOG(sFunctionRef..': engi '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; had an action to move to a land zone but didnt have a target plateau or zone recorded (maybe it ran from enemy units?), so it wont resume its orders later')
-                            end
-                        end
-                    end
+                    table.insert(toAvailableEngineersByTech[M28UnitInfo.GetUnitTechLevel(oEngineer)], oEngineer)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just added engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to toAvailableEngineersByTech, Eng tech level='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; Size of table='..table.getn(toAvailableEngineersByTech[M28UnitInfo.GetUnitTechLevel(oEngineer)])) end
+                    bHaveAvailableEngi = true
                 end
-            end
-            if bEngiIsUnavailable then
-                table.insert(toAssignedEngineers, oEngineer)
-            else
-                --Clear engineer trackers as redundancy in case failed to clear previously
-                if oEngineer[refiAssignedAction] then ClearEngineerTracking(oEngineer) end
-
-                table.insert(toAvailableEngineersByTech[M28UnitInfo.GetUnitTechLevel(oEngineer)], oEngineer)
-                if bDebugMessages == true then LOG(sFunctionRef..': Just added engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to toAvailableEngineersByTech, Eng tech level='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; Size of table='..table.getn(toAvailableEngineersByTech[M28UnitInfo.GetUnitTechLevel(oEngineer)])) end
-                bHaveAvailableEngi = true
             end
         end
     end
