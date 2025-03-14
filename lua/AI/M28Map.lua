@@ -281,6 +281,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefThreatEnemyShield = 'EShTot' --Fixed and mobile shields (land and water zones)
             subrefiThreatEnemyGroundAA = 'EAATotal' --LZ and WZ
             subrefiT3FixedShieldConstructedCount = 'FSCCn' --number of allied M28 shields that have been constructed less number that have been killed
+            subrefiExperimentalShieldConstructedCount = 'ExpCN' --number of shields with shield health exceeding iExperimentalShieldHealthValue, less number that have been killed
             subreftoTeammateFixedDF = 'DFTm8U' --Non-M28 teammate fixed DF table of units (i.e. PD)
             subreftoTeammateFixedAA = 'AATm8U' --Non-M28 teammate fixed AA table of units
             subrefLZThreatAllyGroundAA = 'AAATotal' --Same ref used for WZ

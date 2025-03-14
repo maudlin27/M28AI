@@ -31,6 +31,7 @@ iLowestAirStagingTechAvailable = 3
 iLowestMassStorageTechAvailable = 3
 iLowestEnergyStorageTechAvailable = 3
 tiWorstPDRangeByTech = {[1]=200,[2]=200,[3]=200,[4]=200}
+iExperimentalShieldHealthValue = 90000 --i.e. if have shields with this much health or more in the game, will act as though there are overpowered shields and need to adjust approach
 
 --Variables against a unit:
     --TML and TMD
@@ -5664,6 +5665,57 @@ function GetManualPDTarget(oUnit, oOptionalTargetToIgnore)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Will try manual attack of unit '..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)) end
                 M28Orders.IssueTrackedAttack(oUnit, oEnemyToTarget, false, 'PDManAtck', false)
+            end
+        end
+    end
+end
+
+function AssessT3EngineerConstructionOptions(oUnit)
+    --Called when a t3 engi is created - so can check for certain buildings (without worrying about them being present in the list of blueprints but not actually buildable to us in the game due say to unit restrictions or only being available for a particular faction)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssessT3EngineerConstructionOptions'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local aiBrain = oUnit:GetAIBrain()
+    if aiBrain.M28AI then --redundancy
+        --Can we build a super-powerful shield?
+        local sMostExpensiveShield = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield, oUnit, false, false, false, nil, false, nil, true)
+        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sMostExpensiveShield='..(sMostExpensiveShield or 'nil')) end
+        if sMostExpensiveShield then
+            local oBP = M28UnitInfo.GetBlueprintFromID(sMostExpensiveShield)
+            if bDebugMessages == true then LOG(sFunctionRef..': oBP.Defense.Shield.ShieldMaxHealth='..(oBP.Defense.Shield.ShieldMaxHealth or 'nil')..'; iExperimentalShieldHealthValue='..iExperimentalShieldHealthValue) end
+            local iMinShieldSize = 50 --sera t3 shield is 46, i.e. this means we have a very high health and large shield
+            if oBP.Defense.Shield.ShieldMaxHealth >= iExperimentalShieldHealthValue and oBP.Defense.Shield.ShieldSize >= iMinShieldSize then
+                --Get list of all shields we can build with this unit, and make sure the cheapest of them that satisfies the requirements is recorded
+                local iMaxShieldCost = 60000 --If the shield costs more than 60k mass then there is no point building running our special logic as it'll lead to us just building loads of shields in our base while enemy overruns us with land units
+                local iCheapestShield = iMaxShieldCost
+                local tsShieldsOfInterest = {}
+                local tAllShields = EntityCategoryGetUnitList(M28UnitInfo.refCategoryFixedShield)
+                local oCurBP
+                for _, sShieldBlueprint in  tAllShields do
+                    oCurBP = M28UnitInfo.GetBlueprintFromID(sShieldBlueprint)
+                    if (oCurBP.Defense.Shield.ShieldMaxHealth or 0) >= iExperimentalShieldHealthValue and oCurBP.Economy.BuildCostMass <= iMaxShieldCost then
+                        table.insert(tsShieldsOfInterest, sShieldBlueprint)
+                        iCheapestShield = math.min(iCheapestShield, (oCurBP.Economy.BuildCostMass or 10000000))
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tsShieldsOfInterest) == false then
+                    local iMassThreshold = iCheapestShield * 1.2
+                    for _, sShieldBlueprint in tsShieldsOfInterest do
+                        oCurBP = M28UnitInfo.GetBlueprintFromID(sShieldBlueprint)
+                        if oCurBP.Economy.BuildCostMass <= iMassThreshold then
+                            if not(aiBrain[M28Overseer.reftbExperimentalShieldsConsidered][sShieldBlueprint]) then
+                                aiBrain[M28Overseer.refbCanBuildExperimentalShields] = true
+                                if not(aiBrain[M28Overseer.reftbExperimentalShieldsConsidered]) then aiBrain[M28Overseer.reftbExperimentalShieldsConsidered] = {} end
+                                table.insert(aiBrain[M28Overseer.reftbExperimentalShieldsConsidered], sShieldBlueprint)
+                                if not(aiBrain[M28Overseer.refiExperimentalShieldCategory]) then aiBrain[M28Overseer.refiExperimentalShieldCategory] = categories[sShieldBlueprint]
+                                else aiBrain[M28Overseer.refiExperimentalShieldCategory] = aiBrain[M28Overseer.refiExperimentalShieldCategory] + categories[sShieldBlueprint]
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': recording that we can build experimental level shields for brain '..aiBrain.Nickname..'; recording sShieldBlueprint='..sShieldBlueprint..' with mass cost of '..oCurBP.Economy.BuildCostMass..' and a shield health of '..oCurBP.Defense.Shield.ShieldMaxHealth..' with a shield size of '..oCurBP.Defense.Shield.ShieldSize) end
+                            end
+                        end
+                    end
+                end
             end
         end
     end

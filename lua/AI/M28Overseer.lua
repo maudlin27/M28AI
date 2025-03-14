@@ -68,6 +68,9 @@ refiTransferedUnitCount = 'M28OvsrXfUC' --Increases by one each time units are t
 reftoTransferredUnitMexesAndFactoriesByCount = 'M28OvsrXfUT'
 refiCombatLandScoutThreshold = 'M28OvsrCLnS' --number of aeon land scouts to use in a combat role
 refbBuiltLongRangeLandUnit = 'M28BultLRU' -- true if we have constructed a long ranged DF land unit like a fatboy, so we prioritise building an omni if we havent already
+refbCanBuildExperimentalShields = 'M28BuldExpSh'
+refiExperimentalShieldCategory = 'M28ExpShC' --Includes the cheapest 'powerful' shield (so we dont build super-expensive ones that cost as much as a game ender, but also still build one tough enough to justify turtling logic)
+reftbExperimentalShieldsConsidered = 'M28ExpShS' --[x] is the blueprint, returns true if we have already included in refiExperimentalShieldCategory
 --Brain style variables to affect behaviour - set to true if to apply to the brain
 refbPrioritiseLand = 'M28PersLand'
 refbPrioritiseAir = 'M28PersAir'

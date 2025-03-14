@@ -47,6 +47,7 @@ refiLastEnergyUsage = 'M28ELastEnergyUsage' --per tick energy usage of the unit 
 refiLastMassUsage = 'M28ELastMassUsage' --per tick massu sage of the unit set when unit is paused
 refiStorageMassAdjacencyBonus = 'M28EMassStorAdj' --Adjacency bonus from a mass storage
 refbSpecialUpgradeMonitor = 'M28ESpecUM' --true if special upgrade monitor (used for hydros) is active
+refbTriedIgnoringCanBuildForUpgrade = 'M28ETrNlU' --true if CanBuild returns false but the unit is meant to be able to upgrade - will do a 1-off attempt at upgrading
 
 --global variables
 tiMinEnergyPerTech = {[1]=16,[2]=55,[3]=150,[3]=150}
@@ -66,7 +67,11 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
 
     --Do we have any HQs of the same factory type of a higher tech level?
     local sUpgradeID = M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) --If not a factory or dont recognise the faction then just returns the normal unit ID
-
+    --Redundancy if unit is capable of upgrading but the CanBuild check fails
+    if not(sUpgradeID) and not(oUnitToUpgrade[refbTriedIgnoringCanBuildForUpgrade]) then
+        oUnitToUpgrade[refbTriedIgnoringCanBuildForUpgrade] = true
+        sUpgradeID = oUnitToUpgrade:GetBlueprint().General.UpgradesTo
+    end
 
     if sUpgradeID and M28UnitInfo.IsUnitValid(oUnitToUpgrade) then
         local aiBrain = oUnitToUpgrade:GetAIBrain()
@@ -831,6 +836,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptio
                                 for iParagon, oParagon in tParagon do
                                     if oParagon:GetFractionComplete() == 1 then
                                         bRemainingParagon = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': we still have a contructed paragon for oBrain='..oBrain.Nickname..'; oParagon='..oParagon.UnitId..M28UnitInfo.GetUnitLifetimeCount(oParagon)) end
                                         break
                                     end
                                 end
@@ -840,6 +846,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptio
                         oUnit:GetAIBrain()[refbBuiltParagon] = bRemainingParagon
                         M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] = bRemainingParagon
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': We have just built a paragon for brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                         oUnit:GetAIBrain()[refbBuiltParagon] = true
                         M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] = true
                     end
