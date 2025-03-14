@@ -187,7 +187,7 @@ refCategoryT3Power = categories.STRUCTURE * categories.ENERGYPRODUCTION * catego
 refCategoryMassStorage = categories.STRUCTURE * categories.MASSSTORAGE * categories.TECH1
 
 refCategoryEnergyStorage = categories.STRUCTURE * categories.ENERGYSTORAGE
-refCategoryParagon = categories.STRUCTURE * categories.EXPERIMENTAL * categories.MASSPRODUCTION
+refCategoryParagon = categories.STRUCTURE * categories.EXPERIMENTAL * categories.MASSPRODUCTION - categories.MASSEXTRACTION * categories.SIZE4
 refCategoryMassFab = categories.MASSFABRICATION * categories.STRUCTURE - categories.MASSEXTRACTION - categories.EXPERIMENTAL
 
 --Building - intel and misc
@@ -2275,7 +2275,7 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
     local sFunctionRef = 'GetUnitUpgradeBlueprint'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bGetSupportFactory == nil then bGetSupportFactory = true end
+    if bGetSupportFactory == nil or bGetSupportFactory then bGetSupportFactory = (M28Utilities.bFAFActive and categories.SUPPORTFACTORY and EntityCategoryContains(refCategoryFactory * categories.TECH1 + categories.SUPPORTFACTORY, oUnitToUpgrade.UnitId)) end
     --Gets the support factory blueprint, and checks if it can be built; if not then returns the normal UpgradesTo blueprint
     local sUpgradeBP
     if not(oUnitToUpgrade.Dead) and oUnitToUpgrade.CanBuild then
@@ -2342,9 +2342,14 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
         if not(sUpgradeBP) then
             local oFactoryBP = oUnitToUpgrade:GetBlueprint()
             sUpgradeBP = oFactoryBP.General.UpgradesTo
-            if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeBP='..(sUpgradeBP or 'nil')) end
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': sUpgradeBP='..(sUpgradeBP or 'nil'))
+                if sUpgradeBP then
+                    LOG(sFunctionRef..': Can we build this='..tostring(oUnitToUpgrade:CanBuild(sUpgradeBP))..'; Is unit restricted='..tostring(IsUnitRestricted(sUpgradeBP, oUnitToUpgrade:GetAIBrain():GetArmyIndex())))
+                end
+            end
             if not(sUpgradeBP) or sUpgradeBP == '' or not(oUnitToUpgrade:CanBuild(sUpgradeBP)) then sUpgradeBP = nil end
-            if bDebugMessages == true then LOG(sFunctionRef..': Didnt have valid support factory to upgrade to; blueprint UpgradesTo='..(sUpgradeBP or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Didnt have valid unit to upgrade to; blueprint UpgradesTo='..(sUpgradeBP or 'nil')) end
         end
         if sUpgradeBP == '' then
             sUpgradeBP = nil
@@ -2365,6 +2370,7 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
             end
         end
     end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return sUpgradeBP
 end

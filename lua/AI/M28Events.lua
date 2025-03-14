@@ -663,6 +663,9 @@ function OnUnitDeath(oUnit)
                                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
                                         if tLZTeamData then
                                             tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] = math.max(0, (tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0) - 1)
+                                            if oUnit:GetBlueprint().Defense.Shield.ShieldMaxHealth >= M28Building.iExperimentalShieldHealthValue then
+                                                tLZTeamData[M28Map.subrefiExperimentalShieldConstructedCount] = math.max(0, (tLZTeamData[M28Map.subrefiExperimentalShieldConstructedCount] or 0) - 1)
+                                            end
                                         end
                                     end
                                     M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --checks if it was a factory as part of this function
@@ -2147,6 +2150,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                         local iExpMassCost = M28UnitInfo.GetUnitMassCost(oJustBuilt)
                         if iExpMassCost <= 50000 and EntityCategoryContains(M28UnitInfo.refCategoryT2PlusPD, oJustBuilt.UnitId) then
                             M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] = M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] + 0.2
+                        elseif iExpMassCost <= 50000 and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oJustBuilt.UnitId) then
+                            M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] = M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] + 0.35
                         elseif iExpMassCost < 20000 then
                             M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] = M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] + 0.75 * iExpMassCost / 20000
                         else
@@ -2155,28 +2160,28 @@ function OnConstructed(oEngineer, oJustBuilt)
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
                         tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] = (tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] or 0) + 1
                         if EntityCategoryContains(M28UnitInfo.refCategoryParagon, oJustBuilt.UnitId) then
-                            ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
+                        ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                            M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
+                        M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oJustBuilt.UnitId) or ((oJustBuilt[M28UnitInfo.refiDFRange] or 0) >= 80 and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oJustBuilt.UnitId)) then
-                            --flag we have built long range unit so we prioritise building omni
-                            aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] = true
+                        --flag we have built long range unit so we prioritise building omni
+                        aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] = true
                         end
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oJustBuilt.UnitId) then
-                            ForkThread(M28Air.DelayedNovaxUnloadCheck, oJustBuilt)
+                        ForkThread(M28Air.DelayedNovaxUnloadCheck, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oEngineer.UnitId) and oEngineer:GetAIBrain().M28AI then
-                            ForkThread(M28Air.DelayedNovaxUnloadCheck, oEngineer)
+                        ForkThread(M28Air.DelayedNovaxUnloadCheck, oEngineer)
                         end
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oJustBuilt.UnitId) then M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] = (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) + 1 end
                         if oJustBuilt[M28Building.reftArtiTemplateRefs] then
-                            --Reassess the game-ender to build
-                            local tTableRef = M28Map.tAllPlateaus[oJustBuilt[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oJustBuilt[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][iTeam][M28Map.reftActiveGameEnderTemplates][oJustBuilt[M28Building.reftArtiTemplateRefs][3]]
-                            if tTableRef then tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] = true end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Flagging that we want to refresh the Arti to build for GE template, P'..oJustBuilt[M28Building.reftArtiTemplateRefs][1]..'Z'..oJustBuilt[M28Building.reftArtiTemplateRefs][2]..'T'..oJustBuilt[M28Building.reftArtiTemplateRefs][3]..'; tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild]='..tostring(tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] or false)..'; Is tTableRef nil='..tostring(tTableRef == nil)..'; Time='..GetGameTimeSeconds()) end
-                        end
-                        --Loud T2 sniperbots - consider enhancement
+                        --Reassess the game-ender to build
+                        local tTableRef = M28Map.tAllPlateaus[oJustBuilt[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oJustBuilt[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][iTeam][M28Map.reftActiveGameEnderTemplates][oJustBuilt[M28Building.reftArtiTemplateRefs][3]]
+                        if tTableRef then tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] = true end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Flagging that we want to refresh the Arti to build for GE template, P'..oJustBuilt[M28Building.reftArtiTemplateRefs][1]..'Z'..oJustBuilt[M28Building.reftArtiTemplateRefs][2]..'T'..oJustBuilt[M28Building.reftArtiTemplateRefs][3]..'; tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild]='..tostring(tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] or false)..'; Is tTableRef nil='..tostring(tTableRef == nil)..'; Time='..GetGameTimeSeconds()) end
+                            end
+                            --Loud T2 sniperbots - consider enhancement
                     elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
                         ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
                     end
@@ -2452,6 +2457,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
                                 if tLZTeamData then
                                     tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] = (tLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] or 0) + 1
+                                    if oJustBuilt:GetBlueprint().Defense.Shield.ShieldMaxHealth >= M28Building.iExperimentalShieldHealthValue then
+                                        tLZTeamData[M28Map.subrefiExperimentalShieldConstructedCount] = (tLZTeamData[M28Map.subrefiExperimentalShieldConstructedCount] or 0) + 1
+                                    end
                                 end
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oJustBuilt.UnitId) then
@@ -2496,6 +2504,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, oJustBuilt.UnitId) then
                         --Late game - destroy lower tech engineers to help with pathing (up to 2 for every T3 engi built)
                         ForkThread(M28Engineer.ConsiderDestroyingLowTechEngineers, oJustBuilt)
+                        --Moved below to 'oncreate'
+                        --First engineer (for if want to check if can build certain modded units) - have done LC<=5 in case the first few engineers we try building die
+                        --[[if M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) <= 5 then
+                            ForkThread(M28Building.AssessT3EngineerConstructionOptions, oJustBuilt)
+                        end--]]
                     elseif EntityCategoryContains(categories.MOBILE * categories.SUBMERSIBLE, oJustBuilt.UnitId) then
                         ForkThread(M28Navy.DelayedCheckIfShouldSubmerge, oJustBuilt)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oJustBuilt.UnitId) then
@@ -2607,6 +2620,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                         --Consider gifting power and mexes to a teammate
                         local aiBrain = oJustBuilt:GetAIBrain()
+                        if bDebugMessages == true then LOG(sFunctionRef..': Just built mex or pgen for brain '..aiBrain.Nickname..'; considering if we have paragon and (if so) will gift the unit, builtparagon='..tostring(aiBrain[M28Economy.refbBuiltParagon])..'; Brain type='..(aiBrain.BrainType or 'nil')..'; Brain gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Gross E='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
                         if aiBrain[M28Economy.refbBuiltParagon] and not(aiBrain.BrainType == 'Human') and aiBrain[M28Economy.refiGrossMassBaseIncome] >= math.min(1000, 900 * aiBrain[M28Economy.refiBrainResourceMultiplier]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >=  math.min(100000, 90000 * aiBrain[M28Economy.refiBrainResourceMultiplier]) then
                             local oParagonBrain = oJustBuilt:GetAIBrain()
                             if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
@@ -3257,6 +3271,11 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                 if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and not(oUnit[M28Air.refbBomberUsingMexHunterLogic]) then
                                     ForkThread(M28Air.ApplyMexHuntingLogicToBomber, oUnit)
                                 end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryPower, oUnit.UnitId) then --In LOUD t2 pgen upgrades to t3 are as efficient as t3 pgens
+                                local sUpgrade = oUnit:GetBlueprint().General.UpgradesTo
+                                if sUpgrade and not(sUpgrade == '') then
+                                    ForkThread(M28Economy.ConsiderPowerPgenUpgrade, oUnit)
+                                end
                             end
 
                             --Nuke launcher - if have 5+ non-experimental then consider unpausing all existing ones
@@ -3329,6 +3348,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId) then
                             M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPrioritySub, false) --Dont want to check if can attack ground
+
+                            --1st T3 Engineer - check building construction options
+                        elseif M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, oUnit.UnitId) then
+                            M28Building.AssessT3EngineerConstructionOptions(oUnit)
                         end
 
 

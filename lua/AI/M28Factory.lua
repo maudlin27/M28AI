@@ -250,7 +250,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
                                 if iCurMass <= tiLowestMassByTech[iCurrentTech] then bIsValid = true end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to get cheapest; iCurMass='..iCurMass..'; iCurrentTech='..iCurrentTech..'; tiLowestMassByTech[iCurrentTech]='..tiLowestMassByTech[iCurrentTech]..'; bIsValid='..tostring(bIsValid)) end
                             elseif bGetMostExpensive then
-                                if iCurMass > tiHighestMassByTech[iCurrentTech] then bIsValid = true end
+                                if iCurMass >= tiHighestMassByTech[iCurrentTech] then bIsValid = true end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to get most expensive; iCurMass='..iCurMass..'; iCurrentTech='..iCurrentTech..'; tiHighestMassByTech[iCurrentTech]='..tiHighestMassByTech[iCurrentTech]..'; bIsValid='..tostring(bIsValid)) end
                             end
                         else M28Utilities.ErrorHandler('Missing code')
