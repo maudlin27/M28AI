@@ -581,7 +581,6 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
 
@@ -600,6 +599,31 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Considering ACU for brain '..oACU:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()..'; ACU state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateauOrZero='..iPlateauOrZero..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; Hover label at position='..NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oACU:GetPosition())..'; ACU position='..repru(oACU:GetPosition())) end
+
+
+    --If have low cost mex upgrades then fork a thread to get all of these first
+    if not(oACU[reftPreferredUpgrades]) then
+        GetUpgradePathForACU(oACU)
+    end
+    if bDebugMessages == true and oACU[reftPreferredUpgrades][1] then LOG(sFunctionRef..': oACU[reftPreferredUpgrades][1]='..oACU[reftPreferredUpgrades][1]..'; Build cost mass='..(oACU:GetBlueprint().Enhancements[oACU[reftPreferredUpgrades][1]].BuildCostMass or 'nil')..'; Build time='..(oACU:GetBlueprint().Enhancements[oACU[reftPreferredUpgrades][1]].BuildTime or 'nil')..'; Has enhancement='..tostring(oACU:HasEnhancement(oACU[reftPreferredUpgrades][1]))) end
+    if oACU[reftPreferredUpgrades][1] and oACU:GetBlueprint().Enhancements[oACU[reftPreferredUpgrades][1]].BuildCostMass <= 10 and oACU:GetBlueprint().Enhancements[oACU[reftPreferredUpgrades][1]].BuildTime <= 10 and not(oACU:HasEnhancement(oACU[reftPreferredUpgrades][1])) then
+        GetUpgradePathForACU(oACU) --Refresh to be safe
+        local bQueuedEnhancement = false
+        for iEnhancement, sEnhancement in oACU[reftPreferredUpgrades] do
+            if oACU:GetBlueprint().Enhancements[sEnhancement].BuildCostMass <= 10 and oACU:GetBlueprint().Enhancements[sEnhancement].BuildTime <= 10 and not(oACU:HasEnhancement(sEnhancement)) then
+                if bDebugMessages == true then LOG(sFunctionRef..'; Queing up enhancement '..sEnhancement) end
+                M28Orders.IssueTrackedEnhancement(oACU, sEnhancement, true, 'ACULCEn')
+                bQueuedEnhancement = true
+            else
+                break
+            end
+        end
+        if bQueuedEnhancement then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return nil
+        end
+    end
+
 
     --Nearby enemy units in other land zone if we already have a complete land factory
     local iSearchDistance = 40
@@ -1443,6 +1467,25 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             oACU[reftPreferredUpgrades] = {'RateOfFire', 'BlastAttack', 'Teleporter'}
         else M28Utilities.ErrorHandler('Trying to do telesnipe without a cybran or seraphim ACU')
         end
+        --Unusually cheap upgrades - get the best possible ones available
+    elseif oBP.Enhancements.AdvancedEngineering.BuildCostMass <= 10 and oBP.Enhancements.ResourceAllocation.BuildCostMass <= 10 then
+        if EntityCategoryContains(categories.UEF, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'Shield'}
+        elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'HeatSink'}
+        elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation'}
+            --Mod that makes upgrades cost nothing
+            if (oBP.Enhancements['MicrowaveLaserGenerator'].BuildCostMass or 10000) <= 1000 then table.insert(oACU[reftPreferredUpgrades], 'MicrowaveLaserGenerator') end
+        elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
+            --Mod that makes upgrades cost nothing
+            if (oBP.Enhancements['BlastAttack'].BuildCostMass or 10000) <= 1000 then
+                oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'ResourceAllocationAdvanced', 'BlastAttack', 'DamageStabilization', 'DamageStabilizationAdvanced'}
+            else
+                oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization', 'DamageStabilizationAdvanced'}
+            end
+        end
+    --oACU[refiUpgradeCount] == 0 and (oBP.Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and GetGameTimeSeconds() <= 60 and not(oACU[reftPreferredUpgrades][1] == 'ResourceAllocation') then
     elseif aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.7 and (M28Map.iMapSize >= 1024 or aiBrain[M28Economy.refiBrainResourceMultiplier] >= 4.0) then
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
@@ -1486,7 +1529,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         if EntityCategoryContains(categories.AEON, oACU.UnitId) then
             --Mod that makes all upgrades super cheap
             if (oBP.Enhancements['ResourceAllocation'].BuildCostMass or 10000) <= 100 then
-                oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'AdvancedEngineering', 'ResourceAllocationAdvanced', 'T3Engineering'}
+                oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'AdvancedEngineering', 'ResourceAllocationAdvanced', 'T3Engineering', 'HeatSink'}
                 if bDebugMessages == true then LOG(sFunctionRef..': Going with eco build due to cheap RAS') end
             else
                 oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield', 'ShieldHeavy'}
@@ -1547,7 +1590,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
             end
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
             if (oBP.Enhancements['ResourceAllocation'].BuildCostMass or 10000) <= 100 then
-                oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'AdvancedEngineering', 'ResourceAllocationAdvanced', 'T3Engineering'}
+                oACU[reftPreferredUpgrades] = {'ResourceAllocation', 'AdvancedEngineering', 'ResourceAllocationAdvanced', 'T3Engineering', 'HeatSink'}
                 if bDebugMessages == true then LOG(sFunctionRef..': Going with eco build due to cheap RAS2') end
             elseif oACU[refiUpgradeCount] >= 3 then
                 if oACU[refiUpgradeCount] >= 4 and M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
@@ -1581,8 +1624,23 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                     end
                 end
                 if not(bHaveAdvancedRange) then
-                    if iCurEntries >= 4 and  not(oACU[reftPreferredUpgrades][4] == 'FAF_CrysalisBeamAdvanced') then table.insert( oACU[reftPreferredUpgrades], 4, 'FAF_CrysalisBeamAdvanced')
-                    else table.insert(oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced')
+                    --Do we either have the CrysalisBeam upgrade, or is it in preferred upgrades?
+                    local bHaveInitialRange = false
+                    if oACU:HasEnhancement('CrysalisBeam') then bHaveInitialRange = true
+                    else
+                        for iEntry, sEntry in oACU[reftPreferredUpgrades] do
+                            if sEntry == 'CrysalisBeam' then
+                                bHaveInitialRange = true
+                                break
+                            elseif iEntry >4 then break
+                            end
+                        end
+                    end
+                    if bHaveInitialRange then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding in FAF_CrysalisBeamAdvanced to enhancements wanted') end
+                        if iCurEntries >= 4 and  not(oACU[reftPreferredUpgrades][4] == 'FAF_CrysalisBeamAdvanced') then table.insert( oACU[reftPreferredUpgrades], 4, 'FAF_CrysalisBeamAdvanced')
+                        else table.insert(oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced')
+                        end
                     end
                 end
             end
@@ -1649,6 +1707,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield'}
             if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then table.insert( oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced') end --get shield before advanced range for survivability
+            if bDebugMessages == true then LOG(sFunctionRef..': Standard Aeon, with FAF_CrysalisBeamAdvanced added if relevant') end
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'StealthGenerator'}
             --FAF balance patch expected 15th July 2023 to introduce nano upgrade for Cybran
@@ -1702,7 +1761,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of preferred upgrades empty='..tostring(M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]))..'; repru='..repru(oACU[reftPreferredUpgrades])) end
-    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) then
+    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) and oACU[refiUpgradeCount] == 0 then
         --Find the cheapest upgrade that boosts either rate of fire or range (if didnt start underwater) or that boosts build power (if started underwater)
         if bDebugMessages == true then LOG(sFunctionRef..': Have no preferred upgrades so will try finding a rate of fire or range boost') end
         oACU[reftPreferredUpgrades] = {}
@@ -1777,7 +1836,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         end
     else
         --If can get RAS, and it is cheap, then make it the first upgrade to get
-        if (oBP.Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and GetGameTimeSeconds() <= 60 and not(oACU[reftPreferredUpgrades][1] == 'ResourceAllocation') then
+        if oACU[refiUpgradeCount] == 0 and (oBP.Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and GetGameTimeSeconds() <= 60 and not(oACU[reftPreferredUpgrades][1] == 'ResourceAllocation') then
             table.insert(oACU[reftPreferredUpgrades], 1, 'ResourceAllocation')
             --Remove the other RAS
             for iUpgrade, sUpgrade in oACU[reftPreferredUpgrades] do
@@ -1792,7 +1851,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     --Campaign specific - add RAS upgrade if we only have 1 upgrade
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Campaign specific - considering adding RAS upgrade; is preferred upgrades nil=' .. tostring(oACU[reftPreferredUpgrades]))
-        if oACU[reftPreferredUpgrades] then
+        if oACU[reftPreferredUpgrades] and oACU[refiUpgradeCount] == 0 then
             LOG(sFunctionRef .. ': Upgrade size=' .. table.getn(oACU[reftPreferredUpgrades])..'; repru='..repru(oACU[reftPreferredUpgrades]))
         end
     end
@@ -5261,7 +5320,6 @@ function GetACUOrder(aiBrain, oACU)
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
     end
-
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU.Nickname='..aiBrain.Nickname..'; oACU.M28Active='..tostring(oACU.M28Active or false)..'; Brain type='..aiBrain.BrainType..'; bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy)..'; Special micro active for ACU='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; ACU upgrade count='..(oACU[refiUpgradeCount] or 'nil')..'; Time='..GetGameTimeSeconds()) end
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
