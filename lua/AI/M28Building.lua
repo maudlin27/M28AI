@@ -5687,7 +5687,7 @@ function AssessT3EngineerConstructionOptions(oUnit)
             local iMinShieldSize = 50 --sera t3 shield is 46, i.e. this means we have a very high health and large shield
             if oBP.Defense.Shield.ShieldMaxHealth >= iExperimentalShieldHealthValue and oBP.Defense.Shield.ShieldSize >= iMinShieldSize then
                 --Get list of all shields we can build with this unit, and make sure the cheapest of them that satisfies the requirements is recorded
-                local iMaxShieldCost = 60000 --If the shield costs more than 60k mass then there is no point building running our special logic as it'll lead to us just building loads of shields in our base while enemy overruns us with land units
+                local iMaxShieldCost = 20000 --If the shield costs more than 20k mass then there is no point building running our special logic as it'll lead to us just building loads of shields in our base while enemy overruns us with land units
                 local iCheapestShield = iMaxShieldCost
                 local tsShieldsOfInterest = {}
                 local tAllShields = EntityCategoryGetUnitList(M28UnitInfo.refCategoryFixedShield)
