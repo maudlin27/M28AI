@@ -2542,7 +2542,7 @@ function CheckForSubteamFactoryChange(oUnit, bJustBuiltNotDied)
                 if tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] == 1 then
                     if not(bHaveHigherTech) then bChangedFactoryTech = true end
                 end
-                tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] = math.max(0, tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] - 1)
+                tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] = math.max(0, (tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] or 0) - 1)
             end
 
             if bChangedFactoryTech then

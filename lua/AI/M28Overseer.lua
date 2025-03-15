@@ -1077,14 +1077,65 @@ function GetCivilianCaptureTargets(aiBrain)
         end
     end
 
-    if M28Utilities.IsTableEmpty(tUnitsOfInterest) then
-        --Search for lower priority capture targets
-        iCategoriesOfInterest = iCategoriesOfInterest + (categories.MOBILE * categories.LAND * categories.RECLAIMABLE - categories.TECH1) + M28UnitInfo.refCategoryT1Radar * categories.RECLAIMABLE + (M28UnitInfo.refCategoryStructureAA * categories.RECLAIMABLE - categories.TECH1) + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti
-        iSearchRange = math.max(math.min(350, M28Map.iMapSize * 0.5), iSearchRange + 25)
-        tUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iCategoriesOfInterest, tStartPoint, iSearchRange, 'Neutral')
+    --Include much closer civilian units of all categories that are in the same plateau, and havent already been recorded
+    local bSearchForLowerPriority = not(M28Utilities.IsTableEmpty(tUnitsOfInterest))
+    local tVeryCloseUnits = aiBrain:GetUnitsAroundPoint(categories.RECLAIMABLE - M28UnitInfo.refCategoryAllAir, tStartPoint, math.min(iMaxPowerSearchRange, iSearchRange, iClosestEnemyBase * 0.2, M28Map.iMapSize * 0.25, 125), 'Neutral')
+    if M28Utilities.IsTableEmpty(tVeryCloseUnits) == false then
+        local sPathing = M28Map.refPathingTypeHover
+        local bDoPathingCheck = not(M28Map.bIsLowMexMap)
+        local bCheckExistingEntries = false
+        local tOrigUnits
+        if M28Utilities.IsTableEmpty(tUnitsOfInterest) == false then
+            bCheckExistingEntries = true
+            tOrigUnits = {}
+            for iUnit, oUnit in tUnitsOfInterest do
+                table.insert(tOrigUnits, oUnit)
+            end
+        end
+        local bRecordUnit
+        for iUnit, oUnit in tVeryCloseUnits do
+            bRecordUnit = true
+            if bCheckExistingEntries then
+                for iRecorded, oRecorded in tOrigUnits do
+                    if oRecorded == oUnit then bRecordUnit = false break end
+                end
+            end
+            if bRecordUnit then
+                --Check we are in the same plateau
+                if not(bDoPathingCheck) or NavUtils.GetLabel(sPathing, oUnit:GetPosition()) == iPlateauWanted then
+                    table.insert(tUnitsOfInterest, oUnit)
+                end
+            end
+        end
     end
 
-    --local sPathing = M28Map.refPathingTypeAmphibious
+    if bSearchForLowerPriority then
+        local bCheckIfAlreadyRecorded = not(M28Utilities.IsTableEmpty(tUnitsOfInterest))
+        --Search for lower priority capture targets, and further away
+        iCategoriesOfInterest = iCategoriesOfInterest + (categories.MOBILE * categories.LAND * categories.RECLAIMABLE - categories.TECH1) + M28UnitInfo.refCategoryT1Radar * categories.RECLAIMABLE + (M28UnitInfo.refCategoryStructureAA * categories.RECLAIMABLE - categories.TECH1) + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti
+        iSearchRange = math.max(math.min(350, M28Map.iMapSize * 0.5), iSearchRange + 25)
+        if bCheckIfAlreadyRecorded then
+            local tOrigUnits = {}
+            for iUnit, oUnit in tUnitsOfInterest do
+                table.insert(tOrigUnits, oUnit)
+            end
+            local tPotentialUnits = aiBrain:GetUnitsAroundPoint(iCategoriesOfInterest, tStartPoint, iSearchRange, 'Neutral')
+            if M28Utilities.IsTableEmpty(tPotentialUnits) == false then
+                local bRecordedAlready = false
+                for iUnit, oUnit in tPotentialUnits do
+                    bRecordedAlready = false
+                    for iRecorded, oRecorded in tOrigUnits do
+                        if oRecorded == oUnit then bRecordedAlready = true break end
+                    end
+                    if not(bRecordedAlready) then
+                        table.insert(tUnitsOfInterest, oUnit)
+                    end
+                end
+            end
+        else
+            tUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iCategoriesOfInterest, tStartPoint, iSearchRange, 'Neutral')
+        end
+    end
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': Running for aiBrain='..aiBrain.Nickname..' at gametime='..GetGameTimeSeconds()..'; Is table of tUnitsOfInterest empty='..tostring(M28Utilities.IsTableEmpty(tUnitsOfInterest))..'; iPlateauWanted='..iPlateauWanted..'; iClosestEnemyBase='..iClosestEnemyBase..'; iSearchRange='..iSearchRange..'; Is table of enemy units with further range empty='..tostring(M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(iCategoriesOfInterest, tStartPoint, 1000, 'Enemy')))..'; Is tNeutralMexes empty='..tostring(M28Utilities.IsTableEmpty(tNeutralMexes))) end
@@ -1095,7 +1146,7 @@ function GetCivilianCaptureTargets(aiBrain)
                 --Is it in the same plateua?
                 iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering civilian unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iPlateauWanted='..iPlateauWanted..'; Dist to our base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartPoint)..'; Mod dist='..M28Map.GetModDistanceFromStart(aiBrain, oUnit:GetPosition())) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering civilian unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iPlateauWanted='..iPlateauWanted..' (although we no longer check for this for most units), Dist to our base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartPoint)..'; Mod dist='..M28Map.GetModDistanceFromStart(aiBrain, oUnit:GetPosition())) end
                 if (iCurLandZone or 0) > 0 and (iCurPlateau or 0) > 0 then
                     --Is it one of the civilian brains we temporarily moved to be our ally?
                     if M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()) then
