@@ -309,6 +309,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             subreftbBPByFactionWanted = 'BPByFaction' --[x] = faction ref, returns true if we want engineers of that faction
             subrefTEngineersTravelingHere = 'EUnitsTrav' --Table of any engineer units in another LZ/WZ that have been told to move to this LZ/WZ
+            subreftoSACUsTravelingToWaterZoneFromHere = 'SACUUnitsTrav' --LZ or WZ variable; If there is an SACU in a land/water zone that is assigned to go to a water zone, then it gets recorded here (so we know not to send any more SACUs)
             subrefTScoutsTravelingHere = 'SUnitsTrav' --Table of any land scout units in another LZ/WZ that have been told to move to this LZ/WZ
             subrefSpareBPByTech = 'SpareBPByTech' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power of that tech level that we have spare
             subrefReclaimAreaAssignmentsBySegment = 'RecSegAss' --[ReclaimSegX][ReclaimZegY], returns count of how many engineers have been assigned

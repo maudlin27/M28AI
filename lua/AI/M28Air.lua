@@ -1506,7 +1506,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
 end
 
 function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
-    --Records all other land and water zones in order of straight line distance to tStartLZOrWZData, if not already recorded
+    --Records all other land and water zones in order of straight line distance to tStartLZOrWZData, if not already recorded (using subrefOtherLandAndWaterZonesByDistance)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordOtherLandAndWaterZonesByDistance'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

@@ -1919,7 +1919,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
 
         --SACUs
         if tSACUsToGoToWaterZone then
-            SendSACUsToWaterZone(tSACUsToGoToWaterZone)
+            M28Land.SendSACUsToWaterZone(tSACUsToGoToWaterZone, tWZTeamData)
         end
         if tSACUs then
             ManageSACUsInWaterZone(tSACUs, tWZData, tWZTeamData, iPond, iWaterZone, iTeam)

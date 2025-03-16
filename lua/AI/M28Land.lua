@@ -3536,6 +3536,65 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             end
         end
     end
+    --Consider sending 1 SACU to water zone if havent already sent one and this is a core base and we have multiple SACUs
+    if bProceed and M28Utilities.IsTableEmpty(tSACUs) == false and (not(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]) or not(M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]))) then
+        local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+        if aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 3 then
+            --Send SACUs if we are priorising navy, or if we need SACUs to build experimentals (i.e. QUIET or LOUD)
+            if aiBrain[M28Overseer.refbPrioritiseNavy] or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(tLZTeamData[M28Map.refbBaseInSafePosition]) and (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false))) then
+                --Do we have more than 1 SACU here?
+                if tLZTeamData[M28Map.subrefLZbCoreBase] and table.getn(tSACUs) > 1 then
+                    --Are weither a naval AI, or this is our 3rd+ SACU?
+                    local bNavalOr3rdSACU = aiBrain[M28Overseer.refbPrioritiseNavy]
+                    if not(bNavalOr3rdSACU) then
+                        for iSACU, oSACU in tSACUs do
+                            if M28UnitInfo.GetUnitLifetimeCount(oSACU) >= 3 then
+                                bNavalOr3rdSACU = true
+                                break
+                            end
+                        end
+                    end
+                    if bNavalOr3rdSACU then
+                        --Can we find a nearby high value water zone?
+                        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
+                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                            local iMaxSearchRange = 150
+                            local iCurWaterZone
+                            if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or aiBrain[M28Overseer.refbPrioritiseNavy] then iMaxSearchRange = 300 end
+                            local bAssignedSACU = false
+                            for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                                if tSubtable[M28Map.subrefiDistance] > iMaxSearchRange then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Are outside the max range so wil stop searching') end
+                                    break
+                                elseif tSubtable[M28Map.subrefbIsWaterZone] then
+                                    iCurWaterZone = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
+                                    --Is this a high value pond, or a WZ that has recently tried getting exp
+                                    local tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurWaterZone]][M28Map.subrefPondWaterZones][iCurWaterZone]
+                                    local tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                    if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWaterZone]] or 0) >= 14 or (tAltLZOrWZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and GetGameTimeSeconds() - tAltLZOrWZTeamData[M28Map.subrefiTimeLastWantSACUForExp] <= 11) then
+                                        if M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                            --Have a high value water zone with friendly units in it, if we have a navla factory here that has built something, then send an SACU
+                                            for iUnit, oUnit in tAltLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
+                                                if (oUnit[M28Factory.refiTotalBuildCount] or 0) >= 1 then
+                                                    --Send 1 SACU here
+                                                    tSACUs[1][M28UnitInfo.refiSACUWaterZoneTarget] = iCurWaterZone
+                                                    table.remove(tSACUs, 1)
+                                                    if M28Utilities.IsTableEmpty(tSACUs) then bProceed = false end
+                                                    bAssignedSACU = true
+                                                    break
+                                                end
+                                            end
+                                            if bAssignedSACU then break end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should proceed with considering assigning SACUs to GE template, bProceed='..tostring(bProceed)..'; Is table of active GE templates for this zone empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))) end
     if bProceed and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
         for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
@@ -9736,7 +9795,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
             ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tSACUs)
         end
         if tSACUsToGoToWaterZone then
-            SendSACUsToWaterZone(tSACUsToGoToWaterZone)
+            SendSACUsToWaterZone(tSACUsToGoToWaterZone, tLZTeamData)
         end
 
         if M28Utilities.IsTableEmpty(tTempOtherUnits) == false then
@@ -11530,13 +11589,28 @@ function DelayedGetFirstEnhancementOnUnit(oUnit, iDelayInSeconds)
     end
 end
 
-function SendSACUsToWaterZone(tSACUs)
+function SendSACUsToWaterZone(tSACUs, tLZOrWZTeamData)
     local iWaterZone
+    local tOrigRecordedSACUs = tLZOrWZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]
+    local bRecorded
     for iSACU, oSACU in tSACUs do
         iWaterZone = oSACU[M28UnitInfo.refiSACUWaterZoneTarget]
         local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
         if tWZData[M28Map.subrefMidpoint] then
             M28Orders.IssueTrackedMove(oSACU, tWZData[M28Map.subrefMidpoint], 5, false, 'MvWZ'..iWaterZone, false)
+            bRecorded = false
+            if tOrigRecordedSACUs then
+                for iRecorded, oRecorded in tOrigRecordedSACUs do
+                    if oRecorded == oSACU then
+                        bRecorded = true
+                        break
+                    end
+                end
+            end
+            if not(bRecorded) then
+                if not(tLZOrWZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]) then tLZOrWZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere] = {} end
+                table.insert(tLZOrWZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere], oSACU)
+            end
         else
             M28Utilities.ErrorHandler('SACU doesnt have valid WZ target so clearing')
             oSACU[M28UnitInfo.refiSACUWaterZoneTarget] = nil
