@@ -6846,7 +6846,7 @@ function ManageSACUsInWaterZone(tSACUs, tWZData, tWZTeamData, iPond, iWaterZone,
                     --Build a naval experimental unless low mass and already have some
                     local oExperimentalToAssist
                     --If we have one under construction already then assist
-                    local tExperimentals = EntityCategoryFilterDown(M28UnitInfo.refCategoryExperimental, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    local tExperimentals = EntityCategoryFilterDown(M28UnitInfo.refCategoryExperimentalLevel, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                     if M28Utilities.IsTableEmpty(tExperimentals) == false then
                         for iExp, oExp in tExperimentals do
                             if oExp:GetFractionComplete() < 1 then
