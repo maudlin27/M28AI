@@ -60,6 +60,7 @@ refiPatrolStuckCount = 'M28UStCn' --number of times unit has been stuck patrolli
 refbUnitStuckAlternating = 'M28UnitStckAlt' --true if the unit appears to be moving between the same two zones again and again
 refiTimeLastTriedRetreating = 'M28UnitTimeLstRetr' --Gametimeseconds that unit last tried retreating
 reftAssignedWaterZoneByTeam = 'M28UnitWaterZone' --[x] is the M28 team ref, returns the water zone assigned to the unit, if there is one
+refiSACUWaterZoneTarget = 'M28SACUWZ' --returns the water zone the unit (e.g. SACU) wants to travel to, or nil otherwise
 reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is the M28 team ref, returns true if have sent at least once to be assigned to a plateau/land zone/air logic/navy logic
 refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override the mass value suggested by the blueprint
 refiAntiNavyMassThreatOverride = 'M28BNMTO' --e.g. for ACUs, so can differentiate between Cybran ACU with antinavy upgrade, and other ACUs

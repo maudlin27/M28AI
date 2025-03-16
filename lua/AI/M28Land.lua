@@ -3381,7 +3381,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
 
         if oPrimaryEngineer then
             local aiBrain = oPrimaryEngineer:GetAIBrain()
-            local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oPrimaryEngineer, M28Engineer.refActionBuildExperimental, iCategoryWanted, 100, nil, nil,                                false,                          nil,                nil,                                false, tLZData, tLZTeamData)
+            local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oPrimaryEngineer, iOptionalEngineerActionForTracking or M28Engineer.refActionBuildExperimental, iCategoryWanted, 100, nil, nil,                                false,                          nil,                nil,                                false, tLZData, tLZTeamData)
 
             --Update SACU table to remove any of the desired faction who can be given other orders
             if bDebugMessages == true then LOG(sFunctionRef..': sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation or {})..'; oPrimaryEngineer='..(oPrimaryEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPrimaryEngineer) or 'nil')) end
@@ -9239,7 +9239,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     --Build location tracker
     tLZData[M28Map.subrefSegmentsConsideredThisTick] = 0
 
-    local tEngineers, tScouts, tMobileShields, tMobileStealths, tOtherUnitsToRetreat, tSACUs
+    local tEngineers, tScouts, tMobileShields, tMobileStealths, tOtherUnitsToRetreat, tSACUs, tSACUsToGoToWaterZone
     local iCurShield, iMaxShield
     local bLandZoneOrAdjHasUnitsWantingScout = false
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
@@ -9380,7 +9380,12 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                         elseif EntityCategoryContains(iSACUCategory, oUnit.UnitId) and not(bUseRASInCombat) then
                             --Only include for new orders if not already building something; otherwise do nothing with the unit (as hopefully we already have logic applying to it)
                             if not(oUnit:IsUnitState('Building') or oUnit:IsUnitState('Repairing')) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftArtiTemplateRefs]) then
-                                table.insert(tSACUs, oUnit)
+                                if oUnit[M28UnitInfo.refiSACUWaterZoneTarget] then
+                                    if not(tSACUsToGoToWaterZone) then tSACUsToGoToWaterZone = {} end
+                                    table.insert(tSACUsToGoToWaterZone, oUnit)
+                                else
+                                    table.insert(tSACUs, oUnit)
+                                end
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) or (oUnit[M28UnitInfo.refiCombatRange] > 0 and EntityCategoryContains(M28UnitInfo.refCategoryAmphibious * categories.MOBILE - categories.AIR, oUnit.UnitId)) then
                             --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager
@@ -9729,6 +9734,9 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         end
         if M28Utilities.IsTableEmpty(tSACUs) == false then
             ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tSACUs)
+        end
+        if tSACUsToGoToWaterZone then
+            SendSACUsToWaterZone(tSACUsToGoToWaterZone)
         end
 
         if M28Utilities.IsTableEmpty(tTempOtherUnits) == false then
@@ -11518,6 +11526,20 @@ function DelayedGetFirstEnhancementOnUnit(oUnit, iDelayInSeconds)
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to get enhancement for the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
                 end
             end
+        end
+    end
+end
+
+function SendSACUsToWaterZone(tSACUs)
+    local iWaterZone
+    for iSACU, oSACU in tSACUs do
+        iWaterZone = oSACU[M28UnitInfo.refiSACUWaterZoneTarget]
+        local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
+        if tWZData[M28Map.subrefMidpoint] then
+            M28Orders.IssueTrackedMove(oSACU, tWZData[M28Map.subrefMidpoint], 5, false, 'MvWZ'..iWaterZone, false)
+        else
+            M28Utilities.ErrorHandler('SACU doesnt have valid WZ target so clearing')
+            oSACU[M28UnitInfo.refiSACUWaterZoneTarget] = nil
         end
     end
 end
