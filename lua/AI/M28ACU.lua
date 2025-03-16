@@ -3786,10 +3786,12 @@ function ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZ
                 iTotalReclaimWanted = iIndividualReclaimThreshold * (iTotalReclaimFactorOverride or 1)
             end
         else
-            if M28Conditions.TeamHasLowMass(oEngineer:GetAIBrain().M28Team) then
-                iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 20
+            if iIndividualReclaimThresholdOverride then
+                iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride
+            elseif M28Conditions.TeamHasLowMass(oEngineer:GetAIBrain().M28Team) then
+                iIndividualReclaimThreshold = 20
             else
-                iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 25
+                iIndividualReclaimThreshold = 25
             end
             iTotalReclaimWanted = iIndividualReclaimThreshold * (iTotalReclaimFactorOverride or 5)
             if tLZTeamData[M28Map.subrefLZbCoreBase] and (GetGameTimeSeconds() <= 300 and M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamGrossMass]) <= 5 then iTotalReclaimWanted = iTotalReclaimWanted * 2 end
