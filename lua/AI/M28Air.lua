@@ -3990,7 +3990,9 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                         else
                                             ForkThread(M28Micro.MoveAndKillAirUnit,oUnit)
                                             --M28Orders.IssueTrackedKillUnit(oUnit)
-                                            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs] = true
+                                            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs]) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryAirAA * categories.TECH3) > 0 then
+                                                M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs] = true
+                                            end
                                             if bDebugMessages == true then LOG(sFunctionRef..': CtrlKing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                         end
                                     elseif ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
