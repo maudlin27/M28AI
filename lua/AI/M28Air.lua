@@ -1089,12 +1089,12 @@ function GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
     local iCurAAValue
     local iCurFactor = 1
     if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then iCurFactor = 0.5 end
-    iCurAAValue = (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * iCurFactor - (tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 4 - (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
+    iCurAAValue = (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * iCurFactor - (tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 10 - (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) * 6
     --Factor in adjacent threat
     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
         for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
             local tAdjLZTeamData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]][M28Map.subrefLZTeamData][iTeam]
-            iCurAAValue = iCurAAValue - (tAdjLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 2
+            iCurAAValue = iCurAAValue - (tAdjLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 5 - (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) * 3
         end
     end
     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
@@ -1102,7 +1102,7 @@ function GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
         for iEntry, iAdjWaterZone in tWZData[M28Map.subrefWZAdjacentWaterZones] do
             iAdjPond = M28Map.tiPondByWaterZone[iAdjWaterZone]
             local tAdjWZTeamData = M28Map.tPondDetails[iAdjPond][M28Map.subrefPondWaterZones][iAdjWaterZone][M28Map.subrefWZTeamData][iTeam]
-            iCurAAValue = iCurAAValue - tAdjWZTeamData[M28Map.subrefiThreatEnemyGroundAA] * 2
+            iCurAAValue = iCurAAValue - tAdjWZTeamData[M28Map.subrefiThreatEnemyGroundAA] * 5 - (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) * 3
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1594,12 +1594,62 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 --Have a land zone - check for groundAA
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                 if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
-                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][oBrain.M28Team]
-                    iCurRallyValue = GetRallyPointValueOfLandZone(oBrain.M28Team, tLZData, tLZTeamData, iPlateau)
+                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                    iCurRallyValue = GetRallyPointValueOfLandZone(iTeam, tLZData, tLZTeamData, iPlateau)
                     if iCurRallyValue > iBestRallyValue then
                         iBestRallyValue = iCurRallyValue
                         tPreferredRallyPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
                         if bDebugMessages == true then LOG(sFunctionRef..': Updating preferred rally point to land zone start point '..repru(tPreferredRallyPoint)) end
+                    end
+                end
+            end
+        end
+        --Consider nearest friendly base to rally point, if different
+        if tPreferredRallyPoint and iBestRallyValue < 0 then
+            local tRallyPointLZOrWZData, tRallyPointLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tPreferredRallyPoint, true, iTeam)
+            if M28Utilities.GetDistanceBetweenPositions(tPreferredRallyPoint, tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 20 then
+                local tClosestBaseLZOrWZData, tClosestBaseLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase], true, iTeam)
+                iCurRallyValue = GetRallyPointValueOfLandZone(iTeam, tClosestBaseLZOrWZData, tClosestBaseLZOrWZTeamData, iPlateau)
+                if bDebugMessages == true then LOG(sFunctionRef..': iBestRallyValue currently='..iBestRallyValue..'; iCurRallyValue of closest friendly base to this='..iCurRallyValue..'; Rally point before update='..repru(tPreferredRallyPoint)) end
+                if iCurRallyValue > iBestRallyValue then
+                    iBestRallyValue = iCurRallyValue
+                    tPreferredRallyPoint = {tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                    if bDebugMessages == true then LOG(sFunctionRef..': Closest base is better so will switch to that, tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase]='..repru(tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) end
+                end
+            end
+            if iCurRallyValue < 0 then
+                --Consider other zones around the original rally point in case they are better
+                RecordOtherLandAndWaterZonesByDistance(tRallyPointLZOrWZData)
+                if bDebugMessages == true then LOG(sFunctionRef..': will consider other zones around the rally point due to cur zone being negative') end
+                if M28Utilities.IsTableEmpty(tRallyPointLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                    local iDistThreshold
+                    if M28Map.bIsCampaignMap then iDistThreshold = math.max(350, M28Map.iMapSize * 0.7)
+                    else iDistThreshold = math.max(250, M28Map.iMapSize * 0.5)
+                    end
+                    for iEntry, tSubtable in tRallyPointLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': considering other zones around rally point, cur dist='..tSubtable[M28Map.subrefiDistance]..'; iDistThreshold='..iDistThreshold) end
+                        if tSubtable[M28Map.subrefiDistance] >= iDistThreshold then break end
+                        local tAltLZOrWZData, tAltLZOrWZTeamData
+                        local iCurLZOrWZRef = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
+                        local iPlateauOrZero
+                        if tSubtable[M28Map.subrefbIsWaterZone] then
+                            tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
+                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                            iPlateauOrZero = 0
+                        else
+                            tAltLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
+                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                            iPlateauOrZero = tSubtable[M28Map.subrefiPlateauOrPond]
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..(iCurLZOrWZRef or 'nil')..'; Plateua or pond='..(tSubtable[M28Map.subrefiPlateauOrPond] or 'nil')..'; is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone] or false)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]))..'; Rally value='..GetRallyPointValueOfLandZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData, iPlateauOrZero)) end
+                        if M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]) then
+                            iCurRallyValue = GetRallyPointValueOfLandZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData, iPlateauOrZero)
+                            if iCurRallyValue > iBestRallyValue then
+                                iBestRallyValue = iCurRallyValue
+                                tPreferredRallyPoint = {tAltLZOrWZData[M28Map.subrefMidpoint][1], tAltLZOrWZData[M28Map.subrefMidpoint][2], tAltLZOrWZData[M28Map.subrefMidpoint][3]}
+                                if iCurRallyValue >= 0 then break end
+                            end
+                        end
                     end
                 end
             end
