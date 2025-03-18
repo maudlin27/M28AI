@@ -6150,6 +6150,9 @@ function ManageGunships(iTeam, iAirSubteam)
             if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iMaxEnemyAirAA = 100000 end
         end
 
+        --If are buildings in the gunship zone then increase threshold to run from enemy AA
+        if (tGunshipLandOrWaterZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) > 0 then iMaxEnemyAirAA = math.max(iMaxEnemyAirAA, iOurGunshipThreat * 0.08) end
+
         local bDontLookForMoreTargets = false
         local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
         local tNewlyAddedEnemies
