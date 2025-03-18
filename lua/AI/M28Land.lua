@@ -7395,7 +7395,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 local oClosestSRExpToEnemy
                                 local iClosestSRExpToEnemy = 1000
                                 for iExp, oExp in toFriendlySRExperimentals do
-                                    if M28UnitInfo.GetUnitLifetimeCount(oExp) == 1 and oExp[M28UnitInfo.refiDFRange] <= 60 then
+                                    if M28UnitInfo.GetUnitLifetimeCount(oExp) == 1 and (oExp[M28UnitInfo.refiDFRange] or 0) <= 60 and ((oExp[M28UnitInfo.refiDFRange] or 0) > 0 or oExp[M28UnitInfo.refiCombatRange] <= 60) then
                                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oExp:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())
                                         if iCurDist <= iClosestSRExpToEnemy then
                                             oClosestSRExpToEnemy = oExp
@@ -7404,7 +7404,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': oClosestSRExpToEnemy='..oClosestSRExpToEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestSRExpToEnemy)..'; iClosestSRExpToEnemy='..iClosestSRExpToEnemy..'; oClosestSRExpToEnemy[M28UnitInfo.refiDFRange]='..oClosestSRExpToEnemy[M28UnitInfo.refiDFRange]) end
-                                if oClosestSRExpToEnemy and iClosestSRExpToEnemy - oClosestSRExpToEnemy[M28UnitInfo.refiDFRange] <= 40 then --we are within 40 of being in range of an enemy
+                                if oClosestSRExpToEnemy and iClosestSRExpToEnemy - (oClosestSRExpToEnemy[M28UnitInfo.refiDFRange] or oClosestSRExpToEnemy[M28UnitInfo.refiCombatRange]) <= 40 then --we are within 40 of being in range of an enemy
                                     --Get precise threat calc - assume we get into range of the closest enemy, and then consider all DF enemies around the closest enemy who are within 10 of being in range of that position - do we expect to win the fight with this unit alone?
                                     local tInRangeOfEnemyPosition
                                     if iClosestSRExpToEnemy - oClosestSRExpToEnemy[M28UnitInfo.refiDFRange] <= 1 then
@@ -8963,6 +8963,39 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if bDebugMessages == true then LOG(sFunctionRef..': Deciding where to send IF units, iIndirectLZToSupport='..(iIndirectLZToSupport or 'nil')..'; is table of IF units empty='..tostring(M28Utilities.IsTableEmpty(M28Utilities.IsTableEmpty(tIndirectUnits)))) end
             if iIndirectLZToSupport > 0 and M28Utilities.IsTableEmpty(tIndirectUnits) == false then
                 iIndirectLZToSupport = ReviseTargetLZIfFarAway(tLZData, iTeam, iPlateau, iLandZone, iIndirectLZToSupport, 2)
+                --Attack-move if nearby enemy T2 arti (as had scenario where longer ranged IF unit moved towards enemy T2 arti when the arti was in its range)
+                local bConsiderAttackMoveForNearbyUnits = not(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])) or not(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]))
+                local oLRUnitToAttackInstead
+                local iLRRangeThreshold, iDistUntilInRangeOfClosestLREnemy, iCurDistUntilInRange
+                if bConsiderAttackMoveForNearbyUnits then iLRRangeThreshold = 8 end
+
+                function UpdateLongRangeUnitToAttackInstead(oUnit)
+                    oLRUnitToAttackInstead = nil
+                    if oUnit[M28UnitInfo.refiCombatRange] > 0 then --redundancy
+                        iDistUntilInRangeOfClosestLREnemy = iLRRangeThreshold
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                            for iEnemy, oEnemy in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                                iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange]
+                                if bDebugMessages == true then LOG(sFunctionRef..': dist until oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in range of oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'is iCurDistUntilInRange='..iCurDistUntilInRange) end
+                                if  iCurDistUntilInRange < iDistUntilInRangeOfClosestLREnemy then
+                                    iDistUntilInRangeOfClosestLREnemy = iCurDistUntilInRange
+                                    oLRUnitToAttackInstead = oEnemy
+                                end
+                            end
+                        end
+                        if iDistUntilInRangeOfClosestLREnemy > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
+                            for iEnemy, oEnemy in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
+                                iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange]
+                                if bDebugMessages == true then LOG(sFunctionRef..': dist until oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in range of oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'is iCurDistUntilInRange='..iCurDistUntilInRange) end
+                                if  iCurDistUntilInRange < iDistUntilInRangeOfClosestLREnemy then
+                                    iDistUntilInRangeOfClosestLREnemy = iCurDistUntilInRange
+                                    oLRUnitToAttackInstead = oEnemy
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': oLRUnitToAttackInstead after check='..(oLRUnitToAttackInstead.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLRUnitToAttackInstead) or 'nil')) end
+                end
                 for iUnit, oUnit in tIndirectUnits do
                     if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in a different zone to this so will set its asisgnment value to 0 so it can be assigned by that zone') end
@@ -8970,7 +9003,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     else
                         if bDebugMessages == true then LOG(sFunctionRef..': Do we want to ignore orders due to having a stuck unit? oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Ignore due to stuck unit='..tostring(IgnoreOrderDueToStuckUnit(oUnit) or false)) end
                         if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                            M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIndirectLZToSupport][M28Map.subrefMidpoint], 6, false, 'IFMovLZ'..iIndirectLZToSupport..';'..iLandZone)
+                            if bConsiderAttackMoveForNearbyUnits then UpdateLongRangeUnitToAttackInstead(oUnit) end
+                            if oLRUnitToAttackInstead then
+                                M28Orders.IssueTrackedAggressiveMove(oUnit, oLRUnitToAttackInstead:GetPosition(), 6, false, 'IFMvAtLR'..iLandZone)
+                            else
+                                M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIndirectLZToSupport][M28Map.subrefMidpoint], 6, false, 'IFMovLZ'..iIndirectLZToSupport..';'..iLandZone)
+                            end
                         end
                     end
                 end
