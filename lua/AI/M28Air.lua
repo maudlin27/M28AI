@@ -1565,7 +1565,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
         local tPreferredRallyPoint
         local iPlateau, iLandZone, iWaterZone
-        local iBestRallyValue = -100000
+        local iBestRallyValue = -10000000 --we multiply enemy AA threat by up to 10, so want this really ow to avoid no rally point at all
         local iCurRallyValue
         local bDontMoveCloserToEnemyBase = false
         local oPriorityUnitBeingSupported
@@ -1603,6 +1603,9 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     end
                 end
             end
+        end
+        if not(tPreferredRallyPoint) then --redundancy in case really negative rally point value
+            tPreferredRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
         end
         --Consider nearest friendly base to rally point, if different
         if tPreferredRallyPoint and iBestRallyValue < 0 then
