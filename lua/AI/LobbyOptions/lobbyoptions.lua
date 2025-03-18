@@ -95,9 +95,9 @@ AIOpts = {
         },
     },
     {
-        default = 1,
+        default = 4,
         label = "M28 Coop: Use M28 AI?",
-        help = "Apply M28 to non-player AIs in campaign missions (you may also want to enable cheats to allow the option of killing objective units stuck off-map)",
+        help = "Apply M28 to non-player AIs in campaign missions? (you may also want to enable cheats so you can kill objective units if they get stuck off-map)",
         key = 'CampAI', --refer to this with ScenarioInfo.Options.CampAI, which will return the key value below
         value_text = "",
         value_help = "Which AI to apply M28 to",
