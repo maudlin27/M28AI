@@ -2580,44 +2580,46 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                     if tLZTeamData[M28Map.refiModDistancePercent] >= 0.25 and iEnemyNearbyThreat >= 1200 then
                                                         local iNearbyEnemyACUWithGoodRangeCount = 0
                                                         local iTotalNearbyEnemyACUCount = 0
-                                                        for iEnemyACU, oEnemyACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
-                                                            if M28UnitInfo.IsUnitValid(oEnemyACU) then
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Dist of enemy ACU owned by brain '..oEnemyACU:GetAIBrain().Nickname..' to us='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())..'; Their combat range='..oEnemyACU[M28UnitInfo.refiCombatRange]) end
-                                                                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition()) <= 30 + oEnemyACU[M28UnitInfo.refiCombatRange] then
-                                                                    iTotalNearbyEnemyACUCount = iTotalNearbyEnemyACUCount + 1
-                                                                    if oEnemyACU[M28UnitInfo.refiCombatRange] >= oACU[M28UnitInfo.refiDFRange] - 3 then
-                                                                        iNearbyEnemyACUWithGoodRangeCount = iNearbyEnemyACUWithGoodRangeCount + 1
-                                                                    end
-                                                                end
-                                                            end
-                                                        end
-                                                        if iTotalNearbyEnemyACUCount >= 2 then
-                                                            local iNearbyFriendlyACUWithGoodRangeCount = 0
-                                                            local iNearbyFriendlyACUCount = 0
-                                                            --Get nearby friendly ACUs
-                                                            for iFriendlyACU, oFriendlyACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
-                                                                if M28UnitInfo.IsUnitValid(oFriendlyACU) then
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Dist of friendly ACU owned by brain '..oFriendlyACU:GetAIBrain().Nickname..' to us='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oFriendlyACU:GetPosition())..'; Their combat range='..oFriendlyACU[M28UnitInfo.refiCombatRange]) end
-                                                                    if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oFriendlyACU:GetPosition()) <= 20 + oFriendlyACU[M28UnitInfo.refiCombatRange] then
-                                                                        iNearbyFriendlyACUCount = iNearbyFriendlyACUCount + 1
-                                                                        if oFriendlyACU[M28UnitInfo.refiCombatRange] >= oACU[M28UnitInfo.refiDFRange] - 3 then
-                                                                            iNearbyFriendlyACUWithGoodRangeCount = iNearbyFriendlyACUWithGoodRangeCount + 1
+                                                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+                                                            for iEnemyACU, oEnemyACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+                                                                if M28UnitInfo.IsUnitValid(oEnemyACU) then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Dist of enemy ACU owned by brain '..oEnemyACU:GetAIBrain().Nickname..' to us='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())..'; Their combat range='..oEnemyACU[M28UnitInfo.refiCombatRange]) end
+                                                                    if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition()) <= 30 + oEnemyACU[M28UnitInfo.refiCombatRange] then
+                                                                        iTotalNearbyEnemyACUCount = iTotalNearbyEnemyACUCount + 1
+                                                                        if oEnemyACU[M28UnitInfo.refiCombatRange] >= oACU[M28UnitInfo.refiDFRange] - 3 then
+                                                                            iNearbyEnemyACUWithGoodRangeCount = iNearbyEnemyACUWithGoodRangeCount + 1
                                                                         end
                                                                     end
                                                                 end
                                                             end
-                                                            if iNearbyEnemyACUWithGoodRangeCount >= 4 or iNearbyEnemyACUWithGoodRangeCount > iNearbyFriendlyACUCount or (iNearbyEnemyACUWithGoodRangeCount >= iNearbyFriendlyACUWithGoodRangeCount and iTotalNearbyEnemyACUCount > iNearbyFriendlyACUWithGoodRangeCount) then
-                                                                iACUFactor = iACUFactor * 0.8
-                                                                iAggressiveFactor = math.min(0.9, iAggressiveFactor * 0.7)
-                                                                bEnemyHasPDOrSignificantACUs = true
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': will be significantly more cautious given enemy has more ACUs') end
-                                                            elseif iTotalNearbyEnemyACUCount > iNearbyFriendlyACUCount then
-                                                                iACUFactor = iACUFactor * 0.9
-                                                                iAggressiveFactor = iAggressiveFactor * 0.85
-                                                                bEnemyHasPDOrSignificantACUs = true
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will be a bit more cautious given more enemy ACUs than friendly ACUs') end
+                                                            if iTotalNearbyEnemyACUCount >= 2 then
+                                                                local iNearbyFriendlyACUWithGoodRangeCount = 0
+                                                                local iNearbyFriendlyACUCount = 0
+                                                                --Get nearby friendly ACUs
+                                                                for iFriendlyACU, oFriendlyACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
+                                                                    if M28UnitInfo.IsUnitValid(oFriendlyACU) then
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Dist of friendly ACU owned by brain '..oFriendlyACU:GetAIBrain().Nickname..' to us='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oFriendlyACU:GetPosition())..'; Their combat range='..oFriendlyACU[M28UnitInfo.refiCombatRange]) end
+                                                                        if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oFriendlyACU:GetPosition()) <= 20 + oFriendlyACU[M28UnitInfo.refiCombatRange] then
+                                                                            iNearbyFriendlyACUCount = iNearbyFriendlyACUCount + 1
+                                                                            if oFriendlyACU[M28UnitInfo.refiCombatRange] >= oACU[M28UnitInfo.refiDFRange] - 3 then
+                                                                                iNearbyFriendlyACUWithGoodRangeCount = iNearbyFriendlyACUWithGoodRangeCount + 1
+                                                                            end
+                                                                        end
+                                                                    end
+                                                                end
+                                                                if iNearbyEnemyACUWithGoodRangeCount >= 4 or iNearbyEnemyACUWithGoodRangeCount > iNearbyFriendlyACUCount or (iNearbyEnemyACUWithGoodRangeCount >= iNearbyFriendlyACUWithGoodRangeCount and iTotalNearbyEnemyACUCount > iNearbyFriendlyACUWithGoodRangeCount) then
+                                                                    iACUFactor = iACUFactor * 0.8
+                                                                    iAggressiveFactor = math.min(0.9, iAggressiveFactor * 0.7)
+                                                                    bEnemyHasPDOrSignificantACUs = true
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': will be significantly more cautious given enemy has more ACUs') end
+                                                                elseif iTotalNearbyEnemyACUCount > iNearbyFriendlyACUCount then
+                                                                    iACUFactor = iACUFactor * 0.9
+                                                                    iAggressiveFactor = iAggressiveFactor * 0.85
+                                                                    bEnemyHasPDOrSignificantACUs = true
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will be a bit more cautious given more enemy ACUs than friendly ACUs') end
+                                                                end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': iNearbyFriendlyACUCount='..iNearbyFriendlyACUCount..'; iNearbyEnemyACUWithGoodRangeCount='..iNearbyEnemyACUWithGoodRangeCount..'; iTotalNearbyEnemyACUCount='..iTotalNearbyEnemyACUCount..'; iACUFactor='..iACUFactor..'; iAggressiveFactor='..iAggressiveFactor..'; Adjusted enemy threat='..iEnemyNearbyThreat / iAggressiveFactor..'; Our allied threat='..iACUThreat * iACUFactor + iAllyNearbyThreat) end
                                                             end
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': iNearbyFriendlyACUCount='..iNearbyFriendlyACUCount..'; iNearbyEnemyACUWithGoodRangeCount='..iNearbyEnemyACUWithGoodRangeCount..'; iTotalNearbyEnemyACUCount='..iTotalNearbyEnemyACUCount..'; iACUFactor='..iACUFactor..'; iAggressiveFactor='..iAggressiveFactor..'; Adjusted enemy threat='..iEnemyNearbyThreat / iAggressiveFactor..'; Our allied threat='..iACUThreat * iACUFactor + iAllyNearbyThreat) end
                                                         end
                                                     elseif iPercentageToFriendlyBase > 0.3 then
                                                         --Alternative T2 check - consider running if lots of T2 PD threat (vs above which just runs if any) - Check how many T2 PD are nearby (if any), along with shields, and dont be aggressive if we are almost in their range
@@ -2862,10 +2864,12 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
             if (tLZOrWZTeamData[M28Map.subrefLZCoreExpansion] or (tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.35 and GetGameTimeSeconds() <= 600 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.8 and (tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.2 or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= 125))) and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and GetGameTimeSeconds() <= 840 then
                 local iClosestEnemyACU = 10000
                 local iCurDist
-                for iEnemyACU, oEnemyACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
-                    if (oEnemyACU[M28UnitInfo.refiDFRange] or 0) > (oACU[M28UnitInfo.refiDFRange] or 0) then
-                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
-                        if iCurDist < iClosestEnemyACU then iClosestEnemyACU = iCurDist end
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+                    for iEnemyACU, oEnemyACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+                        if (oEnemyACU[M28UnitInfo.refiDFRange] or 0) > (oACU[M28UnitInfo.refiDFRange] or 0) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
+                            if iCurDist < iClosestEnemyACU then iClosestEnemyACU = iCurDist end
+                        end
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iClosestEnemyACU with better range than us='..iClosestEnemyACU) end
@@ -3275,22 +3279,24 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                 if M28Utilities.IsTableEmpty(toNearbyFriendlyACUs) == false then
                     local iEnemyACUSearchDistance = iFriendlyACUSearchDistance + 35
                     local iOurDistToACU, iFriendlyDistToACU
-                    for iEnemyACU, oEnemyACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
-                        if not(oEnemyACU.Dead) then
-                            iOurDistToACU = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy ACU owned by '..oEnemyACU:GetAIBrain().Nickname..'; iOurDistToACU='..iOurDistToACU..'; iEnemyACUSearchDistance='..iEnemyACUSearchDistance) end
-                            if iOurDistToACU <= iEnemyACUSearchDistance then
-                                if oEnemyACU[M28UnitInfo.refiDFRange] > oACU[M28UnitInfo.refiDFRange] then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': enemy has an ACU that outranges us and is relatively close so we wont consider supporting friendly ACUs') end
-                                    oEnemyToTarget = nil --redundancy
-                                    break
-                                else
-                                    --Enemy ACU is close enough to us that we might be able to help in the fight; is it closer to a friendly ACU than to us (and by a notable distance)
-                                    for iFriendlyACU, oFriendlyACU in toNearbyFriendlyACUs do
-                                        iFriendlyDistToACU = M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oEnemyACU:GetPosition())
-                                        if iFriendlyDistToACU < iOurDistToACU - 5 and iFriendlyDistToACU < math.min(iOurDistToACU - 15, 15 + oACU[M28UnitInfo.refiDFRange]) then
-                                            iEnemyACUSearchDistance = iOurDistToACU
-                                            oEnemyToTarget = oEnemyACU
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+                        for iEnemyACU, oEnemyACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+                            if not(oEnemyACU.Dead) then
+                                iOurDistToACU = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy ACU owned by '..oEnemyACU:GetAIBrain().Nickname..'; iOurDistToACU='..iOurDistToACU..'; iEnemyACUSearchDistance='..iEnemyACUSearchDistance) end
+                                if iOurDistToACU <= iEnemyACUSearchDistance then
+                                    if oEnemyACU[M28UnitInfo.refiDFRange] > oACU[M28UnitInfo.refiDFRange] then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': enemy has an ACU that outranges us and is relatively close so we wont consider supporting friendly ACUs') end
+                                        oEnemyToTarget = nil --redundancy
+                                        break
+                                    else
+                                        --Enemy ACU is close enough to us that we might be able to help in the fight; is it closer to a friendly ACU than to us (and by a notable distance)
+                                        for iFriendlyACU, oFriendlyACU in toNearbyFriendlyACUs do
+                                            iFriendlyDistToACU = M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oEnemyACU:GetPosition())
+                                            if iFriendlyDistToACU < iOurDistToACU - 5 and iFriendlyDistToACU < math.min(iOurDistToACU - 15, 15 + oACU[M28UnitInfo.refiDFRange]) then
+                                                iEnemyACUSearchDistance = iOurDistToACU
+                                                oEnemyToTarget = oEnemyACU
+                                            end
                                         end
                                     end
                                 end

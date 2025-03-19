@@ -2232,19 +2232,20 @@ function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPla
                 --tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZRef]][M28Map.subrefLZPath][1]
             end
         end
-
-        for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
-            if M28UnitInfo.IsUnitValid(oACU) then
-                iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tMidpoint)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..'; iCurDist Distance to midpoint='..iCurDist..'; iDistanceThreshold='..iDistanceThreshold) end
-                if iCurDist <= iDistanceThreshold then
-                    --Consider whether we pass through another core base first
-                    if iCurDist <= 90 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (iCurDist <= 120 and not(tLZTeamData[M28Map.refbBaseInSafePosition])) or (aiBrain[M28Overseer.refbPrioritiseDefence] and iCurDist <= 180) or not(DoWePathThroughOtherCoreBaseFirst(oACU)) then
-                        table.insert(tACUsInRange, oACU)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU as an in range enemy unit') end
-                        if iCurDist < iNearestACUDist then
-                            iNearestACUDist = iCurDist
-                            oNearestACU = oACU
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+            for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+                if M28UnitInfo.IsUnitValid(oACU) then
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tMidpoint)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..'; iCurDist Distance to midpoint='..iCurDist..'; iDistanceThreshold='..iDistanceThreshold) end
+                    if iCurDist <= iDistanceThreshold then
+                        --Consider whether we pass through another core base first
+                        if iCurDist <= 90 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (iCurDist <= 120 and not(tLZTeamData[M28Map.refbBaseInSafePosition])) or (aiBrain[M28Overseer.refbPrioritiseDefence] and iCurDist <= 180) or not(DoWePathThroughOtherCoreBaseFirst(oACU)) then
+                            table.insert(tACUsInRange, oACU)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU as an in range enemy unit') end
+                            if iCurDist < iNearestACUDist then
+                                iNearestACUDist = iCurDist
+                                oNearestACU = oACU
+                            end
                         end
                     end
                 end

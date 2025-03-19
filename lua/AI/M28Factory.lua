@@ -3912,13 +3912,15 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                             if GetGameTimeSeconds() - (oFactory[refiFirstTimeOfLastOrder] or -100) >= 5 then --If changing the time from 5s need to also change it in the delayedcheck function
                                 --Redundancy with code here - would expect this to be called via DelayedCheckifFactoryBuildingAndRetry
                                 MovePotentialBlockingUnitsFromFactory(oFactory)
-
                             end
                         else
                             oFactory[refiFirstTimeOfLastOrder] = GetGameTimeSeconds()
                             if bDebugMessages == true then LOG(sFunctionRef..': Setting refiFirstTimeOfLastOrder='..oFactory[refiFirstTimeOfLastOrder]) end
                             ForkThread(DelayedCheckIfFactoryBuildingAndRetry, oFactory)
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to send a tracked factory build, sBPToBuild='..sBPToBuild..'; bDontWait='..tostring(bDontWait or false)..'; Factory work progress='..oFactory:GetWorkProgress()..'; Factory last orders='..repru(oFactory[M28Orders.reftiLastOrders])) end
+                        --Campaign - clear orders if work progress is 0 to protect against issues where campaign AI script tells the factory to build something it cant due to unit restrictions
+                        if M28Map.bIsCampaignMap and oFactory:GetWorkProgress() == 0 then M28Orders.IssueTrackedClearCommands(oFactory) end
                         M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
                     end
                 else
@@ -4343,8 +4345,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
         end
         if sBPIDToBuild then
+            if bDebugMessages == true then LOG(sFunctionRef..': Blueprint still valid after considering overrides') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
             return sBPIDToBuild
+        elseif bDebugMessages == true then LOG(sFunctionRef..': No valid BP after override')
         end
     end
 
@@ -4609,12 +4613,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         --Multiple mex upgrades so want more engineers (air fac low power), if only to assist the upgrade (and also so once upgraded we have enough build power)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if M28Conditions.WantMoreEngineersToAssistMexUpgradeAsPriority(tLZTeamData, iTeam) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have multiple upgrading mexes so want another engi') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
 
         --Torp bomber if LC is <=2 and enemy has torp threat
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] < 400 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTorpBomber) < 2 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Wnat a torp bomber') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
         end
 
@@ -4678,6 +4684,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         --Upgrade t1 fac to t2 if have t3 mexes in the zone and not stalling power
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if iFactoryTechLevel == 1 and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 400 and ConsiderUpgrading() then return sBPIDToBuild end
+
+
+        if bDebugMessages == true then LOG(sFunctionRef..': end of low power builders') end
     else
         --Emergency air defence
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -4958,10 +4967,15 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
             --Determine the AirAA category to produce
             local iAirAASearchCategory
-            if iFactoryTechLevel < 3 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs]) then
+            if iFactoryTechLevel == 3 then
                 iAirAASearchCategory = M28UnitInfo.refCategoryAirAA
+                if bDebugMessages == true then LOG(sFunctionRef..': Will get any airaa unit for airaa category') end
+            elseif iFactoryTechLevel < 3 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs]) then
+                iAirAASearchCategory = M28UnitInfo.refCategoryAirAA
+                if bDebugMessages == true then LOG(sFunctionRef..': Not prioritising asfs so will get any airaa unit for airaa category') end
             else
                 iAirAASearchCategory = M28UnitInfo.refCategoryAirAA * categories.TECH3
+                if bDebugMessages == true then LOG(sFunctionRef..': Will only get T3 airaa units from air facs') end
             end
             local iAirAACountOfSearchCategory = aiBrain:GetCurrentUnits(iAirAASearchCategory)
 
@@ -5398,9 +5412,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     iAirAAWanted = math.max(iAirAAWanted, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 0.75 + math.max(0, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 4000) * 0.3 + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] * 0.75)
                 end
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Will consider getting AirAA in proportion to gunship threat now, Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..';  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]='.. M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; iAirAAWanted='..iAirAAWanted) end
-                if iAirAACountOfSearchCategory < 400 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < iAirAAWanted and (not (bHaveLowMass) or not (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will consider getting AirAA in proportion to gunship threat now, iAirAACountOfSearchCategory='..iAirAACountOfSearchCategory..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..';  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]='.. M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; iAirAAWanted='..iAirAAWanted) end
+                if iAirAACountOfSearchCategory < 400 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < iAirAAWanted and (not (bHaveLowMass) or not (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < 30000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < iAirAAWanted * 0.7)) then
                     --Cap total number of AirAA built bsaed on enemy threat
+                    if bDebugMessages == true then LOG(sFunctionRef..': Getting AirAA units') end
                     if iAirAASearchCategory and ConsiderBuildingCategory(iAirAASearchCategory) then return sBPIDToBuild end
                 end
 
@@ -5710,6 +5725,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             if not(sBPIDToBuild) and not(bIsEngineer) and iFactoryTechLevel < 3 and aiBrain[M28Overseer.refbCloseToUnitCap] then
                 sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
             end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': BP to build after adjusting for override is nil') end
         end
         if sBPIDToBuild then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
