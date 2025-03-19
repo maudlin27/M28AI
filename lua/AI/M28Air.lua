@@ -11792,21 +11792,23 @@ function AssessPotentialBomberSnipeTargetsNowReachedT2Air(iTeam)
         --Are there any ACUs on the enemy team out of position and with low max health?
         local toPotentialACUsByTeam = {}
         local iCurTeam
-        for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering ACU owned by player '..oACU:GetAIBrain().Nickname..'; Is underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oACU))..'; Recent bomber snipe attempts='..(oACU[M28UnitInfo.refiRecentBomberSnipeAttempts] or 'nil')..'; Unit max health incl shield='..M28UnitInfo.GetUnitMaxHealthIncludingShield(oACU)) end
-            if M28UnitInfo.IsUnitValid(oACU) and not(M28UnitInfo.IsUnitUnderwater(oACU)) and (oACU[M28UnitInfo.refiRecentBomberSnipeAttempts] or 0) == 0 then
-                local iMaxHealth = M28UnitInfo.GetUnitMaxHealthIncludingShield(oACU)
-                if iMaxHealth <= 16000 or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and iMaxHealth <= 26000) then
-                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, iTeam)
-                    if bDebugMessages == true then LOG(sFunctionRef..': ACU mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; Enemy groundAA='..tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; Enemy shield threat='..tLZTeamData[M28Map.subrefThreatEnemyShield]) end
-                    if (tLZTeamData[M28Map.refiModDistancePercent] <= 0.8 or M28Map.iMapSize <=512) and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] <= 2000 and tLZTeamData[M28Map.subrefThreatEnemyShield] <= 400 then
-                        iCurTeam = oACU:GetAIBrain().M28Team
-                        if not(toPotentialACUsByTeam[iCurTeam]) then toPotentialACUsByTeam[iCurTeam] = {} end
-                        table.insert(toPotentialACUsByTeam[iCurTeam], oACU)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU to table of potential snipe targets') end
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+            for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering ACU owned by player '..oACU:GetAIBrain().Nickname..'; Is underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oACU))..'; Recent bomber snipe attempts='..(oACU[M28UnitInfo.refiRecentBomberSnipeAttempts] or 'nil')..'; Unit max health incl shield='..M28UnitInfo.GetUnitMaxHealthIncludingShield(oACU)) end
+                if M28UnitInfo.IsUnitValid(oACU) and not(M28UnitInfo.IsUnitUnderwater(oACU)) and (oACU[M28UnitInfo.refiRecentBomberSnipeAttempts] or 0) == 0 then
+                    local iMaxHealth = M28UnitInfo.GetUnitMaxHealthIncludingShield(oACU)
+                    if iMaxHealth <= 16000 or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and iMaxHealth <= 26000) then
+                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, iTeam)
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; Enemy groundAA='..tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; Enemy shield threat='..tLZTeamData[M28Map.subrefThreatEnemyShield]) end
+                        if (tLZTeamData[M28Map.refiModDistancePercent] <= 0.8 or M28Map.iMapSize <=512) and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] <= 2000 and tLZTeamData[M28Map.subrefThreatEnemyShield] <= 400 then
+                            iCurTeam = oACU:GetAIBrain().M28Team
+                            if not(toPotentialACUsByTeam[iCurTeam]) then toPotentialACUsByTeam[iCurTeam] = {} end
+                            table.insert(toPotentialACUsByTeam[iCurTeam], oACU)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU to table of potential snipe targets') end
+                        end
                     end
-                end
 
+                end
             end
         end
         if M28Utilities.IsTableEmpty(toPotentialACUsByTeam) == false then

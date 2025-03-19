@@ -337,7 +337,7 @@ function GetUnitToTravelToWaterZone(oUnit, iTargetPond, iTargetWaterZone, subref
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RemoveUnitFromListOfUnitsTravelingToWaterZone(oUnit)
+function RemoveUnitFromListOfUnitsTravelingToWaterZone(oUnit, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RemoveUnitFromListOfUnitsTravelingToWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -354,7 +354,7 @@ function RemoveUnitFromListOfUnitsTravelingToWaterZone(oUnit)
 
             local iTargetWaterZone = oUnit[refiWZToMoveTo]
             local iTargetPond = M28Map.tiPondByWaterZone[iTargetWaterZone]
-            local tTravelingUnits = M28Map.tPondDetails[iTargetPond][M28Map.subrefPondWaterZones][iTargetWaterZone][M28Map.subrefWZTeamData][oUnit:GetAIBrain().M28Team][sUnitTableRef]
+            local tTravelingUnits = M28Map.tPondDetails[iTargetPond][M28Map.subrefPondWaterZones][iTargetWaterZone][M28Map.subrefWZTeamData][iTeam][sUnitTableRef]
             if M28Utilities.IsTableEmpty(tTravelingUnits) == false then
                 for iTravelUnit, oTravelUnit in tTravelingUnits do
                     if oTravelUnit == oUnit then
@@ -5485,7 +5485,7 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
                     if oScout[refiWZToMoveTo] == iWaterZone then
                         --Clear this unit from list of traveling units, but dont make it available as want a slight delay, so want it to be available on the next cycle
                         if bDebugMessages == true then LOG(sFunctionRef..': Scout is traveling to this land zone and is here so will clear the trackers so next cycle it is shown as available') end
-                        RemoveUnitFromListOfUnitsTravelingToWaterZone(oScout)
+                        RemoveUnitFromListOfUnitsTravelingToWaterZone(oScout, iTeam)
                         tWZTeamData[M28Map.refbWantLandScout] = false
                     else
                         --Scout should be traveling to another land zone - if it has no orders then refresh them

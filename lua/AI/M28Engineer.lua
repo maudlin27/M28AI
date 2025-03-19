@@ -19792,7 +19792,7 @@ function TrackEngineerWithHighReclaimOrder(oEngineer, oWreck, iMassAbortThreshol
                     tEnemiesToSearch = tLZOrWZTeamData[M28Map.reftoNearestCombatEnemies]
                 end
                 if M28Utilities.IsTableEmpty(tEnemiesToSearch) == false then
-                    bRunFromEnemy = M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 3, iTeam, true, nil, nil, oEngineer)
+                    bRunFromEnemy = M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tEnemiesToSearch, 3, iTeam, true, nil, nil, oEngineer)
                     if bDebugMessages == true then LOG(sFunctionRef..': bRunFromEnemy='..tostring(bRunFromEnemy))
                         if bRunFromEnemy then LOG(sFunctionRef..': Dist to closest enemy='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oEngineer[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())..'; Engi build rnage='..iEngiBuildRange) end
                     end

@@ -1800,7 +1800,7 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
 
                     --Does the closest first zone closer to the enemy and has significantly more enemy combat threat than the second closest first zone?
                     if bDebugMessages == true then LOG(sFunctionRef..': iLandZone='..iLandZone..'; iPlateua='..iPlateau..'; First closest LZ='..iClosestFirstZone..'; Second closest first zone='..(iSecondClosestFirstZone or 'nil')..'; ClosestFirstZoneModDist%='..(tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Second closest='..(tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; Closest net combat='..iClosestGrossThreat..'; Second closest net combat='.. (iSecondClosestGrossThreat or 'nil')..'; iSecondClosestLZRef='..(iSecondClosestLZRef or 'nil')..'; iSecondClosestDist='..(iSecondClosestDist or 'nil')..'; iClosestGrossThreat='..iClosestGrossThreat..'; iSecondClosestGrossThreat='..(iSecondClosestGrossThreat or 'nil')) end
-                    if iSecondClosestLZRef and tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] > tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.8 and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 1.2 * (tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) then
+                    if iSecondClosestLZRef and tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] > tSecondClosestFirstZoneLZTeamData[M28Map.refiModDistancePercent] and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > (tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 0.8 and tClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - (tClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) > 1.2 * ((tSecondClosestFirstZoneLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tSecondClosestFirstZoneLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Switching rally point so will treat second closest as the actual closest') end
                         iClosestLZRef = iSecondClosestLZRef
                         iClosestDist = iSecondClosestDist
@@ -3364,7 +3364,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageRASSACUsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if iLandZone == 1 then bDebugMessages = true end
     --Manages SACUs to be assigned engineer type duties (wont always be RAS SACUs - e.g. might be LOUD where we want SACUs to build experimentals
     --Gameender duty - have RAS SACUs assist with building a gameender/t3 arti/novax in the zone and associated shielding, if we have an active template
     local bProceed = true
@@ -3420,7 +3420,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     end
 
     --If have any SACUs without RAS upgrade that could get it, then get RAS upgrade, provided no enemies in the zone (LOUD - only doe this if close to unit cap or defending against t3 arti since that will stop us building mass fabs, due to how bad ras is)
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering getting RAS if no enemies in LZ and not LOUD, tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; Enemy air to ground='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Unit cap level='..M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel]..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Team mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering getting RAS if no enemies in LZ and not LOUD, tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; Enemy air to ground='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Unit cap level='..(M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 'nil')..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Team mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
     if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) <= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
         local tSACUsToUpgrade = {}
         local tSACUsUpgrading = {}
@@ -3446,7 +3446,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                         table.insert(tSACUsToUpgrade, oSACU)
                         table.remove(tSACUs, iSACU)
                         if bWantBuildPower and (oSACU[M28ACU.refiUpgradeCount] or 0) == 0  then bWantBuildPower = false end --i.e. better to just get bild power on 1 and assist with others, than try to get on all at the same time
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have added SACU to table of SACUs to upgrade') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have added SACU to table of SACUs to upgrade, sUpgradeWanted='..sUpgradeWanted) end
                     end
                 end
             end
@@ -3543,7 +3543,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
         local iLandToWaterRatio = 10
         if aiBrain[M28Overseer.refbPrioritiseNavy] then iLandToWaterRatio = 0.5
-        elseif not(aiBrain[M28Overseer.refbCanPathToEnemyBaseWithLand]) then iLandToWaterRatio = 2
+        elseif not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then iLandToWaterRatio = 2
         end
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]) == false then iCurSACUsAssignedToWaterZones = table.getn(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]) end
         if iCurSACUsInLandZone > iCurSACUsAssignedToWaterZones * iLandToWaterRatio then
@@ -4589,19 +4589,20 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
                 local iCurDist
                 local oClosestACUNearUnit
-
-                for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
-                    if M28UnitInfo.IsUnitValid(oACU) then
-                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])
-                        if bDebugMessages == true then LOG(sFunctionRef..': Dist to ACU owned by '..oACU:GetAIBrain().Nickname..'='..iCurDist) end
-                        if iCurDist < iClosestACU and not(M28UnitInfo.IsUnitUnderwater(oACU)) and not(oACU:IsUnitState('Attached')) then
-                            --Check this isnt a deadly ACU (i.e. 10k+ of mass upgrades)
-                            if (oACU[M28UnitInfo.refiDFMassThreatOverride] or 0) < 10000 and not(oACU[M28UnitInfo.refbUnitIsCloaked]) then
-                                --Check on same plateau as us
-                                local iACUPlateau, iACUZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
-                                if iACUPlateau == iPlateau then
-                                    iClosestACU = iCurDist
-                                    oClosestACUNearUnit = oACU
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+                    for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+                        if M28UnitInfo.IsUnitValid(oACU) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dist to ACU owned by '..oACU:GetAIBrain().Nickname..'='..iCurDist) end
+                            if iCurDist < iClosestACU and not(M28UnitInfo.IsUnitUnderwater(oACU)) and not(oACU:IsUnitState('Attached')) then
+                                --Check this isnt a deadly ACU (i.e. 10k+ of mass upgrades)
+                                if (oACU[M28UnitInfo.refiDFMassThreatOverride] or 0) < 10000 and not(oACU[M28UnitInfo.refbUnitIsCloaked]) then
+                                    --Check on same plateau as us
+                                    local iACUPlateau, iACUZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
+                                    if iACUPlateau == iPlateau then
+                                        iClosestACU = iCurDist
+                                        oClosestACUNearUnit = oACU
+                                    end
                                 end
                             end
                         end
@@ -5028,7 +5029,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
             end
             --More detailed check of nearby ACUs if we have an experimental, as sometimes an ACU can be in an adjacent zone near to our unit
-            if M28Utilities.IsTableEmpty(toEnemyACUsNearZone) and iAvailableCombatUnitThreat >= 5000 then
+            if M28Utilities.IsTableEmpty(toEnemyACUsNearZone) and iAvailableCombatUnitThreat >= 5000 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
                 for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
                     if bDebugMessages == true then LOG(sFunctionRef..': ACU doublecheck, ACU brain='..oACU:GetAIBrain().Nickname..'; dist to this zone midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
                     if not(oACU.Dead) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 150 then
