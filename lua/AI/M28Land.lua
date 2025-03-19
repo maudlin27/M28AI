@@ -4097,7 +4097,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iLandZone == 16 and GetGameTimeSeconds() >= 18.8*60 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileIndirectByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange])..'; subrefLZThreatAllyMobileDFByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Enemy mobile DF='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Threat of tAvailableCombatUnits='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, false, false)..'; subrefiAvailableMobileShieldThreat='..(tLZTeamData[M28Map.subrefiAvailableMobileShieldThreat] or 0)..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]..'; Time='..GetGameTimeSeconds())
@@ -5855,6 +5855,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         local iEnemyRangeThreshold = (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 5)
                         for iEnemy, oEnemy in tNearestEnemyLZTeamData[M28Map.reftoNearestDFEnemies] do
                             --Only consider enemies that outrange the nearest enemy (since if they're the same or less range then we can kite them with the same units that can kite the nearest enemy)
+                            if bDebugMessages == true then LOG(sFunctionRef..': considering how close nearby DF units are to closest enemy, factoring in their range, oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF range='..oEnemy[M28UnitInfo.refiDFRange]..'; iEnemyRangeThreshold='..iEnemyRangeThreshold..'; Dist between positions='..M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition())..'; iClosestDistLessRange before update='..iClosestDistLessRange) end
                             if (oEnemy[M28UnitInfo.refiDFRange] or 0) > iEnemyRangeThreshold then
                                 iClosestDistLessRange = math.min(iClosestDistLessRange, M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition()) - oEnemy[M28UnitInfo.refiDFRange])
                             end
@@ -5863,15 +5864,20 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local iFriendlyDFRangeThresholdBasedOnAbove
                     if iClosestDistLessRange * -1 + 8 > (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) then
                         iFriendlyDFRangeThresholdBasedOnAbove = iClosestDistLessRange * -1 + 8
+                        if bDebugMessages == true then LOG(sFunctionRef..': Updating range threshold for +8, iFriendlyDFRangeThresholdBasedOnAbove='..iFriendlyDFRangeThresholdBasedOnAbove..'; iClosestDistLessRange='..iClosestDistLessRange) end
                     else
                         iFriendlyDFRangeThresholdBasedOnAbove = (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) + 3
+                        if bDebugMessages == true then LOG(sFunctionRef..': Updating range threshold for +3, iFriendlyDFRangeThresholdBasedOnAbove='..iFriendlyDFRangeThresholdBasedOnAbove..'; iClosestDistLessRange='..iClosestDistLessRange) end
                     end
 
                     if iDFRangeOverrideForScenario1 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Updating threshold to the lower of iDFRangeOverrideForScenario1 and iFriendlyDFRangeThresholdBasedOnAbove, iDFRangeOverrideForScenario1='..iDFRangeOverrideForScenario1..'; iFriendlyDFRangeThresholdBasedOnAbove='..iFriendlyDFRangeThresholdBasedOnAbove) end
                         iDFRangeOverrideForScenario1 = math.min(iDFRangeOverrideForScenario1, iFriendlyDFRangeThresholdBasedOnAbove)
+                    elseif bAreInScenario1 and iFriendlyBestMobileDFRange > iEnemyBestDFRange + 2 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Are in scenario 1 so making lower of enemy range and the other values, iDFRangeOverrideForScenario1='..iDFRangeOverrideForScenario1..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iEnemyBestDFRange='..iEnemyBestDFRange) end
+                        iDFRangeOverrideForScenario1 = math.min(iFriendlyDFRangeThresholdBasedOnAbove, iEnemyBestDFRange + 2)
                     else
                         iDFRangeOverrideForScenario1 = iFriendlyDFRangeThresholdBasedOnAbove
-                        if bAreInScenario1 then iDFRangeOverrideForScenario1 = math.min(iDFRangeOverrideForScenario1, iFriendlyBestMobileDFRange, iEnemyBestDFRange + 1) end
                     end
                     if not(bAreInScenario1) and iFriendlyBestMobileDFRange > iDFRangeOverrideForScenario1 then
                         bAreInScenario1 = true
