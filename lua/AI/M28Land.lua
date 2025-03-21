@@ -673,6 +673,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                 if oUnit[M28UnitInfo.refiDFRange] > 0 and oUnit:GetFractionComplete() >= 1 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if iCurThreat > 0 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording PD threat of oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurThreat='..iCurThreat..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iUnit='..iUnit) end
                         if not(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] = {} end
                         tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
                     end
