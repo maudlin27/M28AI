@@ -91,7 +91,7 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
                 if M28Utilities.DoesAINicknameContainM28(oBrain.Nickname) or tonumber(ScenarioInfo.Options.M28Teams) == 3 or (tonumber(ScenarioInfo.Options.M28Teams) == 2 and (iTeam <= 0 or iTeam == 1 or iTeam == 3 or iTeam == 5 or iTeam == 7)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Will apply M28 logic to the AI, math.round(oBrain.CheatValue)='..math.round(oBrain.CheatValue*10)*0.1..'; Is this 1.0='..tostring(math.round(oBrain.CheatValue*10)*0.1 == 1.0)) end
                     oBrain.M28AI = true
-                    if ScenarioInfo.Options.CmM28Easy == 1 or M28Utilities.DoesAINicknameContainM28(oBrain.Nickname, true) then
+                    if ScenarioInfo.Options.CmM28CampPers == 1 or M28Utilities.DoesAINicknameContainM28(oBrain.Nickname, true) then
                         oBrain.M28Easy = true
                     end
                     M28Utilities.bM28AIInGame = true
@@ -353,7 +353,7 @@ InitializeArmies = function()
                     if tonumber(ScenarioInfo.Options.M28Teams) == 2 or iTeam <= 0 or iTeam == 1 or iTeam == 3 or iTeam == 5 or iTeam == 7 then
                         LOG('Will apply M28 logic to the AI')
                         oBrain.M28AI = true
-                        if ScenarioInfo.Options.CmM28Easy == 1 then
+                        if ScenarioInfo.Options.CmM28CampPers == 1 then
                             oBrain.M28Easy = true
                         end
                         M28Utilities.bM28AIInGame = true

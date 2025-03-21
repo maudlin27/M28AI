@@ -159,21 +159,56 @@ AIOpts = {
     },
     {
         default = 2,
-        label = "M28 Coop: Use M28Easy?",
-        help = "If M28 is being applied to hostile and/or allied campaign AI, this makes them use M28Easy logic (which disables most micro used by M28)",
-        key = 'CmM28Easy',
+        label = "M28 Coop: M28 personality",
+        help = "If M28 is being applied to hostile and/or allied campaign AI, this allows you to change the M28 personality (which will get applied to all the M28 campaign AI)",
+        key = 'CmM28CampPers',
         value_text = "",
-        value_help = "Use M28Easy logic, disabling most micro?",
+        value_help = "M28 personality to use",
         values = {
             { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
-                text = 'Yes',
+                text = 'M28Easy',
                 help = 'Apply M28Easy logic',
                 key = 1,
             },
             {
-                text = 'No',
-                help = 'Use normal M28AI logic',
+                text = 'Adaptive',
+                help = 'Use normal M28AI Adaptive logic',
                 key = 2,
+            },
+            {
+                text = 'Air',
+                help = 'Use M28 Air personality',
+                key = 3,
+            },
+            {
+                text = 'Land',
+                help = 'Use M28 Land personality',
+                key = 4,
+            },
+            {
+                text = 'Rush',
+                help = 'Use M28 Rush personality',
+                key = 5,
+            },
+            {
+                text = 'Tech',
+                help = 'Use M28 Tech personality',
+                key = 6,
+            },
+            {
+                text = 'Turtle',
+                help = 'Use M28 Turtle personality',
+                key = 7,
+            },
+            {
+                text = 'Navy',
+                help = 'Use M28 Navy personality',
+                key = 8,
+            },
+            {
+                text = 'Random',
+                help = 'Use Random M28AI personality',
+                key = 9,
             },
         },
     },
