@@ -3020,7 +3020,8 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     if bDebugMessages == true then LOG(sFunctionRef..': will get long ranged PD') end
                 end
             end
-            if M28Building.bHaveAllFactionExperimentalSAM and not(iCategoryWanted) and not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) and tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] < 30000 and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 30000 and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.max(3, tLZOrWZData[M28Map.subrefLZMexCount]) then
+            --T4 SAMs - if have less than enemy air to ground threat, and also less than between 30k-50k groundAA threat (depending on enemy air to ground threat), and are far behind on air, the nconsider building
+            if M28Building.bHaveAllFactionExperimentalSAM and not(iCategoryWanted) and not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) and tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] < math.max(math.min(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat], 30000), math.min(60000,M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.4)) and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 30000 and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.max(3, tLZOrWZData[M28Map.subrefLZMexCount]) then
                 iCategoryWanted = M28UnitInfo.refCategoryStructureAA * categories.EXPERIMENTAL
                 if bDebugMessages == true then LOG(sFunctionRef..': want T4 SAM') end
             end
