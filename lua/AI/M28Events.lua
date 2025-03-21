@@ -198,7 +198,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                             --Track non-experimental air units
                             if EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber - M28UnitInfo.refCategoryTorpBomber - categories.EXPERIMENTAL, oUnitKilled.UnitId) then
                                 if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnitKilled.UnitId) then
-                                    M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
+                                    M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] = M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
                                 else
                                     M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
                                     --Adjust gunship retreat logic if killed by a ground unit
@@ -211,6 +211,11 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                             M28Air.iProjectileLowHealthThreshold = M28Air.iProjectileLowHealthThreshold + 0.02
                                         end
                                     end
+                                end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnitKilled.UnitId) then
+                                --If we died to enemy air unit then track
+                                if oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryAirNonScout, oKillerUnit.UnitId) then
+                                    M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] = M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
                                 end
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitKilled.UnitId) and not(iTeam == oKillerUnit:GetAIBrain().M28Team) then
                                 if oKillerUnit:GetAIBrain().M28Team then
@@ -259,10 +264,14 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber - M28UnitInfo.refCategoryTorpBomber - categories.EXPERIMENTAL, oKillerUnit.UnitId) then
                                 local iTeam = oKillerUnit:GetAIBrain().M28Team
                                 if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oKillerUnit.UnitId) then
-                                    M28Team.tTeamData[iTeam][M28Team.refiBomberKills] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
+                                    M28Team.tTeamData[iTeam][M28Team.refiBomberKills] = M28Team.tTeamData[iTeam][M28Team.refiBomberKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                                 else
-                                    M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] = M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
+                                    M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] = M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                                 end
+                                --AirAA tracking
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oKillerUnit.UnitId) then
+                                local iTeam = oKillerUnit:GetAIBrain().M28Team
+                                M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] = M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                             end
                             if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
                                 if M28Orders.bDontConsiderCombinedArmy or oKillerUnit.M28Active then

@@ -1146,13 +1146,14 @@ function AssignAIPersonalityAndRating(aiBrain)
 
         --Assign special brain types
         local sPersonality = ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality
-        if sPersonality == 'm28aiair' or sPersonality == 'm28aiaircheat' then aiBrain[M28Overseer.refbPrioritiseAir] = true
-        elseif sPersonality == 'm28ailand' or sPersonality == 'm28ailandcheat' then aiBrain[M28Overseer.refbPrioritiseLand] = true
-        elseif sPersonality == 'm28airush' or sPersonality == 'm28airushcheat' then aiBrain[M28Overseer.refbPrioritiseLowTech] = true aiBrain[M28Overseer.refbPrioritiseLand] = true
-        elseif sPersonality == 'm28aitech' or sPersonality == 'm28aitechcheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true
-        elseif sPersonality == 'm28aiturtle' or sPersonality == 'm28aiturtlecheat' then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
-        elseif sPersonality == 'm28ainavy' or sPersonality == 'm28ainavycheat' then aiBrain[M28Overseer.refbPrioritiseNavy] = true
-        elseif sPersonality == 'm28airandom' or sPersonality == 'm28airandomcheat' then
+
+        if sPersonality == 'm28aiair' or sPersonality == 'm28aiaircheat' or (aiBrain.CampaignAI and ScenarioInfo.Options.CmM28CampPers == 3) then aiBrain[M28Overseer.refbPrioritiseAir] = true
+        elseif sPersonality == 'm28ailand' or sPersonality == 'm28ailandcheat' or (aiBrain.CampaignAI and ScenarioInfo.Options.CmM28CampPers == 4) then aiBrain[M28Overseer.refbPrioritiseLand] = true
+        elseif sPersonality == 'm28airush' or sPersonality == 'm28airushcheat' or (aiBrain.CampaignAI and ScenarioInfo.Options.CmM28CampPers == 5) then aiBrain[M28Overseer.refbPrioritiseLowTech] = true aiBrain[M28Overseer.refbPrioritiseLand] = true
+        elseif sPersonality == 'm28aitech' or sPersonality == 'm28aitechcheat' or (aiBrain.CampaignAI and ScenarioInfo.Options.CmM28CampPers == 6) then aiBrain[M28Overseer.refbPrioritiseHighTech] = true
+        elseif sPersonality == 'm28aiturtle' or sPersonality == 'm28aiturtlecheat' or (aiBrain.CampaignAI and ScenarioInfo.Options.CmM28CampPers == 7) then aiBrain[M28Overseer.refbPrioritiseHighTech] = true aiBrain[M28Overseer.refbPrioritiseDefence] = true
+        elseif sPersonality == 'm28ainavy' or sPersonality == 'm28ainavycheat' or (aiBrain.CampaignAI and ScenarioInfo.Options.CmM28CampPers == 8) then aiBrain[M28Overseer.refbPrioritiseNavy] = true
+        elseif sPersonality == 'm28airandom' or sPersonality == 'm28airandomcheat' or (aiBrain.CampaignAI and ScenarioInfo.Options.CmM28CampPers == 9) then
             local iRand = math.random(1, 7)
             --1 - adaptive - default
             if iRand == 2 then aiBrain[M28Overseer.refbPrioritiseAir] = true

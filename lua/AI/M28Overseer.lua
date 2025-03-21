@@ -1286,7 +1286,7 @@ function CheckIfScenarioMap()
     --Thanks to Hdt80bro for highlighting ScenarioInfo.type as a better way of figuring out if this is a campaign map
     if not(ScenarioInfo.type == "skirmish") then --M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers) == false then
         M28Map.bIsCampaignMap = true
-        LOG('Are in a campaign map, shared armies setting='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')..'; CampAI='..(ScenarioInfo.Options.CampAI or 'nil')..'; Apply M28AI Easy to campaign AI='..(ScenarioInfo.Options.CmM28Easy or 'nil')..'; CmApplyAIx='..(ScenarioInfo.Options.CmApplyAIx or 'nil')..'; Hostile delay='..(ScenarioInfo.Options.CmpAIDelay or 'nil'))
+        LOG('Are in a campaign map, shared armies setting='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')..'; CampAI='..(ScenarioInfo.Options.CampAI or 'nil')..'; Apply M28AI Easy to campaign AI='..(ScenarioInfo.Options.CmM28CampPers or 'nil')..'; CmApplyAIx='..(ScenarioInfo.Options.CmApplyAIx or 'nil')..'; Hostile delay='..(ScenarioInfo.Options.CmpAIDelay or 'nil'))
         --ForkThread(CheckForScenarioObjectives) --superceded by hook of addobjective
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2471,7 +2471,7 @@ function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName, bDontWait)
         if ScenarioInfo.Options.CmApplyAIx == 1 then
             aiBrain.CheatEnabled = true
         end
-        if ScenarioInfo.Options.CmM28Easy == 1 then
+        if ScenarioInfo.Options.CmM28CampPers == 1 then
             aiBrain.M28Easy = true
         end
         LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; ScenarioInfo.Options.CmApplyAIx='..(ScenarioInfo.Options.CmApplyAIx or 'nil')..'; Brain flagged as cheat enabled='..tostring(aiBrain.CheatEnabled or false)..'; aiBrain.M28Easy='..tostring(aiBrain.M28Easy or false))

@@ -32,6 +32,8 @@ iLowestMassStorageTechAvailable = 3
 iLowestEnergyStorageTechAvailable = 3
 tiWorstPDRangeByTech = {[1]=200,[2]=200,[3]=200,[4]=200}
 iExperimentalShieldHealthValue = 90000 --i.e. if have shields with this much health or more in the game, will act as though there are overpowered shields and need to adjust approach
+bHaveAllFactionExpPD = false --true if all 4 normal factions have access to T3+ PD
+bHaveAllFactionExperimentalSAM = false --true if all 4 normal factions have access to experimental structure AA units
 
 --Variables against a unit:
     --TML and TMD
@@ -5240,7 +5242,7 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
 
                     for iTML, oTML in tLZTeamData[M28Map.reftoTMLBatteryUnits] do
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering oTML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..'; Ammo count='..oTML:GetTacticalSiloAmmoCount()..'; Time since last fired='..GetGameTimeSeconds() - (oLauncher[refiTimeLastFiredMissile] or 0)) end
-                        if oTML:GetTacticalSiloAmmoCount() > 0 then
+                        if M28UnitInfo.IsUnitValid(oTML) and oTML:GetTacticalSiloAmmoCount() > 0 then
                             if not(oLauncher[M28UnitInfo.refiLastWeaponEvent]) or GetGameTimeSeconds() - oLauncher[M28UnitInfo.refiLastWeaponEvent] > iTimeToWaitBetweenLaunches then
                                 if not(oPrimaryTML) then
                                     oPrimaryTML = oTML

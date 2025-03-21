@@ -224,8 +224,8 @@ refCategoryAllHQFactories = refCategoryFactory - categories.SUPPORTFACTORY
 refCategoryQuantumGateway = categories.STRUCTURE * categories.GATE * categories.TECH3 * categories.FACTORY - categories.EXTERNALFACTORYUNIT
 
 --Building - defensive
-refCategoryT2PlusPD = categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.DIRECTFIRE * categories.TECH1
-refCategoryPD = categories.STRUCTURE * categories.DIRECTFIRE
+refCategoryPD = categories.STRUCTURE * categories.DIRECTFIRE - categories.ANTINAVY
+refCategoryT2PlusPD = refCategoryPD - categories.TECH1
 refCategoryT3PD = refCategoryPD * categories.TECH3
 refCategoryTMD = categories.STRUCTURE * categories.ANTIMISSILE - categories.SILO * categories.TECH3 --Not perfect but should pick up most TMD without picking up SMD
 refCategoryFixedShield = categories.SHIELD * categories.STRUCTURE
@@ -1597,6 +1597,9 @@ function CalculateBlueprintThreatsByType()
             bCheckForVolatileUnits = true
         end
 
+        local tbHaveT3PlusPDByFaction = {}
+        local tbHaveExperimentalStructureAAByFaction = {}
+
         for iBP, oBP in __blueprints do
             --Updates tUnitThreatByIDAndType
             sUnitId = oBP.BlueprintId
@@ -1663,22 +1666,48 @@ function CalculateBlueprintThreatsByType()
                             end
                         end
                     end
+                    if iCurTechLevel >= 3 and EntityCategoryContains(categories.EXPERIMENTAL, sUnitId) then
+                        tbHaveT3PlusPDByFaction[GetFactionNumberFromBlueprint(sUnitId)] = true
+                    end
+                elseif EntityCategoryContains(refCategoryStructureAA * categories.EXPERIMENTAL, sUnitId) then
+                    tbHaveExperimentalStructureAAByFaction[GetFactionNumberFromBlueprint(sUnitId)] = true
                 end
 
                 if bCheckForVolatileUnits then
-                --Does unit have a death weapon with an aoe and damage?
-                if oBP.Weapon then
-                for iWeapon, tWeapon in oBP.Weapon do
-                if tWeapon.WeaponCategory == 'Death' or tWeapon.Label == 'DeathWeapon' or tWeapon.DisplayName == 'Death Weapon' then
-                if (tWeapon.DamageRadius or 0) >= 2 and tWeapon.Damage >= 100 then
-                refCategoryVolatile = refCategoryVolatile + categories[sUnitId]
+                    --Does unit have a death weapon with an aoe and damage?
+                    if oBP.Weapon then
+                        for iWeapon, tWeapon in oBP.Weapon do
+                            if tWeapon.WeaponCategory == 'Death' or tWeapon.Label == 'DeathWeapon' or tWeapon.DisplayName == 'Death Weapon' then
+                                if (tWeapon.DamageRadius or 0) >= 2 and tWeapon.Damage >= 100 then
+                                    refCategoryVolatile = refCategoryVolatile + categories[sUnitId]
+                                end
+                            end
+                        end
                     end
-                    end
-                    end
-                    end
-                    end
+                end
             end
         end
+
+        --Record if we have T3+ PD or experimental SAMs for all factions
+        if M28Utilities.IsTableEmpty(tbHaveT3PlusPDByFaction) == false then
+            local iFactionCount = 0
+            for iFaction, bHavePD in tbHaveT3PlusPDByFaction do
+                iFactionCount = iFactionCount + 1
+            end
+            if iFactionCount >= 4 then
+                M28Building.bHaveAllFactionExpPD = true
+            end
+        end
+        if M28Utilities.IsTableEmpty(tbHaveExperimentalStructureAAByFaction) == false then
+            local iFactionCount = 0
+            for iFaction, bHavePD in tbHaveExperimentalStructureAAByFaction do
+                iFactionCount = iFactionCount + 1
+            end
+            if iFactionCount >= 4 then
+                M28Building.bHaveAllFactionExperimentalSAM = true
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if can get exp PD or SAMs for all factions, bHaveAllFactionExpPD='..tostring(M28Building.bHaveAllFactionExpPD)..'; tbHaveT3PlusPDByFaction='..repru(tbHaveT3PlusPDByFaction)..'; bHaveAllFactionExperimentalSAM='..tostring(M28Building.bHaveAllFactionExperimentalSAM)..'; tbHaveExperimentalStructureAAByFaction='..repru(tbHaveExperimentalStructureAAByFaction)) end
 
         --Update engineer categories
         local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
