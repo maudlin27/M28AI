@@ -577,7 +577,7 @@ end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -829,6 +829,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         --For Cadmium green its 51.9
                         local tClosestHydroToACU
                         local iClosestDistToACU = 100000
+                        local iTravelDistThreshold = 90
+                        if M28Utilities.bQuietModActive or M28Utilities.bLoudModActive then iTravelDistThreshold = 60 end --E.g. on QUIET, setons land slot, M28 would try building hydro and end up stalling E
 
                         local iCurHydroDist
                         local bHaveUnderConstructionFirstHydro = false
@@ -837,7 +839,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
                             for iEntry, tHydro in tLZOrWZData[M28Map.subrefHydroLocations] do
                                 if bDebugMessages == true then LOG(sFunctionRef..': Travel dist to hydro='..M28Utilities.GetTravelDistanceBetweenPositions(M28Map.GetPlayerStartPosition(aiBrain), tHydro, M28Map.refPathingTypeLand)) end
-                                if M28Utilities.GetTravelDistanceBetweenPositions(M28Map.GetPlayerStartPosition(aiBrain), tHydro, M28Map.refPathingTypeLand) <= 90 then --Open palms is 85.65
+                                if M28Utilities.GetTravelDistanceBetweenPositions(M28Map.GetPlayerStartPosition(aiBrain), tHydro, M28Map.refPathingTypeLand) <= iTravelDistThreshold then --Open palms is 85.65
                                     bHydroBuildOrder = true
                                     iCurHydroDist = M28Utilities.GetTravelDistanceBetweenPositions(tHydro, oACU:GetPosition(), M28Map.refPathingTypeLand)
                                     if iCurHydroDist < iClosestDistToACU then
@@ -847,6 +849,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 end
                             end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iClosestDistToACU for hydro='..iClosestDistToACU..'; bHydroBuildOrder='..tostring(bHydroBuildOrder)) end
                         if not(bHydroBuildOrder) then
                             --Redundancy 1 incase have a hydro registered to core zone instead of nearby and we ahve travlled to nearby zone
                             local tNearbyHydro = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryHydro, oACU:GetPosition(), 35, 'Ally')
@@ -969,7 +972,10 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 end
                             end
                             local iMexCap = 4
-                            if iHydroDistToStart >= 50 and not(M28Utilities.bLoudModActive) and not(M28Utilities.bQuietModActive) then iMexCap = 3 end --e.g. Verdant Valley - dist is c.95, and we power-stall if going for 4 mexes (even after getting 4 trees).  Theta passage dist is 32; Canis river is 61 travel dist and 58 straight line and we also stall E for a while by getting 4 mexes
+                            if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
+                                iMexCap = 3
+                                if iHydroDistToStart >= 50 then iMexCap = 2 end
+                            elseif iHydroDistToStart >= 50 and not(M28Utilities.bLoudModActive) and not(M28Utilities.bQuietModActive) then iMexCap = 3 end --e.g. Verdant Valley - dist is c.95, and we power-stall if going for 4 mexes (even after getting 4 trees).  Theta passage dist is 32; Canis river is 61 travel dist and 58 straight line and we also stall E for a while by getting 4 mexes
                             local bHaveUnbuiltMexNearHydro = false
                             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
                                 local iDistanceThreshold = 80 - 5 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
