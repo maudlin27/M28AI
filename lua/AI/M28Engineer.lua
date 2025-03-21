@@ -6594,7 +6594,7 @@ function GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLa
 
     --Exclude paragon if we have high mass or nearby one (QUIET/LOUD)
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= math.min(800, math.max(350, 150 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]))
-    or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.refoNearbyExperimentalResourceGen]) == false and (M28Utilities.bQuietModActive or M28Utilities.bLOUDModActive))
+    or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.refoNearbyExperimentalResourceGen]) == false and (M28Utilities.bQuietModActive or M28Utilities.bLoudModActive))
     then
         if bDebugMessages == true then LOG(sFunctionRef..': Want to exclude paragon as we have lots of mass') end
         tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] = tLZTeamData[M28Map.refiLastGameEnderTemplateCategory] - M28UnitInfo.refCategoryParagon
