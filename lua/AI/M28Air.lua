@@ -3240,6 +3240,11 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         iFarBehindFactor = math.min(0.9, 0.75 + iEnemyThreatOverThreshold / 1000)
         iAirControlFactor = math.min(1.4, iEnemyThreatOverThreshold / 1000)
     end
+    if M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] < M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] and M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] >= 1000 then
+        local iAdjustValue = 0.1 * math.min(1.7, (M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] - M28Team.tTeamData[iTeam][M28Team.refiAirAAKills]) / 20000)
+        iFarBehindFactor = math.min(0.99, iFarBehindFactor + iAdjustValue)
+        iAirControlFactor = math.min(1.5, iAirControlFactor + iAdjustValue)
+    end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refiFarBehindFactor] = iFarBehindFactor
 
     if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * iFarBehindFactor then
@@ -3868,7 +3873,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     local iAASearchType
                     local iTorpGroundAAThreshold = 2100
                     local iTorpAirAAThreshold = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.5
-                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
+                    if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] or M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] < M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) then
                         iAASearchType = refiAvoidAllAA
                     else
                         iAASearchType = refiAvoidOnlyGroundAA
