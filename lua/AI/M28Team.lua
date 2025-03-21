@@ -5269,7 +5269,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
     end
     M28Map.CheckIfLowMexMap()
     if not(M28Map.bIsLowMexMap) and not(M28Overseer.bNoRushActive) then
-        --Early bomber chance - lower if fewer enemies, lowest being 1v1 on small map
+        --Early bomber (i.e. first air into bomber) chance - lower if fewer enemies, lowest being 1v1 on small map
         local iBomberChance
         if M28Map.iMapSize <= 256 and iPlayersAtGameStart <= 4 then
             iBomberChance = 0.1
@@ -5279,9 +5279,9 @@ function ConsiderSpecialStrategyAssignment(iTeam)
             iBomberChance = math.max(0.1, (0.5 * math.min(10, iPlayersAtGameStart) / 10))
         end
         if iBomberChance * 100 >= math.random(1, 100) then
-            --Consider early bomber strategy for brain with closest enemy (unless in LOUD since bombers suck in LOUD)
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to go first bomber, M28Utilities.bQuietModActive='..tostring(M28Utilities.bQuietModActive or false)..'; Time='..GetGameTimeSeconds()) end
-            if not(M28Utilities.bLoudModActive) then
+            --E cost is double in QUIET so first bomber is too bad; in LOUD bombers are too unreliable in addition to this
+            if not(M28Utilities.bLoudModActive) and not(M28Utilities.bQuietModActive) then
                 local iClosestEnemy = 700 --Dont want to consider if enemy is further away than this; e.g. burial mounds in LOUD players were 792 apart, and is probably at a borderline distnce for if want to
                 local oM28BrainWithClosestEnemy, iCurDist, iCurPlateau, iCurZone
                 local tFirstClosestEnemyBase
@@ -5339,8 +5339,12 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                 end
             end
         end
-        --Disable early bomber engineers some of the time
-        if math.random(1,10) <= 3 then
+        --Disable bomber engi hunter logic some of the time
+        local iEngiHunterThreshold = 3
+        if M28Utilities.bLoudModActive then iEngiHunterThreshold = 7
+        elseif M28Utilities.bQuietModActive then iEngiHunterThreshold = 5
+        end
+        if math.random(1,10) <= iEngiHunterThreshold then
             for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                 if not(oBrain[M28Overseer.refbPrioritiseAir]) then
                     tAirSubteamData[oBrain.M28AirSubteam][refbDontBuildEngiHunterEngineers] = true
