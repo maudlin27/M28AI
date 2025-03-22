@@ -174,6 +174,9 @@ function UpdateUnitCategories()
         --Amphibious - in LOUD engineers and ACUs lack the amphibious category
         M28UnitInfo.refCategoryAmphibious = M28UnitInfo.refCategoryAmphibious + categories.ENGINEER * categories.MOBILE * categories.LAND - categories.AEON * categories.HOVER
 
+        --Czar doesnt register the czar
+        M28UnitInfo.refCategoryCzar = M28UnitInfo.refCategoryCzar + categories.uaa0310
+
         --Az further changes for QUIET
         local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
         if M28Utilities.bQuietModActive then
