@@ -974,7 +974,7 @@ function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if we are in an unexplored map scenario, bUnexploredMap='..tostring(bUnexploredMap)..'; iMapDataPlayableX='..iMapDataPlayableX..'; iMapDataPlayableZ='..iMapDataPlayableZ..'; iMapDataFullX='..iMapDataFullX..'; iMapDataFullZ='..iMapDataFullZ) end
         end
     end
-    if bUnexploredMap then
+    if bUnexploredMap then --Special type of map that provides a fog of war type effect
         rMapPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
         rMapPotentialPlayableArea = rMapPlayableArea
     else
@@ -985,6 +985,8 @@ function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
         end
         if bIsCampaignMap then --Want to setup segments etc. based on total map size as the map is likely to expand later on
             rMapPotentialPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
+            --Reassess the player start position for all civilian AI
+            ForkThread(ReassessCivilianAIStartPositions)
         else
             rMapPotentialPlayableArea = rMapPlayableArea
         end
@@ -8856,15 +8858,16 @@ function GetLandOrWaterZoneData(tLocation, bReturnTeamDataAsWell, iOptionalTeam)
     end
 end
 
-function RecordBrainStartPoint(oBrain)
+function RecordBrainStartPoint(oBrain, bReplaceWithFactoryLocation)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordBrainStartPoint'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --bReplaceWithFactoryLocation - campaign missions - will check if we have a factory anywhere, in which case will choose the midpoitn of the zone that looks like our main base if we lack a factory in our normal start point
 
     local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos() --(Nb: For most references use M28Map.GetPlayerStartPosition(aiBrain, true) to get this instead)
     local tStartPoint = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering start position recorded for brain '..(oBrain.Nickname or 'nil')..' at time='..GetGameTimeSeconds()..'; will wait if havent setup land zones etc yet') end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering start position recorded for brain '..(oBrain.Nickname or 'nil')..' at time='..GetGameTimeSeconds()..'; will wait if havent setup land zones etc yet, bReplaceWithFactoryLocation='..tostring(bReplaceWithFactoryLocation)) end
     --Adjust start point if it isn't on a valid plateau (e.g. means we should work on some coop maps)
     if not(NavUtils.IsGenerated()) then
         if bDebugMessages == true then LOG('Considering whether to generate map markers for oBrain='..oBrain.Nickname..'; GameTime='..GetGameTimeSeconds()) end
@@ -8887,7 +8890,8 @@ function RecordBrainStartPoint(oBrain)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting until land zones and playable area are setup, bMapLandSetupComplete='..tostring(bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(bWaterZoneInitialCreation)..'; Checking if start point is in a valid plateau and zone for brain '..oBrain.Nickname..'; tStartPoint='..repru(tStartPoint)..'; time='..GetGameTimeSeconds()) end
     local iLocationSegmentX, iLocationSegmentZ, tLocationSegmentMidpoint
-    function IsLocationSuitable(tLocation)
+    function IsLocationPathable(tLocation)
+        --Returns true if the location can be pathed by either navy or land
         if (NavUtils.GetTerrainLabel(refPathingTypeHover, tLocation) or -1) > 0 then
             iLocationSegmentX, iLocationSegmentZ = GetPathingSegmentFromPosition(tLocation)
             if bDebugMessages == true then LOG(sFunctionRef..': iLocationSegmentX='..iLocationSegmentX..'; iLocationSegmentZ='..iLocationSegmentZ..'; Land label='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tLocation) or 0)..'; Water label='..((NavUtils.GetTerrainLabel(refPathingTypeNavy, tLocation) or 0))) end
@@ -8898,7 +8902,7 @@ function RecordBrainStartPoint(oBrain)
         return false
     end
 
-    if not(IsLocationSuitable(tStartPoint)) then
+    if not(IsLocationPathable(tStartPoint)) then
         local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tStartPoint)
         local bHaveValidStartPoint = false
         local tAltStartPoint
@@ -8909,7 +8913,7 @@ function RecordBrainStartPoint(oBrain)
                         tAltStartPoint = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering tAltStartPoint='..repru(tAltStartPoint)..'; rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea)..'; Hover label='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) or 'nil')) end
                         if tAltStartPoint[1] <= rMapPotentialPlayableArea[3] and tAltStartPoint[3] <= rMapPotentialPlayableArea[4] then
-                            if IsLocationSuitable(tAltStartPoint) then
+                            if IsLocationPathable(tAltStartPoint) then
                                 bHaveValidStartPoint = true
                                 break
                             end
@@ -8925,7 +8929,7 @@ function RecordBrainStartPoint(oBrain)
                     if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
                         tAltStartPoint = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
                         if tAltStartPoint[1] <= rMapPotentialPlayableArea[3] and tAltStartPoint[3] <= rMapPotentialPlayableArea[4] then
-                            if IsLocationSuitable(tAltStartPoint) then
+                            if IsLocationPathable(tAltStartPoint) then
                                 bHaveValidStartPoint = true
                                 break
                             end
@@ -8946,9 +8950,82 @@ function RecordBrainStartPoint(oBrain)
         end
     end
 
+    --Campaign - check for factories
+    if bReplaceWithFactoryLocation then
+        local tStartLZOrWZData, tStartLZOrWZTeamData = GetLandOrWaterZoneData(tStartPoint, true, oBrain.M28Team)
+        local bHaveFactoryOrACUOrEngineerAndInPlayableArea = false
+        if M28Utilities.IsTableEmpty(tStartLZOrWZTeamData[subreftoLZOrWZAlliedUnits]) == false and M28Conditions.IsLocationInPlayableArea(tStartPoint) then
+            for iUnit, oUnit in tStartLZOrWZTeamData[subreftoLZOrWZAlliedUnits] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit in start zone, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
+                    bHaveFactoryOrACUOrEngineerAndInPlayableArea = true
+                    break
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units in the start position zone empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZTeamData[subreftoLZOrWZAlliedUnits]))..'; bHaveFactoryOrACUOrEngineerAndInPlayableArea='..tostring(bHaveFactoryOrACUOrEngineerAndInPlayableArea)) end
+        if not(bHaveFactoryOrACUOrEngineerAndInPlayableArea) then
+            local tiCategoriesToSearch = {categories.COMMAND, categories.SUBCOMMANDER, M28UnitInfo.refCategoryAirHQ * categories.TECH3, M28UnitInfo.refCategoryLandHQ * categories.TECH3, M28UnitInfo.refCategoryAirHQ + M28UnitInfo.refCategoryLandHQ, M28UnitInfo.refCategoryFactory, M28UnitInfo.refCategoryEngineer}
+            local iSearchSize = iMapSize * 1.5
+            local bHaveMatch = false
+            local toMatchingUnits = {}
+            for iEntry, iCategory in tiCategoriesToSearch do
+                local tFriendlyUnits = oBrain:GetUnitsAroundPoint(iCategory, tStartPoint, iSearchSize, 'Ally')
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering category to search iEntry='..iEntry..' for brain '..oBrain.Nickname..'; Is table of friendly units for this category empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyUnits))..'; Total units of all categories owned by oBrain='..oBrain:GetCurrentUnits(categories.ALLUNITS)) end
+                if M28Utilities.IsTableEmpty(tFriendlyUnits) == false then
+                    for iUnit, oUnit in tFriendlyUnits do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering friendly unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))..'; Fraction complete='..oUnit:GetFractionComplete()..'; Is it the same brain='..tostring(oUnit:GetAIBrain() == oBrain)..'; Full condition='..tostring(oUnit:GetAIBrain() == oBrain and M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()) and oUnit:GetFractionComplete() == 1)..'; Unit brain index='..oUnit:GetAIBrain():GetArmyIndex()..'; oBrain index='..oBrain:GetArmyIndex()) end
+                        if oUnit:GetAIBrain() == oBrain and M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()) and oUnit:GetFractionComplete() == 1 then
+                            bHaveMatch = true
+                            table.insert(toMatchingUnits, oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to toMatchingUnits') end
+                        end
+                    end
+                end
+                if bHaveMatch then break end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bHaveMatch='..tostring(bHaveMatch)) end
+            if bHaveMatch then
+                --Pick the zone with the most of the matched category
+                local tiPlateauAndZoneUnitCount = {}
+                local iCurPlateau, iCurZone
+                local iHighestPlateauAndZoneCount = 0
+                local tiHighestPlateauAndZoneRef
+
+                for iUnit, oUnit in toMatchingUnits do
+                    iCurPlateau, iCurZone = GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                    if iCurPlateau and iCurZone then
+                        if not(tiPlateauAndZoneUnitCount[iCurPlateau]) then tiPlateauAndZoneUnitCount[iCurPlateau] = {} end
+                        tiPlateauAndZoneUnitCount[iCurPlateau][iCurZone] = (tiPlateauAndZoneUnitCount[iCurPlateau][iCurZone] or 0) + 1
+                        if tiPlateauAndZoneUnitCount[iCurPlateau][iCurZone] > iHighestPlateauAndZoneCount then
+                            iHighestPlateauAndZoneCount = tiPlateauAndZoneUnitCount[iCurPlateau][iCurZone]
+                            tiHighestPlateauAndZoneRef = {iCurPlateau, iCurZone}
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished recording units of desired category by zone, tiPlateauAndZoneUnitCount='..repru(tiPlateauAndZoneUnitCount)..'; iHighestPlateauAndZoneCount='..iHighestPlateauAndZoneCount) end
+                if iHighestPlateauAndZoneCount > 0 then
+                    local tLZOrWZData
+                    local iPlateauOrZero = tiHighestPlateauAndZoneRef[1]
+                    local iLandOrWaterZone = tiHighestPlateauAndZoneRef[2]
+                    if iPlateauOrZero == 0 then
+                        tLZOrWZData = tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone]
+                    else
+                        tLZOrWZData = tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone]
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Do we have a valid midpoint for this zone? midpoint='..repru(tLZOrWZData[subrefMidpoint])) end
+                    if tLZOrWZData[subrefMidpoint] and NavUtils.GetLabel(refPathingTypeHover) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will update player start point from tStartPoint='..repru(tStartPoint)..' to the midpoint noted in above log') end
+                        tStartPoint = {tLZOrWZData[subrefMidpoint][1], tLZOrWZData[subrefMidpoint][2], tLZOrWZData[subrefMidpoint][3]}
+                    end
+                end
+            end
+        end
+    end
+
     PlayerStartPoints[oBrain:GetArmyIndex()] = {tStartPoint[1], tStartPoint[2], tStartPoint[3]}
     M28Overseer.tAllAIBrainsByArmyIndex[oBrain:GetArmyIndex()] = oBrain
-
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, start point for brain='..repru(PlayerStartPoints[oBrain:GetArmyIndex()])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -9197,6 +9274,7 @@ function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
 end
 
 function GetPlayerStartPosition(aiBrain, bJustReturnXAndZ)
+    --bReplaceWithFactoryLocation - set to true for civilian M28AI on campaign missions, since the campaign player start position is usually rubbish
     local tStartPosition = {}
     local X, Z
     local iIndex = aiBrain:GetArmyIndex()
@@ -9707,6 +9785,30 @@ function ConsiderManualNavalPrioritisationFlag(oBrain)
         local tStartLZData, tStartLZTeamData = GetLandOrWaterZoneData(GetPlayerStartPosition(oBrain), true, iTeam)
         if not(tStartLZTeamData[refbBaseInSafePosition]) and M28Utilities.IsTableEmpty(tStartLZData[subrefAdjacentWaterZones]) == false then
             oBrain[M28Overseer.refbPrioritiseNavy] = true
+        end
+    end
+end
+
+function ReassessCivilianAIStartPositions()
+    --Intended to be called whenever playable area changes
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ReassessCivilianAIStartPositions'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --If near start of game in campaign then wait for cutscene to end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; Time='..GetGameTimeSeconds()) end
+    if ScenarioInfo.OpEnded and GetGameTimeSeconds() <= 120 then
+        while ScenarioInfo.OpEnded and GetGameTimeSeconds() <= 120 do
+            WaitSeconds(1)
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, time='..GetGameTimeSeconds()) end
+    for iBrain, oBrain in ArmyBrains do
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to update start point for brain '..oBrain.Nickname..'; IsDefeated='..tostring(oBrain.M28IsDefeated)..'; .m28AI='..tostring(oBrain.M28AI)..'; Is Civilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))..'; oBrain.BrainType='..(oBrain.BrainType or 'nil')) end
+        if oBrain.M28AI and not(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname)) and oBrain.BrainType == 'AI' then
+            if not(oBrain.M28IsDefeated) then
+                RecordBrainStartPoint(oBrain, true)
+            end
         end
     end
 end
