@@ -241,6 +241,7 @@ function SendGloatingMessage(aiBrain, iDelayBeforeSending, iMinDelayBetweenSimil
             AddPotentialMessage(LOC('<LOC XGG_MP1_190_010>[{i Rhiza}]: I will not be stopped!'), 'XGG_Rhiza_MP1_04584', 'XGG')
             AddPotentialMessage(LOC('<LOC XGG_MP1_220_010>[{i Rhiza}]: For the Aeon!'), 'XGG_Rhiza_MP1_04587', 'XGG')
             AddPotentialMessage(LOC('<LOC XGG_MP1_240_010>[{i Rhiza}]: Behold the power of the Illuminate!'), 'XGG_Rhiza_MP1_04589', 'XGG')
+            if IsTeamCoalition(aiBrain.M28Team) then AddPotentialMessage(LOC('<LOC X06_T01_950_010>[{i Rhiza}]: Victory to the Coalition!'), 'X06_Rhiza_T01_03055', 'X06_VO') end
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiKael then
             AddPotentialMessage(LOC('<LOC X03_M02_115_020>[{i Kael}]: Ha-ha-ha!'), 'X03_Kael_M02_04368', 'X03_VO')
             AddPotentialMessage(LOC('<LOC XGG_MP1_280_010>[{i Kael}]: You\'re beginning to bore me.'), 'XGG_Kael_MP1_04593', 'XGG')
@@ -909,6 +910,15 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                                     AddPotentialMessage( 'Die, '..sFaction..' scum!')
                                 end
                             end
+                            --Could our team be the coalition? (no seraphim, and no non-coalition personalities)
+                            if IsTeamCoalition(oBrainToSendMessage.M28Team) then
+                                AddPotentialMessage(LOC('<LOC X03_M02_082_010>[{i HQ}]: Holy ... I can\'t believe it. You actually destroyed them.'), 'X03_HQ_M02_04843', 'X03_VO')
+                            end
+
+                        end
+
+                        if oBrainToSendMessage[refiAssignedPersonality] == refiRhiza then
+                            if IsTeamCoalition(oBrainToSendMessage.M28Team) then AddPotentialMessage(LOC('<LOC X06_T01_950_010>[{i Rhiza}]: Victory to the Coalition!'), 'X06_Rhiza_T01_03055', 'X06_VO') end
                         end
 
                     elseif bTeamHadM28AI then
@@ -1626,9 +1636,9 @@ function ConsiderMessageForACUInTrouble(oACU, aiBrain)
                 end
             end
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiHall then
-            --50% chance of adding hall specific text based messages (otherwise will go for generic)
-            if math.random(1,2)==1 then
-                AddPotentialMessage(LOC('[{i Hall}]: I need you to come to my aid commander'), nil, nil, true)
+            --66% chance of adding hall specific text based messages (otherwise will go for generic)
+            if math.random(1,3) > 1 then
+                AddPotentialMessage(LOC('<LOC X01_M02_250_020>[{i Hall}]: We\'ll fight you to the very end.'), 'X01_Hall_M02_03665', 'X01_VO')
                 if bHaveTeammates then
                     AddPotentialMessage(LOC('[{i Hall}]: I need you to come to my aid commander'), nil, nil, true)
                     AddPotentialMessage(LOC('[{i Hall}]: It is imperative that I survive this fight commander'), nil, nil, true)
@@ -1643,7 +1653,6 @@ function ConsiderMessageForACUInTrouble(oACU, aiBrain)
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiRhiza then
             AddPotentialMessage(LOC('<LOC X06_T01_885_010>[{i Rhiza}]: Such a thing will not stop me!'), 'X06_Rhiza_T01_04508', 'X06_VO')
             AddPotentialMessage(LOC('<LOC X06_T01_887_010>[{i Rhiza}]: You mistake me if you think I will be cowed!'), 'X06_Rhiza_T01_04510', 'X06_VO')
-            AddPotentialMessage(LOC('<LOC X06_T01_885_010>[{i Rhiza}]: Such a thing will not stop me!'), 'X06_Rhiza_T01_04508', 'X06_VO')
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiKael then
             AddPotentialMessage(LOC('<LOC XGG_MP1_250_010>[{i Kael}]: The Order will not be defeated!'), 'XGG_Kael_MP1_04590', 'XGG')
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiBrackman then
@@ -2170,6 +2179,25 @@ function ConsiderQAIAboutToAttackMessage(oExperimental)
         end
     end
 end
+function IsTeamCoalition(iTeam)
+    for iBrain, oBrain in ArmyBrains do
+        if oBrain.M28Team == iTeam then
+            if oBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then
+                return false
+            elseif oBrain.refiAssignedPersonality then
+                if oBrain.refiAssignedPersonality == refiCelene
+                        or oBrain.refiAssignedPersonality == refiVendetta
+                        or oBrain.refiAssignedPersonality == refiKael
+                        or oBrain.refiAssignedPersonality == refiGari
+                        or oBrain.refiAssignedPersonality == refiHex5
+                        or oBrain.refiAssignedPersonality == refiQAI then
+                    return false
+                end
+            end
+        end
+    end
+    return true
+end
 
 --List of potential voice messages
 --intro:
@@ -2350,9 +2378,9 @@ end
 --Construct a land experimental, and have more land experimentals than enemy team (send on a 30s delay, and only if exp isnt retreating)
     --{text = '<LOC X02_M02_160_010>[{i QAI}]: It is time to end this. My primary attack force is moving into position.', vid = 'X02_QAI_M02_04278.sfd', bank = 'X02_VO', cue = 'X02_QAI_M02_04278', faction = 'Cybran'},
 
---Victory (some of above would also work)
---{LOC('<LOC X03_M02_082_010>[{i HQ}]: Holy ... I can\'t believe it. You actually destroyed them.', vid = 'X03_HQ_M02_04843.sfd', bank = 'X03_VO', cue = 'X03_HQ_M02_04843', faction = 'NONE'},
---{LOC('<LOC X06_T01_950_010>[{i Rhiza}]: Victory to the Coalition!', vid = 'X06_Rhiza_T01_03055.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_03055', faction = 'Aeon'},
+--Victory (and for coalition, as a gloating message)
+    --{LOC('<LOC X03_M02_082_010>[{i HQ}]: Holy ... I can\'t believe it. You actually destroyed them.', vid = 'X03_HQ_M02_04843.sfd', bank = 'X03_VO', cue = 'X03_HQ_M02_04843', faction = 'NONE'},
+    --{LOC('<LOC X06_T01_950_010>[{i Rhiza}]: Victory to the Coalition!', vid = 'X06_Rhiza_T01_03055.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_03055', faction = 'Aeon'},
 
 
 --Taunts (some of which may already be above):
