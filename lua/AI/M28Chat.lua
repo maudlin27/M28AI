@@ -2327,13 +2327,10 @@ end
 --{LOC('<LOC X05_M02_240_010>[{i Fletcher}]: Soul Rippers are tearing up my Fatboy! I need air cover, now!', vid = 'X05_Fletcher_M02_04945.sfd', bank = 'X05_VO', cue = 'X05_Fletcher_M02_04945', faction = 'UEF'},
 --Intercept Nuke with Aeon SMD:
 --{LOC('<LOC X06_T01_560_010>[{i Vendetta}]: Nice try.', vid = 'X06_Vedetta_T01_03018.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_03018', faction = 'Aeon'},
-
-
---Special (not yet done):
 --Kill scathis with M28 as UEF:
 --{LOC('<LOC X05_M02_050_010>[{i Fletcher}]: Scratch one Scathis. Fletcher out.', vid = 'X05_Fletcher_M02_03831.sfd', bank = 'X05_VO', cue = 'X05_Fletcher_M02_03831', faction = 'UEF'},
 
---Construct a land experimental, and have more land experimentals than enemy team (send on a 30s delay)
+--Construct a land experimental, and have more land experimentals than enemy team (send on a 30s delay, and only if exp isnt retreating)
     --{text = '<LOC X02_M02_160_010>[{i QAI}]: It is time to end this. My primary attack force is moving into position.', vid = 'X02_QAI_M02_04278.sfd', bank = 'X02_VO', cue = 'X02_QAI_M02_04278', faction = 'Cybran'},
 
 --Victory (some of above would also work)
@@ -2518,7 +2515,6 @@ end
 {text = '<LOC X02_M02_090_010>[{i HQ}]: Enemy forces are converging on your position. HQ out.', vid = 'X02_HQ_M02_03543.sfd', bank = 'X02_VO', cue = 'X02_HQ_M02_03543', faction = 'NONE'},
 {text = '<LOC X02_M02_100_010>[{i HQ}]: Enemy assault inbound. HQ out.', vid = 'X02_HQ_M02_03544.sfd', bank = 'X02_VO', cue = 'X02_HQ_M02_03544', faction = 'NONE'},
 {text = '<LOC X02_M02_160_030>[{i HQ}]: Got a barrel of fun rolling your way, Commander. HQ out.', vid = 'X02_HQ_M02_04280.sfd', bank = 'X02_VO', cue = 'X02_HQ_M02_04280', faction = 'NONE'},
-{text = '<LOC X02_M02_160_010>[{i QAI}]: It is time to end this. My primary attack force is moving into position.', vid = 'X02_QAI_M02_04278.sfd', bank = 'X02_VO', cue = 'X02_QAI_M02_04278', faction = 'Cybran'},
 {text = '<LOC X02_M02_170_010>[{i Princess}]: Hear me, people of the Illuminate! I am Princess Rhianne Burke, rightful leader of the Aeon. The Seraphim are not the saviors they claim to be. They bring nothing save death and destruction!', vid = 'X02_Princess_M02_04281.sfd', bank = 'X02_VO', cue = 'X02_Princess_M02_04281', faction = 'Aeon'},
 {text = '<LOC X02_M03_017_010>[{i HQ}]: Looks like QAI is trying to summon assistance from its Seraphim buddies. Expect a Seraphim commander to arrive on-planet shortly. HQ out.', vid = 'X02_HQ_M03_04295.sfd', bank = 'X02_VO', cue = 'X02_HQ_M03_04295', faction = 'NONE'},
 {text = '<LOC X02_M03_070_010>[{i Brackman}]: QAI is attempting to destroy the Seraphim ACU, my child. You must not allow that to happen.', vid = 'X02_Brackman_M03_04305.sfd', bank = 'X02_VO', cue = 'X02_Brackman_M03_04305', faction = 'Cybran'},

@@ -2169,27 +2169,27 @@ function OnConstructed(oEngineer, oJustBuilt)
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
                         tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] = (tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] or 0) + 1
                         if EntityCategoryContains(M28UnitInfo.refCategoryParagon, oJustBuilt.UnitId) then
-                        ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
+                            ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                        M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
+                            M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oJustBuilt.UnitId) or ((oJustBuilt[M28UnitInfo.refiDFRange] or 0) >= 80 and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oJustBuilt.UnitId)) then
-                        --flag we have built long range unit so we prioritise building omni
-                        aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] = true
+                            --flag we have built long range unit so we prioritise building omni
+                            aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] = true
                         end
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oJustBuilt.UnitId) then
-                        ForkThread(M28Air.DelayedNovaxUnloadCheck, oJustBuilt)
+                            ForkThread(M28Air.DelayedNovaxUnloadCheck, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oEngineer.UnitId) and oEngineer:GetAIBrain().M28AI then
-                        ForkThread(M28Air.DelayedNovaxUnloadCheck, oEngineer)
+                            ForkThread(M28Air.DelayedNovaxUnloadCheck, oEngineer)
                         end
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oJustBuilt.UnitId) then M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] = (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) + 1 end
                         if oJustBuilt[M28Building.reftArtiTemplateRefs] then
-                        --Reassess the game-ender to build
-                        local tTableRef = M28Map.tAllPlateaus[oJustBuilt[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oJustBuilt[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][iTeam][M28Map.reftActiveGameEnderTemplates][oJustBuilt[M28Building.reftArtiTemplateRefs][3]]
-                        if tTableRef then tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] = true end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Flagging that we want to refresh the Arti to build for GE template, P'..oJustBuilt[M28Building.reftArtiTemplateRefs][1]..'Z'..oJustBuilt[M28Building.reftArtiTemplateRefs][2]..'T'..oJustBuilt[M28Building.reftArtiTemplateRefs][3]..'; tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild]='..tostring(tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] or false)..'; Is tTableRef nil='..tostring(tTableRef == nil)..'; Time='..GetGameTimeSeconds()) end
-                            end
+                            --Reassess the game-ender to build
+                            local tTableRef = M28Map.tAllPlateaus[oJustBuilt[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oJustBuilt[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][iTeam][M28Map.reftActiveGameEnderTemplates][oJustBuilt[M28Building.reftArtiTemplateRefs][3]]
+                            if tTableRef then tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] = true end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Flagging that we want to refresh the Arti to build for GE template, P'..oJustBuilt[M28Building.reftArtiTemplateRefs][1]..'Z'..oJustBuilt[M28Building.reftArtiTemplateRefs][2]..'T'..oJustBuilt[M28Building.reftArtiTemplateRefs][3]..'; tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild]='..tostring(tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] or false)..'; Is tTableRef nil='..tostring(tTableRef == nil)..'; Time='..GetGameTimeSeconds()) end
+                        end
                             --Loud T2 sniperbots - consider enhancement
                     elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
                         ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
