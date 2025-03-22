@@ -267,6 +267,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbActiveVulnerableFatboyMonitor = 'M28FatVMon' --true if have active thread for the team for vulnerable fatboys
     refbTMLForLongRangeThreatMonitorActive = 'M28TMLBatMon' --true if have active threat for TML battery
     refbTMLBatteryMissedLots = 'M28TMBatMis' --true if TML battey has fired a lot of times and missed targets
+    refiGeneralPingsInLast30Seconds = 'M28TmPngs' --number of unrecognised pings created in the last 30s
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0

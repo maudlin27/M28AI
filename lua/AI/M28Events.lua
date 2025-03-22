@@ -4295,51 +4295,55 @@ function PingCreated(data)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG('Ping created, reprs='..reprs(data)..'; Is this a marker='..tostring(data.Type == 'Marker')) end
-
+    local bEngiMarkerPing = false
     --Check for marker ping and get the message and brain creator
-    if data.Type == 'Marker' or data.Type == 'marker' then --(QUIET is lowercase marker)
-        local iIndex = data.Owner + 1
-        local aiBrain
-        for iBrain, oBrain in ArmyBrains do
-            if iBrain == iIndex then
-                if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
-                    aiBrain = oBrain
+    local iIndex = data.Owner + 1
+    local aiBrain
+    for iBrain, oBrain in ArmyBrains do
+        if iBrain == iIndex then
+            if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
+                aiBrain = oBrain
+            end
+            break
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Brain creating ping='..(aiBrain.Nickname or 'nil')..' on team '..(aiBrain.M28Team or 'nil')..'; Is table of friendly active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team or 1][M28Team.subreftoFriendlyActiveM28Brains]))) end
+    if aiBrain and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        local iTeam = aiBrain.M28Team
+        local iTimeSinceLastRequest = GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeSinceLastEngiRequest] or 0)
+        local oFirstM28Brain
+        local oFirstAnyBrain
+        for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains] do
+            if oBrain.M28AI then
+                if not(oFirstAnyBrain) then oFirstAnyBrain = oBrain end
+                if not(oBrain.BrainType == 'Human') then
+                    oFirstM28Brain = oBrain
+                    break
                 end
-                break
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Brain creating ping='..(aiBrain.Nickname or 'nil')..' on team '..(aiBrain.M28Team or 'nil')..'; Is table of friendly active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team or 1][M28Team.subreftoFriendlyActiveM28Brains]))) end
-        if aiBrain and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-            local iTeam = aiBrain.M28Team
-            local iTimeSinceLastRequest = GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeSinceLastEngiRequest] or 0)
-            local oFirstM28Brain
-            local oFirstAnyBrain
-            for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains] do
-                if oBrain.M28AI then
-                    if not(oFirstAnyBrain) then oFirstAnyBrain = oBrain end
-                    if not(oBrain.BrainType == 'Human') then oFirstM28Brain = oBrain break end
-                end
-            end
+        if data.Type == 'Marker' or data.Type == 'marker' then --(QUIET is lowercase marker)
             local oBrainForMessage = oFirstM28Brain or oFirstAnyBrain
             if bDebugMessages == true then LOG(sFunctionRef..': oBrainForMessage='..(oBrainForMessage.Nickname or 'nil')..'; iTimeSinceLastRequest='..iTimeSinceLastRequest) end
             if oBrainForMessage then
                 local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(data.Location, true, aiBrain.M28Team)
-                if iTimeSinceLastRequest < 60 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Too soon since last valid request') end
-                    if tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi] == aiBrain then
-                        M28Chat.SendMessage(oBrainForMessage, 'EngiDenied', 'Yes yes I know, just be patient and I\'ll give you one when I can.', 1, 2, true, false, nil, nil, nil)
-                    else
-                        M28Chat.SendMessage(oBrainForMessage, 'EngiDenied', 'You\'ll just have to wait and ask me again in '..math.floor(60-iTimeSinceLastRequest)..' seconds.', 1, 2, true, false, nil, nil, nil)
-                    end
-                else
-                    if bDebugMessages == true then
-                        local iPlateau, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(data.Location)
-                        LOG(sFunctionRef..': Is tLZOrWZTeamData nil='..tostring(tLZOrWZTeamData == nil)..'; iPlateau='..(iPlateau or 'nil')..'; iZone='..(iZone or 'nil'))
-                    end
-                    if tLZOrWZTeamData then
-                        --Check if the message contains "Engi"
-                        if bDebugMessages == true then LOG(sFunctionRef..': string.lower of the text='..string.lower(data.Name)..'; Does this contain engi='..(string.find(string.lower(data.Name), 'engi') or 'nil')) end
-                        if string.find(string.lower(data.Name), 'engi', 1, true) then
+                if bDebugMessages == true then
+                    local iPlateau, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(data.Location)
+                    LOG(sFunctionRef..': Is tLZOrWZTeamData nil='..tostring(tLZOrWZTeamData == nil)..'; iPlateau='..(iPlateau or 'nil')..'; iZone='..(iZone or 'nil'))
+                end
+                if tLZOrWZTeamData then
+                    --Check if the message contains "Engi"
+                    if bDebugMessages == true then LOG(sFunctionRef..': string.lower of the text='..string.lower(data.Name)..'; Does this contain engi='..(string.find(string.lower(data.Name), 'engi') or 'nil')) end
+                    if string.find(string.lower(data.Name), 'engi', 1, true) then
+                        bEngiMarkerPing = true
+                        if iTimeSinceLastRequest < 60 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Too soon since last valid request') end
+                            if tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi] == aiBrain then
+                                M28Chat.SendMessage(oBrainForMessage, 'EngiDenied', 'Yes yes I know, just be patient and I\'ll give you one when I can.', 1, 2, true, false, nil, nil, nil)
+                            else
+                                M28Chat.SendMessage(oBrainForMessage, 'EngiDenied', 'You\'ll just have to wait and ask me again in '..math.floor(60-iTimeSinceLastRequest)..' seconds.', 1, 2, true, false, nil, nil, nil)
+                            end
+                        else
                             --Check we have engineers in this zone
                             local bHaveEngineersInZone = false
                             local tEngineers
@@ -4361,6 +4365,15 @@ function PingCreated(data)
                             end
                         end
                     end
+                end
+            end
+        end
+        if not(bEngiMarkerPing) then
+            if oFirstM28Brain then
+                M28Team.tTeamData[aiBrain.M28Team][M28Team.refiGeneralPingsInLast30Seconds] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiGeneralPingsInLast30Seconds] or 0) + 1
+                M28Utilities.DelayChangeVariable(M28Team.tTeamData[aiBrain.M28Team], M28Team.refiGeneralPingsInLast30Seconds, -1, 30, nil, nil, nil, nil, true)
+                if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiGeneralPingsInLast30Seconds] >= 4 then
+                    M28Chat.SendMessageAboutTooManyPings(aiBrain.M28Team)
                 end
             end
         end

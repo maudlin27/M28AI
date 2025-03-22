@@ -2199,6 +2199,78 @@ function IsTeamCoalition(iTeam)
     return true
 end
 
+function SendMessageAboutTooManyPings(iTeam)
+    local sFunctionRef = 'SendMessageAboutTooManyPings'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        local oBrainToSendMessage
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            if oBrain.BrainType == 'AI' then
+                if not(oBrainToSendMessage) or oBrain[refiAssignedPersonality] == refiFletcher then
+                    oBrainToSendMessage = oBrain
+                end
+            end
+        end
+
+        local tsPotentialTeamMessages = {}
+        local tsTeamCueIndex = {}
+        local tsTeamBankIndex = {}
+        local tsPotentialMessages = {}
+        local tsCueByMessageIndex = {}
+        local tsBankBymessageIndex = {}
+        function AddPotentialMessage(sMessage, sOptionalCue, sOptionalBank, bIsTeamMessage)
+            if bIsTeamMessage then
+                table.insert(tsPotentialTeamMessages, sMessage)
+                if sOptionalCue and sOptionalBank then
+                    local iRef = table.getn(tsPotentialTeamMessages)
+                    tsTeamCueIndex[iRef] = sOptionalCue
+                    tsTeamBankIndex[iRef] = sOptionalBank
+                end
+
+            else
+                table.insert(tsPotentialMessages, sMessage)
+                if sOptionalCue and sOptionalBank then
+                    local iRef = table.getn(tsPotentialMessages)
+                    tsCueByMessageIndex[iRef] = sOptionalCue
+                    tsBankBymessageIndex[iRef] = sOptionalBank
+                end
+            end
+        end
+
+        if oBrainToSendMessage[refiAssignedPersonality] == refiFletcher then
+            AddPotentialMessage('[Fletcher]: Yeah, yeah. Give it a rest already with those pings', 'X05_Fletcher_M02_04950', 'X05_VO', true)
+        else
+            AddPotentialMessage('Shutup', nil, nil, true)
+            AddPotentialMessage('I cant hear myself think with all those pings', nil, nil, true)
+            AddPotentialMessage('I heard you with the first ping', nil, nil, true)
+            AddPotentialMessage('Do you realise I ignore such pings?', nil, nil, true)
+            AddPotentialMessage('Enough with the pings already', nil, nil, true)
+            AddPotentialMessage('Please stop pinging so much, it\'s annoying', nil, nil, true)
+        end
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential global and team messages, tsPotentialMessages='..repru(tsPotentialMessages)..'; tsPotentialTeamMessages='..repru(tsPotentialTeamMessages)..'; oBrainToSendMessage='..(oBrainToSendMessage.Nickname or 'nil')) end
+        local bSendGlobal = true
+        local bSendTeam = true
+        if M28Utilities.IsTableEmpty(tsPotentialMessages) == false and M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false then
+            if math.random(1,2) == 1 then bSendGlobal = false else bSendTeam = false end
+        end
+        if bSendGlobal and M28Utilities.IsTableEmpty(tsPotentialMessages) == false and oBrainToSendMessage then
+            local iRand = math.random(1, table.getn(tsPotentialMessages))
+            --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
+            SendMessage(oBrainToSendMessage, 'TooManyPings'..oBrainToSendMessage.M28Team, tsPotentialMessages[iRand], 0, 600, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
+        end
+        if bSendTeam and M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false and oBrainToSendMessage then
+            local iRand = math.random(1, table.getn(tsPotentialTeamMessages))
+            --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
+            SendMessage(oBrainToSendMessage, 'TooManyPings'..oBrainToSendMessage.M28Team, tsPotentialTeamMessages[iRand], 3, 600, true, M28Map.bIsCampaignMap, tsTeamCueIndex[iRand], tsTeamBankIndex[iRand])
+        end
+
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 --List of potential voice messages
 --intro:
     --By UEF
@@ -2393,7 +2465,7 @@ end
     {text = '<LOC XGG_MP1_060_010>[{i Hall}]: Get out of here while you still can.', bank = 'XGG', cue = 'XGG_Hall__04571'},
     {text = '<LOC XGG_MP1_070_010>[{i Hall}]: I guess it\'s time to end this farce.', bank = 'XGG', cue = 'XGG_Hall__04572'},
     {text = '<LOC XGG_MP1_080_010>[{i Hall}]: You\'ve got no chance against me!', bank = 'XGG', cue = 'XGG_Hall__04573'},
-{text = '<LOC X01_M02_250_020>[{i Hall}]: We\'ll fight you to the very end.', vid = 'X01_Hall_M02_03665.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_03665', faction = 'UEF'},
+    {text = '<LOC X01_M02_250_020>[{i Hall}]: We\'ll fight you to the very end.', vid = 'X01_Hall_M02_03665.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_03665', faction = 'UEF'},
 {text = '<LOC X01_M01_117_010>[{i Hall}]: Commander, it is imperative that you move inland as quickly as possible. Countless lives hang in the balance.', vid = 'X01_Hall_M01_03618.sfd', bank = 'X01_VO', cue = 'X01_Hall_M01_03618', faction = 'UEF'},
     {text = '<LOC XGG_MP1_090_010>[{i Fletcher}]: This ain\'t gonna be much of a fight.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04574'},
     {text = '<LOC XGG_MP1_100_010>[{i Fletcher}]: You\'re not puttin\' up much of a fight.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04575'},
@@ -2401,7 +2473,7 @@ end
     {text = '<LOC XGG_MP1_120_010>[{i Fletcher}]: Not much on tactics, are ya?', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04577'},
     {text = '<LOC XGG_MP1_130_010>[{i Fletcher}]: If you run now, I\'ll let ya go.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04578'},
     {text = '<LOC XGG_MP1_140_010>[{i Fletcher}]: You ain\'t too good at this, are you?', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04579'},
-{text = '<LOC XGG_MP1_150_010>[{i Fletcher}]: Guess I got time to smack you around.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04580'},
+    {text = '<LOC XGG_MP1_150_010>[{i Fletcher}]: Guess I got time to smack you around.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04580'},
     {text = '<LOC XGG_MP1_160_010>[{i Fletcher}]: I feel a bit bad, beatin\' up on you like this.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04581'},
     {text = '<LOC X01_M01_040_010>[{i Fletcher}]: A Cybran, huh? I thought you guys would be busy changing the water in Brackman\'s brain tank.', bank = 'X01_VO', cue = 'X01_Fletcher_M01_02877'},
     {text = '<LOC X01_M03_170_010>[{i Fletcher}]: That\'s what I love to see. Burn, baby, burn!', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03701'},
