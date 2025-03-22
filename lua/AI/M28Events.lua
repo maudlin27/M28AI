@@ -2190,7 +2190,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if tTableRef then tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] = true end
                             if bDebugMessages == true then LOG(sFunctionRef..': Flagging that we want to refresh the Arti to build for GE template, P'..oJustBuilt[M28Building.reftArtiTemplateRefs][1]..'Z'..oJustBuilt[M28Building.reftArtiTemplateRefs][2]..'T'..oJustBuilt[M28Building.reftArtiTemplateRefs][3]..'; tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild]='..tostring(tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] or false)..'; Is tTableRef nil='..tostring(tTableRef == nil)..'; Time='..GetGameTimeSeconds()) end
                         end
-                            --Loud T2 sniperbots - consider enhancement
+                        --QAI chat
+                        if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oJustBuilt.UnitId) and oJustBuilt:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiQAI and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] < 8000 and M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) == 1 then
+                            ForkThread(M28Chat.ConsiderQAIAboutToAttackMessage, oJustBuilt)
+                        end
+                        --Loud T2 sniperbots - consider enhancement
                     elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
                         ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
                     end

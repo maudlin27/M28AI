@@ -22,6 +22,7 @@ local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 
 
 --Team data variables
@@ -790,7 +791,7 @@ function CreateNewTeam(aiBrain)
                                 end
                             end
                         end
-                        LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; Land team='..(oBrain.M28LandSubteam or 'nil')..'; Air subteam='..(oBrain.M28AirSubteam or 'nil')..'; M28Easy='..tostring(oBrain.M28Easy or false)..'; M28AI='..tostring(oBrain.M28AI or false)..'; Unit prioritisation='..(ScenarioInfo.Options.M28PrioritiseBPs or 'nil')..'; rating (FAF only)='..(ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 'nil')..'; oBrain.Rating='..(oBrain.Rating or 'nil')) --Dont know the land and air subteams yet
+                        LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with chat personality '..(oBrain[M28Chat.refiAssignedPersonality] or 'nil')..' and index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAIxref..'; Land team='..(oBrain.M28LandSubteam or 'nil')..'; Air subteam='..(oBrain.M28AirSubteam or 'nil')..'; M28Easy='..tostring(oBrain.M28Easy or false)..'; M28AI='..tostring(oBrain.M28AI or false)..'; Unit prioritisation='..(ScenarioInfo.Options.M28PrioritiseBPs or 'nil')..'; rating (FAF only)='..(ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 'nil')..'; oBrain.Rating='..(oBrain.Rating or 'nil')) --Dont know the land and air subteams yet
                     end
                 end
             end

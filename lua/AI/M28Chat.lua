@@ -2153,6 +2153,24 @@ function SendSlowdownModeMessage(oBrainToSendMessage)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ConsiderQAIAboutToAttackMessage(oExperimental)
+    --Intended to be called for QAI personality when we have an experimental and enemy doesnt
+    WaitSeconds(20)
+    if M28UnitInfo.IsUnitValid(oExperimental) then
+        local aiBrain = oExperimental:GetAIBrain()
+        if aiBrain.M28AI and aiBrain[refiAssignedPersonality] == refiQAI then
+            local iTeam = oExperimental:GetAIBrain().M28Team
+            while M28UnitInfo.IsUnitValid(oExperimental) and not(oExperimental[M28UnitInfo.refiTimeLastTriedRetreating]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) do
+                if oExperimental[M28UnitInfo.refiLastWeaponEvent] then
+                    --We have fired a weapon, so decent chance we are close to enemies
+                    SendMessage(aiBrain, 'AttackSoon', LOC('<LOC X02_M02_160_010>[{i QAI}]: It is time to end this. My primary attack force is moving into position.'), 10, 10000, false, true, 'X02_QAI_M02_04278', 'X02_VO', nil)
+                end
+                WaitSeconds(1)
+            end
+        end
+    end
+end
+
 --List of potential voice messages
 --intro:
     --By UEF
@@ -2329,7 +2347,6 @@ end
 --{LOC('<LOC X06_T01_560_010>[{i Vendetta}]: Nice try.', vid = 'X06_Vedetta_T01_03018.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_03018', faction = 'Aeon'},
 --Kill scathis with M28 as UEF:
 --{LOC('<LOC X05_M02_050_010>[{i Fletcher}]: Scratch one Scathis. Fletcher out.', vid = 'X05_Fletcher_M02_03831.sfd', bank = 'X05_VO', cue = 'X05_Fletcher_M02_03831', faction = 'UEF'},
-
 --Construct a land experimental, and have more land experimentals than enemy team (send on a 30s delay, and only if exp isnt retreating)
     --{text = '<LOC X02_M02_160_010>[{i QAI}]: It is time to end this. My primary attack force is moving into position.', vid = 'X02_QAI_M02_04278.sfd', bank = 'X02_VO', cue = 'X02_QAI_M02_04278', faction = 'Cybran'},
 
