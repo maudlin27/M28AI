@@ -3999,3 +3999,8 @@ function GetFriendlyMAAInThisAndAdjacentLandZones(tLZData, tLZTeamData, iPlateau
     end
     return iMAAThreat
 end
+
+function IsTeamCoalition(iTeam)
+    M28Utilities.ErrorHandler('Update ref to refer to M28Chat not M28Conditions', true)
+    return import('/mods/M28AI/lua/AI/M28Chat.lua').IsTeamCoalition(iTeam)
+end

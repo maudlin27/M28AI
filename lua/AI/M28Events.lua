@@ -229,6 +229,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                         --M28 specific killer logic
                         local oKillerBrain = oKillerUnit:GetAIBrain()
                         if oKillerBrain.M28AI then
+                            --Logic based on the category of the killer:
                             if EntityCategoryContains(M28UnitInfo.refCategorySatellite, instigator.UnitId) and M28UnitInfo.IsUnitValid(oKillerUnit) then
                                 ForkThread(M28Air.NovaxCoreTargetLoop, oKillerBrain, instigator, true)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oKillerUnit.UnitId) and not(type) and not(overkillRatio) and not(oKillerBrain.M28Team == oUnitKilled:GetAIBrain().M28Team) then
@@ -273,11 +274,18 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 local iTeam = oKillerUnit:GetAIBrain().M28Team
                                 M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] = M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                             end
+
+                            --Logic based on the category of the unit killed
                             if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
                                 if M28Orders.bDontConsiderCombinedArmy or oKillerUnit.M28Active then
                                     --Scathis special message if killed by UEF
                                     if oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnitKilled.UnitId) and EntityCategoryContains(categories.UEF, oKillerUnit.UnitId) and oKillerUnit:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiFletcher then
                                         ForkThread(M28Chat.SendMessage, oKillerUnit:GetAIBrain(), 'UEFKilledScathis', LOC('<LOC X05_M02_050_010>[{i Fletcher}]: Scratch one Scathis. Fletcher out.'), 1, 600, false, true, 'X05_Fletcher_M02_03831', 'X05_VO')
+                                        --Killed T3 arti or experimental arti and there are no other friendly T3/Exp arti units on that team
+                                    elseif oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled.UnitId) and M28Chat.IsTeamCoalition(oKillerUnit:GetAIBrain().M28Team) and M28Utilities.IsTableEmpty(oUnitKilled:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled:GetPosition(), M28Map.iMapSize * 2, 'Ally')) then
+                                        local bSendToTeam = false
+                                        if math.random(1,2) == 1 and M28Utilities.IsTableEmpty(M28Team.tTeamData[oKillerUnit:GetAIBrain().M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false and table.getn(M28Team.tTeamData[oKillerUnit:GetAIBrain().M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) >= 2 then bSendToTeam = true end
+                                        M28Chat.SendMessage(oKillerUnit:GetAIBrain(), 'CoalKillArti', LOC('<LOC X01_M01_200_010>[{i HQ}]: That\'s the last of them -- all the artillery positions are down.'), 1, 600, false, true, 'X01_HQ_M01_03631', 'X01_VO', bSendToTeam)
                                         --Dont trigger if killed via nuke
                                     elseif oKillerUnit and not(EntityCategoryContains(M28UnitInfo.refCategorySML, oKillerUnit.UnitId)) then
                                         --Check mod dist is far enoguh away from our core base that unlikely it has dealt lots of damage
