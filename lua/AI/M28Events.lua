@@ -168,6 +168,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
 
                 --were we killed by something?
                 local oKillerUnit
+                local oKillerBrain
 
                 if instigator and not(instigator:BeenDestroyed()) and not(instigator.Dead) then
                     if instigator.GetLauncher and instigator:GetLauncher() then
@@ -183,6 +184,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Have an instigator, checking if have valid killer unit. Is valid='..tostring(M28UnitInfo.IsUnitValid(oKillerUnit))) end
                     if oKillerUnit and oKillerUnit.GetAIBrain then
+                        oKillerBrain = oKillerUnit:GetAIBrain()
 
                         --Non-M28 specific killer logic:
 
@@ -217,8 +219,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 if oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryAirNonScout, oKillerUnit.UnitId) then
                                     M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] = M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
                                 end
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitKilled.UnitId) and not(iTeam == oKillerUnit:GetAIBrain().M28Team) then
-                                if oKillerUnit:GetAIBrain().M28Team then
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitKilled.UnitId) and not(iTeam == oKillerBrain.M28Team) then
+                                if oKillerBrain.M28Team then
                                     --I.e. we have an M28 naval fac killed by a unit from another team
                                     local tWZData, tWZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, iTeam)
                                     if tWZTeamData then tWZTeamData[M28Map.subrefWZFactoryDestroyedCount] = (tWZTeamData[M28Map.subrefWZFactoryDestroyedCount] or 0) + 1 end
@@ -227,7 +229,6 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                         end
 
                         --M28 specific killer logic
-                        local oKillerBrain = oKillerUnit:GetAIBrain()
                         if oKillerBrain.M28AI then
                             --Logic based on the category of the killer:
                             if EntityCategoryContains(M28UnitInfo.refCategorySatellite, instigator.UnitId) and M28UnitInfo.IsUnitValid(oKillerUnit) then
@@ -240,7 +241,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 if M28Utilities.IsTableEmpty(tNearbyReclaimableEnemies) == false then
                                     for iPotentialEnemy, oPotentialEnemy in tNearbyReclaimableEnemies do
                                         if not(oPotentialEnemy == oUnitKilled) and M28UnitInfo.IsUnitValid(oPotentialEnemy) and oPotentialEnemy:GetHealth() > 0 then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Will issue new reclaim order for oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..' owend by brain'..oKillerUnit:GetAIBrain().Nickname..' to target enemy unit '..(oPotentialEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPotentialEnemy) or 'nil')..'; Time='..GetGameTimeSeconds()..'; Enemy unit health='..oPotentialEnemy:GetHealth()..'; Enemy unit brain owner='..oPotentialEnemy:GetAIBrain().Nickname) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will issue new reclaim order for oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..' owend by brain'..oKillerBrain.Nickname..' to target enemy unit '..(oPotentialEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPotentialEnemy) or 'nil')..'; Time='..GetGameTimeSeconds()..'; Enemy unit health='..oPotentialEnemy:GetHealth()..'; Enemy unit brain owner='..oPotentialEnemy:GetAIBrain().Nickname) end
 
                                             ForkThread(M28Orders.IssueTrackedReclaim, oKillerUnit, oPotentialEnemy, false, 'FollowRec', false) --WHen tried doing but not via forked thread ended up with game crashing
                                             bNotGivenReclaimOrder = false
@@ -263,7 +264,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 end
                                 --Gunship and strat bomber tracking (non-experimental)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber - M28UnitInfo.refCategoryTorpBomber - categories.EXPERIMENTAL, oKillerUnit.UnitId) then
-                                local iTeam = oKillerUnit:GetAIBrain().M28Team
+                                local iTeam = oKillerBrain.M28Team
                                 if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oKillerUnit.UnitId) then
                                     M28Team.tTeamData[iTeam][M28Team.refiBomberKills] = M28Team.tTeamData[iTeam][M28Team.refiBomberKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                                 else
@@ -271,7 +272,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 end
                                 --AirAA tracking
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oKillerUnit.UnitId) then
-                                local iTeam = oKillerUnit:GetAIBrain().M28Team
+                                local iTeam = oKillerBrain.M28Team
                                 M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] = M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                             end
 
@@ -279,27 +280,27 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                             if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
                                 if M28Orders.bDontConsiderCombinedArmy or oKillerUnit.M28Active then
                                     --Scathis special message if killed by UEF
-                                    if oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnitKilled.UnitId) and EntityCategoryContains(categories.UEF, oKillerUnit.UnitId) and oKillerUnit:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiFletcher then
-                                        ForkThread(M28Chat.SendMessage, oKillerUnit:GetAIBrain(), 'UEFKilledScathis', LOC('<LOC X05_M02_050_010>[{i Fletcher}]: Scratch one Scathis. Fletcher out.'), 1, 600, false, true, 'X05_Fletcher_M02_03831', 'X05_VO')
+                                    if oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnitKilled.UnitId) and EntityCategoryContains(categories.UEF, oKillerUnit.UnitId) and oKillerBrain[M28Chat.refiAssignedPersonality] == M28Chat.refiFletcher then
+                                        ForkThread(M28Chat.SendMessage, oKillerBrain, 'UEFKilledScathis', LOC('<LOC X05_M02_050_010>[{i Fletcher}]: Scratch one Scathis. Fletcher out.'), 1, 600, false, true, 'X05_Fletcher_M02_03831', 'X05_VO')
                                         --Killed T3 arti or experimental arti and there are no other friendly T3/Exp arti units on that team
-                                    elseif oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled.UnitId) and M28Chat.IsTeamCoalition(oKillerUnit:GetAIBrain().M28Team) and M28Utilities.IsTableEmpty(oUnitKilled:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled:GetPosition(), M28Map.iMapSize * 2, 'Ally')) then
+                                    elseif oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled.UnitId) and M28Chat.IsTeamCoalition(oKillerBrain.M28Team) and M28Utilities.IsTableEmpty(oUnitKilled:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled:GetPosition(), M28Map.iMapSize * 2, 'Ally')) then
                                         local bSendToTeam = false
-                                        if math.random(1,2) == 1 and M28Utilities.IsTableEmpty(M28Team.tTeamData[oKillerUnit:GetAIBrain().M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false and table.getn(M28Team.tTeamData[oKillerUnit:GetAIBrain().M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) >= 2 then bSendToTeam = true end
-                                        M28Chat.SendMessage(oKillerUnit:GetAIBrain(), 'CoalKillArti', LOC('<LOC X01_M01_200_010>[{i HQ}]: That\'s the last of them -- all the artillery positions are down.'), 1, 600, false, true, 'X01_HQ_M01_03631', 'X01_VO', bSendToTeam)
+                                        if math.random(1,2) == 1 and M28Utilities.IsTableEmpty(M28Team.tTeamData[oKillerBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false and table.getn(M28Team.tTeamData[oKillerBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) >= 2 then bSendToTeam = true end
+                                        M28Chat.SendMessage(oKillerBrain, 'CoalKillArti', LOC('<LOC X01_M01_200_010>[{i HQ}]: That\'s the last of them -- all the artillery positions are down.'), 1, 600, false, true, 'X01_HQ_M01_03631', 'X01_VO', bSendToTeam)
                                         --Dont trigger if killed via nuke
                                     elseif oKillerUnit and not(EntityCategoryContains(M28UnitInfo.refCategorySML, oKillerUnit.UnitId)) then
                                         --Check mod dist is far enoguh away from our core base that unlikely it has dealt lots of damage
                                         local bConsiderMessage = true
                                         if EntityCategoryContains(categories.MOBILE, oUnitKilled.UnitId) then
                                             bConsiderMessage = false
-                                            local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oKillerUnit:GetAIBrain().M28Team)
+                                            local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oKillerBrain.M28Team)
                                             if tUnitLZTeamData and tUnitLZTeamData[M28Map.refiModDistancePercent] >= 0.3 and not(tUnitLZTeamData[M28Map.subrefLZbCoreBase]) and ((oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < 12000) then
                                                 bConsiderMessage = true
                                             end
                                         end
                                         if bConsiderMessage then
                                             if (oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < (oUnitKilled[M28UnitInfo.refiUnitMassCost] or 0) * 0.5 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder, oUnitKilled.UnitId) then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerUnit:GetAIBrain().Nickname or 'nil')) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerBrain.Nickname or 'nil')) end
                                                 ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
                                             end
                                         end
@@ -319,15 +320,14 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                             --Was the unit in a mod dist of <=0.4 (so getting close to base or in base)?
                             if tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and (tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.3 or not(EntityCategoryContains(M28UnitInfo.refCategoryMex + categories.MOBILE, oUnitKilled.UnitId))) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Just lost unit '..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain'..oUnitKilled:GetAIBrain().Nickname..'; Mod dist='..(tUnitLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..'; will send taunt if havent sent one recently, Time='..GetGameTimeSeconds()) end
-                                ForkThread(M28Chat.JustLostValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain()) --If dont do as forked thread then any error breaks the game
+                                ForkThread(M28Chat.JustLostValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
                                 bConsideredNormalMessage = true
                             end
                         end
                         if not(bConsideredNormalMessage) and EntityCategoryContains(M28UnitInfo.refCategoeryExperimentalLevel, oUnitKilled.UnitId) then
                             --Special message if we have a hall personality M28 teammate, and killer brain was UEF
-                            if oKillerUnit.GetAIBrain and oKillerUnit:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionUEF then
+                            if oKillerBrain and oKillerBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF then
                                 --Do we have hall as a teammate?
-                                local oKillerBrain = oKillerUnit:GetAIBrain()
                                 local iTeam = oKillerBrain.M28Team
                                 local bHaveHall = false
                                 local oBrainToSendMessage

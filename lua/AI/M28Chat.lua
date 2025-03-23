@@ -1411,9 +1411,23 @@ function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptio
             end
             if not(tbAlliedFactions[M28UnitInfo.refFactionCybran]) and tbEnemyFactions[M28UnitInfo.refFactionCybran] then
                 AddPotentialMessage(LOC('<LOC X01_T01_150_010>[{i Gari}]: You are an abomination. I will take great pleasure in exterminating you.'), 'X01_Gari_T01_04525', 'X01_VO')
-                if math.random(1,2) == 1 then
-                    AddPotentialMessage(LOC('<LOC X01_T01_140_010>[{i Gari}]: Brackman is a doddering old fool.'),'X01_Gari_T01_04524', 'X01_VO')
+                local bEnemyLikesBrackman = true
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) == false then
+                    for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+                        if oBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
+                            if oBrain[refiAssignedPersonality] and not(oBrain[refiAssignedPersonality] == refiDostya) then
+                                bEnemyLikesBrackman = false
+                            end
+                        end
+                    end
                 end
+                if bEnemyLikesBrackman then
+                    if math.random(1,2) == 1 then
+                        AddPotentialMessage(LOC('<LOC X01_T01_140_010>[{i Gari}]: Brackman is a doddering old fool.'),'X01_Gari_T01_04524', 'X01_VO')
+                    end
+                    AddPotentialMessage(LOC('<LOC X01_M02_260_010>[{i Gari}]: When I am done here, I will seek out and destroy your beloved Dr. Brackman. And there will be no one left to stop me.'), 'X01_Gari_M02_03666', 'X01_VO')
+                end
+
             end
             if not(tbEnemyFactions[M28UnitInfo.refFactionSeraphim]) and tbAlliedFactions[M28UnitInfo.refFactionSeraphim] then
                 AddPotentialMessage(LOC('<LOC X01_T01_160_010>[{i Gari}]: You are a fool for rejecting the Seraphim.'), 'X01_Gari_T01_04526', 'X01_VO')
@@ -1713,7 +1727,7 @@ function ConsiderMessageForACUInTrouble(oACU, aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function JustLostValuableUnit(oUnitID, oKilledUnitBrain)
+function JustLostValuableUnit(oUnitID, oKilledUnitBrain, oKillerBrain)
     local sFunctionRef = 'JustLostValuableUnit'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1758,10 +1772,14 @@ function JustLostValuableUnit(oUnitID, oKilledUnitBrain)
         if oBrainToSendMessage[refiAssignedPersonality] == refiFletcher then
             AddPotentialMessage(LOC('<LOC X01_M03_100_010>[{i Fletcher}]: Where are my reinforcements?'), 'X01_Fletcher_M03_03695', 'X01_VO')
             AddPotentialMessage(LOC('<LOC X01_T01_230_010>[{i Fletcher}]: I\'m in a lot of trouble!'), 'X01_Fletcher_T01_04534', 'X01_VO')
+            AddPotentialMessage(LOC('<LOC X05_M02_330_010>[{i Fletcher}]: My base is being destroyed. I need help! I can\'t hold them off!'), 'X05_Fletcher_M02_05111', 'X05_VO')
             if bHaveTeammates then
-                AddPotentialMessage(LOC('<LOC X05_M02_330_010>[{i Fletcher}]: My base is being destroyed. I need help! I can\'t hold them off!'), 'X05_Fletcher_M02_05111', 'X05_VO')
                 AddPotentialMessage(LOC('<LOC X05_M02_300_010>[{i Fletcher}]: I\'m getting hit pretty hard! Get over here and help me! Fletcher out.'), 'X05_Fletcher_M02_05108', 'X05_VO')
                 AddPotentialMessage(LOC('<LOC X05_M02_340_010>[{i Fletcher}]: Enemy units are hitting my base pretty hard. I need you to reinforce my position. Fletcher out.'), 'X05_Fletcher_M02_05112', 'X05_VO')
+            end
+            --Were we killed by seraphim?
+            if oKillerBrain and oKillerBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then
+                AddPotentialMessage(LOC('<LOC X01_M03_090_010>[{i Fletcher}]: This is Brigadier Fletcher requesting assistance! Seraphim forces are pounding me pretty hard!'), 'X01_Fletcher_M03_03691', 'X01_VO')
             end
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiCelene then
             AddPotentialMessage(LOC('<LOC X02_M02_176_010>[{i Celene}]: I can still make things right.'), 'X02_Celene_M02_04287', 'X02_VO')
@@ -2602,7 +2620,7 @@ end
 {text = '<LOC X01_M02_240_010>[{i HQ}]: Your backside ain\'t out of the fire yet, Commander. Scans show Order units massing for a counter-attack from the northeast. HQ out.', vid = 'X01_HQ_M02_03662.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_03662', faction = 'NONE'},
 {text = '<LOC X01_M02_240_020>[{i HQ}]: The Order commander has launched her attack. It\'s going to be ugly. HQ out', vid = 'X01_HQ_M02_03663.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_03663', faction = 'NONE'},
 {text = '<LOC X01_M02_245_010>[{i HQ}]: The Order commander is moving sniper bots into position. They\'re quick and pack a punch, but their armor isn\'t worth a damn. HQ out.', vid = 'X01_HQ_M02_04246.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_04246', faction = 'NONE'},
-{text = '<LOC X01_M02_260_010>[{i Gari}]: When I am done here, I will seek out and destroy your beloved Dr. Brackman. And there will be no one left to stop me.', vid = 'X01_Gari_M02_03666.sfd', bank = 'X01_VO', cue = 'X01_Gari_M02_03666', faction = 'Aeon'},
+    {text = '<LOC X01_M02_260_010>[{i Gari}]: When I am done here, I will seek out and destroy your beloved Dr. Brackman. And there will be no one left to stop me.', vid = 'X01_Gari_M02_03666.sfd', bank = 'X01_VO', cue = 'X01_Gari_M02_03666', faction = 'Aeon'},
 {text = '<LOC X01_M02_281_010>[{i HQ}]: Got a Galactic Colossus heading your way. Deal with it. HQ out.', vid = 'X01_HQ_M02_04889.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_04889', faction = 'NONE'},
 {text = '<LOC X01_M02_290_010>[{i Hall}]: That Order commander has caused us enough grief -- assault her position and take her out.', vid = 'X01_Hall_M02_04248.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_04248', faction = 'UEF'},
     --If using the above one - incorporate the player's name, e.g. send at start of game
@@ -2611,7 +2629,7 @@ end
 {text = '<LOC X01_M02_390_010>[{i Dostya}]: Time is of the essence, Commander. You must destroy the Order commander. Dostya out.', vid = 'X01_Dostya_M02_04887.sfd', bank = 'X01_VO', cue = 'X01_Dostya_M02_04887', faction = 'Cybran'},
 {text = '<LOC X01_M03_020_010>[{i Fletcher}]: Seraphim forces have punched through my defenses, Colonel, and they\'re attacking strategic assets.', vid = 'X01_Fletcher_M03_03684.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03684', faction = 'UEF'},
 {text = '<LOC X01_M03_030_010>[{i Fletcher}]: The Seraphim is pressing the attack! I need help!', vid = 'X01_Fletcher_M03_03685.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03685', faction = 'UEF'},
-{text = '<LOC X01_M03_090_010>[{i Fletcher}]: This is Brigadier Fletcher requesting assistance! Seraphim forces are pounding me pretty hard!', vid = 'X01_Fletcher_M03_03691.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03691', faction = 'UEF'},
+    {text = '<LOC X01_M03_090_010>[{i Fletcher}]: This is Brigadier Fletcher requesting assistance! Seraphim forces are pounding me pretty hard!', vid = 'X01_Fletcher_M03_03691.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03691', faction = 'UEF'},
 {text = '<LOC X01_M03_120_010>[{i Fletcher}]: That alien freak is due east of my location. Assault its position from the south, and I\'ll push in from the west. It won\'t be able to defend two fronts at once.', vid = 'X01_Fletcher_M03_03696.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03696', faction = 'UEF'},
 {text = '<LOC X01_M03_130_010>[{i Fletcher}]: You gonna sit around or are you gonna get your hands dirty? The Seraphim\'s to my east. Attack it.', vid = 'X01_Fletcher_M03_03697.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03697', faction = 'UEF'},
 {text = '<LOC X01_M03_130_020>[{i Dostya}]: Defeat the Seraphim, Commander. Show this fool how Cybrans fight. Dostya out.', vid = 'X01_Dostya_M03_03698.sfd', bank = 'X01_VO', cue = 'X01_Dostya_M03_03698', faction = 'Cybran'},
