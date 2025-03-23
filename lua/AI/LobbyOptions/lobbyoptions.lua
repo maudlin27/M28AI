@@ -301,14 +301,14 @@ AIOpts = {
     {
         default = 2,
         label = "M28: Combined AI-Human armies?",
-        help = 'If enabled, then human players can toggle M28AI logic on individual units',
+        help = 'Enable to have M28 work more closely as a teammate, and to enable toggling M28AI logic on individual units (game will run slower in large teamgames)',
         key = 'M28CombinedArmy',
         value_text = "",
         value_help = "Allow M28 to take control of certain units?",
         values = {
             { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
                 text = 'Yes',
-                help = 'Enable combined armies',
+                help = 'Enable combined armies (also makes M28 coordinate better with your own units)',
                 key = 1,
             },
             {
@@ -344,6 +344,26 @@ AIOpts = {
             {
                 text = 'No',
                 help = 'Disable control by default',
+                key = 2,
+            },
+        },
+    },
+    {
+        default = 1,
+        label = "M28: Enable helpful teammate logic?",
+        help = 'Should M28 help by assisting player experimentals; gifting asfs to the air player; and gifting mexes it builds in a teammate\'s base',
+        key = 'M28Teammate',
+        value_text = "",
+        value_help = "Enable/disable M28 teammate logic",
+        values = {
+            { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
+                text = 'Yes',
+                help = 'Enable teammate logic',
+                key = 1,
+            },
+            {
+                text = 'No',
+                help = 'Disable teammate logic',
                 key = 2,
             },
         },

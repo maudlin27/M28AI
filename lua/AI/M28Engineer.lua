@@ -10812,6 +10812,10 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
                     if iCurDist < iClosestDist then
                         iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
                         if iCurPlateau == iPlateau then
+                            if not(ScenarioInfo.Options.M28Teammate == 1) and not(oUnit:GetAIBrain().M28AI) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Aborting logic to help engineers as we have disabled teammate experimental assistance for players') end
+                                break
+                            end
                             iClosestDist = iCurDist
                             oNonM28UnitToAssistInstead = oUnit
                         elseif bDebugMessages == true then LOG(sFunctionRef..': iCurPlateau='..(iCurPlateau or 'nil')..'; dif to plateau for engis so wont proceed')

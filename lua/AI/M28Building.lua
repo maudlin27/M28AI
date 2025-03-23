@@ -4220,7 +4220,7 @@ function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
                 local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iPotentialAdjacencyCategories, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
                 if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
                     for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
-                        if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam then
+                        if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam and (oNearbyUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
                             if AreUnitsAdjacent(oUnit, oNearbyUnit) then
                                 --Gift to other brain
@@ -4240,7 +4240,7 @@ function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
                     local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT3Power, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
                     if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
                         for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
-                            if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam then
+                            if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam and (oNearbyUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
                                 if AreUnitsAdjacent(oUnit, oNearbyUnit) then
                                     --Gift nearby t3 power to this unit's brain owner
@@ -4283,7 +4283,7 @@ function JustBuiltParagon(oParagon)
                             end
                         end
                     end
-                    if not(oOtherBrain) then
+                    if not(oOtherBrain) and ScenarioInfo.Options.M28Teammate == 1 then
                         for iBrain, oBrain in ArmyBrains do
                             if oBrain.M28Team == iTeam and not(oBrain.M28AI) and not(oBrain[M28Economy.refbBuiltParagon]) and not(oBrain.CampaignAI) and oBrain[M28Economy.refiGrossMassBaseIncome] <= 500 and not(oBrain.M28IsDefeated) and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryEngineer) >= 3 and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryParagon) == 0 then
                                 oOtherBrain = oBrain
@@ -4356,7 +4356,7 @@ function JustBuiltParagon(oParagon)
                     end
                 end
             end
-            if not(oOtherBrain) then
+            if not(oOtherBrain) and ScenarioInfo.Options.M28Teammate == 1 then
                 --Do we have other (non-M28) teammates we can gift to, that aren't campaign AI?
                 local oFirstTeammateBrain
                 local oFirstHumanBrain

@@ -4025,7 +4025,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                 elseif bDebugMessages == true then LOG(sFunctionRef..': Air unit appears to be dead?')
                                 end
                             end
-                            if iIdleAirAACount >= 30 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 12000 then
+                            if iIdleAirAACount >= 30 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 12000 and ScenarioInfo.Options.M28Teammate == 1 then
                                 --Consider gifting ASFs to a teammate if we haven't considered recently; only gift if they have more asfs than we do, and we lack air control
                                 if bDebugMessages == true then LOG(sFunctionRef..': Time since we last considered gifting asf to a teammate for airsubteam '..iAirSubteam..'='..(GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiTimeLastConsideredGiftingASFToAlly] or -100))) end
                                 if GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiTimeLastConsideredGiftingASFToAlly] or -100) >= 30 then

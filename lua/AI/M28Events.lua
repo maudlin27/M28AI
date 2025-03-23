@@ -2306,7 +2306,7 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                                         local iCurDist
                                         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
-                                            if not(oBrain:IsDefeated()) then
+                                            if not(oBrain:IsDefeated()) and (oBrain.M28AI or ScenarioInfo.Options.M28Teammate == 1) then
                                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oJustBuilt:GetPosition(), M28Map.GetPlayerStartPosition(oBrain))
                                                 if oBrain.M28AI then iClosestM28BrainDistBase = math.min(iClosestM28BrainDistBase, iCurDist)
                                                 else
@@ -2385,7 +2385,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby unit oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname) end
                                         if oUnit:GetAIBrain() == aiBrain then
                                             bHaveMexWeOwnNearby = true
-                                        elseif oUnit:GetAIBrain().M28Team == iTeam then
+                                        elseif oUnit:GetAIBrain().M28Team == iTeam and (oUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
                                             oBrainToTransferToIfWeOwnNoMexes = oUnit:GetAIBrain()
                                         end
                                     end
