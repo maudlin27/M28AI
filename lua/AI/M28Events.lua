@@ -324,7 +324,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 bConsideredNormalMessage = true
                             end
                         end
-                        if not(bConsideredNormalMessage) and EntityCategoryContains(M28UnitInfo.refCategoeryExperimentalLevel, oUnitKilled.UnitId) then
+                        if not(bConsideredNormalMessage) and EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
                             --Special message if we have a hall personality M28 teammate, and killer brain was UEF
                             if oKillerBrain and oKillerBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF then
                                 --Do we have hall as a teammate?
