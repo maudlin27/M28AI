@@ -2593,12 +2593,12 @@ end
     {text = '<LOC X06_T01_003_010>[{i ThelUuthow}]: Your experimental will never activate!', vid = 'X06_Thel-Uuthow_T01_04799.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_04799', faction = 'Seraphim'},
 --]]
 
---[[Other specific taunts:
+--[[Other specific taunts (indents denote where we have added the voice taunt)
 {text = '<LOC X01_M01_190_010>[{i HQ}]: Good work, that\'s the fourth one. HQ out.', vid = 'X01_HQ_M01_03630.sfd', bank = 'X01_VO', cue = 'X01_HQ_M01_03630', faction = 'NONE'},
     {text = '<LOC X01_M01_200_010>[{i HQ}]: That\'s the last of them -- all the artillery positions are down. HQ out.', vid = 'X01_HQ_M01_03631.sfd', bank = 'X01_VO', cue = 'X01_HQ_M01_03631', faction = 'NONE'},
 {text = '<LOC X01_M02_035_020>[{i Hall}]: Protect those buildings, Commander!', vid = 'X01_Hall_M02_04240.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_04240', faction = 'UEF'},
 {text = '<LOC X01_M02_047_010>[{i HQ}]: Enemy naval units coming into range, Colonel. Sink them before they can attack. HQ out.', vid = 'X01_HQ_M02_04691.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_04691', faction = 'NONE'},
-{text = '<LOC X01_M02_210_010>[{i Hall}]: Good work, Colonel. I\'m damn proud to have you in the UEF.', vid = 'X01_Hall_M02_03658.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_03658', faction = 'UEF'},
+    {text = '<LOC X01_M02_210_010>[{i Hall}]: Good work, Colonel. I\'m damn proud to have you in the UEF.', vid = 'X01_Hall_M02_03658.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_03658', faction = 'UEF'},
 {text = '<LOC X01_M02_240_010>[{i HQ}]: Your backside ain\'t out of the fire yet, Commander. Scans show Order units massing for a counter-attack from the northeast. HQ out.', vid = 'X01_HQ_M02_03662.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_03662', faction = 'NONE'},
 {text = '<LOC X01_M02_240_020>[{i HQ}]: The Order commander has launched her attack. It\'s going to be ugly. HQ out', vid = 'X01_HQ_M02_03663.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_03663', faction = 'NONE'},
 {text = '<LOC X01_M02_245_010>[{i HQ}]: The Order commander is moving sniper bots into position. They\'re quick and pack a punch, but their armor isn\'t worth a damn. HQ out.', vid = 'X01_HQ_M02_04246.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_04246', faction = 'NONE'},

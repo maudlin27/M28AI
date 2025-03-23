@@ -310,13 +310,39 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     end
                 end
                 --Consider message if this was a significant unit
-                if oUnitKilled:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnitKilled.M28Active) and EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryStructure * categories.EXPERIMENTAL + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML * categories.STRUCTURE, oUnitKilled.UnitId) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
                     if oUnitKilled:GetFractionComplete() == 1 or (EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) and oUnitKilled:GetFractionComplete() >= 0.6) then
-                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oUnitKilled:GetAIBrain().M28Team)
-                        --Was the unit in a mod dist of <=0.4 (so getting close to base or in base)?
-                        if tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and (tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.3 or not(EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnitKilled.UnitId))) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Just lost unit '..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain'..oUnitKilled:GetAIBrain().Nickname..'; Mod dist='..(tUnitLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..'; will send taunt if havent sent one recently, Time='..GetGameTimeSeconds()) end
-                            ForkThread(M28Chat.JustLostValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain()) --If dont do as forked thread then any error breaks the game
+                        local bConsideredNormalMessage = false
+                        --Send distress message
+                        if oUnitKilled:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnitKilled.M28Active) then
+                            local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oUnitKilled:GetAIBrain().M28Team)
+                            --Was the unit in a mod dist of <=0.4 (so getting close to base or in base)?
+                            if tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and (tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.3 or not(EntityCategoryContains(M28UnitInfo.refCategoryMex + categories.MOBILE, oUnitKilled.UnitId))) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Just lost unit '..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain'..oUnitKilled:GetAIBrain().Nickname..'; Mod dist='..(tUnitLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..'; will send taunt if havent sent one recently, Time='..GetGameTimeSeconds()) end
+                                ForkThread(M28Chat.JustLostValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain()) --If dont do as forked thread then any error breaks the game
+                                bConsideredNormalMessage = true
+                            end
+                        end
+                        if not(bConsideredNormalMessage) and EntityCategoryContains(M28UnitInfo.refCategoeryExperimentalLevel, oUnitKilled.UnitId) then
+                            --Special message if we have a hall personality M28 teammate, and killer brain was UEF
+                            if oKillerUnit.GetAIBrain and oKillerUnit:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionUEF then
+                                --Do we have hall as a teammate?
+                                local oKillerBrain = oKillerUnit:GetAIBrain()
+                                local iTeam = oKillerBrain.M28Team
+                                local bHaveHall = false
+                                local oBrainToSendMessage
+                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                        if oBrain[M28Chat.refiAssignedPersonality] == M28Chat.refiHall and oBrain.BrainType == 'AI' and not(oBrain == oKillerBrain) then
+                                            oBrainToSendMessage = oBrain
+                                            break
+                                        end
+                                    end
+                                end
+                                if oBrainToSendMessage then
+                                    ForkThread(M28Chat.SendMessage, oBrainToSendMessage, 'HallCongrats', LOC('<LOC X01_M02_210_010>[{i Hall}]: Good work, Colonel. I\'m damn proud to have you in the UEF.'), 1, 10000, false, true, 'X01_Hall_M02_03658', 'X01_VO')
+                                end
+                            end
                         end
                     end
                 end
