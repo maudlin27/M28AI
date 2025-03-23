@@ -2853,7 +2853,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     local sFunctionRef = 'DecideOnExperimentalToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 2055 and iActionToAssign == refActionBuildExperimental then bDebugMessages = true end
+
 
     local iFactionRequired
     local iCategoryWanted
@@ -9129,7 +9129,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 tEngineersOfTechWanted[iEngiCount] = nil
                 iEngiCount = iEngiCount - 1
             end
-            if GetGameTimeSeconds() >= 2055 and iActionToAssign == refActionBuildExperimental then bDebugMessages = true end
+
             if bDebugMessages == true then LOG(sFunctionRef..': iActionToAssign='..iActionToAssign..'; iEngiCount='..iEngiCount..'; Is category watned nil='..tostring(iCategoryWanted == nil)..'; iMinCategoryTechLevel='..(iMinCategoryTechLevel or 'nil')) end
 
             --Special logic for converting an action to a different one:
