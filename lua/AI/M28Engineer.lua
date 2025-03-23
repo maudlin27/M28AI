@@ -2853,7 +2853,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     local sFunctionRef = 'DecideOnExperimentalToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 2055 and iActionToAssign == refActionBuildExperimental then bDebugMessages = true end
 
     local iFactionRequired
     local iCategoryWanted
@@ -9129,7 +9129,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 tEngineersOfTechWanted[iEngiCount] = nil
                 iEngiCount = iEngiCount - 1
             end
-
+            if GetGameTimeSeconds() >= 2055 and iActionToAssign == refActionBuildExperimental then bDebugMessages = true end
             if bDebugMessages == true then LOG(sFunctionRef..': iActionToAssign='..iActionToAssign..'; iEngiCount='..iEngiCount..'; Is category watned nil='..tostring(iCategoryWanted == nil)..'; iMinCategoryTechLevel='..(iMinCategoryTechLevel or 'nil')) end
 
             --Special logic for converting an action to a different one:
@@ -9798,8 +9798,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     end
                 else
                     if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
-                        --Exception for experimentals where in low mass scenarios where we are building experimentals in another zone already we wont build in this zone
-                        if not(iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental) or not(M28Conditions.TeamHasLowMass(iTeam)) then
+                        --Exception for experimentals, as sometimes we hold off building anything because we want a different faction on the team to build
+                        if not(iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental) then
                             local bMightBeWaitingForFriendlySeraExp = false
                             if (iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental) and not(tbEngineersOfFaction[M28UnitInfo.refFactionSeraphim]) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
                                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
