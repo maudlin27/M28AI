@@ -5813,13 +5813,14 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget, oOptionalTarget)
 
     function MoveIndividualGunship(oClosestUnit, tUnitDestination)
         --Experimental gunship doesnt attack properly when just given a move order
-        if bDebugMessages == true then LOG(sFunctionRef..': Are we dealing with an experimental='..tostring( EntityCategoryContains(M28UnitInfo.categories.EXPERIMENTAL, oClosestUnit.UnitId))..'; Dist to unit destination='..M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), tUnitDestination)..'; Is oOptionalTarget valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalTarget))) end
-        if EntityCategoryContains(M28UnitInfo.categories.EXPERIMENTAL, oClosestUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), tUnitDestination) <= 20 then
-            if oOptionalTarget and M28Utilities.bLoudModActive then
+        if bDebugMessages == true then LOG(sFunctionRef..': Are we dealing with an experimental='..tostring( EntityCategoryContains(categories.EXPERIMENTAL, oClosestUnit.UnitId))..'; Dist to unit destination='..M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), tUnitDestination)..'; Is oOptionalTarget valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalTarget))..'; oOptionalTarget='..(oOptionalTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalTarget) or 'nil')..'; Is this a czar='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryCzar, oClosestUnit.UnitId))) end
+        if EntityCategoryContains(categories.EXPERIMENTAL, oClosestUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oClosestUnit:GetPosition(), tUnitDestination) <= 20 then
+            if oOptionalTarget and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) then --Had issue where czar stops attacking despite being on attackmove') end
                 --Do manual attack to be safe due to risk czar doesnt fire at all (had mixed results)
                 M28Orders.IssueTrackedAttack(oClosestUnit, oOptionalTarget, false, 'LoudExA', false)
             else
-                M28Orders.IssueTrackedAggressiveMove(oClosestUnit, tUnitDestination, iGunshipMoveTolerance, false, 'GSExA', false)
+                if bDebugMessages == true then LOG(sFunctionRef..'; Will just do attackmove to the traget instead') end
+                M28Orders.IssueTrackedAggressiveMove(oClosestUnit, tUnitDestination, math.max(15, iGunshipMoveTolerance), false, 'GSExA', false)
             end
         else
             if bDebugMessages == true then LOG(sFunctionRef..': bConsiderAttackIfCloseToTarget='..tostring(bConsiderAttackIfCloseToTarget)..'; Time since last f ired='..GetGameTimeSeconds() - (oClosestUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots]='..(oClosestUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
@@ -7153,11 +7154,11 @@ function ManageGunships(iTeam, iAirSubteam)
 
                     end
                 end
-                if M28Utilities.bLoudModActive then --LOUD has significantly lowered gunship firing tolerance so they have to face enemy to fire
+                --if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then --LOUD has significantly lowered gunship firing tolerance so they have to face enemy to fire
                     GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition(), oClosestEnemy)
-                else
-                    GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
-                end
+                --else
+                    --GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
+                --end
             end
         end
     else

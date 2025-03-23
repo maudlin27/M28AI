@@ -168,6 +168,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
 
                 --were we killed by something?
                 local oKillerUnit
+                local oKillerBrain
 
                 if instigator and not(instigator:BeenDestroyed()) and not(instigator.Dead) then
                     if instigator.GetLauncher and instigator:GetLauncher() then
@@ -183,6 +184,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Have an instigator, checking if have valid killer unit. Is valid='..tostring(M28UnitInfo.IsUnitValid(oKillerUnit))) end
                     if oKillerUnit and oKillerUnit.GetAIBrain then
+                        oKillerBrain = oKillerUnit:GetAIBrain()
 
                         --Non-M28 specific killer logic:
 
@@ -217,8 +219,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 if oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryAirNonScout, oKillerUnit.UnitId) then
                                     M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] = M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] + M28UnitInfo.GetUnitMassCost(oUnitKilled)
                                 end
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitKilled.UnitId) and not(iTeam == oKillerUnit:GetAIBrain().M28Team) then
-                                if oKillerUnit:GetAIBrain().M28Team then
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitKilled.UnitId) and not(iTeam == oKillerBrain.M28Team) then
+                                if oKillerBrain.M28Team then
                                     --I.e. we have an M28 naval fac killed by a unit from another team
                                     local tWZData, tWZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, iTeam)
                                     if tWZTeamData then tWZTeamData[M28Map.subrefWZFactoryDestroyedCount] = (tWZTeamData[M28Map.subrefWZFactoryDestroyedCount] or 0) + 1 end
@@ -227,8 +229,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                         end
 
                         --M28 specific killer logic
-                        local oKillerBrain = oKillerUnit:GetAIBrain()
                         if oKillerBrain.M28AI then
+                            --Logic based on the category of the killer:
                             if EntityCategoryContains(M28UnitInfo.refCategorySatellite, instigator.UnitId) and M28UnitInfo.IsUnitValid(oKillerUnit) then
                                 ForkThread(M28Air.NovaxCoreTargetLoop, oKillerBrain, instigator, true)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oKillerUnit.UnitId) and not(type) and not(overkillRatio) and not(oKillerBrain.M28Team == oUnitKilled:GetAIBrain().M28Team) then
@@ -239,7 +241,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 if M28Utilities.IsTableEmpty(tNearbyReclaimableEnemies) == false then
                                     for iPotentialEnemy, oPotentialEnemy in tNearbyReclaimableEnemies do
                                         if not(oPotentialEnemy == oUnitKilled) and M28UnitInfo.IsUnitValid(oPotentialEnemy) and oPotentialEnemy:GetHealth() > 0 then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Will issue new reclaim order for oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..' owend by brain'..oKillerUnit:GetAIBrain().Nickname..' to target enemy unit '..(oPotentialEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPotentialEnemy) or 'nil')..'; Time='..GetGameTimeSeconds()..'; Enemy unit health='..oPotentialEnemy:GetHealth()..'; Enemy unit brain owner='..oPotentialEnemy:GetAIBrain().Nickname) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will issue new reclaim order for oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..' owend by brain'..oKillerBrain.Nickname..' to target enemy unit '..(oPotentialEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPotentialEnemy) or 'nil')..'; Time='..GetGameTimeSeconds()..'; Enemy unit health='..oPotentialEnemy:GetHealth()..'; Enemy unit brain owner='..oPotentialEnemy:GetAIBrain().Nickname) end
 
                                             ForkThread(M28Orders.IssueTrackedReclaim, oKillerUnit, oPotentialEnemy, false, 'FollowRec', false) --WHen tried doing but not via forked thread ended up with game crashing
                                             bNotGivenReclaimOrder = false
@@ -262,7 +264,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 end
                                 --Gunship and strat bomber tracking (non-experimental)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber - M28UnitInfo.refCategoryTorpBomber - categories.EXPERIMENTAL, oKillerUnit.UnitId) then
-                                local iTeam = oKillerUnit:GetAIBrain().M28Team
+                                local iTeam = oKillerBrain.M28Team
                                 if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oKillerUnit.UnitId) then
                                     M28Team.tTeamData[iTeam][M28Team.refiBomberKills] = M28Team.tTeamData[iTeam][M28Team.refiBomberKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                                 else
@@ -270,28 +272,35 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 end
                                 --AirAA tracking
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oKillerUnit.UnitId) then
-                                local iTeam = oKillerUnit:GetAIBrain().M28Team
+                                local iTeam = oKillerBrain.M28Team
                                 M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] = M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                             end
+
+                            --Logic based on the category of the unit killed
                             if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
                                 if M28Orders.bDontConsiderCombinedArmy or oKillerUnit.M28Active then
                                     --Scathis special message if killed by UEF
-                                    if oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnitKilled.UnitId) and EntityCategoryContains(categories.UEF, oKillerUnit.UnitId) and oKillerUnit:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiFletcher then
-                                        ForkThread(M28Chat.SendMessage, oKillerUnit:GetAIBrain(), 'UEFKilledScathis', LOC('<LOC X05_M02_050_010>[{i Fletcher}]: Scratch one Scathis. Fletcher out.'), 1, 600, false, true, 'X05_Fletcher_M02_03831', 'X05_VO')
+                                    if oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnitKilled.UnitId) and EntityCategoryContains(categories.UEF, oKillerUnit.UnitId) and oKillerBrain[M28Chat.refiAssignedPersonality] == M28Chat.refiFletcher then
+                                        ForkThread(M28Chat.SendMessage, oKillerBrain, 'UEFKilledScathis', LOC('<LOC X05_M02_050_010>[{i Fletcher}]: Scratch one Scathis. Fletcher out.'), 1, 600, false, true, 'X05_Fletcher_M02_03831', 'X05_VO')
+                                        --Killed T3 arti or experimental arti and there are no other friendly T3/Exp arti units on that team
+                                    elseif oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled.UnitId) and M28Chat.IsTeamCoalition(oKillerBrain.M28Team) and M28Utilities.IsTableEmpty(oUnitKilled:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled:GetPosition(), M28Map.iMapSize * 2, 'Ally')) then
+                                        local bSendToTeam = false
+                                        if math.random(1,2) == 1 and M28Utilities.IsTableEmpty(M28Team.tTeamData[oKillerBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false and table.getn(M28Team.tTeamData[oKillerBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) >= 2 then bSendToTeam = true end
+                                        M28Chat.SendMessage(oKillerBrain, 'CoalKillArti', LOC('<LOC X01_M01_200_010>[{i HQ}]: That\'s the last of them -- all the artillery positions are down.'), 1, 600, false, true, 'X01_HQ_M01_03631', 'X01_VO', bSendToTeam)
                                         --Dont trigger if killed via nuke
                                     elseif oKillerUnit and not(EntityCategoryContains(M28UnitInfo.refCategorySML, oKillerUnit.UnitId)) then
                                         --Check mod dist is far enoguh away from our core base that unlikely it has dealt lots of damage
                                         local bConsiderMessage = true
                                         if EntityCategoryContains(categories.MOBILE, oUnitKilled.UnitId) then
                                             bConsiderMessage = false
-                                            local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oKillerUnit:GetAIBrain().M28Team)
+                                            local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oKillerBrain.M28Team)
                                             if tUnitLZTeamData and tUnitLZTeamData[M28Map.refiModDistancePercent] >= 0.3 and not(tUnitLZTeamData[M28Map.subrefLZbCoreBase]) and ((oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < 12000) then
                                                 bConsiderMessage = true
                                             end
                                         end
                                         if bConsiderMessage then
                                             if (oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < (oUnitKilled[M28UnitInfo.refiUnitMassCost] or 0) * 0.5 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder, oUnitKilled.UnitId) then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerUnit:GetAIBrain().Nickname or 'nil')) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerBrain.Nickname or 'nil')) end
                                                 ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
                                             end
                                         end
@@ -302,13 +311,38 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     end
                 end
                 --Consider message if this was a significant unit
-                if oUnitKilled:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnitKilled.M28Active) and EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryStructure * categories.EXPERIMENTAL + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML * categories.STRUCTURE, oUnitKilled.UnitId) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
                     if oUnitKilled:GetFractionComplete() == 1 or (EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) and oUnitKilled:GetFractionComplete() >= 0.6) then
-                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oUnitKilled:GetAIBrain().M28Team)
-                        --Was the unit in a mod dist of <=0.4 (so getting close to base or in base)?
-                        if tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and (tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.3 or not(EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnitKilled.UnitId))) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Just lost unit '..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain'..oUnitKilled:GetAIBrain().Nickname..'; Mod dist='..(tUnitLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..'; will send taunt if havent sent one recently, Time='..GetGameTimeSeconds()) end
-                            ForkThread(M28Chat.JustLostValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain()) --If dont do as forked thread then any error breaks the game
+                        local bConsideredNormalMessage = false
+                        --Send distress message
+                        if oUnitKilled:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnitKilled.M28Active) then
+                            local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, oUnitKilled:GetAIBrain().M28Team)
+                            --Was the unit in a mod dist of <=0.4 (so getting close to base or in base)?
+                            if tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and (tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.3 or not(EntityCategoryContains(M28UnitInfo.refCategoryMex + categories.MOBILE, oUnitKilled.UnitId))) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Just lost unit '..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain'..oUnitKilled:GetAIBrain().Nickname..'; Mod dist='..(tUnitLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..'; will send taunt if havent sent one recently, Time='..GetGameTimeSeconds()) end
+                                ForkThread(M28Chat.JustLostValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                bConsideredNormalMessage = true
+                            end
+                        end
+                        if not(bConsideredNormalMessage) and EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
+                            --Special message if we have a hall personality M28 teammate, and killer brain was UEF
+                            if oKillerBrain and oKillerBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF then
+                                --Do we have hall as a teammate?
+                                local iTeam = oKillerBrain.M28Team
+                                local bHaveHall = false
+                                local oBrainToSendMessage
+                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                        if oBrain[M28Chat.refiAssignedPersonality] == M28Chat.refiHall and oBrain.BrainType == 'AI' and not(oBrain == oKillerBrain) then
+                                            oBrainToSendMessage = oBrain
+                                            break
+                                        end
+                                    end
+                                end
+                                if oBrainToSendMessage then
+                                    ForkThread(M28Chat.SendMessage, oBrainToSendMessage, 'HallCongrats', LOC('<LOC X01_M02_210_010>[{i Hall}]: Good work, Colonel. I\'m damn proud to have you in the UEF.'), 1, 10000, false, true, 'X01_Hall_M02_03658', 'X01_VO')
+                                end
+                            end
                         end
                     end
                 end
@@ -2169,28 +2203,32 @@ function OnConstructed(oEngineer, oJustBuilt)
                         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
                         tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] = (tLZTeamData[M28Map.refiZoneConstructedExperimentalCount] or 0) + 1
                         if EntityCategoryContains(M28UnitInfo.refCategoryParagon, oJustBuilt.UnitId) then
-                        ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
+                            ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                        M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
+                            M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oJustBuilt.UnitId) or ((oJustBuilt[M28UnitInfo.refiDFRange] or 0) >= 80 and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oJustBuilt.UnitId)) then
-                        --flag we have built long range unit so we prioritise building omni
-                        aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] = true
+                            --flag we have built long range unit so we prioritise building omni
+                            aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] = true
                         end
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oJustBuilt.UnitId) then
-                        ForkThread(M28Air.DelayedNovaxUnloadCheck, oJustBuilt)
+                            ForkThread(M28Air.DelayedNovaxUnloadCheck, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oEngineer.UnitId) and oEngineer:GetAIBrain().M28AI then
-                        ForkThread(M28Air.DelayedNovaxUnloadCheck, oEngineer)
+                            ForkThread(M28Air.DelayedNovaxUnloadCheck, oEngineer)
                         end
 
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oJustBuilt.UnitId) then M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] = (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0) + 1 end
                         if oJustBuilt[M28Building.reftArtiTemplateRefs] then
-                        --Reassess the game-ender to build
-                        local tTableRef = M28Map.tAllPlateaus[oJustBuilt[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oJustBuilt[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][iTeam][M28Map.reftActiveGameEnderTemplates][oJustBuilt[M28Building.reftArtiTemplateRefs][3]]
-                        if tTableRef then tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] = true end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Flagging that we want to refresh the Arti to build for GE template, P'..oJustBuilt[M28Building.reftArtiTemplateRefs][1]..'Z'..oJustBuilt[M28Building.reftArtiTemplateRefs][2]..'T'..oJustBuilt[M28Building.reftArtiTemplateRefs][3]..'; tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild]='..tostring(tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] or false)..'; Is tTableRef nil='..tostring(tTableRef == nil)..'; Time='..GetGameTimeSeconds()) end
-                            end
-                            --Loud T2 sniperbots - consider enhancement
+                            --Reassess the game-ender to build
+                            local tTableRef = M28Map.tAllPlateaus[oJustBuilt[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oJustBuilt[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][iTeam][M28Map.reftActiveGameEnderTemplates][oJustBuilt[M28Building.reftArtiTemplateRefs][3]]
+                            if tTableRef then tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] = true end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Flagging that we want to refresh the Arti to build for GE template, P'..oJustBuilt[M28Building.reftArtiTemplateRefs][1]..'Z'..oJustBuilt[M28Building.reftArtiTemplateRefs][2]..'T'..oJustBuilt[M28Building.reftArtiTemplateRefs][3]..'; tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild]='..tostring(tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] or false)..'; Is tTableRef nil='..tostring(tTableRef == nil)..'; Time='..GetGameTimeSeconds()) end
+                        end
+                        --QAI chat
+                        if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oJustBuilt.UnitId) and oJustBuilt:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiQAI and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] < 8000 and M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) == 1 then
+                            ForkThread(M28Chat.ConsiderQAIAboutToAttackMessage, oJustBuilt)
+                        end
+                        --Loud T2 sniperbots - consider enhancement
                     elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
                         ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
                     end
@@ -4291,51 +4329,55 @@ function PingCreated(data)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG('Ping created, reprs='..reprs(data)..'; Is this a marker='..tostring(data.Type == 'Marker')) end
-
+    local bEngiMarkerPing = false
     --Check for marker ping and get the message and brain creator
-    if data.Type == 'Marker' or data.Type == 'marker' then --(QUIET is lowercase marker)
-        local iIndex = data.Owner + 1
-        local aiBrain
-        for iBrain, oBrain in ArmyBrains do
-            if iBrain == iIndex then
-                if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
-                    aiBrain = oBrain
+    local iIndex = data.Owner + 1
+    local aiBrain
+    for iBrain, oBrain in ArmyBrains do
+        if iBrain == iIndex then
+            if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
+                aiBrain = oBrain
+            end
+            break
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Brain creating ping='..(aiBrain.Nickname or 'nil')..' on team '..(aiBrain.M28Team or 'nil')..'; Is table of friendly active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team or 1][M28Team.subreftoFriendlyActiveM28Brains]))) end
+    if aiBrain and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        local iTeam = aiBrain.M28Team
+        local iTimeSinceLastRequest = GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeSinceLastEngiRequest] or 0)
+        local oFirstM28Brain
+        local oFirstAnyBrain
+        for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains] do
+            if oBrain.M28AI then
+                if not(oFirstAnyBrain) then oFirstAnyBrain = oBrain end
+                if not(oBrain.BrainType == 'Human') then
+                    oFirstM28Brain = oBrain
+                    break
                 end
-                break
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Brain creating ping='..(aiBrain.Nickname or 'nil')..' on team '..(aiBrain.M28Team or 'nil')..'; Is table of friendly active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team or 1][M28Team.subreftoFriendlyActiveM28Brains]))) end
-        if aiBrain and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-            local iTeam = aiBrain.M28Team
-            local iTimeSinceLastRequest = GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeSinceLastEngiRequest] or 0)
-            local oFirstM28Brain
-            local oFirstAnyBrain
-            for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains] do
-                if oBrain.M28AI then
-                    if not(oFirstAnyBrain) then oFirstAnyBrain = oBrain end
-                    if not(oBrain.BrainType == 'Human') then oFirstM28Brain = oBrain break end
-                end
-            end
+        if data.Type == 'Marker' or data.Type == 'marker' then --(QUIET is lowercase marker)
             local oBrainForMessage = oFirstM28Brain or oFirstAnyBrain
             if bDebugMessages == true then LOG(sFunctionRef..': oBrainForMessage='..(oBrainForMessage.Nickname or 'nil')..'; iTimeSinceLastRequest='..iTimeSinceLastRequest) end
             if oBrainForMessage then
                 local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(data.Location, true, aiBrain.M28Team)
-                if iTimeSinceLastRequest < 60 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Too soon since last valid request') end
-                    if tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi] == aiBrain then
-                        M28Chat.SendMessage(oBrainForMessage, 'EngiDenied', 'Yes yes I know, just be patient and I\'ll give you one when I can.', 1, 2, true, false, nil, nil, nil)
-                    else
-                        M28Chat.SendMessage(oBrainForMessage, 'EngiDenied', 'You\'ll just have to wait and ask me again in '..math.floor(60-iTimeSinceLastRequest)..' seconds.', 1, 2, true, false, nil, nil, nil)
-                    end
-                else
-                    if bDebugMessages == true then
-                        local iPlateau, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(data.Location)
-                        LOG(sFunctionRef..': Is tLZOrWZTeamData nil='..tostring(tLZOrWZTeamData == nil)..'; iPlateau='..(iPlateau or 'nil')..'; iZone='..(iZone or 'nil'))
-                    end
-                    if tLZOrWZTeamData then
-                        --Check if the message contains "Engi"
-                        if bDebugMessages == true then LOG(sFunctionRef..': string.lower of the text='..string.lower(data.Name)..'; Does this contain engi='..(string.find(string.lower(data.Name), 'engi') or 'nil')) end
-                        if string.find(string.lower(data.Name), 'engi', 1, true) then
+                if bDebugMessages == true then
+                    local iPlateau, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(data.Location)
+                    LOG(sFunctionRef..': Is tLZOrWZTeamData nil='..tostring(tLZOrWZTeamData == nil)..'; iPlateau='..(iPlateau or 'nil')..'; iZone='..(iZone or 'nil'))
+                end
+                if tLZOrWZTeamData then
+                    --Check if the message contains "Engi"
+                    if bDebugMessages == true then LOG(sFunctionRef..': string.lower of the text='..string.lower(data.Name)..'; Does this contain engi='..(string.find(string.lower(data.Name), 'engi') or 'nil')) end
+                    if string.find(string.lower(data.Name), 'engi', 1, true) then
+                        bEngiMarkerPing = true
+                        if iTimeSinceLastRequest < 60 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Too soon since last valid request') end
+                            if tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi] == aiBrain then
+                                M28Chat.SendMessage(oBrainForMessage, 'EngiDenied', 'Yes yes I know, just be patient and I\'ll give you one when I can.', 1, 2, true, false, nil, nil, nil)
+                            else
+                                M28Chat.SendMessage(oBrainForMessage, 'EngiDenied', 'You\'ll just have to wait and ask me again in '..math.floor(60-iTimeSinceLastRequest)..' seconds.', 1, 2, true, false, nil, nil, nil)
+                            end
+                        else
                             --Check we have engineers in this zone
                             local bHaveEngineersInZone = false
                             local tEngineers
@@ -4357,6 +4399,15 @@ function PingCreated(data)
                             end
                         end
                     end
+                end
+            end
+        end
+        if not(bEngiMarkerPing) then
+            if oFirstM28Brain then
+                M28Team.tTeamData[aiBrain.M28Team][M28Team.refiGeneralPingsInLast30Seconds] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiGeneralPingsInLast30Seconds] or 0) + 1
+                M28Utilities.DelayChangeVariable(M28Team.tTeamData[aiBrain.M28Team], M28Team.refiGeneralPingsInLast30Seconds, -1, 30, nil, nil, nil, nil, true)
+                if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiGeneralPingsInLast30Seconds] >= 4 then
+                    M28Chat.SendMessageAboutTooManyPings(aiBrain.M28Team)
                 end
             end
         end

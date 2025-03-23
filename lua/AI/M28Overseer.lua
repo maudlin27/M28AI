@@ -135,7 +135,7 @@ function GetNearestEnemyBrain(aiBrain)
                         --Redundancy for AI like DD that may not trigger the aibrain hook
                         if not(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) then
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            M28Map.RecordBrainStartPoint(oBrain)
+                            M28Map.RecordBrainStartPoint(oBrain, (M28Map.bIsCampaignMap and GetGameTimeSeconds() >= 5 and not(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname)) and oBrain.BrainType == 'AI'))
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
                         end

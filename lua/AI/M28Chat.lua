@@ -241,6 +241,7 @@ function SendGloatingMessage(aiBrain, iDelayBeforeSending, iMinDelayBetweenSimil
             AddPotentialMessage(LOC('<LOC XGG_MP1_190_010>[{i Rhiza}]: I will not be stopped!'), 'XGG_Rhiza_MP1_04584', 'XGG')
             AddPotentialMessage(LOC('<LOC XGG_MP1_220_010>[{i Rhiza}]: For the Aeon!'), 'XGG_Rhiza_MP1_04587', 'XGG')
             AddPotentialMessage(LOC('<LOC XGG_MP1_240_010>[{i Rhiza}]: Behold the power of the Illuminate!'), 'XGG_Rhiza_MP1_04589', 'XGG')
+            if IsTeamCoalition(aiBrain.M28Team) then AddPotentialMessage(LOC('<LOC X06_T01_950_010>[{i Rhiza}]: Victory to the Coalition!'), 'X06_Rhiza_T01_03055', 'X06_VO') end
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiKael then
             AddPotentialMessage(LOC('<LOC X03_M02_115_020>[{i Kael}]: Ha-ha-ha!'), 'X03_Kael_M02_04368', 'X03_VO')
             AddPotentialMessage(LOC('<LOC XGG_MP1_280_010>[{i Kael}]: You\'re beginning to bore me.'), 'XGG_Kael_MP1_04593', 'XGG')
@@ -909,6 +910,17 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                                     AddPotentialMessage( 'Die, '..sFaction..' scum!')
                                 end
                             end
+                            --Could our team be the coalition? (no seraphim, and no non-coalition personalities)
+                            if IsTeamCoalition(oBrainToSendMessage.M28Team) then
+                                AddPotentialMessage(LOC('<LOC X03_M02_082_010>[{i HQ}]: Holy ... I can\'t believe it. You actually destroyed them.'), 'X03_HQ_M02_04843', 'X03_VO')
+                            end
+
+                        end
+
+                        if oBrainToSendMessage[refiAssignedPersonality] == refiRhiza then
+                            if IsTeamCoalition(oBrainToSendMessage.M28Team) then AddPotentialMessage(LOC('<LOC X06_T01_950_010>[{i Rhiza}]: Victory to the Coalition!'), 'X06_Rhiza_T01_03055', 'X06_VO') end
+                        elseif oBrainToSendMessage[refiAssignedPersonality] == refiHex5 then
+                            AddPotentialMessage(LOC('<LOC XGG_MP1_630_010>[{i Hex5}]: Goodbye!'), 'XGG_Hex5_MP1_04628', 'XGG')
                         end
 
                     elseif bTeamHadM28AI then
@@ -1399,9 +1411,23 @@ function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptio
             end
             if not(tbAlliedFactions[M28UnitInfo.refFactionCybran]) and tbEnemyFactions[M28UnitInfo.refFactionCybran] then
                 AddPotentialMessage(LOC('<LOC X01_T01_150_010>[{i Gari}]: You are an abomination. I will take great pleasure in exterminating you.'), 'X01_Gari_T01_04525', 'X01_VO')
-                if math.random(1,2) == 1 then
-                    AddPotentialMessage(LOC('<LOC X01_T01_140_010>[{i Gari}]: Brackman is a doddering old fool.'),'X01_Gari_T01_04524', 'X01_VO')
+                local bEnemyLikesBrackman = true
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) == false then
+                    for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+                        if oBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
+                            if oBrain[refiAssignedPersonality] and not(oBrain[refiAssignedPersonality] == refiDostya) then
+                                bEnemyLikesBrackman = false
+                            end
+                        end
+                    end
                 end
+                if bEnemyLikesBrackman then
+                    if math.random(1,2) == 1 then
+                        AddPotentialMessage(LOC('<LOC X01_T01_140_010>[{i Gari}]: Brackman is a doddering old fool.'),'X01_Gari_T01_04524', 'X01_VO')
+                    end
+                    AddPotentialMessage(LOC('<LOC X01_M02_260_010>[{i Gari}]: When I am done here, I will seek out and destroy your beloved Dr. Brackman. And there will be no one left to stop me.'), 'X01_Gari_M02_03666', 'X01_VO')
+                end
+
             end
             if not(tbEnemyFactions[M28UnitInfo.refFactionSeraphim]) and tbAlliedFactions[M28UnitInfo.refFactionSeraphim] then
                 AddPotentialMessage(LOC('<LOC X01_T01_160_010>[{i Gari}]: You are a fool for rejecting the Seraphim.'), 'X01_Gari_T01_04526', 'X01_VO')
@@ -1626,9 +1652,9 @@ function ConsiderMessageForACUInTrouble(oACU, aiBrain)
                 end
             end
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiHall then
-            --50% chance of adding hall specific text based messages (otherwise will go for generic)
-            if math.random(1,2)==1 then
-                AddPotentialMessage(LOC('[{i Hall}]: I need you to come to my aid commander'), nil, nil, true)
+            --66% chance of adding hall specific text based messages (otherwise will go for generic)
+            if math.random(1,3) > 1 then
+                AddPotentialMessage(LOC('<LOC X01_M02_250_020>[{i Hall}]: We\'ll fight you to the very end.'), 'X01_Hall_M02_03665', 'X01_VO')
                 if bHaveTeammates then
                     AddPotentialMessage(LOC('[{i Hall}]: I need you to come to my aid commander'), nil, nil, true)
                     AddPotentialMessage(LOC('[{i Hall}]: It is imperative that I survive this fight commander'), nil, nil, true)
@@ -1643,9 +1669,10 @@ function ConsiderMessageForACUInTrouble(oACU, aiBrain)
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiRhiza then
             AddPotentialMessage(LOC('<LOC X06_T01_885_010>[{i Rhiza}]: Such a thing will not stop me!'), 'X06_Rhiza_T01_04508', 'X06_VO')
             AddPotentialMessage(LOC('<LOC X06_T01_887_010>[{i Rhiza}]: You mistake me if you think I will be cowed!'), 'X06_Rhiza_T01_04510', 'X06_VO')
-            AddPotentialMessage(LOC('<LOC X06_T01_885_010>[{i Rhiza}]: Such a thing will not stop me!'), 'X06_Rhiza_T01_04508', 'X06_VO')
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiKael then
             AddPotentialMessage(LOC('<LOC XGG_MP1_250_010>[{i Kael}]: The Order will not be defeated!'), 'XGG_Kael_MP1_04590', 'XGG')
+        elseif oBrainToSendMessage[refiAssignedPersonality] == refiDostya then
+            AddPotentialMessage(LOC('<LOC X01_M02_260_020>[{i Dostya}]: We\'ll fight you to our last breath.'), 'X01_Dostya_M02_03667', 'X01_VO')
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiBrackman then
             if bHaveTeammates then
                 AddPotentialMessage(LOC('<LOC X05_M03_016_010>[{i Brackman}]: I am under attack, my child. Under attack. Please defend me.'), 'X05_Brackman_M03_04953', 'X05_VO', true)
@@ -1700,7 +1727,7 @@ function ConsiderMessageForACUInTrouble(oACU, aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function JustLostValuableUnit(oUnitID, oKilledUnitBrain)
+function JustLostValuableUnit(oUnitID, oKilledUnitBrain, oKillerBrain)
     local sFunctionRef = 'JustLostValuableUnit'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1745,10 +1772,14 @@ function JustLostValuableUnit(oUnitID, oKilledUnitBrain)
         if oBrainToSendMessage[refiAssignedPersonality] == refiFletcher then
             AddPotentialMessage(LOC('<LOC X01_M03_100_010>[{i Fletcher}]: Where are my reinforcements?'), 'X01_Fletcher_M03_03695', 'X01_VO')
             AddPotentialMessage(LOC('<LOC X01_T01_230_010>[{i Fletcher}]: I\'m in a lot of trouble!'), 'X01_Fletcher_T01_04534', 'X01_VO')
+            AddPotentialMessage(LOC('<LOC X05_M02_330_010>[{i Fletcher}]: My base is being destroyed. I need help! I can\'t hold them off!'), 'X05_Fletcher_M02_05111', 'X05_VO')
             if bHaveTeammates then
-                AddPotentialMessage(LOC('<LOC X05_M02_330_010>[{i Fletcher}]: My base is being destroyed. I need help! I can\'t hold them off!'), 'X05_Fletcher_M02_05111', 'X05_VO')
                 AddPotentialMessage(LOC('<LOC X05_M02_300_010>[{i Fletcher}]: I\'m getting hit pretty hard! Get over here and help me! Fletcher out.'), 'X05_Fletcher_M02_05108', 'X05_VO')
                 AddPotentialMessage(LOC('<LOC X05_M02_340_010>[{i Fletcher}]: Enemy units are hitting my base pretty hard. I need you to reinforce my position. Fletcher out.'), 'X05_Fletcher_M02_05112', 'X05_VO')
+            end
+            --Were we killed by seraphim?
+            if oKillerBrain and oKillerBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then
+                AddPotentialMessage(LOC('<LOC X01_M03_090_010>[{i Fletcher}]: This is Brigadier Fletcher requesting assistance! Seraphim forces are pounding me pretty hard!'), 'X01_Fletcher_M03_03691', 'X01_VO')
             end
         elseif oBrainToSendMessage[refiAssignedPersonality] == refiCelene then
             AddPotentialMessage(LOC('<LOC X02_M02_176_010>[{i Celene}]: I can still make things right.'), 'X02_Celene_M02_04287', 'X02_VO')
@@ -2153,6 +2184,115 @@ function SendSlowdownModeMessage(oBrainToSendMessage)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ConsiderQAIAboutToAttackMessage(oExperimental)
+    --Intended to be called for QAI personality when we have an experimental and enemy doesnt
+    WaitSeconds(20)
+    if M28UnitInfo.IsUnitValid(oExperimental) then
+        local aiBrain = oExperimental:GetAIBrain()
+        if aiBrain.M28AI and aiBrain[refiAssignedPersonality] == refiQAI then
+            local iTeam = oExperimental:GetAIBrain().M28Team
+            while M28UnitInfo.IsUnitValid(oExperimental) and not(oExperimental[M28UnitInfo.refiTimeLastTriedRetreating]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) do
+                if oExperimental[M28UnitInfo.refiLastWeaponEvent] then
+                    --We have fired a weapon, so decent chance we are close to enemies
+                    SendMessage(aiBrain, 'AttackSoon', LOC('<LOC X02_M02_160_010>[{i QAI}]: It is time to end this. My primary attack force is moving into position.'), 10, 10000, false, true, 'X02_QAI_M02_04278', 'X02_VO', nil)
+                end
+                WaitSeconds(1)
+            end
+        end
+    end
+end
+function IsTeamCoalition(iTeam)
+    for iBrain, oBrain in ArmyBrains do
+        if oBrain.M28Team == iTeam then
+            if oBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then
+                return false
+            elseif oBrain.refiAssignedPersonality then
+                if oBrain.refiAssignedPersonality == refiCelene
+                        or oBrain.refiAssignedPersonality == refiVendetta
+                        or oBrain.refiAssignedPersonality == refiKael
+                        or oBrain.refiAssignedPersonality == refiGari
+                        or oBrain.refiAssignedPersonality == refiHex5
+                        or oBrain.refiAssignedPersonality == refiQAI then
+                    return false
+                end
+            end
+        end
+    end
+    return true
+end
+
+function SendMessageAboutTooManyPings(iTeam)
+    local sFunctionRef = 'SendMessageAboutTooManyPings'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        local oBrainToSendMessage
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            if oBrain.BrainType == 'AI' then
+                if not(oBrainToSendMessage) or oBrain[refiAssignedPersonality] == refiFletcher then
+                    oBrainToSendMessage = oBrain
+                end
+            end
+        end
+
+        local tsPotentialTeamMessages = {}
+        local tsTeamCueIndex = {}
+        local tsTeamBankIndex = {}
+        local tsPotentialMessages = {}
+        local tsCueByMessageIndex = {}
+        local tsBankBymessageIndex = {}
+        function AddPotentialMessage(sMessage, sOptionalCue, sOptionalBank, bIsTeamMessage)
+            if bIsTeamMessage then
+                table.insert(tsPotentialTeamMessages, sMessage)
+                if sOptionalCue and sOptionalBank then
+                    local iRef = table.getn(tsPotentialTeamMessages)
+                    tsTeamCueIndex[iRef] = sOptionalCue
+                    tsTeamBankIndex[iRef] = sOptionalBank
+                end
+
+            else
+                table.insert(tsPotentialMessages, sMessage)
+                if sOptionalCue and sOptionalBank then
+                    local iRef = table.getn(tsPotentialMessages)
+                    tsCueByMessageIndex[iRef] = sOptionalCue
+                    tsBankBymessageIndex[iRef] = sOptionalBank
+                end
+            end
+        end
+
+        if oBrainToSendMessage[refiAssignedPersonality] == refiFletcher then
+            AddPotentialMessage('[Fletcher]: Yeah, yeah. Give it a rest already with those pings', 'X05_Fletcher_M02_04950', 'X05_VO', true)
+        else
+            AddPotentialMessage('Shutup', nil, nil, true)
+            AddPotentialMessage('I cant hear myself think with all those pings', nil, nil, true)
+            AddPotentialMessage('I heard you with the first ping', nil, nil, true)
+            AddPotentialMessage('Do you realise I ignore such pings?', nil, nil, true)
+            AddPotentialMessage('Enough with the pings already', nil, nil, true)
+            AddPotentialMessage('Please stop pinging so much, it\'s annoying', nil, nil, true)
+        end
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential global and team messages, tsPotentialMessages='..repru(tsPotentialMessages)..'; tsPotentialTeamMessages='..repru(tsPotentialTeamMessages)..'; oBrainToSendMessage='..(oBrainToSendMessage.Nickname or 'nil')) end
+        local bSendGlobal = true
+        local bSendTeam = true
+        if M28Utilities.IsTableEmpty(tsPotentialMessages) == false and M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false then
+            if math.random(1,2) == 1 then bSendGlobal = false else bSendTeam = false end
+        end
+        if bSendGlobal and M28Utilities.IsTableEmpty(tsPotentialMessages) == false and oBrainToSendMessage then
+            local iRand = math.random(1, table.getn(tsPotentialMessages))
+            --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
+            SendMessage(oBrainToSendMessage, 'TooManyPings'..oBrainToSendMessage.M28Team, tsPotentialMessages[iRand], 0, 600, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
+        end
+        if bSendTeam and M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false and oBrainToSendMessage then
+            local iRand = math.random(1, table.getn(tsPotentialTeamMessages))
+            --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
+            SendMessage(oBrainToSendMessage, 'TooManyPings'..oBrainToSendMessage.M28Team, tsPotentialTeamMessages[iRand], 3, 600, true, M28Map.bIsCampaignMap, tsTeamCueIndex[iRand], tsTeamBankIndex[iRand])
+        end
+
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 --List of potential voice messages
 --intro:
     --By UEF
@@ -2327,18 +2467,14 @@ end
 --{LOC('<LOC X05_M02_240_010>[{i Fletcher}]: Soul Rippers are tearing up my Fatboy! I need air cover, now!', vid = 'X05_Fletcher_M02_04945.sfd', bank = 'X05_VO', cue = 'X05_Fletcher_M02_04945', faction = 'UEF'},
 --Intercept Nuke with Aeon SMD:
 --{LOC('<LOC X06_T01_560_010>[{i Vendetta}]: Nice try.', vid = 'X06_Vedetta_T01_03018.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_03018', faction = 'Aeon'},
-
-
---Special (not yet done):
 --Kill scathis with M28 as UEF:
 --{LOC('<LOC X05_M02_050_010>[{i Fletcher}]: Scratch one Scathis. Fletcher out.', vid = 'X05_Fletcher_M02_03831.sfd', bank = 'X05_VO', cue = 'X05_Fletcher_M02_03831', faction = 'UEF'},
-
---Construct a land experimental, and have more land experimentals than enemy team (send on a 30s delay)
+--Construct a land experimental, and have more land experimentals than enemy team (send on a 30s delay, and only if exp isnt retreating)
     --{text = '<LOC X02_M02_160_010>[{i QAI}]: It is time to end this. My primary attack force is moving into position.', vid = 'X02_QAI_M02_04278.sfd', bank = 'X02_VO', cue = 'X02_QAI_M02_04278', faction = 'Cybran'},
 
---Victory (some of above would also work)
---{LOC('<LOC X03_M02_082_010>[{i HQ}]: Holy ... I can\'t believe it. You actually destroyed them.', vid = 'X03_HQ_M02_04843.sfd', bank = 'X03_VO', cue = 'X03_HQ_M02_04843', faction = 'NONE'},
---{LOC('<LOC X06_T01_950_010>[{i Rhiza}]: Victory to the Coalition!', vid = 'X06_Rhiza_T01_03055.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_03055', faction = 'Aeon'},
+--Victory (and for coalition, as a gloating message)
+    --{LOC('<LOC X03_M02_082_010>[{i HQ}]: Holy ... I can\'t believe it. You actually destroyed them.', vid = 'X03_HQ_M02_04843.sfd', bank = 'X03_VO', cue = 'X03_HQ_M02_04843', faction = 'NONE'},
+    --{LOC('<LOC X06_T01_950_010>[{i Rhiza}]: Victory to the Coalition!', vid = 'X06_Rhiza_T01_03055.sfd', bank = 'X06_VO', cue = 'X06_Rhiza_T01_03055', faction = 'Aeon'},
 
 
 --Taunts (some of which may already be above):
@@ -2351,7 +2487,7 @@ end
     {text = '<LOC XGG_MP1_060_010>[{i Hall}]: Get out of here while you still can.', bank = 'XGG', cue = 'XGG_Hall__04571'},
     {text = '<LOC XGG_MP1_070_010>[{i Hall}]: I guess it\'s time to end this farce.', bank = 'XGG', cue = 'XGG_Hall__04572'},
     {text = '<LOC XGG_MP1_080_010>[{i Hall}]: You\'ve got no chance against me!', bank = 'XGG', cue = 'XGG_Hall__04573'},
-{text = '<LOC X01_M02_250_020>[{i Hall}]: We\'ll fight you to the very end.', vid = 'X01_Hall_M02_03665.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_03665', faction = 'UEF'},
+    {text = '<LOC X01_M02_250_020>[{i Hall}]: We\'ll fight you to the very end.', vid = 'X01_Hall_M02_03665.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_03665', faction = 'UEF'},
 {text = '<LOC X01_M01_117_010>[{i Hall}]: Commander, it is imperative that you move inland as quickly as possible. Countless lives hang in the balance.', vid = 'X01_Hall_M01_03618.sfd', bank = 'X01_VO', cue = 'X01_Hall_M01_03618', faction = 'UEF'},
     {text = '<LOC XGG_MP1_090_010>[{i Fletcher}]: This ain\'t gonna be much of a fight.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04574'},
     {text = '<LOC XGG_MP1_100_010>[{i Fletcher}]: You\'re not puttin\' up much of a fight.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04575'},
@@ -2359,11 +2495,11 @@ end
     {text = '<LOC XGG_MP1_120_010>[{i Fletcher}]: Not much on tactics, are ya?', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04577'},
     {text = '<LOC XGG_MP1_130_010>[{i Fletcher}]: If you run now, I\'ll let ya go.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04578'},
     {text = '<LOC XGG_MP1_140_010>[{i Fletcher}]: You ain\'t too good at this, are you?', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04579'},
-{text = '<LOC XGG_MP1_150_010>[{i Fletcher}]: Guess I got time to smack you around.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04580'},
+    {text = '<LOC XGG_MP1_150_010>[{i Fletcher}]: Guess I got time to smack you around.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04580'},
     {text = '<LOC XGG_MP1_160_010>[{i Fletcher}]: I feel a bit bad, beatin\' up on you like this.', bank = 'XGG', cue = 'XGG_Fletcher_MP1_04581'},
     {text = '<LOC X01_M01_040_010>[{i Fletcher}]: A Cybran, huh? I thought you guys would be busy changing the water in Brackman\'s brain tank.', bank = 'X01_VO', cue = 'X01_Fletcher_M01_02877'},
     {text = '<LOC X01_M03_170_010>[{i Fletcher}]: That\'s what I love to see. Burn, baby, burn!', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03701'},
-{text = '<LOC X05_M02_270_030>[{i Fletcher}]: Yeah, yeah. Give it a rest already.', bank = 'X05_VO', cue = 'X05_Fletcher_M02_04950'},
+    {text = '<LOC X05_M02_270_030>[{i Fletcher}]: Yeah, yeah. Give it a rest already.', bank = 'X05_VO', cue = 'X05_Fletcher_M02_04950'},
     {text = '<LOC X06_T01_587_010>[{i Fletcher}]: You can\'t stop me with that experimental! I\'ll destroy it first!', bank = 'X06_VO', cue = 'X06_Fletcher_T01_04805'},
     {text = '<LOC X06_T01_690_010>[{i Fletcher}]: You\'re a coward.', bank = 'X06_VO', cue = 'X06_Fletcher_T01_03030'},
     {text = '<LOC X06_T01_860_010>[{i Fletcher}]: There is no stopping me!', bank = 'X06_VO', cue = 'X06_Fletcher_T01_03047'},
@@ -2409,7 +2545,7 @@ end
     {text = '<LOC XGG_MP1_380_010>[{i Dostya}]: Your defeat is without question.', bank = 'XGG', cue = 'XGG_Dostya_MP1_04603'},
     {text = '<LOC XGG_MP1_390_010>[{i Dostya}]: You seem to have courage. Intelligence seems to be lacking.', bank = 'XGG', cue = 'XGG_Dostya_MP1_04604'},
     {text = '<LOC XGG_MP1_400_010>[{i Dostya}]: I will destroy you.', bank = 'XGG', cue = 'XGG_Dostya_MP1_04605'},
-{text = '<LOC X01_M02_260_020>[{i Dostya}]: We\'ll fight you to our last breath.', vid = 'X01_Dostya_M02_03667.sfd', bank = 'X01_VO', cue = 'X01_Dostya_M02_03667', faction = 'Cybran'},
+    {text = '<LOC X01_M02_260_020>[{i Dostya}]: We\'ll fight you to our last breath.', vid = 'X01_Dostya_M02_03667.sfd', bank = 'X01_VO', cue = 'X01_Dostya_M02_03667', faction = 'Cybran'},
     {text = '<LOC XGG_MP1_410_010>[{i Brackman}]: I\'m afraid there is no hope for you, oh yes.', bank = 'XGG', cue = 'XGG_Brackman_MP1_04606'},
     {text = '<LOC XGG_MP1_420_010>[{i Brackman}]: Well, at least you provided me with some amusement.', bank = 'XGG', cue = 'XGG_Brackman_MP1_04607'},
     {text = '<LOC XGG_MP1_430_010>[{i Brackman}]: Perhaps some remedial training is in order?', bank = 'XGG', cue = 'XGG_Brackman_MP1_04608'},
@@ -2435,7 +2571,7 @@ end
     {text = '<LOC XGG_MP1_600_010>[{i Hex5}]: A smoking crater is going to be all that\'s left of you.', bank = 'XGG', cue = 'XGG_Hex5_MP1_04625'},
     {text = '<LOC XGG_MP1_610_010>[{i Hex5}]: So, I guess failure runs in your family?', bank = 'XGG', cue = 'XGG_Hex5_MP1_04626'},
     {text = '<LOC XGG_MP1_620_010>[{i Hex5}]: Man, I\'m good at this!', bank = 'XGG', cue = 'XGG_Hex5_MP1_04627'},
-{text = '<LOC XGG_MP1_630_010>[{i Hex5}]: Goodbye!', bank = 'XGG', cue = 'XGG_Hex5_MP1_04628'},
+    {text = '<LOC XGG_MP1_630_010>[{i Hex5}]: Goodbye!', bank = 'XGG', cue = 'XGG_Hex5_MP1_04628'},
     {text = '<LOC XGG_MP1_640_010>[{i Hex5}]: Don\'t worry, it\'ll be over soon.', bank = 'XGG', cue = 'XGG_Hex5_MP1_04629'},
     {text = '<LOC X05_T01_190_010>[{i Hex5}]: You will bow before the Seraphim.', bank = 'X05_VO', cue = 'X05_Hex5_T01_04433'},
     {text = '<LOC X04_T01_020_010>[{i OumEoshi}]: Only one species can attain perfection.', bank = 'X04_VO', cue = 'X04_Oum-Eoshi_T01_04384'},
@@ -2448,43 +2584,43 @@ end
 
 --Taunts re stopping player completing an experimental (added)
 --[[
-{text = '<LOC X06_T01_585_010>[{i Fletcher}]: I won\'t let you use that experimental!', vid = 'X06_Fletcher_T01_04803.sfd', bank = 'X06_VO', cue = 'X06_Fletcher_T01_04803', faction = 'UEF'},
-{text = '<LOC X06_T01_587_010>[{i Fletcher}]: You can\'t stop me with that experimental! I\'ll destroy it first!', vid = 'X06_Fletcher_T01_04805.sfd', bank = 'X06_VO', cue = 'X06_Fletcher_T01_04805', faction = 'UEF'},
+    {text = '<LOC X06_T01_585_010>[{i Fletcher}]: I won\'t let you use that experimental!', vid = 'X06_Fletcher_T01_04803.sfd', bank = 'X06_VO', cue = 'X06_Fletcher_T01_04803', faction = 'UEF'},
+    {text = '<LOC X06_T01_587_010>[{i Fletcher}]: You can\'t stop me with that experimental! I\'ll destroy it first!', vid = 'X06_Fletcher_T01_04805.sfd', bank = 'X06_VO', cue = 'X06_Fletcher_T01_04805', faction = 'UEF'},
 
-{text = '<LOC X01_T01_001_010>[{i Gari}]: I will not allow you to build that experimental.', vid = 'X01_Gari_T01_04779.sfd', bank = 'X01_VO', cue = 'X01_Gari_T01_04779', faction = 'Aeon'},
-{text = '<LOC X01_T01_002_010>[{i Gari}]: No, you will not complete that experimental.', vid = 'X01_Gari_T01_04780.sfd', bank = 'X01_VO', cue = 'X01_Gari_T01_04780', faction = 'Aeon'},
-{text = '<LOC X01_T01_003_010>[{i Gari}]: An experimental? I am not so foolish as to let you finish that.', vid = 'X01_Gari_T01_04781.sfd', bank = 'X01_VO', cue = 'X01_Gari_T01_04781', faction = 'Aeon'},
-{text = '<LOC X02_T01_002_010>[{i Celene}]: I will destroy that experimental before you even finish it!', vid = 'X02_Celene_T01_04783.sfd', bank = 'X02_VO', cue = 'X02_Celene_T01_04783', faction = 'Aeon'},
-{text = '<LOC X02_T01_003_010>[{i Celene}]: Watch as I destroy your experimental even before it can be activated.', vid = 'X02_Celene_T01_04784.sfd', bank = 'X02_VO', cue = 'X02_Celene_T01_04784', faction = 'Aeon'},
-{text = '<LOC X06_T01_275_010>[{i Vendetta}]: Your experimental could cause me problems, so I think I will eliminate it.', vid = 'X06_Vedetta_T01_04800.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_04800', faction = 'Aeon'},
-{text = '<LOC X06_T01_276_010>[{i Vendetta}]: No, you will not finish that experimental!', vid = 'X06_Vedetta_T01_04801.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_04801', faction = 'Aeon'},
-{text = '<LOC X06_T01_277_010>[{i Vendetta}]: Do not think you will complete that experimental!', vid = 'X06_Vedetta_T01_04802.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_04802', faction = 'Aeon'},
+    {text = '<LOC X01_T01_001_010>[{i Gari}]: I will not allow you to build that experimental.', vid = 'X01_Gari_T01_04779.sfd', bank = 'X01_VO', cue = 'X01_Gari_T01_04779', faction = 'Aeon'},
+    {text = '<LOC X01_T01_002_010>[{i Gari}]: No, you will not complete that experimental.', vid = 'X01_Gari_T01_04780.sfd', bank = 'X01_VO', cue = 'X01_Gari_T01_04780', faction = 'Aeon'},
+    {text = '<LOC X01_T01_003_010>[{i Gari}]: An experimental? I am not so foolish as to let you finish that.', vid = 'X01_Gari_T01_04781.sfd', bank = 'X01_VO', cue = 'X01_Gari_T01_04781', faction = 'Aeon'},
+    {text = '<LOC X02_T01_002_010>[{i Celene}]: I will destroy that experimental before you even finish it!', vid = 'X02_Celene_T01_04783.sfd', bank = 'X02_VO', cue = 'X02_Celene_T01_04783', faction = 'Aeon'},
+    {text = '<LOC X02_T01_003_010>[{i Celene}]: Watch as I destroy your experimental even before it can be activated.', vid = 'X02_Celene_T01_04784.sfd', bank = 'X02_VO', cue = 'X02_Celene_T01_04784', faction = 'Aeon'},
+    {text = '<LOC X06_T01_275_010>[{i Vendetta}]: Your experimental could cause me problems, so I think I will eliminate it.', vid = 'X06_Vedetta_T01_04800.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_04800', faction = 'Aeon'},
+    {text = '<LOC X06_T01_276_010>[{i Vendetta}]: No, you will not finish that experimental!', vid = 'X06_Vedetta_T01_04801.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_04801', faction = 'Aeon'},
+    {text = '<LOC X06_T01_277_010>[{i Vendetta}]: Do not think you will complete that experimental!', vid = 'X06_Vedetta_T01_04802.sfd', bank = 'X06_VO', cue = 'X06_Vedetta_T01_04802', faction = 'Aeon'},
 
-{text = '<LOC X02_T01_165_010>[{i QAI}]: You will not complete that experimental unit.', vid = 'X02_QAI_T01_04785.sfd', bank = 'X02_VO', cue = 'X02_QAI_T01_04785', faction = 'Cybran'},
-{text = '<LOC X02_T01_166_010>[{i QAI}]: I will not allow you to jeopardize my mission by finishing that experimental.', vid = 'X02_QAI_T01_04786.sfd', bank = 'X02_VO', cue = 'X02_QAI_T01_04786', faction = 'Cybran'},
-{text = '<LOC X02_T01_167_010>[{i QAI}]: Your experimental unit may actually be dangerous if completed. Ergo, I will destroy it now.', vid = 'X02_QAI_T01_04787.sfd', bank = 'X02_VO', cue = 'X02_QAI_T01_04787', faction = 'Cybran'},
-{text = '<LOC X05_T01_125_010>[{i Hex5}]: Completing that experimental unit could interfere with the Master\'s plans. I will not allow that.', vid = 'X05_Hex5_T01_04794.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04794', faction = 'Cybran'},
-{text = '<LOC X05_T01_126_010>[{i Hex5}]: The Master wills that your experimental will not come online.', vid = 'X05_Hex5_T01_04795.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04795', faction = 'Cybran'},
-{text = '<LOC X05_T01_127_010>[{i Hex5}]: That experimental unit will not be completed!', vid = 'X05_Hex5_T01_04796.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04796', faction = 'Cybran'},
+    {text = '<LOC X02_T01_165_010>[{i QAI}]: You will not complete that experimental unit.', vid = 'X02_QAI_T01_04785.sfd', bank = 'X02_VO', cue = 'X02_QAI_T01_04785', faction = 'Cybran'},
+    {text = '<LOC X02_T01_166_010>[{i QAI}]: I will not allow you to jeopardize my mission by finishing that experimental.', vid = 'X02_QAI_T01_04786.sfd', bank = 'X02_VO', cue = 'X02_QAI_T01_04786', faction = 'Cybran'},
+    {text = '<LOC X02_T01_167_010>[{i QAI}]: Your experimental unit may actually be dangerous if completed. Ergo, I will destroy it now.', vid = 'X02_QAI_T01_04787.sfd', bank = 'X02_VO', cue = 'X02_QAI_T01_04787', faction = 'Cybran'},
+    {text = '<LOC X05_T01_125_010>[{i Hex5}]: Completing that experimental unit could interfere with the Master\'s plans. I will not allow that.', vid = 'X05_Hex5_T01_04794.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04794', faction = 'Cybran'},
+    {text = '<LOC X05_T01_126_010>[{i Hex5}]: The Master wills that your experimental will not come online.', vid = 'X05_Hex5_T01_04795.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04795', faction = 'Cybran'},
+    {text = '<LOC X05_T01_127_010>[{i Hex5}]: That experimental unit will not be completed!', vid = 'X05_Hex5_T01_04796.sfd', bank = 'X05_VO', cue = 'X05_Hex5_T01_04796', faction = 'Cybran'},
 
-{text = '<LOC X04_T01_001_010>[{i OumEoshi}]: Your experimental units are actually troublesome. It will be destroyed before it is completed.', vid = 'X04_Oum-Eoshi_T01_04788.sfd', bank = 'X04_VO', cue = 'X04_Oum-Eoshi_T01_04788', faction = 'Seraphim'},
-{text = '<LOC X04_T01_002_010>[{i OumEoshi}]: I admire your tenacity, but I will not allow you to complete that experimental unit.', vid = 'X04_Oum-Eoshi_T01_04789.sfd', bank = 'X04_VO', cue = 'X04_Oum-Eoshi_T01_04789', faction = 'Seraphim'},
-{text = '<LOC X04_T01_003_010>[{i OumEoshi}]: Your doom is without question, yet I cannot allow you to finish that experimental.', vid = 'X04_Oum-Eoshi_T01_04790.sfd', bank = 'X04_VO', cue = 'X04_Oum-Eoshi_T01_04790', faction = 'Seraphim'},
-{text = '<LOC X06_T01_001_010>[{i ThelUuthow}]: I will not allow your experimental to interfere with my mission!', vid = 'X06_Thel-Uuthow_T01_04797.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_04797', faction = 'Seraphim'},
-{text = '<LOC X06_T01_002_010>[{i ThelUuthow}]: I will eliminate your experimental just as we will eventually eliminate your Coalition!', vid = 'X06_Thel-Uuthow_T01_04798.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_04798', faction = 'Seraphim'},
-{text = '<LOC X06_T01_003_010>[{i ThelUuthow}]: Your experimental will never activate!', vid = 'X06_Thel-Uuthow_T01_04799.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_04799', faction = 'Seraphim'},
+    {text = '<LOC X04_T01_001_010>[{i OumEoshi}]: Your experimental units are actually troublesome. It will be destroyed before it is completed.', vid = 'X04_Oum-Eoshi_T01_04788.sfd', bank = 'X04_VO', cue = 'X04_Oum-Eoshi_T01_04788', faction = 'Seraphim'},
+    {text = '<LOC X04_T01_002_010>[{i OumEoshi}]: I admire your tenacity, but I will not allow you to complete that experimental unit.', vid = 'X04_Oum-Eoshi_T01_04789.sfd', bank = 'X04_VO', cue = 'X04_Oum-Eoshi_T01_04789', faction = 'Seraphim'},
+    {text = '<LOC X04_T01_003_010>[{i OumEoshi}]: Your doom is without question, yet I cannot allow you to finish that experimental.', vid = 'X04_Oum-Eoshi_T01_04790.sfd', bank = 'X04_VO', cue = 'X04_Oum-Eoshi_T01_04790', faction = 'Seraphim'},
+    {text = '<LOC X06_T01_001_010>[{i ThelUuthow}]: I will not allow your experimental to interfere with my mission!', vid = 'X06_Thel-Uuthow_T01_04797.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_04797', faction = 'Seraphim'},
+    {text = '<LOC X06_T01_002_010>[{i ThelUuthow}]: I will eliminate your experimental just as we will eventually eliminate your Coalition!', vid = 'X06_Thel-Uuthow_T01_04798.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_04798', faction = 'Seraphim'},
+    {text = '<LOC X06_T01_003_010>[{i ThelUuthow}]: Your experimental will never activate!', vid = 'X06_Thel-Uuthow_T01_04799.sfd', bank = 'X06_VO', cue = 'X06_Thel-Uuthow_T01_04799', faction = 'Seraphim'},
 --]]
 
---[[Other specific taunts:
+--[[Other specific taunts (indents denote where we have added the voice taunt)
 {text = '<LOC X01_M01_190_010>[{i HQ}]: Good work, that\'s the fourth one. HQ out.', vid = 'X01_HQ_M01_03630.sfd', bank = 'X01_VO', cue = 'X01_HQ_M01_03630', faction = 'NONE'},
-{text = '<LOC X01_M01_200_010>[{i HQ}]: That\'s the last of them -- all the artillery positions are down. HQ out.', vid = 'X01_HQ_M01_03631.sfd', bank = 'X01_VO', cue = 'X01_HQ_M01_03631', faction = 'NONE'},
+    {text = '<LOC X01_M01_200_010>[{i HQ}]: That\'s the last of them -- all the artillery positions are down. HQ out.', vid = 'X01_HQ_M01_03631.sfd', bank = 'X01_VO', cue = 'X01_HQ_M01_03631', faction = 'NONE'},
 {text = '<LOC X01_M02_035_020>[{i Hall}]: Protect those buildings, Commander!', vid = 'X01_Hall_M02_04240.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_04240', faction = 'UEF'},
 {text = '<LOC X01_M02_047_010>[{i HQ}]: Enemy naval units coming into range, Colonel. Sink them before they can attack. HQ out.', vid = 'X01_HQ_M02_04691.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_04691', faction = 'NONE'},
-{text = '<LOC X01_M02_210_010>[{i Hall}]: Good work, Colonel. I\'m damn proud to have you in the UEF.', vid = 'X01_Hall_M02_03658.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_03658', faction = 'UEF'},
+    {text = '<LOC X01_M02_210_010>[{i Hall}]: Good work, Colonel. I\'m damn proud to have you in the UEF.', vid = 'X01_Hall_M02_03658.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_03658', faction = 'UEF'},
 {text = '<LOC X01_M02_240_010>[{i HQ}]: Your backside ain\'t out of the fire yet, Commander. Scans show Order units massing for a counter-attack from the northeast. HQ out.', vid = 'X01_HQ_M02_03662.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_03662', faction = 'NONE'},
 {text = '<LOC X01_M02_240_020>[{i HQ}]: The Order commander has launched her attack. It\'s going to be ugly. HQ out', vid = 'X01_HQ_M02_03663.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_03663', faction = 'NONE'},
 {text = '<LOC X01_M02_245_010>[{i HQ}]: The Order commander is moving sniper bots into position. They\'re quick and pack a punch, but their armor isn\'t worth a damn. HQ out.', vid = 'X01_HQ_M02_04246.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_04246', faction = 'NONE'},
-{text = '<LOC X01_M02_260_010>[{i Gari}]: When I am done here, I will seek out and destroy your beloved Dr. Brackman. And there will be no one left to stop me.', vid = 'X01_Gari_M02_03666.sfd', bank = 'X01_VO', cue = 'X01_Gari_M02_03666', faction = 'Aeon'},
+    {text = '<LOC X01_M02_260_010>[{i Gari}]: When I am done here, I will seek out and destroy your beloved Dr. Brackman. And there will be no one left to stop me.', vid = 'X01_Gari_M02_03666.sfd', bank = 'X01_VO', cue = 'X01_Gari_M02_03666', faction = 'Aeon'},
 {text = '<LOC X01_M02_281_010>[{i HQ}]: Got a Galactic Colossus heading your way. Deal with it. HQ out.', vid = 'X01_HQ_M02_04889.sfd', bank = 'X01_VO', cue = 'X01_HQ_M02_04889', faction = 'NONE'},
 {text = '<LOC X01_M02_290_010>[{i Hall}]: That Order commander has caused us enough grief -- assault her position and take her out.', vid = 'X01_Hall_M02_04248.sfd', bank = 'X01_VO', cue = 'X01_Hall_M02_04248', faction = 'UEF'},
     --If using the above one - incorporate the player's name, e.g. send at start of game
@@ -2493,7 +2629,7 @@ end
 {text = '<LOC X01_M02_390_010>[{i Dostya}]: Time is of the essence, Commander. You must destroy the Order commander. Dostya out.', vid = 'X01_Dostya_M02_04887.sfd', bank = 'X01_VO', cue = 'X01_Dostya_M02_04887', faction = 'Cybran'},
 {text = '<LOC X01_M03_020_010>[{i Fletcher}]: Seraphim forces have punched through my defenses, Colonel, and they\'re attacking strategic assets.', vid = 'X01_Fletcher_M03_03684.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03684', faction = 'UEF'},
 {text = '<LOC X01_M03_030_010>[{i Fletcher}]: The Seraphim is pressing the attack! I need help!', vid = 'X01_Fletcher_M03_03685.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03685', faction = 'UEF'},
-{text = '<LOC X01_M03_090_010>[{i Fletcher}]: This is Brigadier Fletcher requesting assistance! Seraphim forces are pounding me pretty hard!', vid = 'X01_Fletcher_M03_03691.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03691', faction = 'UEF'},
+    {text = '<LOC X01_M03_090_010>[{i Fletcher}]: This is Brigadier Fletcher requesting assistance! Seraphim forces are pounding me pretty hard!', vid = 'X01_Fletcher_M03_03691.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03691', faction = 'UEF'},
 {text = '<LOC X01_M03_120_010>[{i Fletcher}]: That alien freak is due east of my location. Assault its position from the south, and I\'ll push in from the west. It won\'t be able to defend two fronts at once.', vid = 'X01_Fletcher_M03_03696.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03696', faction = 'UEF'},
 {text = '<LOC X01_M03_130_010>[{i Fletcher}]: You gonna sit around or are you gonna get your hands dirty? The Seraphim\'s to my east. Attack it.', vid = 'X01_Fletcher_M03_03697.sfd', bank = 'X01_VO', cue = 'X01_Fletcher_M03_03697', faction = 'UEF'},
 {text = '<LOC X01_M03_130_020>[{i Dostya}]: Defeat the Seraphim, Commander. Show this fool how Cybrans fight. Dostya out.', vid = 'X01_Dostya_M03_03698.sfd', bank = 'X01_VO', cue = 'X01_Dostya_M03_03698', faction = 'Cybran'},
@@ -2518,7 +2654,6 @@ end
 {text = '<LOC X02_M02_090_010>[{i HQ}]: Enemy forces are converging on your position. HQ out.', vid = 'X02_HQ_M02_03543.sfd', bank = 'X02_VO', cue = 'X02_HQ_M02_03543', faction = 'NONE'},
 {text = '<LOC X02_M02_100_010>[{i HQ}]: Enemy assault inbound. HQ out.', vid = 'X02_HQ_M02_03544.sfd', bank = 'X02_VO', cue = 'X02_HQ_M02_03544', faction = 'NONE'},
 {text = '<LOC X02_M02_160_030>[{i HQ}]: Got a barrel of fun rolling your way, Commander. HQ out.', vid = 'X02_HQ_M02_04280.sfd', bank = 'X02_VO', cue = 'X02_HQ_M02_04280', faction = 'NONE'},
-{text = '<LOC X02_M02_160_010>[{i QAI}]: It is time to end this. My primary attack force is moving into position.', vid = 'X02_QAI_M02_04278.sfd', bank = 'X02_VO', cue = 'X02_QAI_M02_04278', faction = 'Cybran'},
 {text = '<LOC X02_M02_170_010>[{i Princess}]: Hear me, people of the Illuminate! I am Princess Rhianne Burke, rightful leader of the Aeon. The Seraphim are not the saviors they claim to be. They bring nothing save death and destruction!', vid = 'X02_Princess_M02_04281.sfd', bank = 'X02_VO', cue = 'X02_Princess_M02_04281', faction = 'Aeon'},
 {text = '<LOC X02_M03_017_010>[{i HQ}]: Looks like QAI is trying to summon assistance from its Seraphim buddies. Expect a Seraphim commander to arrive on-planet shortly. HQ out.', vid = 'X02_HQ_M03_04295.sfd', bank = 'X02_VO', cue = 'X02_HQ_M03_04295', faction = 'NONE'},
 {text = '<LOC X02_M03_070_010>[{i Brackman}]: QAI is attempting to destroy the Seraphim ACU, my child. You must not allow that to happen.', vid = 'X02_Brackman_M03_04305.sfd', bank = 'X02_VO', cue = 'X02_Brackman_M03_04305', faction = 'Cybran'},
