@@ -377,9 +377,11 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
 
     if iSimModCount > 0 then
         --Basic compatibiltiy with flying engineers mod - allow air engineers to be treated as engineers; also work on mods with similar effect but different name
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking for flying engineer compatibility, is table empty of units for T1 engi='..tostring(M28Utilities.IsTableEmpty(EntityCategoryGetUnitList(M28UnitInfo.refCategoryEngineer * categories.TECH1)))) end
         if not(bFlyingEngineers) and M28Utilities.IsTableEmpty(EntityCategoryGetUnitList(M28UnitInfo.refCategoryEngineer * categories.TECH1)) then bFlyingEngineers = true end
         if bFlyingEngineers then
             M28UnitInfo.refCategoryEngineer = M28UnitInfo.refCategoryEngineer + categories.ENGINEER * categories.AIR * categories.CONSTRUCTION - categories.EXPERIMENTAL
+            if bDebugMessages == true then LOG(sFunctionRef..': Including air engineers in the engineer category; is xsl0105 an engineer='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, 'xsl0105'))..'; Is it categories.ENGINEER='..tostring(EntityCategoryContains(categories.ENGINEER, 'xsl0105'))..'; is it categories.AIR='..tostring(EntityCategoryContains(categories.AIR, 'xsl0105'))..'; is it categories.construction='..tostring(EntityCategoryContains(categories.CONSTRUCTION, 'xsl0105'))) end
         end
         --BREWLAN compatibility - it adds the TRANSPORTATION category to units that cant transport, leading to errors when M28 tries using them or getting their cargo
         if categories.TORPEDOBOMBER then M28UnitInfo.refCategoryTransport = M28UnitInfo.refCategoryTransport - categories.TORPEDOBOMBER end --thanks to Balthazaar who gave this tip for checking if a custom category exists
