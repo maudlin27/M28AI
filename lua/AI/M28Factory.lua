@@ -2882,10 +2882,14 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     end
                 end
                 --Next consider ratio of direct fire vs indirect, to handle cases where we have way too much DF or way too much indirect fire, provided we can path to enemy base
-                if iFactoryTechLevel >= 2 and (iIndirectFireOfThisTech <= 6 or iIndirectFireOfThisTech >= 50) and tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
+                if iFactoryTechLevel >= 2 and (iIndirectFireOfThisTech <= 6 or iIndirectFireOfThisTech >= 50 or (iIndirectFireOfThisTech <= 15 and iFactoryTechLevel >= 3 and EntityCategoryContains(categories.UEF, oFactory.UnitId))) and tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
                     local iDirectFireOfThisTech = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering higher priority DF vs indirect proportion builder since we can path to closest enemy base from here, iDirectFireOfThisTech='..iDirectFireOfThisTech..'; iIndirectFireOfThisTech='..iIndirectFireOfThisTech) end
-                    if iDirectFireOfThisTech > iIndirectFireOfThisTech * 7 and iDirectFireOfThisTech >= 6 and (iFactoryTechLevel < 3 or iDirectFireOfThisTech > iIndirectFireOfThisTech * 10) then
+                    --UEF - prioritise spearheads
+                    if EntityCategoryContains(categories.UEF, oFactory.UnitId) and iFactoryTechLevel >= 3 and iIndirectFireOfThisTech <= 8 and iIndirectFireOfThisTech < 2 * iDirectFireOfThisTech and ConsiderBuildingCategory(M28UnitInfo.refCategoryMML * categories.TECH3) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': will get spearheads in proportion to DF as UEF') end
+                        return sBPIDToBuild
+                    elseif iDirectFireOfThisTech > iIndirectFireOfThisTech * 7 and iDirectFireOfThisTech >= 6 and (iFactoryTechLevel < 3 or iDirectFireOfThisTech > iIndirectFireOfThisTech * 10) then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then return sBPIDToBuild end
                     elseif iIndirectFireOfThisTech > 4 * iDirectFireOfThisTech and iIndirectFireOfThisTech >= 50 and (iIndirectFireOfThisTech > 6 * iDirectFireOfThisTech or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])) then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then return sBPIDToBuild end
