@@ -40,7 +40,7 @@ Tooltips = {
         description = 'M28AI will by default control units built by M28AI controlled shared army units',
     },
     pref_M28Teammate = {
-        title = 'M28: Enable helpful teammate logic?',
+        title = 'M28: Helpful teammates?',
         description = 'Should M28 help by assisting player experimentals; gifting asfs to the air player; and gifting mexes it builds in a teammate\'s base',
     },
 }
