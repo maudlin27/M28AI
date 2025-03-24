@@ -4113,7 +4113,7 @@ function GiveAllResourcesToAllies(aiBrain)
     local iSpareMassStorage
     local iSpareEnergyStorage
     for iBrain, oBrain in tTeamData[aiBrain.M28Team][subreftoFriendlyHumanAndAIBrains] do
-        if not(oBrain.M28IsDefeated) then
+        if not(oBrain.M28IsDefeated) and (oBrain.M28AI or ScenarioInfo.Options.M28Teammate == 1) then
             iSpareMassStorage = 0
             iSpareEnergyStorage = 0
             if iMassToGive > 0 and aiBrain:GetEconomyStoredRatio('MASS') < 1 then
@@ -4334,7 +4334,7 @@ function GiftAdjacentStorageToMexOwner(oJustBuilt, oOptionalBrainToGiftTo)
             for iUnit, oUnit in tNearbyStorage do
                 oCurBrain = oUnit:GetAIBrain()
                 if not(oCurBrain.M28IsDefeated) and not(oCurBrain:IsDefeated()) and not(iBrainIndexToGiftTo == oCurBrain:GetArmyIndex()) then
-                    if IsAlly(iBrainIndexToGiftTo, oUnit:GetAIBrain():GetArmyIndex()) then
+                    if IsAlly(iBrainIndexToGiftTo, oUnit:GetAIBrain():GetArmyIndex()) and (oUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
                         if bDebugMessages == true then LOG(sFunctionRef..': About to transfer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from brain '..oUnit:GetAIBrain().Nickname..' to '..oJustBuilt:GetAIBrain().Nickname..'; Dist from unit to tMexLocation='..M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition())) end
                         if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMexLocation) <= 2.25 then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player that built the mex') end

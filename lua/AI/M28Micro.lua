@@ -1418,11 +1418,11 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
 
             if M28UnitInfo.IsUnitValid(oBomber) then
                 M28Orders.IssueTrackedMove(oBomber, tDirectionToMoveTo, 5, false, 'BMicMTR', true)
-                if bDebugMessages == true then LOG(sFunctionRef..': Just cleared bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' commands and told it to move to '..repru(tDirectionToMoveTo)..'; GameTime='..GetGameTimeSeconds()..'; iOptionalSecondsToMoveAtEndIfFarFromTarget='..(iOptionalSecondsToMoveAtEndIfFarFromTarget or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Just cleared bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' commands and told it to move to '..repru(tDirectionToMoveTo)..'; Dist to target='..M28Utilities.GetDistanceBetweenPositions(tDirectionToMoveTo, oBomber:GetPosition())..'; GameTime='..GetGameTimeSeconds()..'; iOptionalSecondsToMoveAtEndIfFarFromTarget='..(iOptionalSecondsToMoveAtEndIfFarFromTarget or 'nil')) end
                 if iOptionalSecondsToMoveAtEndIfFarFromTarget then
                     local iTimeToWait = math.min(iOptionalSecondsToMoveAtEndIfFarFromTarget, M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tDirectionToMoveTo) / (oBomber:GetBlueprint().Physics.MaxSpeed or 10))
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    WaitSeconds(iOptionalSecondsToMoveAtEndIfFarFromTarget)
+                    WaitSeconds(iTimeToWait)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 end
 
