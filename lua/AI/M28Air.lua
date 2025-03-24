@@ -4185,7 +4185,8 @@ function EnemyBaseEarlyBomber(oBomber)
                         if bDebugMessages == true then LOG(sFunctionRef..': Searching for enemy engineers and pgens to attack, bReachedInitialLocation='..tostring(bReachedInitialLocation)..'; bReachedEnemyStart='..tostring(bReachedEnemyStart)..'; Is table of enemy units in the LZ empty='..tostring(M28Utilities.IsTableEmpty(tEnemyBaseLZTeamData[M28Map.subrefTEnemyUnits]))) end
 
                         tEnemyTargets = {}
-                        local tEnemyPGens
+                        local tEnemyPgensAndLowHealthTanks
+                        local iAOE, iStrikeDamage = M28UnitInfo.GetBomberAOEAndStrikeDamage(oBomber)
 
                         --For some reason doing FilterToAvailableTargets doesnt work, so having to manually reproduce here
                         if M28Utilities.IsTableEmpty(tEnemyBaseLZTeamData[M28Map.subrefTEnemyUnits]) == false then
@@ -4193,17 +4194,21 @@ function EnemyBaseEarlyBomber(oBomber)
                                 if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
                                 if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering potential target='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) or (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit:GetHealth() <= iStrikeDamage and oUnit:GetFractionComplete() == 1) then
                                         table.insert(tEnemyTargets, oUnit)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to enemy targets table') end
                                     elseif EntityCategoryContains(M28UnitInfo.refCategoryT1Power - M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
-                                        if not(tEnemyPGens) then tEnemyPGens = {} end
-                                        table.insert(tEnemyPGens, oUnit)
+                                        if not(tEnemyPgensAndLowHealthTanks) then tEnemyPgensAndLowHealthTanks = {} end
+                                        table.insert(tEnemyPgensAndLowHealthTanks, oUnit)
+                                    --Clumped up tanks that can one-shot at least 1 of - also consider
+                                    elseif oUnit:GetHealth() <= iStrikeDamage and M28UnitInfo.GetUnitMassCost(oUnit) >= 50 and oUnit:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
+                                        if not(tEnemyPgensAndLowHealthTanks) then tEnemyPgensAndLowHealthTanks = {} end
+                                        table.insert(tEnemyPgensAndLowHealthTanks, oUnit)
                                     end
                                 end
                             end
-                            if M28Utilities.IsTableEmpty(tEnemyTargets) and tEnemyPGens then
-                                tEnemyTargets = tEnemyPGens
+                            if M28Utilities.IsTableEmpty(tEnemyTargets) and tEnemyPgensAndLowHealthTanks then
+                                tEnemyTargets = tEnemyPgensAndLowHealthTanks
                             end
                         end
 
@@ -4230,7 +4235,6 @@ function EnemyBaseEarlyBomber(oBomber)
                             local iClosestDist = 10000
                             local iSecondClosestDist = 10000
                             local iModDist, iCurDamage
-                            local iAOE, iStrikeDamage = M28UnitInfo.GetBomberAOEAndStrikeDamage(oBomber)
                             local iSingleEngiValue = 52
                             iStrikeDamage = math.max(150, iStrikeDamage) --assume we can 1-shot all engineers in case it gives strange results if we cant
 
@@ -4280,7 +4284,7 @@ function EnemyBaseEarlyBomber(oBomber)
                             end
                         end
                     end
-
+                    if bDebugMessages == true then LOG(sFunctionRef..': End of loop, will wait '..iTicksToWait..' ticks') end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitTicks(iTicksToWait)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -4302,7 +4306,7 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..(oBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBomber) or 'nil')..' owned by '..oBomber:GetAIBrain().Nickname..'; AirSubteam='..iAirSubteam..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()..'; Brain owner='..oBomber:GetAIBrain().Nickname) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTimeOfLastEngiHunterBomberOrder] = GetGameTimeSeconds()
-    if oBomber[rebEarlyBomberTargetBase] == nil and oBomber:GetAIBrain()[M28Overseer.refbFirstBomber] and M28UnitInfo.GetUnitLifetimeCount(oBomber) == 1 then
+    if oBomber[rebEarlyBomberTargetBase] == nil and (GetGameTimeSeconds() <= 120 or oBomber:GetAIBrain()[M28Overseer.refbFirstBomber]) and M28UnitInfo.GetUnitLifetimeCount(oBomber) == 1 then
         if GetGameTimeSeconds() > 120 then
             oBomber[rebEarlyBomberTargetBase] = false
         else
