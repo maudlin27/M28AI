@@ -5871,7 +5871,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                             local iRangeToWreck = iMaxDistanceToEngineer + math.min(oNearestReclaim:GetBlueprint().SizeX, oNearestReclaim:GetBlueprint().SizeZ)*0.5
                             if iDistToReclaim > iRangeToWreck then
                                 local tPotentialLocationToMove = M28Utilities.MoveInDirection(oNearestReclaim.CachePosition, M28Utilities.GetAngleFromAToB(oNearestReclaim.CachePosition, oEngineer:GetPosition()), iRangeToWreck, true, false, M28Map.bIsCampaignMap)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Ignoring reclaim as we cant path to it, unless the engineer can path somewhere that is within build range of here, tPotentialLocationToMove='..repru(tPotentialLocationToMove)..'; Hover label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) or 'nil')..'; iPlateauOrPond='..iPlateauOrPond) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Ignoring reclaim as we cant path to it, unless the engineer can path somewhere that is within build range of here, tPotentialLocationToMove='..repru(tPotentialLocationToMove)..'; Hover label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) or 'nil')..'; iPlateauOrPond='..iPlateauOrPond..'; iDistToReclaim='..iDistToReclaim..'; iMaxDistanceToEngineer='..iMaxDistanceToEngineer..'; Angle from engi to reclaim='..M28Utilities.GetAngleFromAToB(oEngineer:GetPosition(), oNearestReclaim.CachePosition)) end
                                 if M28Utilities.IsTableEmpty(tPotentialLocationToMove) or not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) == iEngiPlateau or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) == iPlateauOrPond) then
                                     --Want to consider reassigning this reclaim segment if the only reclaim in it is in a different plateau
                                     oNearestReclaim = nil
@@ -5922,6 +5922,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                 else
                     M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclBLZSeg')
                 end
+                bGivenOrder = true
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Time since last zone refresh='..GetGameTimeSeconds() - (tLZOrWZData[M28Map.subrefLastReclaimRefresh] or 0)..'; LZ total recalim='..(tLZOrWZData[M28Map.subrefTotalMassReclaim] or 0)..'; tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]='..(tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')) end
                 if not(bWantEnergyNotMass) and not(bOnlyConsiderReclaimInRangeOfEngineer) then
@@ -9042,7 +9043,10 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
         --Do we have an engineer of the tech level wanted? First assign any available engineers of the right tech level to the action
         --If we dont have any engineers of the right tech level available, then see if we have an engineer with a lower priority action
         local tEngineersOfTechWanted
-        if toAvailableEngineersByTech and iTotalBuildPowerWanted > 0 then tEngineersOfTechWanted = GetEngineersOfTechWanted(iMinTechWanted, toAvailableEngineersByTech) end
+        if toAvailableEngineersByTech and iTotalBuildPowerWanted > 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will get engis of tech wnated from available engineers by tech') end
+            tEngineersOfTechWanted = GetEngineersOfTechWanted(iMinTechWanted, toAvailableEngineersByTech)
+        end
         if M28Utilities.IsTableEmpty(toAvailableEngineersByTech) and iTotalBuildPowerWanted > 0 and M28Utilities.IsTableEmpty(toAssignedEngineers) == false then
             local bConsiderRetreatingEngineers = false
             if (iActionToAssign == refActionBuildEmergencyPD or iActionToAssign == refActionBuildSecondPD) and (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or (tLZOrWZTeamData[M28Map.subrefLZCoreExpansion] and (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < (tLZOrWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0))) then
@@ -9209,7 +9213,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         end
                     end
                     if oEngineerToAssist then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will assign engineers to build, we have oEngineerToAssist, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount..'; tLastOrder[M28Orders.subrefsOrderBlueprint] of engineer to assist='..tLastOrder[M28Orders.subrefsOrderBlueprint]) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will assign engineers to build, we have oEngineerToAssist, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount..'; tLastOrder[M28Orders.subrefsOrderBlueprint] of engineer to assist='..(oEngineerToAssist[M28Orders.reftiLastOrders][oEngineerToAssist[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil')) end
                         local tLastOrder = oEngineerToAssist[M28Orders.reftiLastOrders][oEngineerToAssist[M28Orders.refiOrderCount]]
                         local sBlueprintToBuild = tLastOrder[M28Orders.subrefsOrderBlueprint]
                         local tOrderPosition = tLastOrder[M28Orders.subreftOrderPosition]
@@ -9636,10 +9640,15 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     end
                 elseif iActionToAssign == refActionReclaimArea then
                     local bWantEnergyNotMass = vOptionalVariable[1]
+                    local bGivenOrder = false
                     while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                         if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to reclaim nearby, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
-                        --GetEngineerToReclaimNearbyArea(oEngineer,                       iPriorityOverride,   tLZOrWZTeamData, iPlateauOrPondOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone)
-                        GetEngineerToReclaimNearbyArea(tEngineersOfTechWanted[iEngiCount], iCurPriority, tLZOrWZTeamData, iPlateauOrPond,           iLandOrWaterZone,      bWantEnergyNotMass, false, vOptionalVariable[2], bIsWaterZone)
+                        --GetEngineerToReclaimNearbyArea(oEngineer,                       iPriorityOverride,   tLZOrWZTeamData, iPlateauOrPondOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone, bOptionalReturnTrueIfGivenOrder)
+                        bGivenOrder = GetEngineerToReclaimNearbyArea(tEngineersOfTechWanted[iEngiCount], iCurPriority, tLZOrWZTeamData, iPlateauOrPond,           iLandOrWaterZone,      bWantEnergyNotMass, false,                               vOptionalVariable[2],        bIsWaterZone,  true)
+                        if not(bGivenOrder) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Failed to give a valid reclaim order so aborting') end
+                            iTotalBuildPowerWanted = 0 break
+                        end
                         UpdateBPTracking()
                         if tLZOrWZTeamData[M28Map.subrefTotalMassReclaim] <= 0.1 then break end
                     end
@@ -15684,12 +15693,13 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
                     if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAdjLZData[M28Map.subrefMidpoint]) then
                         local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to send engineers from iLandZone='..iLandZone..' to iAdjLZ='..iAdjLZ..'; does the adjLZ want BP='..tostring(tAdjLZTeamData[M28Map.subrefTbWantBP])..'; tAdjLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1]='..tAdjLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1]..'; Is table of unbuild mexes empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefMexUnbuiltLocations]))..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))..'; subrefTEngineersTravelingHere is empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEngineersTravelingHere]))) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to send engineers from iLandZone='..iLandZone..' to iAdjLZ='..iAdjLZ..'; does the adjLZ want BP='..tostring(tAdjLZTeamData[M28Map.subrefTbWantBP])..'; tAdjLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1]='..tAdjLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1]..'; T2 wanted='..(tAdjLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2] or 'nil')..'; Is table of unbuild mexes empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefMexUnbuiltLocations]))..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))..'; subrefTEngineersTravelingHere is empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEngineersTravelingHere]))) end
                         if tAdjLZTeamData[M28Map.subrefTbWantBP] and tAdjLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1] > 0 and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEngineersTravelingHere]) and
                                 (M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefMexUnbuiltLocations]) == false and not(tAdjLZTeamData[M28Map.subrefLZCoreExpansion]) and not(tAdjLZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))
                                 --Enemy has mexes but nothing to protect them
                                 or (not(tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and tAdjLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] > 0 and tAdjLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] < 240 and (M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryEngineer, tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))))
                         then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will send engineer(s) to the iAdjLZ='..iAdjLZ) end
                             HaveActionToAssign(refActionMoveToLandZone, 1, iNearbyZonesWantingEngineers * 5 + 5, iAdjLZ, true)
                             iNearbyZonesWantingEngineers = iNearbyZonesWantingEngineers + 1
                             iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
@@ -15970,6 +15980,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     --tLZWantingBPConsidered[iAdjLZ] = true --Are now adding in the condition that the zone has unbuilt mexes
                     --Require unbuilt mexes:
                     local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, true, false, true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; tiBPByTechWanted='..repru(tiBPByTechWanted)) end
                     if tiBPByTechWanted then
                         for iTech = 1, iHighestTechEngiAvailable, 1 do
                             if tiBPByTechWanted[iTech] > 0 then
