@@ -9713,7 +9713,7 @@ function GetNovaxTarget(aiBrain, oNovax)
     end
 
     --Get list of significant enemy shielding (will ignore targets under these shields)
-    local iMediumSearchRange = 53
+    local iMediumSearchRange = 53 --Omni range is 60, so getunitsaroundpoint baed on this range should be fine; means we wont pickup all nearby enemy shields, but should still do ok
     local tNearbyEnemyShields = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3 - M28UnitInfo.refCategoryFatboy, oNovax:GetPosition(), iMediumSearchRange + 60, 'Enemy') --shield boats have a size of 120 so a radius of 60, so want to include max enemy search range (iMediumSearchRange) plus this, to make sure all shields are taken into account
     --tNearbyEnemyShields = GetEnemyUnitsInCurrentAndAdjacentZonesOfCategory(iStartPlateauOrZero, tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3)
     local tNotLowHealthNearbyShields = {}
