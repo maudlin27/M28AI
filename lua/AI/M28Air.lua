@@ -8548,8 +8548,8 @@ function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
         local tShortlist = M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist] --(UpdateTransportShortlistForFarAwayLandZoneDrops determins the shortlist)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code for shortlist, time='..GetGameTimeSeconds()..', is shortlist empty='..tostring(M28Utilities.IsTableEmpty(tShortlist))) end
         if M28Utilities.IsTableEmpty(tShortlist) == false then
-            local iCurDist
-            local iClosestDist = 100000
+            local iCurModDist
+            local iClosestModDist = 100000
             local tiClosestPlateauAndZone
             local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
 
@@ -8565,15 +8565,15 @@ function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
                 local tLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]]
                 if bDontHaveLocationInPlayableArea then bDontHaveLocationInPlayableArea = not(M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint])) end
                 if not(bDontHaveLocationInPlayableArea) then
-                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering zone with distance of '..iCurDist) end
-                    if iCurDist < iClosestDist then
+                    iCurModDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) / math.max(0.5, tLZData[M28Map.subrefLZMexCount])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering zone with mod distance of '..iCurModDist..'; Actual dist='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; Mex count='..tLZData[M28Map.subrefLZMexCount]) end
+                    if iCurModDist < iClosestModDist then
                         --Is it safe to travel here?
                         if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tLZData[M28Map.subrefLZIslandRef]][tiPlateauAndZone[2]] or -300) > 180 then
 
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndZone='..repru(tiPlateauAndZone)..'; iCurPlateauOrZero='..iCurPlateauOrZero..'; iCurLandOrWaterZone='..iCurLandOrWaterZone..'; Does enemy have aa threat along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, 60,          nil,                     false,         iAirSubteam,         true, nil, oUnit:GetPosition()))) end
                             if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, 60,          nil,                     false,         iAirSubteam,         true, nil, oUnit:GetPosition())) then
-                                iClosestDist = iCurDist
+                                iClosestModDist = iCurModDist
                                 tiClosestPlateauAndZone = {tiPlateauAndZone[1], tiPlateauAndZone[2]}
                             end
                         end
