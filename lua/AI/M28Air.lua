@@ -8565,10 +8565,15 @@ function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
                 local tLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]]
                 if bDontHaveLocationInPlayableArea then bDontHaveLocationInPlayableArea = not(M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint])) end
                 if not(bDontHaveLocationInPlayableArea) then
-                    iCurModDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) / math.max(0.5, tLZData[M28Map.subrefLZMexCount])
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering zone with mod distance of '..iCurModDist..'; Actual dist='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; Mex count='..tLZData[M28Map.subrefLZMexCount]) end
+                    iCurModDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                    if iCurModDist < 100 then iCurModDist = 100 - (100 - iCurModDist) * 0.1 end
+                    iCurModDist = iCurModDist / math.max(0.5, tLZData[M28Map.subrefLZMexCount])
+                    --If we have already picked a location be more likely to stick with it
+                    if tiPlateauAndZone[2] == oUnit[refiTargetZoneForDrop] and tiPlateauAndZone[1] == oUnit[refiTargetPlateauForDrop] then iCurModDist = iCurModDist - math.max(25, iCurModDist * 0.1) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..tiPlateauAndZone[1]..'Z'..tiPlateauAndZone[2]..' with mod distance of '..iCurModDist..'; Actual dist='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; Mex count='..tLZData[M28Map.subrefLZMexCount]..'; iClosestModDist so far='..iClosestModDist) end
                     if iCurModDist < iClosestModDist then
                         --Is it safe to travel here?
+                        if bDebugMessages == true then LOG(sFunctionRef..': Time since last failed drop='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tLZData[M28Map.subrefLZIslandRef]][tiPlateauAndZone[2]] or -300)) end
                         if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tLZData[M28Map.subrefLZIslandRef]][tiPlateauAndZone[2]] or -300) > 180 then
 
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndZone='..repru(tiPlateauAndZone)..'; iCurPlateauOrZero='..iCurPlateauOrZero..'; iCurLandOrWaterZone='..iCurLandOrWaterZone..'; Does enemy have aa threat along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, 60,          nil,                     false,         iAirSubteam,         true, nil, oUnit:GetPosition()))) end
@@ -8927,12 +8932,12 @@ function ManageTransports(iTeam, iAirSubteam)
                         end
                     end
                 end
-                    --[[if not(bDropNow) and bRefreshDropOrderIfNoUnitState and oUnit[M28Orders.refiOrderCount] <= 1 then
-                        local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
-                        if tLastOrder[M28Orders.subrefiOrderType]
-                        M28Orders.UpdateRecordedOrders(oUnit)
-                        if
-                    end--]]
+                --[[if not(bDropNow) and bRefreshDropOrderIfNoUnitState and oUnit[M28Orders.refiOrderCount] <= 1 then
+                    local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
+                    if tLastOrder[M28Orders.subrefiOrderType]
+                    M28Orders.UpdateRecordedOrders(oUnit)
+                    if
+                end--]]
             elseif oUnit[refbEmergencyDropActive] then oUnit[refbEmergencyDropActive] = nil --redundancy (shouldnt ever trigger)
             end
         end
