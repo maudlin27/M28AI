@@ -1697,6 +1697,20 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
     end
+
+    --Core expansion T2 that has built some units - get a T2 engi if enemy threat less than friendly threat (so we can get PD) if we havent built any engineers at this factory before
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if tLZTeamData[M28Map.subrefLZCoreExpansion] and iFactoryTechLevel >= 2 and oFactory[refiTotalBuildCount] <= 15 and oFactory[refiTotalBuildCount] >= 4 and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if t2+ fac wants to build engineer to get defences, tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2]='..tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2]..'; Mobile DF total='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; tLZTeamData[M28Map.subrefTbWantBP]='..tostring(tLZTeamData[M28Map.subrefTbWantBP] or false)) end
+        if tLZTeamData[M28Map.subrefTbWantBP] and (tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2] > 0 or ((tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] > 0) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > 150 and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > 2 * (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0))) then
+            local iFacEngiLC = M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer)
+            if bDebugMessages == true then LOG(sFunctionRef..': iFacEngiLC='..iFacEngiLC..'; Fac DF tank LC='.. M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank)) end
+            if iFacEngiLC == 0 or (iFacEngiLC == 1 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank) >= 4) then
+                if bDebugMessages == true then LOG(sFunctionRef..': will try getting an engineer for defence') end
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+            end
+        end
+    end
     --core expansion and enemies nearby - build tank
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (oFactory[refiTotalBuildCount] <= 6 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) then
