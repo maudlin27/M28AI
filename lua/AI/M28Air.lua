@@ -8548,8 +8548,8 @@ function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
         local tShortlist = M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist] --(UpdateTransportShortlistForFarAwayLandZoneDrops determins the shortlist)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code for shortlist, time='..GetGameTimeSeconds()..', is shortlist empty='..tostring(M28Utilities.IsTableEmpty(tShortlist))) end
         if M28Utilities.IsTableEmpty(tShortlist) == false then
-            local iCurDist
-            local iClosestDist = 100000
+            local iCurModDist
+            local iClosestModDist = 100000
             local tiClosestPlateauAndZone
             local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
 
@@ -8565,15 +8565,20 @@ function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
                 local tLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]]
                 if bDontHaveLocationInPlayableArea then bDontHaveLocationInPlayableArea = not(M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint])) end
                 if not(bDontHaveLocationInPlayableArea) then
-                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering zone with distance of '..iCurDist) end
-                    if iCurDist < iClosestDist then
+                    iCurModDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                    if iCurModDist < 100 then iCurModDist = 100 - (100 - iCurModDist) * 0.1 end
+                    iCurModDist = iCurModDist / math.max(0.5, tLZData[M28Map.subrefLZMexCount])
+                    --If we have already picked a location be more likely to stick with it
+                    if tiPlateauAndZone[2] == oUnit[refiTargetZoneForDrop] and tiPlateauAndZone[1] == oUnit[refiTargetPlateauForDrop] then iCurModDist = iCurModDist - math.max(25, iCurModDist * 0.1) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..tiPlateauAndZone[1]..'Z'..tiPlateauAndZone[2]..' with mod distance of '..iCurModDist..'; Actual dist='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; Mex count='..tLZData[M28Map.subrefLZMexCount]..'; iClosestModDist so far='..iClosestModDist) end
+                    if iCurModDist < iClosestModDist then
                         --Is it safe to travel here?
+                        if bDebugMessages == true then LOG(sFunctionRef..': Time since last failed drop='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tLZData[M28Map.subrefLZIslandRef]][tiPlateauAndZone[2]] or -300)) end
                         if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tLZData[M28Map.subrefLZIslandRef]][tiPlateauAndZone[2]] or -300) > 180 then
 
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndZone='..repru(tiPlateauAndZone)..'; iCurPlateauOrZero='..iCurPlateauOrZero..'; iCurLandOrWaterZone='..iCurLandOrWaterZone..'; Does enemy have aa threat along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, 60,          nil,                     false,         iAirSubteam,         true, nil, oUnit:GetPosition()))) end
                             if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, 60,          nil,                     false,         iAirSubteam,         true, nil, oUnit:GetPosition())) then
-                                iClosestDist = iCurDist
+                                iClosestModDist = iCurModDist
                                 tiClosestPlateauAndZone = {tiPlateauAndZone[1], tiPlateauAndZone[2]}
                             end
                         end
@@ -8927,12 +8932,12 @@ function ManageTransports(iTeam, iAirSubteam)
                         end
                     end
                 end
-                    --[[if not(bDropNow) and bRefreshDropOrderIfNoUnitState and oUnit[M28Orders.refiOrderCount] <= 1 then
-                        local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
-                        if tLastOrder[M28Orders.subrefiOrderType]
-                        M28Orders.UpdateRecordedOrders(oUnit)
-                        if
-                    end--]]
+                --[[if not(bDropNow) and bRefreshDropOrderIfNoUnitState and oUnit[M28Orders.refiOrderCount] <= 1 then
+                    local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
+                    if tLastOrder[M28Orders.subrefiOrderType]
+                    M28Orders.UpdateRecordedOrders(oUnit)
+                    if
+                end--]]
             elseif oUnit[refbEmergencyDropActive] then oUnit[refbEmergencyDropActive] = nil --redundancy (shouldnt ever trigger)
             end
         end
@@ -9713,7 +9718,7 @@ function GetNovaxTarget(aiBrain, oNovax)
     end
 
     --Get list of significant enemy shielding (will ignore targets under these shields)
-    local iMediumSearchRange = 53
+    local iMediumSearchRange = 53 --Omni range is 60, so getunitsaroundpoint baed on this range should be fine; means we wont pickup all nearby enemy shields, but should still do ok
     local tNearbyEnemyShields = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3 - M28UnitInfo.refCategoryFatboy, oNovax:GetPosition(), iMediumSearchRange + 60, 'Enemy') --shield boats have a size of 120 so a radius of 60, so want to include max enemy search range (iMediumSearchRange) plus this, to make sure all shields are taken into account
     --tNearbyEnemyShields = GetEnemyUnitsInCurrentAndAdjacentZonesOfCategory(iStartPlateauOrZero, tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3)
     local tNotLowHealthNearbyShields = {}

@@ -4098,6 +4098,34 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 end
                 if M28Utilities.IsTableEmpty(tOutrangedCombatUnits) == false then
                     if bAttackWithOutrangedUnits then
+                        if not(M28UnitInfo.IsUnitValid(oEnemyToFocusOn)) then
+                            --For rare redundancy where nearest enemy is dead
+                            if M28UnitInfo.IsUnitValid(oNearestEnemyToFriendlyBase) then oEnemyToFocusOn = oNearestEnemyToFriendlyBase
+                            else
+                                local iClosestDist = 10000
+                                local iCurDist
+                                for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
+                                    if M28UnitInfo.IsUnitValid(oUnit) then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestFriendlyBase])
+                                        if iCurDist < iClosestDist then
+                                            oEnemyToFocusOn = oUnit
+                                            iClosestDist = iCurDist
+                                        end
+                                    end
+                                end
+                            end
+                            if not(M28UnitInfo.IsUnitValid(oEnemyToFocusOn)) and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                                for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                                    local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                    if M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                        for iUnit, oUnit in tAdjWZTeamData[M28Map.subrefTEnemyUnits] do
+                                            if M28UnitInfo.IsUnitValid(oUnit) then oEnemyToFocusOn = oUnit break end
+                                        end
+                                    end
+                                end
+                            end
+                        end --end of redundancy
+
                         local iOurRelevantRange
                         local iEnemyRelevantRange
                         local bEnemyToFocusOnIsUnderwater = M28UnitInfo.IsUnitUnderwater(oEnemyToFocusOn)
@@ -5445,65 +5473,67 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
         if bDebugMessages == true then LOG(sFunctionRef..': About to consider orders for scouts in this WZ, size of tScouts='..table.getn(tScouts)..'; bCheckForEnemies='..tostring(bCheckForEnemies)..'; Enemy combat total='..tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
         local iCurDist
         for iScout, oScout in tScouts do
-            if bCheckForEnemies then
-                oEnemyToRunFrom = nil
-                if oPrevEnemyToRunFrom and M28Utilities.GetDistanceBetweenPositions(oPrevEnemyToRunFrom[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oPrevEnemyToRunFrom[M28UnitInfo.refiDFRange] or 0) <= iRunThreshold then
-                    --Run from same enemy
-                    oEnemyToRunFrom = oPrevEnemyToRunFrom
-                else
-                    for iUnitTable, tUnitTable in tEnemyUnitTablesToConsider do
-                        for iUnit, oUnit in tUnitTable do
-                            if bDebugMessages == true then LOG(sFunctionRef..': Looking for enemy to run from for scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..', considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit position='..repru(oUnit:GetPosition())..'; Unit last known position='..repru(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Dist between last known position and scout='..M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition())..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iRunThreshold='..iRunThreshold..'; Is distance within run threshold='..tostring(M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iRunThreshold)..'; bConsiderAttacking='..tostring(bConsiderAttacking)..'; Unit df range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit build range='..(oUnit:GetBlueprint().Economy.MaxBuildDistance or 'nil')) end
-                            if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(oUnit == oPrevEnemyToRunFrom) then
-                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
-                                if iCurDist <= iRunThreshold then
+            if not(oScout.Dead) then --rare issue that can lead to errors
+                if bCheckForEnemies then
+                    oEnemyToRunFrom = nil
+                    if oPrevEnemyToRunFrom and M28Utilities.GetDistanceBetweenPositions(oPrevEnemyToRunFrom[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oPrevEnemyToRunFrom[M28UnitInfo.refiDFRange] or 0) <= iRunThreshold then
+                        --Run from same enemy
+                        oEnemyToRunFrom = oPrevEnemyToRunFrom
+                    else
+                        for iUnitTable, tUnitTable in tEnemyUnitTablesToConsider do
+                            for iUnit, oUnit in tUnitTable do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Looking for enemy to run from for scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..', considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit position='..repru(oUnit:GetPosition())..'; Unit last known position='..repru(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Dist between last known position and scout='..M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition())..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iRunThreshold='..iRunThreshold..'; Is distance within run threshold='..tostring(M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iRunThreshold)..'; bConsiderAttacking='..tostring(bConsiderAttacking)..'; Unit df range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit build range='..(oUnit:GetBlueprint().Economy.MaxBuildDistance or 'nil')) end
+                                if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(oUnit == oPrevEnemyToRunFrom) then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
+                                    if iCurDist <= iRunThreshold then
+                                        oEnemyToRunFrom = oUnit
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Want to run from unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so will stop searching') end
+                                        break
+                                    elseif bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is too far away for us to run from it, will keep looking')
+                                    end
+                                    --Check if about to get in range of engineer that can reclaim us - have done +8 as lower values resulted in some cases in the engineer being able to reclaim the scout
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) <= 8 + (oUnit:GetBlueprint().Economy.MaxBuildDistance or 3) then
                                     oEnemyToRunFrom = oUnit
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to run from unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so will stop searching') end
                                     break
-                                elseif bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is too far away for us to run from it, will keep looking')
                                 end
-                                --Check if about to get in range of engineer that can reclaim us - have done +8 as lower values resulted in some cases in the engineer being able to reclaim the scout
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) <= 8 + (oUnit:GetBlueprint().Economy.MaxBuildDistance or 3) then
-                                oEnemyToRunFrom = oUnit
-                                break
                             end
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Do we have a valid enemy unit to run from='..tostring(M28UnitInfo.IsUnitValid(oEnemyToRunFrom))..'; ENemy ID if any='..(oEnemyToRunFrom.UnitId or 'nil')) end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Do we have a valid enemy unit to run from='..tostring(M28UnitInfo.IsUnitValid(oEnemyToRunFrom))..'; ENemy ID if any='..(oEnemyToRunFrom.UnitId or 'nil')) end
-            end
-            if oEnemyToRunFrom then
-                tWZTeamData[M28Map.refbWantLandScout] = false
-                if bDebugMessages == true then LOG(sFunctionRef..': Want scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' to run from oEnemyToRunFrom '..oEnemyToRunFrom.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToRunFrom)..' unless iti s a combat scout vs an engineer/mex in a low threat WZ in which case want it to attack the unit; WZ combat total='..tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Scout DF range='..(oScout[M28UnitInfo.refiDFRange] or 'nil')..'; Do we have a combat scout='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId))..'; Distance to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oEnemyToRunFrom:GetPosition(), oScout:GetPosition())) end
-                oPrevEnemyToRunFrom = oEnemyToRunFrom
-                local iPlateau = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oScout:GetPosition())
-                M28Land.RunFromEnemy(oScout, oEnemyToRunFrom, iTeam, iPlateau, 16)
-            else
-                if bDebugMessages == true then LOG(sFunctionRef..': No nearby enemy to run from, Considering if scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' is available; refiWZToMoveTo='..repru(oScout[refiWZToMoveTo])) end
-                if oScout[refiWZToMoveTo] then
-                    --Make scout available if its target WZ is this WZ
-                    if oScout[refiWZToMoveTo] == iWaterZone then
-                        --Clear this unit from list of traveling units, but dont make it available as want a slight delay, so want it to be available on the next cycle
-                        if bDebugMessages == true then LOG(sFunctionRef..': Scout is traveling to this land zone and is here so will clear the trackers so next cycle it is shown as available') end
-                        RemoveUnitFromListOfUnitsTravelingToWaterZone(oScout, iTeam)
-                        tWZTeamData[M28Map.refbWantLandScout] = false
-                    else
-                        --Scout should be traveling to another land zone - if it has no orders then refresh them
-                        local iTravelPond = M28Map.tiPondByWaterZone[oScout[refiWZToMoveTo]]
-                        if bDebugMessages == true then LOG(sFunctionRef..': Scout should travel to another water zone so order it to travel there, iTravelPond='..(iTravelPond or 'nil')..'; oScout[refiWZToMoveTo]='..(oScout[refiWZToMoveTo] or 'nil')..'; oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..'; Midpoint of WZ to move to='..repru(M28Map.tPondDetails[iTravelPond][M28Map.subrefPondWaterZones][oScout[refiWZToMoveTo]][M28Map.subrefMidpoint])) end
-                        M28Orders.IssueTrackedMove(oScout, M28Map.tPondDetails[iTravelPond][M28Map.subrefPondWaterZones][oScout[refiWZToMoveTo]][M28Map.subrefMidpoint], 16, false, 'TWZ'..oScout[refiWZToMoveTo])
-                    end
-                elseif oScout[M28Land.reftiPlateauAndLZToMoveTo] then
-                    --Scout is going to a land zone not a water zone
-                    if bDebugMessages == true then LOG(sFunctionRef..': Scout should travel to another land zone so order it to travel there') end
-                    M28Orders.IssueTrackedMove(oScout, M28Map.tAllPlateaus[oScout[M28Land.reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oScout[M28Land.reftiPlateauAndLZToMoveTo][2]][M28Map.subrefMidpoint], 16, false, 'NTLZ'..oScout[M28Land.reftiPlateauAndLZToMoveTo][2])
+                if oEnemyToRunFrom then
+                    tWZTeamData[M28Map.refbWantLandScout] = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' to run from oEnemyToRunFrom '..oEnemyToRunFrom.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToRunFrom)..' unless iti s a combat scout vs an engineer/mex in a low threat WZ in which case want it to attack the unit; WZ combat total='..tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Scout DF range='..(oScout[M28UnitInfo.refiDFRange] or 'nil')..'; Do we have a combat scout='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId))..'; Distance to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oEnemyToRunFrom:GetPosition(), oScout:GetPosition())) end
+                    oPrevEnemyToRunFrom = oEnemyToRunFrom
+                    local iPlateau = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oScout:GetPosition())
+                    M28Land.RunFromEnemy(oScout, oEnemyToRunFrom, iTeam, iPlateau, 16)
                 else
-                    if oScout[M28Land.refoLandScoutTarget] and M28UnitInfo.IsUnitValid(oScout[M28Land.refoLandScoutTarget]) then
-                        M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout[M28Land.refoLandScoutTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(oScout[M28Land.refoLandScoutTarget]:GetPosition(), oScout:GetPosition()), 8, true, false, true), 1.5, false, 'ScWACU'..oScout[M28Land.refoLandScoutTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout[M28Land.refoLandScoutTarget]))
+                    if bDebugMessages == true then LOG(sFunctionRef..': No nearby enemy to run from, Considering if scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' is available; refiWZToMoveTo='..repru(oScout[refiWZToMoveTo])) end
+                    if oScout[refiWZToMoveTo] then
+                        --Make scout available if its target WZ is this WZ
+                        if oScout[refiWZToMoveTo] == iWaterZone then
+                            --Clear this unit from list of traveling units, but dont make it available as want a slight delay, so want it to be available on the next cycle
+                            if bDebugMessages == true then LOG(sFunctionRef..': Scout is traveling to this land zone and is here so will clear the trackers so next cycle it is shown as available') end
+                            RemoveUnitFromListOfUnitsTravelingToWaterZone(oScout, iTeam)
+                            tWZTeamData[M28Map.refbWantLandScout] = false
+                        else
+                            --Scout should be traveling to another land zone - if it has no orders then refresh them
+                            local iTravelPond = M28Map.tiPondByWaterZone[oScout[refiWZToMoveTo]]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Scout should travel to another water zone so order it to travel there, iTravelPond='..(iTravelPond or 'nil')..'; oScout[refiWZToMoveTo]='..(oScout[refiWZToMoveTo] or 'nil')..'; oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..'; Midpoint of WZ to move to='..repru(M28Map.tPondDetails[iTravelPond][M28Map.subrefPondWaterZones][oScout[refiWZToMoveTo]][M28Map.subrefMidpoint])) end
+                            M28Orders.IssueTrackedMove(oScout, M28Map.tPondDetails[iTravelPond][M28Map.subrefPondWaterZones][oScout[refiWZToMoveTo]][M28Map.subrefMidpoint], 16, false, 'TWZ'..oScout[refiWZToMoveTo])
+                        end
+                    elseif oScout[M28Land.reftiPlateauAndLZToMoveTo] then
+                        --Scout is going to a land zone not a water zone
+                        if bDebugMessages == true then LOG(sFunctionRef..': Scout should travel to another land zone so order it to travel there') end
+                        M28Orders.IssueTrackedMove(oScout, M28Map.tAllPlateaus[oScout[M28Land.reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oScout[M28Land.reftiPlateauAndLZToMoveTo][2]][M28Map.subrefMidpoint], 16, false, 'NTLZ'..oScout[M28Land.reftiPlateauAndLZToMoveTo][2])
                     else
-                        --Scout has no nearby enemies to run from, and isnt traveling to a water zone, so it should be available for use
-                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to run or attack with scout and it isnt already assigned to another LZ or WZ so will aadd to table of available scouts, oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)) end
-                        table.insert(tAvailableScouts, oScout)
+                        if oScout[M28Land.refoLandScoutTarget] and M28UnitInfo.IsUnitValid(oScout[M28Land.refoLandScoutTarget]) then
+                            M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout[M28Land.refoLandScoutTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(oScout[M28Land.refoLandScoutTarget]:GetPosition(), oScout:GetPosition()), 8, true, false, true), 1.5, false, 'ScWACU'..oScout[M28Land.refoLandScoutTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout[M28Land.refoLandScoutTarget]))
+                        else
+                            --Scout has no nearby enemies to run from, and isnt traveling to a water zone, so it should be available for use
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to run or attack with scout and it isnt already assigned to another LZ or WZ so will aadd to table of available scouts, oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)) end
+                            table.insert(tAvailableScouts, oScout)
+                        end
                     end
                 end
             end

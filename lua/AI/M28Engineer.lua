@@ -15089,8 +15089,12 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 end
             end
             if iFactoriesWanted >= 1 and ((bExpansionOnSameIslandAsBase and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap]) and not(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone)) then
-                if bDebugMessages == true then LOG(sFunctionRef..': We dont actually want more factories in this zone, so limiting factories wanted to just 1') end
-                iFactoriesWanted = 1
+                if bDebugMessages == true then LOG(sFunctionRef..': We dont actually want more factories in this zone, so limiting factories wanted to just 1 (or 2 if lots of mexes and we wanted 4+') end
+                if tLZData[M28Map.subrefLZMexCount] >= 4 and (tLZTeamData[M28Map.refiModDistancePercent] >= 0.25 or iFactoriesWanted >= 4) then
+                    iFactoriesWanted = math.min(3, math.max(1, iFactoriesWanted * 0.6))
+                else
+                    iFactoriesWanted = 1
+                end
             end
             if iFactoriesWanted < 4 and tLZTeamData[M28Map.subrefLZFortify] then
                 if not(bHaveLowMass) then iFactoriesWanted = 4

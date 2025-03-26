@@ -350,7 +350,7 @@ AIOpts = {
     },
     {
         default = 1,
-        label = "M28: Enable helpful teammate logic?",
+        label = "M28: Helpful teammates?",
         help = 'Should M28 help by assisting player experimentals; gifting asfs to the air player; and gifting mexes it builds in a teammate\'s base',
         key = 'M28Teammate',
         value_text = "",

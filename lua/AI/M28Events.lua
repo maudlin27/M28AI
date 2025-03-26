@@ -2245,7 +2245,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     end
 
                     --Experimental air - no longer record in land/water zone
-                    if EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oJustBuilt.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryAllAir - M28UnitInfo.refCategoryEngineer, oJustBuilt.UnitId) then
                         --Transport specific - tell the factory that just built the transport to build something else
                         if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oJustBuilt.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory * categories.TECH1, oEngineer.UnitId) then
                             oEngineer[M28Factory.refbWantNextUnitToBeEngineer] = true
