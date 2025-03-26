@@ -4125,7 +4125,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                 end
                             end
                         end --end of redundancy
-                        
+
                         local iOurRelevantRange
                         local iEnemyRelevantRange
                         local bEnemyToFocusOnIsUnderwater = M28UnitInfo.IsUnitUnderwater(oEnemyToFocusOn)
