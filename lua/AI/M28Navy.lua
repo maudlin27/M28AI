@@ -1444,7 +1444,8 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious destination; Unit last orders='..reprs(oUnit[M28Orders.reftiLastOrders])..'; Is command queue empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetCommandQueue()))) end
                             if not(IgnoreOrderDueToStuckUnit(oUnit)) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Land zone of last order='..(M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) or 'nil')..'; Last order position='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])..'; Unit LC='..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit antinavy='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
-                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 3 and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 and M28Utilities.IsTableEmpty(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) == false and M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) then
+                                if (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 3 and M28Utilities.IsTableEmpty(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) == false and M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) then
+                                    --Attack-move if we were traveling to a land zone and it isnt that far away
                                     local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
                                     if iDistToLastOrder <= 125 then
                                         --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
@@ -1466,9 +1467,27 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                             if bDebugMessages == true then LOG(sFunctionRef..': will proceed to land for Exp instead of moving') end
                                             M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
                                         else
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Sending exp to move, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
-                                            oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                            M28Orders.IssueTrackedMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAEToLZ'..iLZToSupport..'Fr'..iWaterZone)
+                                            --No land zone nearby - still consider attackmoving if enemy has dangerous enemy in our range
+                                            local bNearbySignificantValueEnemy
+                                            if not(oUnit[M28UnitInfo.refbLastShotBlocked]) then
+                                                local tNearbyEnemies = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryStructure + categories.HOVER + M28UnitInfo.refCategoryMobileLand - categories.AMPHIBIOUS - categories.TECH1, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange], 'Enemy')
+                                                if M28Utilities.IsTableEmpty(tNearbyEnemies) == false then
+                                                    for iEnemy, oEnemy in tNearbyEnemies do
+                                                        if (oEnemy[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oEnemy)) >= 1000 then
+                                                            bNearbySignificantValueEnemy = true
+                                                            break
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                            if bNearbySignificantValueEnemy then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Significant value enemy in our DF range so will attack-move to the amphibious destination') end
+                                                M28Orders.IssueTrackedAggressiveMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAMToLZ'..iLZToSupport..'Fr'..iWaterZone)
+                                            else
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Sending exp to move, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
+                                                oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
+                                                M28Orders.IssueTrackedMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAEToLZ'..iLZToSupport..'Fr'..iWaterZone)
+                                            end
                                         end
                                     end
                                 else
