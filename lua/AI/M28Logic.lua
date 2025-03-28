@@ -229,7 +229,7 @@ function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack, tAltMoveFirstT
                     else
                         tShotEndPosition = oTargetUnit:GetPosition(sLowestBone)
                         --Check for case where lowest bone is below terrain height but highest isnt, and we arent using antinavy attack
-                        if true and GetGameTimeSeconds() >= 8.5*60 and not(bAntiNavyAttack) and tShotEndPosition[2] < GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3]) and oTargetUnit:GetPosition(sHighestBone)[2] > GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3]) then
+                        if not(bAntiNavyAttack) and tShotEndPosition[2] < GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3]) and oTargetUnit:GetPosition(sHighestBone)[2] > GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3]) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Unit has positions above and below ground, will go with the highest position instead of lowest one') end
                             tShotEndPosition = oTargetUnit:GetPosition(sHighestBone)
                         end

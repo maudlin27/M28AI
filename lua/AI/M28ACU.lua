@@ -3319,7 +3319,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
             end
             local bNearestEnemyIsShieldedButEnemyToTargetLacksShield = false
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to switch to unshielded target, is oClosestUnshielded same as oEnemyToTarget='..tostring(oEnemyToTarget == oClosestUnshielded)..'; iClosestUnshieldedDist='..(iClosestUnshieldedDist or 'nil')..'; iClosestDist='..iClosestDist) end
-            if true and GetGameTimeSeconds() >= 5.0*60 and oClosestUnshielded and not(oEnemyToTarget == oClosestUnshielded) and (iClosestUnshieldedDist < oACU[M28UnitInfo.refiDFRange] + 2 or iClosestUnshieldedDist - 4 < iClosestDist) then
+            if oClosestUnshielded and not(oEnemyToTarget == oClosestUnshielded) and (iClosestUnshieldedDist < oACU[M28UnitInfo.refiDFRange] + 2 or iClosestUnshieldedDist - 4 < iClosestDist) then
                 bNearestEnemyIsShieldedButEnemyToTargetLacksShield = true
                 oEnemyToTarget = oClosestUnshielded
                 if bDebugMessages == true then LOG(sFunctionRef..': Switched enemy to target to the closest unshielded enmey') end
@@ -6181,7 +6181,7 @@ function GetACUOrder(aiBrain, oACU)
                                             end
                                         end
                                         --Adjust - if land zone and we want to consider building a mex, but there are DF enemies, then check if we are close to them, if we are then dont want to build (as dont want to build a mex while taking fire or where the mex will just die)
-                                        if true and GetGameTimeSeconds() >= 5.0*60 and bConsiderBuildingNearbyMex and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 6, iTeam, true, nil, nil, nil, nil, nil) then
+                                        if bConsiderBuildingNearbyMex and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 6, iTeam, true, nil, nil, nil, nil, nil) then
                                             bConsiderBuildingNearbyMex = false
                                             if bDebugMessages == true then LOG(sFunctionRef..': Are close to enemy so dont want to consdier getting mex') end
                                         end
