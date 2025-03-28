@@ -1938,6 +1938,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
                                 if iPlateauOrZero > 0 and iLandOrWaterZone > 0 then
                                     local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+                                    if not(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) then tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets] = {} end
                                     table.insert(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets], oUnit)
                                     M28Building.RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, aiBrain.M28Team)
                                 end
