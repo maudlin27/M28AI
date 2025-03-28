@@ -586,6 +586,7 @@ function GetUpgradeCombatWeighting(sEnhancementRef)
             TacticalMissile = iNone, --TML
             TacticalNukeMissile = iNone, --Billy
             Teleporter = iNone, --Teleport
+
             --Aeon:
             --AdvancedEngineering = iMinor, --T2
             ChronoDampener = iDeadly, --ChronoDampener
@@ -598,6 +599,7 @@ function GetUpgradeCombatWeighting(sEnhancementRef)
             ShieldHeavy = iMajor, --Shield lev2
             --T3Engineering = iMinor, --T3
             --Teleporter = iNone, --Teleport
+
             --Cybran:
             --AdvancedEngineering = iMinor, --T2
             CloakingGenerator = iMinor, --Cloak
@@ -608,6 +610,7 @@ function GetUpgradeCombatWeighting(sEnhancementRef)
             StealthGenerator = iMajor, --Stealth
             --T3Engineering = iMinor, --T3
             --Teleporter = iNone, --Teleport
+
             --Sera:
             --AdvancedEngineering = iMinor, --T2
             AdvancedRegenAura = iMajor, --Regen aura lev2
