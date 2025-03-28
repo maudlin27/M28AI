@@ -878,6 +878,10 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     oUnit[M28ACU.refiBuildTech] = 2
                 elseif sEnhancement == 'T3Engineering' then
                     oUnit[M28ACU.refiBuildTech] = 3
+                elseif sEnhancement == 'AdvancedEngineeringRemove' then
+                    oUnit[M28ACU.refiBuildTech] = 1
+                elseif sEnhancement == 'T3EngineeringRemove' then
+                    oUnit[M28ACU.refiBuildTech] = 1
                 elseif  sEnhancement == 'StealthGenerator' or sEnhancement == 'FAF_SelfRepairSystem' or sEnhancement == 'CloakingGenerator' then
                     if oUnit[M28Land.refoAssignedMobileStealth] then
                         oUnit[M28Land.refoAssignedMobileStealth][M28Land.refoMobileStealthTarget] = nil
@@ -905,19 +909,19 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     end
                 end
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                    --Consider being more aggressive with ACU again (mainly relevant for team games)
-                    oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
+                --Consider being more aggressive with ACU again (mainly relevant for team games)
+                oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
                 end
                 --Flag that enemy has a dangerous ACU if they have multiple combat upgrades
                 if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28UnitInfo.refiDFMassThreatOverride] or 0) - M28UnitInfo.iBaseACUThreat >= 1600 and (oUnit:GetMaxHealth() >= M28UnitInfo.iBaseACUExpectedHealth + 2000 or (oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0)) then
-                    local iTeamToIgnore = oUnit:GetAIBrain().M28Team
-                    for iCurTeam = 1, M28Team.iTotalTeamCount do
-                        if (M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Flagging that the enemy has a dangerous ACU for team '..iCurTeam..'; due to ACU owned by '..oUnit:GetAIBrain().Nickname..' with upgrade count='..oUnit[M28ACU.refiUpgradeCount]) end
-                            M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasDangerousACU] = true
-                        end
-                    end
+                local iTeamToIgnore = oUnit:GetAIBrain().M28Team
+                for iCurTeam = 1, M28Team.iTotalTeamCount do
+                if (M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Flagging that the enemy has a dangerous ACU for team '..iCurTeam..'; due to ACU owned by '..oUnit:GetAIBrain().Nickname..' with upgrade count='..oUnit[M28ACU.refiUpgradeCount]) end
+                M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasDangerousACU] = true
                 end
+                    end
+                    end
 
 
             elseif EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId) then

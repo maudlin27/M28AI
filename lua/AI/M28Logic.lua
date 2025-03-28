@@ -96,7 +96,6 @@ function IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE, bRet
     local sFunctionRef = 'IsLineBlocked'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     local bShotIsBlocked = false
     local iFlatDistance = M28Utilities.GetDistanceBetweenPositions(tShotStartPosition, tShotEndPosition)
     local tTerrainPositionAtPoint = {}
@@ -110,7 +109,7 @@ function IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE, bRet
         for iPointToTarget = 1, iEndPoint do
             --math.min(math.floor(iFlatDistance), math.max(math.floor(iStartDistance or 1),1)), math.floor(iFlatDistance) do
             --MoveTowardsTarget(tStartPos, tTargetPos, iDistanceToTravel, iAngle)
-                                                --MoveInDirection(tStart,               iAngle,                                                             iDistance,      bKeepInMapBounds, bTravelUnderwater, bKeepInCampaignPlayableArea)
+            --MoveInDirection(tStart,               iAngle,                                                             iDistance,      bKeepInMapBounds, bTravelUnderwater, bKeepInCampaignPlayableArea)
             tTerrainPositionAtPoint = M28Utilities.MoveInDirection(tShotStartPosition, M28Utilities.GetAngleFromAToB(tShotStartPosition, tShotEndPosition), iPointToTarget, false,              bAntiNavy,              false)
             if bDebugMessages == true then LOG(sFunctionRef..': iPointToTarget='..iPointToTarget..'; tTerrainPositionAtPoint='..repru(tTerrainPositionAtPoint)..'; Surface height at point='..GetSurfaceHeight(tTerrainPositionAtPoint[1], tTerrainPositionAtPoint[3])..'; Terrain height at point='..GetTerrainHeight(tTerrainPositionAtPoint[1], tTerrainPositionAtPoint[3])) end
             if bStartHigherThanEnd then iShotHeightAtPoint = tShotStartPosition[2] - math.sin(iAngleInRadians) * iPointToTarget
@@ -155,7 +154,7 @@ function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack, tAltMoveFirstT
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local bShotIsBlocked = false
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oFiringUnit='..oFiringUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFiringUnit)..'; oTargetUnit='..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oFiringUnit='..oFiringUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFiringUnit)..'; oTargetUnit='..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)..'; refiDFAOE='..(oTargetUnit[M28UnitInfo.refiDFAOE] or 'nil')) end
     if oTargetUnit.CanBeKilled == false and oFiringUnit:GetAIBrain().M28AI then bShotIsBlocked = true
     else
         local tShotStartPosition = GetDirectFireWeaponPosition(oFiringUnit)
@@ -229,11 +228,17 @@ function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack, tAltMoveFirstT
                         tShotEndPosition = oTargetUnit:GetPosition(sHighestBone) --v148 and earlier - did the other way around; however could lead to a situation where a LAB was attacking an engineer, and the LAB got the lowest position of the engineer meaning it appeared to be missing, despite it being able to hit; i.e. this way around means sometimes our shot will be blocked but we wont incorrectly think that; the other way means sometimes our shot wont be blocked but we incorrectly think it is
                     else
                         tShotEndPosition = oTargetUnit:GetPosition(sLowestBone)
+                        --Check for case where lowest bone is below terrain height but highest isnt, and we arent using antinavy attack
+                        if true and GetGameTimeSeconds() >= 8.5*60 and not(bAntiNavyAttack) and tShotEndPosition[2] < GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3]) and oTargetUnit:GetPosition(sHighestBone)[2] > GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Unit has positions above and below ground, will go with the highest position instead of lowest one') end
+                            tShotEndPosition = oTargetUnit:GetPosition(sHighestBone)
+                        end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': HighestBone='..sHighestBone..'; lowest bone='..sLowestBone..'; tShotEndPosition='..repru(tShotEndPosition)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': HighestBone='..sHighestBone..'; lowest bone='..sLowestBone..'; tShotEndPosition='..repru(tShotEndPosition)..'; tTargetUnitDefaultPosition[2]='..tTargetUnitDefaultPosition[2]..'; tShotStartPosition[2]='..tShotStartPosition[2]) end
                 end
                 --Have the shot end and start positions; Now check that not firing at underwater target
-                if tShotEndPosition[2] < GetSurfaceHeight(tShotEndPosition[1], tShotEndPosition[3]) and not(bAntiNavyAttack) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if firing at underwater target, tShotEndPosition[2]='..tShotEndPosition[2]..'; Surface height of shot end position='..GetSurfaceHeight(tShotEndPosition[1], tShotEndPosition[3])..'; Map water height='..M28Map.iMapWaterHeight) end
+                if tShotEndPosition[2] < M28Map.iMapWaterHeight and not(bAntiNavyAttack) and tShotEndPosition[2] < GetSurfaceHeight(tShotEndPosition[1], tShotEndPosition[3]) then
                     bShotIsBlocked = true
                 else
                     --Have the shot end and start positions; now want to move along a line between the two and work out if terrain will block the shot

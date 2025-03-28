@@ -1116,6 +1116,12 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
         if (iACURange or 0) > 0 then
             local iOverchargeArea = 2.5
 
+            --Consider flagging to only target high value targets if we have big gun upgrade
+            if oUnitWithOvercharge[M28ACU.refiUpgradeCount] >= 2 and not(oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets]) and (oUnitWithOvercharge:HasEnhancement('MicrowaveLaserGenerator') or oUnitWithOvercharge:HasEnhancement('BlastAttack')) then
+                oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets] = true
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..' FInished considering if want to set to only OC high value targets due to big gun, oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets]='..tostring(oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets] or false)..'; Upgrade count='..(oUnitWithOvercharge[M28ACU.refiUpgradeCount] or 'nil')..'; Unit has laser or splash='..tostring((oUnitWithOvercharge:HasEnhancement('MicrowaveLaserGenerator') or oUnitWithOvercharge:HasEnhancement('BlastAttack')))) end
+
             --First locate where any blocking units are - will assume non-wall structures larger than a T1 pgen will block the shot, and ACUs will block
             local iMaxSearchDistance
             if bOnlyConsiderEnemiesInRange then iMaxSearchDistance = iACURange - 1
@@ -1174,7 +1180,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
                 --if iMostMobileCombatMassDamage >= 80 then
                 --    oOverchargeTarget = oMostCombatMassDamage
                 if (not(oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets]) and iMostMassDamage >= 200 or iKillsExpected >= 3 or (iKillsExpected >= 1 and iMostMassDamage >= 100) or (iMostMassDamage >= 60 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.9 and (aiBrain:GetEconomyStored('ENERGY') >= 10000 or (aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 1 and aiBrain:GetEconomyStored('ENERGY') >= 8000))))
-                or (oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets] and (iMostMassDamage >= 500 or iKillsExpected >= 6 or (oOverchargeTarget and EntityCategoryContains(M28UnitInfo.refCategoryPD, oOverchargeTarget.UnitId)))) then --e.g. striker is 56 mass; lobo is 36
+                        or (oUnitWithOvercharge[M28ACU.refbOnlyOverchargeHighValueTargets] and (iMostMassDamage >= 500 or iKillsExpected >= 6 or (oOverchargeTarget and EntityCategoryContains(M28UnitInfo.refCategoryPD, oOverchargeTarget.UnitId)))) then --e.g. striker is 56 mass; lobo is 36
                     oOverchargeTarget = oMostMassDamage
                     if bDebugMessages == true then LOG(sFunctionRef..': Have a mobile or PD unit in range that will do enough damage to, oOverchargeTarget='..oOverchargeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOverchargeTarget)) end
                 else
