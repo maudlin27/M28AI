@@ -295,8 +295,8 @@ refCategoryCombatScout = categories.SERAPHIM * categories.SCOUT * categories.DIR
 refCategoryAbsolver = categories.ANTISHIELD * categories.MOBILE * categories.LAND
 
 refCategoryT3MobileArtillery = categories.ARTILLERY * categories.LAND * categories.MOBILE * categories.TECH3 - categories.UNSELECTABLE - categories.UNTARGETABLE
-refCategoryMML = categories.SILO * categories.MOBILE * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE
-refCategoryT3MML = categories.SILO * categories.MOBILE * categories.TECH3 * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE
+refCategoryMML = categories.SILO * categories.MOBILE * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE - categories.ANTIMISSILE --need to exclude antimissile or else we include t3 mobile SMD added by mods
+refCategoryT3MML = categories.SILO * categories.MOBILE * categories.TECH3 * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE - categories.ANTIMISSILE
 refCategoryFatboy = categories.EXPERIMENTAL * categories.UEF * categories.MOBILE * categories.LAND * categories.ARTILLERY + categories.EXPERIMENTAL * categories.UEF * categories.MOBILE * categories.LAND * categories.INDIRECTFIRE - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryLandCombat = categories.MOBILE * categories.LAND * categories.DIRECTFIRE + categories.MOBILE * categories.LAND * categories.INDIRECTFIRE * categories.TECH1 + categories.FIELDENGINEER + refCategoryFatboy + categories.SUBCOMMANDER - refCategoryEngineer -refCategoryLandScout -refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE
 
