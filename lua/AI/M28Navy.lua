@@ -6375,7 +6375,7 @@ end
 
 function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZTeamData, iTeam, tEnemySurfaceUnits, tEnemyNonHoverUnits, bOnlyConsiderDoublyAdjacentZones)
     --Done due to local variable limit due ot error ablut too many upvalues - moving into a separate function doesnt actually help with that, but have left separated as makes the main navla combat code a bit tidier and probably makes it a bit easier to read parts of this, especially as have added commented out code below on doing table variables
-    --bOnlyConsiderDoublyAdjacentZones - if true then will ignore units in this and adjacent zones
+    --bOnlyConsiderDoublyAdjacentZones - if this is true then will ignore units in this and adjacent zones
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetNearestEnemyUnitsAndUpdateUnitTables'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
