@@ -566,63 +566,7 @@ end
 
 
 function TestCustom(aiBrain)
-    local tGridAdjust = {}
-    local iCurSlot = 1
-    local iCycleLength = 1
-    local iCurX = 0
-    local iCurZ = 0
-    local iXAdj = 0
-    local iPrevXAdj = 1
-    local iZAdj = 1
-    local iPrevZAdj = -1
-    local iTimeOfXAdjust = 0
-    local iTimeOfZAdjust = 0
-    local iSwitchCount = 0
-    local tBasePosition = {50, GetTerrainHeight(50,50), 50}
-
-    while iCurSlot < 49 do
-        --Move in clockwise manner
-        if iZAdj == 0 then
-            iCurX = iCurX + iXAdj
-            iTimeOfXAdjust = iTimeOfXAdjust + 1
-            LOG('Moving X by iXadj='..iXAdj..'; iCurX after adj='..iCurX..'; iTimeOfXAdjust='..iTimeOfXAdjust..'; iCycleLength='..iCycleLength)
-            if iTimeOfXAdjust == iCycleLength then
-                iTimeOfXAdjust = 0
-                iPrevXAdj = iXAdj
-                iXAdj = 0
-                --Move up/down for Z now
-                iZAdj = iPrevZAdj * -1
-                iSwitchCount = iSwitchCount + 1
-                LOG('Switching to moving by Z now, iPrevZAdj='..iPrevZAdj..'; iZAdj='..iZAdj..'; iSwitchCount='..iSwitchCount)
-            end
-        else
-            --Presumably have iXAdj that is zero
-            iCurZ = iCurZ + iZAdj
-            iTimeOfZAdjust = iTimeOfZAdjust + 1
-            LOG('Moving Z by iZadj='..iZAdj..'; iCurZ after adj='..iCurZ..'; iTimeOfZAdjust='..iTimeOfZAdjust..'; iCycleLength='..iCycleLength)
-            if iTimeOfZAdjust == iCycleLength then
-                iTimeOfZAdjust = 0
-                iPrevZAdj = iZAdj
-                iZAdj = 0
-                --Move up/down for Z now
-                iXAdj = iPrevXAdj * -1
-                iSwitchCount = iSwitchCount + 1
-                LOG('Switching to moving by X now, iPrevXAdj='..iPrevXAdj..'; iXAdj='..iXAdj..'; iSwitchCount='..iSwitchCount)
-            end
-        end
-        if iSwitchCount >= 2 then
-            iCycleLength = iCycleLength + 1
-            iSwitchCount = 0
-        end
-        LOG('Will record iCurSlot='..iCurSlot..' with iCurX='..iCurX..'; iCurZ='..iCurZ)
-        tGridAdjust[iCurSlot] = {iCurX, iCurZ}
-
-        M28Utilities.DrawLocation({tBasePosition[1] + iCurX, tBasePosition[2], tBasePosition[3] + iCurZ})
-        WaitSeconds(0.25)
-
-        iCurSlot = iCurSlot + 1
-    end
-    --LOG('TEMPCODE tGridAdjust='..repru(tGridAdjust))
+    --LOG('MObile SMD blueprint: '..repru(__blueprints['srl0321']))
 
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end
