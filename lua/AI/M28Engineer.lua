@@ -8885,7 +8885,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
     if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(bBPIsInAdditionToExisting) and tiActionOrder[iActionToAssign] == M28Orders.refiOrderIssueBuild then iTotalBuildPowerWanted = iTotalBuildPowerWanted * 0.8 end
 
-
+    if not(bIsWaterZone) and iActionToAssign == refActionCaptureUnit then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail P'..iPlateauOrPond..'Z'..iLandOrWaterZone, true) bDebugMessages = false end
+    if iActionToAssign == refActionCaptureUnit and bIsWaterZone and iLandOrWaterZone == 23 then bDebugMessages = true end
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -14039,7 +14040,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 local iExperimentalLifetimeCount = M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel)
                 if bDebugMessages == true then LOG(sFunctionRef..': we have high enough mass to consider getting a preemptive SMD, iExperimentalLifetimeCount='..iExperimentalLifetimeCount) end
                 if iExperimentalLifetimeCount > 1 + math.min(3, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 or (not(bHaveLowMass) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30)) or M28Map.bIsCampaignMap then
-                    local iSMDUnderConstructionInThisZone = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategorySMD, true)
+                    local iSMDUnderConstructionInThisZone = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategorySMD, true)
                     local bStillGetSMD = true
                     if iSMDUnderConstructionInThisZone == 0 then
                         local iSMDUnderConstructionInOtherZones = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategorySMD)
@@ -17135,7 +17136,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 if M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] >= 14 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and ((tWZTeamData[M28Map.subrefWZbCoreBase] and (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] == 1)) or not(bHaveLowMass))
                         --AI subtypes - dont get as many naval facs if low on mass
                         and (not(bHaveLowMass) or (not(bPrioritiseNonNavy) and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] < 3))
-                    and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) >= 1
+                        and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) >= 1
                 then
                     local iExtraFactoriesValue = 1
                     if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
@@ -17478,6 +17479,41 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         HaveActionToAssign(refActionBuildMassStorage, M28Building.iLowestMassStorageTechAvailable, iBPWanted)
     end
 
+    if iWaterZone == 23 and iHighestTechEngiAvailable > 0 then bDebugMessages = true end
+    --Units to capture
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of units to capture for WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]))) end
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
+        --Refresh the list
+        local iCaptureCount = table.getn(tWZData[M28Map.subreftoUnitsToCapture])
+        for iCurCount = iCaptureCount, 1, -1 do
+            if not (M28UnitInfo.IsUnitValid(tWZData[M28Map.subreftoUnitsToCapture][iCurCount])) then
+                table.remove(tWZData[M28Map.subreftoUnitsToCapture], iCurCount)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finishedupdating if have WZ units to capture for zone, after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]))) end
+        if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
+            --Dont capture if are a hostile AI due to the risk we capture a campaign objective and progress the map
+            if not(ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].HostileCampaignAI) then
+                local oUnitToCapture
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                    local tPotentialCapture = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryT3Power, tWZData[M28Map.subreftoUnitsToCapture])
+                    if M28Utilities.IsTableEmpty(tPotentialCapture) == false then
+                        oUnitToCapture = M28Utilities.GetNearestUnit(tPotentialCapture, tWZData[M28Map.subrefMidpoint])
+                    end
+                else
+                    oUnitToCapture = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToCapture], tWZData[M28Map.subrefMidpoint])
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': WZ Unit to cpature='..(oUnitToCapture.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture) or 'nil')) end
+                if oUnitToCapture then
+                    iBPWanted = GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, tWZTeamData[M28Map.subrefLZbCoreBase])
+                    HaveActionToAssign(refActionCaptureUnit, 1, iBPWanted, oUnitToCapture)
+                end
+            end
+        end
+    end
+    bDebugMessages = false
+
     --Experimental naval unit for very high mass levels (higher priority than naval fac assist so engis stop assisting naval fac and start building this)
     --If have navy prioritising brain that is closest, then will be much more likely to build a naval experimental
 
@@ -17783,34 +17819,46 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
     end
 
-    --Units to capture
+    --Units to reclaim
     iCurPriority = iCurPriority + 1
-    if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
-        --Refresh the list
-        local iCaptureCount = table.getn(tWZData[M28Map.subreftoUnitsToCapture])
-        for iCurCount = iCaptureCount, 1, -1 do
-            if not (M28UnitInfo.IsUnitValid(tWZData[M28Map.subreftoUnitsToCapture][iCurCount])) then
-                table.remove(tWZData[M28Map.subreftoUnitsToCapture], iCurCount)
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if have units to reclaim in WZ, is table empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoUnitsToReclaim]))) end
+    if tWZTeamData[M28Map.subreftoUnitsToReclaim] and M28Conditions.IsTableOfUnitsStillValid(tWZTeamData[M28Map.subreftoUnitsToReclaim]) == true then
+        local bObjectiveToReclaim = false
+        if M28Map.bIsCampaignMap then
+            for iUnit, oUnit in tWZTeamData[M28Map.subreftoUnitsToReclaim] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering WZ unit to reclaim, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                if oUnit[M28UnitInfo.refbIsReclaimTarget] then bObjectiveToReclaim = true break end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finishedupdating if have units to capture for zone, after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]))) end
-        if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
-            --Dont capture if are a hostile AI due to the risk we capture a campaign objective and progress the map
-            if not(ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].HostileCampaignAI) then
-                local oUnitToCapture
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
-                    local tPotentialCapture = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryT3Power, tWZData[M28Map.subreftoUnitsToCapture])
-                    if M28Utilities.IsTableEmpty(tPotentialCapture) == false then
-                        oUnitToCapture = M28Utilities.GetNearestUnit(tPotentialCapture, tWZData[M28Map.subrefMidpoint])
-                    end
-                else
-                    oUnitToCapture = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToCapture], tWZData[M28Map.subrefMidpoint])
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to reclaim friendly WZ unit, bObjectiveToReclaim='..tostring(bObjectiveToReclaim)) end
+        --Dont reclaim power if we have <100% stored or low power
+        local bDontReclaimYet = false
+        if not(bObjectiveToReclaim) and ((bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.98) then
+            if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryPower, tWZTeamData[M28Map.subreftoUnitsToReclaim])) == false then
+                bDontReclaimYet = true
+            end
+        end
+        if not(M28Orders.bDontConsiderCombinedArmy) and not(bDontReclaimYet) then
+            bDontReclaimYet = true
+            for iUnit, oUnit in tWZTeamData[M28Map.subreftoUnitsToReclaim] do
+                if oUnit.M28Active or not(oUnit:GetAIBrain().M28Team == iTeam) then
+                    bDontReclaimYet = false
+                    break
                 end
-                if oUnitToCapture then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
-                    iBPWanted = GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, tWZTeamData[M28Map.subrefLZbCoreBase])
-                    HaveActionToAssign(refActionCaptureUnit, 1, iBPWanted, oUnitToCapture)
-                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to reclaim a unit but still stop if have low power and we have pgens in the list of units to reclaim, bHaveLowPower='..tostring(bHaveLowPower)..'; Average% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]) end
+        if not(bDontReclaimYet) then
+
+            if bObjectiveToReclaim or (bHaveLowMass and not(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])) then
+                HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.min(1.5 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]], math.max(5, 5 * table.getn(tWZTeamData[M28Map.subreftoUnitsToReclaim]))), nil, false)
+            elseif bHaveLowMass and tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 200 and tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] == 0 and tWZTeamData[M28Map.subrefWZThreatEnemySurface] == 0 then
+                HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.min(tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]], math.max(5, math.min(30, 5 * table.getn(tWZTeamData[M28Map.subreftoUnitsToReclaim])))), nil, false)
+            elseif not(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.5 then
+                HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.min(tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]], math.max(5, math.min(30, 5 * table.getn(tWZTeamData[M28Map.subreftoUnitsToReclaim])))), nil, false)
+            else
+                --if have engi in the zone then reclaim it, but dont request an engi
+                HaveActionToAssign(refActionReclaimFriendlyUnit, 1, 5, nil, true)
             end
         end
     end
@@ -18390,7 +18438,7 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': TIme=' .. GetGameTimeSeconds() .. ' iPlateau=' .. iPlateau .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Is core base=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase]) .. '; is core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion]) .. '; iLandZone=' .. iLandZone)
     end
-    if tLZTeamData[M28Map.subrefLZbCoreBase] or ((tLZTeamData[M28Map.subrefLZCoreExpansion] or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 3 or (tLZTeamData[M28Map.subrefMexCountByTech][2] == tLZData[M28Map.subrefLZMexCount] and tLZData[M28Map.subrefLZMexCount] > 0 and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))) and (not (bHaveLowMass) or (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and ((tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] or 0) == 0 or (tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] == 1 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryTML, true) > 0)) and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiGrossMassBaseIncome] >= 3.5 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and (ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiGrossMassBaseIncome]>= 10 or tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))))  then
+    if tLZTeamData[M28Map.subrefLZbCoreBase] or ((tLZTeamData[M28Map.subrefLZCoreExpansion] or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 3 or (tLZTeamData[M28Map.subrefMexCountByTech][2] == tLZData[M28Map.subrefLZMexCount] and tLZData[M28Map.subrefLZMexCount] > 0 and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))) and (not (bHaveLowMass) or (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and ((tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] or 0) == 0 or (tLZTeamData[M28Map.subrefiTMLLifetimeBuildCount] == 1 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryTML, true) > 0)) and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiGrossMassBaseIncome] >= 3.5 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and (ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiGrossMassBaseIncome]>= 10 or tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))))  then
         --Make sure we have recorded pathing in a straight line for this zone (will only run if table is empty)
         M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
 

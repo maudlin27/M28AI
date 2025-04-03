@@ -5721,4 +5721,44 @@ function AssessT3EngineerConstructionOptions(oUnit)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderGiftingMassStorageToNearbyMexOwner(oJustBuilt)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderGiftingMassStorageToNearbyMexOwner'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
+    local rSearchRectangle = M28Utilities.GetRectAroundLocation(oJustBuilt:GetPosition(), 2.749)
+    local tNearbyUnits = GetUnitsInRect(rSearchRectangle) --at 1.5 end up with storage thats not adjacent being gifted in some cases but not in others; at 1 none of it gets gifted; the mass storage should be exactly 2 from the mex; however even at 2.1, 2.25 and 2.499 had cases where the mex wasnt identified so will try 2.75 since distances can vary/be snapped to the nearest 0.5 I think
+    local aiBrain = oJustBuilt:GetAIBrain()
+    local iTeam = aiBrain.M28Team
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Storage gifting where built storage - oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; owner='..aiBrain.Nickname..'; is tNearbyUnits empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits)))
+        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+            for iUnit, oUnit in tNearbyUnits do
+                LOG(sFunctionRef..': iUnit '..iUnit..' in tNearbyUnits='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owner='..oUnit:GetAIBrain().Nickname)
+            end
+        end
+    end
+    if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+        local tNearbyMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tNearbyUnits)
+        if M28Utilities.IsTableEmpty(tNearbyMexes) == false then
+            local bHaveMexWeOwnNearby = false
+            local oBrainToTransferToIfWeOwnNoMexes
+            for iUnit, oUnit in tNearbyMexes do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby unit oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname) end
+                if oUnit:GetAIBrain() == aiBrain then
+                    bHaveMexWeOwnNearby = true
+                elseif oUnit:GetAIBrain().M28Team == iTeam and (oUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
+                    oBrainToTransferToIfWeOwnNoMexes = oUnit:GetAIBrain()
+                end
+            end
+            if not(bHaveMexWeOwnNearby) and oBrainToTransferToIfWeOwnNoMexes then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player who owns the mex already there') end
+                M28Team.TransferUnitsToPlayer({oJustBuilt}, oBrainToTransferToIfWeOwnNoMexes:GetArmyIndex(), false)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
