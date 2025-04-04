@@ -1198,7 +1198,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
     local sFunctionRef = 'AddUnitToWaterZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ues02025' and not(oUnit:GetAIBrain().M28AI) and aiBrain.M28AI then bDebugMessages = true ForkThread(TestCustomMonitor, oUnit, aiBrain) end
+
 
     if not(M28Map.bWaterZoneInitialCreation) or not(M28Map.bWaterZoneFirstTeamInitialisation) then
         if GetGameTimeSeconds() >= 10 then
