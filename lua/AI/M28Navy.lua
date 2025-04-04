@@ -2467,7 +2467,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
     --iOptionalRaidBaseWZ - need to set if calling from raid logic so can refresh raid locations if no target
     --bOptionalDontTreatAsBombardment - further manual flag (if set to true) to not treat this as bombardment mode - e.g. for units like missile ships that only have a bombardment mode
 
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignBombardmentActions'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
