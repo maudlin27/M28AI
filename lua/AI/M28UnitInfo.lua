@@ -73,6 +73,8 @@ refiTimeOfLastUnblockedShot = 'M28UnitTimeLastUnblockedShot'
 refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate if last shot was blocked
 refbExpBomberShotBlocked = 'M28ULstExpBShtBlck' --true if an experimental bomber thinks a shot fired at this unit will be blocked
 refiTargetShotBlockedCount = 'M28UnitTrgSBlC' --Number of times a long range unit has failed to hit this (used for naval units targeting structures - change how this is increased if want to expand usage)
+refiMissileShotBlockedCount = 'M28UnitMisSBlc' --against target unit, number of times a missile has impacted the terrain when firing at this unit
+reftoTargetBlockedMissileCountByEntityId = 'M28UTrgMisSBlc' --against the missile firing unit, table with [x] = the entity id of the unit where the missile has impacted terrain, returns the number of times the missile has impacted the terrain
 refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds
 refbDisableOvercharge = 'M28ACUOCDs' --true if dont want to use overcharge manually, e.g. if have enabled auto-overcharge due to having laser or blast
 --refiFailedOCCount = 'M28UFlOCC' --intneded for QUIET - if we have tried overcharging a unit that is in our range and are firing our main gun instead then this will increase by 1
@@ -128,6 +130,7 @@ refiDFMinRange = 'M28DFMinRng' --Min range of a unit
 refiDFAOE = 'M28AOEDF' --aoe of a df weapon of a unit
 refiIndirectAOE = 'M28AOEIn' --aoe of an indirect weapon of a unit; includes manual ranges
 refiIndirectRange = 'M28UIR' --for non-manual fire weapons
+refiIFMinRange = 'M28IFMinRng' --Min IF range of a unit
 refiArtiMinRange = 'M28AtMR' --Only populated when used, e.g. used by T2 arti as part of t2 arti manual targeting logic
 refiAntiNavyRange = 'M28UANR'
 refiCombatRange = 'M28UCRN' --Higher of antinavy, indirectrange and dfrange for a unit
@@ -2055,6 +2058,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
                         oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), (oCurWeapon.DamageRadius or 0))
                         if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenIFShots] = math.max((oUnit[refiTimeBetweenIFShots] or 0), 1 / oCurWeapon.RateOfFire) end
+                        if oCurWeapon.MinRadius then oUnit[refiIFMinRange] = math.max((oUnit[refiIFMinRange] or 0), oCurWeapon.MinRadius) end
                     end
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
                     if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' or oCurWeapon.Label == 'Torpedo' or (oCurWeapon.FireTargetLayerCapsTable.Air == 'Seabed|Sub|Water' and EntityCategoryContains(categories.AIR * categories.ANTINAVY, oUnit.UnitId)) then
@@ -2071,6 +2075,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max((oUnit[refiTimeBetweenDFShots] or 0), 1 / oCurWeapon.RateOfFire) end
                     elseif oCurWeapon.WeaponCategory == 'Indirect Fire' then
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                        if oCurWeapon.MinRadius then oUnit[refiIFMinRange] = math.max((oUnit[refiIFMinRange] or 0), oCurWeapon.MinRadius) end
                     elseif (oCurWeapon.Damage or 0) == 0 or (oCurWeapon.MaxRadius or 0) <= 1 then
                         --Ignore
                     elseif oUnit.UnitId == 'uab4201' then
@@ -2106,6 +2111,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         else oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                         end
+                        if oCurWeapon.MinRadius then oUnit[refiIFMinRange] = math.max((oUnit[refiIFMinRange] or 0), oCurWeapon.MinRadius) end
                     elseif( oCurWeapon.FireTargetLayerCapsTable.Air == 'Land|Water|Seabed' or oCurWeapon.FireTargetLayerCapsTable.Air == 'Air|Land|Water') and oCurWeapon.Damage >= 2 then --e.g. gunship or transport
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.FireTargetLayerCapsTable.Air =='Air|Land|water' and oCurWeapon.Damage >= 2 then --e.g. loud penetration fighter
@@ -2133,6 +2139,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         end
                     elseif oCurWeapon.DisplayName == 'Resonance Artillery' then
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                        if oCurWeapon.MinRadius then oUnit[refiIFMinRange] = math.max((oUnit[refiIFMinRange] or 0), oCurWeapon.MinRadius) end
                     elseif oCurWeapon.Label == 'AntiTorpedo' or oCurWeapon.Label == 'AntiTorpedo2' or oCurWeapon.Label == 'AntiTorpedo3' then
                         oUnit[refiTorpedoDefenceCount] = (oUnit[refiTorpedoDefenceCount] or 0) + GetTorpedoDefenceValue(oUnit, oCurWeapon)
                     elseif oCurWeapon.Label == 'TargetPainter' or oCurWeapon.Label == 'EXChronoDampener01' or oCurWeapon.Label == 'EXChronoDampener02' then
@@ -2152,6 +2159,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                             oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         else
                             oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                            if oCurWeapon.MinRadius then oUnit[refiIFMinRange] = math.max((oUnit[refiIFMinRange] or 0), oCurWeapon.MinRadius) end
                         end
                     elseif oCurWeapon.Label == 'GapingMaw' or oCurWeapon.Label == 'ClawMelee' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
@@ -2176,6 +2184,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif oUnit.UnitId == 'lab2320' then --barrarge artillery (not all of its weapons have indirect range cat)
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                        if oCurWeapon.MinRadius then oUnit[refiIFMinRange] = math.max((oUnit[refiIFMinRange] or 0), oCurWeapon.MinRadius) end
                     elseif oUnit.UnitId == 'lsb2320' then --T3 artillery building
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.FireTargetLayerCapsTable.Land == 'Air|Land|Water|Seabed' then --Confirmed for brnt3shbm and brnt3shpd - unit itself can target air units; based on blueprint looks likely this is the riotgun for brnt3shbm, while for the pd it looks like it's all 8 of the main guns
@@ -2242,6 +2251,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
         if EntityCategoryContains(refCategoryFatboy, oUnit.UnitId) then
             oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0))
             oUnit[refiIndirectRange] = oUnit[refiDFRange]
+            if oCurWeapon.MinRadius then oUnit[refiIFMinRange] = math.max((oUnit[refiIFMinRange] or 0), oCurWeapon.MinRadius) end
         end
         --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
     end

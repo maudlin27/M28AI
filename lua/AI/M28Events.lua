@@ -1173,9 +1173,13 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                                 tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = math.max(0, (tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) - iReductionValue)
                             end
                         end
-                    --TML - update shots hit
+                        --TML - update shots hit
                     elseif self[M28Building.refiTMLShotsFired] or 0 > 0 and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
                         self[M28Building.refiTMLShotsHit] = (self[M28Building.refiTMLShotsHit] or 0) + 1
+                        --Mobile missile units that have a missed count - record
+                    elseif self[M28UnitInfo.refiMissileShotBlockedCount] and oUnitCausingDamage[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][self.EntityId] then
+                        self[M28UnitInfo.refiMissileShotBlockedCount] = math.max(0, self[M28UnitInfo.refiMissileShotBlockedCount] - 8) --Missile ships have quite a high degree of firing randomness, so want to decrease by a lot if we manage to hit
+                        oUnitCausingDamage[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][self.EntityId] = math.max(0, oUnitCausingDamage[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][self.EntityId] - 3)
                     --Bombers - record that have successfully damaged the target (i.e. that our bomb didnt miss after all)
                     elseif self[M28UnitInfo.refiBombMissedCount] and EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnitCausingDamage.UnitId) then
                         self[M28UnitInfo.refiBombMissedCount] = nil
@@ -3522,8 +3526,28 @@ function OnMissileImpactTerrain(self, target, position)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
             local tLastOrder = self[M28Orders.reftiLastOrders][self[M28Orders.refiOrderCount]]
+
             if bDebugMessages == true then LOG(sFunctionRef..': self='..(self.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(self) or 'nil')..'; target='..reprs(target)..'; position='..repru(position)..'; tLastOrder='..reprs(tLastOrder)..'; self[M28Building.refiLastTMLMassKills]='..(self[M28Building.refiLastTMLMassKills] or 'nil')..'; Acual XP='..(self.VetExperience or self.Sync.totalMassKilled or 0)) end
-            if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueTMLMissile or M28Utilities.IsTableEmpty(target) == false then
+            --Mobile missile logic tracking
+            if EntityCategoryContains(categories.MOBILE, self.UnitId) and not( tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueTMLMissile) then
+                --(Removed check about if dealt damage recently, as we mightve damaged a shield protruding over the terrain, leaving to us thinking we are dealing damage when we arent)
+                if bDebugMessages == true then LOG(sFunctionRef..': Mobile missile launcher that didnt have a luanch TML order, time of last unblocked shot='..GetGameTimeSeconds() - (self[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)) end
+                --if not(self[M28UnitInfo.refiTimeOfLastUnblockedShot]) or GetGameTimeSeconds() - self[M28UnitInfo.refiTimeOfLastUnblockedShot] >= 1.5 then
+                    --If we have a target and the angle to the target is similar to the angle to where the missile impacted (suggesting we havent switched targets) then track the shots
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is target empty='..tostring(M28Utilities.IsTableEmpty(target))..'; tLastOrder[M28Orders.subrefoOrderUnitTarget]='..(tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')..'; tLastOrder[M28Orders.subrefiOrderType]='..(tLastOrder[M28Orders.subrefiOrderType] or 'nil')) end
+                    if M28Utilities.IsTableEmpty(target) == false and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and (EntityCategoryContains(M28UnitInfo.refCategoryStructure, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId) or tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetFractionComplete() < 1) and (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack) then
+                        --Check the target position isn't far from the current unit target
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist between target and unit target position='..M28Utilities.GetDistanceBetweenPositions(target, tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition())) end
+                        if M28Utilities.GetDistanceBetweenPositions(target, tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()) <= 5 then
+                            tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.refiMissileShotBlockedCount] = (tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.refiMissileShotBlockedCount] or 0) + 1
+                            if not(self[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId]) then self[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId] = {} end
+                            self[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][tLastOrder[M28Orders.subrefoOrderUnitTarget].EntityId] = (self[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][tLastOrder[M28Orders.subrefoOrderUnitTarget].EntityId] or 0) + 1
+                            if bDebugMessages == true then LOG(sFunctionRef..': Increasing missile shot blocked count by 1, tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.refiMissileShotBlockedCount]='..tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.refiMissileShotBlockedCount]) end
+                        end
+                    end
+                --end
+                --TML logic tracking
+            elseif tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueTMLMissile or M28Utilities.IsTableEmpty(target) == false then
                 --Did we not gain any mass kills (e.g. mightve hit the ground deliberately for aoe)
                 if (self[M28Building.refiLastTMLMassKills] or 0) == (self.VetExperience or self.Sync.totalMassKilled or 0) then
                     --Have we dealt damage via the ondamaged callback recently?

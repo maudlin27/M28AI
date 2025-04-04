@@ -1112,7 +1112,6 @@ function RecordUnitAsCaptureTarget(oUnit, iPlateau, iLandZone)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RevealCiviliansToAI'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iPlateau == 1057 and iLandZone == 5 then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail record', true, true) bDebugMessages = false end
 
     local tUnitLZData
     if iPlateau == 0 then

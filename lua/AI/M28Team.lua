@@ -1803,7 +1803,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
     local sFunctionRef = 'AssignUnitToLandZoneOrPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if EntityCategoryContains(M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategorySMD, oUnit.UnitId) then bDebugMessages = true end
+
 
     if M28UnitInfo.IsUnitValid(oUnit) then
         --Campaign specific - dont include units flagged as not being killable
@@ -2145,7 +2145,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 --If this is mass storage then capture, if either underwater or low mod dist
                                 if EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) and (tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 or M28UnitInfo.IsUnitUnderwater(oUnit)) then
                                     local iUnitPlateau, iUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                                    if iUnitPlateau > 0 then bDebugMessages = true end
                                     M28Overseer.RecordUnitAsCaptureTarget(oUnit, iUnitPlateau, iUnitZone)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Recording in table of units to capture instead, P'..iUnitPlateau..'Z'..iUnitZone..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Position='..repru(oUnit:GetPosition())) end
                                 else

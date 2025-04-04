@@ -8885,8 +8885,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
     if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(bBPIsInAdditionToExisting) and tiActionOrder[iActionToAssign] == M28Orders.refiOrderIssueBuild then iTotalBuildPowerWanted = iTotalBuildPowerWanted * 0.8 end
 
-    if not(bIsWaterZone) and iActionToAssign == refActionCaptureUnit then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail P'..iPlateauOrPond..'Z'..iLandOrWaterZone, true) bDebugMessages = false end
-    if iActionToAssign == refActionCaptureUnit and bIsWaterZone and iLandOrWaterZone == 23 then bDebugMessages = true end
+
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -17479,7 +17478,6 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         HaveActionToAssign(refActionBuildMassStorage, M28Building.iLowestMassStorageTechAvailable, iBPWanted)
     end
 
-    if iWaterZone == 23 and iHighestTechEngiAvailable > 0 then bDebugMessages = true end
     --Units to capture
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of units to capture for WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]))) end
@@ -17512,7 +17510,6 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
     end
-    bDebugMessages = false
 
     --Experimental naval unit for very high mass levels (higher priority than naval fac assist so engis stop assisting naval fac and start building this)
     --If have navy prioritising brain that is closest, then will be much more likely to build a naval experimental

@@ -5725,7 +5725,7 @@ function AssessT3EngineerConstructionOptions(oUnit)
 end
 
 function ConsiderGiftingMassStorageToNearbyMexOwner(oJustBuilt)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderGiftingMassStorageToNearbyMexOwner'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
