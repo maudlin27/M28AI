@@ -3347,15 +3347,15 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     if not(bUnitInFurtherAwayZoneWeRanFrom) then
                         --iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())
                         iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition(), sPathing)
-                        if iCurDist and iCurDist < iClosestDist then
-                            iClosestDist = iCurDist
-                            oEnemyToTarget = oUnit
-                            if not(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 3000, false, false, false, false, false)) then
-                                oClosestUnshielded = oUnit
-                                iClosestUnshieldedDist = iCurDist
-                            end
-                        else
-                            if iCurDist < iClosestUnshieldedDist and not(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 3000, false, false, false, false, false)) then
+                        if iCurDist then
+                            if iCurDist < iClosestDist then
+                                iClosestDist = iCurDist
+                                oEnemyToTarget = oUnit
+                                if not(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 3000, false, false, false, false, false)) then
+                                    oClosestUnshielded = oUnit
+                                    iClosestUnshieldedDist = iCurDist
+                                end
+                            elseif iCurDist < iClosestUnshieldedDist and not(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 3000, false, false, false, false, false)) then
                                 oClosestUnshielded = oUnit
                                 iClosestUnshieldedDist = iCurDist
                             end
