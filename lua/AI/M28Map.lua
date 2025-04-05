@@ -848,7 +848,7 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
         local tLZData
         if iLandZone and iPlateau then tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone] end
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Position from segments='..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; iPlateau for this='..(iPlateau or 'nil')..'; Is tLZData nil='..tostring(tLZData == nil)..'; tWaterZoneBySegment[iSegmentX][iSegmentZ]='..(tWaterZoneBySegment[iSegmentX][iSegmentZ] or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Position from segments='..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; iPlateau for this='..(iPlateau or 'nil')..'; Is tLZData nil='..tostring(tLZData == nil)..'; tWaterZoneBySegment[iSegmentX][iSegmentZ]='..(tWaterZoneBySegment[iSegmentX][iSegmentZ] or 'nil')..'; bWaterZoneInitialCreation='..tostring(bWaterZoneInitialCreation)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete)..'; Time='..GetGameTimeSeconds()) end
         if not(iPlateau) or (not(tLZData) and tWaterZoneBySegment[iSegmentX][iSegmentZ] == nil) then
             if (iSegmentX <= -30 or iSegmentZ <= -30 or iSegmentX >= iMaxLandSegmentX + 30 or iSegmentZ >= iMaxLandSegmentZ + 30) then
                 --E.g. RNG can sometimes send air units far outside the map area
@@ -5846,6 +5846,9 @@ function RecordPondToExpandTo(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
     local sFunctionRef = 'RecordPondToExpandTo'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --NOTE - we call this before we have setup water zones, so we mustnt try and get nearest plateau information
+
     bHaveConsideredPreferredPondForM28AI = true
     if bDebugMessages == true then LOG(sFunctionRef..': Starting RecordPondToExpandTo at '..GetGameTimeSeconds()..' for brain '..aiBrain.Nickname..', Is table of pond details empty='..tostring(M28Utilities.IsTableEmpty(tPondDetails))..'; bHaveRecordedPonds='..tostring(bHaveRecordedPonds)..'; Brain team='..(aiBrain.M28Team or 'nil')) end
     GetPrimaryEnemyBaseLocation(aiBrain)
@@ -5997,7 +6000,8 @@ function RecordPondToExpandTo(aiBrain)
                         --Adjust mex value based on distance
                         iCurModDistance = GetModDistanceFromStart(aiBrain, tMexInfo[subrefMexLocation])
                         if iCurMexValue > 0 then
-                            local tMexWZData, tMexWZTeamData = GetLandOrWaterZoneData(tMexInfo[subrefMexLocation], true, aiBrain.M28Team)
+                            --We dont have water zones setup yet so cant use the below
+                            --local tMexWZData, tMexWZTeamData = GetLandOrWaterZoneData(tMexInfo[subrefMexLocation], true, aiBrain.M28Team)
                             if iCurModDistance <  iMinModDistanceWanted then iCurMexValue = 0 --i.e. dont want to value mexes on our 'half' of the map
                             else
                                 if iCurModDistance < iMidModDistance then
@@ -6006,7 +6010,7 @@ function RecordPondToExpandTo(aiBrain)
                             end
                             iCurPondValue = iCurPondValue + iCurMexValue
                             if bDebugMessages == true then
-                                LOG(sFunctionRef..': Adjusting mex value based on mod distance, iCurModDistance='..iCurModDistance..'; iMinModDistanceWanted='..iMinModDistanceWanted..'; Dist to our start='..M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tMexInfo[subrefMexLocation])..'; MexX='..tMexInfo[subrefMexLocation][1]..'Z'..tMexInfo[subrefMexLocation][3]..'; iCurMexValue='..iCurMexValue..'; Mod dist%='..(tMexWZTeamData[refiModDistancePercent] or 'nil'))
+                                LOG(sFunctionRef..': Adjusting mex value based on mod distance, iCurModDistance='..iCurModDistance..'; iMinModDistanceWanted='..iMinModDistanceWanted..'; Dist to our start='..M28Utilities.GetDistanceBetweenPositions(GetPlayerStartPosition(aiBrain), tMexInfo[subrefMexLocation])..'; MexX='..tMexInfo[subrefMexLocation][1]..'Z'..tMexInfo[subrefMexLocation][3]..'; iCurMexValue='..iCurMexValue)
                                 --if iCurModDistance < iMinModDistanceWanted * 0.75 then M28Utilities.DrawLocation(tMexInfo[subrefMexLocation]) end
                             end
                         end
@@ -6243,8 +6247,8 @@ function RecordPondToExpandTo(aiBrain)
             aiBrain[M28Navy.refiPriorityPondRef] = iBestPondRef
             if bDebugMessages == true then
                 local iBuildSegmentX, iBuildSegmentZ = GetPathingSegmentFromPosition(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()])
-                local iWaterZone = tWaterZoneBySegment[iBuildSegmentX][iBuildSegmentZ]
-                LOG(sFunctionRef..': Have a priority pond ref='..aiBrain[M28Navy.refiPriorityPondRef]..' at water zone '..(iWaterZone or 'nil')..'; will draw a square in orangy pink for the build position='..repru(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()]))
+                --local iWaterZone = tWaterZoneBySegment[iBuildSegmentX][iBuildSegmentZ] --We havent setup water zones yet
+                LOG(sFunctionRef..': Have a priority pond ref='..aiBrain[M28Navy.refiPriorityPondRef]..'; will draw a square in orangy pink for the build position='..repru(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()]))
                 M28Utilities.DrawLocation(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()], 8, 200, 10)
             end
             local bInTeamList = false
@@ -7968,7 +7972,7 @@ function SetupMap()
 
     bMapLandSetupComplete = true
     if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up land aspects of the map, will move on to water zones, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
-    SetupWaterZones() --Includes a wait to make sure we have M28 brains
+    SetupWaterZones() --Includes a wait to make sure we have M28 brains and have determined the pond to expand to
     RecordIslands()
     if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up water zones, will also now clal forked threads for other aspects, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     ForkThread(ClearTemporarySetupVariables)

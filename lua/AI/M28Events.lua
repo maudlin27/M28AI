@@ -412,7 +412,7 @@ end
 function OnUnitDeath(oUnit)
     --NOTE: This is called by the death of any unit of any player, so careful with what commands are given
         --Some callbacks line onkilled will call this as well to make sure it is run (since for some things like when an ACU is killed it doesnt trigger directly)
-    if M28Utilities.bM28AIInGame and M28Map.bMapLandSetupComplete then --No point running on death logic for units at start of the game
+    if M28Utilities.bM28AIInGame and M28Map.bWaterZoneInitialCreation then --No point running on death logic for units at start of the game
         local sFunctionRef = 'OnUnitDeath'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1173,9 +1173,13 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                                 tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = math.max(0, (tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) - iReductionValue)
                             end
                         end
-                    --TML - update shots hit
+                        --TML - update shots hit
                     elseif self[M28Building.refiTMLShotsFired] or 0 > 0 and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
                         self[M28Building.refiTMLShotsHit] = (self[M28Building.refiTMLShotsHit] or 0) + 1
+                        --Mobile missile units that have a missed count - record
+                    elseif self[M28UnitInfo.refiMissileShotBlockedCount] and oUnitCausingDamage[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][self.EntityId] then
+                        self[M28UnitInfo.refiMissileShotBlockedCount] = math.max(0, self[M28UnitInfo.refiMissileShotBlockedCount] - 8) --Missile ships have quite a high degree of firing randomness, so want to decrease by a lot if we manage to hit
+                        oUnitCausingDamage[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][self.EntityId] = math.max(0, oUnitCausingDamage[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][self.EntityId] - 3)
                     --Bombers - record that have successfully damaged the target (i.e. that our bomb didnt miss after all)
                     elseif self[M28UnitInfo.refiBombMissedCount] and EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnitCausingDamage.UnitId) then
                         self[M28UnitInfo.refiBombMissedCount] = nil
@@ -2080,14 +2084,14 @@ function OnConstructed(oEngineer, oJustBuilt)
     if M28Utilities.bM28AIInGame then
         --NonM28 specific - dont set the M28OnConstructionCalled for this, so need to  be careful that any code here will not be run repeatedly
         --LOG('OnConstructed at time '..GetGameTimeSeconds()..' for unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' owned by brain '..oJustBuilt:GetAIBrain().Nickname..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false))
-        if not(M28Map.bFirstM28TeamHasBeenInitialised) or not(M28Map.bMapLandSetupComplete) then
+        if not(M28Map.bFirstM28TeamHasBeenInitialised) or not(M28Map.bWaterZoneInitialCreation) then
             local iWaitCount = 0
             local bDontCallAgain = false
-            while not(M28Map.bFirstM28TeamHasBeenInitialised) or not(M28Map.bMapLandSetupComplete) do
+            while not(M28Map.bFirstM28TeamHasBeenInitialised) or not(M28Map.bWaterZoneInitialCreation) do
                 WaitTicks(1)
                 iWaitCount = iWaitCount + 1
                 if iWaitCount >= 300 then
-                    M28Utilities.ErrorHandler('Waited more than 5m for map setup or team setup to complete, something has gone wrong, M28Map.bFirstM28TeamHasBeenInitialised='..tostring(M28Map.bFirstM28TeamHasBeenInitialised or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false))
+                    M28Utilities.ErrorHandler('Waited more than 5m for map setup or team setup to complete, something has gone wrong, M28Map.bFirstM28TeamHasBeenInitialised='..tostring(M28Map.bFirstM28TeamHasBeenInitialised or false)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false))
                     bDontCallAgain = true
                     break
                 end
@@ -2380,36 +2384,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 ForkThread(M28Economy.ConsiderUpgradingMexDueToCompletion, oJustBuilt, oEngineer) --i.e. intention is to cover cases where we have the eco from just completing a mex upgrade to then upgrade another of the same tech level (or in some cases upgrade this/a simialr tech to higher tech)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oJustBuilt.UnitId) then
-                            --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
-                            local rSearchRectangle = M28Utilities.GetRectAroundLocation(oJustBuilt:GetPosition(), 2.749)
-                            local tNearbyUnits = GetUnitsInRect(rSearchRectangle) --at 1.5 end up with storage thats not adjacent being gifted in some cases but not in others; at 1 none of it gets gifted; the mass storage should be exactly 2 from the mex; however even at 2.1, 2.25 and 2.499 had cases where the mex wasnt identified so will try 2.75 since distances can vary/be snapped to the nearest 0.5 I think
-                            if bDebugMessages == true then
-                                LOG(sFunctionRef..': Storage gifting where built storage - oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; owner='..aiBrain.Nickname..'; is tNearbyUnits empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits)))
-                                if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
-                                    for iUnit, oUnit in tNearbyUnits do
-                                        LOG(sFunctionRef..': iUnit '..iUnit..' in tNearbyUnits='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owner='..oUnit:GetAIBrain().Nickname)
-                                    end
-                                end
-                            end
-                            if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
-                                local tNearbyMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tNearbyUnits)
-                                if M28Utilities.IsTableEmpty(tNearbyMexes) == false then
-                                    local bHaveMexWeOwnNearby = false
-                                    local oBrainToTransferToIfWeOwnNoMexes
-                                    for iUnit, oUnit in tNearbyMexes do
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby unit oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname) end
-                                        if oUnit:GetAIBrain() == aiBrain then
-                                            bHaveMexWeOwnNearby = true
-                                        elseif oUnit:GetAIBrain().M28Team == iTeam and (oUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
-                                            oBrainToTransferToIfWeOwnNoMexes = oUnit:GetAIBrain()
-                                        end
-                                    end
-                                    if not(bHaveMexWeOwnNearby) and oBrainToTransferToIfWeOwnNoMexes then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player who owns the mex already there') end
-                                        M28Team.TransferUnitsToPlayer({oJustBuilt}, oBrainToTransferToIfWeOwnNoMexes:GetArmyIndex(), false)
-                                    end
-                                end
-                            end
+                            M28Building.ConsiderGiftingMassStorageToNearbyMexOwner(oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage, oJustBuilt.UnitId) then
                             M28Team.TeamEconomyRefresh(iTeam)
                             M28Team.ConsiderGiftingStorageToTeammate(oJustBuilt)
@@ -2982,7 +2957,7 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
                 if M28Map.bFirstM28TeamHasBeenInitialised and M28UnitInfo.IsUnitValid(oUnitDetected) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER - M28UnitInfo.refCategoryLandScout, oUnitDetected.UnitId) then
                     local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnitDetected)
                     local iMaxHealth = oUnitDetected:GetMaxHealth() + iMaxShield
-                    if iMaxHealth > (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] or 0) and M28Map.bMapLandSetupComplete then
+                    if iMaxHealth > (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] or 0) and M28Map.bWaterZoneInitialCreation then
                         M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] = iMaxHealth
                     end
                 end
@@ -3007,7 +2982,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
             local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-            if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Is civliain brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; UnitID='..(oUnit.UnitId or 'nil')..'; Parent='..(oUnit.Parent.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit.Parent) or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Is civliain brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; UnitID='..(oUnit.UnitId or 'nil')..'; Parent='..(oUnit.Parent.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit.Parent) or 'nil')) end
             if (not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation)) and not(bIgnoreMapSetup) then --Start of game ACU creation happens before we have setup the map
                 while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3317,6 +3292,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': We have just built a paragon, will call special paragon logic') end
                                 ForkThread(M28Building.JustBuiltParagon, oUnit)
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) and not(oUnit.M28OnConstructionCalled) then
+                                M28Building.ConsiderGiftingMassStorageToNearbyMexOwner(oUnit)
                                 --Campaign specific - expand core zones for campaign AI
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryLandHQ + M28UnitInfo.refCategoryAirHQ + categories.COMMAND, oUnit.UnitId) and M28Map.bIsCampaignMap and oUnit:GetAIBrain().CampaignAI then
                                 local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
@@ -3347,9 +3324,9 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             --Consider unpausing this unit regardless of whether it's an SML
                             ForkThread(M28Overseer.DelayedUnpauseOfUnits, {oUnit}, 1)
                             if EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
-                                if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oUnit)) end
-                                ForkThread(M28Air.DetachSatellite,oUnit, 1)
-                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oUnit)) end
+                            ForkThread(M28Air.DetachSatellite,oUnit, 1)
+                                end
                         end
                         --General logic that want to make sure runs on M28 units even if theyre not constructed yet or to ensure we cover scenarios where we are gifted units
                         local aiBrain = oUnit:GetAIBrain()
@@ -3549,8 +3526,28 @@ function OnMissileImpactTerrain(self, target, position)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
             local tLastOrder = self[M28Orders.reftiLastOrders][self[M28Orders.refiOrderCount]]
+
             if bDebugMessages == true then LOG(sFunctionRef..': self='..(self.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(self) or 'nil')..'; target='..reprs(target)..'; position='..repru(position)..'; tLastOrder='..reprs(tLastOrder)..'; self[M28Building.refiLastTMLMassKills]='..(self[M28Building.refiLastTMLMassKills] or 'nil')..'; Acual XP='..(self.VetExperience or self.Sync.totalMassKilled or 0)) end
-            if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueTMLMissile or M28Utilities.IsTableEmpty(target) == false then
+            --Mobile missile logic tracking
+            if EntityCategoryContains(categories.MOBILE, self.UnitId) and not( tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueTMLMissile) then
+                --(Removed check about if dealt damage recently, as we mightve damaged a shield protruding over the terrain, leaving to us thinking we are dealing damage when we arent)
+                if bDebugMessages == true then LOG(sFunctionRef..': Mobile missile launcher that didnt have a luanch TML order, time of last unblocked shot='..GetGameTimeSeconds() - (self[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)) end
+                --if not(self[M28UnitInfo.refiTimeOfLastUnblockedShot]) or GetGameTimeSeconds() - self[M28UnitInfo.refiTimeOfLastUnblockedShot] >= 1.5 then
+                    --If we have a target and the angle to the target is similar to the angle to where the missile impacted (suggesting we havent switched targets) then track the shots
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is target empty='..tostring(M28Utilities.IsTableEmpty(target))..'; tLastOrder[M28Orders.subrefoOrderUnitTarget]='..(tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')..'; tLastOrder[M28Orders.subrefiOrderType]='..(tLastOrder[M28Orders.subrefiOrderType] or 'nil')) end
+                    if M28Utilities.IsTableEmpty(target) == false and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and (EntityCategoryContains(M28UnitInfo.refCategoryStructure, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId) or tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetFractionComplete() < 1) and (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack) then
+                        --Check the target position isn't far from the current unit target
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist between target and unit target position='..M28Utilities.GetDistanceBetweenPositions(target, tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition())) end
+                        if M28Utilities.GetDistanceBetweenPositions(target, tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()) <= 5 then
+                            tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.refiMissileShotBlockedCount] = (tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.refiMissileShotBlockedCount] or 0) + 1
+                            if not(self[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId]) then self[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId] = {} end
+                            self[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][tLastOrder[M28Orders.subrefoOrderUnitTarget].EntityId] = (self[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][tLastOrder[M28Orders.subrefoOrderUnitTarget].EntityId] or 0) + 1
+                            if bDebugMessages == true then LOG(sFunctionRef..': Increasing missile shot blocked count by 1, tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.refiMissileShotBlockedCount]='..tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.refiMissileShotBlockedCount]) end
+                        end
+                    end
+                --end
+                --TML logic tracking
+            elseif tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueTMLMissile or M28Utilities.IsTableEmpty(target) == false then
                 --Did we not gain any mass kills (e.g. mightve hit the ground deliberately for aoe)
                 if (self[M28Building.refiLastTMLMassKills] or 0) == (self.VetExperience or self.Sync.totalMassKilled or 0) then
                     --Have we dealt damage via the ondamaged callback recently?

@@ -1113,27 +1113,34 @@ function RecordUnitAsCaptureTarget(oUnit, iPlateau, iLandZone)
     local sFunctionRef = 'RevealCiviliansToAI'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local tUnitLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    local tUnitLZData
+    if iPlateau == 0 then
+        tUnitLZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandZone]][M28Map.subrefPondWaterZones][iLandZone]
+    else
+        tUnitLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    end
     if not(tUnitLZData[M28Map.subreftoUnitsToCapture]) then tUnitLZData[M28Map.subreftoUnitsToCapture] = {} end
     table.insert(tUnitLZData[M28Map.subreftoUnitsToCapture], oUnit)
     oUnit[M28UnitInfo.refbIsCaptureTarget] = true
 
     if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to the table of civilians to capture; unit brain='..(oUnit:GetAIBrain().Nickname or 'nil')..'; is civilian='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Island ref='..(tUnitLZData[M28Map.subrefLZIslandRef] or 'nil')..'; Land ref of LZData midpoint='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tUnitLZData[M28Map.subrefMidpoint]) or 'nil')..'; Land ref of the unit='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) or 'nil')) end
-    if not(tUnitLZData[M28Map.subrefLZIslandRef]) then
-        local iIslandRef = (NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) or NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tUnitLZData[M28Map.subrefMidpoint]))
-        if iIslandRef then
-            if bDebugMessages == true then LOG(sFunctionRef..': will record P'..iPlateau..'Z'..iLandZone..' as having iIslandRef='..iIslandRef) end
-            M28Map.AddLandZoneToIsland(iPlateau, iLandZone, iIslandRef, tUnitLZData)
+    if iPlateau > 0 then
+        if not(tUnitLZData[M28Map.subrefLZIslandRef]) then
+            local iIslandRef = (NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) or NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tUnitLZData[M28Map.subrefMidpoint]))
+            if iIslandRef then
+                if bDebugMessages == true then LOG(sFunctionRef..': will record P'..iPlateau..'Z'..iLandZone..' as having iIslandRef='..iIslandRef) end
+                M28Map.AddLandZoneToIsland(iPlateau, iLandZone, iIslandRef, tUnitLZData)
+            end
         end
-    end
 
-    if tUnitLZData[M28Map.subrefLZIslandRef] then
-        if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture][tUnitLZData[M28Map.subrefLZIslandRef]]) then
-            if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture]) then M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture] = {} end
-            M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture][tUnitLZData[M28Map.subrefLZIslandRef]] = {}
+        if tUnitLZData[M28Map.subrefLZIslandRef] then
+            if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture][tUnitLZData[M28Map.subrefLZIslandRef]]) then
+                if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture]) then M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture] = {} end
+                M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture][tUnitLZData[M28Map.subrefLZIslandRef]] = {}
+            end
+            table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture][tUnitLZData[M28Map.subrefLZIslandRef]], oUnit)
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording unit against the island '..tUnitLZData[M28Map.subrefLZIslandRef]) end
         end
-        table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandUnitsToCapture][tUnitLZData[M28Map.subrefLZIslandRef]], oUnit)
-        if bDebugMessages == true then LOG(sFunctionRef..': Recording unit against the island '..tUnitLZData[M28Map.subrefLZIslandRef]) end
     end
 
     --Check not recorded as a reclaim target for any team

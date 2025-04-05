@@ -1198,7 +1198,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
     local sFunctionRef = 'AddUnitToWaterZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ues02025' and not(oUnit:GetAIBrain().M28AI) and aiBrain.M28AI then bDebugMessages = true ForkThread(TestCustomMonitor, oUnit, aiBrain) end
+
 
     if not(M28Map.bWaterZoneInitialCreation) or not(M28Map.bWaterZoneFirstTeamInitialisation) then
         if GetGameTimeSeconds() >= 10 then
@@ -2120,7 +2120,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
                 if bIgnore or EntityCategoryContains(M28UnitInfo.refCategoryWall + categories.UNSELECTABLE + categories.UNTARGETABLE + categories.BENIGN, oUnit.UnitId) then
                     --Do nothing
-                    if bDebugMessages == true then LOG(sFunctionRef..': Unit is insignificant so will ignore, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is civilian brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Build cost mass='..oUnit[M28UnitInfo.refiUnitMassCost]) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit is insignificant so will ignore, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is civilian brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; Build cost mass='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')) end
                     --Civilian units hopefully show up here - consider adding to table of units to reclaim; owever dont reclaim if can build from a factory as we might want to capture it instead
                     if M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()) and EntityCategoryContains(categories.RECLAIMABLE + categories.SELECTABLE - categories.BUILTBYTIER3FACTORY, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 25 then
                         if not(M28Map.bIsCampaignMap) or (not(tTeamData[aiBrain.M28Team][rebTeamOnlyHasCampaignAI]) and not(oUnit[M28UnitInfo.refbIsReclaimTarget] == false)) then
@@ -2142,19 +2142,26 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Want to include unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in table of units to reclaim for team '..aiBrain.M28Team) end
                             if not(bIncluded) then
-                                table.insert(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], oUnit)
-                                local bTeamRecorded = false
-                                if not(oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget]) then oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget] = {}
+                                --If this is mass storage then capture, if either underwater or low mod dist
+                                if EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) and (tUnitLZTeamData[M28Map.refiModDistancePercent] <= 0.4 or M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                                    local iUnitPlateau, iUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                    M28Overseer.RecordUnitAsCaptureTarget(oUnit, iUnitPlateau, iUnitZone)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Recording in table of units to capture instead, P'..iUnitPlateau..'Z'..iUnitZone..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Position='..repru(oUnit:GetPosition())) end
                                 else
-                                    for iEntry, iRecordedTeam in oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget] do
-                                        if iRecordedTeam == aiBrain.M28Team then
-                                            bTeamRecorded = true
-                                            break
+                                    table.insert(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], oUnit)
+                                    local bTeamRecorded = false
+                                    if not(oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget]) then oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget] = {}
+                                    else
+                                        for iEntry, iRecordedTeam in oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget] do
+                                            if iRecordedTeam == aiBrain.M28Team then
+                                                bTeamRecorded = true
+                                                break
+                                            end
                                         end
                                     end
-                                end
-                                if not(bTeamRecorded) then
-                                    table.insert(oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget], aiBrain.M28Team)
+                                    if not(bTeamRecorded) then
+                                        table.insert(oUnit[M28UnitInfo.refiTeamsWithThisAsReclaimTarget], aiBrain.M28Team)
+                                    end
                                 end
 
                             end

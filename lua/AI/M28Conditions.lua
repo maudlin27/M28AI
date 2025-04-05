@@ -983,7 +983,7 @@ function GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, iCate
     return iCount
 end
 
-function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory)
+function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory)
     --Returns the number of factories that are building a unit meeting iCategoryWanted
     --if bAllConstructionNotFactory then instead returns number of part-complete units of iCategoryWanted
     local iAlreadyBuilding = 0
@@ -2779,7 +2779,7 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
 end
 
 
---NOTE: REFER TO GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory) WHICH IS MORE VERSATILE
+--NOTE: REFER TO GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory) WHICH IS MORE VERSATILE
 function GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, iCategory)
 
     local iCount = 0
@@ -3371,7 +3371,7 @@ function WantMoreEngineersToAssistMexUpgradeAsPriority(tLZOrWZTeamData, iTeam)
         end
         if iEngineersInZone < iEngineersWantedInZone then
             --Check we dont already have 3+ engineers under construction
-            local iUnderConstruction = GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZOrWZTeamData, M28UnitInfo.refCategoryEngineer, false)
+            local iUnderConstruction = GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZOrWZTeamData, M28UnitInfo.refCategoryEngineer, false)
             if iUnderConstruction < 1 + tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] then
                 return true
             end
