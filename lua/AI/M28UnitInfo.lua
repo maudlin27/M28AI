@@ -2251,7 +2251,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
         if EntityCategoryContains(refCategoryFatboy, oUnit.UnitId) then
             oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0))
             oUnit[refiIndirectRange] = oUnit[refiDFRange]
-            if oCurWeapon.MinRadius then oUnit[refiIFMinRange] = math.max((oUnit[refiIFMinRange] or 0), oCurWeapon.MinRadius) end
+            oUnit[refiIFMinRange] = math.max((oUnit[refiIFMinRange] or 0), oUnit[refiDFMinRange] or 0)
         end
         --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
     end
