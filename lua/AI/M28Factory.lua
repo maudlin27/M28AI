@@ -286,9 +286,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
 
 
     local iCurEngineers
-    if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild]
-    --Exception - scouts where factory is on a different island to the core base
-    and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, sBPIDToBuild)) or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbTeamHasOmniVision] or tLZTeamData[M28Map.subrefLZbCoreBase] or not(tLZTeamData[M28Map.subrefLZCoreExpansion]) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) then
+    if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild] then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
         sBPIDToBuild = nil
     else

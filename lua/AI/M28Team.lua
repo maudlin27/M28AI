@@ -2502,12 +2502,12 @@ function UpdateFactionBlueprintBlacklist(iLandSubteam)
         --Land scouts
         if M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionAeon, 1) then
             --Only want Aeon land scouts (or seraphim for lurker mode)
-            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout (we have an override for land scouts in a dif island to the nearest base)
-            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['url0101'] = true --Cybran land scout (we have an override for land scouts in a dif island to the nearest base)
+            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
+            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['url0101'] = true --Cybran land scout
             if GetGameTimeSeconds() >= 600 then tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true end --Seraphim land scout - want to build earlier on for lurker mode
         elseif M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionCybran, 1) then
             --If have cybran tech then prioritise this
-            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout (we have an override for land scouts in a dif island to the nearest base)
+            tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
             if GetGameTimeSeconds() >= 600 then tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true end --Seraphim land scout - want to build earlier on for lurker mode
         elseif M28Conditions.HaveFactionTech(iLandSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionUEF, 1) then
             if GetGameTimeSeconds() >= 600 then tLandSubteamData[iLandSubteam][subrefBlueprintBlacklist]['xsl0101'] = true end --Seraphim land scout - want to build earlier on for lurker mode

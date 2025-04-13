@@ -2370,7 +2370,6 @@ function ManageEnergyStalls(iTeam)
 
                                 for iUnit = iTotalUnits, 1, -1 do
                                     oUnit = tRelevantUnits[iUnit]
-
                                     --for iUnit, oUnit in tRelevantUnits do
                                     bApplyActionToUnit = false
                                     iCurUnitEnergyUsage = 0
@@ -2396,7 +2395,7 @@ function ManageEnergyStalls(iTeam)
                                             end
                                         else
                                             if bDebugMessages == true then
-                                                LOG(sFunctionRef .. ': About to consider pausing/unpausingunit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4; bConsideringFactory='..tostring(bConsideringFactory)..'; brain gross energy='..oBrain[refiGrossEnergyBaseIncome]..'; Primary fac='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false))
+                                                LOG(sFunctionRef .. ': About to consider pausing/unpausingunit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4; bConsideringFactory='..tostring(bConsideringFactory))
                                             end
 
 
@@ -2449,13 +2448,8 @@ function ManageEnergyStalls(iTeam)
                                                     bApplyActionToUnit = false
                                                 end
                                             elseif bConsideringFactory then
-                                                --Primary factions - if dealing with T1 (or T2 with lots of E) and is a primary factory, then dont pause, as too big a risk we pause an expansion and lose the whole expansion
-                                                if (oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or oBrain[refiGrossEnergyBaseIncome] >= 300 or (oBrain[refiGrossEnergyBaseIncome] >= 150 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, oUnit.UnitId)) or (oBrain[refiGrossEnergyBaseIncome] >= 100 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oUnit.UnitId))) and oBrain[refiGrossEnergyBaseIncome] >= 30 and (oBrain[refiGrossEnergyBaseIncome] >= 150 or (oBrain[refiGrossEnergyBaseIncome] >= 80 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, oUnit.UnitId)) or EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oUnit.UnitId)) and (oBrain[refiGrossEnergyBaseIncome] >= 300 or not(oUnit:IsUnitState('Upgrading')) or bDontPauseUpgradingT1LandOrT2Land or (oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] and oBrain[refiGrossEnergyBaseIncome] >= 85 and EntityCategoryContains(categories.TECH1, oUnit.UnitId))) then
-                                                    bApplyActionToUnit = false
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Primary fac for island/pond so wont pause') end
-                                                    --Dont want to pause an HQ upgrade since it will give us better power, unless we already have access to that tech for the factory brain owner
-                                                elseif (bDontPauseUpgradingT1LandOrT2Land and EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryLandFactory, oUnit.UnitId)) or (not (bConsideringHQ) and oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false and EntityCategoryContains(categories.FACTORY, oUnit.UnitId) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId)) or oUnit:GetAIBrain()[refiOurHighestFactoryTechLevel] <= M28UnitInfo.GetUnitTechLevel(oUnit))) then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want to pause primary factory for island/pond') end
+                                                --Dont want to pause an HQ upgrade since it will give us better power, unless we already have access to that tech for the factory brain owner
+                                                if (bDontPauseUpgradingT1LandOrT2Land and EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryLandFactory, oUnit.UnitId)) or (not (bConsideringHQ) and oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false and EntityCategoryContains(categories.FACTORY, oUnit.UnitId) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId)) or oUnit:GetAIBrain()[refiOurHighestFactoryTechLevel] <= M28UnitInfo.GetUnitTechLevel(oUnit))) then
                                                     for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                                                         if oUnit == oFactory then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Dealing with an upgrading factory, bConsideringHQ='..tostring(bConsideringHQ)..'; wont pause this factorys upgrade as it would give us a higher tech that could give us more power') end
