@@ -2403,7 +2403,6 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 end
                                 --Set primary factory flag if on and island or plateau dif to our main base, and no other constructed factories here, and mod dist is >=0.2
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, oJustBuilt.UnitId) then
-                                bDebugMessages = true
                                 local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
                                 local NavUtils = M28Utilities.NavUtils
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering oJsutBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Island ref='..tLZData[M28Map.subrefLZIslandRef]..'; Island ref of nearest base='..NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) end
@@ -2435,7 +2434,6 @@ function OnConstructed(oEngineer, oJustBuilt)
                                             end
                                         end
                                         if iTotalLandFacsOfSameOrBetterTechInZoneOrAdjacent <= 1 then
-                                            bDebugMessages = true
                                             if bDebugMessages == true then LOG(sFunctionRef..': Setting primary factory flag to true for factory '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)) end
                                             oJustBuilt[M28Factory.refbPrimaryFactoryForIslandOrPond] = true
                                         end
