@@ -3007,17 +3007,20 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
 
             --QUIET and LOUD (or FAF mods that give experimental PD) - consider experimental PD if dont have already
             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to get experimental PD or AA, bHaveAllFactionExpPD='..tostring(M28Building.bHaveAllFactionExpPD)..'; M28Building.bHaveAllFactionExperimentalSAM='..tostring(M28Building.bHaveAllFactionExperimentalSAM)..'; refiEnemyMobileDFThreatNearOurSide='..M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]..'; tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]..'; bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats='..tostring(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats)..'; tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; Far behind on air='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir])..'; Enemy air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; tLZOrWZData[M28Map.subrefLZMexCount]='..tLZOrWZData[M28Map.subrefLZMexCount]) end
-            if M28Building.bHaveAllFactionExpPD and (bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats or (aiBrain[M28Overseer.refbPrioritiseDefence] and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 10000))  and not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) and (aiBrain[M28Overseer.refbPrioritiseDefence] or M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 10000) and (aiBrain[M28Overseer.refbPrioritiseDefence] or (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.max(2, math.min(4, tLZOrWZData[M28Map.subrefLZMexCount])))) then
+            if M28Building.bHaveAllFactionExpPD and (bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats or M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 30000 or (aiBrain[M28Overseer.refbPrioritiseDefence] and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 10000))  and not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) and (aiBrain[M28Overseer.refbPrioritiseDefence] or M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 10000) and (aiBrain[M28Overseer.refbPrioritiseDefence] or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.max(2, math.min(4, tLZOrWZData[M28Map.subrefLZMexCount])) and (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= 4 and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 40000)))) then
                 local iFriendlyPDThreat = 0
                 if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
                     for iRange, iThreat in tLZOrWZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
                         iFriendlyPDThreat = iFriendlyPDThreat + iThreat
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': iFriendlyPDThreat='..iFriendlyPDThreat) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iFriendlyPDThreat='..iFriendlyPDThreat..'; Enemy land threat near our side='..M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]) end
                 if iFriendlyPDThreat < 30000 or (aiBrain[M28Overseer.refbPrioritiseDefence] and iFriendlyPDThreat < math.max(60000, M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] * 0.7) and (bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats or iFriendlyPDThreat < M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] * 0.5)) then
                     iCategoryWanted = M28UnitInfo.refCategoryPD * categories.EXPERIMENTAL
                     if bDebugMessages == true then LOG(sFunctionRef..': will get long ranged PD') end
+                elseif iFriendlyPDThreat < M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] and (iFriendlyPDThreat < 100000 or aiBrain[M28Overseer.refbPrioritiseDefence]) and (iFriendlyPDThreat < 45000 or tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+                    iCategoryWanted = M28UnitInfo.refCategoryPD * categories.EXPERIMENTAL
+                    if bDebugMessages == true then LOG(sFunctionRef..': will get more long ranged PD') end
                 end
             end
             --T4 SAMs - if have less than enemy air to ground threat, and also less than between 30k-50k groundAA threat (depending on enemy air to ground threat), and are far behind on air, the nconsider building
@@ -16380,7 +16383,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         --We need at least 1 T3 mex in the zone and no enemy units
         if tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
             local iExistingFactories = 0
-            local tExistingLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            local tExistingLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             if M28Utilities.IsTableEmpty(tExistingLandFactories) == false then
                 iExistingFactories = table.getn(tExistingLandFactories)
             end
@@ -16390,15 +16393,33 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 if aiBrain[M28Economy.refbBuiltParagon] or (aiBrain[M28Overseer.refbPrioritiseAir] and M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': want air fac as we have paragon') end
                     HaveActionToAssign(refActionBuildAirFactory, 1, 40)
-                else
+                elseif M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 then
                     --HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting)
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory as only have 1 factory') end
-                    HaveActionToAssign(refActionBuildLandFactory, 1, 40)
+                    HaveActionToAssign(refActionBuildQuantumGateway, 3, 100)
                 end
             else
                 --Build land experimental if enemy base is pathable by land from here and we have high gross mass, and we have a high % stored or low mod dist
                 if not(bHaveLowPower) then
-                    if bBuiltParagon or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 60 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 6 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 or tLZTeamData[M28Map.refiModDistancePercent] <= 0.1)) then
+                    --Get quantum gateway if dont have one and are in LOUD or QUIET
+                    local bGetGatewayInstead = false
+                    if M28Utilities.bQuietModActive or M28Utilities.bLoudModActive then
+                        local tCompletedGateway = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        local iCompletedGateway = 0
+                        if M28Utilities.IsTableEmpty(tCompletedGateway) == false then
+                            for iGateway, oGateway in tCompletedGateway do
+                                if oGateway:GetFractionComplete() == 1 then iCompletedGateway = iCompletedGateway + 1 end
+                            end
+                        end
+                        iBPWanted = 200
+                        if iCompletedGateway == 0 then
+                            bGetGatewayInstead = true
+                        end
+                    end
+                    if bGetGatewayInstead then
+                        HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will get quantum gateway for minor zone to spend our mass') end
+                    elseif bBuiltParagon or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 60 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 6 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 or tLZTeamData[M28Map.refiModDistancePercent] <= 0.1)) then
                         --If we have stalled power recently then build power, otherwise get experimental
                         if bWantMorePower and (bHaveLowPower or GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100 <= 30) then
                             HaveActionToAssign(refActionBuildPower, 3, 60, nil, false, true)
