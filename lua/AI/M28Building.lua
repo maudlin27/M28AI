@@ -3211,6 +3211,8 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
             local iMultipleShotMod = 1
             local iMobileValueFactorInner = 0.4
             local iShieldReductionFactor = 0.25 --i.e. amount by which value of target will be reduced if it is under shielding
+            if iDamage >= 7500 and iAOE >= 6 then iShieldReductionFactor = math.min(math.max(iShieldReductionFactor, 0.7), iShieldReductionFactor * 1.5, 0.9) end
+            if not(M28Utilities.bFAFActive) then iShieldReductionFactor = math.max(0.4, iShieldReductionFactor * 0.5) end
 
             --First consider other T3 arti on team, and if target is in our range, then prefer to target that as well as synchronised targeting likely to be best (but only if the target had a value of 20k+)
             local tBestArtiSynchronisedGroundTarget, oArtiSynchronisedTarget
@@ -3281,6 +3283,20 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through each plateau and zone in range now, is oArti[reftiPlateauAndZonesInRange] empty='..tostring(M28Utilities.IsTableEmpty(oArti[reftiPlateauAndZonesInRange]))) end
 
+            local iShieldFactor --Impact on value from enemy shields
+            local iMinShieldFactor = 0.2 --I.e. if 0.05 then wouldn't reduce value below 5% of what we would have calculated ignoring shield when determining best and second best zones
+            if M28Utilities.bFAFActive then
+                iShieldFactor = 2
+            else
+                iMinShieldFactor = 0.1
+                if M28Utilities.bQuietModActive then
+                    iShieldFactor = 5
+                else
+                    iShieldFactor = 8
+                end
+            end
+            local iDoubleShieldFactorThreshold = 4000 --If enemy has more than this much mass then will double the shield factor
+
             for iEntry, tPlateauZoneAndDist in oArti[reftiPlateauAndZonesInRange] do
                 local tAltLZOrWZData
                 local tAltLZOrWZTeamData
@@ -3306,7 +3322,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     else
                         iCurValue = tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + iCurMobileThreat * 0.2
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering plateau and zone '..tPlateauZoneAndDist[1]..'Z'..tPlateauZoneAndDist[2]..'; tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')..'; iCurMobileThreat='..iCurMobileThreat) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering plateau and zone '..tPlateauZoneAndDist[1]..'Z'..tPlateauZoneAndDist[2]..'; tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')..'; iCurMobileThreat='..iCurMobileThreat..'; subrefThreatEnemyShield='..(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0)) end
                     --Add extra mobile threat if enemy has long ranged units and is close to our nearest base
                     if iCurMobileThreat >= 4000 and tPlateauZoneAndDist[3] <= 300 and M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
                         local iLongRangeThreat = 0
@@ -3337,6 +3353,16 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                         local tEnemyT2ArtiAndMissileShips = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategoryMissileShip, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
                         if M28Utilities.IsTableEmpty(tEnemyT2ArtiAndMissileShips) == false then
                             iCurValue = iCurValue + tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]
+                        end
+                    end
+
+                    --Reduce value if shielded
+                    if (tAltLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Value before shield reduction factor='..iCurValue) end
+                        if tAltLZOrWZTeamData[M28Map.subrefThreatEnemyShield] <= iMinShieldFactor then
+                            iCurValue = math.max(iCurValue * iMinShieldFactor, iCurValue - tAltLZOrWZTeamData[M28Map.subrefThreatEnemyShield] * iShieldFactor)
+                        else --Enemy likely has 2+ shields
+                            iCurValue = math.max(iCurValue * iMinShieldFactor, iCurValue - tAltLZOrWZTeamData[M28Map.subrefThreatEnemyShield] * iShieldFactor * 2)
                         end
                     end
 
@@ -3376,7 +3402,6 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
 
             --Now have the best 2 zones on an aggregate basis, get the best location for the arti target within these zones
             --Reduce value of shields against high damage and aoe targets
-            if iDamage >= 7500 and iAOE >= 6 then iShieldReductionFactor = math.min(math.max(iShieldReductionFactor, 0.8), iShieldReductionFactor * 1.5) end
 
             function GetBestUnitTargetAndValueInZone(iPlateauOrZero, iLZOrWZ, iAngleFactor)
                 local tAltLZOrWZData
