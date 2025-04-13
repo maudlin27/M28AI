@@ -8082,12 +8082,14 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                             end
                             --If have lots of engineers then spread out since the biggest delay may be starting construction of a shield
                             if (iUnderConstructionShields == 0 and (iCompletedShields == 0 or iCompletedShields < math.min(6, iHighestCompletionArti * 8))) or (iOrigAvailableEngis >= 5 and iUnderConstructionShields > 0 and iCompletedShields + iUnderConstructionShields < iShieldLocations and iUnderConstructionShields < 4) then
-                                --Start building so have at least 4 shields built at once (want to do ahead of assisting shields, since faction used for this is important) - have 1 engi building each shield
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will try assigning 1 engi each to building a shield since iOrigAvailableEngis='..iOrigAvailableEngis) end
+                                if M28Utilities.bFAFActive or iCompletedShields + iUnderConstructionShields < math.max(3, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount]) then
+                                    --Start building so have at least 4 shields built at once (want to do ahead of assisting shields, since faction used for this is important) - have 1 engi building each shield
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try assigning 1 engi each to building a shield since iOrigAvailableEngis='..iOrigAvailableEngis) end
 
-                                --GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZTeamData, iPlateau, iLandZone, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, iMaxShieldsToTryAndBuild,                                                                                  iOptionalMaxEngiPerAction, bOnlyGetT3)
-                                bGaveBuildOrder = GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZTeamData, iPlateau, iLandZone, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, math.min(4 - iUnderConstructionShields, iShieldLocations - iCompletedShields - iUnderConstructionShields), 1,                           bExcludeExpShields)
-                                if bGaveBuildOrder then bTriedBuildingSomething = true end
+                                    --GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZTeamData, iPlateau, iLandZone, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, iMaxShieldsToTryAndBuild,                                                                                  iOptionalMaxEngiPerAction, bOnlyGetT3)
+                                    bGaveBuildOrder = GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZTeamData, iPlateau, iLandZone, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, math.min(4 - iUnderConstructionShields, iShieldLocations - iCompletedShields - iUnderConstructionShields), 1,                           bExcludeExpShields)
+                                    if bGaveBuildOrder then bTriedBuildingSomething = true end
+                                end
 
                             end
                             if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
@@ -8132,7 +8134,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will assist nearest completion shield='..oNearestCompletionShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestCompletionShield)..'; iLimitOnEngisToAssistShield='..(iLimitOnEngisToAssistShield or 'nil')) end
                                             bClearAllEngineers = GETemplateAssistUnit(tAvailableEngineers, tAvailableT3EngineersByFaction, iPlateau, iLandZone, iTemplateRef, oNearestCompletionShield, iLimitOnEngisToAssistShield)
                                             if bClearAllEngineers then tAvailableEngineers = nil tAvailableT3EngineersByFaction = nil end
-                                        elseif iCompletedShields + iUnderConstructionShields < iShieldLocations then
+                                        elseif iCompletedShields + iUnderConstructionShields < iShieldLocations and (M28Utilities.bFAFActive or iCompletedShields + iUnderConstructionShields < math.max(3, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount])) then
                                             if (iHighestCompletionArti >= 0.1 * iCompletedShields or iCompletedShields < 4 or not(M28Conditions.HaveLowPower(iTeam)) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 + 250 * iCompletedShields) then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': We can build more shields so we will') end
                                                 bGaveBuildOrder = GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZTeamData, iPlateau, iLandZone, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, math.min(4, iShieldLocations - iCompletedShields), nil, bExcludeExpShields)
