@@ -34,6 +34,7 @@ reftiPlateauAndLZToMoveTo = 'M28LandPlatAndLZToMoveTo' --If tell a unit to mvoe 
 refiCurrentAssignmentValue = 'M28LandAssignedValue' --when a combat unit is given an order for a land zone, the value of that land zone should be recorded
 refiCurrentAssignmentPlateauAndLZ = 'M28LandAssignedPlatLZ' --returns {iPlateau, iLandZone} that the units orders have been coordinated by
 refiTimeOfLastAssignment = 'M28LandLastAssignmenttime' --returns gametimeseconds that the unit was last assigned to the available units of a land zone
+refiLastNegLZAssignment = 'M28LLstNgLZ' --If moving some butn ot all units to a zone wanting support due to it not having that big a threat, this gets recorded with the zone, to reduce instances where units get stuck
 reftiRadarPlateauAndLandZonesCoveredByTeam = 'M28LandRadarLZs' --Returns talbes of {iPlateau, iLandZone} that the radar is providing the best radar coverage of
 reftiRadarPlateauAndLandZonesCoveredByOmni = 'M28LandOmniLZs' --Returns talbes of {iPlateau, iLandZone} that the radar is providing some omni coverage of
 refoSREnemyTarget = 'M28LndSRTrg' --If we have a SR unit told to target an enemy, this tracks it so we dont switch to retreat logic when we move into a new zone in pursuit
@@ -8854,13 +8855,25 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         local tOtherLZTeamData = tOtherLZData[M28Map.subrefLZTeamData][iTeam]
                         iCurAssignedThreat = 0
                         iMaxThreatToAssign = ((tOtherLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 6 + (tOtherLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)) * 3
+                        --First assign any units last assigned to this zone
                         for iCurDFUnit = table.getn(tDFUnits), 1, -1 do
-                            if tDFUnits[iCurDFUnit][M28UnitInfo.refiUnitMassCost] < iMaxThreatToAssign or (EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.EXPERIMENTAL, tDFUnits[iCurDFUnit].UnitId) and M28UnitInfo.GetUnitLifetimeCount(tDFUnits[iCurDFUnit]) > 3) then
+                            if tDFUnits[iCurDFUnit][refiLastNegLZAssignment] == iOtherLZ then
                                 iCurAssignedThreat = iCurAssignedThreat + tDFUnits[iCurDFUnit][M28UnitInfo.refiUnitMassCost]
                                 M28Orders.IssueTrackedMove(tDFUnits[iCurDFUnit], tOtherLZData[M28Map.subrefMidpoint], 5, false, 'NegZDF'..iLandZone..'To'..iOtherLZ, false)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Assigned DF unit '..tDFUnits[iCurDFUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tDFUnits[iCurDFUnit])..' to the negligible threat zone '..iOtherLZ..'; iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Already Assigned DF unit '..tDFUnits[iCurDFUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tDFUnits[iCurDFUnit])..' to the negligible threat zone '..iOtherLZ..'; iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign) end
                                 table.remove(tDFUnits, iCurDFUnit)
-                                if iCurAssignedThreat >= iMaxThreatToAssign then break end
+                            end
+                        end
+                        if iCurAssignedThreat < iMaxThreatToAssign then
+                            for iCurDFUnit = table.getn(tDFUnits), 1, -1 do
+                                if tDFUnits[iCurDFUnit][M28UnitInfo.refiUnitMassCost] < iMaxThreatToAssign or (EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.EXPERIMENTAL, tDFUnits[iCurDFUnit].UnitId) and M28UnitInfo.GetUnitLifetimeCount(tDFUnits[iCurDFUnit]) > 3) then
+                                    iCurAssignedThreat = iCurAssignedThreat + tDFUnits[iCurDFUnit][M28UnitInfo.refiUnitMassCost]
+                                    M28Orders.IssueTrackedMove(tDFUnits[iCurDFUnit], tOtherLZData[M28Map.subrefMidpoint], 5, false, 'NegZDF'..iLandZone..'To'..iOtherLZ, false)
+                                    tDFUnits[iCurDFUnit][refiLastNegLZAssignment] = iOtherLZ
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Assigned DF unit '..tDFUnits[iCurDFUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tDFUnits[iCurDFUnit])..' to the negligible threat zone '..iOtherLZ..'; iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign) end
+                                    table.remove(tDFUnits, iCurDFUnit)
+                                    if iCurAssignedThreat >= iMaxThreatToAssign then break end
+                                end
                             end
                         end
                     end
@@ -8880,13 +8893,25 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         else
                             iMaxThreatToAssign = ((tOtherLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 2 + (tOtherLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)) * 5
                         end
+                        --First assign any units last assigned to this zone
                         for iCurUnit = table.getn(tIndirectUnits), 1, -1 do
-                            if tIndirectUnits[iCurUnit][M28UnitInfo.refiUnitMassCost] < iMaxThreatToAssign then
+                            if tIndirectUnits[iCurUnit][refiLastNegLZAssignment] == iOtherLZ then
                                 iCurAssignedThreat = iCurAssignedThreat + tIndirectUnits[iCurUnit][M28UnitInfo.refiUnitMassCost]
                                 M28Orders.IssueTrackedMove(tIndirectUnits[iCurUnit], tOtherLZData[M28Map.subrefMidpoint], 5, false, 'NegZIF'..iLandZone..'To'..iOtherLZ, false)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Assigned IF unit '..tIndirectUnits[iCurUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tIndirectUnits[iCurUnit])..' to the negligible threat zone '..iOtherLZ..'; iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Already Assigned IF unit '..tIndirectUnits[iCurUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tIndirectUnits[iCurUnit])..' to the negligible threat zone '..iOtherLZ..'; iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign) end
                                 table.remove(tIndirectUnits, iCurUnit)
-                                if iCurAssignedThreat >= iMaxThreatToAssign then break end
+                            end
+                        end
+                        if iCurAssignedThreat < iMaxThreatToAssign then
+                            for iCurUnit = table.getn(tIndirectUnits), 1, -1 do
+                                if tIndirectUnits[iCurUnit][M28UnitInfo.refiUnitMassCost] < iMaxThreatToAssign then
+                                    iCurAssignedThreat = iCurAssignedThreat + tIndirectUnits[iCurUnit][M28UnitInfo.refiUnitMassCost]
+                                    M28Orders.IssueTrackedMove(tIndirectUnits[iCurUnit], tOtherLZData[M28Map.subrefMidpoint], 5, false, 'NegZIF'..iLandZone..'To'..iOtherLZ, false)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Assigned IF unit '..tIndirectUnits[iCurUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tIndirectUnits[iCurUnit])..' to the negligible threat zone '..iOtherLZ..'; iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign) end
+                                    tIndirectUnits[iCurUnit][refiLastNegLZAssignment] = iOtherLZ
+                                    table.remove(tIndirectUnits, iCurUnit)
+                                    if iCurAssignedThreat >= iMaxThreatToAssign then break end
+                                end
                             end
                         end
                     end
