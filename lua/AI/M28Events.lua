@@ -2401,6 +2401,47 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
                                     tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
                                 end
+                                --Set primary factory flag if on and island or plateau dif to our main base, and no other constructed factories here, and mod dist is >=0.2
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, oJustBuilt.UnitId) then
+                                bDebugMessages = true
+                                local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oJustBuilt:GetAIBrain().M28Team)
+                                local NavUtils = M28Utilities.NavUtils
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oJsutBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Island ref='..tLZData[M28Map.subrefLZIslandRef]..'; Island ref of nearest base='..NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) end
+                                if tLZTeamData[M28Map.refiModDistancePercent] >= 0.2 and not(tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) then
+                                    local iTotalLandFacsOfSameOrBetterTechInZoneOrAdjacent = 0
+                                    local iTechLevelWanted = M28UnitInfo.GetUnitTechLevel(oJustBuilt)
+                                    function ConsiderCurZone(tCurLZTeamData)
+                                        if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                            local tOtherFacs = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tCurLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                            if M28Utilities.IsTableEmpty(tOtherFacs) == false then
+                                                for iFac, oFac in tOtherFacs do
+                                                    if M28UnitInfo.IsUnitValid(oFac) and oFac:GetFractionComplete() >= 1 and M28UnitInfo.GetUnitTechLevel(oFac) >= iTechLevelWanted then
+                                                        iTotalLandFacsOfSameOrBetterTechInZoneOrAdjacent = iTotalLandFacsOfSameOrBetterTechInZoneOrAdjacent + 1
+                                                        if iTotalLandFacsOfSameOrBetterTechInZoneOrAdjacent >= 2 then break end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                    ConsiderCurZone(tLZTeamData)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iTotalLandFacsOfSameOrBetterTechInZoneOrAdjacent='..iTotalLandFacsOfSameOrBetterTechInZoneOrAdjacent) end
+                                    if iTotalLandFacsOfSameOrBetterTechInZoneOrAdjacent <= 1 then
+                                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                            local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oJustBuilt:GetPosition())
+                                            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                                local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                                ConsiderCurZone(tAdjLZTeamData)
+                                            end
+                                        end
+                                        if iTotalLandFacsOfSameOrBetterTechInZoneOrAdjacent <= 1 then
+                                            bDebugMessages = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Setting primary factory flag to true for factory '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)) end
+                                            oJustBuilt[M28Factory.refbPrimaryFactoryForIslandOrPond] = true
+                                        end
+                                    end
+                                end
+                                --refbPrimaryFactoryForIslandOrPond
                             end
 
                             M28Economy.ConsiderImmediateUpgradeOfFactory(oJustBuilt)
