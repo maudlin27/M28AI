@@ -286,7 +286,9 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
 
 
     local iCurEngineers
-    if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild] then
+    if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild]
+    --Exception - scouts where factory is on a different island to the core base
+    and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, sBPIDToBuild)) or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbTeamHasOmniVision] or tLZTeamData[M28Map.subrefLZbCoreBase] or not(tLZTeamData[M28Map.subrefLZCoreExpansion]) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
         sBPIDToBuild = nil
     else
@@ -3992,7 +3994,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
 
                             --When factory completes something, oFactory[refiFirstTimeOfLastOrder] should get set to nil (unless it has already started construction)
                             if not(bConsiderDestroyingForMass) and not(oFactory[refiFirstTimeOfLastOrder]) and oBrain:GetEconomyStoredRatio('MASS') <= 0.01 and not(oBrain[M28Overseer.refbPrioritiseLowTech]) and
-                                    ((tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and iFactoryType == refiFactoryTypeLand and oBrain[M28Overseer.refbPrioritiseDefence] or oBrain[M28Overseer.refbPrioritiseHighTech] or oBrain[M28Overseer.refbPrioritiseLowTech] or oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Overseer.refbPrioritiseAir] or not(oBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory) >= 4) or
+                                    ((tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and iFactoryType == refiFactoryTypeLand and (oBrain[M28Overseer.refbPrioritiseDefence] or oBrain[M28Overseer.refbPrioritiseHighTech] or oBrain[M28Overseer.refbPrioritiseLowTech] or oBrain[M28Overseer.refbPrioritiseNavy] or oBrain[M28Overseer.refbPrioritiseAir] or not(oBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory) >= 4)) or
                                             (iFactoryType == refiFactoryTypeNaval and not(oFactory[refbPrimaryFactoryForIslandOrPond]) and M28UnitInfo.GetUnitTechLevel(oFactory) < aiBrain[M28Economy.refiOurHighestNavalFactoryTech] and M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory) > 1)) then
                                 bConsiderDestroyingForMass = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will consider destroying for mass afterall') end
@@ -4003,7 +4005,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                             if bConsiderDestroyingForMass and M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and not(oFactory[refbPrimaryFactoryForIslandOrPond]) then
                                 local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
                                 if (not(M28Utilities.bFAFActive) or iFactoryTechLevel == 1 or not(EntityCategoryContains(M28UnitInfo.refCategoryLandHQ, oFactory.UnitId))) and M28Conditions.HaveLowMass(aiBrain) then
-                                    if iFactoryType == refiFactoryTypeLand and iFactoryTechLevel < oBrain[M28Economy.refiOurHighestLandFactoryTech] then
+                                    if iFactoryType == refiFactoryTypeLand and (iFactoryTechLevel < oBrain[M28Economy.refiOurHighestLandFactoryTech] or (iFactoryTechLevel >= 3 and oFactory[refiTotalBuildCount] >= 5 and M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory * categories.TECH3) > math.max(3, math.min(6, aiBrain[M28Economy.refiGrossMassBaseIncome] * 0.1)) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryMobileLand * categories.TECH3) >= 20)) then
                                         local iExistingFactoriesOfHigherTech = 0
                                         local iSearchCategory
                                         if iFactoryTechLevel == 1 then iSearchCategory = M28UnitInfo.refCategoryLandFactory - categories.TECH1
@@ -4023,7 +4025,11 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                                             end
                                         end
                                         if bDebugMessages == true then
-                                            LOG(sFunctionRef .. ': iExistingFactoriesOfHigherTech='..iExistingFactoriesOfHigherTech..'; bSelfDestructIfLowMass='..tostring(bSelfDestructIfLowMass))
+                                            LOG(sFunctionRef .. ': iExistingFactoriesOfHigherTech='..iExistingFactoriesOfHigherTech..'; bSelfDestructIfLowMass before check if want more factories='..tostring(bSelfDestructIfLowMass))
+                                        end
+                                        if bSelfDestructIfLowMass and M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLandOrWaterZone, false) then
+                                            --Redundancy
+                                            bSelfDestructIfLowMass = false
                                         end
 
                                     elseif iFactoryType == refiFactoryTypeAir then
@@ -4042,6 +4048,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                                 end
                             end
                         end
+
                         if bDebugMessages == true then
                             LOG(sFunctionRef .. ': Finished considering if want to ctrlk, bSelfDestructIfLowMass=' .. tostring(bSelfDestructIfLowMass))
                         end

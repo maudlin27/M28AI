@@ -2766,7 +2766,7 @@ function UpdateOrdersForExistingAirAATargets(tInCombatUnits, bReturnTableOfAssig
 end
 
 function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam, iAirSubteam, tExistingThreatAssignedByUnitRef, bLastEnemiesToTarget)
-    --bLastEnemiesToTarget - if true, then will assign more air units than normal to deal with the threat
+    --bLastEnemiesToTarget - if this is true, then will assign more air units than normal to deal with the threat
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignAirAATargets'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2892,7 +2892,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     --bReturnGroundAAThreatInstead - if this is true will return the groundAA threat
     --tOptionalStartMidpointAdjustForDetailedCheck - ended up removing the code that was making use of this, but in theory this allows a different position to be used than the midpoint for the detailed check
     --bReturnGroundAAUnitsAlongsideAAThreat - only set to true if bReturnGroundAAThreatInstead is true; will also return a table of those groundAA units; recommended that use with bDoDetailedCheckForAA since minimal extra overhead then (so expect the detailed check isn't as expensive vs the normal check which has to do entitycateogyrfilterdown if this is falgged
-    --bOptionalIgnoreOppositeDirectionZones - if true, and the end plateau+zone has a mod dist that is lower than the start, then will ignore zones whose midpoint is in a significantly different angle to the angle from the start to the end
+    --bOptionalIgnoreOppositeDirectionZones - if this is true, and the end plateau+zone has a mod dist that is lower than the start, then will ignore zones whose midpoint is in a significantly different angle to the angle from the start to the end
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DoesEnemyHaveAAThreatAlongPath'
