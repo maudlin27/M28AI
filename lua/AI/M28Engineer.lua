@@ -12850,7 +12850,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Nearby enemy ground threat and we dont already have at least 2 T2 PD (more in later game scenarios)
     iCurPriority = iCurPriority + 1
-    local iEnemyThreat, oClosestUnit
+    local iEnemyThreat, iEnemyBestRange, oClosestUnit
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if want emergency PD for normal ground threat, tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; iCurPriority='..iCurPriority..'; Norush active='..tostring(M28Overseer.bNoRushActive)..'; Time until norush nolonger active='..(GetGameTimeSeconds() - (M28Overseer.iNoRushTimer or 0))..'; Have low mass='..tostring(bHaveLowMass)..'; Have low power='..tostring(bHaveLowPower)..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
     if not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) and ((tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false) or tLZTeamData[M28Map.subrefLZFortify] or (aiBrain[M28Overseer.refbPrioritiseDefence] and (tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][1] >= 3)) or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and not(bHaveLowPower) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 3000 and not(tLZTeamData[M28Map.refbBaseInSafePosition]) and (not(bHaveLowMass) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 50 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))))) and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 120 or (not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0)) then
         --Get existing T2 PD threat
@@ -12881,51 +12881,11 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': iCurPDThreat in just this zone='..iCurPDThreat..'; iMaxPDThreat='..iMaxPDThreat..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
             if iCurPDThreat <= iMaxPDThreat and (iCurPDThreat == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] > 1) then
                 --Get nearby enemy threat, but only for adjacent LZs
-                iEnemyThreat = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
-                local iEnemyBestRange = math.max(tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange], tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange])
-
-                if bDebugMessages == true then LOG(sFunctionRef..': enemy combat threat in this zone='..iEnemyThreat..'; Is table of adjacent zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
-                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
-                    function ConsiderLandZoneThreat(tAltLZTeamData)
-                        --onlu use df+IF i best enemy structure range is > 0 and < 35
-                        if (tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 0 then
-                            iEnemyBestRange = math.max(iEnemyBestRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange], tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange])
-                            if (tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 50) < 35 then
-                                iEnemyThreat = iEnemyThreat + (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)
-                            else
-                                iEnemyThreat = iEnemyThreat + math.max(math.min(500, (tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)), (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0))
-                            end
-                        end
-                    end
-                    --Turtle or enemy has land exp on this plateau - look further away than just adjacent zones
-                    if (aiBrain[M28Overseer.refbPrioritiseDefence] or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Conditions.GetBestCombatRangeOfUnitsOnPlateau(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals], iPlateau, iTeam) < 50)) and not(tLZTeamData[M28Map.refbBaseInSafePosition]) then
-                        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData) --redundancy, highly doubt it hasnt been called yet
-                        local iDistThreshold = math.max(150, M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) * 0.4, M28Map.iMapSize * 0.2)
-                        if aiBrain[M28Overseer.refbPrioritiseDefence] then iDistThreshold = iDistThreshold + 60
-                        elseif not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech] >= tLZData[M28Map.subrefLZMexCount] then iDistThreshold = iDistThreshold + 40
-                        end
-                        local tbConsideredZone = {}
-                        for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
-                            if tSubtable[M28Map.subrefiDistance] > iDistThreshold then break end
-                            if not(tSubtable[M28Map.subrefbIsWaterZone]) then
-                                tbConsideredZone[tSubtable[M28Map.subrefiLandOrWaterZoneRef]] = true
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering OtherLZ='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..' for turtle brain, iDistThreshold='..iDistThreshold) end
-                                ConsiderLandZoneThreat(M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefLZTeamData][iTeam])
-                            end
-                        end
-                        --Check we included all adj zones
-                        for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                            if not(tbConsideredZone[iAdjLZ]) then ConsiderLandZoneThreat(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]) end
-                        end
-                    else
-                        for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                            local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; Enemy threat in AdjLZ='..(tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; Mobile DF='..(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Mobile indirect='..(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)) end
-                            ConsiderLandZoneThreat(tAltLZTeamData)
-                        end
-                    end
+                if not(iEnemyThreat) then
+                    iEnemyThreat, iEnemyBestRange = M28Conditions.GetEnemyMobileCombatThreatAndRangeInCurrentAndAdjacentZones(tLZData, tLZTeamData, iPlateau, iTeam, aiBrain)
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': iEnemyThreat='..iEnemyThreat) end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': iEnemyThreat='..iEnemyThreat..'; iENemyBestRange='..iEnemyBestRange) end
                 if iCurPDThreat < iEnemyThreat * 4 or iCurPDThreat == 0 or (tLZTeamData[M28Map.subrefLZFortify] and iCurPDThreat <= 6000) or (aiBrain[M28Overseer.refbPrioritiseDefence] and iCurPDThreat < math.max(iEnemyThreat * 8, math.min(3000, 800 * tLZTeamData[M28Map.subrefMexCountByTech][3]))) then
                     --Are the enemies in an adjacent zone with none in this zone? if so factor in PD in that zone as well
                     local iClosestDist = 100000
@@ -13059,6 +13019,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --More land factories to produce MML to try and beat a firebase
     iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering more land facs for MML for firebase, bSaveMassForMML='..tostring(bSaveMassForMML)..'; Masss %='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; CurPrioriyt='..iCurPriority) end
     if bSaveMassForMML and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.05 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 300 and (ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestLandFactoryTech] == 2 or (bWantT3LandForRavagers and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestLandFactoryTech] >= 3)) then
         if bWantMoreFactories and not(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)) then
             iBPWanted = 40
@@ -13121,15 +13082,35 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-
-    --T2 arti if enemy has sniper bots or fatboy, or a firebase that threatens this zone
-    iCurPriority = iCurPriority + 1
-    GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowPower, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
+    --Get nearby enemy threat and PD so can assess if want to build PD in priority to T2 arti (in case the T2 arti would try and assist a land fac)
+    if (not(iEnemyThreat) or not(iCurPDThreat)) and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 2000 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4) then
+        if not(iCurPDThreat) then
+            iCurPDThreat = 0
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+                for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                    iCurPDThreat = iCurPDThreat + iThreat
+                end
+            end
+        end
+        if not(iEnemyThreat) then
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                iEnemyThreat, iEnemyBestRange = M28Conditions.GetEnemyMobileCombatThreatAndRangeInCurrentAndAdjacentZones(tLZData, tLZTeamData, iPlateau, iTeam, aiBrain)
+            else
+                iEnemyThreat = 0
+            end
+        end
+    end
 
     --Further T2 PD if we went far enough as to calculate both PD threat and enemy threat in above condition (i.e. this is expansion of above, but we want it to be lower priority than t2 arti)
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Lower priority T2 PD builder, iCurPDThreat='..(iCurPDThreat or 'nil')..'; iEnemyThreat='..(iEnemyThreat or 'nil')..'; Prioritise defence='..tostring(aiBrain[M28Overseer.refbPrioritiseDefence] or false)..'; Is table of nearest DF enemmies empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Is table of structure DF by range empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]))) end
-    if iCurPDThreat and iEnemyThreat and (iCurPDThreat < iEnemyThreat or (aiBrain[M28Overseer.refbPrioritiseDefence] and iCurPDThreat < iEnemyThreat * 1.5)) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+    if bDebugMessages == true then LOG(sFunctionRef..': Lower priority T2 PD builder, iCurPriority='..iCurPriority..'; iCurPDThreat='..(iCurPDThreat or 'nil')..'; iEnemyThreat='..(iEnemyThreat or 'nil')..'; Prioritise defence='..tostring(aiBrain[M28Overseer.refbPrioritiseDefence] or false)..'; Is table of nearest DF enemmies empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Is table of structure DF by range empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]))..'; refiEnemyMobileDFThreatNearOurSide='..(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] or 'nil')..'; refiAllyMobileDFThreatNearOurSide='..(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] or 'nil')) end
+    if iCurPDThreat and iEnemyThreat and (iCurPDThreat < iEnemyThreat or (aiBrain[M28Overseer.refbPrioritiseDefence] and iCurPDThreat < iEnemyThreat * 1.5)) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4) then
+        if iCurPDThreat >= 4000 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will first consider getting t2 arti as we have at least 4k in PD threat') end
+            --T2 arti if enemy has sniper bots or fatboy, or a firebase that threatens this zone
+            GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowPower, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
+            iCurPriority = iCurPriority + 1
+        end
         if not(oClosestUnit) then
             local iClosestDist = 100000
             local iCurDist
@@ -13165,8 +13146,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if oClosestUnit then
             --If we just consider enemies we have same or better range, do we have enough threat?
             local iOurBestPDRange = 1
-            for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
-                if iOurBestPDRange < iRange and iThreat > 0 then iOurBestPDRange = iRange end
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+                for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                    if iOurBestPDRange < iRange and iThreat > 0 then iOurBestPDRange = iRange end
+                end
+            end
+            if iOurBestPDRange < 50 then
+                iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                if iHighestTechEngiAvailable >= 2 then iOurBestPDRange = 50
+                else iOurBestPDRange = 26 --T1 PD
+                end
             end
             local iEnemyThreatThatDoesntOutrangeUs = 0
             local iEnemyThreatThatDoesOutrangeUs = 0
@@ -13210,6 +13199,32 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 elseif bDebugMessages == true then LOG(sFunctionRef..': Will try and build some more emergency PD, but not a second PD at the same time')
                 end
             end
+        end
+    else
+        --T2 arti if enemy has sniper bots or fatboy, or a firebase that threatens this zone
+        GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowPower, iPlateau, iLandZone, tLZData, tLZTeamData, iTeam)
+    end
+
+    --Preemptive PD on larger maps if we have T3 mex and enemy has large threat, and has enemies in a zone adjacent to an adjacent zone
+    iCurPriority = iCurPriority + 1
+    --iCurPDThreat - if nil then means not enough of a concern to have calculated it above
+    if iCurPDThreat and iCurPDThreat < 4000 and M28Map.iMapSize >= 700 and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= math.max(4000, iCurPDThreat * 3) and not(bHaveLowPower) and (not(bHaveLowMass) or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
+        local bEnemiesAdjToAdjZone = not(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))
+        if not(bEnemiesAdjToAdjZone) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                    bEnemiesAdjToAdjZone = true
+                    break
+                end
+            end
+        end
+        if bEnemiesAdjToAdjZone then
+            local tTargetBuildLocation = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 35, true)
+            if not(NavUtils.GetLabel(M28Map.refPathingTypeLand, tTargetBuildLocation) == tLZData[M28Map.subrefLZIslandRef]) then tTargetBuildLocation = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]} end
+            iBPWanted = 20
+            if not(bHaveLowMass) then iBPWanted = 40 end
+            HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tTargetBuildLocation)
         end
     end
 

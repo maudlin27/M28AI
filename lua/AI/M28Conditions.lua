@@ -4029,3 +4029,56 @@ function IsFurthestACUToFriendlyBase(oACU, tLZOrWZTeamData, iTeam)
     end
     return true
 end
+
+function GetEnemyMobileCombatThreatAndRangeInCurrentAndAdjacentZones(tLZData, tLZTeamData, iPlateau, iTeam, aiBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetEnemyMobileCombatThreatAndRangeInCurrentAndAdjacentZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iEnemyThreat = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
+    local iEnemyBestRange = math.max(tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange], tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange])
+
+    if bDebugMessages == true then LOG(sFunctionRef..': enemy combat threat in this zone='..iEnemyThreat..'; Is table of adjacent zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+        function ConsiderLandZoneThreat(tAltLZTeamData)
+            --onlu use df+IF i best enemy structure range is > 0 and < 35
+            if (tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 0 then
+                iEnemyBestRange = math.max(iEnemyBestRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange], tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange])
+                if (tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 50) < 35 then
+                    iEnemyThreat = iEnemyThreat + (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)
+                else
+                    iEnemyThreat = iEnemyThreat + math.max(math.min(500, (tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)), (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0))
+                end
+            end
+        end
+        --Turtle or enemy has land exp on this plateau - look further away than just adjacent zones
+        if (aiBrain[M28Overseer.refbPrioritiseDefence] or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Conditions.GetBestCombatRangeOfUnitsOnPlateau(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals], iPlateau, iTeam) < 50)) and not(tLZTeamData[M28Map.refbBaseInSafePosition]) then
+            M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData) --redundancy, highly doubt it hasnt been called yet
+            local iDistThreshold = math.max(150, M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) * 0.4, M28Map.iMapSize * 0.2)
+            if aiBrain[M28Overseer.refbPrioritiseDefence] then iDistThreshold = iDistThreshold + 60
+            elseif not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech] >= tLZData[M28Map.subrefLZMexCount] then iDistThreshold = iDistThreshold + 40
+            end
+            local tbConsideredZone = {}
+            for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                if tSubtable[M28Map.subrefiDistance] > iDistThreshold then break end
+                if not(tSubtable[M28Map.subrefbIsWaterZone]) then
+                    tbConsideredZone[tSubtable[M28Map.subrefiLandOrWaterZoneRef]] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering OtherLZ='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..' for turtle brain, iDistThreshold='..iDistThreshold) end
+                    ConsiderLandZoneThreat(M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefLZTeamData][iTeam])
+                end
+            end
+            --Check we included all adj zones
+            for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                if not(tbConsideredZone[iAdjLZ]) then ConsiderLandZoneThreat(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]) end
+            end
+        else
+            for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; Enemy threat in AdjLZ='..(tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; Mobile DF='..(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Mobile indirect='..(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)) end
+                ConsiderLandZoneThreat(tAltLZTeamData)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return iEnemyThreat, iEnemyBestRange
+end
