@@ -13208,7 +13208,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Preemptive PD on larger maps if we have T3 mex and enemy has large threat, and has enemies in a zone adjacent to an adjacent zone
     iCurPriority = iCurPriority + 1
     --iCurPDThreat - if nil then means not enough of a concern to have calculated it above
-    if iCurPDThreat and iCurPDThreat < 4000 and M28Map.iMapSize >= 700 and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= math.max(4000, iCurPDThreat * 3) and not(bHaveLowPower) and (not(bHaveLowMass) or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
+    if iCurPDThreat and iCurPDThreat < 4000 and M28Map.iMapSize >= 700 and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= math.max(4000, iCurPDThreat * 3) and not(bHaveLowPower) and (not(bHaveLowMass) or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 then
         local bEnemiesAdjToAdjZone = not(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))
         if not(bEnemiesAdjToAdjZone) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
             for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
