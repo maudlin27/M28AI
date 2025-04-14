@@ -4016,3 +4016,16 @@ function IsTeamCoalition(iTeam)
     M28Utilities.ErrorHandler('Update ref to refer to M28Chat not M28Conditions', true)
     return import('/mods/M28AI/lua/AI/M28Chat.lua').IsTeamCoalition(iTeam)
 end
+
+function IsFurthestACUToFriendlyBase(oACU, tLZOrWZTeamData, iTeam)
+    local iACUDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+    for iFriendlyACU, oFriendlyACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
+        if not(oFriendlyACU == oACU) and not(oFriendlyACU.Dead) then
+            local tCurLZOrWZData, tCurLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oFriendlyACU:GetPosition(), true, iTeam)
+            if M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) > iACUDistToFriendlyBase then
+                return false
+            end
+        end
+    end
+    return true
+end
