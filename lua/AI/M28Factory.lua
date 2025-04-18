@@ -4269,6 +4269,14 @@ function SetPriorityPreferredUnitsByCategory(aiBrain)
             aiBrain[reftBlueprintPriorityOverride]['sea0313'] = 1 --UEF pen fighter
             aiBrain[reftBlueprintPriorityOverride]['ssa0313'] = 1 --Seraphim pen fighter--]]
 
+            --Prioritise normal bombers over pen bombers (we prioritise pen bombers once getting near unit cap); normal bombers likely better since dont have a salvo (which messes with M28 micro and causes bombers to overshoot target and die)
+            if categories.saa0314 then
+                aiBrain[reftBlueprintPriorityOverride]['saa0314'] = -1
+                aiBrain[reftBlueprintPriorityOverride]['sea0314'] = -1
+                aiBrain[reftBlueprintPriorityOverride]['sra0314'] = -1
+                aiBrain[reftBlueprintPriorityOverride]['ssa0314'] = -1
+            end
+
             aiBrain[reftBlueprintPriorityOverride]['srl0311'] = 1 --T3 cybran mml?
         end
     end
