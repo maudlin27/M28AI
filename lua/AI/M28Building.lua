@@ -134,10 +134,10 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
             if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
                 local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then bT2ArtiOrTMLAgainstEnemyT2ArtiOrFatboy = true
-                elseif tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] >= 1500 then
+                elseif tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] >= 1500 then
                     bT2ArtiOrTMLAgainstEnemyT2ArtiOrFatboy = true
                 end
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.reftLongRangeEnemyDFUnits]) == false then
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.reftoLongRangeEnemyDFUnits]) == false then
                 local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
                 if tLZTeamData[M28Map.refbGetTMLBattery] then
                     bT2ArtiOrTMLAgainstEnemyT2ArtiOrFatboy = true
@@ -4516,8 +4516,8 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
             end
 
             --First consider enemy fatboys
-            if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0 then
-                UpdateClosestUnit(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats])
+            if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) > 0 then
+                UpdateClosestUnit(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats])
             end
 
             if not(oClosestTargetOfInterest) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
@@ -5128,15 +5128,15 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
         if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, is table of battery units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTMLBatteryUnits]))) end
         while M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.reftoTMLBatteryUnits]) do
             --Does enemy have any targets for us to consider sniping?
-            if bDebugMessages == true then LOG(sFunctionRef..': Start of TML loop, is table of long range enemy DF units empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]))..'; Time='..GetGameTimeSeconds()) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Start of TML loop, is table of long range enemy DF units empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits]))..'; Time='..GetGameTimeSeconds()) end
             iTimeToWaitInTicks = M28Land.iTicksPerLandCycle
 
             local oClosestEnemy
             iClosestEnemy = iMaxEffectiveRange
-            if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) then
+            if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits]) then
                 local iCurShieldHealth, iMaxShieldHealth
                 local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits] do
+                for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits] do
                     if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
                         --Check target not under lots of fixed shielding (ignore mobile shields though since we might be targeting fatboy
                         --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCurHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth, bReturnShieldsCovringTargetInstead)

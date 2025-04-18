@@ -2444,7 +2444,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                         end
                                         local iAllyAdjacentZoneThreat = 0
                                         local iBestEnemyDFRange = (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)
-                                        local iMaxLRThreat = (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0)
+                                        local iMaxLRThreat = (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0)
                                         local tOutrangedACUs = {}
                                         if iEnemyNearbyThreat > 0 and oACU[refiUpgradeCount] > 0 then
                                             local tEnemyACUs = EntityCategoryFilterDown(categories.COMMAND, tLZTeamData[M28Map.subrefTEnemyUnits])
@@ -2466,10 +2466,10 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                 tbZonesConsidered[iAdjLZ] = true
                                                 local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                                                 iBestEnemyDFRange = math.max(iBestEnemyDFRange, (tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0))
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Adding threat for iAdjLZ='..iAdjLZ..' with threat '..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]..'; mobile DF='..(tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Mobile indirect='..(tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)..'; subrefiNearbyEnemyLongRangeThreat='..(tAdjLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 'nil')..'; Enemy best mobile DF range in this LZ='..(tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Adding threat for iAdjLZ='..iAdjLZ..' with threat '..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]..'; mobile DF='..(tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Mobile indirect='..(tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)..'; subrefiNearbyEnemyLongRangeDFThreat='..(tAdjLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 'nil')..'; Enemy best mobile DF range in this LZ='..(tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)) end
                                                 iEnemyNearbyThreat = iEnemyNearbyThreat + (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                                                 iEnemyMobileNearbyDFThreat = iEnemyMobileNearbyDFThreat + (tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)
-                                                iMaxLRThreat = math.max(iMaxLRThreat, (tAdjLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0))
+                                                iMaxLRThreat = math.max(iMaxLRThreat, (tAdjLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0))
                                                 --Include adjacent enemies assuming ACU has enough health that they are likely to be able to arrive
                                                 if iHealthPercent >= 0.65 and (iHealthPercent >= 0.8 or oACU[refbUseACUAggressively] or (iHealthPercent >= 0.35 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 and not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]))) then
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Including mobile DF threat from adjacent zone in ally total force, tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..(tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')) end

@@ -2289,10 +2289,10 @@ function SaveMassForMMLOrMobileT3ArtiForFirebase(tLZData, tLZTeamData, iPlateau,
     local bSaveMassForFirebase = false
     local bNeedT3 = false
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, bHaveLowMass='..tostring(bHaveLowMass)..'; Is table of LR enemy DF units empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]))..'; Highest firneldy land fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, bHaveLowMass='..tostring(bHaveLowMass)..'; Is table of LR enemy DF units empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits]))..'; Highest firneldy land fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
     if bHaveLowMass then
         --MML for enemy firebase, when enemy lacks fatboy/ravagers
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3 or tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300) then
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits]) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3 or tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300) then
             --Are there T2 arti in range?
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
                 if bDebugMessages == true then LOG(sFunctionRef..': Number of T2 arti in range='..table.getn(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])) end
@@ -2335,12 +2335,12 @@ function SaveMassForMMLOrMobileT3ArtiForFirebase(tLZData, tLZTeamData, iPlateau,
                 end
             end
             --T3 mobile arti for if enemy has nearby ravagers and we havent built many experimentals
-        elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) == false and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 1 then
+        elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits]) == false and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 1 then
             --Do we have ravagers in this or adjacent zone, but not fatboy or megalith?
             --First check if enemy has any ravagers, or a constructed fatboy
             local bEnemyHasRavagerSomewhere = false
             local bEnemyHasFatboySomewhere = false
-            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits] do
+            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits] do
                 if not(oUnit.Dead) then
 
                     if not(bEnemyHasRavagerSomewhere) and (oUnit[M28UnitInfo.refiDFRange] or 0) >= 60 and EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId) then
@@ -2356,8 +2356,8 @@ function SaveMassForMMLOrMobileT3ArtiForFirebase(tLZData, tLZTeamData, iPlateau,
             if bEnemyHasRavagerSomewhere and not(bEnemyHasFatboySomewhere) then
                 local bHaveNearbyRavager = false
                 function CheckIfZoneHasRavagers(tZoneTeamData)
-                    if tZoneTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > 0 and M28Utilities.IsTableEmpty(tZoneTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
-                        for iUnit, oUnit in tZoneTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
+                    if tZoneTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] > 0 and M28Utilities.IsTableEmpty(tZoneTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]) == false then
+                        for iUnit, oUnit in tZoneTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] do
                             if not(oUnit.Dead) and oUnit[M28UnitInfo.refiDFRange] >= 60 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
                                 return true
                             end
@@ -2381,7 +2381,7 @@ function SaveMassForMMLOrMobileT3ArtiForFirebase(tLZData, tLZTeamData, iPlateau,
                         --Do nothing - we might not be able to build t3 arti
                     elseif iArtiLC >= 20 and iArtiLC >= 10 + 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                         --Do nothing - enemy might be countering with t2 arti as well
-                    elseif tLZTeamData[M28Map.refbBaseInSafePosition] and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] == 0 then
+                    elseif tLZTeamData[M28Map.refbBaseInSafePosition] and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] == 0 then
                         --Do nothing - in an air slot so want to prioritise air instead, and leave t3 mobile arti to other zones
                     else
                         bSaveMassForFirebase = true
@@ -2549,7 +2549,7 @@ function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData
 
     local bConsiderSpecialMMLLogic = false
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau '..iPlateau..'; iLandZOne '..iLandZone..'; tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield]='..(tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or 'nil')..'; iAvailableMMLThreat='..iAvailableMMLThreat..'; oClosestUnitFromAllFirebases='..(oClosestUnitFromAllFirebases.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitFromAllFirebases) or 'nil')) end
-    if iAvailableMMLThreat >= 700 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and (iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and iFriendlyBestMobileIndirectRange > (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0) then
+    if iAvailableMMLThreat >= 700 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 and (iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and iFriendlyBestMobileIndirectRange > (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0) then
         local bFiredRecentlyNearTMDOrShield = false
         if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 then bFiredRecentlyNearTMDOrShield = true
         elseif oClosestUnitFromAllFirebases then
@@ -3849,6 +3849,9 @@ end
 
 function IsUnitLongRangeThreat(oUnit)
     if (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) >= 72 or EntityCategoryContains(M28UnitInfo.refCategoryPD , oUnit.UnitId) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] >= 60) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 and not(oUnit.UnitId == 'url0402') then
+        return true
+        --Indirectfire arti non-building threats
+    elseif (oUnit[M28UnitInfo.refiIndirectRange] or 0) >= 65 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) <= 240 and not(EntityCategoryContains(categories.SILO + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryMML, oUnit.UnitId)) then
         return true
     end
 end

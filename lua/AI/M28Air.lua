@@ -10326,12 +10326,12 @@ function GetNovaxTarget(aiBrain, oNovax)
             --If enemy has fatboys then consider targeting one of these if the zone lacks enemy fixed shields
             if iClosestTarget >= 100 and (iClosestTarget >= 350 or not(oTarget) or not(oTarget == oNearestRecentlyFailedShield)) then
 
-                if (not(oTarget) or M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+                if (not(oTarget) or M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]) == false) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
                     local tFatboysToConsider
-                    if oTarget then tFatboysToConsider = EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy, tStartLZOrWZData[M28Map.subrefoNearbyEnemyLongRangeThreats])
+                    if oTarget then tFatboysToConsider = EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy, tStartLZOrWZData[M28Map.subrefoNearbyEnemyLongRangeDFThreats])
                     else tFatboysToConsider = EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy, M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy LR threats empty='..tostring(tStartLZOrWZData[M28Map.subrefoNearbyEnemyLongRangeThreats])..'; is tFatboysToConsider empty='..tostring(M28Utilities.IsTableEmpty(tFatboysToConsider))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy LR threats empty='..tostring(tStartLZOrWZData[M28Map.subrefoNearbyEnemyLongRangeDFThreats])..'; is tFatboysToConsider empty='..tostring(M28Utilities.IsTableEmpty(tFatboysToConsider))) end
                     if M28Utilities.IsTableEmpty(tFatboysToConsider) == false then
                         for iUnit, oUnit in tFatboysToConsider do
                             if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and oUnit:GetFractionComplete() >= 0.35 then

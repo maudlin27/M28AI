@@ -3873,7 +3873,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     end
                 end
                 --Switch from gameender to T3 arti if enemy has a nearby firebase and the nearest enemy base is within 820 of us
-                if iCategoryWanted and M28Utilities.DoesCategoryContainCategory(iCategoryWanted, M28UnitInfo.refCategoryGameEnder) and (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) >= 1500) and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) <= 820 then
+                if iCategoryWanted and M28Utilities.DoesCategoryContainCategory(iCategoryWanted, M28UnitInfo.refCategoryGameEnder) and (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) >= 1500) and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) <= 820 then
                     iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
                     if bDebugMessages == true then LOG(sFunctionRef..': Enemy has nearby t2 arti so will switch to t3 arti instead of gameender, Fixed T3 arti 12') end
                 end
@@ -7880,7 +7880,7 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
             end
             if not(bTriedBuildingSomething) then
                 --T2 arti builder
-                if ((M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) >= 10000) and iCurT2Arti < 4) or (iCurT2Arti < (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) / 1000) or (iCurT2Arti == 0 and tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] > 50) then
+                if ((M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) >= 10000) and iCurT2Arti < 4) or (iCurT2Arti < (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) / 1000) or (iCurT2Arti == 0 and tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] > 50) then
                     BuildDefensiveUnit(M28UnitInfo.refCategoryFixedT2Arti * categories.SIZE4, tTableRef[M28Map.subrefGEAvailableDefenceLocations], true)
                 end
                 if not(bTriedBuildingSomething) then
@@ -11562,7 +11562,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Have 1 engi start on an experimental if we have all T3 mexes and very high mass % stored, and no nearby LR threats
     iCurPriority = iCurPriority + 1
-    if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] == 0 or (not(bWantT3LandForRavagers) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)) then
+    if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] == 0 or (not(bWantT3LandForRavagers) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)) then
         if bDebugMessages == true then LOG(sFunctionRef..': Very high priority exp builder so we can get the build location ready') end
         AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam, tLZData, tLZTeamData, false, refActionBuildExperimental, 3, 5)
         --HaveActionToAssign(refActionBuildExperimental, 3, 5)
@@ -12368,7 +12368,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --1st experimental - Enemy has land experimental and we dont have one of our own yet (and havent completed one before), unless enemy has a fatboy (in which case we want to focus more on getting t2 arti)
     iCurPriority = iCurPriority + 1
-    if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 1 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] == 0 or (not(bWantT3LandForRavagers) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] < 12000 and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandExperimental, iTeam) == 0)) and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryFatboy, M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) == false then
+    if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 1 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] == 0 or (not(bWantT3LandForRavagers) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] < 12000 and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandExperimental, iTeam) == 0)) and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryFatboy, M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) == false then
         local iEnemyHighestPercentComplete = 0
         local iClosestExperimental = 100000
         for iExperimental, oExperimental in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
@@ -12499,7 +12499,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --first ever experimental to build - rush if have t3 mex
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': First experimental - consider rushing if have t3 mex, M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; T3 mexes='..tLZTeamData[M28Map.subrefMexCountByTech][3]) end
-    if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 1 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] == 0 or (not(bWantT3LandForRavagers) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14 + 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
+    if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 1 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] == 0 or (not(bWantT3LandForRavagers) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14 + 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
         local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true, nil, M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL, nil, nil, aiBrain.M28AirSubteam)
         if bHaveExperimentalForThisLandZone or (iOtherLandZonesWithExperimental == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) < 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(tLZData[M28Map.subrefLZMexCount], 1) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryEngineer * categories.TECH3) >= 10) then
 
@@ -14221,7 +14221,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local bExperimentalsBuiltInThisLZ, iExperimentalsBuiltInOtherLZ = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, nil, nil, nil, nil, nil, aiBrain.M28AirSubteam)
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; iCurPriority='..iCurPriority..'; bExperimentalsBuiltInThisLZ='..tostring(bExperimentalsBuiltInThisLZ)..'; iExperimentalsBuiltInOtherLZ='..iExperimentalsBuiltInOtherLZ..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.refbBuiltLotsOfT3Combat]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbBuiltLotsOfT3Combat] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and (
-            (bExperimentalsBuiltInThisLZ or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 7 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] == 0 or (not(bWantT3LandForRavagers) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)))) and
+            (bExperimentalsBuiltInThisLZ or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 7 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] == 0 or (not(bWantT3LandForRavagers) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)))) and
                     --Are we already building an experimental here (in which case finish), or ave we built lots of T3 units, or does enemy have a land experimental and we arent building one anywhere?
                     ((bExperimentalsBuiltInThisLZ or (iExperimentalsBuiltInOtherLZ == 0 and (M28Team.tTeamData[iTeam][M28Team.refbBuiltLotsOfT3Combat] or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false)))
                             --Alternatively do we have lots of mass stored?
@@ -14440,7 +14440,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Second experimental builder (for very high mass scenarios) assuming we have lots of T3 mexes
     iCurPriority = iCurPriority + 1
-    if not(bHaveLowMass) and not(bHaveLowPower) and not(bSaveMassForMML) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 5000 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] == 0 or not(bWantT3LandForRavagers)) then
+    if not(bHaveLowMass) and not(bHaveLowPower) and not(bSaveMassForMML) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 5000 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] == 0 or not(bWantT3LandForRavagers)) then
         if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 4 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and tLZTeamData[M28Map.subrefMexCountByTech][2] < 2) or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
             --Want 30 extra BP vs what we have already assigned to both normal and second experimental builders
             iBPWanted = 30
@@ -18723,11 +18723,11 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
 
     --Adjust if enemy has long range DF units nearby
     local bMovedDueToLRThreat = false
-    if tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
+    if tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]) == false then
         local iCurDistUntilInRange
         local iClosestDist = 15 --If we would be building this close to enemy unit then want to move further back
         local oClosestLRUnit
-        for iLRUnit, oLRUnit in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
+        for iLRUnit, oLRUnit in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] do
             if not(oLRUnit.Dead) and (oLRUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
                 iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oLRUnit:GetPosition(), tTargetLocation) - oLRUnit[M28UnitInfo.refiDFRange]
                 if iCurDistUntilInRange <= iClosestDist then
@@ -19391,7 +19391,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
             iEnemyIndirectThreatInNearbyPlateau, iBestEnemyRange = M28Land.GetNearestEnemyInOtherPlateau(iPlateau, tLZData, iTeam, true)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want emergency T2 arti, M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))..'; Is tLZTeamData[M28Map.subreftEnemyFirebasesInRange] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))) end
-        if ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftLongRangeEnemyDFUnits]) == false or (tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 5) or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5) and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 180 or ((not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and ((tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) then
+        if ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) > 0 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits]) == false or (tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 5) or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5) and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 180 or ((not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and ((tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) then
             local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
             local iRangeThreshold = 65
             local iEnemyLongRangeThreat = 0
@@ -19409,7 +19409,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     iSearchRange = 275
                 end
             end
-            local iHighestIndividiualLongRangeThreat = math.min(25000, (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0))
+            local iHighestIndividiualLongRangeThreat = math.min(25000, (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0))
             local iNearbyEnemyFixedShieldThreat = (tLZTeamData[M28Map.subrefThreatEnemyShield] or 0)
 
 
@@ -19468,10 +19468,10 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         end
                         iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.max(iCurIFThreat, iCurDFThreat)
                         if not(tLZTeamData[M28Map.refbBaseInSafePosition]) then
-                            if (tAltLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > iHighestIndividiualLongRangeThreat then
-                                if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
+                            if (tAltLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) > iHighestIndividiualLongRangeThreat then
+                                if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]) == false then
                                     bHaveMobileLRThreatNearby = false
-                                    for iUnit, oUnit in tAltLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
+                                    for iUnit, oUnit in tAltLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] do
                                         if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
                                             iHighestIndividiualLongRangeThreat = math.max(iHighestIndividiualLongRangeThreat, M28UnitInfo.GetCombatThreatRating({ oUnit }, true))
                                         end
@@ -19676,7 +19676,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                                     end
                                 end
                             end
-                            if not(bEnemyHasFatboyOrMegalith) and ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2) then
+                            if not(bEnemyHasFatboyOrMegalith) and ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2) then
                                 --At high mass levels want to build t2 arti anyway instead of assisting a factory
                                 if bHaveLowMass or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 16 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (tLZTeamData[M28Map.subrefMexCountByTech][3] or 0) == 0)) then
                                     local tLandHQs = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandHQ - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
