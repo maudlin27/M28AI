@@ -4058,7 +4058,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     and (M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) or tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > 100 or tWZTeamData[M28Map.subrefWZThreatAlliedSurface] > 10000) then
                 bAreInScenario1 = true
             end
-            if oNearestEnemyToFriendlyBase == oNearestEnemySurfaceToFriendlyBase and (tWZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > math.max((oNearestEnemySurfaceToFriendlyBase[M28UnitInfo.refiDFRange] or 0), oNearestEnemySurfaceToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 0) + 6 then
+            if oNearestEnemyToFriendlyBase == oNearestEnemySurfaceToFriendlyBase and (tWZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 and tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > math.max((oNearestEnemySurfaceToFriendlyBase[M28UnitInfo.refiDFRange] or 0), oNearestEnemySurfaceToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 0) + 6 then
                 --Surface units that outrange nearest enemy unit, and enemy doesnt have otheru nits close to being in range of us if we attack it - so we can kite the nearest enemy
                 --Get the zone the nearest enemy is in (so we can reference DF units in that zone)
                 local tNearestEnemyWZTeamData

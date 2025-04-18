@@ -44,20 +44,33 @@ function OnPlayerDefeated(aiBrain)
         M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfLastTeammateDeath] = GetGameTimeSeconds()
 
         --Was it an M28AI?
-        if aiBrain.M28AI then
+        if aiBrain.M28AI and (M28Orders.bDontConsiderCombinedArmy or aiBrain.BrainType == 'AI') then
             --Give resources to teammates
             local bHaveTeammates = false
+            local oFirstM28Brain
+            local oFirstOtherBrain
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
                 for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains] do
                     if not(oBrain == aiBrain) and not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
                         bHaveTeammates = true
-                        break
+                        if not(oFirstM28Brain) then
+                            if oBrain.M28AI then oFirstM28Brain = oBrain
+                            elseif not(oFirstOtherBrain) then oFirstOtherBrain = oBrain
+                            end
+                        end
                     end
                 end
             end
             if bHaveTeammates then
                 ForkThread(M28Team.GiveAllResourcesToAllies, aiBrain)
                 M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfLastM28PlayerDefeat] = GetGameTimeSeconds()
+                if oFirstM28Brain or oFirstOtherBrain then
+                    local oBrainToTransfer = oFirstM28Brain or oFirstOtherBrain
+                    local tFriendlyUnits = aiBrain:GetListOfUnits(categories.ALLUNITS - categories.UNSELECTABLE - categories.COMMAND, false, true)
+                    if M28Utilities.IsTableEmpty(tFriendlyUnits) == false then
+                        ForkThread(M28Team.TransferUnitsToPlayer, tFriendlyUnits, oBrainToTransfer:GetArmyIndex(), false)
+                    end
+                end
             else
                 --Message on death - Will cover as part of M28Chat function
             end

@@ -1345,8 +1345,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Mobile shield override if T2+ and nearby enemy threat, bConsiderMobileShields before override='..tostring(bConsiderMobileShields)..'; Enemies in adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Enemy LR threat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]) end
-    if bConsiderMobileShields and iFactoryTechLevel >= 2 and (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > 0) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Mobile shield override if T2+ and nearby enemy threat, bConsiderMobileShields before override='..tostring(bConsiderMobileShields)..'; Enemies in adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Enemy LR threat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]) end
+    if bConsiderMobileShields and iFactoryTechLevel >= 2 and (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] > 0) then
         --Exception to building mobile shields if we have some under construction already and enemies in an adjacent zone
         local iMobileShieldsUnderConstruction = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryMobileLandShield, false)
         if iMobileShieldsUnderConstruction >= 1 then
@@ -1584,7 +1584,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Engineers for transport - build engineers as high priority if no enemies in this zone and no nearby long range threats
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 or iFactoryTechLevel == 1) then
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 or iFactoryTechLevel == 1) then
         local bTransportWaitingForEngi = false
         local iCombatUnitsWanted = 0
         for iTransport, oTransport in tLZTeamData[M28Map.reftoTransportsWaitingForUnits] do
@@ -1595,7 +1595,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 iCombatUnitsWanted = iCombatUnitsWanted + (oTransport[M28Air.refiCombatUnitsWanted] or 0)
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Want engineers or t1 arti as have transport waiting for them, bTransportWaitingForEngi='..tostring(bTransportWaitingForEngi or false)..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want engineers or t1 arti as have transport waiting for them, bTransportWaitingForEngi='..tostring(bTransportWaitingForEngi or false)..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 'nil')) end
         if bTransportWaitingForEngi then
             --If have enemies in an adjacent zone then only have half our factories building engineers
             if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
@@ -1986,7 +1986,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
         --if more than 40% mass stored then consider engineer instead
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer) >= 2 then
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemy has nearby T2 arti or enemies in nearby plateau, Is table of t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; Does enemy have enemies in nearby plateau='..tostring(tLZTeamData[M28Map.refbEnemiesInNearbyPlateau])..'; Our IF threat='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0)..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemy has nearby T2 arti or enemies in nearby plateau, Is table of t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; Does enemy have enemies in nearby plateau='..tostring(tLZTeamData[M28Map.refbEnemiesInNearbyPlateau])..'; Our IF threat='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0)..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]) end
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
                 if (M28Team.tTeamData[iTeam][M28Team.refiHighestEnemyDFRangeByPlateau][iPlateau] or 0) <= 55 or (iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiHighestEnemyDFRangeByPlateau][iPlateau] or 0) <= 90) or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 10) then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
@@ -1996,7 +1996,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] and (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) < 200 * iFactoryTechLevel * iFactoryTechLevel and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] and M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) == 0 then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
                 --Also prioritise if T3 and enemy has ravagers nearby
-            elseif (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats])) == false then
+            elseif (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats])) == false then
                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy has ravagers, want to build mobile arti unless we have already built a lot, T3 indirect under construction in zone='..M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryIndirect * categories.TECH3)..'; Factory mobile indirect count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect * categories.TECH3)..'; Factory total build count='..oFactory[refiTotalBuildCount]..'; iFactoryTechLevel='..iFactoryTechLevel) end
                 if oFactory[refiTotalBuildCount] < 10 or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryIndirect * categories.TECH3) == 0 or M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect * categories.TECH3) < oFactory[refiTotalBuildCount] * 0.35 then
                     if iFactoryTechLevel >= 3 then
@@ -4269,6 +4269,14 @@ function SetPriorityPreferredUnitsByCategory(aiBrain)
             aiBrain[reftBlueprintPriorityOverride]['sea0313'] = 1 --UEF pen fighter
             aiBrain[reftBlueprintPriorityOverride]['ssa0313'] = 1 --Seraphim pen fighter--]]
 
+            --Prioritise normal bombers over pen bombers (we prioritise pen bombers once getting near unit cap); normal bombers likely better since dont have a salvo (which messes with M28 micro and causes bombers to overshoot target and die)
+            if categories.saa0314 then
+                aiBrain[reftBlueprintPriorityOverride]['saa0314'] = -1
+                aiBrain[reftBlueprintPriorityOverride]['sea0314'] = -1
+                aiBrain[reftBlueprintPriorityOverride]['sra0314'] = -1
+                aiBrain[reftBlueprintPriorityOverride]['ssa0314'] = -1
+            end
+
             aiBrain[reftBlueprintPriorityOverride]['srl0311'] = 1 --T3 cybran mml?
         end
     end
@@ -5862,7 +5870,25 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 return sBPIDToBuild
             end
         end
+        --Alt high priority engineer if our naval fac tech level exceeds our land+air, and we havent built many naval units, and dont have enemies in this zone
+    elseif iFactoryTechLevel > aiBrain[M28Economy.refiOurHighestAirFactoryTech] and iFactoryTechLevel > aiBrain[M28Economy.refiOurHighestLandFactoryTech] and tWZTeamData[M28Map.subrefWZThreatEnemySurface] == 0 and tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] == 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 then
+        local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
+        local iEngisBuilt = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * iTechCategory)
+        local iSurfaceAndSubersibleNavyBuilt = M28Conditions.GetLifetimeBuildCount(aiBrain, (M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine) * iTechCategory)
+        if bDebugMessages == true then LOG(sFunctionRef..': iEngisBuilt='..iEngisBuilt..'; iSurfaceAndSubersibleNavyBuilt='..iSurfaceAndSubersibleNavyBuilt) end
+        if iEngisBuilt < 3 + iSurfaceAndSubersibleNavyBuilt * 2 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
+                --Check this engineer is the tech level wanted to avoid infinite loop
+                if M28UnitInfo.GetUnitTechLevel(sBPIDToBuild) >= iFactoryTechLevel then
+                    return sBPIDToBuild
+                end
+            end
+        end
     end
+
+
+
+
 
     --High priority anti-air if we have a battleship and no cruiser, or alternatively if we have 3 destroyers and no cruiser, or enemy has torps and we havent built any cruisers yet
     local iCurCruiserCarrier = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryCruiserCarrier)

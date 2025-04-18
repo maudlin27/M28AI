@@ -791,6 +791,32 @@ function CheckUnitCap(aiBrain)
                         if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
                             M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
                             if iAdjustmentLevel <= 1 then M28Engineer.tiActionCategory.refActionBuildAA = M28UnitInfo.refCategoryStructureAA end --allow experimental AA when close to unit cap
+                            --Clear any prioritisation of bombers if we have penetration bombers, and instead prioritise penetration bombers
+                            if categories.saa0314 and categories.saa0313 then
+                                --We have penetration fighters - prioritise these over normal figheters and bombers
+                                if (aiBrain[reftBlueprintPriorityOverride]['saa0314'] or 0) <= 0 or (aiBrain[reftBlueprintPriorityOverride]['saa0313'] or 0) <= 0 then
+                                    --Penetration bombers
+                                    aiBrain[reftBlueprintPriorityOverride]['saa0314'] = 1
+                                    aiBrain[reftBlueprintPriorityOverride]['sea0314'] = 1
+                                    aiBrain[reftBlueprintPriorityOverride]['sra0314'] = 1
+                                    aiBrain[reftBlueprintPriorityOverride]['ssa0314'] = 1
+                                    --Penetration fighters
+                                    aiBrain[reftBlueprintPriorityOverride]['saa0313'] = 1
+                                    aiBrain[reftBlueprintPriorityOverride]['sea0313'] = 1
+                                    aiBrain[reftBlueprintPriorityOverride]['sra0313'] = 1
+                                    aiBrain[reftBlueprintPriorityOverride]['ssa0313'] = 1
+                                    --Normal bombers
+                                    if (aiBrain[reftBlueprintPriorityOverride]['uea0304'] or 0) > 0 then aiBrain[reftBlueprintPriorityOverride]['uea0304'] = nil end
+                                    if (aiBrain[reftBlueprintPriorityOverride]['ura0304'] or 0) > 0 then aiBrain[reftBlueprintPriorityOverride]['ura0304'] = nil end
+                                    if (aiBrain[reftBlueprintPriorityOverride]['uaa0304'] or 0) > 0 then aiBrain[reftBlueprintPriorityOverride]['uaa0304'] = nil end
+                                    if (aiBrain[reftBlueprintPriorityOverride]['xsa0304'] or 0) > 0 then aiBrain[reftBlueprintPriorityOverride]['xsa0304'] = nil end
+                                    --Normal asfs
+                                    if (aiBrain[reftBlueprintPriorityOverride]['uea0303'] or 0) > 0 then aiBrain[reftBlueprintPriorityOverride]['uea0303'] = nil end
+                                    if (aiBrain[reftBlueprintPriorityOverride]['ura0303'] or 0) > 0 then aiBrain[reftBlueprintPriorityOverride]['ura0303'] = nil end
+                                    if (aiBrain[reftBlueprintPriorityOverride]['uaa0303'] or 0) > 0 then aiBrain[reftBlueprintPriorityOverride]['uaa0303'] = nil end
+                                    if (aiBrain[reftBlueprintPriorityOverride]['xsa0303'] or 0) > 0 then aiBrain[reftBlueprintPriorityOverride]['xsa0303'] = nil end
+                                end
+                            end
                             local bKillUnit
                             for iUnit, oUnit in tUnitsToDestroy do
                                 if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
