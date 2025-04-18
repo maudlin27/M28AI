@@ -5862,7 +5862,25 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 return sBPIDToBuild
             end
         end
+        --Alt high priority engineer if our naval fac tech level exceeds our land+air, and we havent built many naval units, and dont have enemies in this zone
+    elseif iFactoryTechLevel > aiBrain[M28Economy.refiOurHighestAirFactoryTech] and iFactoryTechLevel > aiBrain[M28Economy.refiOurHighestLandFactoryTech] and tWZTeamData[M28Map.subrefWZThreatEnemySurface] == 0 and tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] == 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 then
+        local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
+        local iEngisBuilt = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * iTechCategory)
+        local iSurfaceAndSubersibleNavyBuilt = M28Conditions.GetLifetimeBuildCount(aiBrain, (M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine) * iTechCategory)
+        if bDebugMessages == true then LOG(sFunctionRef..': iEngisBuilt='..iEngisBuilt..'; iSurfaceAndSubersibleNavyBuilt='..iSurfaceAndSubersibleNavyBuilt) end
+        if iEngisBuilt < 3 + iSurfaceAndSubersibleNavyBuilt * 2 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
+                --Check this engineer is the tech level wanted to avoid infinite loop
+                if M28UnitInfo.GetUnitTechLevel(sBPIDToBuild) >= iFactoryTechLevel then
+                    return sBPIDToBuild
+                end
+            end
+        end
     end
+
+
+
+
 
     --High priority anti-air if we have a battleship and no cruiser, or alternatively if we have 3 destroyers and no cruiser, or enemy has torps and we havent built any cruisers yet
     local iCurCruiserCarrier = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryCruiserCarrier)
