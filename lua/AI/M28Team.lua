@@ -1665,7 +1665,6 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Have a nuke launcher, have finished checking if want to unpause our SMD') end
                     elseif M28Conditions.IsUnitLongRangeThreat(oUnit) then
-                        bDebugMessages = true
                         if bDebugMessages == true then LOG(sFunctionRef..': have a long ranged DF big threat unit so adding to long range threat table as well') end
                         if bDebugMessages == true then LOG(sFunctionRef..': have a long ranged DF big threat unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so adding to long range threat table as well, unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; IF range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Does unit appear to be primarily IF unit='..tostring(((oUnit[M28UnitInfo.refiDFRange] or 0) < 30 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 30))) end
                         AddUnitToLongRangeThreatTable(oUnit, iTeam, false, ((oUnit[M28UnitInfo.refiDFRange] or 0) < 30 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 30))
@@ -1941,7 +1940,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                                 end
                             elseif M28Conditions.IsUnitLongRangeThreat(oUnit) then
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Recording in LR threat table, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; IDF range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Primarily IF='..tostring(((oUnit[M28UnitInfo.refiDFRange] or 0) < 30 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 30))) end
                                 AddUnitToLongRangeThreatTable(oUnit, aiBrain.M28Team, true, ((oUnit[M28UnitInfo.refiDFRange] or 0) < 30 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 30))
                             end
