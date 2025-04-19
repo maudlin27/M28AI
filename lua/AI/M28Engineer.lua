@@ -8808,6 +8808,7 @@ function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint
                     end
 
                     --If we still have engis, then determine the closest to the target, if it is far away the reassess the build location
+                    if bDebugMessages == true then LOG(sFunctionRef..': Do we still have engineers building emergency PD? is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]))) end
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) == false then
                         local tClosestTarget, oClosestEngi
                         for iEngi, oEngi in tLZTeamData[M28Map.subreftoEmergencyPDEngineers] do
@@ -8820,6 +8821,24 @@ function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint
                             end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': iClosestEngiToTarget='..iClosestEngiToTarget..'; Time='..GetGameTimeSeconds()) end
+                        local bGotNewOrderOrLocation = false
+                        function ReassessPDBuildLocation()
+                            local sBlueprint, tAltPDLocation = GetBlueprintAndLocationToBuild(aiBrain, oClosestEngi, refActionBuildEmergencyPD, M28UnitInfo.refCategoryPD, oClosestEngi:GetBlueprint().Economy.MaxBuildDistance, nil, oClosestEngi:GetPosition(), false, nil, nil, false, tLZData, tLZTeamData, true, oClosestEngi[M28Orders.reftiLastOrders][oClosestEngi[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint])
+                            if bDebugMessages == true then LOG(sFunctionRef..': tAltPDLocation='..repru(tAltPDLocation)..'; tClosestTarget='..repru(tClosestTarget)..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(tClosestTarget, (tAltPDLocation or {0,0,0}))) end
+                            if M28Utilities.IsTableEmpty(tAltPDLocation) == false and sBlueprint == oClosestEngi[M28Orders.reftiLastOrders][oClosestEngi[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] then
+                                --Reassign all engineers with the same target
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will reassign all engineers with the same target, tClosestTarget='..repru(tClosestTarget)) end
+                                local toEngineersToReassign = {}
+                                for iEngi, oEngi in tLZTeamData[M28Map.subreftoEmergencyPDEngineers] do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if engineer shoudl be reassigned due to being close to the closeset enti to target build location, oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; Dist to order position='..M28Utilities.GetDistanceBetweenPositions(tClosestTarget, oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])..'; Order position='..repru(oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])) end
+                                    if M28Utilities.GetDistanceBetweenPositions(tClosestTarget, oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]) <= 1.5 then
+                                        M28Orders.IssueTrackedBuild(oEngi, tAltPDLocation, sBlueprint, false, 'RedoEmPD')
+                                        TrackEngineerAction(oEngi, refActionBuildEmergencyPD, true, 1, nil, nil, false)
+                                    end
+                                end
+                                bGotNewOrderOrLocation = true
+                            end
+                        end
                         if iClosestEngiToTarget <= 10 then
                             --If the desired build location has mobile units in it, then get a new build location
                             local rRect = M28Utilities.GetRectAroundLocation(tClosestTarget, 1)
@@ -8842,6 +8861,7 @@ function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint
                                 end
                                 if oPartCompletePD then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have part complete PD under construction so wont change engineer orders') end
+                                    bGotNewOrderOrLocation = true
                                 else
                                     local bHaveMobileUnits = false
                                     for iUnitInRect, oUnitInRect in tUnitsAtTarget do
@@ -8851,30 +8871,49 @@ function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint
                                         end
                                     end
                                     if bHaveMobileUnits then
-                                        local sBlueprint, tAltPDLocation = GetBlueprintAndLocationToBuild(aiBrain, oClosestEngi, refActionBuildEmergencyPD, M28UnitInfo.refCategoryPD, oClosestEngi:GetBlueprint().Economy.MaxBuildDistance, nil, oClosestEngi:GetPosition(), false, nil, nil, false, tLZData, tLZTeamData, true, oClosestEngi[M28Orders.reftiLastOrders][oClosestEngi[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint])
-                                        if bDebugMessages == true then LOG(sFunctionRef..': tAltPDLocation='..repru(tAltPDLocation)..'; tClosestTarget='..repru(tClosestTarget)..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(tClosestTarget, (tAltPDLocation or {0,0,0}))) end
-                                        if M28Utilities.IsTableEmpty(tAltPDLocation) == false and sBlueprint == oClosestEngi[M28Orders.reftiLastOrders][oClosestEngi[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] then
-                                            --Reassign all engineers with the same target
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Will reassign all engineers with the same target, tClosestTarget='..repru(tClosestTarget)) end
-                                            local toEngineersToReassign = {}
-                                            for iEngi, oEngi in tLZTeamData[M28Map.subreftoEmergencyPDEngineers] do
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if engineer shoudl be reassigned due to being close to the closeset enti to target build location, oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; Dist to order position='..M28Utilities.GetDistanceBetweenPositions(tClosestTarget, oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])..'; Order position='..repru(oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])) end
-                                                if M28Utilities.GetDistanceBetweenPositions(tClosestTarget, oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]) <= 1.5 then
-                                                    M28Orders.IssueTrackedBuild(oEngi, tAltPDLocation, sBlueprint, false, 'RedoEmPD')
-                                                    TrackEngineerAction(oEngi, refActionBuildEmergencyPD, true, 1, nil, nil, false)
-                                                end
-                                            end
-                                        end
+                                        ReassessPDBuildLocation()
                                     else
                                         if bDebugMessages == true then LOG(sFunctionRef..': Dont have any mobile units in the target rectangle so will proceed with current orders') end
                                     end
                                 end
                             end
                         end
+                        if not(bGotNewOrderOrLocation) and iClosestEngiToTarget >= 10 and iClosestEngiToTarget <= 75 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false or tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] > 0) then
+                            --Are there enemies close to the target, and we are moderately far away? in which case also reassess
+                            local iTeam = oEngiGivenPDOrder:GetAIBrain().M28Team
+                            local bCloseToEnemy = M28Conditions.CloseToEnemyUnit(tClosestTarget, tLZTeamData[M28Map.reftoNearestDFEnemies], 10, iTeam, true, nil, nil, oEngiGivenPDOrder, nil, false)
+                            --(Left in code re seeing if close to PD in case decide want to use this)
+                            --local bCloseToPD = false
+                            --if bCloseToEnemy and oEngiGivenPDOrder[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and EntityCategoryContains(M28UnitInfo.refCategoryPD, oEngiGivenPDOrder[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and M28Utilities.GetDistanceBetweenPositions(oEngiGivenPDOrder[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), tClosestTarget) <= oEngiGivenPDOrder[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] then
+                            --bCloseToPD = true
+                            --else
+                            if not(bCloseToEnemy) and tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] > 0 then
+                                --Are we close to indirectfire
+                                local tEnemyIndirect = EntityCategoryFilterDown(categories.INDIRECT * categories.MOBILE, tLZTeamData[M28Map.subrefTEnemyUnits])
+                                if M28Utilities.IsTableEmpty(tEnemyIndirect) == false then
+                                    for iEnemy, oEnemy in tEnemyIndirect do
+                                        if not(oEnemy.Dead) and (oEnemy[M28UnitInfo.refiIndirectRange] or 0) > 5 and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), tClosestTarget) <= (oEnemy[M28UnitInfo.refiIndirectRange] or 0) + 10 then
+                                            bCloseToEnemy = true
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bCloseToEnemy='..tostring(bCloseToEnemy)) end
+                            if bCloseToEnemy then
+                                --Want to reassess build location
+                                ReassessPDBuildLocation()
+                            end
+                        end
                     end
                 end
             end
             if not(bT2PlusConstructionStarted) then
+                tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic] = false
+            else
+                --v223 - not sure why we were only clearing flag if we started construction, so decided to clear the flag either way after 3s (which should avoid infinite loop type scenarios)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(3)
                 tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic] = false
             end
         end
