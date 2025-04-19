@@ -2767,21 +2767,55 @@ function TargetUnitWithAirAA(oAirAA, oEnemyUnit, iOptionalClosestDist)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TargetUnitWithAirAA'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if M28Conditions.IsLocationInPlayableArea(oEnemyUnit:GetPosition()) then
         local iClosestUnitDist = iOptionalClosestDist or M28Utilities.GetDistanceBetweenPositions(oAirAA:GetPosition(), oEnemyUnit:GetPosition())
         --Suicide asf into enemy czar or experimental bomber once relatively close; alternativley issua manual attack order when getting close as wehn doing move ended up losing 60 asfs and not even breaking the shield; also manual attack order on exp bomber
-        if bDebugMessages == true then LOG(sFunctionRef..': oAirAA='..(oAirAA.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAirAA) or 'nil')..'; .Dead='..tostring(oAirAA.Dead or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oAirAA))..'; oEnemyUnit='..(oEnemyUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit) or 'nil')..'; Is oEnemyUnit valid='..tostring(M28UnitInfo.IsUnitValid(oEnemyUnit))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': oAirAA='..(oAirAA.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAirAA) or 'nil')..'; .Dead='..tostring(oAirAA.Dead or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oAirAA))..'; oEnemyUnit='..(oEnemyUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit) or 'nil')..'; Is oEnemyUnit valid='..tostring(M28UnitInfo.IsUnitValid(oEnemyUnit))..'; iClosestUnitDist='..iClosestUnitDist..'; oAirAA[M28UnitInfo.refiAARange]='..(oAirAA[M28UnitInfo.refiAARange] or 'nil')) end
         if iClosestUnitDist <= 70 and EntityCategoryContains(M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
             ForkThread(SuicideASFIntoStrat, oEnemyUnit, oAirAA, true) --Must call via fork thread due to waitticks)
-        elseif (iClosestUnitDist >= 120 or EntityCategoryContains(M28UnitInfo.refCategoryCzar, oEnemyUnit.UnitId) or (iClosestUnitDist <= 40 and (oEnemyUnit:GetCurrentLayer() == 'Land' or oEnemyUnit:GetPosition()[2] - GetTerrainHeight(oEnemyUnit:GetPosition()[1],oEnemyUnit:GetPosition()[3]) <= 5 or EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId))) or (iClosestUnitDist <= 5 and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oEnemyUnit.UnitId)))
-                and ((M28UnitInfo.CanSeeUnit(oAirAA:GetAIBrain(), oEnemyUnit)) or oAirAA[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oEnemyUnit) then
-            --Note - sometimes get lua error from above re the logic for existing airaa orders; however we are checking oEnemyUnit is a valid unit before calling, and also are checking oAirAA is valid
-            M28Orders.IssueTrackedAttack(oAirAA, oEnemyUnit, false, 'AAAA', false)
-            if bDebugMessages == true then LOG(sFunctionRef..': issued tracked attack') end
+            --If enemy on ground then issue attack
+        elseif oEnemyUnit:GetCurrentLayer() == 'Land' or oEnemyUnit:GetPosition()[2] - GetSurfaceHeight(oEnemyUnit:GetPosition()[1], oEnemyUnit:GetPosition()[3]) <= 5 then
+            M28Orders.IssueTrackedAttack(oAirAA, oEnemyUnit, false, 'AAGrnd', false)
+            if bDebugMessages == true then LOG(sFunctionRef..': issued attack on grounded unit') end
         else
-            M28Orders.IssueTrackedMove(oAirAA, oEnemyUnit:GetPosition(), 3, false, 'AAAM', false)
-            if oAirAA[M28Orders.reftiLastOrders][oAirAA[M28Orders.refiOrderCount]] then --if human player with M28 not enabled on the unit this will cause an error otherwise
-                oAirAA[M28Orders.reftiLastOrders][oAirAA[M28Orders.refiOrderCount]][M28Orders.subrefoOrderUnitTarget] = oEnemyUnit
+            local bInterceptingDestination = false
+            local iOurSpeed = (oAirAA:GetBlueprint().Air.MaxAirspeed or 0)
+            local iEnemySpeed = (oEnemyUnit:GetBlueprint().Air.MaxAirspeed or 0)
+            if iClosestUnitDist >= 50 and iClosestUnitDist >= 15 + oAirAA[M28UnitInfo.refiAARange] and not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oEnemyUnit.UnitId)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': iOurSpeed='..iOurSpeed..'; iEnemySpeed='..iEnemySpeed) end
+                if iOurSpeed < 8 + iEnemySpeed then
+                    --If enemy has better speed than us then dont consider intercepting unless angles are signif dif
+                    local iAngleFromEnemyToUs = M28Utilities.GetAngleFromAToB(oEnemyUnit:GetPosition(), oAirAA:GetPosition())
+                    local iEnemyDirection = M28UnitInfo.GetUnitFacingAngle(oEnemyUnit)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iAngleFromEnemyToUs='..iAngleFromEnemyToUs..'; iEnemyDirection='..iEnemyDirection..'; Dif='..M28Utilities.GetAngleDifference(iAngleFromEnemyToUs, iEnemyDirection)) end
+                    if iOurSpeed > iEnemySpeed or M28Utilities.GetAngleDifference(iAngleFromEnemyToUs, iEnemyDirection) < 170 then --If 180 then it means we are in the opposite direction to the way the enemy air unit is facing
+                        --Consider predicting where air unit will move to, and aim for this location
+                        local iDistToTravel
+                        if iOurSpeed < iEnemySpeed then iDistToTravel = iClosestUnitDist - oAirAA[M28UnitInfo.refiAARange]
+                        else
+                            iDistToTravel = (iClosestUnitDist - oAirAA[M28UnitInfo.refiAARange]) * iEnemySpeed / iOurSpeed
+                        end
+                        --This isnt precise, but hopefully will be close enough that I dont have to figure out the complicated maths:
+                        local tInterceptTarget = M28Utilities.MoveInDirection(oEnemyUnit:GetPosition(), iEnemyDirection, iDistToTravel, true, false, M28Map.bIsCampaignMap)
+                        M28Orders.IssueTrackedMove(oAirAA, tInterceptTarget, 3, false, 'InterC', false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and intercept target nearer to its destination') end
+                        bInterceptingDestination = true
+                    end
+                end
+            end
+            if not(bInterceptingDestination) then
+                if (iClosestUnitDist >= 120 or EntityCategoryContains(M28UnitInfo.refCategoryCzar, oEnemyUnit.UnitId) or (iClosestUnitDist <= math.max(oAirAA[M28UnitInfo.refiAARange] + iOurSpeed or 40) and EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId))) or (iClosestUnitDist <= 5 and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oEnemyUnit.UnitId))
+                        and ((M28UnitInfo.CanSeeUnit(oAirAA:GetAIBrain(), oEnemyUnit)) or oAirAA[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oEnemyUnit) then
+                    --Note - sometimes get lua error from above re the logic for existing airaa orders; however we are checking oEnemyUnit is a valid unit before calling, and also are checking oAirAA is valid
+                    M28Orders.IssueTrackedAttack(oAirAA, oEnemyUnit, false, 'AAAA', false)
+                    if bDebugMessages == true then LOG(sFunctionRef..': issued tracked attack') end
+                else
+                    M28Orders.IssueTrackedMove(oAirAA, oEnemyUnit:GetPosition(), 3, false, 'AAAM', false)
+                    if oAirAA[M28Orders.reftiLastOrders][oAirAA[M28Orders.refiOrderCount]] then --if human player with M28 not enabled on the unit this will cause an error otherwise
+                        oAirAA[M28Orders.reftiLastOrders][oAirAA[M28Orders.refiOrderCount]][M28Orders.subrefoOrderUnitTarget] = oEnemyUnit
+                    end
+                end
             end
         end
         oAirAA[refoAirAACurTarget] = oEnemyUnit
@@ -2843,8 +2877,6 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam, iAirSubteam, 
     local sFunctionRef = 'AssignAirAATargets'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     local tStartPoint = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][3]}
 
     --Copy of M28Utiliteis function (for speed)
@@ -2859,7 +2891,7 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam, iAirSubteam, 
     local iClosestUnitDist, oClosestUnit, iCurDist, iCurValueAssigned, iThreatWanted, iClosestAARef
     local iCurLoopCount
     local iMaxLoopCount = 200 --Wont assign more than this number of AA units to a particular target, partly as an infinite loop check, and partly to avoid too much on a single unit (e.g. czar or ahwassa)
-    local tEnemyAirAAUnits = {}
+    local tEnemyAirAAAndCargoUnits = {}
 
     local tPriorityEnemyTargets
     if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000 then
@@ -2921,7 +2953,10 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam, iAirSubteam, 
             --Increase threat to assign to AA units
             if EntityCategoryContains(M28UnitInfo.refCategoryAntiAir + categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
                 iThreatWanted = iThreatWanted * 3
-                table.insert(tEnemyAirAAUnits, oEnemyUnit) --Will want to assign more if have spare AirAA
+                table.insert(tEnemyAirAAAndCargoUnits, oEnemyUnit) --Will want to assign more if have spare AirAA
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId) and oEnemyUnit.GetCargo and M28Utilities.IsTableEmpty(oEnemyUnit:GetCargo()) == false then        
+                iThreatWanted = iThreatWanted * 4
+                table.insert(tEnemyAirAAAndCargoUnits, oEnemyUnit) --Will want to assign more if have spare AirAA
             end
             if bLastEnemiesToTarget then
                 iThreatWanted = math.max(iThreatWanted, oEnemyUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oEnemyUnit))
@@ -2933,14 +2968,14 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam, iAirSubteam, 
             if M28Utilities.IsTableEmpty(tAvailableAirAA) then break end
         end
 
-        if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and M28Utilities.IsTableEmpty(tEnemyAirAAUnits) == false then
+        if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and M28Utilities.IsTableEmpty(tEnemyAirAAAndCargoUnits) == false then
             --Assign more threat to enemy AirAA units since where there's 1 more are likely to follow, and want to overwhelm; dont bother sorting for performacne reasons (as this means we have already assigned air units to every enemy air unit)
-            for iUnit, oUnit in tEnemyAirAAUnits do
+            for iUnit, oUnit in tEnemyAirAAAndCargoUnits do
                 iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 7 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
                 ConsiderAttackingUnit(oUnit, iThreatWanted)
             end
-            if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and table.getn(tEnemyAirAAUnits) >= 5 then
-                for iUnit, oUnit in tEnemyAirAAUnits do
+            if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and table.getn(tEnemyAirAAAndCargoUnits) >= 5 then
+                for iUnit, oUnit in tEnemyAirAAAndCargoUnits do
                     iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 16 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
                     ConsiderAttackingUnit(oUnit, iThreatWanted)
                 end
