@@ -4059,7 +4059,7 @@ function GetEnemyMobileCombatThreatAndRangeInCurrentAndAdjacentZones(tLZData, tL
             M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData) --redundancy, highly doubt it hasnt been called yet
             local iDistThreshold = math.max(150, M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) * 0.4, M28Map.iMapSize * 0.2)
             if aiBrain[M28Overseer.refbPrioritiseDefence] then iDistThreshold = iDistThreshold + 60
-            elseif not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech] >= tLZData[M28Map.subrefLZMexCount] then iDistThreshold = iDistThreshold + 40
+            elseif tLZTeamData[M28Map.subrefMexCountByTech] >= tLZData[M28Map.subrefLZMexCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.01 and not(HaveLowPower(iTeam)) then iDistThreshold = iDistThreshold + 40
             end
             local tbConsideredZone = {}
             for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
