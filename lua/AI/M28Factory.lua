@@ -4522,6 +4522,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
         end
 
+        --Get inties ASAP if enemy has t2 transport in  case they are planning a drop
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Low power enemy t2 transport intie builder, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]..'; M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]..'; M28Team.tTeamData[iTeam][M28Team.refbEnemyHasT2PlusTransport]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbEnemyHasT2PlusTransport] or false)..'; Stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] >= 150 and M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] < math.min(500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], 2 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasT2PlusTransport] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Low power enemy might have T2+ transports so will build more inties') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
+        end
+
         --T2 air fac upgrade if in safe zone
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Low power t2 or t3 upgrade if in safe zone, tLZTeamData[M28Map.refbBaseInSafePosition]='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition] or false)..'; Enemies in this zone='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or false)..'; Zone wants t1 spam='..tostring(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) or false)..'; Brain gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Energy stored='..aiBrain:GetEconomyStored('ENERGY')..'; Team gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
@@ -4835,6 +4843,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
         end
 
+        --Get inties ASAP if enemy has t2 transport in  case they are planning a drop
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Enemy t2 transport intie builder, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]..'; M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]..'; M28Team.tTeamData[iTeam][M28Team.refbEnemyHasT2PlusTransport]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbEnemyHasT2PlusTransport] or false)) end
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] >= 150 and M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] < math.min(500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], 2 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]) and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasT2PlusTransport] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Enemy might have T2+ transports so will build more inties') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
+        end
+
         --Priority engineers as we are being prevented from upgrading
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory) then
@@ -4842,7 +4858,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         end
 
         --Multiple mex upgrades so want more engineers (air fac have power), if only to assist the upgrade (and also so once upgraded we have enough build power)
-            --Also get more engineers if have lots of mass and not many engineers being built
+        --Also get more engineers if have lots of mass and not many engineers being built
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if M28Conditions.WantMoreEngineersToAssistMexUpgradeAsPriority(tLZTeamData, iTeam) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end

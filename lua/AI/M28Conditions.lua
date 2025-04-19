@@ -4055,7 +4055,7 @@ function GetEnemyMobileCombatThreatAndRangeInCurrentAndAdjacentZones(tLZData, tL
             end
         end
         --Turtle or enemy has land exp on this plateau - look further away than just adjacent zones
-        if (aiBrain[M28Overseer.refbPrioritiseDefence] or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Conditions.GetBestCombatRangeOfUnitsOnPlateau(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals], iPlateau, iTeam) < 50)) and not(tLZTeamData[M28Map.refbBaseInSafePosition]) then
+        if (aiBrain[M28Overseer.refbPrioritiseDefence] or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and GetBestCombatRangeOfUnitsOnPlateau(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals], iPlateau, iTeam) < 50)) and not(tLZTeamData[M28Map.refbBaseInSafePosition]) then
             M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData) --redundancy, highly doubt it hasnt been called yet
             local iDistThreshold = math.max(150, M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) * 0.4, M28Map.iMapSize * 0.2)
             if aiBrain[M28Overseer.refbPrioritiseDefence] then iDistThreshold = iDistThreshold + 60
