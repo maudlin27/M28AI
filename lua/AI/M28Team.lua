@@ -1678,7 +1678,7 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then tTeamData[iTeam][refiEnemyT3ArtiCount] = 2
                         else tTeamData[iTeam][refiEnemyNovaxCount] = 1
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': have set flag to defend against T3 arti to true for team '..iTeam..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti])) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': have set flag to defend against T3 arti to true for team '..iTeam..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti])..'; tTeamData[iTeam][refiEnemyT3ArtiCount]='..(tTeamData[iTeam][refiEnemyT3ArtiCount] or 'nil')..'; tTeamData[iTeam][refiEnemyNovaxCount]='..(tTeamData[iTeam][refiEnemyNovaxCount] or 'nil')..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owner='..oUnit:GetAIBrain().Nickname..'; iTeam='..iTeam) end
                         --Refresh shielding wanted on existing units
                         local tPotentialUnitsToShield = tTeamData[iTeam][subreftoFriendlyActiveM28Brains][1]:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryFixedShield - categories.TECH1, {0.5*(M28Map.rMapPlayableArea[1] + M28Map.rMapPlayableArea[3]), 0, 0.5*(M28Map.rMapPlayableArea[2] + M28Map.rMapPlayableArea[4])}, 10000, 'Ally')
                         if M28Utilities.IsTableEmpty(tPotentialUnitsToShield) == false then

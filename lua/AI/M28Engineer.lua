@@ -7990,6 +7990,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                         local iHighestCompletionShield = -0.1
                         local iHighestCompletionArti = -0.1
                         local iExpShieldCount = 0
+                        local iArtiMassInvestment = 0
                         bTriedBuildingSomething = false
 
                         if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiUnits]) == false then
@@ -7997,6 +7998,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                 if oArti:GetFractionComplete() == 1 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': We have completed oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..'; at position '..repru(oArti:GetPosition())..'; Arti locations in template='..repru(tTableRef[M28Map.subrefGEArtiLocations])) end
                                     iCompletedArti = iCompletedArti  + 1
+                                    iArtiMassInvestment = iArtiMassInvestment + (oArti[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oArti))
                                 else
                                     iUnderConstructionArti = iUnderConstructionArti + 1
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..'; Fraction complete='..oArti:GetFractionComplete()..'; iHighestCompletionArti='..iHighestCompletionArti) end
@@ -8004,6 +8006,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                         iHighestCompletionArti = oArti:GetFractionComplete()
                                         oNearestCompletionArti = oArti
                                     end
+                                    iArtiMassInvestment = iArtiMassInvestment + (oArti[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oArti)) * oArti:GetFractionComplete()
                                 end
                             end
                         end
@@ -8084,8 +8087,11 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                 end
                             end
                             --If have lots of engineers then spread out since the biggest delay may be starting construction of a shield
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to start  building more shields, iCompletedShields='..iCompletedShields..'; iUnderConstructionShields='..iUnderConstructionShields..'; iArtiMassInvestment='..iArtiMassInvestment..'; M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; FAF condition='..tostring((M28Utilities.bFAFActive and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or iArtiMassInvestment >= 100000 or (iCompletedShields + iUnderConstructionShields < 4 and (iCompletedShields+iUnderConstructionShields < 3 or iCompletedArti >= 1)) or (iCompletedArti >= 1 and (iCompletedArti >= 2 or iArtiMassInvestment >= 50000)))))) end
                             if (iUnderConstructionShields == 0 and (iCompletedShields == 0 or iCompletedShields < math.min(6, iHighestCompletionArti * 8))) or (iOrigAvailableEngis >= 5 and iUnderConstructionShields > 0 and iCompletedShields + iUnderConstructionShields < iShieldLocations and iUnderConstructionShields < 4) then
-                                if M28Utilities.bFAFActive or iCompletedShields + iUnderConstructionShields < math.max(3, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount]) then
+                                if (M28Utilities.bFAFActive and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or iArtiMassInvestment >= 100000 or (iCompletedShields + iUnderConstructionShields < 4 and (iCompletedShields+iUnderConstructionShields < 3 or iCompletedArti >= 1)) or (iCompletedArti >= 1 and (iCompletedArti >= 2 or iArtiMassInvestment >= 50000))))
+                                        --Non-FAF - be far less likely to get lots of shielding
+                                        or iCompletedShields + iUnderConstructionShields < math.max(3, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount]) then
                                     --Start building so have at least 4 shields built at once (want to do ahead of assisting shields, since faction used for this is important) - have 1 engi building each shield
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try assigning 1 engi each to building a shield since iOrigAvailableEngis='..iOrigAvailableEngis) end
 
@@ -8137,9 +8143,11 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will assist nearest completion shield='..oNearestCompletionShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestCompletionShield)..'; iLimitOnEngisToAssistShield='..(iLimitOnEngisToAssistShield or 'nil')) end
                                             bClearAllEngineers = GETemplateAssistUnit(tAvailableEngineers, tAvailableT3EngineersByFaction, iPlateau, iLandZone, iTemplateRef, oNearestCompletionShield, iLimitOnEngisToAssistShield)
                                             if bClearAllEngineers then tAvailableEngineers = nil tAvailableT3EngineersByFaction = nil end
-                                        elseif iCompletedShields + iUnderConstructionShields < iShieldLocations and (M28Utilities.bFAFActive or iCompletedShields + iUnderConstructionShields < math.max(3, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount])) then
+                                        elseif iCompletedShields + iUnderConstructionShields < iShieldLocations and
+                                                ((M28Utilities.bFAFActive and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or iArtiMassInvestment >= 100000 or (iCompletedShields + iUnderConstructionShields < 4 and (iCompletedShields+iUnderConstructionShields < 3 or iCompletedArti >= 1)) or (iCompletedArti >= 1 and (iCompletedArti >= 2 or iArtiMassInvestment >= 50000))))
+                                                        or iCompletedShields + iUnderConstructionShields < math.max(3, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount])) then
                                             if (iHighestCompletionArti >= 0.1 * iCompletedShields or iCompletedShields < 4 or not(M28Conditions.HaveLowPower(iTeam)) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 + 250 * iCompletedShields) then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': We can build more shields so we will') end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': We can build more shields so we will, iCompletedShields='..iCompletedShields..'; iUnderConstructionShields='..iUnderConstructionShields..'; iArtiMassInvestment='..iArtiMassInvestment..'; M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; FAF condition='..tostring((M28Utilities.bFAFActive and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or iArtiMassInvestment >= 100000 or (iCompletedShields + iUnderConstructionShields < 4 and (iCompletedShields+iUnderConstructionShields < 3 or iCompletedArti >= 1)) or (iCompletedArti >= 1 and (iCompletedArti >= 2 or iArtiMassInvestment >= 50000)))))..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount]) end
                                                 bGaveBuildOrder = GETemplateStartBuildingShield(tAvailableEngineers, tAvailableT3EngineersByFaction, tLZTeamData, iPlateau, iLandZone, tTableRef, iTemplateRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, math.min(4, iShieldLocations - iCompletedShields), nil, bExcludeExpShields)
                                                 if bGaveBuildOrder then bTriedBuildingSomething = true end
                                             else
