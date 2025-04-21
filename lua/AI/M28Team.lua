@@ -1929,19 +1929,26 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
                             --If enemy hasnt built omni yet check whether this is omni
                             if not(tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni]) and EntityCategoryContains(M28UnitInfo.refCategoryT3Radar, oUnit.UnitId) and not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
-                            tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni] = true
+                                tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni] = true
                             end
 
 
                             --Track enemy big threats
-                            if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit indirect range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Is unit PD or land combat='..tostring(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD)..'; Unit build cost mass='..oUnit[M28UnitInfo.refiUnitMassCost]) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit indirect range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Is unit PD or land combat='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId))..'; Unit build cost mass='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')) end
                             if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to big threat table, aiBrain='..(aiBrain.Nickname or 'nil')..' team='..(aiBrain.M28Team or 'nil')) end
                                 AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
+                                --If htis is an experimental level unit and we have human teammates then monitor to send a chat message
+
                                 --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
-                                if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) and EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU, refbDangerousForACUs is now true') end
-                                    tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
+                                if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
+                                    if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU, refbDangerousForACUs is now true') end
+                                        tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
+                                    end
+                                    if not(EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId)) then
+                                        ForkThread(M28Chat.SendWarningWhenHaveVisualOnEnemy, aiBrain, oUnit)
+                                    end
                                 end
                             elseif M28Conditions.IsUnitLongRangeThreat(oUnit) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Recording in LR threat table, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; IDF range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Primarily IF='..tostring(((oUnit[M28UnitInfo.refiDFRange] or 0) < 30 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 30))) end

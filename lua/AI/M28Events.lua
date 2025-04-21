@@ -2997,6 +2997,7 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
         if not(EntityCategoryContains(categories.INSIGNIFICANTUNIT, oUnitDetected.UnitId)) then --redundancy, doesnt look like ubnits like cybran build drones cause this to happen
             local aiBrain = ArmyBrains[iBrainIndex]
             M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
+
             if aiBrain.M28AI then
                 if aiBrain.M28Team and not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam][aiBrain.M28Team]) then
                     if not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam]) then oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam] = {} end
