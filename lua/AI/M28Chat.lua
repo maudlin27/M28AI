@@ -2395,7 +2395,7 @@ function SendWarningWhenHaveVisualOnEnemy(aiBrain, oUnit)
                         fnSendMessage()
                         break
                     end
-                    WaitSeconds(3)
+                    WaitSeconds(2)
                 end
             end
         end
