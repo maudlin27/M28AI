@@ -676,7 +676,7 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
             table.insert(oUnit[M28Engineer.reftUnitsWeAreReclaiming], oOrderTarget)
 
         end
-        if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc..(oOrderTarget.UnitId or '')) end
+        if M28Config.M28ShowUnitNames and sOptionalOrderDesc then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc..(oOrderTarget.UnitId or '')) end
     end
 end
 

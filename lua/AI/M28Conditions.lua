@@ -436,6 +436,25 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return false
                             end
+                        elseif iLastOrderType == M28Orders.refiOrderIssueReclaim and oEngineer:IsUnitState('Moving') then
+                            --If engi is in close to the target then reclaim it
+                            if oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition and M28Utilities.GetDistanceBetweenPositions(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition, oEngineer:GetPosition()) <= (oEngineer:GetBlueprint().Economy.MaxBuildDistance or 5) then
+                                --Reissue reclaim order (but treat as unavailable)
+                                M28Orders.IssueTrackedReclaim(oEngineer, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget], false, 'RecInRng', false)
+                            end
+
+                            --Note - have a rare issue where given reclaim order far away in QUIET; however it doesnt show up on the navigator currenttargetpos
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Have been given a reclaim order, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition='..repru(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition)..'; Eng position='..repru(oEngineer:GetPosition()))
+                                if oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition then LOG(sFunctionRef..': Dist to cache position='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition)) end
+                                local oNavigator = oEngineer:GetNavigator()
+                                if oNavigator then
+                                    local tCurNavigatorTarget = oNavigator:GetCurrentTargetPos()
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Dist to tCurNavigatorTarget='..M28Utilities.GetDistanceBetweenPositions(tCurNavigatorTarget, oEngineer:GetPosition())) end
+                                end
+                            end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return false
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..'; Will return false') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
