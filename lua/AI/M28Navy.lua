@@ -3849,6 +3849,22 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             --Redundancy (hopefully should only trigger temporarily if a unit dies)
                             if bDebugMessages == true then LOG(sFunctionRef..': No valid nearby enemy non hover so will just attackmove towards enemy base') end
                             M28Orders.IssueTrackedAggressiveMove(oUnit, (oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or tWZTeamData[M28Map.reftClosestEnemyBase]), iOrderReissueDistToUse, false, 'WARedA'..iWaterZone)
+                            --Subs with stealth - once in range of enemy then dont keep advancing (since they dont use the stealth category, have to use the unit Id)
+                        elseif oNearestEnemyNonHoverToFriendlyBase and oUnit.UnitId == 'xrs0204' and not(oUnit[M28UnitInfo.refbLastShotBlocked]) and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then
+                            --Attack-move if almost in range; move away if already in range
+                            if bDebugMessages == true then LOG(sFunctionRef..': Stealth sub dist to enemy='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyNonHoverToFriendlyBase:GetPosition())..'; Can see neemy='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyNonHoverToFriendlyBase, false))) end
+                            if not(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyNonHoverToFriendlyBase, false)) then
+                                M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyNonHoverToFriendlyBase:GetPosition(), 3, false, 'SWBAMSt'..iWaterZone)
+                            else
+                                local iDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyNonHoverToFriendlyBase:GetPosition())
+                                if iDistToEnemy <= oUnit[M28UnitInfo.refiAntiNavyRange] - 2 then
+                                    --Move away towards rally point
+                                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'SWSbStKit'..iWaterZone)
+                                else
+                                    --Attackmove towards enemy
+                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyNonHoverToFriendlyBase:GetPosition(), 3, false, 'SWBASt'..iWaterZone)
+                                end
+                            end
                         elseif oNearestEnemyNonHoverToFriendlyBase and oUnit[M28UnitInfo.refiAntiNavyRange] - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyNonHoverToFriendlyBase:GetPosition()) <= 10 and EntityCategoryContains(categories.MOBILE, oNearestEnemyNonHoverToFriendlyBase.UnitId) then
                             M28Orders.IssueTrackedMove(oUnit, oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'SWSbMv'..iWaterZone)
                         elseif bMoveBlockedNotAttackMove and oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 then
