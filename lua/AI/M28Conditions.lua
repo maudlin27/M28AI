@@ -4104,3 +4104,17 @@ function GetEnemyMobileCombatThreatAndRangeInCurrentAndAdjacentZones(tLZData, tL
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iEnemyThreat, iEnemyBestRange
 end
+
+function GetEnemyTeamActualMassIncome(iTeam)
+    --Used for ACU logic toget mass of enem yteam to iTeam (so can assess if we are far ahead on eco)
+    local tiMassByTeam = {}
+
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+        tiMassByTeam[oBrain.M28Team] = (tiMassByTeam[oBrain.M28Team] or 0) + oBrain:GetEconomyIncome('MASS')
+    end
+    local iHighestMass = 0
+    for iEnemyTeam, iMass in tiMassByTeam do
+        if iMass > iHighestMass then iHighestMass = iMass end
+    end
+    return iHighestMass
+end
