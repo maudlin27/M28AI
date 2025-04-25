@@ -4230,7 +4230,7 @@ function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderGiftingPowerToTeammateForAdjacency'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oUnit.UnitId == 'ueb1306' then bDebugMessages = true end
+
     --Wait 1s, and then check if unit is upgrading and is still valid, as otherwise can have issues
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     if true and GetGameTimeSeconds() >= 58*60 then WaitSeconds(1) end

@@ -772,6 +772,7 @@ function AddAssignedAttacker(oTarget, oNewBomber)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddAssignedAttacker'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then LOG(sFunctionRef..'; Start of code, About to add assigned strike damage to oTarget='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; oOldBomber='..(oNewBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNewBomber) or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if not(oNewBomber[M28UnitInfo.refiStrikeDamage]) then
         --Redundancy for campaign where presumably there's a slight delay in recording a unit that gets cheated in by the map script
@@ -5172,7 +5173,11 @@ function ManageBombers(iTeam, iAirSubteam)
                                 local iCurGroundAAThreat
                                 local iMaxModDist --In addition to searchsize which limits by distance, will also avoid attacking enemy base if we lack air control
                                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
-                                    iMaxModDist = 10 --max is probably 1 so this is to be safe
+                                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] <= 3000 and not(bHaveT3Bombers) and not(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber])) then
+                                        iMaxModDist = 0.75 --Dont want to be too aggressive early on with bombers even if we have air control
+                                    else
+                                        iMaxModDist = 10 --Can go over 1 mod dist for zones behind enemy base, so doing 10 to be safe
+                                    end
                                 elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
                                     if M28Map.iMapSize >= 1024 then
                                         iMaxModDist = 0.3

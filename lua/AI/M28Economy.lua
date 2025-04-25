@@ -60,7 +60,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if EntityCategoryContains(M28UnitInfo.refCategoryT3Power * categories.UEF, oUnitToUpgrade.UnitId) and (oUnitToUpgrade:GetAIBrain():GetArmyIndex() == 5 or oUnitToUpgrade:GetAIBrain():GetArmyIndex() == 7) then bDebugMessages = true end
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitToUpgrade='..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..' owned by '..oUnitToUpgrade:GetAIBrain().Nickname..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])..'; Unit enhancement upgrade count='..(oUnitToUpgrade[M28ACU.refiUpgradeCount] or 'nil')..'; refbTriedUpgrading='..tostring(oUnitToUpgrade[M28UnitInfo.refbTriedUpgrading] or false)) M28Utilities.ErrorHandler('Audit trail for unit upgrade', true, true) end
 
 
@@ -3352,7 +3352,7 @@ function ConsiderPowerPgenUpgrade(oUnit, iOverrideSecondsToWait)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderPowerPgenUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if EntityCategoryContains(M28UnitInfo.refCategoryT3Power * categories.UEF, oUnit.UnitId) and oUnit:GetAIBrain():GetArmyIndex() == 5 then bDebugMessages = true end
+
     local iTimeToWait = iOverrideSecondsToWait or 0
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to wait '..iTimeToWait..' for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
