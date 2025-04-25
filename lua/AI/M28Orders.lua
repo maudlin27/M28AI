@@ -793,6 +793,7 @@ function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
 end
 
 function IssueTrackedUpgrade(oUnit, sUpgradeRef, bAddToExistingQueue, sOptionalOrderDesc)
+    if (EntityCategoryContains(M28UnitInfo.refCategoryT3Power * categories.UEF, oUnit.UnitId) or oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ueb13013' or oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ueb13061') and oUnit:GetAIBrain():GetArmyIndex() == 5 then LOG('TEMPCODE upgrade issued, audit trail about to be issued') M28Utilities.ErrorHandler('Audit trail alt', true, true) end
     if bDontConsiderCombinedArmy or oUnit.M28Active then
         UpdateRecordedOrders(oUnit)
         --Issue order if we arent already trying to attack them
@@ -837,7 +838,7 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
             else tLastOrder = oUnit[reftiLastOrders][1]
             end
         end
-        if not(tLastOrder[subrefiOrderType] == refiOrderEnhancement and sUpgradeRef == tLastOrder[subrefsOrderBlueprint]) and not(oUnit:IsUnitState('Upgrading')) then
+        if not(tLastOrder[subrefiOrderType] == refiOrderEnhancement and sUpgradeRef == tLastOrder[subrefsOrderBlueprint]) and not(oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded')) then
             --Do we have an existing enhancement that needs removing before we can get teh upgrade?
             local bApplySpecialMicroFlag = false
             if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiTimeLastIssuedACUEnhancementOrder] = GetGameTimeSeconds() end

@@ -4230,47 +4230,60 @@ function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderGiftingPowerToTeammateForAdjacency'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if oUnit.UnitId == 'ueb1306' then bDebugMessages = true end
+    --Wait 1s, and then check if unit is upgrading and is still valid, as otherwise can have issues
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if true and GetGameTimeSeconds() >= 58*60 then WaitSeconds(1) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then
+        if M28UnitInfo.IsUnitValid(oUnit) then
+            LOG(sFunctionRef..': Valid unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit))
+        else LOG(sFunctionRef..': Unit is no longer valid, unit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'))
+        end
+    end
+    if true and GetGameTimeSeconds() < 58*60 or (M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded'))) then
 
-    local aiBrain = oUnit:GetAIBrain()
-    local iTeam = aiBrain.M28Team
-    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
-        local iPotentialAdjacencyCategories = M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryStructure * categories.TECH3
+        local aiBrain = oUnit:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+            local iPotentialAdjacencyCategories = M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryStructure * categories.TECH3
 
-        if EntityCategoryContains(M28UnitInfo.refCategoryT3Power, oUnit.UnitId) then
-            --Are we adjacent to any air factories, omni, nuke launchers, t3 arti, owned by another teammate, and have no adjacency of such units on our own?
+            if EntityCategoryContains(M28UnitInfo.refCategoryT3Power, oUnit.UnitId) then
+                --Are we adjacent to any air factories, omni, nuke launchers, t3 arti, owned by another teammate, and have no adjacency of such units on our own?
 
-            if bDebugMessages == true then LOG(sFunctionRef..': is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oUnit.AdjacentUnits))) end
-            if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iPotentialAdjacencyCategories, oUnit.AdjacentUnits)) then
-                --We have no existing adjacency
-                local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iPotentialAdjacencyCategories, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
-                if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
-                    for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
-                        if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam and (oNearbyUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
-                            if AreUnitsAdjacent(oUnit, oNearbyUnit) then
-                                --Gift to other brain
-                                M28Team.TransferUnitsToPlayer({oUnit}, oNearbyUnit:GetAIBrain():GetArmyIndex(), false)
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-        else
-            local iSpecificAdjacencyCategories = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar
-            if EntityCategoryContains(iSpecificAdjacencyCategories, oUnit.UnitId) then
                 if bDebugMessages == true then LOG(sFunctionRef..': is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oUnit.AdjacentUnits))) end
-                if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT3Power, oUnit.AdjacentUnits)) then
+                if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iPotentialAdjacencyCategories, oUnit.AdjacentUnits)) then
                     --We have no existing adjacency
-                    local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT3Power, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
+                    local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iPotentialAdjacencyCategories, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
                     if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
                         for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
                             if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam and (oNearbyUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
                                 if AreUnitsAdjacent(oUnit, oNearbyUnit) then
-                                    --Gift nearby t3 power to this unit's brain owner
-                                    M28Team.TransferUnitsToPlayer({oNearbyUnit}, oUnit:GetAIBrain():GetArmyIndex(), false)
+                                    --Gift to other brain
+                                    M28Team.TransferUnitsToPlayer({oUnit}, oNearbyUnit:GetAIBrain():GetArmyIndex(), false)
                                     break
+                                end
+                            end
+                        end
+                    end
+                end
+            else
+                local iSpecificAdjacencyCategories = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar
+                if EntityCategoryContains(iSpecificAdjacencyCategories, oUnit.UnitId) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oUnit.AdjacentUnits))) end
+                    if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT3Power, oUnit.AdjacentUnits)) then
+                        --We have no existing adjacency
+                        local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT3Power, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
+                        if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
+                            for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
+                                if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam and (oNearbyUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
+                                    if AreUnitsAdjacent(oUnit, oNearbyUnit) then
+                                        --Gift nearby t3 power to this unit's brain owner
+                                        M28Team.TransferUnitsToPlayer({oNearbyUnit}, oUnit:GetAIBrain():GetArmyIndex(), false)
+                                        break
+                                    end
                                 end
                             end
                         end

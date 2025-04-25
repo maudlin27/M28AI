@@ -60,8 +60,8 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitToUpgrade='..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..' owned by '..oUnitToUpgrade:GetAIBrain().Nickname..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])) M28Utilities.ErrorHandler('Audit trail for unit upgrade', true, true) end
+    if EntityCategoryContains(M28UnitInfo.refCategoryT3Power * categories.UEF, oUnitToUpgrade.UnitId) and (oUnitToUpgrade:GetAIBrain():GetArmyIndex() == 5 or oUnitToUpgrade:GetAIBrain():GetArmyIndex() == 7) then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitToUpgrade='..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..' owned by '..oUnitToUpgrade:GetAIBrain().Nickname..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])..'; Unit enhancement upgrade count='..(oUnitToUpgrade[M28ACU.refiUpgradeCount] or 'nil')..'; refbTriedUpgrading='..tostring(oUnitToUpgrade[M28UnitInfo.refbTriedUpgrading] or false)) M28Utilities.ErrorHandler('Audit trail for unit upgrade', true, true) end
 
 
 
@@ -77,7 +77,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
         local aiBrain = oUnitToUpgrade:GetAIBrain()
         if bDebugMessages == true then LOG(sFunctionRef..': About to issue ugprade to unit '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..'; Current state='..M28UnitInfo.GetUnitState(oUnitToUpgrade)..'; Work progress='..(oUnitToUpgrade:GetWorkProgress() or 'nil')..'; Is unit upgrading='..tostring(oUnitToUpgrade:IsUnitState('Upgrading'))) end
 
-        if not(oUnitToUpgrade:IsUnitState('Upgrading')) then
+        if not(oUnitToUpgrade:IsUnitState('Upgrading')) and not(oUnitToUpgrade:IsUnitState('BeingUpgraded')) then
             local bAddToExistingQueue = true
 
 
@@ -354,7 +354,7 @@ function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted, iOptionalMinUnit
         for iUnit, oUnit in tUnitsOfCategory do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Do we want more engis before upgrading='..tostring(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oUnit))..'; Unit build count='.. oUnit[M28Factory.refiTotalBuildCount]) end
             if not(M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oUnit)) then
-                if oUnit:GetFractionComplete() == 1 and not(oUnit:IsUnitState('Upgrading')) and not(oUnit.Dead) then
+                if oUnit:GetFractionComplete() == 1 and not(oUnit:IsUnitState('Upgrading')) and not(oUnit.Dead) and not(oUnit:IsUnitState('BeingUpgraded')) then
                     if not(iOptionalMinUnitsToHaveBuilt) or oUnit[M28Factory.refiTotalBuildCount] >= iOptionalMinUnitsToHaveBuilt then
                         --Are we in a safe land zone?
                         iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
@@ -1773,14 +1773,14 @@ function ManageMassStalls(iTeam)
                                         elseif EntityCategoryContains(M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] == 0 or EntityCategoryContains(M28UnitInfo.refCategoryTransport, (oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'ueb1105'))) then
                                             bApplyActionToUnit = false
                                             if bDebugMessages == true then LOG(sFunctionRef..': Dont want to pause an air factory that hasnt built much') end
-                                        elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and ((bDontPauseUpgradingT1LandOrT2Land and (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId or oUnit:IsUnitState('Upgrading'))) or oUnit[M28Factory.refiTotalBuildCount] <= 10)) then
+                                        elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and ((bDontPauseUpgradingT1LandOrT2Land and (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId or oUnit:IsUnitState('Upgrading') or oUnit:IsUnitState('BeingUpgraded'))) or oUnit[M28Factory.refiTotalBuildCount] <= 10)) then
 
                                             --Is this on a dif island to closest enemy base?
                                             local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                                             if tUnitLZTeamData and not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnitLZTeamData[M28Map.reftClosestEnemyBase])) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= iMinBuildCountBeforePausingHQ * 3 then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Different island to closest enemy base, and we havent built a certain level of units') end
                                                 bApplyActionToUnit = false
-                                            elseif bDontPauseUpgradingT1LandOrT2Land and ((oUnit:IsUnitState('Upgrading') and EntityCategoryContains(categories.TECH1, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false) or EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH2, oUnit.UnitId)) then
+                                            elseif bDontPauseUpgradingT1LandOrT2Land and (((oUnit:IsUnitState('Upgrading') or oUnit:IsUnitState('BeingUpgraded')) and EntityCategoryContains(categories.TECH1, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false) or EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH2, oUnit.UnitId)) then
                                                 for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                                                     if oUnit == oFactory then
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Dont want to pause an upgrading HQ') end
@@ -1890,7 +1890,7 @@ function ManageMassStalls(iTeam)
                                         if iCategoryRef == categories.COMMAND then
                                             --want in addition to above as ACU might have personal shield
 
-                                            if oUnit:IsUnitState('Upgrading') then
+                                            if oUnit:IsUnitState('Upgrading') or oUnit:IsUnitState('BeingUpgraded') then
                                                 bApplyActionToUnit = false
                                             elseif oUnit.GetWorkProgress then
                                                 --if oUnit:GetWorkProgress() >= 0.85 then
@@ -1941,7 +1941,7 @@ function ManageMassStalls(iTeam)
                                             if oBP.Economy.BuildRate then
                                                 --Reduce this massively if unit isn't actually building anything
                                                 if bPauseNotUnpause then
-                                                    if (not(oUnit:IsUnitState('Building')) and not(oUnit:IsUnitState('Repairing')) and not(oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0) and not(oUnit:IsUnitState('Upgrading'))) then
+                                                    if (not(oUnit:IsUnitState('Building')) and not(oUnit:IsUnitState('Repairing')) and not(oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0) and not(oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded'))) then
                                                         iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod * 0.01
                                                     else
                                                         if M28UnitInfo.IsUnitValid(oUnit:GetFocusUnit()) then
@@ -2385,7 +2385,7 @@ function ManageEnergyStalls(iTeam)
                                             elseif bConsideringHQ or (bDontPauseUpgradingT1LandOrT2Land and EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryLandFactory, oUnit.UnitId)) then
                                                 --Only unpause HQs
                                                 bApplyActionToUnit = false
-                                                if oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
+                                                if (oUnit:IsUnitState('Upgrading') or oUnit:IsUnitState('BeingUpgraded')) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
                                                     for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                                                         if oUnit == oFactory then
                                                             bApplyActionToUnit = true
@@ -2454,7 +2454,7 @@ function ManageEnergyStalls(iTeam)
                                                     bApplyActionToUnit = false
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Primary fac for island/pond so wont pause') end
                                                     --Dont want to pause an HQ upgrade since it will give us better power, unless we already have access to that tech for the factory brain owner
-                                                elseif (bDontPauseUpgradingT1LandOrT2Land and EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryLandFactory, oUnit.UnitId)) or (not (bConsideringHQ) and oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false and EntityCategoryContains(categories.FACTORY, oUnit.UnitId) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId)) or oUnit:GetAIBrain()[refiOurHighestFactoryTechLevel] <= M28UnitInfo.GetUnitTechLevel(oUnit))) then
+                                                elseif (bDontPauseUpgradingT1LandOrT2Land and EntityCategoryContains(categories.TECH1 * M28UnitInfo.refCategoryLandFactory, oUnit.UnitId)) or (not (bConsideringHQ) and (oUnit:IsUnitState('Upgrading') or oUnit:IsUnitState('BeingUpgraded')) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false and EntityCategoryContains(categories.FACTORY, oUnit.UnitId) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId)) or oUnit:GetAIBrain()[refiOurHighestFactoryTechLevel] <= M28UnitInfo.GetUnitTechLevel(oUnit))) then
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want to pause primary factory for island/pond') end
                                                     for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                                                         if oUnit == oFactory then
@@ -2468,7 +2468,7 @@ function ManageEnergyStalls(iTeam)
                                                     if oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]) and (oUnit[M28Orders.refiOrderCount] or 0) <= 1 then
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Unit last order was to build an engineer so dont want to pause it as more engieneers might help us recover from a power stall by building more power') end
                                                         bApplyActionToUnit = false
-                                                    elseif bStopPausingIfGotToFactoriesAndHaveSomeEnergy and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and not(oUnit:IsUnitState('Upgrading')) then
+                                                    elseif bStopPausingIfGotToFactoriesAndHaveSomeEnergy and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and not(oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded')) then
                                                         bApplyActionToUnit = false
                                                     end
                                                 end
@@ -2490,7 +2490,7 @@ function ManageEnergyStalls(iTeam)
                                             if iCategoryRef == categories.COMMAND then
                                                 --want in addition to above as ACU might have personal shield
 
-                                                if not (oUnit:IsUnitState('Upgrading')) then
+                                                if not (oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded')) then
                                                     bApplyActionToUnit = false
                                                 elseif oUnit.GetWorkProgress then
                                                     if oUnit:GetWorkProgress() >= 0.85 then
@@ -2575,7 +2575,7 @@ function ManageEnergyStalls(iTeam)
                                         if not((iCurUnitEnergyUsage or 0) == 0) then
                                             iUnitsAdjusted = iUnitsAdjusted + 1
                                             if bPauseNotUnpause and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
-                                                if not(oUnit:IsUnitState('Upgrading') or oUnit:IsUnitState('Repairing') or oUnit:IsUnitState('Building')) then
+                                                if not(oUnit:IsUnitState('Upgrading') or oUnit:IsUnitState('Repairing') or oUnit:IsUnitState('Building') or oUnit:IsUnitState('BeingUpgraded')) then
                                                     iCurUnitEnergyUsage = iCurUnitEnergyUsage * 0.01
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Unit state='..M28UnitInfo.GetUnitState(oUnit)..' so will set the amount of energy saved equal to just 1% of the actual value, so it is now '..iCurUnitEnergyUsage) end
                                                 end
@@ -3304,7 +3304,7 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                                                             tMexOfCategory = EntityCategoryFilterDown(iMexCategory, tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                                             if M28Utilities.IsTableEmpty(tMexOfCategory) == false then
                                                                 for iMex, oMex in tMexOfCategory do
-                                                                    if M28UnitInfo.IsUnitValid(oMex) and oMex:GetFractionComplete() == 1 and not(oMex:IsUnitState('Upgrading')) then
+                                                                    if M28UnitInfo.IsUnitValid(oMex) and oMex:GetFractionComplete() == 1 and not(oMex:IsUnitState('Upgrading')) and not(oMex:IsUnitState('BeingUpgraded')) then
                                                                         UpgradeUnit(oMex, true)
                                                                         bAlreadyUpgraded = true
                                                                         if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade mex in adj zone P'..iPlateauOrZero..'Z'..iAdjLZ..', oMex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)) end
@@ -3325,7 +3325,7 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and find a mex to upgrade, is M28Utilities.IsTableEmpty(tMexOfCategory)='..tostring(M28Utilities.IsTableEmpty(tMexOfCategory))) end
                                     if M28Utilities.IsTableEmpty(tMexOfCategory) == false and not(bAlreadyUpgraded) then
                                         for iMex, oMex in tMexOfCategory do
-                                            if M28UnitInfo.IsUnitValid(oMex) and oMex:GetFractionComplete() == 1 and not(oMex:IsUnitState('Upgrading')) and not(oMex == oJustBuilt) and not(oMex == oOptionalEngineer) and not((oMex:GetBlueprint().General.UpgradesTo or '') == '') then
+                                            if M28UnitInfo.IsUnitValid(oMex) and oMex:GetFractionComplete() == 1 and not(oMex:IsUnitState('Upgrading')) and not(oMex:IsUnitState('BeingUpgraded')) and not(oMex == oJustBuilt) and not(oMex == oOptionalEngineer) and not((oMex:GetBlueprint().General.UpgradesTo or '') == '') then
                                                 UpgradeUnit(oMex, true)
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade the mex '..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..' as have just compelted a mex upgrade in this zone') end
                                                 break
@@ -3352,7 +3352,7 @@ function ConsiderPowerPgenUpgrade(oUnit, iOverrideSecondsToWait)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderPowerPgenUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if EntityCategoryContains(M28UnitInfo.refCategoryT3Power * categories.UEF, oUnit.UnitId) and oUnit:GetAIBrain():GetArmyIndex() == 5 then bDebugMessages = true end
     local iTimeToWait = iOverrideSecondsToWait or 0
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to wait '..iTimeToWait..' for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
