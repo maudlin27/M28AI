@@ -2341,12 +2341,13 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
             end
             local iPercentageToFriendlyBase = iDistToFriendlyBase / (iDistToFriendlyBase + iDistToEnemyBase)
 
-            if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then
+            if iPlateau > 0 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then
                 local tEnemyACU = EntityCategoryFilterDown(categories.COMMAND, tLZTeamData[M28Map.subrefTEnemyUnits])
                 if M28Utilities.IsTableEmpty(tEnemyACU) == false then
                     if table.getn(tEnemyACU) == 1 then
                         if (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) + iACUThreat > 1.05 * (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) then
                             --If we are closer to enemy base then require a greater threat differential
+                            if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; iPercentageToFriendlyBase='..(iPercentageToFriendlyBase or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; iACUThreat='..(iACUThreat or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; ACU position='..repru(oACU:GetPosition())..'; Surface height of position='..GetSurfaceHeight(oACU:GetPosition()[1], oACU:GetPosition()[3])) end
                             if iPercentageToFriendlyBase < 0.6 or tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] + iACUThreat > 1.25 * tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] then
                                 --Dont do this if enemy has air to ground threat and we dont have >= this in MAA
                                 if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] >= 0.25 * tLZTeamData[M28Map.refiEnemyAirToGroundThreat] then
@@ -2377,7 +2378,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                         bWantToRun = true
                     else
                         --Do we have a land zone?
-                        if iLandZone > 0 then
+                        if iPlateau > 0 and iLandZone > 0 then
                             local iEnemyAirToGroundNearbyThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
                             local iFriendlyAAThreat = tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
                             --If there are big enemy threats then run if we arent adjacnet to a core LZ
