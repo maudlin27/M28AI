@@ -11006,7 +11006,7 @@ function RecordEnemyFirebase(iTeam, iPlateau, iLandZone)
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
         local iLandLZThreshold = 163
         local iWaterLZThreshold = 200
-        if M28Map.iMapSize >= 1024 then iLandLZThreshold = 190 iWaterLZThreshold = 230 end
+        if M28Map.iMapSize >= 1000 then iLandLZThreshold = 190 iWaterLZThreshold = 230 end
         --Further increase threshold for if this is a large LZ
         local iBaseLZAverageSize = 0.5*((tLZData[M28Map.subrefLZMaxSegX] - tLZData[M28Map.subrefLZMinSegX])*M28Map.iLandZoneSegmentSize + (tLZData[M28Map.subrefLZMaxSegZ] - tLZData[M28Map.subrefLZMinSegZ])*M28Map.iLandZoneSegmentSize)
 
@@ -11131,7 +11131,7 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
                 if bDebugMessages == true then LOG(sFunctionRef..': iConstructedT2Arti='..iConstructedT2Arti..'; iShieldedT2Arti='..iShieldedT2Arti) end
                 if iConstructedT2Arti >= 1 and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or (iConstructedT2Arti >= 2 and iShieldedT2Arti >= 1)) then
                     local iModDistThreshold = 0.5
-                    if M28Map.iMapSize >= 1024 then iModDistThreshold = 0.45
+                    if M28Map.iMapSize >= 1000 then iModDistThreshold = 0.45
                     elseif M28Map.iMapSize >= 512 then iModDistThreshold = 0.55
                     else
                         iModDistThreshold = 0.75

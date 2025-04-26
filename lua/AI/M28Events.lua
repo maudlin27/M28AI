@@ -2167,6 +2167,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                 --Redundnacy - If we have just built a radar then update radar logic (note that AssignUnitToLandZoneOrPond should already cover this when construction is started)
                 if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oJustBuilt.UnitId) then
                     ForkThread(M28Land.UpdateZoneIntelForRadar, oJustBuilt)
+                    if EntityCategoryContains(categories.TECH2, oJustBuilt.UnitId) then
+                        ForkThread(M28Building.ConsiderUpgradingT2Radar, oJustBuilt)
+                    end
                 elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oJustBuilt.UnitId) then
                     ForkThread(M28Navy.UpdateZoneIntelForSonar, oJustBuilt)
 
@@ -3136,6 +3139,9 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         local iTeam = oUnit:GetAIBrain().M28Team
                         if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
                             M28Land.UpdateZoneIntelForRadar(oUnit)
+                            if EntityCategoryContains(categories.TECH2, oJustBuilt.UnitId) then
+                                ForkThread(M28Building.ConsiderUpgradingT2Radar, oJustBuilt)
+                            end
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
                             M28Navy.UpdateZoneIntelForSonar(oUnit)
                         elseif EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oUnit.UnitId) then

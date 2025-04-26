@@ -2494,7 +2494,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
 
             --Final adjustment - if have any recent nuke launch locations that are near either the rally point or support point,  then move away from here
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
-                local iTimeThreshold = math.max(10, 60 * M28Map.iMapSize / 1024) + 10
+                local iTimeThreshold = math.max(10, 60 * M28Map.iMapSize / 1000) + 10
                 local iReassessCount = 0
                 local iAngleToBase
                 local iDistThreshold = 60
@@ -5181,7 +5181,7 @@ function ManageBombers(iTeam, iAirSubteam)
                                         iMaxModDist = 10 --Can go over 1 mod dist for zones behind enemy base, so doing 10 to be safe
                                     end
                                 elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
-                                    if M28Map.iMapSize >= 1024 then
+                                    if M28Map.iMapSize >= 1000 then
                                         iMaxModDist = 0.3
                                     elseif M28Map.iMapSize <= 256 then
                                         iMaxModDist = 0.55
@@ -5189,7 +5189,7 @@ function ManageBombers(iTeam, iAirSubteam)
                                         iMaxModDist = 0.4
                                     end
                                 else
-                                    if M28Map.iMapSize >= 1024 then iMaxModDist = 0.45
+                                    if M28Map.iMapSize >= 1000 then iMaxModDist = 0.45
                                     elseif M28Map.iMapSize <= 256 then iMaxModDist = 0.7
                                     else iMaxModDist = 0.55
                                     end
@@ -6175,7 +6175,7 @@ function ManageGunships(iTeam, iAirSubteam)
 
             if iEnemyGroundAAThreatByGunship <= math.min(2000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 0.15) and iEnemyAirAAThreatNearGunship <= math.min(500, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 0.05) then
                 iDistFromRallyToGunship = M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
-                if M28Map.iMapSize >= 1024 and iDistFromRallyToGunship >= 250 then iDistToMoveToAltPoint = 200 end
+                if M28Map.iMapSize >= 1000 and iDistFromRallyToGunship >= 250 then iDistToMoveToAltPoint = 200 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iDistFromRallyToGunship='..iDistFromRallyToGunship..'; iDistToMoveToAltPoint='..iDistToMoveToAltPoint) end
                 if iDistFromRallyToGunship >= math.max(iDistToMoveToAltPoint * 1.2, 200) and not(tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), tGunshipLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase]) >= 150 then
                     iAngleFromRallyToGunship = M28Utilities.GetAngleFromAToB(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
@@ -7870,7 +7870,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
 
             local iTravelDistance, iClosestBasePlateau, iClosestBaseLandZone
             local iTravelThreshold = 200
-            if M28Map.iMapSize >= 1024 then iTravelThreshold = 260 end
+            if M28Map.iMapSize >= 1000 then iTravelThreshold = 260 end
             local tbPlateauAndZoneDropLocations = {}
             function ConsiderAddingZoneInIsland(iPlateau, iIsland, iLandZone, bCheckDistFromExistingDropLocations, iMexThresholdOverride, bIncludeAdjacentZoneMexCount)
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
