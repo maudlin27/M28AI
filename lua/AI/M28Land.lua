@@ -10794,8 +10794,10 @@ function UpdateZoneIntelForRadar(oRadar)
                                             end
                                         end
                                     end
-                                    table.insert(tPotentiallyObsoleteRadar, tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar])
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Added radar '..tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar])..' to potentially obsolete table') end
+                                    if not(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar]:IsUnitState('Upgrading')) then
+                                        table.insert(tPotentiallyObsoleteRadar, tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar])
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Added radar '..tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar])..' to potentially obsolete table') end
+                                    end
                                 end
                                 tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] = iCurIntelRange
                                 tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar] = oRadar
@@ -10891,9 +10893,11 @@ function UpdateZoneIntelForRadar(oRadar)
                         local tUnitsToKill = {}
                         for iUnit, oUnit in tUniqueList do
                             local oBP = oUnit:GetBlueprint()
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with radar radius '..(oBP.Intel.RadarRadius or 0)..' vs iIntelRange='..iIntelRange) end
+                            bDebugMessages = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with radar radius '..(oBP.Intel.RadarRadius or 0)..' vs iIntelRange='..iIntelRange..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
                             if (oBP.Intel.RadarRadius or 0) < math.max(1, iIntelRange) and (oBP.Intel.OmniRadius or 0) < math.max(1, iOmniRange) then
-                                if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                                if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and (not(oUnit:IsUnitState('Upgrading')) or (M28UnitInfo.GetUnitTechLevel(oRadar) >= 3 and EntityCategoryContains(categories.TECH1, oUnit.UnitId))) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to list of units to kill on completeion') end
                                     table.insert(tUnitsToKill, oUnit)
                                 end
                             end

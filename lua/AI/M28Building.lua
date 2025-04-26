@@ -5811,7 +5811,13 @@ function ConsiderUpgradingT2Radar(oRadar)
         local aiBrain = oRadar:GetAIBrain()
         local iTeam = aiBrain.M28Team
         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oRadar:GetPosition(), true, iTeam)
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering for oRadar='..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..aiBrain.Nickname..' at time='..GetGameTimeSeconds()..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Dist to friendly base='..M28Utilities.GetDistanceBetweenPositions(oRadar:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])..'; LZMexCount='..(tLZData[M28Map.subrefLZMexCount] or 'nil')) end
+        if bDebugMessages == true then
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftClosestFriendlyBase]) == false then
+                LOG(sFunctionRef..': Considering for oRadar='..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..aiBrain.Nickname..' at time='..GetGameTimeSeconds()..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Dist to friendly base='..M28Utilities.GetDistanceBetweenPositions(oRadar:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])..'; LZMexCount='..(tLZData[M28Map.subrefLZMexCount] or 'nil'))
+            else
+                LOG(sFunctionRef..': Dont have a valid closest friendly base')
+            end
+        end
         if tLZTeamData[M28Map.refiModDistancePercent] >= 0.15 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and tLZTeamData[M28Map.refiModDistancePercent] <= 0.45 and M28Utilities.GetDistanceBetweenPositions(oRadar:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) >= 200 and (tLZData[M28Map.subrefLZMexCount] or 0) > 0 then
             --Are we close to map edge?
             local iX = oRadar:GetPosition()[1]
@@ -5828,37 +5834,45 @@ function ConsiderUpgradingT2Radar(oRadar)
                 if sUpgradeID and oRadar:CanBuild(sUpgradeID) then
                     local iSecondsToWait = 30
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    WaitSeconds(iSecondsToWait)
+
+                    WaitSeconds(iSecondsToWait * 2)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     while M28UnitInfo.IsUnitValid(oRadar) do
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        WaitSeconds(iSecondsToWait)
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                        --Do we have the eco to support an omni outside of our core base?
-                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to upgrade t2 radar '..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..oRadar:GetAIBrain().Nickname..' to omni radar, T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Enemy combat in zone='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Enemy air to ground='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil')..'; subrefiOurBomberThreat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]..'; our gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]) end
-                        if tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1500 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] == 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= 25000 or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 35000) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or false)) end
-                            if not(M28Conditions.HaveLowPower(iTeam)) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
-                                --Upgrade unless already upgrading a t3 radar
-                                if bDebugMessages == true then
-                                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther]) then LOG(sFunctionRef..': No other upgrades active on team')
-                                    else
-                                        LOG(sFunctionRef..': Is table of T2+ radar getting upgrade empty on team='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryRadar - categories.TECH1, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther]))))
-                                    end
+                        --Abort if we now have good radar coverage
+                        if tLZTeamData[M28Map.refiRadarCoverage] > M28UnitInfo.iT2RadarSize + 80 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Radar coverage good enough that we dont need omni, tLZTeamData[M28Map.refiRadarCoverage]='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')) end
+                            break
+                        else
+                            --Do we have the eco to support an omni outside of our core base?
+                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to upgrade t2 radar '..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..oRadar:GetAIBrain().Nickname..' to omni radar, T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Enemy combat in zone='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Enemy air to ground='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil')..'; subrefiOurBomberThreat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]..'; our gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; Time='..GetGameTimeSeconds()) end
+                            if tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1500 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] == 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= 25000 or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 35000) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or false)) end
+                                if not(M28Conditions.HaveLowPower(iTeam)) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+                                    --Upgrade unless already upgrading a t3 radar
+                                    if bDebugMessages == true then
+                                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther]) then LOG(sFunctionRef..': No other upgrades active on team')
+                                        else
+                                            LOG(sFunctionRef..': Is table of T2+ radar getting upgrade empty on team='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryRadar - categories.TECH1, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther]))))
+                                        end
 
-                                end
-                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryRadar - categories.TECH1, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther])) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try upgrading t2 radar to omni') end
-                                    M28Economy.UpgradeUnit(oRadar, true)
-                                    break
+                                    end
+                                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryRadar - categories.TECH1, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther])) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will try upgrading t2 radar to omni') end
+                                        M28Economy.UpgradeUnit(oRadar, true)
+                                        break
+                                    else
+                                        iSecondsToWait = 5
+                                    end
                                 else
-                                    iSecondsToWait = 5
+                                    iSecondsToWait = 30
                                 end
                             else
-                                iSecondsToWait = 5
+                                iSecondsToWait = 30
                             end
-                        else
-                            iSecondsToWait = 30
+
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            WaitSeconds(iSecondsToWait)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                         end
                     end
                 end

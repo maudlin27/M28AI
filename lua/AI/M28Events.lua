@@ -2127,7 +2127,7 @@ function OnConstructed(oEngineer, oJustBuilt)
             M28Orders.ClearAnyRepairingUnits(oJustBuilt)
             if M28Utilities.IsTableEmpty(oJustBuilt[M28Land.reftoUnitsToKillOnCompletion]) == false then
                 for iUnit, oUnit in oJustBuilt[M28Land.reftoUnitsToKillOnCompletion] do
-                    if M28UnitInfo.IsUnitValid(oUnit) and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                    if M28UnitInfo.IsUnitValid(oUnit) and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit:IsUnitState('Upgrading')) then
                         M28Orders.IssueTrackedKillUnit(oUnit)
                     end
                 end
