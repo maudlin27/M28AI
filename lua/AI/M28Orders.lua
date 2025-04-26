@@ -828,7 +828,10 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Start of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds())
+            if sUpgradeRef == 'AdvancedProduction' then LOG(sFunctionRef..': Getting advanced production, do we have ImprovedProduction='..tostring(oUnit:HasEnhancement('ImprovedProduction'))..'; do we have AdvancedProduction='..tostring(oUnit:HasEnhancement('AdvancedProduction'))..'; reftPreferredUpgrades='..repru(oUnit[import('/mods/M28AI/lua/AI/M28ACU.lua').reftPreferredUpgrades])) end
+        end
         UpdateRecordedOrders(oUnit)
         --Issue order if we arent already trying to attack them
         local tLastOrder

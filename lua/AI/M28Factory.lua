@@ -1083,14 +1083,16 @@ function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
                 local tsEnhancementsThatDontHave = {}
                 local tsEnhancementsThatDoHave = {}
                 local sEnhancementWanted
+                local tEnhancements = oFactory:GetBlueprint().Enhancements
                 for iEnhancementWanted = table.getn(oFactory[reftsFactoryEnhancementPreferences]), 1, -1 do
                     sEnhancementWanted = oFactory[reftsFactoryEnhancementPreferences][iEnhancementWanted]
                     if oFactory:HasEnhancement(sEnhancementWanted) then
                         table.insert(tsEnhancementsThatDoHave, sEnhancementWanted)
                         --Remove from oFactory[reftsFactoryEnhancementPreferences] so in future we dont try and get this (redundancy)
                         table.remove(oFactory[reftsFactoryEnhancementPreferences], iEnhancementWanted)
-                    else
+                    elseif not(tEnhancements[sEnhancementWanted].Prerequisite) or oFactory:HasEnhancement(tEnhancements[sEnhancementWanted].Prerequisite) then
                         table.insert(tsEnhancementsThatDontHave, sEnhancementWanted)
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': We want enhancement '..sEnhancementWanted..' but lack the prerequisite '..tEnhancements[sEnhancementWanted].Prerequisite)
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': tsEnhancementsThatDontHave='..repru(tsEnhancementsThatDontHave)..'; tsEnhancementsThatDoHave='..repru(tsEnhancementsThatDoHave)) end
@@ -1127,8 +1129,10 @@ function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
                             --No more enhancements to get
                             oFactory[reftsFactoryEnhancementPreferences] = false
                         else
-                            --Get the first one remaining
-                            sEnhancementToGet = tsEnhancementsThatDontHave[1]
+                            --Get the last one (which will have been the first that we recorded)
+                            for _, sEnhancement in tsEnhancementsThatDontHave do
+                                sEnhancementToGet = sEnhancement
+                            end
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished considering what enhancements to get, sEnhancementToGet='..(sEnhancementToGet or 'nil')) end
