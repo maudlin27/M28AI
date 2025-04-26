@@ -2127,7 +2127,7 @@ function OnConstructed(oEngineer, oJustBuilt)
             M28Orders.ClearAnyRepairingUnits(oJustBuilt)
             if M28Utilities.IsTableEmpty(oJustBuilt[M28Land.reftoUnitsToKillOnCompletion]) == false then
                 for iUnit, oUnit in oJustBuilt[M28Land.reftoUnitsToKillOnCompletion] do
-                    if M28UnitInfo.IsUnitValid(oUnit) and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                    if M28UnitInfo.IsUnitValid(oUnit) and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit:IsUnitState('Upgrading')) then
                         M28Orders.IssueTrackedKillUnit(oUnit)
                     end
                 end
@@ -2167,6 +2167,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                 --Redundnacy - If we have just built a radar then update radar logic (note that AssignUnitToLandZoneOrPond should already cover this when construction is started)
                 if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oJustBuilt.UnitId) then
                     ForkThread(M28Land.UpdateZoneIntelForRadar, oJustBuilt)
+                    if EntityCategoryContains(categories.TECH2, oJustBuilt.UnitId) then
+                        ForkThread(M28Building.ConsiderUpgradingT2Radar, oJustBuilt)
+                    end
                 elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oJustBuilt.UnitId) then
                     ForkThread(M28Navy.UpdateZoneIntelForSonar, oJustBuilt)
 
@@ -2869,6 +2872,7 @@ function OnReclaimFinished(oEngineer, oReclaim)
                         if bWantEnergy and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and (M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.5 or oEngineer:GetAIBrain():GetEconomyStored('ENERGY') >= 2000 or oEngineer:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 50) then
                             iMinReclaimValue = 150 --only want a tree group
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Just finished reclaiming, will check for high value reclaim near engi, P'..iPlateau..'Z'..iLandZone..'; iMinReclaimValue='..iMinReclaimValue..'; Dist from engi to LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])..'; Engi pos='..repru(oEngineer:GetPosition())..'; LZ midpoint='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])) end
                         --GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass,                   bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone)
                         M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil,              tLZTeamData,        iPlateau,   iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), true, iMinReclaimValue)--(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or GetGameTimeSeconds() <= 300 or GetUnitLifetimeCount(oEngineer) <= 5 or M28UnitInfo.GetUnitTechLevel(oEngineer) >= 3), iMinReclaimValue)
                     end
@@ -2997,6 +3001,7 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
         if not(EntityCategoryContains(categories.INSIGNIFICANTUNIT, oUnitDetected.UnitId)) then --redundancy, doesnt look like ubnits like cybran build drones cause this to happen
             local aiBrain = ArmyBrains[iBrainIndex]
             M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
+
             if aiBrain.M28AI then
                 if aiBrain.M28Team and not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam][aiBrain.M28Team]) then
                     if not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam]) then oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam] = {} end
@@ -3134,6 +3139,9 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         local iTeam = oUnit:GetAIBrain().M28Team
                         if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
                             M28Land.UpdateZoneIntelForRadar(oUnit)
+                            if EntityCategoryContains(categories.TECH2, oJustBuilt.UnitId) then
+                                ForkThread(M28Building.ConsiderUpgradingT2Radar, oJustBuilt)
+                            end
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
                             M28Navy.UpdateZoneIntelForSonar(oUnit)
                         elseif EntityCategoryContains(categories.EXPERIMENTAL * categories.MASSFABRICATION, oUnit.UnitId) then

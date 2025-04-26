@@ -676,7 +676,7 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
             table.insert(oUnit[M28Engineer.reftUnitsWeAreReclaiming], oOrderTarget)
 
         end
-        if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc..(oOrderTarget.UnitId or '')) end
+        if M28Config.M28ShowUnitNames and sOptionalOrderDesc then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc..(oOrderTarget.UnitId or '')) end
     end
 end
 
@@ -827,7 +827,10 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Start of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds())
+            if sUpgradeRef == 'AdvancedProduction' then LOG(sFunctionRef..': Getting advanced production, do we have ImprovedProduction='..tostring(oUnit:HasEnhancement('ImprovedProduction'))..'; do we have AdvancedProduction='..tostring(oUnit:HasEnhancement('AdvancedProduction'))..'; reftPreferredUpgrades='..repru(oUnit[import('/mods/M28AI/lua/AI/M28ACU.lua').reftPreferredUpgrades])) end
+        end
         UpdateRecordedOrders(oUnit)
         --Issue order if we arent already trying to attack them
         local tLastOrder
@@ -837,7 +840,7 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
             else tLastOrder = oUnit[reftiLastOrders][1]
             end
         end
-        if not(tLastOrder[subrefiOrderType] == refiOrderEnhancement and sUpgradeRef == tLastOrder[subrefsOrderBlueprint]) and not(oUnit:IsUnitState('Upgrading')) then
+        if not(tLastOrder[subrefiOrderType] == refiOrderEnhancement and sUpgradeRef == tLastOrder[subrefsOrderBlueprint]) and not(oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded')) then
             --Do we have an existing enhancement that needs removing before we can get teh upgrade?
             local bApplySpecialMicroFlag = false
             if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiTimeLastIssuedACUEnhancementOrder] = GetGameTimeSeconds() end

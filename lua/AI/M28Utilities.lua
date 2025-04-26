@@ -394,6 +394,7 @@ function DrawRectangle(rRectangle, iOptionalColour, iOptionalTimeInTicks, iOptio
 end
 
 function DrawLocation(tLocation, iOptionalColour, iOptionalTimeInTicks, iOptionalSize)
+    --import('/mods/M28AI/lua/AI/M28Utilities.lua').ErrorHandler('Draw location audit trail', true, true)
     local iRadius = (iOptionalSize or 1) * 0.5
     ForkThread(ForkedDrawRectangle, Rect(tLocation[1] - iRadius, tLocation[3] - iRadius, tLocation[1] + iRadius, tLocation[3] + iRadius), (iOptionalColour or 1), (iOptionalTimeInTicks or 200))
 end

@@ -1030,7 +1030,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                     if bDebugMessages == true then LOG(sFunctionRef..': Looking for enemy to run from for scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..', considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit position='..repru(oUnit:GetPosition())..'; Unit last known position='..repru(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Dist between last known position and scout='..M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition())..'; Actual dist using actual position='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition())..'; Is unit visible='..tostring(M28UnitInfo.CanSeeUnit(oScout:GetAIBrain(), oUnit))..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iRunThreshold='..iRunThreshold..'; Is distance within run threshold='..tostring(M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iRunThreshold)..'; bConsiderAttacking='..tostring(bConsiderAttacking)..'; Unit df range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit build range='..(oUnit:GetBlueprint().Economy.MaxBuildDistance or 'nil')..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
                                     if bConsiderAttacking or (((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) and not(oUnit == oPrevEnemyToRunFrom)) then
                                         bEnemyIsImmobile = false
-                                        if oUnit:IsUnitState('Upgrading') or EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
+                                        if oUnit:IsUnitState('Upgrading') or oUnit:IsUnitState('BeingUpgraded') or EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
                                             bEnemyIsImmobile = true
                                         end
                                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition())
@@ -10794,8 +10794,10 @@ function UpdateZoneIntelForRadar(oRadar)
                                             end
                                         end
                                     end
-                                    table.insert(tPotentiallyObsoleteRadar, tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar])
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Added radar '..tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar])..' to potentially obsolete table') end
+                                    if not(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar]:IsUnitState('Upgrading')) then
+                                        table.insert(tPotentiallyObsoleteRadar, tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar])
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Added radar '..tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar])..' to potentially obsolete table') end
+                                    end
                                 end
                                 tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] = iCurIntelRange
                                 tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar] = oRadar
@@ -10891,9 +10893,10 @@ function UpdateZoneIntelForRadar(oRadar)
                         local tUnitsToKill = {}
                         for iUnit, oUnit in tUniqueList do
                             local oBP = oUnit:GetBlueprint()
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with radar radius '..(oBP.Intel.RadarRadius or 0)..' vs iIntelRange='..iIntelRange) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with radar radius '..(oBP.Intel.RadarRadius or 0)..' vs iIntelRange='..iIntelRange..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
                             if (oBP.Intel.RadarRadius or 0) < math.max(1, iIntelRange) and (oBP.Intel.OmniRadius or 0) < math.max(1, iOmniRange) then
-                                if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                                if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and (not(oUnit:IsUnitState('Upgrading')) or (M28UnitInfo.GetUnitTechLevel(oRadar) >= 3 and EntityCategoryContains(categories.TECH1, oUnit.UnitId))) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to list of units to kill on completeion') end
                                     table.insert(tUnitsToKill, oUnit)
                                 end
                             end
@@ -11006,7 +11009,7 @@ function RecordEnemyFirebase(iTeam, iPlateau, iLandZone)
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
         local iLandLZThreshold = 163
         local iWaterLZThreshold = 200
-        if M28Map.iMapSize >= 1024 then iLandLZThreshold = 190 iWaterLZThreshold = 230 end
+        if M28Map.iMapSize >= 1000 then iLandLZThreshold = 190 iWaterLZThreshold = 230 end
         --Further increase threshold for if this is a large LZ
         local iBaseLZAverageSize = 0.5*((tLZData[M28Map.subrefLZMaxSegX] - tLZData[M28Map.subrefLZMinSegX])*M28Map.iLandZoneSegmentSize + (tLZData[M28Map.subrefLZMaxSegZ] - tLZData[M28Map.subrefLZMinSegZ])*M28Map.iLandZoneSegmentSize)
 
@@ -11131,7 +11134,7 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
                 if bDebugMessages == true then LOG(sFunctionRef..': iConstructedT2Arti='..iConstructedT2Arti..'; iShieldedT2Arti='..iShieldedT2Arti) end
                 if iConstructedT2Arti >= 1 and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or (iConstructedT2Arti >= 2 and iShieldedT2Arti >= 1)) then
                     local iModDistThreshold = 0.5
-                    if M28Map.iMapSize >= 1024 then iModDistThreshold = 0.45
+                    if M28Map.iMapSize >= 1000 then iModDistThreshold = 0.45
                     elseif M28Map.iMapSize >= 512 then iModDistThreshold = 0.55
                     else
                         iModDistThreshold = 0.75

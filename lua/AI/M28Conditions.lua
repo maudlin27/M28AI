@@ -436,6 +436,25 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return false
                             end
+                        elseif iLastOrderType == M28Orders.refiOrderIssueReclaim and oEngineer:IsUnitState('Moving') then
+                            --If engi is in close to the target then reclaim it
+                            if oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition and M28Utilities.GetDistanceBetweenPositions(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition, oEngineer:GetPosition()) <= (oEngineer:GetBlueprint().Economy.MaxBuildDistance or 5) then
+                                --Reissue reclaim order (but treat as unavailable)
+                                M28Orders.IssueTrackedReclaim(oEngineer, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget], false, 'RecInRng', false)
+                            end
+
+                            --Note - have a rare issue where given reclaim order far away in QUIET; however it doesnt show up on the navigator currenttargetpos
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Have been given a reclaim order, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition='..repru(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition)..'; Eng position='..repru(oEngineer:GetPosition()))
+                                if oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition then LOG(sFunctionRef..': Dist to cache position='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition)) end
+                                local oNavigator = oEngineer:GetNavigator()
+                                if oNavigator then
+                                    local tCurNavigatorTarget = oNavigator:GetCurrentTargetPos()
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Dist to tCurNavigatorTarget='..M28Utilities.GetDistanceBetweenPositions(tCurNavigatorTarget, oEngineer:GetPosition())) end
+                                end
+                            end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return false
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..'; Will return false') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1283,7 +1302,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
         else
             tiGrossMassWantedPerFactoryByTech[1] = 0.6
         end
-    elseif M28Map.iMapSize >= 1024 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] < tLZData[M28Map.subrefLZMexCount] then
+    elseif M28Map.iMapSize >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] < tLZData[M28Map.subrefLZMexCount] then
         for iTech, iValue in tiGrossMassWantedPerFactoryByTech do
             if not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.02) or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseHighTech] then
                 iValue = iValue * 2
@@ -1977,7 +1996,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                             else
                                                 iLandFactoriesWantedBeforeAir = 1
                                                 iAirFactoriesForEveryLandFactory = 4
-                                                if M28Map.iMapSize >= 1024 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 then iAirFactoriesForEveryLandFactory = 6 end
+                                                if M28Map.iMapSize >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 then iAirFactoriesForEveryLandFactory = 6 end
                                             end
                                         elseif iEnemyBaseDist >= 350 then
                                             iLandFactoriesWantedBeforeAir = 2
@@ -3002,7 +3021,7 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
 
                 --Want to build more units at a T2 factory if we outtech the enemy, unless dealing with air fac in a safe location
                 if bDebugMessages == true then LOG(sFunctionRef..': T2 factory - build more units if we outtech enemy, unless air fac in safe location, Highest friendly fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Map size='..M28Map.iMapSize..'; Enemy ground tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Enemy air tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]..'; Enemy naval tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech]) end
-                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 2 and M28Map.iMapSize <= 1024 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] > math.max(M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech], M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech]) then
+                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 2 and M28Map.iMapSize <= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] > math.max(M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech], M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech]) then
                     --We outtech enemy and have decent mass and power, so want more factories to make use of our advantage, if enemy base is relatively near
                     if M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestEnemyBase], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= 550 and NavUtils.GetTerrainLabel(tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) == NavUtils.GetTerrainLabel(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) then
                         if not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or (M28Map.iMapSize <= 512 and not(EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId))) then
@@ -4084,4 +4103,18 @@ function GetEnemyMobileCombatThreatAndRangeInCurrentAndAdjacentZones(tLZData, tL
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iEnemyThreat, iEnemyBestRange
+end
+
+function GetEnemyTeamActualMassIncome(iTeam)
+    --Used for ACU logic toget mass of enem yteam to iTeam (so can assess if we are far ahead on eco)
+    local tiMassByTeam = {}
+
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+        tiMassByTeam[oBrain.M28Team] = (tiMassByTeam[oBrain.M28Team] or 0) + oBrain:GetEconomyIncome('MASS')
+    end
+    local iHighestMass = 0
+    for iEnemyTeam, iMass in tiMassByTeam do
+        if iMass > iHighestMass then iHighestMass = iMass end
+    end
+    return iHighestMass
 end

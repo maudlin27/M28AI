@@ -1071,7 +1071,7 @@ function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
             local bHaveExistingUpgrade = false
             if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
                 for iExistingFactory, oExistingFactory in tFactoriesInZone do
-                    if not(oExistingFactory == oFactory) and M28UnitInfo.IsUnitValid(oExistingFactory) and oExistingFactory:GetFractionComplete() == 1 and oExistingFactory:IsUnitState('Upgrading') then
+                    if not(oExistingFactory == oFactory) and M28UnitInfo.IsUnitValid(oExistingFactory) and oExistingFactory:GetFractionComplete() == 1 and (oExistingFactory:IsUnitState('Upgrading') or oExistingFactory:IsUnitState('BeingUpgraded')) then
                         bHaveExistingUpgrade = true
                         break
                     end
@@ -1083,14 +1083,16 @@ function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
                 local tsEnhancementsThatDontHave = {}
                 local tsEnhancementsThatDoHave = {}
                 local sEnhancementWanted
+                local tEnhancements = oFactory:GetBlueprint().Enhancements
                 for iEnhancementWanted = table.getn(oFactory[reftsFactoryEnhancementPreferences]), 1, -1 do
                     sEnhancementWanted = oFactory[reftsFactoryEnhancementPreferences][iEnhancementWanted]
                     if oFactory:HasEnhancement(sEnhancementWanted) then
                         table.insert(tsEnhancementsThatDoHave, sEnhancementWanted)
                         --Remove from oFactory[reftsFactoryEnhancementPreferences] so in future we dont try and get this (redundancy)
                         table.remove(oFactory[reftsFactoryEnhancementPreferences], iEnhancementWanted)
-                    else
+                    elseif not(tEnhancements[sEnhancementWanted].Prerequisite) or oFactory:HasEnhancement(tEnhancements[sEnhancementWanted].Prerequisite) then
                         table.insert(tsEnhancementsThatDontHave, sEnhancementWanted)
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': We want enhancement '..sEnhancementWanted..' but lack the prerequisite '..tEnhancements[sEnhancementWanted].Prerequisite)
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': tsEnhancementsThatDontHave='..repru(tsEnhancementsThatDontHave)..'; tsEnhancementsThatDoHave='..repru(tsEnhancementsThatDoHave)) end
@@ -1127,8 +1129,10 @@ function ConsiderFactoryEnhancement(oFactory, tLZOrWZTeamData)
                             --No more enhancements to get
                             oFactory[reftsFactoryEnhancementPreferences] = false
                         else
-                            --Get the first one remaining
-                            sEnhancementToGet = tsEnhancementsThatDontHave[1]
+                            --Get the last one (which will have been the first that we recorded)
+                            for _, sEnhancement in tsEnhancementsThatDontHave do
+                                sEnhancementToGet = sEnhancement
+                            end
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished considering what enhancements to get, sEnhancementToGet='..(sEnhancementToGet or 'nil')) end
@@ -3781,7 +3785,7 @@ function DelayedCheckIfFactoryBuildingAndRetry(oFactory)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         iWaitCount = iWaitCount + 1
         --Check if factory has been stuck
-        while M28UnitInfo.IsUnitValid(oFactory) and oFactory[refiTotalBuildCount] == iBuildCount and oFactory:GetWorkProgress() == 0 and not(oFactory:IsUnitState('Upgrading')) and not(oFactory:IsUnitState('Building')) do
+        while M28UnitInfo.IsUnitValid(oFactory) and oFactory[refiTotalBuildCount] == iBuildCount and oFactory:GetWorkProgress() == 0 and not(oFactory:IsUnitState('Upgrading')) and not(oFactory:IsUnitState('Building')) and not(oFactory:IsUnitState('BeingUpgraded')) do
             if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iWaitCount='..iWaitCount..'; oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')) end
             if iWaitCount >= 5 then
                 if oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - (oFactory[refiFirstTimeOfLastOrder] or 0) >= 5 then
@@ -3893,7 +3897,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                     break
                 elseif iTicksWaited >= 40 then
                     iTicksToWait = math.min(iTicksToWait + 1, 10)
-                    if iTicksWaited >= 50 and oFactory:GetWorkProgress() == 0 and not(oFactory:IsUnitState('Upgrading')) and not(oFactory[M28UnitInfo.refbPaused]) then
+                    if iTicksWaited >= 50 and oFactory:GetWorkProgress() == 0 and not(oFactory:IsUnitState('Upgrading')) and not(oFactory[M28UnitInfo.refbPaused]) and not(oFactory:IsUnitState('BeingUpgraded')) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Have a facotry stuck at 0 work progress, factory order blueprint='..(oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil')..'; oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')) end
                         if oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] and ((oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oFactory[refiFirstTimeOfLastOrder] >= 5) or (M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()) == false)) then
                             --Naval facs can take longer for units to clear'; v74 - tried adjusting to allow naval facs to wait >200 ticks
@@ -3908,7 +3912,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                 end
             end
             if bProceed then
-                if bClearFactoryWhenReadyToBuild and not(oFactory:IsUnitState('Upgrading')) then M28Orders.IssueTrackedClearCommands(oFactory) end
+                if bClearFactoryWhenReadyToBuild and not(oFactory:IsUnitState('Upgrading')) and not(oFactory:IsUnitState('BeingUpgraded')) then M28Orders.IssueTrackedClearCommands(oFactory) end
                 bDontCheckCutsceneStatus = false
                 --Set factory rally point if havent already
                 if M28Utilities.IsTableEmpty(oFactory[reftFactoryRallyPoint]) then

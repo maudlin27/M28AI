@@ -1678,7 +1678,7 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then tTeamData[iTeam][refiEnemyT3ArtiCount] = 2
                         else tTeamData[iTeam][refiEnemyNovaxCount] = 1
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': have set flag to defend against T3 arti to true for team '..iTeam..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti])) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': have set flag to defend against T3 arti to true for team '..iTeam..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti])..'; tTeamData[iTeam][refiEnemyT3ArtiCount]='..(tTeamData[iTeam][refiEnemyT3ArtiCount] or 'nil')..'; tTeamData[iTeam][refiEnemyNovaxCount]='..(tTeamData[iTeam][refiEnemyNovaxCount] or 'nil')..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owner='..oUnit:GetAIBrain().Nickname..'; iTeam='..iTeam) end
                         --Refresh shielding wanted on existing units
                         local tPotentialUnitsToShield = tTeamData[iTeam][subreftoFriendlyActiveM28Brains][1]:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryFixedShield - categories.TECH1, {0.5*(M28Map.rMapPlayableArea[1] + M28Map.rMapPlayableArea[3]), 0, 0.5*(M28Map.rMapPlayableArea[2] + M28Map.rMapPlayableArea[4])}, 10000, 'Ally')
                         if M28Utilities.IsTableEmpty(tPotentialUnitsToShield) == false then
@@ -1929,71 +1929,78 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
 
                             --If enemy hasnt built omni yet check whether this is omni
                             if not(tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni]) and EntityCategoryContains(M28UnitInfo.refCategoryT3Radar, oUnit.UnitId) and not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
-                            tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni] = true
+                                tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni] = true
                             end
 
 
                             --Track enemy big threats
-                            if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit indirect range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Is unit PD or land combat='..tostring(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD)..'; Unit build cost mass='..oUnit[M28UnitInfo.refiUnitMassCost]) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit indirect range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Is unit PD or land combat='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId))..'; Unit build cost mass='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')) end
                             if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to big threat table, aiBrain='..(aiBrain.Nickname or 'nil')..' team='..(aiBrain.M28Team or 'nil')) end
-                            AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
-                            --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
-                            if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) and EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU, refbDangerousForACUs is now true') end
-                            tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
-                            end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try and add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to big threat table, aiBrain='..(aiBrain.Nickname or 'nil')..' team='..(aiBrain.M28Team or 'nil')) end
+                                AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
+                                --If htis is an experimental level unit and we have human teammates then monitor to send a chat message
+
+                                --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
+                                if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
+                                    if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU, refbDangerousForACUs is now true') end
+                                        tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
+                                    end
+                                    if not(EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId)) then
+                                        ForkThread(M28Chat.SendWarningWhenHaveVisualOnEnemy, aiBrain, oUnit)
+                                    end
+                                end
                             elseif M28Conditions.IsUnitLongRangeThreat(oUnit) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Recording in LR threat table, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; IDF range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Primarily IF='..tostring(((oUnit[M28UnitInfo.refiDFRange] or 0) < 30 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 30))) end
-                            AddUnitToLongRangeThreatTable(oUnit, aiBrain.M28Team, true, ((oUnit[M28UnitInfo.refiDFRange] or 0) < 30 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 30))
+                                if bDebugMessages == true then LOG(sFunctionRef..': Recording in LR threat table, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; IDF range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Primarily IF='..tostring(((oUnit[M28UnitInfo.refiDFRange] or 0) < 30 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 30))) end
+                                AddUnitToLongRangeThreatTable(oUnit, aiBrain.M28Team, true, ((oUnit[M28UnitInfo.refiDFRange] or 0) < 30 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 30))
                             end
 
                             --Add long range enemy T2 arti
                             if oUnit[M28UnitInfo.refiCombatRange] > 100 and EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
-                            RecordEnemyT2ArtiAgainstNearbyZones(aiBrain.M28Team, oUnit)
+                                RecordEnemyT2ArtiAgainstNearbyZones(aiBrain.M28Team, oUnit)
                             end
 
                             --Track potential TML targets and TMD for decision on whether to build TML (TML target selection uses more precise approach
                             if EntityCategoryContains(M28UnitInfo.refCategoryTMD * categories.STRUCTURE, oUnit.UnitId) then
-                            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                            if iPlateauOrZero > 0 and iLandOrWaterZone > 0 then
-                            local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
-                            table.insert(tLZTeamData[M28Map.subreftoEnemyTMD], oUnit)
-                            end
+                                local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                if iPlateauOrZero > 0 and iLandOrWaterZone > 0 then
+                                    local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+                                    table.insert(tLZTeamData[M28Map.subreftoEnemyTMD], oUnit)
+                                end
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryProtectFromTML * categories.STRUCTURE, oUnit.UnitId) then
-                            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                            if iPlateauOrZero > 0 and iLandOrWaterZone > 0 then
-                            local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
-                            if not(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) then tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets] = {} end
-                            table.insert(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets], oUnit)
-                            M28Building.RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, aiBrain.M28Team)
-                            end
+                                local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                if iPlateauOrZero > 0 and iLandOrWaterZone > 0 then
+                                    local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+                                    if not(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) then tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets] = {} end
+                                    table.insert(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets], oUnit)
+                                    M28Building.RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, aiBrain.M28Team)
+                                end
                             end
 
                             --Cloaked units
                             if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
-                            if oUnit:HasEnhancement('CloakingGenerator') then
-                            M28Events.CloakedUnitIdentified(oUnit)
-                            else
-                            local oBP = oUnit:GetBlueprint()
-                            if oBP.Enhancements and oBP.EnhancementPresetAssigned.Enhancements then
-                            for iCurUpgrade, sCurUpgrade in oBP.EnhancementPresetAssigned.Enhancements do
-                            if sCurUpgrade == 'CloakingGenerator' then
-                            M28Events.CloakedUnitIdentified(oUnit)
-                            break
-                            end
-                            end
-                            end
-                            end
+                                if oUnit:HasEnhancement('CloakingGenerator') then
+                                    M28Events.CloakedUnitIdentified(oUnit)
+                                else
+                                    local oBP = oUnit:GetBlueprint()
+                                    if oBP.Enhancements and oBP.EnhancementPresetAssigned.Enhancements then
+                                        for iCurUpgrade, sCurUpgrade in oBP.EnhancementPresetAssigned.Enhancements do
+                                            if sCurUpgrade == 'CloakingGenerator' then
+                                                M28Events.CloakedUnitIdentified(oUnit)
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
                             end
 
                             --best enemy df range
                             local iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
                             if iPlateau then
-                            local iTeam = aiBrain.M28Team
-                            if not(tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau]) then tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau] = {} end
-                            tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau][iPlateau] = math.max((tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau][iPlateau] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0))
-                                end
+                                local iTeam = aiBrain.M28Team
+                                if not(tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau]) then tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau] = {} end
+                                tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau][iPlateau] = math.max((tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau][iPlateau] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0))
+                            end
 
                         else
                             --General - big threats (experimental) - include if dont have spare ACUs

@@ -453,7 +453,9 @@ function SendForkedMessageForSpecialUseOnly(aiBrain, sMessageType, sMessage, iOp
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 iCount = iCount + 1
                 --FA Mission 6 - end up waiting more than 6m, so changed to 400s
-                if iCount >= 400 then M28Utilities.ErrorHandler('Waited '..iCount..' times so wont send chat message '..sMessage)
+                if iCount >= 400 then
+                    if bDebugMessages == true then LOG(sFunctionRef..'; iCount='..iCount..'; setting bAbort to true') end
+                    M28Utilities.ErrorHandler('Waited '..iCount..' times so wont send chat message '..sMessage)
                     bAbort = true
                     break
                 end
@@ -463,15 +465,16 @@ function SendForkedMessageForSpecialUseOnly(aiBrain, sMessageType, sMessage, iOp
             if M28Utilities.IsTableEmpty(tFriendlyACUs) then
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': bWaitUntilHaveACU='..tostring(bWaitUntilHaveACU)..'; bAbort='..tostring(bAbort)) end
 
         if not(bAbort) then
             local iTimeSinceSentSimilarMessage
             if oOptionalOnlyBrainToSendTo then
-                iTimeSinceSentSimilarMessage = GetGameTimeSeconds() - (oOptionalOnlyBrainToSendTo[reftiPersonalMessages][sMessageType] or -100000)
+                iTimeSinceSentSimilarMessage = GetGameTimeSeconds() - (oOptionalOnlyBrainToSendTo[reftiPersonalMessages][sMessageType] or -1000000000)
             elseif bOnlySendToTeam then
-                iTimeSinceSentSimilarMessage = GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages][sMessageType] or -100000)
+                iTimeSinceSentSimilarMessage = GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages][sMessageType] or -1000000000)
             else
-                iTimeSinceSentSimilarMessage = GetGameTimeSeconds() - (tiM28VoiceTauntByType[sMessageType] or -100000000)
+                iTimeSinceSentSimilarMessage = GetGameTimeSeconds() - (tiM28VoiceTauntByType[sMessageType] or -1000000000)
             end
 
             if bDebugMessages == true then LOG(sFunctionRef..': sMessageType='..(sMessageType or 'nil')..'; iOptionalTimeBetweenTaunts='..(iOptionalTimeBetweenMessageType or 'nil')..'; tiM28VoiceTauntByType[sMessageType]='..(tiM28VoiceTauntByType[sMessageType] or 'nil')..'; Cur game time='..GetGameTimeSeconds()..'; iTimeSinceSentSimilarMessage='..iTimeSinceSentSimilarMessage) end
@@ -481,19 +484,22 @@ function SendForkedMessageForSpecialUseOnly(aiBrain, sMessageType, sMessage, iOp
                 if sOptionalSoundCue and GetGameTimeSeconds() - iTimeOfLastAudioMessage <= 4 then
                     bCancelAsAudioLikelyPlaying = true
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': bCancelAsAudioLikelyPlaying='..tostring(bCancelAsAudioLikelyPlaying)) end
                 if not(bCancelAsAudioLikelyPlaying) then
                     if oOptionalOnlyBrainToSendTo then
                         if not(oOptionalOnlyBrainToSendTo[reftiPersonalMessages]) then oOptionalOnlyBrainToSendTo[reftiPersonalMessages] = {} end
                         oOptionalOnlyBrainToSendTo[reftiPersonalMessages][sMessageType] = GetGameTimeSeconds()
                         SUtils.AISendChat(oOptionalOnlyBrainToSendTo:GetArmyIndex(), aiBrain.Nickname, sMessage)
+                        if bDebugMessages == true then LOG(sFunctionRef..': sent private message to brain '..oOptionalOnlyBrainToSendTo.Nickname) end
                     elseif bOnlySendToTeam then
                         SUtils.AISendChat('allies', aiBrain.Nickname, sMessage)
                         if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages]) then M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages] = {} end
                         M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages][sMessageType] = GetGameTimeSeconds()
-                        if bDebugMessages == true then LOG(sFunctionRef..': Sent a team chat message') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Sent a team chat message to allies of '..aiBrain.Nickname) end
                     else
                         SUtils.AISendChat('all', aiBrain.Nickname, sMessage)
                         tiM28VoiceTauntByType[sMessageType] = GetGameTimeSeconds()
+                        if bDebugMessages == true then LOG(sFunctionRef..': sent a team chat message') end
                     end
                     if sOptionalSoundCue and sOptionalSoundBank then
                         local iOptionalTeamArmyIndex
@@ -710,8 +716,8 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
 
             if bLastM28OnTeamToDie then
                 oBrainToSendMessage = oBrainDefeated
-                if bDebugMessages == true then LOG(sFunctionRef..': Campaign map='..tostring(M28Map.bIsCampaignMap)..'; Assigned personality='..oBrainDefeated[refiAssignedPersonality]..'; Resource mod='..oBrainDefeated[M28Economy.refiBrainResourceMultiplier]..'; Build mod='..oBrainDefeated[M28Economy.refiBrainBuildRateMultiplier]..'; Map size='..M28Map.iMapSize..'; bNonAISimModsActive='..tostring(M28Overseer.bNonAISimModsActive)..'; iHumansOnSameTeamAsDefeatedM28='..iHumansOnSameTeamAsDefeatedM28..'; iNonM28AIPresent='..iNonM28AIPresent..'; iHumansOnDifferentTeamToDefeatedBrain='..iHumansOnDifferentTeamToDefeatedBrain..'; iOrigM28BrainCountOnTeam='..iOrigM28BrainCountOnTeam..'; bUnitRestrictionsArePresent='..tostring(M28Overseer.bUnitRestrictionsArePresent)..'; Map and brackman='..tostring(not(M28Map.bIsCampaignMap) and oBrainDefeated[refiAssignedPersonality] == refiBrackman)..'; Modifiers='..tostring(oBrainDefeated[M28Economy.refiBrainResourceMultiplier] >= 1.5 and oBrainDefeated[M28Economy.refiBrainBuildRateMultiplier] >= 1.5)..'; Map size and mod cond='..tostring(M28Map.iMapSize >= 512 and M28Map.iMapSize <= 1024 and M28Overseer.bNonAISimModsActive == false)..'; Brain count conditions='..tostring(iHumansOnSameTeamAsDefeatedM28 == 0 and iNonM28AIPresent == 0 and iHumansOnDifferentTeamToDefeatedBrain <= iOrigM28BrainCountOnTeam)) end
-                if not(M28Map.bIsCampaignMap) and oBrainDefeated[refiAssignedPersonality] == refiBrackman and oBrainDefeated[M28Economy.refiBrainResourceMultiplier] >= 1.5 and oBrainDefeated[M28Economy.refiBrainBuildRateMultiplier] >= 1.5 and M28Map.iMapSize >= 512 and M28Map.iMapSize <= 1024 and M28Overseer.bNonAISimModsActive == false and iHumansOnSameTeamAsDefeatedM28 == 0 and iNonM28AIPresent == 0 and iHumansOnDifferentTeamToDefeatedBrain <= iOrigM28BrainCountOnTeam and not(M28Overseer.bUnitRestrictionsArePresent) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Campaign map='..tostring(M28Map.bIsCampaignMap)..'; Assigned personality='..oBrainDefeated[refiAssignedPersonality]..'; Resource mod='..oBrainDefeated[M28Economy.refiBrainResourceMultiplier]..'; Build mod='..oBrainDefeated[M28Economy.refiBrainBuildRateMultiplier]..'; Map size='..M28Map.iMapSize..'; bNonAISimModsActive='..tostring(M28Overseer.bNonAISimModsActive)..'; iHumansOnSameTeamAsDefeatedM28='..iHumansOnSameTeamAsDefeatedM28..'; iNonM28AIPresent='..iNonM28AIPresent..'; iHumansOnDifferentTeamToDefeatedBrain='..iHumansOnDifferentTeamToDefeatedBrain..'; iOrigM28BrainCountOnTeam='..iOrigM28BrainCountOnTeam..'; bUnitRestrictionsArePresent='..tostring(M28Overseer.bUnitRestrictionsArePresent)..'; Map and brackman='..tostring(not(M28Map.bIsCampaignMap) and oBrainDefeated[refiAssignedPersonality] == refiBrackman)..'; Modifiers='..tostring(oBrainDefeated[M28Economy.refiBrainResourceMultiplier] >= 1.5 and oBrainDefeated[M28Economy.refiBrainBuildRateMultiplier] >= 1.5)..'; Map size and mod cond='..tostring(M28Map.iMapSize >= 512 and M28Map.iMapSize <= 1000 and M28Overseer.bNonAISimModsActive == false)..'; Brain count conditions='..tostring(iHumansOnSameTeamAsDefeatedM28 == 0 and iNonM28AIPresent == 0 and iHumansOnDifferentTeamToDefeatedBrain <= iOrigM28BrainCountOnTeam)) end
+                if not(M28Map.bIsCampaignMap) and oBrainDefeated[refiAssignedPersonality] == refiBrackman and oBrainDefeated[M28Economy.refiBrainResourceMultiplier] >= 1.5 and oBrainDefeated[M28Economy.refiBrainBuildRateMultiplier] >= 1.5 and M28Map.iMapSize >= 512 and M28Map.iMapSize <= 1000 and M28Overseer.bNonAISimModsActive == false and iHumansOnSameTeamAsDefeatedM28 == 0 and iNonM28AIPresent == 0 and iHumansOnDifferentTeamToDefeatedBrain <= iOrigM28BrainCountOnTeam and not(M28Overseer.bUnitRestrictionsArePresent) then
                     AddPotentialMessage(LOC('<LOC X04_M03_260_010>[{i Brackman}]: Hi, this is Jamieson Price, the voice of Dr. Brackman. Your skills are so impressive that you knocked me out of character, and now I have to re-record my VO! Gimme a moment while I dial it back in ... oh yes ... there we go, much better. Much better.'), 'X04_Brackman_M03_05106', 'X04_VO')
                 else
                     AddPotentialMessage( 'Recall damnit, recall!')
@@ -2289,6 +2295,110 @@ function SendMessageAboutTooManyPings(iTeam)
             SendMessage(oBrainToSendMessage, 'TooManyPings'..oBrainToSendMessage.M28Team, tsPotentialTeamMessages[iRand], 3, 600, true, M28Map.bIsCampaignMap, tsTeamCueIndex[iRand], tsTeamBankIndex[iRand])
         end
 
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function SendMessagePing(tLocation, iBrainIndex, sMessage)
+    local data = {
+        Owner = iBrainIndex - 1,
+        Location = tLocation,
+        Name = sMessage,
+        Color = 'fffafa00', --For some reason this is missing from BasePingData, my guess is it gets added in based on player colour
+    }
+    --Below per import("/lua/simping.lua").PingTypes[data.Type]
+    local tBasePingData = {Type = 'Marker', Lifetime = 5, Ring = '/game/marker/ring_yellow02-blur.dds', ArrowColor = 'yellow', Sound = 'UI_Main_IG_Click', Marker = true}
+    data = table.merged(data, tBasePingData)
+    import("/lua/simping.lua").SpawnPing(data)
+end
+
+
+function SendWarningWhenHaveVisualOnEnemy(aiBrain, oUnit)
+    local sFunctionRef = 'SendWarningWhenHaveVisualOnEnemy'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --Once have visual on enemy unit want to warn teammates
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        local iTeam = aiBrain.M28Team
+        local bHaveHumanOrOtherAIOnTeam = false
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; aiBrain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()) end
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                if not(oBrain.M28AI) or oBrain.BrainType == 'Human' then
+                    bHaveHumanOrOtherAIOnTeam = true
+                    break
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bHaveHumanOrOtherAIOnTeam='..tostring(bHaveHumanOrOtherAIOnTeam)..'; ScenarioInfo.Options.M28Teammate='..(ScenarioInfo.Options.M28Teammate or 'nil')) end
+        local sMessageCode = 'OnVis'..iTeam..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)
+        local tsPotentialNames = {}
+        if EntityCategoryContains(M28UnitInfo.refCategorySML - categories.MOBILE - categories.EXPERIMENTAL, oUnit.UnitId) then
+            table.insert(tsPotentialNames, 'Nuke')
+            table.insert(tsPotentialNames, 'Nuke launcher')
+            table.insert(tsPotentialNames, 'sml')
+            table.insert(tsPotentialNames, 'Get SMD!')
+        elseif oUnit.UnitId == 'ual0401' then
+            table.insert(tsPotentialNames, 'GC')
+            table.insert(tsPotentialNames, LOC(oUnit:GetBlueprint().General.UnitName))
+        elseif oUnit.UnitId == 'url0402' then
+            table.insert(tsPotentialNames, 'Monkey')
+            table.insert(tsPotentialNames, LOC(oUnit:GetBlueprint().General.UnitName))
+        elseif oUnit.UnitId == 'xsl0401' then
+            table.insert(tsPotentialNames, 'Chicken')
+            table.insert(tsPotentialNames, LOC(oUnit:GetBlueprint().General.UnitName))
+        elseif oUnit.UnitId == 'xrl0403' then
+            table.insert(tsPotentialNames, 'Mega')
+            table.insert(tsPotentialNames, LOC(oUnit:GetBlueprint().General.UnitName))
+        elseif oUnit.UnitId == 'uel0401' then
+            table.insert(tsPotentialNames, 'Fatty')
+            table.insert(tsPotentialNames, LOC(oUnit:GetBlueprint().General.UnitName))
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
+            table.insert(tsPotentialNames, 'T3 arti')
+            table.insert(tsPotentialNames, 'Arti')
+        else
+            table.insert(tsPotentialNames, LOC(oUnit:GetBlueprint().General.UnitName))
+        end
+
+        local sUnitName = tsPotentialNames[math.random(1, table.getn(tsPotentialNames))]
+
+        if bHaveHumanOrOtherAIOnTeam and ScenarioInfo.Options.M28Teammate == 1 then
+            local fnSendMessage = function()
+            --SendMessage(aiBrain, sMessageCode, 'Enemy '..sUnitName.. ' detected', 0, 1000000, true, true, nil, nil, nil)
+            SendMessagePing(oUnit:GetPosition(), aiBrain:GetArmyIndex(), sUnitName)
+            end
+            if M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Can already see unit so will send message now') end
+                    fnSendMessage()
+                else
+                --If want to ahve trigger based on visual then could use the below; however decided to ignore this approach as want a trigger when the unit fires its weapon
+                --[[local TriggerFile = import("/lua/scenariotriggers.lua")
+                if bDebugMessages == true then LOG(sFunctionRef..': Creating army intel trigger') end
+
+                --Code documnentation on one of the functions tried:
+                --CreateArmyIntelTrigger(callback, aiBrain, reconType, blip, value, category, onceOnly, targetAIBrain)
+
+                --Example of usage from coop (are a couple of others similar to this):
+                --OumEoshiTM:AddIntelCategoryTaunt('X04_M03_057', ArmyBrains[Player1], ArmyBrains[Seraphim], categories.xsl0401, 1)
+                --AddIntelCategoryTaunt = function(self, diagData, lookingBrain, targetBrain, category)
+                    --local currNum, callback = self:TauntBasics(diagData)
+                    --TriggerFile.CreateArmyIntelTrigger(callback, lookingBrain, 'LOSNow', false, true, category, true, targetBrain)
+
+                --Example of code attempted:
+                TriggerFile.CreateArmyIntelTrigger(fnSendMessage, aiBrain, 'LOSNow', false, true, categories[oUnit.UnitId], true, oUnit:GetAIBrain())
+                --]]
+
+
+                while M28UnitInfo.IsUnitValid(oUnit) do
+                    if M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true) or oUnit[M28UnitInfo.refiLastWeaponEvent] then
+                        --Send warning/marker
+                        fnSendMessage()
+                        break
+                    end
+                    WaitSeconds(2)
+                end
+            end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

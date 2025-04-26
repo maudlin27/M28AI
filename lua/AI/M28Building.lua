@@ -4231,46 +4231,58 @@ function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
     local sFunctionRef = 'ConsiderGiftingPowerToTeammateForAdjacency'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local aiBrain = oUnit:GetAIBrain()
-    local iTeam = aiBrain.M28Team
-    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
-        local iPotentialAdjacencyCategories = M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryStructure * categories.TECH3
+    --Wait 1s, and then check if unit is upgrading and is still valid, as otherwise can have issues
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitSeconds(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then
+        if M28UnitInfo.IsUnitValid(oUnit) then
+            LOG(sFunctionRef..': Valid unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit))
+        else LOG(sFunctionRef..': Unit is no longer valid, unit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'))
+        end
+    end
+    if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded')) then
+        local aiBrain = oUnit:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+            local iPotentialAdjacencyCategories = M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryStructure * categories.TECH3
 
-        if EntityCategoryContains(M28UnitInfo.refCategoryT3Power, oUnit.UnitId) then
-            --Are we adjacent to any air factories, omni, nuke launchers, t3 arti, owned by another teammate, and have no adjacency of such units on our own?
+            if EntityCategoryContains(M28UnitInfo.refCategoryT3Power, oUnit.UnitId) then
+                --Are we adjacent to any air factories, omni, nuke launchers, t3 arti, owned by another teammate, and have no adjacency of such units on our own?
 
-            if bDebugMessages == true then LOG(sFunctionRef..': is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oUnit.AdjacentUnits))) end
-            if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iPotentialAdjacencyCategories, oUnit.AdjacentUnits)) then
-                --We have no existing adjacency
-                local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iPotentialAdjacencyCategories, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
-                if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
-                    for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
-                        if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam and (oNearbyUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
-                            if AreUnitsAdjacent(oUnit, oNearbyUnit) then
-                                --Gift to other brain
-                                M28Team.TransferUnitsToPlayer({oUnit}, oNearbyUnit:GetAIBrain():GetArmyIndex(), false)
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-        else
-            local iSpecificAdjacencyCategories = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar
-            if EntityCategoryContains(iSpecificAdjacencyCategories, oUnit.UnitId) then
                 if bDebugMessages == true then LOG(sFunctionRef..': is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oUnit.AdjacentUnits))) end
-                if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT3Power, oUnit.AdjacentUnits)) then
+                if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iPotentialAdjacencyCategories, oUnit.AdjacentUnits)) then
                     --We have no existing adjacency
-                    local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT3Power, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
+                    local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iPotentialAdjacencyCategories, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
                     if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
                         for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
                             if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam and (oNearbyUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
                                 if AreUnitsAdjacent(oUnit, oNearbyUnit) then
-                                    --Gift nearby t3 power to this unit's brain owner
-                                    M28Team.TransferUnitsToPlayer({oNearbyUnit}, oUnit:GetAIBrain():GetArmyIndex(), false)
+                                    --Gift to other brain
+                                    M28Team.TransferUnitsToPlayer({oUnit}, oNearbyUnit:GetAIBrain():GetArmyIndex(), false)
                                     break
+                                end
+                            end
+                        end
+                    end
+                end
+            else
+                local iSpecificAdjacencyCategories = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar
+                if EntityCategoryContains(iSpecificAdjacencyCategories, oUnit.UnitId) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oUnit.AdjacentUnits))) end
+                    if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT3Power, oUnit.AdjacentUnits)) then
+                        --We have no existing adjacency
+                        local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT3Power, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
+                        if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
+                            for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
+                                if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam and (oNearbyUnit:GetAIBrain().M28AI or ScenarioInfo.Options.M28Teammate == 1) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
+                                    if AreUnitsAdjacent(oUnit, oNearbyUnit) then
+                                        --Gift nearby t3 power to this unit's brain owner
+                                        M28Team.TransferUnitsToPlayer({oNearbyUnit}, oUnit:GetAIBrain():GetArmyIndex(), false)
+                                        break
+                                    end
                                 end
                             end
                         end
@@ -5782,6 +5794,87 @@ function ConsiderGiftingMassStorageToNearbyMexOwner(oJustBuilt)
             if not(bHaveMexWeOwnNearby) and oBrainToTransferToIfWeOwnNoMexes then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player who owns the mex already there') end
                 M28Team.TransferUnitsToPlayer({oJustBuilt}, oBrainToTransferToIfWeOwnNoMexes:GetArmyIndex(), false)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderUpgradingT2Radar(oRadar)
+    --Consider getting omni in minor zones (as an upgrade of existing T2 radar), provided not close to the map edge, and still on our side of the map
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderUpgradingT2Radar'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start, is oRadar valid='..tostring(M28UnitInfo.IsUnitValid(oRadar))..'; Map size='..M28Map.iMapSize) end
+    if M28UnitInfo.IsUnitValid(oRadar) and M28Map.iMapSize >= 800 then
+        local aiBrain = oRadar:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oRadar:GetPosition(), true, iTeam)
+        if bDebugMessages == true then
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftClosestFriendlyBase]) == false then
+                LOG(sFunctionRef..': Considering for oRadar='..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..aiBrain.Nickname..' at time='..GetGameTimeSeconds()..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Dist to friendly base='..M28Utilities.GetDistanceBetweenPositions(oRadar:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])..'; LZMexCount='..(tLZData[M28Map.subrefLZMexCount] or 'nil'))
+            else
+                LOG(sFunctionRef..': Dont have a valid closest friendly base')
+            end
+        end
+        if tLZTeamData[M28Map.refiModDistancePercent] >= 0.15 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and tLZTeamData[M28Map.refiModDistancePercent] <= 0.45 and M28Utilities.GetDistanceBetweenPositions(oRadar:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) >= 200 and (tLZData[M28Map.subrefLZMexCount] or 0) > 0 then
+            --Are we close to map edge?
+            local iX = oRadar:GetPosition()[1]
+            local iZ = oRadar:GetPosition()[3]
+            local iMinDistFromMapEdge = 100
+            if bDebugMessages == true then LOG(sFunctionRef..': iX='..iX..'; iZ='..iZ) end
+            if iX >= iMinDistFromMapEdge and iZ >= iMinDistFromMapEdge and iX <= M28Map.iMapSize - iMinDistFromMapEdge and iZ <= M28Map.iMapSize - iMinDistFromMapEdge then
+                local sUpgradeID = M28UnitInfo.GetUnitUpgradeBlueprint(oRadar, true)
+                if bDebugMessages == true then
+                    if sUpgradeID then LOG(sFunctionRef..': sUpgradeID='..(sUpgradeID or 'nil')..'; canbuild='..tostring(oRadar:CanBuild(sUpgradeID)))
+                    else LOG(sFunctionRef..': No valid upgrade ID')
+                    end
+                end
+                if sUpgradeID and oRadar:CanBuild(sUpgradeID) then
+                    local iSecondsToWait = 30
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
+                    WaitSeconds(iSecondsToWait * 2)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    while M28UnitInfo.IsUnitValid(oRadar) do
+                        --Abort if we now have good radar coverage
+                        if tLZTeamData[M28Map.refiRadarCoverage] > M28UnitInfo.iT2RadarSize + 80 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Radar coverage good enough that we dont need omni, tLZTeamData[M28Map.refiRadarCoverage]='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')) end
+                            break
+                        else
+                            --Do we have the eco to support an omni outside of our core base?
+                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to upgrade t2 radar '..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..oRadar:GetAIBrain().Nickname..' to omni radar, T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Enemy combat in zone='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Enemy air to ground='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil')..'; subrefiOurBomberThreat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]..'; our gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; Time='..GetGameTimeSeconds()) end
+                            if tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1500 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] == 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= 25000 or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 35000) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or false)) end
+                                if not(M28Conditions.HaveLowPower(iTeam)) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+                                    --Upgrade unless already upgrading a t3 radar
+                                    if bDebugMessages == true then
+                                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther]) then LOG(sFunctionRef..': No other upgrades active on team')
+                                        else
+                                            LOG(sFunctionRef..': Is table of T2+ radar getting upgrade empty on team='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryRadar - categories.TECH1, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther]))))
+                                        end
+
+                                    end
+                                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryRadar - categories.TECH1, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingOther])) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will try upgrading t2 radar to omni') end
+                                        M28Economy.UpgradeUnit(oRadar, true)
+                                        break
+                                    else
+                                        iSecondsToWait = 5
+                                    end
+                                else
+                                    iSecondsToWait = 30
+                                end
+                            else
+                                iSecondsToWait = 30
+                            end
+
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            WaitSeconds(iSecondsToWait)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        end
+                    end
+                end
             end
         end
     end
