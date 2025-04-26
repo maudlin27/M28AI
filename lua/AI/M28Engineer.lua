@@ -5896,8 +5896,10 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                     else
                         M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclLZSeg')
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will send order to get reclaim at position '..repru(oNearestReclaim.CachePosition)..'; will draw a box around here; oNearestReclaim ID='..(oNearestReclaim.UnitId or 'nil')..'; mass value='..(oNearestReclaim.MaxMassReclaim or 'nil')..'; Dist to engi='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oNearestReclaim.CachePosition)..'; Engi cur position='..repru(oEngineer:GetPosition())) end
-                    if M28Utilities.IsTableEmpty(oNearestReclaim.CachePosition) == false then M28Utilities.DrawLocation(oNearestReclaim.CachePosition) end
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Will send order to get reclaim at position '..repru(oNearestReclaim.CachePosition)..'; will draw a box around here; oNearestReclaim ID='..(oNearestReclaim.UnitId or 'nil')..'; mass value='..(oNearestReclaim.MaxMassReclaim or 'nil')..'; Dist to engi='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oNearestReclaim.CachePosition)..'; Engi cur position='..repru(oEngineer:GetPosition()))
+                        if M28Utilities.IsTableEmpty(oNearestReclaim.CachePosition) == false then M28Utilities.DrawLocation(oNearestReclaim.CachePosition) end
+                    end
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have any reclaim of sufficient value; iMinReclaimIndividualValue='..iMinReclaimIndividualValue) end
                 end
