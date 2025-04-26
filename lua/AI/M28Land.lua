@@ -10893,7 +10893,6 @@ function UpdateZoneIntelForRadar(oRadar)
                         local tUnitsToKill = {}
                         for iUnit, oUnit in tUniqueList do
                             local oBP = oUnit:GetBlueprint()
-                            bDebugMessages = true
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with radar radius '..(oBP.Intel.RadarRadius or 0)..' vs iIntelRange='..iIntelRange..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
                             if (oBP.Intel.RadarRadius or 0) < math.max(1, iIntelRange) and (oBP.Intel.OmniRadius or 0) < math.max(1, iOmniRange) then
                                 if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and (not(oUnit:IsUnitState('Upgrading')) or (M28UnitInfo.GetUnitTechLevel(oRadar) >= 3 and EntityCategoryContains(categories.TECH1, oUnit.UnitId))) then

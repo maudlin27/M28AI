@@ -4128,7 +4128,6 @@ function GetCurrentUnitsOfCategory(iM28Team, iCategory)
 end
 
 function TransferUnitsToPlayer(tUnits, iArmyIndex, bCaptured)
-    if tUnits[1].UnitId == 'ueb1303' or tUnits[1].UnitId == 'ueb1306' then LOG('TEMPCODE Transfer units to iArmyIndex='..iArmyIndex..'; first unit='..tUnits[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[1])..' owned by '..tUnits[1]:GetAIBrain().Nickname) M28Utilities.ErrorHandler('Audit trail xfer') end
     if M28Orders.bDontConsiderCombinedArmy then
         import('/lua/SimUtils.lua').TransferUnitsOwnership(tUnits, iArmyIndex, bCaptured)
     else

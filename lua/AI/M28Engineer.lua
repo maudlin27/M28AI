@@ -16764,7 +16764,6 @@ end--]]
     end
 
     --Get PD and SAM if have built an omni here
-    if GetGameTimeSeconds() >= 57*60 and iLandZone == 17 and iPlateau == 22 then bDebugMessages = true end
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to build pd to protect omni in minor zone, tLZTeamData[M28Map.subrefLZSValue]='..tLZTeamData[M28Map.subrefLZSValue]..'; tLZTeamData[M28Map.refoBestRadar]='..(tLZTeamData[M28Map.refoBestRadar].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.refoBestRadar]) or 'nil')..' assigned to P'..(tLZTeamData[M28Map.refoBestRadar][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 'nil')..'Z'..(tLZTeamData[M28Map.refoBestRadar][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')..'; tLZTeamData[M28Map.refiRadarCoverage]='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')..'; T2 radar normal coverage='..(M28UnitInfo.iT2RadarSize or 'nil')..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or false)) end
     if tLZTeamData[M28Map.subrefLZSValue] >= 3000 and tLZTeamData[M28Map.refoBestRadar][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone and tLZTeamData[M28Map.refoBestRadar][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau and tLZTeamData[M28Map.refiRadarCoverage] > M28UnitInfo.iT2RadarSize and not(bHaveLowPower) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and (tLZTeamData[M28Map.refoBestRadar]:GetFractionComplete() >= 0.6 or not(bHaveLowMass)) then
@@ -16778,7 +16777,6 @@ end--]]
                 if iThreat > 0 and iRange >= 50 then bHaveLRPDThreat = true end
             end
         end
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if want PD or AA to support omni in minor zone, iExistingStructureThreat='..iExistingStructureThreat..'; tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]) end
         if not(bHaveLRPDThreat) or iExistingStructureThreat <= 900 then
             local tBuildLocation = M28Utilities.MoveInDirection(tLZTeamData[M28Map.refoBestRadar]:GetPosition(), M28Utilities.GetAngleFromAToB(tLZTeamData[M28Map.refoBestRadar]:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]), 5, true)
@@ -16788,7 +16786,6 @@ end--]]
             HaveActionToAssign(refActionBuildAA, 2, iBPWanted)
         end
     end
-    bDebugMessages = false
 
     UpdateSpareEngineerNumber(tLZTeamData, toAvailableEngineersByTech)
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider spare engi actions at time='..GetGameTimeSeconds()..', iHighestTechEngiAvailable='..iHighestTechEngiAvailable) end

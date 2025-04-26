@@ -4233,7 +4233,7 @@ function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
 
     --Wait 1s, and then check if unit is upgrading and is still valid, as otherwise can have issues
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    if true and GetGameTimeSeconds() >= 58*60 then WaitSeconds(1) end
+    WaitSeconds(1)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then
         if M28UnitInfo.IsUnitValid(oUnit) then
@@ -4241,8 +4241,7 @@ function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
         else LOG(sFunctionRef..': Unit is no longer valid, unit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'))
         end
     end
-    if true and GetGameTimeSeconds() < 58*60 or (M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded'))) then
-
+    if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded')) then
         local aiBrain = oUnit:GetAIBrain()
         local iTeam = aiBrain.M28Team
         if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
@@ -5803,7 +5802,7 @@ end
 
 function ConsiderUpgradingT2Radar(oRadar)
     --Consider getting omni in minor zones (as an upgrade of existing T2 radar), provided not close to the map edge, and still on our side of the map
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderUpgradingT2Radar'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start, is oRadar valid='..tostring(M28UnitInfo.IsUnitValid(oRadar))..'; Map size='..M28Map.iMapSize) end
