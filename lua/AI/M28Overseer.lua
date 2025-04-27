@@ -504,6 +504,7 @@ function M28BrainCreated(aiBrain)
         if not(tonumber(ScenarioInfo.Options.M28Aggression or '1.0') == 1) then
             M28UnitInfo.iThreatFactor = tonumber(ScenarioInfo.Options.M28Aggression or '1.0')
             M28UnitInfo.bCustomThreatFactor = true
+            M28Utilities.ErrorHandler('M28 is using a custom aggression factor of '..M28UnitInfo.iThreatFactor, true)
         end
     end
     LOG('Calling overseer manager via a fork')
