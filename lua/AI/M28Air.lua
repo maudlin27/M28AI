@@ -2960,7 +2960,6 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam, iAirSubteam, 
         end
         for iEntry, iDist in M28Utilities.SortTableByValue(tiDistPerTarget, false) do
             local oEnemyUnit = tEnemyTargets[iEntry]
-            if oEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit) == 'uea030331' then M28Utilities.ErrorHandler('Audit trail attacking asf', true, true) end
             iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oEnemyUnit }, true, true, false, true, true, true)
             --Increase threat to assign to AA units
             if EntityCategoryContains(M28UnitInfo.refCategoryAntiAir + categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
@@ -3364,7 +3363,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 54*60 then bDebugMessages = true end
+
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; iAirSubteam='..iAirSubteam..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])) end
