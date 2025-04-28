@@ -72,6 +72,7 @@ iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to conside
     refbBomberUsingMexHunterLogic = 'M28BmMx' --true if bomber is being given special orders for attacking enemy mexes (e.g. for first strat)
     refiExpBomberShotCount = 'M28ExpBCn' --If using our aoe to ground fire mobile AA targets, then we should track the exp bomber target, and then increase this count by 1 so we dont continue to try if the unit survived the first attempt
     refbExpBomberRecentlyTriedFiringAtRange = 'M28ExpBFnR' --true if bomber has tried to fire at range instead of turning around
+    refiProjectileHealthOverridePercent = 'M28PjHRn' --% health to run on - if want to override the global value (e.g. for t1-t2 gunships)
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -839,7 +840,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
             iLowHealthThreshold = 0
         end
     end
-    if bLowHealthThresholdDueToSnipeTarget or (GetGameTimeSeconds() <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1) then
+    if bLowHealthThresholdDueToSnipeTarget or (GetGameTimeSeconds() <= 300 and iLowHealthThreshold > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1) then
         iLowFuelThreshold = math.min(iLowFuelThreshold, 0.05)
         iLowHealthThreshold = math.min(iLowHealthThreshold, 0.1)
     end
@@ -903,7 +904,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                     M28Orders.IssueTrackedClearCommands(oUnit)
                                 end
                                 table.insert(tInUseUnits, oUnit)
-                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId)) or oUnit:GetFuelRatio() <= iLowFuelThreshold + 0.25 or not(M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget])) or M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 150 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold + 0.1 or oUnit[M28UnitInfo.refbProjectilesMeanShouldRefuel]) then
+                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId)) or oUnit:GetFuelRatio() <= iLowFuelThreshold + 0.25 or not(M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget])) or M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 150 or oUnit[refiProjectileHealthOverridePercent] or M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold + 0.1 or (oUnit[refiProjectileHealthOverridePercent] and iLowHealthThreshold < oUnit[refiProjectileHealthOverridePercent] and M28UnitInfo.GetUnitHealthPercent(oUnit) <= oUnit[refiProjectileHealthOverridePercent] + 0.1)) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Unit is already on its way to refuel so will treat as being in use, unit health percent='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Unit fuel percent='..oUnit:GetFuelRatio()..'; Dist to refuel target='..M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition())) end
                                 --Unit on its way to refuel
                                 table.insert(tInUseUnits, oUnit)
@@ -990,14 +991,14 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                                     end
                                                 else
                                                     iHealthPercent = M28UnitInfo.GetUnitHealthPercent(oUnit)
-                                                    if iHealthPercent <= iLowHealthThreshold then
+                                                    if iHealthPercent <= iLowHealthThreshold or (oUnit[refiProjectileHealthOverridePercent] and iHealthPercent <= oUnit[refiProjectileHealthOverridePercent]) then
                                                         if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Unit has low health so will send to refuel') end
                                                             bSendUnitForRefueling = true
                                                         end
                                                     elseif iHealthPercent <= 0.75 and oUnit[M28UnitInfo.refiHealthSecondLastCheck] and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
                                                         --Gunships - send for refueling if expect to be below 55% health soon, based on how much our health has decreased
-                                                        if (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= iLowHealthThreshold then
+                                                        if (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= iLowHealthThreshold or (oUnit[refiProjectileHealthOverridePercent] and (oUnit[refiProjectileHealthOverridePercent] > iLowHealthThreshold and (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= oUnit[refiProjectileHealthOverridePercent])) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Gunship health is getting low and expected to drop below the low health threshold soon so will refuel') end
                                                             bSendUnitForRefueling = true
                                                         end
@@ -1011,20 +1012,24 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Unit has low shield so will send to recharge') end
                                                 bSendUnitForRefueling = true
                                             elseif iMaxShield == 0 then
-                                                local iHealthRegen = M28UnitInfo.GetUnitHealthRegenRate(oUnit)
-                                                local iLowHealthThreshold = 0.2
-                                                if iHealthRegen >= 50 then iLowHealthThreshold = 0.3 end
-                                                if oUnit[M28UnitInfo.refbWantToHealUp] then
-                                                    iLowHealthThreshold = math.max(0.5, iLowHealthThreshold)
+                                                if not(oUnit[refiProjectileHealthOverridePercent]) then
+                                                    local iHealthRegen = M28UnitInfo.GetUnitHealthRegenRate(oUnit)
+                                                    oUnit[refiProjectileHealthOverridePercent] = 0.2
+                                                    if iHealthRegen >= 50 then oUnit[refiProjectileHealthOverridePercent] = 0.3 end
                                                 end
-                                                if M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold then
+                                                local iExpHealthThreshold = oUnit[refiProjectileHealthOverridePercent]
+                                                if oUnit[M28UnitInfo.refbWantToHealUp] then
+                                                    iExpHealthThreshold = math.max(0.5, oUnit[refiProjectileHealthOverridePercent])
+                                                end
+
+                                                if M28UnitInfo.GetUnitHealthPercent(oUnit) <= iExpHealthThreshold then
                                                     bSendUnitForRefueling = true
                                                     oUnit[M28UnitInfo.refbWantToHealUp] = true
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Unit low health so want it to try and heal up') end
                                                 else
                                                     oUnit[M28UnitInfo.refbWantToHealUp] = nil
                                                 end
-                                                if bDebugMessages == true then LOG(sFunctionRef..': iHealthRegen='..iHealthRegen..'; iLowHealthThreshold='..iLowHealthThreshold) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iHealthRegen='..M28UnitInfo.GetUnitHealthRegenRate(oUnit)..'; iExpHealthThreshold='..iExpHealthThreshold) end
                                             end
                                             if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; bSendUnitForRefueling='..tostring(bSendUnitForRefueling)) end
                                         else
@@ -1142,8 +1147,33 @@ function IsThereAAInZone(tLZOrWZTeamData, bIgnoreAirAA, iGroundAAThreatThreshold
     --Too much groundAA threat?
     -- -1 groundAA threat threshold means infinite
     if ((iGroundAAThreatThreshold or 0) >= 0 and (tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) > (iGroundAAThreatThreshold or 0)) then
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return true
+        if tOptionalDetailedGroundAAPositionCheck then
+            if not(iIncludeForDetailedIfWithinThisDistOfBeingInRange) then
+                M28Utilities.ErrorHandler('Havent specified iIncludeForDetailedIfWithinThisDistOfBeingInRange, will return true')
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            else
+                local toGroundAAInRange = {}
+                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
+                        if not(oUnit.Dead) and (oUnit[M28UnitInfo.refiAARange] or 0) > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering AA oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to detailed position check='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOptionalDetailedGroundAAPositionCheck)..'; AA range='..oUnit[M28UnitInfo.refiAARange]..'; CLose enough='..tostring(M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOptionalDetailedGroundAAPositionCheck) - oUnit[M28UnitInfo.refiAARange] <= iIncludeForDetailedIfWithinThisDistOfBeingInRange)) end
+                            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOptionalDetailedGroundAAPositionCheck) - oUnit[M28UnitInfo.refiAARange] <= iIncludeForDetailedIfWithinThisDistOfBeingInRange then
+                                table.insert(toGroundAAInRange, oUnit)
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy groundAA in range='..M28UnitInfo.GetAirThreatLevel(toGroundAAInRange, true, false, true, false, false, false)..'; iGroundAAThreatThreshold='..iGroundAAThreatThreshold) end
+                    if M28Utilities.IsTableEmpty(toGroundAAInRange) == false and M28UnitInfo.GetAirThreatLevel(toGroundAAInRange, true, false, true, false, false, false) >= iGroundAAThreatThreshold then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
+                end
+            end
+        else
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
@@ -1416,7 +1446,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsThereAANearLandOrWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iPlateau == 69 and iLandOrWaterZone == 1 and GetGameTimeSeconds() >= 10*60+232 then bDebugMessages = true end
+
     if bIsWaterZone then
         local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
         local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
@@ -6108,7 +6138,7 @@ function ManageGunships(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageGunships'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 13*60+40 then bDebugMessages = true end
+
     local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryTransport * categories.EXPERIMENTAL + M28UnitInfo.refCategoryAAGunship, nil, not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets])))
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))..'; Is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tGunshipsForRefueling, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, false)
@@ -7007,11 +7037,11 @@ function ManageGunships(iTeam, iAirSubteam)
                     end
                 end
                 if not(tTeleportTargetToMoveTo) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to check if shoudl run due to high AA near where gunships are, Is there AA near gunship P'..iGunshipPlateauOrZero..'; Z'..iGunshipLandOrWaterZone..'; iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iOurGunshipThreat='..iOurGunshipThreat..'; Is there too much AA='..tostring(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / iGunshipThreatFactorForSameZone, iMaxEnemyAirAA))) end
-                    --IsThereAANearLandOrWaterZone(iTeam, iPlateau,             iLandOrWaterZone,       bIsWaterZone,                               iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone)
                     local iSearchDistance = 60
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to check if shoudl run due to high AA near where gunships are, Is there AA near gunship P'..iGunshipPlateauOrZero..'; Z'..iGunshipLandOrWaterZone..'; iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iOurGunshipThreat='..iOurGunshipThreat..'; Is there too much AA='..tostring(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / iGunshipThreatFactorForSameZone, iMaxEnemyAirAA                  , iSearchDistance,                               oFrontGunship:GetPosition(),false,                   oFrontGunship:GetPosition(),            math.min(30, 10+iAvailableGunshipCount)))) end
+                    --IsThereAANearLandOrWaterZone(iTeam, iPlateau,             iLandOrWaterZone,       bIsWaterZone,                               iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange))
                     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iDistToSupport <= 100) then iSearchDistance = 40 end
-                    if not(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / iGunshipThreatFactorForSameZone, iMaxEnemyAirAA                  , iSearchDistance,                               oFrontGunship:GetPosition())) then
+                    if not(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / iGunshipThreatFactorForSameZone, iMaxEnemyAirAA                  , iSearchDistance,                               oFrontGunship:GetPosition(),false,                   oFrontGunship:GetPosition(),            math.min(30, 10+iAvailableGunshipCount))) then
                         --no nearby enemy air threat so can just evaluate each land zone or water zone on its own merits - cycle through each in order of distance, but first consider adjacent locations
 
                         --First consider the land/water zone the gunship is in at the moment
@@ -7028,7 +7058,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                 local bUseDefensively = false
                                 local iMaxDefensiveRange = 50
                                 if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if we want to use gunships defnesively, our AA threat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; iOurGunshipAA='..iOurGunshipAA..'; Enemy AirAA threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) end
-                                if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] + iOurGunshipAA < math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.7) then
+                                if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] + iOurGunshipAA < math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.7) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] > 0) then
                                     local iNearbyGroundToAirThreat = (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)
                                     if M28Utilities.IsTableEmpty(tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                         for iEntry, tSubtable in tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
@@ -12427,4 +12457,23 @@ function GetRetreatLocationForBomberThatJustFired(oUnit)
     end
     if not(tRetreatLocation) then tRetreatLocation = {tAirRallyPoint[1], tAirRallyPoint[2], tAirRallyPoint[3]} end
     return tRetreatLocation
+end
+
+function GetHealthRunThreshold(iMaxHealth, oUnit)
+    if not(oUnit[refiProjectileHealthOverridePercent]) then
+        if iMaxHealth <= 1800 and iProjectileLowHealthThreshold <= 0.75 then --T1-t2 gunships - be more cautious
+            local iOverride
+            if iMaxHealth <= 850 then
+                iOverride = 0.75
+            else
+                iOverride = math.max(0.6, iHealthThreshold + 0.075)
+            end
+            oUnit[refiProjectileHealthOverridePercent] = iOverride
+            return math.max(iOverride, iProjectileLowHealthThreshold)
+        end
+    else
+        return math.max(oUnit[refiProjectileHealthOverridePercent], iProjectileLowHealthThreshold)
+    end
+
+    return iProjectileLowHealthThreshold
 end
