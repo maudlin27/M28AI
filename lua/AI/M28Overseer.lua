@@ -460,6 +460,16 @@ function M28BrainCreated(aiBrain)
         end
     end
 
+    --Set micro levels
+    if not(ScenarioInfo.Options.M28DodgeMicro == 1) then
+        local iDodgeMicroLimit
+        if ScenarioInfo.Options.M28DodgeMicro == 2 then iDodgeMicroLimit = 0
+        else iDodgeMicroLimit = tonumber(ScenarioInfo.Options.M28DodgeMicro) - 2
+        end
+        aiBrain[M28Micro.refiMaxUnitsToDodgeMicroAtOnce] = iDodgeMicroLimit
+        aiBrain[M28Micro.refiCurUnitsDodging] = 0
+    end
+
     --Setup AI personality for this
     M28Chat.AssignAIPersonalityAndRating(aiBrain)
     --Set easy flag

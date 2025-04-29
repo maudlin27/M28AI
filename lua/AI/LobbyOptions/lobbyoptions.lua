@@ -281,13 +281,13 @@ AIOpts = {
     {
         default = 1,
         label = "M28: Use dodge micro?",
-        help = 'By default M28 will try and dodge slow moving shots and bombs with units (except for M28Easy)',
+        help = 'By default M28 will try and dodge slow moving shots and bombs with units (except for M28Easy), you can limit the number of units it can dodge at once',
         key = 'M28DodgeMicro',
         value_text = "",
         value_help = "Dodge slow moving shots?",
         values = {
             { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
-                text = 'Yes',
+                text = 'Yes (no limit)',
                 help = 'Dodge slow moving shots',
                 key = 1,
             },
@@ -295,6 +295,21 @@ AIOpts = {
                 text = 'No',
                 help = 'Dont try dodging shots',
                 key = 2,
+            },
+            {
+                text = 'Max 1',
+                help = 'Dodge with max of 1 unit at once',
+                key = 3,
+            },
+            {
+                text = 'Max 2',
+                help = 'Dodge with max of 2 units at once',
+                key = 4,
+            },
+            {
+                text = 'Max 3',
+                help = 'Dodge with max of 3 units at once',
+                key = 5,
             },
         },
     },

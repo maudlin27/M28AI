@@ -28,8 +28,8 @@ Tooltips = {
         description = 'By default M28 will always build certain T1-T3 land units over others (e.g. bricks instead of loyalists after a few have been built); disabling this should increase variety of units built',
     },
     pref_M28DodgeMicro = {
-        title = 'M28: Use dodge micro?',
-        description = 'By default M28 will try and dodge slow moving shots and bombs with units (except for M28Easy)',
+        title = 'M28: Limit use of dodge micro?',
+        description = 'By default M28 will try and dodge slow moving shots and bombs with units (except for M28Easy); you can limit the number of units it can dodge at once',
     },
     pref_M28CombinedArmy = {
         title = 'M28: AI assistant?',

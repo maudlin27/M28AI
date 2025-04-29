@@ -1051,7 +1051,7 @@ LobbyGlobalOptions = {
         bUseKeyAsValueInScenarioInfo = true,
         values = {
             {
-                text = 'Yes',
+                text = 'Yes (no limit)',
                 help = 'Dodge slow moving shots',
                 key = 1,
             },
@@ -1059,6 +1059,21 @@ LobbyGlobalOptions = {
                 text = 'No',
                 help = 'Dont try dodging shots',
                 key = 2,
+            },
+            {
+                text = 'Max 1',
+                help = 'Dodge with max of 1 unit at once',
+                key = 3,
+            },
+            {
+                text = 'Max 2',
+                help = 'Dodge with max of 2 units at once',
+                key = 4,
+            },
+            {
+                text = 'Max 3',
+                help = 'Dodge with max of 3 units at once',
+                key = 5,
             },
         },
     },
