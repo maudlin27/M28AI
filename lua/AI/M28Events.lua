@@ -1349,7 +1349,7 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
                                         ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, tRetreatLocation, 15, 3)
                                     end
                                 end
-                                end
+                            end
 
                             --Have friendly gunships dodge
                             M28Micro.FriendlyGunshipsAvoidBomb(oUnit, oWeapon, projectile)

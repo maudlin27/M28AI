@@ -469,6 +469,14 @@ function M28BrainCreated(aiBrain)
         aiBrain[M28Micro.refiMaxUnitsToDodgeMicroAtOnce] = iDodgeMicroLimit
         aiBrain[M28Micro.refiCurUnitsDodging] = 0
     end
+    if not(ScenarioInfo.Options.M28HoverMicro == 1) then
+        local iHoverMicroLimit
+        if ScenarioInfo.Options.M28HoverMicro == 2 then iHoverMicroLimit = 0
+        else iHoverMicroLimit = tonumber(ScenarioInfo.Options.M28HoverMicro) - 2
+        end
+        aiBrain[M28Micro.refiMaxUnitsToDodgeMicroAtOnce] = iHoverMicroLimit
+        aiBrain[M28Micro.refiCurUnitsHoverMicroing] = 0
+    end
 
     --Setup AI personality for this
     M28Chat.AssignAIPersonalityAndRating(aiBrain)

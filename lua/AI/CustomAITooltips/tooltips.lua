@@ -31,6 +31,10 @@ Tooltips = {
         title = 'M28: Limit use of dodge micro?',
         description = 'By default M28 will try and dodge slow moving shots and bombs with units (except for M28Easy); you can limit the number of units it can dodge at once',
     },
+    pref_M28HoverMicro = {
+        title = 'M28: Limit use of hover micro?',
+        description = 'By default M28 will try and slow down his air units in certain scenarios (except for M28Easy), you can limit the number of units it can apply such hover micro to at once',
+    },
     pref_M28CombinedArmy = {
         title = 'M28: AI assistant?',
         description = 'If enabled, then human players can toggle M28AI logic on individual units',
