@@ -430,6 +430,31 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         --M28Chat.SendMessage(aiBrain, 'LOUDCompatibility', 'M28AI was originally developed for FAF.  It should be compatible with LOUD but less testing has been done - message maudlin27 on discord with the replay if you come across issues', 2, 10)
     end
 
+    --Send log warning if have non-standard game options
+    local tsNonStandardSettings = {}
+    if not(tonumber(ScenarioInfo.Options.M28OvwR or tostring(0)) == 0) and ScenarioInfo.Options.M28OvwT then
+        table.insert(tsNonStandardSettings, 'Overwhelm active, Rate='..tonumber(ScenarioInfo.Options.M28OvwR)..'; Time='..ScenarioInfo.Options.M28OvwT..'; Limit='..ScenarioInfo.Options.M28OvwC)
+    end
+    if M28Map.bIsCampaignMap then
+        if not(ScenarioInfo.Options.CampAI == 4) then table.insert(tsNonStandardSettings, 'Campaign M28 allies/enemies value='.. ScenarioInfo.Options.CampAI..' (1=none,2=allies,3=enemy,4=both)') end
+        if not(tonumber(ScenarioInfo.Options.CmpAIDelay) == 300) then table.insert(tsNonStandardSettings, 'Campaign combat delay='..tonumber(ScenarioInfo.Options.CmpAIDelay)) end
+        if ScenarioInfo.Options.CmApplyAIx == 1 then  table.insert(tsNonStandardSettings, 'Campaign is using AIx for M28') end
+        if not(ScenarioInfo.Options.CmM28CampPers == 2) then table.insert(tsNonStandardSettings, 'Campaign is using custom personality '..ScenarioInfo.Options.CmM28CampPers..' (1=Easy, 2=Adaptive') end
+    end
+    if tonumber(ScenarioInfo.Options.M28TimeBetweenOrders) > 1 then table.insert(tsNonStandardSettings, 'Time between orders='..tonumber(ScenarioInfo.Options.M28TimeBetweenOrders)) end
+    if not(tonumber(ScenarioInfo.Options.M28Aggression or '1.0') == 1) then
+        M28UnitInfo.iThreatFactor = tonumber(ScenarioInfo.Options.M28Aggression or '1.0')
+        M28UnitInfo.bCustomThreatFactor = true
+        table.insert(tsNonStandardSettings, 'M28 is using a custom aggression factor of '..M28UnitInfo.iThreatFactor)
+    end
+    if ScenarioInfo.Options.M28CPUPerformance == 1 then table.insert(tsNonStandardSettings, 'CPU performance mode active') end
+    if ScenarioInfo.Options.M28PrioritiseBPs == 1 then table.insert(tsNonStandardSettings, 'Unit prioritisation disabled') end
+    if not(ScenarioInfo.Options.M28DodgeMicro == 1) then table.insert(tsNonStandardSettings, 'Dodge micro limit='..ScenarioInfo.Options.M28DodgeMicro) end
+    if not(ScenarioInfo.Options.M28HoverMicro == 1) then table.insert(tsNonStandardSettings, 'Dodge micro limit='..ScenarioInfo.Options.M28HoverMicro) end
+    if not(ScenarioInfo.Options.M28CombinedArmy == 2) then table.insert(tsNonStandardSettings, 'Combined army setting='..ScenarioInfo.Options.M28CombinedArmy..'; Inherit setting='..ScenarioInfo.Options.M28CAInherit) end
+    if ScenarioInfo.Options.M28HoverMicro == 2 then table.insert(tsNonStandardSettings, 'Helpful teammate disabled') end
+    if M28Utilities.IsTableEmpty(tsNonStandardSettings) == false then M28Utilities.ErrorHandler('Non standard settings='..reprs(tsNonStandardSettings), true) end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -522,7 +547,6 @@ function M28BrainCreated(aiBrain)
         if not(tonumber(ScenarioInfo.Options.M28Aggression or '1.0') == 1) then
             M28UnitInfo.iThreatFactor = tonumber(ScenarioInfo.Options.M28Aggression or '1.0')
             M28UnitInfo.bCustomThreatFactor = true
-            M28Utilities.ErrorHandler('M28 is using a custom aggression factor of '..M28UnitInfo.iThreatFactor, true)
         end
     end
     LOG('Calling overseer manager via a fork')
