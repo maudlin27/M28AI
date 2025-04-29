@@ -486,7 +486,7 @@ function M28BrainCreated(aiBrain)
     end
 
     --Set micro levels
-    if not(ScenarioInfo.Options.M28DodgeMicro == 1) then
+    if not((ScenarioInfo.Options.M28DodgeMicro or 1) == 1) then
         local iDodgeMicroLimit
         if ScenarioInfo.Options.M28DodgeMicro == 2 then iDodgeMicroLimit = 0
         else iDodgeMicroLimit = tonumber(ScenarioInfo.Options.M28DodgeMicro) - 2
@@ -494,7 +494,9 @@ function M28BrainCreated(aiBrain)
         aiBrain[M28Micro.refiMaxUnitsToDodgeMicroAtOnce] = iDodgeMicroLimit
         aiBrain[M28Micro.refiCurUnitsDodging] = 0
     end
-    if not(ScenarioInfo.Options.M28HoverMicro == 1) then
+    if not((ScenarioInfo.Options.M28HoverMicro or 1) == 1) then
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.Options.M28HoverMicro='..(ScenarioInfo.Options.M28HoverMicro or 'nil')) end
         local iHoverMicroLimit
         if ScenarioInfo.Options.M28HoverMicro == 2 then iHoverMicroLimit = 0
         else iHoverMicroLimit = tonumber(ScenarioInfo.Options.M28HoverMicro) - 2
