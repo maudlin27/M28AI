@@ -1393,7 +1393,7 @@ function OnWeaponFired(oWeapon)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; reprs='..reprs(oWeapon)..'; oWeapon.Label='..(oWeapon.Label or 'nil')..'; oWeapon.Blueprint.Label='..(oWeapon.Blueprint.Label or 'nil')..'; oWeapon.bp.Label='..(oWeapon.bp.Label or 'nil')..'; Time='..GetGameTimeSeconds()) end
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain and M28UnitInfo.IsUnitValid(oUnit) then
-            if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url02052' and oUnit:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+
             local oParentBrain = oUnit:GetAIBrain()
             --M28 torp bomber micro (done here as want to make sure we pick up the last weapon event)
             if oParentBrain.M28AI then
@@ -1412,7 +1412,7 @@ function OnWeaponFired(oWeapon)
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs((oWeapon.Blueprint or oWeapon.bp))..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; (oWeapon.Blueprint or oWeapon.bp).RackSalvoSize='..(oWeapon.Blueprint or oWeapon.bp).RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0)) end
                     if (oWeapon.CurrentRackSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0) then
 
-                        if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                        if not(oUnit[M28UnitInfo.refbEasyBrain]) and not(oUnit:GetAIBrain()[M28Micro.refiMaxUnitsToHoverMicroAtOnce]) then --If have limit on how many units can hover-micro then want to save for bombers, not waste on 1 asf/intie
                             ForkThread(M28Micro.ConsiderAirAAHoverAttackTowardsTarget, oUnit, oWeapon)
                         end
                     end

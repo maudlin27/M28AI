@@ -823,7 +823,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     --M28Orders.IssueTrackedClearCommands(oTarget)
     TrackTemporaryUnitMicro(oTarget, iTimeToDodge)
     if bAdjustDodgeMicroCount then
-        DelayChangeVariable(oTarget:GetAIBrain(), refiCurUnitsDodging, -1, iTimeToDodge, nil, nil, nil, nil, true)
+        M28Utilities.DelayChangeVariable(oTarget:GetAIBrain(), refiCurUnitsDodging, -1, iTimeToDodge, nil, nil, nil, nil, true)
     end
     M28Orders.IssueTrackedMove(oTarget, tTempDestination, 0.25, false, 'MiDod1', true)
     --Also send an order to go to the destination that we had before
@@ -867,7 +867,7 @@ function AltDodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     local tTempDestination = M28Utilities.MoveInDirection(oTarget:GetPosition(), iAngleToMove, iDistanceToRun, true, false, true)
     TrackTemporaryUnitMicro(oTarget, iTimeToDodge)
     if bAdjustDodgeMicroCount then
-        DelayChangeVariable(oTarget:GetAIBrain(), refiCurUnitsDodging, -1, iTimeToDodge, nil, nil, nil, nil, true)
+        M28Utilities.DelayChangeVariable(oTarget:GetAIBrain(), refiCurUnitsDodging, -1, iTimeToDodge, nil, nil, nil, nil, true)
     end
     M28Orders.IssueTrackedMove(oTarget, tTempDestination, 0.1, false, 'MiAltDod1', true)
 
@@ -1385,6 +1385,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
         if bContinue then
             aiBrain = oBomber:GetAIBrain()
             if aiBrain[refiMaxUnitsToHoverMicroAtOnce] then
+                if bDebugMessages == ture then LOG(sFunctionRef..': Checking if reached hover micro limit, aiBrain[refiMaxUnitsToHoverMicroAtOnce]='..aiBrain[refiMaxUnitsToHoverMicroAtOnce]..'; aiBrain[refiCurUnitsHoverMicroing]='..aiBrain[refiCurUnitsHoverMicroing]..'; oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; Time='..GetGameTimeSeconds()) end
                 if aiBrain[refiCurUnitsHoverMicroing] >= aiBrain[refiMaxUnitsToHoverMicroAtOnce] then
                     M28Orders.IssueTrackedMove(oBomber, tDirectionToMoveTo, 2, false, 'NoMiAirMv', false)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
