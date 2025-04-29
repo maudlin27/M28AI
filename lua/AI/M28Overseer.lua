@@ -449,8 +449,8 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     end
     if ScenarioInfo.Options.M28CPUPerformance == 1 then table.insert(tsNonStandardSettings, 'CPU performance mode active') end
     if ScenarioInfo.Options.M28PrioritiseBPs == 1 then table.insert(tsNonStandardSettings, 'Unit prioritisation disabled') end
-    if not(ScenarioInfo.Options.M28DodgeMicro == 1) then table.insert(tsNonStandardSettings, 'Dodge micro limit='..ScenarioInfo.Options.M28DodgeMicro) end
-    if not(ScenarioInfo.Options.M28HoverMicro == 1) then table.insert(tsNonStandardSettings, 'Dodge micro limit='..ScenarioInfo.Options.M28HoverMicro) end
+    if not(ScenarioInfo.Options.M28DodgeMicro == 1) then table.insert(tsNonStandardSettings, 'Dodge micro limit='..tonumber(ScenarioInfo.Options.M28DodgeMicro)-2) end
+    if not(ScenarioInfo.Options.M28HoverMicro == 1) then table.insert(tsNonStandardSettings, 'Hover micro limit='..tonumber(ScenarioInfo.Options.M28HoverMicro)-2) end
     if not(ScenarioInfo.Options.M28CombinedArmy == 2) then table.insert(tsNonStandardSettings, 'Combined army setting='..ScenarioInfo.Options.M28CombinedArmy..'; Inherit setting='..ScenarioInfo.Options.M28CAInherit) end
     if ScenarioInfo.Options.M28HoverMicro == 2 then table.insert(tsNonStandardSettings, 'Helpful teammate disabled') end
     if M28Utilities.IsTableEmpty(tsNonStandardSettings) == false then M28Utilities.ErrorHandler('Non standard settings='..reprs(tsNonStandardSettings), true) end
@@ -499,7 +499,7 @@ function M28BrainCreated(aiBrain)
         if ScenarioInfo.Options.M28HoverMicro == 2 then iHoverMicroLimit = 0
         else iHoverMicroLimit = tonumber(ScenarioInfo.Options.M28HoverMicro) - 2
         end
-        aiBrain[M28Micro.refiMaxUnitsToDodgeMicroAtOnce] = iHoverMicroLimit
+        aiBrain[M28Micro.refiMaxUnitsToHoverMicroAtOnce] = iHoverMicroLimit
         aiBrain[M28Micro.refiCurUnitsHoverMicroing] = 0
     end
 
