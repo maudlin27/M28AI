@@ -2364,13 +2364,58 @@ function SendWarningWhenHaveVisualOnEnemy(aiBrain, oUnit)
 
         if bHaveHumanOrOtherAIOnTeam and ScenarioInfo.Options.M28Teammate == 1 then
             local fnSendMessage = function()
-            --SendMessage(aiBrain, sMessageCode, 'Enemy '..sUnitName.. ' detected', 0, 1000000, true, true, nil, nil, nil)
-            SendMessagePing(oUnit:GetPosition(), aiBrain:GetArmyIndex(), sUnitName)
+                --If enemy has fired weapon but we lack visual of them then just send a message
+                if oUnit[M28UnitInfo.refiLastWeaponEvent] and not(CanSeeUnit(aiBrain, oUnit, true)) and ((oUnit[M28UnitInfo.refiCombatRange] or 0) >= 100 or EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId)) then
+                    if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
+                        local iLoadedSMD = 0
+                        local iUnloadedSMD = 0
+                        local iUnbuiltSMD = 0
+                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                            local tSMD = oBrain:GetListOfUnits(M28UnitInfo.refCategorySMD, false, true)
+                            if M28Utilities.IsTableEmpty(tSMD) == false then
+                                for iSMD, oSMD in tSMD do
+                                    if oSMD:GetTacticalSiloAmmoCount() > 0 then
+                                        iLoadedSMD = iLoadedSMD + 1
+                                    elseif oSMD:GetFractionComplete() == 1 then
+                                        iUnloadedSMD = iUnloadedSMD + 1
+                                    else
+                                        iUnbuiltSMD = iUnbuiltSMD + 1
+                                    end
+                                end
+                            end
+                        end
+                        local tsPotentialMessage = {}
+                        if iLoadedSMD > 0 then
+                            if iUnloadedSMD == 0 and iUnbuiltSMD == 0 then
+                                table.insert(tsPotentialMessage, 'SMD is loaded')
+                                table.insert(tsPotentialMessage, 'Hope they target the SMD')
+                            else
+                                table.insert(tsPotentialMessage, 'We have '..iLoadedSMD..' SMD loaded')
+                                table.insert(tsPotentialMessage, 'Hope they target the loaded SMD')
+                            end
+                        elseif iUnloadedSMD > 0 then
+                            table.insert(tsPotentialMessage, ':(')
+                            table.insert(tsPotentialMessage, 'SMD isnt loaded yet')
+                        elseif iUnbuiltSMD > 0 then
+                            table.insert(tsPotentialMessage, 'SMD hasnt finished construction :(')
+                        else
+                            table.insert(tsPotentialMessage, ':(')
+                            table.insert(tsPotentialMessage, 'Ouch, we\'re completely defenceless')
+                            table.insert(tsPotentialMessage, 'Looks like that\'s the game gone')
+                        end
+                        local sMessage = tsPotentialMessage[math.random(1, table.getn(tsPotentialMessage))]
+                        SendMessage(aiBrain, sMessageCode, sMessage, 0, 1000000, true, true, nil, nil, nil)
+                    else
+                        SendMessage(aiBrain, sMessageCode, 'Enemy '..sUnitName.. ' detected', 0, 1000000, true, true, nil, nil, nil)
+                    end
+                else
+                    SendMessagePing(oUnit:GetPosition(), aiBrain:GetArmyIndex(), sUnitName)
+                end
             end
             if M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Can already see unit so will send message now') end
-                    fnSendMessage()
-                else
+                fnSendMessage()
+            else
                 --If want to ahve trigger based on visual then could use the below; however decided to ignore this approach as want a trigger when the unit fires its weapon
                 --[[local TriggerFile = import("/lua/scenariotriggers.lua")
                 if bDebugMessages == true then LOG(sFunctionRef..': Creating army intel trigger') end
