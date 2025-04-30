@@ -3154,9 +3154,9 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                                                 tMexesToConsiderUpgrading = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * M28UnitInfo.ConvertTechLevelToCategory(iMexTech), tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                                 if M28Utilities.IsTableEmpty(tMexesToConsiderUpgrading) == false then
                                                     for iMex, oMex in tMexesToConsiderUpgrading do
-                                                        if not(oMex:IsUnitState('Upgrading')) and oMex:GetFractionComplete() == 1 then
+                                                        if not(oMex:IsUnitState('Upgrading')) and oMex:GetFractionComplete() == 1 and not(oMex.Dead) then
                                                             if oMex:GetAIBrain().M28AI and oMex:GetAIBrain().M28Team == iM28Team then
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will try to upgrade mex in starting zone, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Mex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)) end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will try to upgrade mex in starting zone, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Mex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; Owned by '..oMex:GetAIBrain().Nickname..'; Mex unit state='..M28UnitInfo.GetUnitState(oMex)) end
                                                                 M28Economy.UpgradeUnit(oMex, true)
                                                                 iMassStoredToKeepUpgrading = iMassStoredToKeepUpgrading + tiExtraMassStoredPerUpgrade[iMexTech]
                                                                 bAbort = true

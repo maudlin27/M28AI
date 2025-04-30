@@ -8827,12 +8827,14 @@ function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoEmergencyPDEngineers]) == false then
                         local tClosestTarget, oClosestEngi
                         for iEngi, oEngi in tLZTeamData[M28Map.subreftoEmergencyPDEngineers] do
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])
-                            if iCurDist < iClosestEngiToTarget then
-                                iClosestEngiToTarget = iCurDist
-                                local tEngiTarget = oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]
-                                tClosestTarget = {tEngiTarget[1], tEngiTarget[2], tEngiTarget[3]}
-                                oClosestEngi = oEngi
+                            if M28UnitInfo.IsUnitValid(oEngi) then
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])
+                                if iCurDist < iClosestEngiToTarget then
+                                    iClosestEngiToTarget = iCurDist
+                                    local tEngiTarget = oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition]
+                                    tClosestTarget = {tEngiTarget[1], tEngiTarget[2], tEngiTarget[3]}
+                                    oClosestEngi = oEngi
+                                end
                             end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': iClosestEngiToTarget='..iClosestEngiToTarget..'; Time='..GetGameTimeSeconds()) end
@@ -8854,7 +8856,7 @@ function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint
                                 bGotNewOrderOrLocation = true
                             end
                         end
-                        if iClosestEngiToTarget <= 10 then
+                        if oClosestEngi and iClosestEngiToTarget <= 10 then
                             --If the desired build location has mobile units in it, then get a new build location
                             local rRect = M28Utilities.GetRectAroundLocation(tClosestTarget, 1)
                             local tUnitsAtTarget = GetUnitsInRect(rRect)
@@ -8895,11 +8897,16 @@ function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint
                         end
                         if not(bGotNewOrderOrLocation) and iClosestEngiToTarget >= 10 and iClosestEngiToTarget <= 75 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false or tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] > 0) then
                             --Are there enemies close to the target, and we are moderately far away? in which case also reassess
-                            local iTeam = oEngiGivenPDOrder:GetAIBrain().M28Team
-                            local bCloseToEnemy = M28Conditions.CloseToEnemyUnit(tClosestTarget, tLZTeamData[M28Map.reftoNearestDFEnemies], 10, iTeam, true, nil, nil, oEngiGivenPDOrder, nil, false)
-                            --(Left in code re seeing if close to PD in case decide want to use this)
+                            local oEngiToConsider
+                            if M28UnitInfo.IsUnitValid(oEngiGivenPDOrder) then oEngiToConsider = oEngiGivenPDOrder
+                            else oEngiToConsider = oClosestEngi
+                            end
+
+                            local iTeam = oEngiToConsider:GetAIBrain().M28Team
+                            local bCloseToEnemy = M28Conditions.CloseToEnemyUnit(tClosestTarget, tLZTeamData[M28Map.reftoNearestDFEnemies], 10, iTeam, true, nil, nil, oEngiToConsider, nil, false)
+                            --(Left in code re seeing if close to PD in case decide want to use this, but would need to re-review as prev it referred to oEngiGivenPDOrder, and have now changed to oEngiToConsider)
                             --local bCloseToPD = false
-                            --if bCloseToEnemy and oEngiGivenPDOrder[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and EntityCategoryContains(M28UnitInfo.refCategoryPD, oEngiGivenPDOrder[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and M28Utilities.GetDistanceBetweenPositions(oEngiGivenPDOrder[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), tClosestTarget) <= oEngiGivenPDOrder[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] then
+                            --if bCloseToEnemy and oEngiToConsider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and EntityCategoryContains(M28UnitInfo.refCategoryPD, oEngiToConsider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and M28Utilities.GetDistanceBetweenPositions(oEngiToConsider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), tClosestTarget) <= oEngiToConsider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] then
                             --bCloseToPD = true
                             --else
                             if not(bCloseToEnemy) and tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] > 0 then

@@ -3871,7 +3871,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestEnemyBase])
                                                 if iCurDist < iClosestDistToEnemyBase then iClosestDistToEnemyBase = iCurDist oClosestUnitToEnemyBase = oUnit end
                                                 if not(bHaveAirUnit) and EntityCategoryContains(M28UnitInfo.refCategoryAirNonScout, oUnit.UnitId) then bHaveAirUnit = true end
-                                                if not(bHaveGroundUnit) and not(EntityCategoryContains(M28UnitInfo.refCategorgoryAirNonScout, oUnit.UnitId)) then bHaveGroundUnit = true end
+                                                if not(bHaveGroundUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryAirNonScout, oUnit.UnitId)) then bHaveGroundUnit = true end
                                             end
                                             if bHaveAirUnit and EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar, oClosestUnitToEnemyBase.UnitId) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiOurGunshipAAThreat] or 0) >= 1000 then
                                                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
@@ -9768,7 +9768,7 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to drop due to target being dangerous, iDistToTarget='..iDistToTarget) end
         if M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.35 and (iDistToTarget <= 50 or oUnit[refbCombatDrop]) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastDamaged] or 0) <= 8 then
             if bDebugMessages == true then LOG(sFunctionRef..': Transport is low health so want to drop immediately unless it isnt likely to be a valid drop location') end
-            if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater(GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3])))) then
+            if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]) >= M28Map.iMapWaterHeight) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will drop early (i.e. where we are)') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true, false, false
@@ -12466,7 +12466,7 @@ function GetHealthRunThreshold(iMaxHealth, oUnit)
             if iMaxHealth <= 850 then
                 iOverride = 0.75
             else
-                iOverride = math.max(0.6, iHealthThreshold + 0.075)
+                iOverride = math.max(0.6, iProjectileLowHealthThreshold + 0.075)
             end
             oUnit[refiProjectileHealthOverridePercent] = iOverride
             return math.max(iOverride, iProjectileLowHealthThreshold)
