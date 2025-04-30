@@ -72,6 +72,7 @@ iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to conside
     refbBomberUsingMexHunterLogic = 'M28BmMx' --true if bomber is being given special orders for attacking enemy mexes (e.g. for first strat)
     refiExpBomberShotCount = 'M28ExpBCn' --If using our aoe to ground fire mobile AA targets, then we should track the exp bomber target, and then increase this count by 1 so we dont continue to try if the unit survived the first attempt
     refbExpBomberRecentlyTriedFiringAtRange = 'M28ExpBFnR' --true if bomber has tried to fire at range instead of turning around
+    refiProjectileHealthOverridePercent = 'M28PjHRn' --% health to run on - if want to override the global value (e.g. for t1-t2 gunships)
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -839,7 +840,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
             iLowHealthThreshold = 0
         end
     end
-    if bLowHealthThresholdDueToSnipeTarget or (GetGameTimeSeconds() <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1) then
+    if bLowHealthThresholdDueToSnipeTarget or (GetGameTimeSeconds() <= 300 and iLowHealthThreshold > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1) then
         iLowFuelThreshold = math.min(iLowFuelThreshold, 0.05)
         iLowHealthThreshold = math.min(iLowHealthThreshold, 0.1)
     end
@@ -903,7 +904,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                     M28Orders.IssueTrackedClearCommands(oUnit)
                                 end
                                 table.insert(tInUseUnits, oUnit)
-                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId)) or oUnit:GetFuelRatio() <= iLowFuelThreshold + 0.25 or not(M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget])) or M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 150 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold + 0.1 or oUnit[M28UnitInfo.refbProjectilesMeanShouldRefuel]) then
+                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId)) or oUnit:GetFuelRatio() <= iLowFuelThreshold + 0.25 or not(M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget])) or M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 150 or oUnit[refiProjectileHealthOverridePercent] or M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold + 0.1 or (oUnit[refiProjectileHealthOverridePercent] and iLowHealthThreshold < oUnit[refiProjectileHealthOverridePercent] and M28UnitInfo.GetUnitHealthPercent(oUnit) <= oUnit[refiProjectileHealthOverridePercent] + 0.1)) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Unit is already on its way to refuel so will treat as being in use, unit health percent='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Unit fuel percent='..oUnit:GetFuelRatio()..'; Dist to refuel target='..M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition())) end
                                 --Unit on its way to refuel
                                 table.insert(tInUseUnits, oUnit)
@@ -990,14 +991,14 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                                     end
                                                 else
                                                     iHealthPercent = M28UnitInfo.GetUnitHealthPercent(oUnit)
-                                                    if iHealthPercent <= iLowHealthThreshold then
+                                                    if iHealthPercent <= iLowHealthThreshold or (oUnit[refiProjectileHealthOverridePercent] and iHealthPercent <= oUnit[refiProjectileHealthOverridePercent]) then
                                                         if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Unit has low health so will send to refuel') end
                                                             bSendUnitForRefueling = true
                                                         end
                                                     elseif iHealthPercent <= 0.75 and oUnit[M28UnitInfo.refiHealthSecondLastCheck] and EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
                                                         --Gunships - send for refueling if expect to be below 55% health soon, based on how much our health has decreased
-                                                        if (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= iLowHealthThreshold then
+                                                        if (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= iLowHealthThreshold or (oUnit[refiProjectileHealthOverridePercent] and (oUnit[refiProjectileHealthOverridePercent] > iLowHealthThreshold and (oUnit:GetHealth() - (oUnit[M28UnitInfo.refiHealthSecondLastCheck] - oUnit:GetHealth())) / oUnit:GetMaxHealth() <= oUnit[refiProjectileHealthOverridePercent])) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Gunship health is getting low and expected to drop below the low health threshold soon so will refuel') end
                                                             bSendUnitForRefueling = true
                                                         end
@@ -1011,20 +1012,24 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Unit has low shield so will send to recharge') end
                                                 bSendUnitForRefueling = true
                                             elseif iMaxShield == 0 then
-                                                local iHealthRegen = M28UnitInfo.GetUnitHealthRegenRate(oUnit)
-                                                local iLowHealthThreshold = 0.2
-                                                if iHealthRegen >= 50 then iLowHealthThreshold = 0.3 end
-                                                if oUnit[M28UnitInfo.refbWantToHealUp] then
-                                                    iLowHealthThreshold = math.max(0.5, iLowHealthThreshold)
+                                                if not(oUnit[refiProjectileHealthOverridePercent]) then
+                                                    local iHealthRegen = M28UnitInfo.GetUnitHealthRegenRate(oUnit)
+                                                    oUnit[refiProjectileHealthOverridePercent] = 0.2
+                                                    if iHealthRegen >= 50 then oUnit[refiProjectileHealthOverridePercent] = 0.3 end
                                                 end
-                                                if M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold then
+                                                local iExpHealthThreshold = oUnit[refiProjectileHealthOverridePercent]
+                                                if oUnit[M28UnitInfo.refbWantToHealUp] then
+                                                    iExpHealthThreshold = math.max(0.5, oUnit[refiProjectileHealthOverridePercent])
+                                                end
+
+                                                if M28UnitInfo.GetUnitHealthPercent(oUnit) <= iExpHealthThreshold then
                                                     bSendUnitForRefueling = true
                                                     oUnit[M28UnitInfo.refbWantToHealUp] = true
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Unit low health so want it to try and heal up') end
                                                 else
                                                     oUnit[M28UnitInfo.refbWantToHealUp] = nil
                                                 end
-                                                if bDebugMessages == true then LOG(sFunctionRef..': iHealthRegen='..iHealthRegen..'; iLowHealthThreshold='..iLowHealthThreshold) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iHealthRegen='..M28UnitInfo.GetUnitHealthRegenRate(oUnit)..'; iExpHealthThreshold='..iExpHealthThreshold) end
                                             end
                                             if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; bSendUnitForRefueling='..tostring(bSendUnitForRefueling)) end
                                         else
@@ -1075,7 +1080,7 @@ function GetRallyPointValueOfLandZone(iTeam, tLZData, tLZTeamData, iPlateau)
     local iCurAAValue
     local iCurFactor = 1
     if tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iCurFactor = 0.5 end
-    iCurAAValue = (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * iCurFactor - (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 4 - (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
+    iCurAAValue = (tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * iCurFactor - (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 4 - (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
     --Factor in adjacent threat
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -1104,7 +1109,7 @@ function GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
     local iCurAAValue
     local iCurFactor = 1
     if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then iCurFactor = 0.5 end
-    iCurAAValue = (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * iCurFactor - (tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 10 - (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) * 6
+    iCurAAValue = (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * iCurFactor - (tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 10 - (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) * 6
     --Factor in adjacent threat
     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
         for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
@@ -1124,29 +1129,51 @@ function GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
     return iCurAAValue
 end
 
-function IsThereAAInWaterZone(tWZTeamData, bIgnoreAirAA, iGroundAAThreatThreshold, iAirAAThreatThreshold)
+function IsThereAAInZone(tLZOrWZTeamData, bIgnoreAirAA, iGroundAAThreatThreshold, iAirAAThreatThreshold, bAddEnemyGroundAAToAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'IsThereAAInWaterZone'
+    local sFunctionRef = 'IsThereAAInZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    -- -1 groundAA threat threshold means infinite
-    if ((iGroundAAThreatThreshold or 0) >= 0 and (tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) > (iGroundAAThreatThreshold or 0)) or (not(bIgnoreAirAA) and (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) >= math.max(40, (iAirAAThreatThreshold or 0) + (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.5)) then
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return true
+    --Too much AirAA threat?
+    if not(bIgnoreAirAA) and (tLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) > 0 then
+        if tLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] >= math.max(40, (iAirAAThreatThreshold or 0) + (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 0.5) then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        elseif bAddEnemyGroundAAToAirAAThreat and (tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) > 0 and iAirAAThreatThreshold and tLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] + tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] * 3 > iAirAAThreatThreshold then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return false
-end
-
-function IsThereAAInLandZone(tLZTeamData, bIgnoreAirAA, iGroundAAThreatThreshold, iAirAAThreatThreshold)
+    --Too much groundAA threat?
     -- -1 groundAA threat threshold means infinite
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'IsThereAAInLandZone'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if ((iGroundAAThreatThreshold or 0) >= 0 and (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) > (iGroundAAThreatThreshold or 0)) or (not(bIgnoreAirAA) and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) >= math.max(40, (iAirAAThreatThreshold or 0) + (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 0.5)) then
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return true
+    if ((iGroundAAThreatThreshold or 0) >= 0 and (tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) > (iGroundAAThreatThreshold or 0)) then
+        if tOptionalDetailedGroundAAPositionCheck then
+            if not(iIncludeForDetailedIfWithinThisDistOfBeingInRange) then
+                M28Utilities.ErrorHandler('Havent specified iIncludeForDetailedIfWithinThisDistOfBeingInRange, will return true')
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            else
+                local toGroundAAInRange = {}
+                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
+                        if not(oUnit.Dead) and (oUnit[M28UnitInfo.refiAARange] or 0) > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering AA oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to detailed position check='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOptionalDetailedGroundAAPositionCheck)..'; AA range='..oUnit[M28UnitInfo.refiAARange]..'; CLose enough='..tostring(M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOptionalDetailedGroundAAPositionCheck) - oUnit[M28UnitInfo.refiAARange] <= iIncludeForDetailedIfWithinThisDistOfBeingInRange)) end
+                            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOptionalDetailedGroundAAPositionCheck) - oUnit[M28UnitInfo.refiAARange] <= iIncludeForDetailedIfWithinThisDistOfBeingInRange then
+                                table.insert(toGroundAAInRange, oUnit)
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy groundAA in range='..M28UnitInfo.GetAirThreatLevel(toGroundAAInRange, true, false, true, false, false, false)..'; iGroundAAThreatThreshold='..iGroundAAThreatThreshold) end
+                    if M28Utilities.IsTableEmpty(toGroundAAInRange) == false and M28UnitInfo.GetAirThreatLevel(toGroundAAInRange, true, false, true, false, false, false) >= iGroundAAThreatThreshold then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
+                end
+            end
+        else
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
@@ -1413,7 +1440,7 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWaterZone, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone)
+function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWaterZone, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange)
     --returns true if enemy has AA threat in current zone or adjacent land or water zone
     --e.g. used to determine air rally points and support locations, doesnt factor in the path
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1423,7 +1450,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
     if bIsWaterZone then
         local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
         local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-        if IsThereAAInWaterZone(tWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+        if IsThereAAInZone(tWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange) then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
         else
@@ -1437,7 +1464,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
                     end
                     if bIncludeCurZone then
                         local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                        if IsThereAAInWaterZone(tAdjWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+                        if IsThereAAInZone(tAdjWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange) then
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         end
@@ -1457,7 +1484,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
                     end
                     if bIncludeCurZone then
                         local tLZTeamData = M28Map.tAllPlateaus[iAdjPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                        if IsThereAAInLandZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+                        if IsThereAAInZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange) then
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         end
@@ -1469,8 +1496,8 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
         --Dealing with a land zone
         local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
         local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-        if bDebugMessages == true then LOG(sFunctionRef..': About to check if there is AA in land zone, iOptionalGroundThreatThreshold='..(iOptionalGroundThreatThreshold or 'nil')..'; iOptionalAirAAThreatThreshold='..(iOptionalAirAAThreatThreshold or 'nil')..'; tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; tLZTeamData[M28Map.refiEnemyAirAAThreat]='..(tLZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 'nil')) end
-        if IsThereAAInLandZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+        if bDebugMessages == true then LOG(sFunctionRef..': About to check if there is AA in land zone, iOptionalGroundThreatThreshold='..(iOptionalGroundThreatThreshold or 'nil')..'; iOptionalAirAAThreatThreshold='..(iOptionalAirAAThreatThreshold or 'nil')..'; tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; tLZTeamData[M28Map.refiEnemyAirAAThreat]='..(tLZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil')..'; tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]='..(tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 'nil')) end
+        if IsThereAAInZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange) then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
         else
@@ -1486,8 +1513,8 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
                     if bIncludeCurZone then
 
                         local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                        if bDebugMessages == true then LOG(sFunctionRef..': About to check if there is AA in land zone, iOptionalGroundThreatThreshold='..(iOptionalGroundThreatThreshold or 'nil')..'; iOptionalAirAAThreatThreshold='..(iOptionalAirAAThreatThreshold or 'nil')..'; tAdjLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tAdjLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; tAdjLZTeamData[M28Map.refiEnemyAirAAThreat]='..(tAdjLZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil')..'; tAdjLZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..(tAdjLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 'nil')) end
-                        if IsThereAAInLandZone(tAdjLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to check if there is AA in land zone, iOptionalGroundThreatThreshold='..(iOptionalGroundThreatThreshold or 'nil')..'; iOptionalAirAAThreatThreshold='..(iOptionalAirAAThreatThreshold or 'nil')..'; tAdjLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tAdjLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; tAdjLZTeamData[M28Map.refiEnemyAirAAThreat]='..(tAdjLZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil')..'; tAdjLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]='..(tAdjLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 'nil')) end
+                        if IsThereAAInZone(tAdjLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange) then
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         end
@@ -1507,7 +1534,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
                     end
                     if bIncludeCurZone then
                         local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                        if IsThereAAInWaterZone(tAdjWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+                        if IsThereAAInZone(tAdjWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange) then
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         end
@@ -2955,7 +2982,7 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam, iAirSubteam, 
             if EntityCategoryContains(M28UnitInfo.refCategoryAntiAir + categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
                 iThreatWanted = iThreatWanted * 3
                 table.insert(tEnemyAirAAAndCargoUnits, oEnemyUnit) --Will want to assign more if have spare AirAA
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId) and oEnemyUnit.GetCargo and M28Utilities.IsTableEmpty(oEnemyUnit:GetCargo()) == false then        
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryTransport, oEnemyUnit.UnitId) and oEnemyUnit.GetCargo and M28Utilities.IsTableEmpty(oEnemyUnit:GetCargo()) == false then
                 iThreatWanted = iThreatWanted * 4
                 table.insert(tEnemyAirAAAndCargoUnits, oEnemyUnit) --Will want to assign more if have spare AirAA
             end
@@ -2987,7 +3014,7 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam, iAirSubteam, 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck, bOptionalIgnoreOppositeDirectionZones)
+function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck, bOptionalIgnoreOppositeDirectionZones, bIncludeEnemyGroundAAInAirAAThreat)
     --Returns true if enemy has AA threat along the path from start to end (or in an adjacent land/water zone that is close enough to the path)
 
     --iStartPlateauOrZero: 0 if water zone
@@ -3152,7 +3179,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
             local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
             bSameZoneAsPositionOverride = false
             if iOverridePositionPlateau and iOverridePositionPlateau == tPlateauAndLandZone[1] and iOverridePositionZone == tPlateauAndLandZone[2] then bSameZoneAsPositionOverride = true end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; iPlateau='..tPlateauAndLandZone[1]..'; iLandZone='..tPlateauAndLandZone[2]..'; Is there AA in land zone='..tostring(IsThereAAInLandZone(tLZTeamData, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold))..'; LZ groundAA threat='..tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; tLZTeamData[M28Map.refiEnemyAirAAThreat]='..tLZTeamData[M28Map.refiEnemyAirAAThreat]..'; iAirAAThreatThreshold='..(iAirAAThreatThreshold or 0)..'; bOptionalIgnoreOppositeDirectionZones='..tostring(bOptionalIgnoreOppositeDirectionZones or false)..'; IsZoneInSimilarDirection(tLZData)='..tostring(IsZoneInSimilarDirection(tLZData) or false)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; iPlateau='..tPlateauAndLandZone[1]..'; iLandZone='..tPlateauAndLandZone[2]..'; Is there AA in land zone='..tostring(IsThereAAInZone(tLZTeamData, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat))..'; LZ groundAA threat='..tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; tLZTeamData[M28Map.refiEnemyAirAAThreat]='..tLZTeamData[M28Map.refiEnemyAirAAThreat]..'; iAirAAThreatThreshold='..(iAirAAThreatThreshold or 0)..'; bOptionalIgnoreOppositeDirectionZones='..tostring(bOptionalIgnoreOppositeDirectionZones or false)..'; IsZoneInSimilarDirection(tLZData)='..tostring(IsZoneInSimilarDirection(tLZData) or false)) end
             if tLZData and (not(bOptionalIgnoreOppositeDirectionZones) or IsZoneInSimilarDirection(tLZData)) then
                 if bReturnGroundAAThreatInstead then
                     if bDoDetailedCheckForAA then
@@ -3174,10 +3201,10 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                         end
                     end
                 else
-                    bZoneHasTooMuchAA = IsThereAAInLandZone(tLZTeamData, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold)
+                    bZoneHasTooMuchAA = IsThereAAInZone(tLZTeamData, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat)
                     if bZoneHasTooMuchAA then
-                        if bDebugMessages == true then LOG(sFunctionRef..': There is too much AA in this land zone, tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)..'; tLZTeamData[M28Map.refiEnemyAirAAThreat]='..(tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)..'; tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0)..'; bDoDetailedCheckForAA='..tostring(bDoDetailedCheckForAA or false)..'; Is there too much AirAA threat to bother with a detailed check='..tostring(IsThereAAInLandZone(tLZTeamData, false, -1, iAirAAThreatThreshold))) end
-                        if bDoDetailedCheckForAA and (bIgnoreAirAAThreat or not(IsThereAAInLandZone(tLZTeamData, false, -1, iAirAAThreatThreshold))) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': There is too much AA in this land zone, tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)..'; tLZTeamData[M28Map.refiEnemyAirAAThreat]='..(tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)..'; tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]='..(tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)..'; bDoDetailedCheckForAA='..tostring(bDoDetailedCheckForAA or false)..'; Is there too much AirAA threat to bother with a detailed check='..tostring(IsThereAAInZone(tLZTeamData, false, -1, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat))) end
+                        if bDoDetailedCheckForAA and (bIgnoreAirAAThreat or not(IsThereAAInZone(tLZTeamData, false, -1, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat))) then
                             --There is too much groundAA (rather than AirAA) so want to do more detailed check to see if groundAA is in range
                             if bDebugMessages == true then LOG(sFunctionRef..': Too much groundAA rather than airaa, so will do more detailed check') end
                             if DetailedCheckIfTooMuchAAInInterimZone(tLZData, tLZTeamData, tPlateauAndLandZone[1], tPlateauAndLandZone[2], bSameZoneAsPositionOverride) then
@@ -3204,7 +3231,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
             if iOverridePositionPlateau and iOverridePositionPlateau == 0 and iOverridePositionZone == iWaterZone then bSameZoneAsPositionOverride = true end
 
             if bDebugMessages == true then
-                LOG(sFunctionRef..': Checking along water zone path, iEntry='..iEntry..'; iWaterZone='..iWaterZone..'; IsThereAAInWaterZone='..tostring(IsThereAAInWaterZone(tWZTeamData, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold))..'; tWZTeamData groundAA='..tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; AirAA threat in WZ='..tWZTeamData[M28Map.refiEnemyAirAAThreat]..'; Is WZ in similar direction='..tostring( IsZoneInSimilarDirection(tWZData) or false))
+                LOG(sFunctionRef..': Checking along water zone path, iEntry='..iEntry..'; iWaterZone='..iWaterZone..'; IsThereAAInZone='..tostring(IsThereAAInZone(tWZTeamData, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat))..'; tWZTeamData groundAA='..tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; AirAA threat in WZ='..tWZTeamData[M28Map.refiEnemyAirAAThreat]..'; Is WZ in similar direction='..tostring( IsZoneInSimilarDirection(tWZData) or false))
                 --M28Map.DrawSpecificWaterZone(iWaterZone)
             end
             if tWZData and (not(bOptionalIgnoreOppositeDirectionZones) or IsZoneInSimilarDirection(tWZData)) then
@@ -3227,16 +3254,16 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                         end
                     end
                 else
-                    bZoneHasTooMuchAA = IsThereAAInWaterZone(tWZTeamData, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold)
+                    bZoneHasTooMuchAA = IsThereAAInZone(tWZTeamData, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat)
                     if bZoneHasTooMuchAA then
                         --If using torp bombers check if reason for failure is due to enemy groundAA threat
-                        if bDebugMessages == true then LOG(sFunctionRef..': TOo much AA in water zone, bDoDetailedCheckForAA='..tostring(bDoDetailedCheckForAA or false)..'; bUsingTorpBombers='..tostring(bUsingTorpBombers or false)..'; bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; Is there too much AirAA in the zone='..tostring(IsThereAAInWaterZone(tWZTeamData, false, -1, iAirAAThreatThreshold))) end
-                        if bUsingTorpBombers and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]) and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) and not(IsThereAAInWaterZone(tWZTeamData, true, 100000000, iAirAAThreatThreshold)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': TOo much AA in water zone, bDoDetailedCheckForAA='..tostring(bDoDetailedCheckForAA or false)..'; bUsingTorpBombers='..tostring(bUsingTorpBombers or false)..'; bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; Is there too much AirAA in the zone='..tostring(IsThereAAInZone(tWZTeamData, false, -1, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat))) end
+                        if bUsingTorpBombers and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]) and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) and not(IsThereAAInZone(tWZTeamData, true, 100000000, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat)) then
                             --We are only ignoring this target because there is too much groundAA in the water zone
                             M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] = true
                         end
 
-                        if bDoDetailedCheckForAA and (bIgnoreAirAAThreat or IsThereAAInWaterZone(tWZTeamData, false, -1, iAirAAThreatThreshold)) then
+                        if bDoDetailedCheckForAA and (bIgnoreAirAAThreat or IsThereAAInZone(tWZTeamData, false, -1, iAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat)) then
                             --There is too much groundAA (rather than AirAA) so want to do more detailed check to see if groundAA is in range
                             if DetailedCheckIfTooMuchAAInInterimZone(tWZData, tWZTeamData, 0, iWaterZone, bSameZoneAsPositionOverride) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': After doing detailed check it is still not safe') end
@@ -3503,9 +3530,10 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                 return
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add enemy air units in land zone '..iLandZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil)='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck, nil, nil, nil, nil, bOnlyConsiderThreatInZonesInSameDirection))) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add enemy air units in land zone '..iLandZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil)='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iOptionalAirThreatThresholdOverride, nil, nil, bUseDetailedCheck, nil, nil, nil, nil, bOnlyConsiderThreatInZonesInSameDirection, true))) end
                         local iMinDistToEnemyBase
-                        if refiAASearchType == refiIgnoreAllAA and iOptionalMinDistToClosestEnemyBaseIfGroundThreat and DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iAlongPathAAThreshold, nil, nil, bUseDetailedCheck, nil, nil, nil, nil, bOnlyConsiderThreatInZonesInSameDirection) then iMinDistToEnemyBase = iOptionalMinDistToClosestEnemyBaseIfGroundThreat end
+                                                                                                                      --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck, bOptionalIgnoreOppositeDirectionZones, bIncludeEnemyGroundAAInAirAAThreat)
+                        if refiAASearchType == refiIgnoreAllAA and iOptionalMinDistToClosestEnemyBaseIfGroundThreat and DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iAlongPathAAThreshold, nil,                   nil,            bUseDetailedCheck, nil,                          nil,                                           nil,                                    nil,                                        bOnlyConsiderThreatInZonesInSameDirection, true) then iMinDistToEnemyBase = iOptionalMinDistToClosestEnemyBaseIfGroundThreat end
                         if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iAlongPathAAThreshold, nil, nil, bUseDetailedCheck, nil, nil, nil, nil, bOnlyConsiderThreatInZonesInSameDirection)) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will add all enemy air as potential targets, iAlongPathAAThreshold='..(iAlongPathAAThreshold or 'nil')) end
                             local bIgnoreScouts = false
@@ -3603,7 +3631,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         if tWZTeamData[M28Map.subrefWZbCoreBase] or tWZTeamData[M28Map.refiModDistancePercent] <= 0.35 then bUseDetailedCheck = true end --More precise check if we have friendly structures in the zone or mod dist is low
                         if bDebugMessages == true then
                             LOG(sFunctionRef..': About to check for air units in a zone, iTeam='..iTeam..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..(iStartLandOrWaterZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'))
-                            LOG(sFunctionRef..': Considering whether to add enemy air units in water zone '..iWaterZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil, nil, nil, bUseDetailedCheck, nil, nil, nil, nil, bOnlyConsiderThreatInZonesInSameDirection))..'; iOptionalGroundThreatThresholdOverride='..(iOptionalGroundThreatThresholdOverride or 'nil')..'; iOptionalAirThreatThresholdOverride='..(iOptionalAirThreatThresholdOverride or 'nil')..'; iGroundAAThreshold='..(iGroundAAThreshold or 'nil')..'; Mod dist='..(tWZTeamData[M28Map.refiModDistancePercent] or 0)..'; bUseDetailedCheck='..tostring(bUseDetailedCheck or false))
+                            LOG(sFunctionRef..': Considering whether to add enemy air units in water zone '..iWaterZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil, nil, nil, bUseDetailedCheck, nil, nil, nil, nil, bOnlyConsiderThreatInZonesInSameDirection, true))..'; iOptionalGroundThreatThresholdOverride='..(iOptionalGroundThreatThresholdOverride or 'nil')..'; iOptionalAirThreatThresholdOverride='..(iOptionalAirThreatThresholdOverride or 'nil')..'; iGroundAAThreshold='..(iGroundAAThreshold or 'nil')..'; Mod dist='..(tWZTeamData[M28Map.refiModDistancePercent] or 0)..'; bUseDetailedCheck='..tostring(bUseDetailedCheck or false))
                         end
 
                         --If it has been a while since we last updated enemy unit positions then refresh to reduce the risk we try and target untis that are far away; for performance reasons only do this if doing a detailed check
@@ -3618,8 +3646,8 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         end
 
                         local iMinDistToEnemyBase
-                        if refiAASearchType == refiIgnoreAllAA and iOptionalMinDistToClosestEnemyBaseIfGroundThreat and DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iAlongPathAAThreshold, nil, nil, bUseDetailedCheck, nil, nil, nil, nil, bOnlyConsiderThreatInZonesInSameDirection) then iMinDistToEnemyBase = iOptionalMinDistToClosestEnemyBaseIfGroundThreat end
-                        if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iAlongPathAAThreshold, nil, nil, bUseDetailedCheck, nil, nil, nil, nil, bOnlyConsiderThreatInZonesInSameDirection)) then
+                        if refiAASearchType == refiIgnoreAllAA and iOptionalMinDistToClosestEnemyBaseIfGroundThreat and DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iAlongPathAAThreshold, nil, nil, bUseDetailedCheck, nil, nil, nil, nil, bOnlyConsiderThreatInZonesInSameDirection, true) then iMinDistToEnemyBase = iOptionalMinDistToClosestEnemyBaseIfGroundThreat end
+                        if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iGroundAAThreshold, iAlongPathAAThreshold, nil, nil, bUseDetailedCheck, nil, nil, nil, nil, bOnlyConsiderThreatInZonesInSameDirection, true)) then
                             for iUnit, oUnit in (toOptionalUnitOverride or tWZTeamData[M28Map.reftWZEnemyAirUnits]) do
                                 if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy air unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tEnemyAirTargets unless it is too far away, iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase])) end
@@ -3770,7 +3798,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         end
                         if not(bAdjacentToCoreZone) then
                             --if have equiv of 7 t3 maa (just under 4 sams) then still engage
-                            if (tUnitLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) + (tUnitLZOrWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) <= 5500 then
+                            if (tUnitLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tUnitLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) <= 5500 then
                                 bAvoidAAThreat = true
                             end
                         end
@@ -3837,11 +3865,15 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                         if not(tbWaterZonesConsidered[iLandOrWaterZone]) then
                                             local iClosestDistToEnemyBase = 100000
                                             local iCurDist
+                                            local bHaveAirUnit = false
+                                            local bHaveGroundUnit = false
                                             for iUnit, oUnit in tUnits do
                                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestEnemyBase])
                                                 if iCurDist < iClosestDistToEnemyBase then iClosestDistToEnemyBase = iCurDist oClosestUnitToEnemyBase = oUnit end
+                                                if not(bHaveAirUnit) and EntityCategoryContains(M28UnitInfo.refCategoryAirNonScout, oUnit.UnitId) then bHaveAirUnit = true end
+                                                if not(bHaveGroundUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryAirNonScout, oUnit.UnitId)) then bHaveGroundUnit = true end
                                             end
-                                            if EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar, oClosestUnitToEnemyBase.UnitId) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiOurGunshipAAThreat] or 0) >= 1000 then
+                                            if bHaveAirUnit and EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar, oClosestUnitToEnemyBase.UnitId) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiOurGunshipAAThreat] or 0) >= 1000 then
                                                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
                                                     iGroundAAModifier = math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat], M28UnitInfo.GetMassCostOfUnits(tUnits)) * 0.1
                                                 else
@@ -3858,7 +3890,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                             --AddEnemyAirInWaterZoneIfNoAA(iWaterZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, toOptionalUnitOverride, iOptionalAdjacentZoneSearchType, iOptionalMinDistToClosestEnemyBaseIfGroundThreat)
                                             AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, false, iCurUnitAASearchType,     iGroundAAAdjacentThreshold + iGroundAAModifier,iAirAAAvoidThreshold + iAirAAModifier,       nil,     nil,   nil,    refiAvoidOnlyGroundAA, iClosestDistToEnemyBase - iPrioirtyDistToEnemyBaseAdj)
                                             --Also include adjacent zones subject to air threat
-                                            if iCurUnitAASearchType == refiIgnoreAllAA then
+                                            if iCurUnitAASearchType == refiIgnoreAllAA and ((bHaveAirUnit and ((tUnitLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) >= 100 or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) or (bHaveGroundUnit and (tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 100))  then
                                                 AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, true, refiAvoidOnlyGroundAA,     iGroundAAAdjacentThreshold + iGroundAAModifier,iAirAAAvoidThreshold + iAirAAModifier,       nil,     nil,   nil,    refiAvoidOnlyGroundAA)
                                             end
                                         end
@@ -3870,9 +3902,13 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 
                                         local iClosestDistToEnemyBase = 100000
                                         local iCurDist
+                                        local bHaveAirUnit = false
+                                        local bHaveGroundUnit = false
                                         for iUnit, oUnit in tUnits do
                                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestEnemyBase])
                                             if iCurDist < iClosestDistToEnemyBase then iClosestDistToEnemyBase = iCurDist oClosestUnitToEnemyBase = oUnit end
+                                            if not(bHaveAirUnit) and EntityCategoryContains(M28UnitInfo.refCategoryAirNonScout, oUnit.UnitId) then bHaveAirUnit = true end
+                                            if not(bHaveGroundUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryAirNonScout, oUnit.UnitId)) then bHaveGroundUnit = true end
                                         end
 
                                         if EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar, oClosestUnitToEnemyBase.UnitId) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiOurGunshipAAThreat] or 0) >= 1000 then
@@ -3894,7 +3930,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 
                                         --Also include adjacent zones subject to air threat
                                         --AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride)
-                                        if iCurUnitAASearchType == refiIgnoreAllAA then
+                                        if iCurUnitAASearchType == refiIgnoreAllAA and ((bHaveAirUnit and ((tUnitLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) >= 100 or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) or (bHaveGroundUnit and (tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 100))  then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will consider adjacent zones to zone '..iLandOrWaterZone..' but factoring in any groundAA threat, iGroundAAAdjacentThreshold='..iGroundAAAdjacentThreshold) end
                                             --AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone,          bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, toOptionalUnitOverride, iOptionalAdjacentZoneSearchType)
                                             AddEnemyAirInLandZoneIfNoAA(iPlateauOrZero, iLandOrWaterZone, true, refiAvoidOnlyGroundAA, iGroundAAAdjacentThreshold + iGroundAAModifier, iAirAAAvoidThreshold + iAirAAModifier, iDistanceToZoneEdgeToConsider, oClosestUnitToEnemyBase:GetPosition(), nil,    refiAvoidOnlyGroundAA)
@@ -3963,7 +3999,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 local iStartPositionGroundAAThreshold = math.min(3200,M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.2)
 
                 local bConsiderAdjacentZones = not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])
-                if bConsiderAdjacentZones and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.8 then bConsiderAdjacentZones = false end
+                if bConsiderAdjacentZones and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] then bConsiderAdjacentZones = false end
                 for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
                     local tStartPoint = M28Map.GetPlayerStartPosition(oBrain)
                     iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
@@ -4611,8 +4647,9 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                                 --Ignore targets with shielding or AA
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering enemies in iOtherPlateauOrZero='..(iOtherPlateauOrZero or 'nil')..'; iOtherLZOrWZ='..(iOtherLZOrWZ or 'nil')..'; Enemy shield threat='..(tOtherLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0)..'; GroundAA='.. (tOtherLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)..'; Enemy AirAA='..(tOtherLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0)) end
                                 if bDontCheckForEnemyThreats or ((tOtherLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0) == 0 and (tOtherLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) == 0 and (tOtherLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) == 0) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Does enemy have AA threat along the path to this zone='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iOtherPlateauOrZero, iOtherLZOrWZ, true, 1, 400, false, iAirSubteam, true, false, oBomber:GetPosition()))) end
-                                    if bDontCheckForEnemyThreats or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iOtherPlateauOrZero, iOtherLZOrWZ, true, 1, 400, false, iAirSubteam, true, false, oBomber:GetPosition())) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Does enemy have AA threat along the path to this zone='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iOtherPlateauOrZero, iOtherLZOrWZ, true, 1, 400, false, iAirSubteam, true, false, oBomber:GetPosition(),                      false,                                  nil,                                        false,                              false))) end
+                                                                        --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck, bOptionalIgnoreOppositeDirectionZones, bIncludeEnemyGroundAAInAirAAThreat)
+                                    if bDontCheckForEnemyThreats or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iOtherPlateauOrZero, iOtherLZOrWZ,            true,               1,                      400,                    false,          iAirSubteam, true,                      false,                          oBomber:GetPosition(),                      false,                                  nil,                                        false,                              false)) then
                                         FilterToAvailableTargets(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits], iEngiHunterCategories)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherPlateauOrZero='..(iOtherPlateauOrZero or 'nil')..'; iOtherLZOrWZ='..(iOtherLZOrWZ or 'nil')..'; dist='..(tPathingDetails[M28Map.subrefiDistance] or 'nil')..'; iSearchSize='..(iSearchSize or 'nil')..'; Does it have enemy units='..tostring(M28Utilities.IsTableEmpty(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of targets empty='..tostring(M28Utilities.IsTableEmpty( tEnemyTargets))) end
                                         if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
@@ -6521,14 +6558,14 @@ function ManageGunships(iTeam, iAirSubteam)
 
             --Think we already take into account gorundAA in the main function, so this is effectively doubling up, hence why modifiers arent too high
             if tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.25 then
-                iSpecificAirAAThreatLimit = math.max(0, iSpecificAirAAThreatLimit - (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 3.5)
+                iSpecificAirAAThreatLimit = math.max(0, iSpecificAirAAThreatLimit - (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 3.5)
             elseif tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.4 then
-                iSpecificAirAAThreatLimit = math.max(0, iSpecificAirAAThreatLimit - (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 1.5)
+                iSpecificAirAAThreatLimit = math.max(0, iSpecificAirAAThreatLimit - (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 1.5)
             elseif tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.55 then
-                iSpecificAirAAThreatLimit = math.max(0, iSpecificAirAAThreatLimit - (tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 0.5)
+                iSpecificAirAAThreatLimit = math.max(0, iSpecificAirAAThreatLimit - (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 0.5)
             end
 
-            if bDebugMessages == true then LOG(sFunctionRef..': Is midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]))..'; bIgnoreMidpointPlayableCheck='..tostring(bIgnoreMidpointPlayableCheck or false)..'; tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..(tLZOrWZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Is midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]))..'; bIgnoreMidpointPlayableCheck='..tostring(bIgnoreMidpointPlayableCheck or false)..'; tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]='..(tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 'nil')) end
             if not(M28Map.bIsCampaignMap) or ((bIgnoreMidpointPlayableCheck or (M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]))) and (bDontCheckForPacifism or not(M28Conditions.AdjacentToPacifistZone(iPlateauOrZero, iLandOrWaterZone)))) then
                 function IsHighValueZoneToProtect()
                     if (tLZOrWZTeamData[M28Map.subrefLZSValue] or 0) >= 2000 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] or 0) > 0 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] or 0) > 0 then
@@ -7000,11 +7037,11 @@ function ManageGunships(iTeam, iAirSubteam)
                     end
                 end
                 if not(tTeleportTargetToMoveTo) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to check if shoudl run due to high AA near where gunships are, Is there AA near gunship P'..iGunshipPlateauOrZero..'; Z'..iGunshipLandOrWaterZone..'; iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iOurGunshipThreat='..iOurGunshipThreat..'; Is there too much AA='..tostring(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / iGunshipThreatFactorForSameZone, iMaxEnemyAirAA))) end
-                    --IsThereAANearLandOrWaterZone(iTeam, iPlateau,             iLandOrWaterZone,       bIsWaterZone,                               iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone)
                     local iSearchDistance = 60
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to check if shoudl run due to high AA near where gunships are, Is there AA near gunship P'..iGunshipPlateauOrZero..'; Z'..iGunshipLandOrWaterZone..'; iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iOurGunshipThreat='..iOurGunshipThreat..'; Is there too much AA='..tostring(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / iGunshipThreatFactorForSameZone, iMaxEnemyAirAA                  , iSearchDistance,                               oFrontGunship:GetPosition(),false,                   oFrontGunship:GetPosition(),            math.min(30, 10+iAvailableGunshipCount)))) end
+                    --IsThereAANearLandOrWaterZone(iTeam, iPlateau,             iLandOrWaterZone,       bIsWaterZone,                               iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange))
                     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iDistToSupport <= 100) then iSearchDistance = 40 end
-                    if not(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / iGunshipThreatFactorForSameZone, iMaxEnemyAirAA                  , iSearchDistance,                               oFrontGunship:GetPosition())) then
+                    if not(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / iGunshipThreatFactorForSameZone, iMaxEnemyAirAA                  , iSearchDistance,                               oFrontGunship:GetPosition(),false,                   oFrontGunship:GetPosition(),            math.min(30, 10+iAvailableGunshipCount))) then
                         --no nearby enemy air threat so can just evaluate each land zone or water zone on its own merits - cycle through each in order of distance, but first consider adjacent locations
 
                         --First consider the land/water zone the gunship is in at the moment
@@ -7021,12 +7058,12 @@ function ManageGunships(iTeam, iAirSubteam)
                                 local bUseDefensively = false
                                 local iMaxDefensiveRange = 50
                                 if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if we want to use gunships defnesively, our AA threat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; iOurGunshipAA='..iOurGunshipAA..'; Enemy AirAA threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) end
-                                if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] + iOurGunshipAA < math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.7) then
-                                    local iNearbyGroundToAirThreat = (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) + (tGunshipLandOrWaterZoneTeamData[M28Map.subrefWZThreatAlliedAA] or 0)
+                                if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] + iOurGunshipAA < math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.7) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] > 0) then
+                                    local iNearbyGroundToAirThreat = (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)
                                     if M28Utilities.IsTableEmpty(tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                         for iEntry, tSubtable in tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                             if tSubtable[M28Map.subrefiDistance] <= 110 then
-                                                iNearbyGroundToAirThreat = iNearbyGroundToAirThreat + 0.5 * (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) + (tGunshipLandOrWaterZoneTeamData[M28Map.subrefWZThreatAlliedAA] or 0)
+                                                iNearbyGroundToAirThreat = iNearbyGroundToAirThreat + 0.5 * (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)
                                             end
                                         end
                                     end
@@ -7161,6 +7198,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 end
 
                                                 iHighestEnemyValueZone = math.max(iHighestEnemyValueZone, iMassValueOfTargets)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': ihighestEnemyValueZone='..iHighestEnemyValueZone..'; iMassValueOfTargets (for the most recently considered zone)='..iMassValueOfTargets) end
                                                 if iPostFirstTargetCount >= iPostTargetMaxZoneCheck or bDontLookForMoreTargets then
                                                     break
                                                 elseif iPostTargetMaxZoneCheck > 4 then
@@ -7258,12 +7296,12 @@ function ManageGunships(iTeam, iAirSubteam)
                         end
 
                         --Further away gunships - consider whether we want to move closer to the front gunship, if it is in the playable area
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want further away gunships to move towards front, is table of gunships not near front empty='..tostring(M28Utilities.IsTableEmpty(tGunshipsNotNearFront))..'; Is front gunship in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oFrontGunship:GetPosition()))..'; tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat]='..tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat]..'; iOurGunshipAA='..iOurGunshipAA..'; Front gunship groundAA='..(tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZThreatAllyGroundAA] or 'nil')) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want further away gunships to move towards front, is table of gunships not near front empty='..tostring(M28Utilities.IsTableEmpty(tGunshipsNotNearFront))..'; Is front gunship in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oFrontGunship:GetPosition()))..'; tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat]='..tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat]..'; iOurGunshipAA='..iOurGunshipAA..'; Front gunship groundAA='..(tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 'nil')) end
                         if M28Utilities.IsTableEmpty(tGunshipsNotNearFront) == false and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(oFrontGunship:GetPosition())) then
                             local tiPlateauAndZonesConsidered = {}
                             local bCurEntrySafe
                             local bAlwaysConsolidateHighHealthGunships = false
-                            if ((tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= math.max(100, iOurGunshipThreat * 0.1, iOurGunshipAA) or (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZThreatAllyGroundAA] or tGunshipLandOrWaterZoneTeamData[M28Map.subrefWZThreatAlliedAA] or 0) > 0) then
+                            if ((tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= math.max(100, iOurGunshipThreat * 0.1, iOurGunshipAA) or (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) > 0) then
                                 bAlwaysConsolidateHighHealthGunships = true
                             end
 
@@ -7398,9 +7436,9 @@ function ManageGunships(iTeam, iAirSubteam)
                     end
                 end
                 --if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then --LOUD has significantly lowered gunship firing tolerance so they have to face enemy to fire
-                    GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition(), oClosestEnemy)
+                GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition(), oClosestEnemy)
                 --else
-                    --GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
+                --GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
                 --end
             end
         end
@@ -9730,7 +9768,7 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to drop due to target being dangerous, iDistToTarget='..iDistToTarget) end
         if M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.35 and (iDistToTarget <= 50 or oUnit[refbCombatDrop]) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastDamaged] or 0) <= 8 then
             if bDebugMessages == true then LOG(sFunctionRef..': Transport is low health so want to drop immediately unless it isnt likely to be a valid drop location') end
-            if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or not(M28Map.IsUnderwater(GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3])))) then
+            if (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 0) > 0 and (not(oUnit[refbCombatDrop]) or GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]) >= M28Map.iMapWaterHeight) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will drop early (i.e. where we are)') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true, false, false
@@ -10545,7 +10583,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         end
                     end
                 end
-                iMaxEnemyAirAA = iMaxEnemyAirAA + (tBomberLandOrWaterZoneTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) + (tBomberLandOrWaterZoneTeamData[M28Map.subrefWZThreatAlliedAA] or 0)
+                iMaxEnemyAirAA = iMaxEnemyAirAA + (tBomberLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tBomberLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)
                 if iTotalExpBombers > 1 then
                     iMaxEnemyAirAA = iMaxEnemyAirAA * (1 + (iTotalExpBombers-1) * 0.5)
                 end
@@ -12419,4 +12457,23 @@ function GetRetreatLocationForBomberThatJustFired(oUnit)
     end
     if not(tRetreatLocation) then tRetreatLocation = {tAirRallyPoint[1], tAirRallyPoint[2], tAirRallyPoint[3]} end
     return tRetreatLocation
+end
+
+function GetHealthRunThreshold(iMaxHealth, oUnit)
+    if not(oUnit[refiProjectileHealthOverridePercent]) then
+        if iMaxHealth <= 1800 and iProjectileLowHealthThreshold <= 0.75 then --T1-t2 gunships - be more cautious
+            local iOverride
+            if iMaxHealth <= 850 then
+                iOverride = 0.75
+            else
+                iOverride = math.max(0.6, iProjectileLowHealthThreshold + 0.075)
+            end
+            oUnit[refiProjectileHealthOverridePercent] = iOverride
+            return math.max(iOverride, iProjectileLowHealthThreshold)
+        end
+    else
+        return math.max(oUnit[refiProjectileHealthOverridePercent], iProjectileLowHealthThreshold)
+    end
+
+    return iProjectileLowHealthThreshold
 end

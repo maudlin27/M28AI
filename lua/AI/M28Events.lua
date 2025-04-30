@@ -1234,8 +1234,9 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                         if M28UnitInfo.IsUnitValid(self) then
                             local iCurHealth = self:GetHealth()
                             local iMaxHealth = self:GetMaxHealth()
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; %='..iCurHealth / iMaxHealth..'; Projectile low health%='..M28Air.iProjectileLowHealthThreshold) end
-                            if iCurHealth <= iMaxHealth * M28Air.iProjectileLowHealthThreshold then
+
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; %='..iCurHealth / iMaxHealth..'; Projectile low health%='..M28Air.GetHealthRunThreshold(iMaxHealth, self)) end
+                            if iCurHealth <= iMaxHealth * M28Air.GetHealthRunThreshold(iMaxHealth, self) then
                                 self[M28UnitInfo.refbProjectilesMeanShouldRefuel] = true
                                 M28Air.SendUnitsForRefueling({ self }, self:GetAIBrain().M28Team, self:GetAIBrain().M28AirSubteam, true)
                                 if bDebugMessages == true then LOG(sFunctionRef..'; sent gunship '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..' for refueling due to existing damage taken') end
@@ -1348,7 +1349,7 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
                                         ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, tRetreatLocation, 15, 3)
                                     end
                                 end
-                                end
+                            end
 
                             --Have friendly gunships dodge
                             M28Micro.FriendlyGunshipsAvoidBomb(oUnit, oWeapon, projectile)
@@ -1411,7 +1412,7 @@ function OnWeaponFired(oWeapon)
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs((oWeapon.Blueprint or oWeapon.bp))..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; (oWeapon.Blueprint or oWeapon.bp).RackSalvoSize='..(oWeapon.Blueprint or oWeapon.bp).RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0)) end
                     if (oWeapon.CurrentRackSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0) then
 
-                        if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                        if not(oUnit[M28UnitInfo.refbEasyBrain]) and not(oUnit:GetAIBrain()[M28Micro.refiMaxUnitsToHoverMicroAtOnce]) then --If have limit on how many units can hover-micro then want to save for bombers, not waste on 1 asf/intie
                             ForkThread(M28Micro.ConsiderAirAAHoverAttackTowardsTarget, oUnit, oWeapon)
                         end
                     end
@@ -1419,8 +1420,8 @@ function OnWeaponFired(oWeapon)
 
 
             end
-
-            if not(oWeapon[M28UnitInfo.refiLastWeaponEvent]) or GetGameTimeSeconds() - (oWeapon[M28UnitInfo.refiLastWeaponEvent] or -1) >= 0.5 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Time since last weapon event='..GetGameTimeSeconds() - (oWeapon[M28UnitInfo.refiLastWeaponEvent] or -1)) end
+            if not(oWeapon[M28UnitInfo.refiLastWeaponEvent]) or GetGameTimeSeconds() - oWeapon[M28UnitInfo.refiLastWeaponEvent] >= 0.5 then
                 oWeapon[M28UnitInfo.refiLastWeaponEvent] = GetGameTimeSeconds()
                 oUnit[M28UnitInfo.refiLastWeaponEvent] = GetGameTimeSeconds()
                 --Update unit last known position/record it
@@ -1554,6 +1555,39 @@ end
     end
 end--]]
 
+function ProjectileFiredAtGunship(oTarget, oProjectile)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ProjectileFiredAtGunship'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(oTarget[M28UnitInfo.reftoEnemyProjectiles]) then
+        oTarget[M28UnitInfo.reftoEnemyProjectiles] = {}
+    end
+    table.insert(oTarget[M28UnitInfo.reftoEnemyProjectiles], oProjectile)
+    --Estimate total damage to be dealt
+    local iTotalDamage = 0
+    for iCurProjectile = table.getn(oTarget[M28UnitInfo.reftoEnemyProjectiles]), 1, -1 do
+        local oCurProjectile = oTarget[M28UnitInfo.reftoEnemyProjectiles][iCurProjectile]
+        if oCurProjectile:BeenDestroyed() then
+            table.remove(oTarget[M28UnitInfo.reftoEnemyProjectiles], iCurProjectile)
+        else
+            iTotalDamage = iTotalDamage + (oCurProjectile.DamageData.DamageAmount or 'nil')
+        end
+    end
+
+    local iCurHealth = oTarget:GetHealth()
+    local iMaxHealth = oTarget:GetMaxHealth()
+    if (iCurHealth - iTotalDamage) <= iMaxHealth * M28Air.GetHealthRunThreshold(iMaxHealth, oTarget) then
+        oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] = true
+        M28Air.SendUnitsForRefueling({ oTarget }, oTarget:GetAIBrain().M28Team, oTarget:GetAIBrain().M28AirSubteam, true)
+        if bDebugMessages == true then LOG(sFunctionRef..'; sent gunship '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' for refueling') end
+    end
+
+    --LOG('TEMP oProjectile targeting gunship reprs='..reprs(oProjectile)..'; reprs of damage data='..reprs(oProjectile.DamageData)..'; damageData.DamageAmount='..(oProjectile.DamageData.DamageAmount or 'nil'))
+    if bDebugMessages == true then LOG(sFunctionRef..': projectile target='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; Cur projectile damage='..(oProjectile.DamageData.DamageAmount or 'nil')..'; iTotalDamage='..iTotalDamage..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]='..tostring(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] or false)..'; Time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function ProjectileCreated(oProjectile, inWater)
     --LOG('TEMPCODE projectile created, oProjectile.Launcher.UnitId='..(oProjectile.Launcher.UnitId or 'nil')..'; Is .Launcher nil='..tostring(oProjectile.Launcher == nil)..'; .GetLauncher is nil='..tostring(oProjectile.GetLauncher == nil)..';  oProjectile.BeenDestroyed is nil='..tostring( oProjectile.BeenDestroyed == nil))
     --[[if oProjectile.GetCurrentTargetPosition then
@@ -1562,9 +1596,11 @@ function ProjectileCreated(oProjectile, inWater)
     end--]]
     if oProjectile.BeenDestroyed and not(oProjectile:BeenDestroyed()) and (not(M28Map.bIsCampaignMap) or GetGameTimeSeconds() >= 300 or not(ScenarioInfo.OpEnded)) then
         local bTrackingProjectile = false
+        --LOG('TEMPCODE GetTrackingTarget=nil='..tostring(oProjectile.GetTrackingTarget == nil))
         if oProjectile.GetTrackingTarget then
             local oTarget = oProjectile:GetTrackingTarget()
             --M28 target specific logic:
+            --LOG('TEMPCODE oTarget='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil'))
             if M28UnitInfo.IsUnitValid(oTarget) then
                 bTrackingProjectile = true
                 if oTarget:GetAIBrain().M28AI and not(oTarget:GetAIBrain().M28Easy) then
@@ -1574,40 +1610,25 @@ function ProjectileCreated(oProjectile, inWater)
 
                     --Gunships - consider retreating early
                     if EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, oTarget.UnitId) and not(oTarget.MyShield) and not(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]) then
-                        if M28UnitInfo.IsUnitValid(oTarget) then
-                            if not(oTarget[M28UnitInfo.reftoEnemyProjectiles]) then
-                                oTarget[M28UnitInfo.reftoEnemyProjectiles] = {}
-                            end
-                            table.insert(oTarget[M28UnitInfo.reftoEnemyProjectiles], oProjectile)
-                            --Estimate total damage to be dealt
-                            local iTotalDamage = 0
-                            for iCurProjectile = table.getn(oTarget[M28UnitInfo.reftoEnemyProjectiles]), 1, -1 do
-                                local oCurProjectile = oTarget[M28UnitInfo.reftoEnemyProjectiles][iCurProjectile]
-                                if oCurProjectile:BeenDestroyed() then
-                                    table.remove(oTarget[M28UnitInfo.reftoEnemyProjectiles], iCurProjectile)
-                                else
-                                    iTotalDamage = iTotalDamage + (oCurProjectile.DamageData.DamageAmount or 'nil')
-                                end
-                            end
-
-                            local iCurHealth = oTarget:GetHealth()
-                            local iMaxHealth = oTarget:GetMaxHealth()
-                            if (iCurHealth - iTotalDamage) <= iMaxHealth * M28Air.iProjectileLowHealthThreshold then
-                                oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] = true
-                                M28Air.SendUnitsForRefueling({ oTarget }, oTarget:GetAIBrain().M28Team, oTarget:GetAIBrain().M28AirSubteam, true)
-                                if bDebugMessages == true then LOG(sFunctionRef..'; sent gunship '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' for refueling') end
-                            end
-
-                            --LOG('TEMP oProjectile targeting gunship reprs='..reprs(oProjectile)..'; reprs of damage data='..reprs(oProjectile.DamageData)..'; damageData.DamageAmount='..(oProjectile.DamageData.DamageAmount or 'nil'))
-                            if bDebugMessages == true then LOG(sFunctionRef..': projectile target='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; Cur projectile damage='..(oProjectile.DamageData.DamageAmount or 'nil')..'; iTotalDamage='..iTotalDamage..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]='..tostring(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] or false)..'; Time='..GetGameTimeSeconds()) end
-                        end
+                        ProjectileFiredAtGunship(oTarget, oProjectile)
                     end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 end
             end
         end
         if not(bTrackingProjectile) then
-            --LOG('reprs of oProjectile='..reprs(oProjectile)..'; reprs of oProjectile.Launcher='..reprs(oProjectile.Launcher)..'; oProjectile.InnerRing is nil='..tostring(oProjectile.InnerRing == nil)..'; oProjectile.OuterRing is nil='..tostring(oProjectile.OuterRing == nil)..'; Is launcher a nuke='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId)))
+            --LOG('TEMPCODE reprs of oProjectile='..reprs(oProjectile)..'; reprs of oProjectile.Launcher='..reprs(oProjectile.Launcher)..'; oProjectile.InnerRing is nil='..tostring(oProjectile.InnerRing == nil)..'; oProjectile.OuterRing is nil='..tostring(oProjectile.OuterRing == nil)..'; Is launcher a nuke='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId)))
+            --Gunship related
+            if oProjectile.OriginalTarget then
+                local oTarget = oProjectile.OriginalTarget
+                if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetAIBrain().M28AI and not(oTarget:GetAIBrain().M28Easy) then
+                    --Gunships - consider retreating early
+                    if EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, oTarget.UnitId) and not(oTarget.MyShield) and not(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]) then
+                        ProjectileFiredAtGunship(oTarget, oProjectile)
+                    end
+                end
+            end
+
             if not(oProjectile.Launcher) and not(M28Utilities.bFAFActive) and oProjectile.GetLauncher then
                 oProjectile.Launcher = oProjectile:GetLauncher()
                 --Consider adding inner and outer rings if this is a nuke launcher
@@ -3139,8 +3160,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         local iTeam = oUnit:GetAIBrain().M28Team
                         if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
                             M28Land.UpdateZoneIntelForRadar(oUnit)
-                            if EntityCategoryContains(categories.TECH2, oJustBuilt.UnitId) then
-                                ForkThread(M28Building.ConsiderUpgradingT2Radar, oJustBuilt)
+                            if EntityCategoryContains(categories.TECH2, oUnit.UnitId) then
+                                ForkThread(M28Building.ConsiderUpgradingT2Radar, oUnit)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
                             M28Navy.UpdateZoneIntelForSonar(oUnit)

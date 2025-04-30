@@ -3154,9 +3154,9 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                                                 tMexesToConsiderUpgrading = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * M28UnitInfo.ConvertTechLevelToCategory(iMexTech), tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                                 if M28Utilities.IsTableEmpty(tMexesToConsiderUpgrading) == false then
                                                     for iMex, oMex in tMexesToConsiderUpgrading do
-                                                        if not(oMex:IsUnitState('Upgrading')) and oMex:GetFractionComplete() == 1 then
+                                                        if not(oMex:IsUnitState('Upgrading')) and oMex:GetFractionComplete() == 1 and not(oMex.Dead) then
                                                             if oMex:GetAIBrain().M28AI and oMex:GetAIBrain().M28Team == iM28Team then
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will try to upgrade mex in starting zone, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Mex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)) end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will try to upgrade mex in starting zone, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Mex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; Owned by '..oMex:GetAIBrain().Nickname..'; Mex unit state='..M28UnitInfo.GetUnitState(oMex)) end
                                                                 M28Economy.UpgradeUnit(oMex, true)
                                                                 iMassStoredToKeepUpgrading = iMassStoredToKeepUpgrading + tiExtraMassStoredPerUpgrade[iMexTech]
                                                                 bAbort = true
@@ -3944,7 +3944,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileDFTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileIndirectTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMAA] = 0
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyGroundAA] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZOrWZThreatAllyGroundAA] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefThreatEnemyStructureTotalMass] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftLZEnemyAirUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyAirToGroundThreat] = 0
@@ -4030,7 +4030,7 @@ function SetWaterZoneDefaultTeamValues(tWZData, iTeam)
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedAntiNavy] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSubmersible] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSurface] = 0
-    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedAA] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefLZOrWZThreatAllyGroundAA] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedMAA] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedDFRange] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedSubmersibleRange] = 0
