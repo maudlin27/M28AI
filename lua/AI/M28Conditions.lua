@@ -438,14 +438,15 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                             end
                         elseif iLastOrderType == M28Orders.refiOrderIssueReclaim and oEngineer:IsUnitState('Moving') then
                             --If engi is in close to the target then reclaim it
-                            if oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition and M28Utilities.GetDistanceBetweenPositions(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition, oEngineer:GetPosition()) <= (oEngineer:GetBlueprint().Economy.MaxBuildDistance or 5) then
+                            if oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition and (oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].MaxMassReclaim or 0) > 0 and M28Utilities.GetDistanceBetweenPositions(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition, oEngineer:GetPosition()) <= (oEngineer:GetBlueprint().Economy.MaxBuildDistance or 5) then
                                 --Reissue reclaim order (but treat as unavailable)
+                                bDebugMessages = true
                                 M28Orders.IssueTrackedReclaim(oEngineer, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget], false, 'RecInRng', false)
                             end
 
                             --Note - have a rare issue where given reclaim order far away in QUIET; however it doesnt show up on the navigator currenttargetpos
                             if bDebugMessages == true then
-                                LOG(sFunctionRef..': Have been given a reclaim order, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition='..repru(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition)..'; Eng position='..repru(oEngineer:GetPosition()))
+                                LOG(sFunctionRef..': Have been given a reclaim order, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition='..repru(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition)..'; Eng position='..repru(oEngineer:GetPosition())..'; Target max mass reclaim='..(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].MaxMassReclaim or 'nil'))
                                 if oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition then LOG(sFunctionRef..': Dist to cache position='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition)) end
                                 local oNavigator = oEngineer:GetNavigator()
                                 if oNavigator then
