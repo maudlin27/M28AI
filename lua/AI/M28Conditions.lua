@@ -3910,19 +3910,33 @@ function BuildingWasBeingBuiltButCanBeReclaimedNow(oUnit)
 end
 
 function EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData)
-    if tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] >= 15 then return true
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'EnemyZoneHasTooMuchAAForBaseBomber'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': enemy groundAA threat='..(tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefTEnemyUnits]))) end
+    if tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] >= 15 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Too much groundAA threat') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
     elseif M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefTEnemyUnits]) == false then
         local tEnemyGroundAA = EntityCategoryFilterDown(M28UnitInfo.refCategoryGroundAA, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+        if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyGroundAA empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundAA))) end
         if M28Utilities.IsTableEmpty(tEnemyGroundAA) == false then
             for iAA, oAA in tEnemyGroundAA do
                 if M28UnitInfo.IsUnitValid(oAA) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': oAA='..oAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAA)..'; Fraction complete='..oAA:GetFractionComplete()) end
                     if oAA:GetFractionComplete() >= 0.75 or (oAA:GetFractionComplete() >= 0.6 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oAA.UnitId)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': AA almost complete so too much AA') end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                     end
                 end
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': No AA so returning false') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 
