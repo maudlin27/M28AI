@@ -1340,13 +1340,15 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                             else
                                 iMassMod = 1 --Cruisers and T3 aircraft carriers have antiair as well as overlay antiair
                             end
-                        elseif EntityCategoryContains(categories.OVERLAYANTIAIR, sCurUnitBP) == true then
+                        --QUIET+FAF - ACUs cant (unupgraded) shoot air units; LOUD they used to, in sandbox they didnt but have left in to be prudent
+                        elseif EntityCategoryContains(categories.OVERLAYANTIAIR, sCurUnitBP) == true and (M28Utilities.bLoudModActive or not(EntityCategoryContains(categories.COMMAND, sCurUnitBP)))  then
                             iMassMod = 0.04
                             if sCurUnitBP == 'ues0401' then iMassMod = 1 --atlantis misclassifiefd as not anti-air
                             elseif EntityCategoryContains(categories.FRIGATE, sCurUnitBP) then iMassMod = 0.18
                             elseif sCurUnitBP == 'url0402' then
                                 iMassMod = 0.016 --monkeylord - it has half the dps of a t2 mobile flak with no aoe (although it has better range and health), so its threat will be equivalent to 2 mobile T2 MAA so that gunships are more likely to engage it
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Unit contains overlayantiair category') end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': iMassMod pre AA DPS adj='..iMassMod..'; iAADPS='..iAADPS) end
                         if iMassMod < 1 and iAADPS > 0 then
@@ -3316,7 +3318,7 @@ end
 function DoesBomberFireSalvo(oUnit)
     local oBP = oUnit:GetBlueprint()
     for sWeaponRef, tWeapon in oBP.Weapon do
-        if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' or tWeapon.WeaponCategory == 'Anti Navy' then
+        if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' or tWeapon.WeaponCategory == 'Anti Navy' or (oUnit[refiBomberRange] and (tWeapon.Label == 'Bomb' or tWeapon.NeedToComputeBombDrop)) then
             if tWeapon.MuzzleSalvoSize == 1 then
                 return false
             else return true

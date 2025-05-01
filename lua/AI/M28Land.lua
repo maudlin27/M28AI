@@ -477,12 +477,13 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         local tEnemiesExclShieldsAndFixedArti = EntityCategoryFilterDown(categories.MOBILE - M28UnitInfo.refCategoryMobileLandShield + categories.DIRECTFIRE, tLZTeamData[M28Map.subrefTEnemyUnits]) --(shield value gets added later based on the threat excl shields)
         local bHaveDangerousEnemies = false
         tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tEnemiesExclShieldsAndFixedArti, true)
+
         if bDebugMessages == true then
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                 LOG(sFunctionRef..': Will list out every enemy unit in the zone and its threat, position, and the plateau and land zone of that position')
                 for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
                     local iUnitPlateau, iUnitZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-                    LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has threat '..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)..'; Position='..repru(oUnit:GetPosition())..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitZone='..(iUnitZone or 'nil'))
+                    LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with % completion '..oUnit:GetFractionComplete()..' has threat '..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)..'; AA threat='..M28UnitInfo.GetAirThreatLevel({ oUnit }, true, false, true, false, false, false)..'; Position='..repru(oUnit:GetPosition())..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitZone='..(iUnitZone or 'nil'))
                 end
             end
         end

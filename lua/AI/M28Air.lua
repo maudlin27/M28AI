@@ -4443,8 +4443,8 @@ function EnemyBaseEarlyBomber(oBomber)
         if M28Utilities.IsTableEmpty(tEnemyBase) == false then
             local iEnemyBasePlateau, iEnemyBaseZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tEnemyBase)
             if (iEnemyBasePlateau or 0) > 0 and iEnemyBaseZone then
-                local tEnemyBaseLZData = M28Map.tAllPlateaus[iEnemyBasePlateau][M28Map.subrefPlateauLandZones]
-                local tEnemyBaseLZTeamData = tEnemyBaseLZData[iEnemyBaseZone][M28Map.subrefLZTeamData][iTeam]
+                local tEnemyBaseLZData = M28Map.tAllPlateaus[iEnemyBasePlateau][M28Map.subrefPlateauLandZones][iEnemyBaseZone]
+                local tEnemyBaseLZTeamData = tEnemyBaseLZData[M28Map.subrefLZTeamData][iTeam]
                 local tEnemyTargets = {}
                 local tEnemyInitialDestination
                 if M28Utilities.IsTableEmpty(tEnemyBaseLZData[M28Map.subrefHydroLocations]) == false then
@@ -4465,7 +4465,6 @@ function EnemyBaseEarlyBomber(oBomber)
                 local bReachedEnemyStart = false
                 local iTicksToWait
                 local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
-
                 if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, iEnemyBasePlateau='..iEnemyBasePlateau..'; iEnemyBaseZone='..iEnemyBaseZone..'; About to start main loop') end
                 --Start main loop
                 while M28UnitInfo.IsUnitValid(oBomber) and oBomber[rebEarlyBomberTargetBase] do
@@ -4477,6 +4476,7 @@ function EnemyBaseEarlyBomber(oBomber)
                         RemoveAssignedAttacker(oExistingValidAttackTarget, oBomber)
                     end
                     iTicksToWait = 10
+
                     --If enemy base has MAA in it, then abort logic
                     if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tEnemyBaseLZTeamData) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy has MAA to abort logic') end
@@ -4486,9 +4486,21 @@ function EnemyBaseEarlyBomber(oBomber)
                         break
                         --If we arent in enemy base yet, then travel to enemy base
                     elseif not((iStartLandOrWaterZone == iEnemyBaseZone and iStartPlateauOrZero == iEnemyBasePlateau) or M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tEnemyInitialDestination) <= 90) then
-                        --Travel to enemy base/hydro
-                        M28Orders.IssueTrackedMove(oBomber, tEnemyInitialDestination, 5, false, '1stBombBM', true)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will send bomber to enemy base') end
+                        --If we are targeting an enemy engineer that isn't too far from us then still attack it
+                        local bAttackExistingTarget = false
+                        if M28UnitInfo.IsUnitValid(oExistingValidAttackTarget) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dist to existing target='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oExistingValidAttackTarget)..'; Bomber range='..(oBomber[M28UnitInfo.refiBomberRange] or 'nil')..'; Bomb missed count='..(oExistingValidAttackTarget[M28UnitInfo.refiBombMissedCount] or 'nil')) end
+                            if M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oExistingValidAttackTarget) <= 20 + oBomber[M28UnitInfo.refiBomberRange] and (oExistingValidAttackTarget[M28UnitInfo.refiBombMissedCount] or 0) <= 1 then
+                                bAttackExistingTarget = true
+                                AssignTorpOrBomberTargets({ oBomber}, { oExistingValidAttackTarget }, iAirSubteam, false, false, true)
+                                if bDebugMessages == true then LOG(sFunctionRef..': will keep attacking existing target') end
+                            end
+                        end
+                        if not(bAttackExistingTarget) then
+                            --Travel to enemy base/hydro
+                            M28Orders.IssueTrackedMove(oBomber, tEnemyInitialDestination, 5, false, '1stBombBM', true)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will send bomber to enemy base, oExistingValidAttackTarget='..(oExistingValidAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oExistingValidAttackTarget) or 'nil')) end
+                        end
                     else
                         iTicksToWait = 1
                         --We are at or near enemy base/hydro, so search for engineers and pgens to attack; if are none, but we have located enemy units, then switch to engi hunter mode
@@ -4515,7 +4527,7 @@ function EnemyBaseEarlyBomber(oBomber)
                                     elseif EntityCategoryContains(M28UnitInfo.refCategoryT1Power - M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
                                         if not(tEnemyPgensAndLowHealthTanks) then tEnemyPgensAndLowHealthTanks = {} end
                                         table.insert(tEnemyPgensAndLowHealthTanks, oUnit)
-                                    --Clumped up tanks that can one-shot at least 1 of - also consider
+                                        --Clumped up tanks that can one-shot at least 1 of - also consider
                                     elseif oUnit:GetHealth() <= iStrikeDamage and M28UnitInfo.GetUnitMassCost(oUnit) >= 50 and oUnit:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
                                         if not(tEnemyPgensAndLowHealthTanks) then tEnemyPgensAndLowHealthTanks = {} end
                                         table.insert(tEnemyPgensAndLowHealthTanks, oUnit)
@@ -4582,19 +4594,24 @@ function EnemyBaseEarlyBomber(oBomber)
                                     iSecondClosestDist = iModDist
                                 end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Targeting enemy units, will consider if want to hover bomb, iClosestDist='..iClosestDist..'; Time since last fired a bomb='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0)..'; iSecondClosestDist='..iSecondClosestDist..'; oNearestEnemy='..(oNearestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemy) or 'nil')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Targeting enemy units, will consider if want to hover bomb, iClosestDist='..iClosestDist..'; Time since last fired a bomb='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0)..'; iSecondClosestDist='..iSecondClosestDist..'; oNearestEnemy='..(oNearestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemy) or 'nil'))
+                                if oNearestEnemy then LOG(sFunctionRef..': Health of oNearestEnemy='..oNearestEnemy:GetHealth()..'; Bomber strike damage='..oBomber[M28UnitInfo.refiStrikeDamage]) end
+                            end
                             --Hover-bomb if we have fired relatively recently
-                            if not(M28Utilities.bLoudModActive) and oNearestEnemy and iClosestDist <= 70 and oBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] <= 10 and
+                            if not(M28Utilities.bLoudModActive) and oNearestEnemy and iClosestDist <= 70 and ((oBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] <= 10) or (not(oBomber[M28UnitInfo.refiLastBombFired]) and iClosestDist <= 0 and not(M28UnitInfo.IsUnitValid(oExistingValidAttackTarget)) and oNearestEnemy:GetHealth() <= oBomber[M28UnitInfo.refiStrikeDamage])) and
                                     (oNearestEnemy:GetHealth() > oBomber[M28UnitInfo.refiStrikeDamage] or (iClosestDist < 50 and iSecondClosestDist < 50) or
                                             --If fired recently but not really recently then presumably our bomb missed so we want to fire at this target again
-                                            (GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] >= 3)) then
+                                            (oBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] >= 3)) then
                                 --M28Micro.HoverBombTarget(oBomber, oNearestEnemy)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will call hoverbomb logic') end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                --NOTE: Dont call via fork thread, as otherwise we end up calling the same logic multiple times and it overriding orders
                                 M28Micro.T1HoverBombTarget(oBomber, oNearestEnemy, true, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemy.UnitId) or oNearestEnemy:GetFractionComplete() < 1), true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Finished hoverbomb attempt') end
                                 iTicksToWait = 1 --Just to avoid infinite loop risk
                             else
+                                if bDebugMessages == true then LOG(sFunctionRef..': WIll use normal bomber attack logic') end
                                 AssignTorpOrBomberTargets({ oBomber}, tEnemyTargets, iAirSubteam, false, false, true)
                             end
                         end
@@ -4631,6 +4648,7 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return nil
         end
+    elseif bDebugMessages == true then LOG(sFunctionRef..': Will consider normal bomber logic')
     end
 
     local tBomberTable = {oBomber}
