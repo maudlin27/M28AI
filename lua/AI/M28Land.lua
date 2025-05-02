@@ -5404,7 +5404,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if oNearestEnemyToFriendlyBase then
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false and oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone then
                     iDistToClosestEnemyThreshold = 30 --Include units within 30 of being in range of the closest enemy
-                elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] == 0 then
+                elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] == 0 and not(M28Utilities.bCPUPerformanceMode) then
                     local iClosestFriendlyToEnemyBaseDist = 100000
                     local iCurFriendlyDist
                     for iFriendly, oFriendly in tAvailableCombatUnits do
