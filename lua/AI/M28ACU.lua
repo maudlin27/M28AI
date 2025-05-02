@@ -6742,7 +6742,7 @@ function ManageACU(aiBrain, oACUOverride)
             oACU[M28UnitInfo.refbUsingDefaultWeaponPriority] = true
         end
 
-        if oACU[M28UnitInfo.refbEasyBrain] then
+        if oACU[M28UnitInfo.refbEasyBrain] and oACU.SetAutoOvercharge then
             --Enable autoovercharge if have easy mode ACU
             local bHaveAutoOvercharge = false
             for iWeapon, tWeapon in oACU:GetBlueprint() do
