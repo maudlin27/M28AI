@@ -6265,11 +6265,14 @@ function ManageGunships(iTeam, iAirSubteam)
             end
             local tNearbyEnemyAirAA
             if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) > 0 then
-                tNearbyEnemyAirAA = M28Team.GetFirstActiveM28Brain(iTeam):GetUnitsAroundPoint(M28UnitInfo.refCategoryAirAA + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryRestorer, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), 70, 'Enemy')
+                local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
+                if oFirstM28Brain then
+                    tNearbyEnemyAirAA = M28Team.GetFirstActiveM28Brain(iTeam):GetUnitsAroundPoint(M28UnitInfo.refCategoryAirAA + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryRestorer, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), 70, 'Enemy')
 
-                if M28Utilities.IsTableEmpty(tNearbyEnemyAirAA) == false then
-                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemyAirAAThreatNearGunship before getunitsaroundpoint='..iEnemyAirAAThreatNearGunship..'; Threat from getunitsaroundpoint='..M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAirAA, true, true, false, false, false, false)) end
-                    iEnemyAirAAThreatNearGunship = math.max(iEnemyAirAAThreatNearGunship, M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAirAA, true, true, false, false, false, false))
+                    if M28Utilities.IsTableEmpty(tNearbyEnemyAirAA) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyAirAAThreatNearGunship before getunitsaroundpoint='..iEnemyAirAAThreatNearGunship..'; Threat from getunitsaroundpoint='..M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAirAA, true, true, false, false, false, false)) end
+                        iEnemyAirAAThreatNearGunship = math.max(iEnemyAirAAThreatNearGunship, M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAirAA, true, true, false, false, false, false))
+                    end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyGroundAAThreatByGunship='..iEnemyGroundAAThreatByGunship..'; Gunship threat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]..'; iEnemyAirAAThreatNearGunship='..iEnemyAirAAThreatNearGunship) end
