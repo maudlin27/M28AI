@@ -1452,7 +1452,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
         local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
         local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
 
-        if iOptionalAirAAThreatThreshold and iOptionalAirAAThreatThreshold > 0 then iAdjacentAirAAThreatThreshold = math.max(0, iOptionalAirAAThreatThreshold -  tWZTeamData[M28Map.refiEnemyAirAAThreat])  end
+        if iOptionalAirAAThreatThreshold and iOptionalAirAAThreatThreshold > 0 then iAdjacentAirAAThreatThreshold = math.max(0, iOptionalAirAAThreatThreshold -  (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0))  end
         if IsThereAAInWaterZone(tWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange) then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
@@ -1471,7 +1471,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         elseif iAdjacentAirAAThreatThreshold then
-                            iAdjacentAirAAThreatThreshold = iAdjacentAirAAThreatThreshold - tAdjWZTeamData[M28Map.refiEnemyAirAAThreat]
+                            iAdjacentAirAAThreatThreshold = iAdjacentAirAAThreatThreshold - (tAdjWZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
                         end
                     end
                 end
@@ -1493,7 +1493,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         elseif iAdjacentAirAAThreatThreshold then
-                            iAdjacentAirAAThreatThreshold = iAdjacentAirAAThreatThreshold - tLZTeamData[M28Map.refiEnemyAirAAThreat]
+                            iAdjacentAirAAThreatThreshold = iAdjacentAirAAThreatThreshold - (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
                         end
                     end
                 end
@@ -1503,7 +1503,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
         --Dealing with a land zone
         local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
         local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-        if iOptionalAirAAThreatThreshold and iOptionalAirAAThreatThreshold > 0 then iAdjacentAirAAThreatThreshold = math.max(0, iOptionalAirAAThreatThreshold -  tLZTeamData[M28Map.refiEnemyAirAAThreat])  end
+        if iOptionalAirAAThreatThreshold and iOptionalAirAAThreatThreshold > 0 then iAdjacentAirAAThreatThreshold = math.max(0, iOptionalAirAAThreatThreshold -  (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0))  end
         if bDebugMessages == true then LOG(sFunctionRef..': About to check if there is AA in land zone, iOptionalGroundThreatThreshold='..(iOptionalGroundThreatThreshold or 'nil')..'; iOptionalAirAAThreatThreshold='..(iOptionalAirAAThreatThreshold or 'nil')..'; tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; tLZTeamData[M28Map.refiEnemyAirAAThreat]='..(tLZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 'nil')..'; iAdjacentAirAAThreatThreshold='..(iAdjacentAirAAThreatThreshold or 'nil')) end
         if IsThereAAInZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange) then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1526,7 +1526,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         elseif iAdjacentAirAAThreatThreshold then
-                            iAdjacentAirAAThreatThreshold = iAdjacentAirAAThreatThreshold - tAdjLZTeamData[M28Map.refiEnemyAirAAThreat]
+                            iAdjacentAirAAThreatThreshold = iAdjacentAirAAThreatThreshold - (tAdjLZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
                         end
                     end
                 end
@@ -1548,7 +1548,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         elseif iAdjacentAirAAThreatThreshold then
-                            iAdjacentAirAAThreatThreshold = iAdjacentAirAAThreatThreshold - tAdjWZTeamData[M28Map.refiEnemyAirAAThreat]
+                            iAdjacentAirAAThreatThreshold = iAdjacentAirAAThreatThreshold - (tAdjWZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
                         end
                     end
                 end
