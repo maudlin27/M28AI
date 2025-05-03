@@ -13938,6 +13938,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     if M28Map.bIsCampaignMap and iGroundAAThreatWanted >= 8000 and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4) and (tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] >= math.max(20000, 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) or GetGameTimeSeconds() <= 900) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(20, tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] / 1000)) then
                         iGroundAAThreatWanted = math.min((iGroundAAThreatWanted - 8000) * 0.25 + 8000, 12000)
                     end
+                    --No nearby air threats, and significant groundAA already, and low mass - reduce AA wanted by half unless we have all T3 mexes
+                    if (bHaveLowMass or bHaveLowPower) and tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] >= 3000 and iNearbyEnemyAirToGroundThreat == 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] <= math.min(5, tLZData[M28Map.subrefLZMexCount]) then
+                        if M28Map.iMapSize >= 1000 and (tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] >= 7000 or tLZTeamData[M28Map.subrefMexCountByTech][3] < 3) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Reducing groundAA threat wanted significantly to 35% of normal value as we already have some AA and are low on resources') end
+                            iGroundAAThreatWanted = iGroundAAThreatWanted * 0.35
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Reducing groundAA threat wanted to 50% of normal value as we already have some AA and are low on resources') end
+                            iGroundAAThreatWanted = iGroundAAThreatWanted * 0.5
+                        end
+                    end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': GroundAA='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]..'; iGroundAAThreatWanted='..iGroundAAThreatWanted..'; Friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
