@@ -16954,6 +16954,7 @@ end--]]
                 if bDebugMessages == true then LOG(sFunctionRef..': Spare engi action - reclaim area if any mass or energy in it, iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; Mass='..(tLZData[M28Map.subrefTotalMassReclaim] or 0)..'; Energy='..(tLZData[M28Map.subrefLZTotalEnergyReclaim] or 0)..'; iZoneWithAnyReclaimOrCoreBase='..(iZoneWithAnyReclaimOrCoreBase or 'nil')..'; tLZData[M28Map.subrefLZTotalEnergyReclaim]='..tLZData[M28Map.subrefLZTotalEnergyReclaim]..'; Team energy % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]) end
                 if iHighestTechEngiAvailable > 0 then
                     if (tLZData[M28Map.subrefTotalMassReclaim] or 0) > 0 or (tLZData[M28Map.subrefLZTotalEnergyReclaim] or 0) > 0 then --treat energy reclaim as likely having some mass in it as well but of such a low value the normal mass check wont have picked it up
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will tyr and get remaining reclaim in area') end
                         HaveActionToAssign(refActionReclaimArea, 1, 90, {(tLZData[M28Map.subrefTotalMassReclaim] or 0) == 0, nil}, true, true, nil, nil, false)
                         iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
                     end
