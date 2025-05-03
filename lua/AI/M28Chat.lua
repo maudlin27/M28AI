@@ -735,7 +735,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                     elseif not(M28Map.bIsCampaignMap) and oBrainDefeated[M28Economy.refiBrainResourceMultiplier] <= 1.4 then
                         AddPotentialMessage( 'Bet you couldnt beat me if I was a 1.5 AIx!')
                     elseif not(M28Map.bIsCampaignMap) then
-                        AddPotentialMessage( 'Damn, I thought Id be unbeatable with this high a modifier')
+                        AddPotentialMessage( 'Damn, I thought I\'d be unbeatable with this high a modifier')
                         AddPotentialMessage( 'Impressive')
                     end
                     --Is this the last brain on the team? (means it wont be campaign map anyway)
@@ -754,7 +754,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                             for iBrain, oBrain in ArmyBrains do
                                 if not(oBrain:IsDefeated()) and not(oBrain.M28IsDefeated) and IsEnemy(oBrain:GetArmyIndex(), oBrainDefeated:GetArmyIndex()) and oBrain:GetCurrentUnits(categories.COMMAND) > 0 then
                                     LOG('Brain '..oBrain.Nickname..' has an ACU and isnt defeated')
-                                    AddPotentialMessage( 'Ive told the server not to give you any ranking points for this game, so I didnt really lose')
+                                    AddPotentialMessage( 'I\'ve told the server not to give you any ranking points for this game, so I didnt really lose')
                                     break
                                 end
                             end

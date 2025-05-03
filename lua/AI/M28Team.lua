@@ -5342,7 +5342,9 @@ function ConsiderSpecialStrategyAssignment(iTeam)
                         if iCurPlateau > 0 and iCurZone then
                             local tLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurZone][M28Map.subrefLZTeamData][iTeam]
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurStart, tLZTeamData[M28Map.reftClosestEnemyBase])
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateau='..iCurPlateau..'; iCurZone='..iCurZone..'; tCurStart='..repru(tCurStart)..'; tLZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; iCurDist='..iCurDist..'; Time='..GetGameTimeSeconds()) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateau='..iCurPlateau..'; iCurZone='..iCurZone..'; tCurStart='..repru(tCurStart)..'; tLZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; iCurDist='..iCurDist..'; Time='..GetGameTimeSeconds()..'; If in QUIET will increase curdist for UEF as their bombers are bad') end
+                            --UEF T1 bombers arent good at 1-shotting enemy engineers in QUIET
+                            if M28Utilities.bQuietModActive and oBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF then iCurDist = iCurDist + 100 end
                             if iCurDist < iClosestEnemy then
                                 iClosestEnemy = iCurDist
                                 oM28BrainWithClosestEnemy = oBrain

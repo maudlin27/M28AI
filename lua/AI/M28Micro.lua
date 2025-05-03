@@ -1361,7 +1361,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
     local sFunctionRef = 'TurnAirUnitAndMoveToTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; GameTime='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; Does bomber fire salvo='..tostring(M28UnitInfo.DoesBomberFireSalvo(oBomber) or false)..'; GameTime='..GetGameTimeSeconds()) end
     --First delay microing until finished our salvo if dealing with T1-T3 bomber
     if M28UnitInfo.DoesBomberFireSalvo(oBomber) and EntityCategoryContains(M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL, oBomber.UnitId) then
         if bDebugMessages == true then LOG(sFunctionRef..': Will wait a second so bomber can finish firing') end
@@ -1385,7 +1385,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
         if bContinue then
             aiBrain = oBomber:GetAIBrain()
             if aiBrain[refiMaxUnitsToHoverMicroAtOnce] then
-                if bDebugMessages == ture then LOG(sFunctionRef..': Checking if reached hover micro limit, aiBrain[refiMaxUnitsToHoverMicroAtOnce]='..aiBrain[refiMaxUnitsToHoverMicroAtOnce]..'; aiBrain[refiCurUnitsHoverMicroing]='..aiBrain[refiCurUnitsHoverMicroing]..'; oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; Time='..GetGameTimeSeconds()) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if reached hover micro limit, aiBrain[refiMaxUnitsToHoverMicroAtOnce]='..aiBrain[refiMaxUnitsToHoverMicroAtOnce]..'; aiBrain[refiCurUnitsHoverMicroing]='..aiBrain[refiCurUnitsHoverMicroing]..'; oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; Time='..GetGameTimeSeconds()) end
                 if aiBrain[refiCurUnitsHoverMicroing] >= aiBrain[refiMaxUnitsToHoverMicroAtOnce] then
                     M28Orders.IssueTrackedMove(oBomber, tDirectionToMoveTo, 2, false, 'NoMiAirMv', false)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1651,7 +1651,7 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
             if bContinueAttackingUntilTargetDead then
                 local iDelayForHoverBomb = 0
                 if M28UnitInfo.DoesBomberFireSalvo(oBomber) then iDelayForHoverBomb = 2 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Will wait '..iDelayForHoverBomb..' seconds (or 1, if higher)') end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will wait '..iDelayForHoverBomb..' seconds (or 1, if higher), does bomber fire salvo='..tostring(M28UnitInfo.DoesBomberFireSalvo(oBomber) or false)) end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitSeconds(math.max(1, iDelayForHoverBomb))
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2123,7 +2123,7 @@ end
 function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAttackingUntilTargetDead, bAbortForGroundAAUnlessTargetIsEngineer)
     --Based on combination of ahwassa approach and hoverAA approach
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'TurnAirUnitAndAttackTarget'
+    local sFunctionRef = 'T1HoverBombTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; GameTime='..GetGameTimeSeconds()) end
@@ -2144,7 +2144,7 @@ function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAtta
         if M28UnitInfo.DoesBomberFireSalvo(oBomber) then iMinTimeAfterFiringBeforeGivingNewOrders = 1.1 end
         local iTeam = oBomber:GetAIBrain().M28Team
         local bAbortForGroundAA = (bAbortForGroundAAUnlessTargetIsEngineer and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oTarget.UnitId)))
-        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, bAbortForGroundAA='..tostring(bAbortForGroundAA or false)..'; iStartTime='..iStartTime..'; Cur time='..GetGameTimeSeconds()..'; iMaxMicroTime='..iMaxMicroTime..'; Is bomber valid='..tostring(M28UnitInfo.IsUnitValid(oBomber) )..'; Is target valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, bAbortForGroundAA='..tostring(bAbortForGroundAA or false)..'; iStartTime='..iStartTime..'; Cur time='..GetGameTimeSeconds()..'; iMaxMicroTime='..iMaxMicroTime..'; Is bomber valid='..tostring(M28UnitInfo.IsUnitValid(oBomber) )..'; Is target valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; iMinTimeAfterFiringBeforeGivingNewOrders='..(iMinTimeAfterFiringBeforeGivingNewOrders or 'nil')..'; Does bomber fire salv='..tostring(M28UnitInfo.DoesBomberFireSalvo(oBomber) or false)) end
         while GetGameTimeSeconds() - iStartTime < iMaxMicroTime and M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) do
             --If have recently fired then dont want to give orders if have a salvo
             if iMinTimeAfterFiringBeforeGivingNewOrders > 0 and GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) < iMinTimeAfterFiringBeforeGivingNewOrders then
@@ -2246,7 +2246,7 @@ function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAtta
                     M28Utilities.ErrorHandler('Made mistake have nil move via point')
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': end of loop') end
+            if bDebugMessages == true then LOG(sFunctionRef..': end of loop, will repeat unless have reached max microing time, iMaxMicroTime='..iMaxMicroTime..'; Time spent so far='..GetGameTimeSeconds() - iStartTime) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(1)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2255,7 +2255,7 @@ function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAtta
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of hover bomb code') end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of hover bomb code, is bomber valid='..tostring(M28UnitInfo.IsUnitValid(oBomber))..'; Is target valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; Time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

@@ -438,14 +438,14 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                             end
                         elseif iLastOrderType == M28Orders.refiOrderIssueReclaim and oEngineer:IsUnitState('Moving') then
                             --If engi is in close to the target then reclaim it
-                            if oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition and M28Utilities.GetDistanceBetweenPositions(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition, oEngineer:GetPosition()) <= (oEngineer:GetBlueprint().Economy.MaxBuildDistance or 5) then
+                            if oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition and (oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].MaxMassReclaim or 0) > 0 and M28Utilities.GetDistanceBetweenPositions(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition, oEngineer:GetPosition()) <= (oEngineer:GetBlueprint().Economy.MaxBuildDistance or 5) then
                                 --Reissue reclaim order (but treat as unavailable)
                                 M28Orders.IssueTrackedReclaim(oEngineer, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget], false, 'RecInRng', false)
                             end
 
                             --Note - have a rare issue where given reclaim order far away in QUIET; however it doesnt show up on the navigator currenttargetpos
                             if bDebugMessages == true then
-                                LOG(sFunctionRef..': Have been given a reclaim order, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition='..repru(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition)..'; Eng position='..repru(oEngineer:GetPosition()))
+                                LOG(sFunctionRef..': Have been given a reclaim order, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition='..repru(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition)..'; Eng position='..repru(oEngineer:GetPosition())..'; Target max mass reclaim='..(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].MaxMassReclaim or 'nil'))
                                 if oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition then LOG(sFunctionRef..': Dist to cache position='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition)) end
                                 local oNavigator = oEngineer:GetNavigator()
                                 if oNavigator then
@@ -3909,19 +3909,33 @@ function BuildingWasBeingBuiltButCanBeReclaimedNow(oUnit)
 end
 
 function EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData)
-    if tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] >= 15 then return true
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'EnemyZoneHasTooMuchAAForBaseBomber'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': enemy groundAA threat='..(tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefTEnemyUnits]))) end
+    if tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] >= 15 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Too much groundAA threat') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
     elseif M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefTEnemyUnits]) == false then
         local tEnemyGroundAA = EntityCategoryFilterDown(M28UnitInfo.refCategoryGroundAA, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+        if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyGroundAA empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundAA))) end
         if M28Utilities.IsTableEmpty(tEnemyGroundAA) == false then
             for iAA, oAA in tEnemyGroundAA do
                 if M28UnitInfo.IsUnitValid(oAA) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': oAA='..oAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAA)..'; Fraction complete='..oAA:GetFractionComplete()) end
                     if oAA:GetFractionComplete() >= 0.75 or (oAA:GetFractionComplete() >= 0.6 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oAA.UnitId)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': AA almost complete so too much AA') end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                     end
                 end
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': No AA so returning false') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 
