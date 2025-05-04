@@ -1150,8 +1150,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     local iCategoryToBuild
     local iTeam = aiBrain.M28Team
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
@@ -2483,6 +2481,12 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --Initial T2+ tanks if have at least 5 engis of our current tech level and dont have many tanks, and can path to enemy by land (core base only)
         local iSkirmisherCategory = M28UnitInfo.refCategorySkirmisher * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
         if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and iFactoryTechLevel == 2 and categories.brmt2medm then iSkirmisherCategory = iSkirmisherCategory + categories.brmt2medm end
+        --If enemy has T3 then change skirmisher category to just be normal tanks
+        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 then
+            if iFactoryTechLevel <= 2 then iSkirmisherCategory = M28UnitInfo.refCategoryIndirect * categories.TECH1
+            else iSkirmisherCategory = iSkirmisherCategory - categories.TECH1 - categories.TECH2
+            end
+        end
 
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if iFactoryTechLevel >= 2 and bHaveHighestLZTech and tLZTeamData[M28Map.subrefLZbCoreBase] then
