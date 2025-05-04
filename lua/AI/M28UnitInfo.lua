@@ -335,7 +335,7 @@ refCategoryAllShieldUnits = categories.SHIELD + refCategoryPersonalShield
 --Air units
 refCategoryAirScout = categories.AIR * categories.SCOUT
 if categories.sea0002 then refCategoryAirScout = refCategoryAirScout + categories.sea0002 end --observational satellite
-refCategoryAirAA = categories.AIR * categories.ANTIAIR - categories.BOMBER - categories.GROUNDATTACK - categories.EXPERIMENTAL
+refCategoryAirAA = categories.AIR * categories.ANTIAIR * categories.MOBILE - categories.BOMBER - categories.GROUNDATTACK - categories.EXPERIMENTAL
 refCategoryBomber = categories.AIR * categories.BOMBER - refCategoryAntiNavy - categories.CANNOTUSEAIRSTAGING --excludes mercies
 refCategoryFighterBomber = categories.AIR * categories.ANTIAIR * categories.BOMBER - categories.EXPERIMENTAL
 refCategoryCzar = categories.AIR * categories.EXPERIMENTAL * categories.ANTIAIR * categories.AEON

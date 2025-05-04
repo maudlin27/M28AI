@@ -3126,6 +3126,38 @@ local function AssignMexesALandZone()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function DrawSpecificPlateauLandZones(iPlateau)
+    --For debug use - will draw each land zone in a plateau in a different colour to allow a visual check of how land zones have been created
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DrawSpecificPlateauLandZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Create fixed colours per ref
+    local iUniqueColourCount = 30
+    local tColourTable = M28Utilities.GenerateUniqueColourTable(iUniqueColourCount)
+
+    --Subfunction which assigns a unique colour to each land zone
+    function GetColourFromLandZoneNumber(iLandZoneRef)
+        local iColour = iLandZoneRef
+        while iColour >= iUniqueColourCount do
+            iColour = iColour - iUniqueColourCount
+        end
+
+        return tColourTable[iColour]
+    end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Will now draw every land zone in iPlateau='..iPlateau..', cycling the colour used, is table of LZs empty='..tostring(M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauLandZones]))) end
+    if M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauLandZones]) == false then
+        for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+            for _, tSegmentXZ in tLZData[subrefLZSegments] do
+                M28Utilities.DrawLocation(GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2]), GetColourFromLandZoneNumber(iLandZone), nil, iLandZoneSegmentSize - 0.1)
+            end
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function DrawSpecificLandZone(iPlateau, iLandZone, iColour)
     local tLocation
     for iSegmentRef, tSegmentXZ in tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments] do
