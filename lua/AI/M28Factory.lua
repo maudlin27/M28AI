@@ -4947,7 +4947,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         else
             --Adjacent LZs - gunship (enemy ground) subject to gunship ratio, or AirAA (enemy air)
             iCurrentConditionToTry = iCurrentConditionToTry + 1
-            if M28Map.iMapSize > 512 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < 5 * (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat])
+            if M28Map.iMapSize > 512 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < 5 * (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat])  or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 35000)
                     and (iFactoryTechLevel >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3) and ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then
                 if bDebugMessages == true then LOG(sFunctionRef..': We dont have air control so want to prioritise asfs over bombers/gunships until we have most of our mass invested in airaa') end
                 return sBPIDToBuild
