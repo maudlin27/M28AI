@@ -2652,6 +2652,17 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             elseif aiBrain[M28Overseer.refbPrioritiseHighTech] then iUnitCountToUpgrade = iUnitCountToUpgrade * 0.5
             end
 
+            --Lower build count wanted if enemy land is higher tech than any factory we have
+            if tLZTeamData[M28Map.subrefLZbCoreBase] and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestFactoryTechLevel] and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and iUnitCountToUpgrade > 10 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) or M28Utilities.IsTableEmpty(EntityCategoryContains(M28UnitInfo.refCategoryFactory * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel), tLZTeamData[M28Map.subreftoActiveUpgrades]))) then
+                if tLZTeamData[M28Map.subrefMexCountByTech][iFactoryTechLevel + 1] > 0 or (iFactoryTechLevel == 1 and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) then
+                    iUnitCountToUpgrade = math.max(10, iUnitCountToUpgrade * 0.5)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy outtechs us so want to upgrade sooner') end
+                else
+                    iUnitCountToUpgrade = math.max(11, iUnitCountToUpgrade * 0.7)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy outtechs us but we dont have t3 mex yet (or t2 for a t1 fac), so want to upgrade just a bit sooner') end
+                end
+            end
+
 
 
 
