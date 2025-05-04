@@ -8911,7 +8911,7 @@ function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint
                             --else
                             if not(bCloseToEnemy) and tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] > 0 then
                                 --Are we close to indirectfire
-                                local tEnemyIndirect = EntityCategoryFilterDown(categories.INDIRECT * categories.MOBILE, tLZTeamData[M28Map.subrefTEnemyUnits])
+                                local tEnemyIndirect = EntityCategoryFilterDown(categories.INDIRECTFIRE * categories.MOBILE, tLZTeamData[M28Map.subrefTEnemyUnits])
                                 if M28Utilities.IsTableEmpty(tEnemyIndirect) == false then
                                     for iEnemy, oEnemy in tEnemyIndirect do
                                         if not(oEnemy.Dead) and (oEnemy[M28UnitInfo.refiIndirectRange] or 0) > 5 and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), tClosestTarget) <= (oEnemy[M28UnitInfo.refiIndirectRange] or 0) + 10 then
