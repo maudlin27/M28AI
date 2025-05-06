@@ -5522,3 +5522,41 @@ function ConsiderTMLForLongRangeEnemyThreat(iTeam)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function MonitorEnemyTeleportUpgrade(oACU, iTeam, sEnhancement)
+    --If M28 is an enemy then monitor for each enemy M28 team to see if we gain visual of the ACU, and if/when we have visual, wait until they are 15% done with the teleport upgrade and then flag that enemy has teleport (so we can start taking countermeasures)
+    local sFunctionRef = 'MonitorEnemyTeleportUpgrade'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local oM28Brain = GetFirstActiveM28Brain(iTeam)
+    local iProgressToWorryAboutTeleDefence = math.random(35, 75)/100
+    local bHaveSeenUpgradingOrSimilar = false
+    local iPrevProgress = 0
+    if M28UnitInfo.IsUnitValid(oACU) then iPrevProgress = oACU:GetWorkProgress() end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU='..oACU.UnitId..' owned by '..oACU:GetAIBrain().Nickname..'; iTeam='..iTeam..'; oM28Brain='..oM28Brain.Nickname..'; sEnhancement='..sEnhancement..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Is ACU upgrading='..tostring(oACU:IsUnitState('Upgrading'))..'; tTeamData[iTeam][refbEnemyHasTeleport]='..tostring(tTeamData[iTeam][refbEnemyHasTeleport] or false)..'; First 2 conditions='..tostring(M28UnitInfo.IsUnitValid(oACU) and oACU:IsUnitState('Upgrading'))..'; Second two='..tostring(not(oM28Brain.M28IsDefeated) and not(tTeamData[iTeam][refbEnemyHasTeleport]))..'; oM28Brain.M28IsDefeated='..tostring(oM28Brain.M28IsDefeated or false)..'; Time='..GetGameTimeSeconds()) end
+
+    while M28UnitInfo.IsUnitValid(oACU) and oACU:IsUnitState('Upgrading') and not(oM28Brain.M28IsDefeated) and not(tTeamData[iTeam][refbEnemyHasTeleport]) do
+        --If progress has decreased cancel as enemy may have switched upgrades
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of loop, ACU progress='..oACU:GetWorkProgress()..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(oM28Brain, oACU, true))..'; oACU[M28UnitInfo.refsLastEnhancementStarted]='..(oACU[M28UnitInfo.refsLastEnhancementStarted] or 'nil')) end
+        if not(oACU[M28UnitInfo.refsLastEnhancementStarted] == sEnhancement) or oACU:GetWorkProgress() < iPrevProgress then
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont think we are still getting the upgrade') end
+            break
+        else
+            if bHaveSeenUpgradingOrSimilar or M28UnitInfo.CanSeeUnit(oM28Brain, oACU, true) or oACU:GetWorkProgress() >= iProgressToWorryAboutTeleDefence then
+                bHaveSeenUpgradingOrSimilar = true
+                if oACU:GetWorkProgress() >= 0.1 then
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy is upgrading teleporter, setting flag for iTeam='..iTeam..' at time='..GetGameTimeSeconds()..'; ACU work progress='..oACU:GetWorkProgress()) end
+                    tTeamData[iTeam][refbEnemyHasTeleport] = true
+                    break
+                end
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': End of loop at time='..GetGameTimeSeconds()..'; Is ACU valid='..tostring(M28UnitInfo.IsUnitValid(oACU))..'; oM28Brain.IsDefeated='..tostring(oM28Brain.IsDefeated or false)..'; Enemy has teleport='..tostring(tTeamData[iTeam][refbEnemyHasTeleport] or false)..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

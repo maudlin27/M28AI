@@ -831,6 +831,31 @@ function OnUnitDeath(oUnit)
     --LOG('WOrk end has finished for self='..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..'; work reprs='..reprs(work))
 --end
 
+function OnEnhancementStarted(self, work)
+    --e.g. returns log like OnEhancementStarted start, self.UnitId==url0001; work="CoolingUpgrade"
+    if M28Utilities.bM28AIInGame then
+        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'OnEnhancementStarted'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': start, self.UnitId=='..(self.UnitId or 'nil')..'; work='..reprs(work)..'; owner='..self:GetAIBrain().Nickname..' on team='..self:GetAIBrain().M28Team) end
+        self[M28UnitInfo.refsLastEnhancementStarted] = work
+        if work == 'Teleporter' and self.GetAIBrain then
+            local iACUTeam = self:GetAIBrain().M28Team
+            for iTeam = 1, M28Team.iTotalTeamCount do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering team '..iTeam..' with M28Brain count='..(M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 'nil')) end
+                if not(iTeam == iACUTeam) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                    local oFirstBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is first M28 brain an enemy of the ACU that compelted an enhancement='..tostring(IsEnemy(self:GetAIBrain():GetArmyIndex(), M28Team.GetFirstActiveM28Brain(iTeam):GetArmyIndex()))) end
+                    if oFirstBrain.GetArmyIndex and not(oFirstBrain.M28IsDefeated) and IsEnemy(self:GetAIBrain():GetArmyIndex(), M28Team.GetFirstActiveM28Brain(iTeam):GetArmyIndex()) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will monitor for when enemy starts ont eleport upgrade') end
+                        ForkThread(M28Team.MonitorEnemyTeleportUpgrade, self, iTeam, work)
+                    end
+                end
+            end
+        end
+    end
+end
+
 function OnEnhancementComplete(oUnit, sEnhancement)
     if M28Utilities.bM28AIInGame then
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
