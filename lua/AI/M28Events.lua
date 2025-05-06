@@ -834,7 +834,7 @@ function OnUnitDeath(oUnit)
 function OnEnhancementStarted(self, work)
     --e.g. returns log like OnEhancementStarted start, self.UnitId==url0001; work="CoolingUpgrade"
     if M28Utilities.bM28AIInGame then
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnEnhancementStarted'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then LOG(sFunctionRef..': start, self.UnitId=='..(self.UnitId or 'nil')..'; work='..reprs(work)..'; owner='..self:GetAIBrain().Nickname..' on team='..self:GetAIBrain().M28Team) end

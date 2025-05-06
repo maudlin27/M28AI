@@ -2196,7 +2196,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 local bDontGetCombat = false
                 if not (iCategoryToGet) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     --If dont have highest factory tech level vs enemy ground, and have either very low mass or stalling E power, and on same island as core base, then dont build afterall
-                    if iFactoryTechLevel < 3 and iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] and ((bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) or (bHaveLowMass and aiBrain:GetEconomyStoredRatio('MASS') <= 0.01)) and tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
+                    if iFactoryTechLevel < 3 and iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] and ((bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) or (bHaveLowMass and aiBrain:GetEconomyStoredRatio('MASS') <= 0.01)) and tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])
+                    and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) or not(M28Conditions.CloseToEnemyUnit(oFactory:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 80, iTeam, true, nil, nil, nil, nil, nil))) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Dont have enough resources to want to consider building to deal with adjacent zone threats with combat units') end
                         bDontGetCombat = true
                     end

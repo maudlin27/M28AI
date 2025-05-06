@@ -5526,7 +5526,7 @@ end
 function MonitorEnemyTeleportUpgrade(oACU, iTeam, sEnhancement)
     --If M28 is an enemy then monitor for each enemy M28 team to see if we gain visual of the ACU, and if/when we have visual, wait until they are 15% done with the teleport upgrade and then flag that enemy has teleport (so we can start taking countermeasures)
     local sFunctionRef = 'MonitorEnemyTeleportUpgrade'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local oM28Brain = GetFirstActiveM28Brain(iTeam)

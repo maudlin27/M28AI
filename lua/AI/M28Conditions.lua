@@ -1857,7 +1857,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                 iLandFactoriesHave = table.getn(tLandFactories)
             end
         end
-        if iLandFactoriesHave >= 3 then bDebugMessages = true end
+
         local aiBrain = oOptionalBrainOverride or ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
         if bDebugMessages == true then LOG(sFunctionRef..': Near start, iLandFactoriesHave='..iLandFactoriesHave..'; Highest air fac tech='..(aiBrain[M28Economy.refiOurHighestAirFactoryTech] or 'nil')..'; bGoingSecondAir='..tostring(aiBrain[M28Economy.refbGoingSecondAir] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Focus on T1 spam='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] or false)..'; oOptionalBrainOverride='..(oOptionalBrainOverride.Nickname or 'nil')..'; aiBrain='..(aiBrain.Nickname or 'nil')) end
 
