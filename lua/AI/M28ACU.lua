@@ -5461,7 +5461,6 @@ function RunFromEnemyTeleport(oACU, iTeam, tLZOrWZData)
         --Are any teleport targets within 60 of us? If so then run in the opposite direction unless we are underwater or have a powerufl gun upgrade
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if we need to run from enemy teleport') end
         if not(M28UnitInfo.IsUnitUnderwater(oACU)) and (oACU[refiUpgradeCount] <= 2 or not(oACU:HasEnhancement('MicrowaveLaserGenerator') or oACU:HasEnhancement('BlastAttack'))) then
-            bDebugMessages = true
             local iClosestTeleportDist = 50
             local iCurTeleportDist
             local tClosestTeleport
