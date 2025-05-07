@@ -953,17 +953,26 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             --Max mex to build
                             local iHydroDistToStart = M28Utilities.GetDistanceBetweenPositions(tClosestHydroToACU, tLZOrWZData[M28Map.subrefMidpoint])
                             local iMexInLandZone = 0
+                            local oHydroToConsiderAssisting
+                            local iClosestHydroDist = 1000
                             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(tLZOrWZData[M28Map.subrefLZMexLocations]) end
                             if bDebugMessages == true then LOG(sFunctionRef..': Hydro is nearby, Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iMexInLandZone='..iMexInLandZone..'; Gross base energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Dist of closest hydro='..iHydroDistToStart) end
                             --Do we have a hydro underconstruction in this land zone?
                             if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 12 * iResourceMod then
                                 local tHydroInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                 if M28Utilities.IsTableEmpty(tHydroInZone) == false then
+                                    local iCurHydroDist
                                     bHaveUnderConstructionFirstHydro = true
                                     for iHydro, oHydro in tHydroInZone do
                                         if oHydro:GetFractionComplete() == 1 and oHydro:GetAIBrain() == aiBrain then
                                             bHaveUnderConstructionFirstHydro = false
                                             break
+                                        else
+                                            iCurHydroDist = M28Utilities.GetDistanceBetweenPositions(oHydro:GetPosition(), oACU:GetPosition())
+                                            if iCurHydroDist < iClosestHydroDist then
+                                                oHydroToConsiderAssisting = oHydro
+                                                iClosestHydroDist = iCurHydroDist
+                                            end
                                         end
                                     end
                                 end
@@ -984,8 +993,13 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) <= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) >= aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) and aiBrain:GetEconomyStored('ENERGY') <= math.min(2000, aiBrain:GetEconomyStored('MASS') * 20) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': LOUD/QUIET build order = want to get a pgen before hydro to avoid stalling') end
                                 ACUActionBuildPower(aiBrain, oACU)
-                            elseif bHaveUnderConstructionFirstHydro and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.2 * iResourceMod or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] >= math.min(3, iMexInLandZone)) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have underconstruction hydro and equiv of 3 mexes or every mex in zone so will try and assist it') end
+                            elseif bHaveUnderConstructionFirstHydro and
+                                (aiBrain[M28Economy.refiBrainResourceMultiplier] <= 1.2 or
+                                (oHydroToConsiderAssisting:GetFractionComplete() <= 0.7 - math.min(0.55, 0.35 * (iClosestHydroDist - 10)/10) and (iClosestHydroDist <= 60 - math.min(50, (aiBrain[M28Economy.refiBrainBuildRateMultiplier]-1)*100))) or
+                                aiBrain:GetEconomyStored('ENERGY') <= 450 or
+                                iClosestHydroDist <= 2 + oACU:GetBlueprint().Economy.MaxBuildDistance)
+                             and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.2 * iResourceMod or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] >= math.min(3, iMexInLandZone)) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have underconstruction hydro and equiv of 3 mexes or every mex in zone so will try and assist it, oHydroToConsiderAssisting:GetFractionComplete()='..oHydroToConsiderAssisting:GetFractionComplete()..'; iClosestHydroDist='..iClosestHydroDist..'; E stored='..aiBrain:GetEconomyStored('ENERGY')..'; Resource multiplier='..aiBrain[M28Economy.refiBrainResourceMultiplier]..'; aiBrain[M28Economy.refiBrainBuildRateMultiplier]='..aiBrain[M28Economy.refiBrainBuildRateMultiplier]) end
                                 ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOptionalUnderConstructionHydro)
                             elseif (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]) >= 5 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(6, 2 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 9)) * iResourceMod then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build pgens or extra hydro, is oOptionalUnderConstructionHydro valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalUnderConstructionHydro))) end
@@ -1003,7 +1017,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                         M28Utilities.ErrorHandler('ACU wants to build a mex but failed to find anywhere')
                                     end
                                 end
-                            elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 * iResourceMod and (iResourceMod <= 1.7 or aiBrain:GetEconomyStored('MASS') <= 80) then
+                            elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 * iResourceMod and (iResourceMod <= 1.7 or aiBrain:GetEconomyStored('MASS') <= 80) and (iResourceMod <= 1.4 or aiBrain[M28Economy.refiBrainBuildRateMultiplier] <= 1.4 or iClosestHydroDist <= 40 or aiBrain:GetEconomyStored('ENERGY') <= 450) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try to assist a hydro nearby') end
                                 ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOptionalUnderConstructionHydro)
                             else --We ahve alreadyu confirmed we have < min energy per tick wanted earlier, so want to build pgen
