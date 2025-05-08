@@ -8795,8 +8795,14 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
                             iClosestDist = iCurDist
                             iClosestLZ = iLandZone
                         end
-                    elseif not(iClosestLZ) then
+                    elseif not(iClosestLZ)  then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                        if tLZData[M28Map.subrefLZTotalSegmentCount] <= 20 then
+                            if tLZData[M28Map.subrefLZTotalSegmentCount] <= 5 then iCurDist = iCurDist + 1000
+                            else iCurDist = iCurDist + 500
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Few segments in LZ '..iLandZone..' so increasing the distance so are less likely to pick it, tLZData[M28Map.subrefLZTotalSegmentCount]='..tLZData[M28Map.subrefLZTotalSegmentCount]) end
+                        end
                         if iCurDist < iClosestNoMexDist then
                             iClosestNoMexDist = iCurDist
                             iClosestNoMexLZ = iLandZone
@@ -8936,7 +8942,7 @@ function GetPlateauAndZoneForEngineerSupport(iTeam, oUnit)
                             iTargetIsland = tCurLZOrWZData[M28Map.subrefLZIslandRef]
                             iTargetPlateau = tiPlateauZoneAndTech[1]
                             iTargetLandZone = tiPlateauZoneAndTech[2]
-                            if bDebugMessages == true then LOG(sFunctionRef..': Recording as closest P and Z that wants support') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Recording as closest P and Z that wants support, P'..tiPlateauZoneAndTech[1]..'Z'..tiPlateauZoneAndTech[2]) end
                         end
                     end
                 end
@@ -9697,9 +9703,11 @@ function ManageTransports(iTeam, iAirSubteam)
                         oUnit[refiTargetPlateauForDrop] = iPlateauToTravelTo
                         oUnit[refiTargetIslandForDrop] = iIslandToTravelTo
                         oUnit[refiTargetZoneForDrop] = iLandZoneToTravelTo or iWaterZoneToTravelTo --must set before calling the transportunload order
-                        M28Orders.IssueTrackedTransportUnload(oUnit, tLZOrWZData[M28Map.subrefMidpoint], 10, false, 'TRLZUnlI'..(iIslandToTravelTo or 0)..'Z'..(iLandZoneToTravelTo or iWaterZoneToTravelTo), false)
+                        M28Orders.IssueTrackedTransportUnload(oUnit, tLZOrWZData[M28Map.subrefMidpoint], 10, false, 'TRLZUnlP'..(iPlateauToTravelTo or 'x')..'I'..(iIslandToTravelTo or 0)..'Z'..(iLandZoneToTravelTo or iWaterZoneToTravelTo), false)
                         --Set this as an expansion zone if it is in same isalnd (as normal logic wont flag it as an expansion)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Just tried to send order for transport to go to iIslandToTravelTo='..iIslandToTravelTo..'; iLandZoneToTravelTo='..iLandZoneToTravelTo..'; LZ midpoint='..repru(tLZOrWZData[M28Map.subrefMidpoint])) end
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Just tried to send order for transport to go to iIslandToTravelTo='..iIslandToTravelTo..'; iLandZoneToTravelTo='..iLandZoneToTravelTo..'; LZ midpoint='..repru(tLZOrWZData[M28Map.subrefMidpoint]))
+                        end
                         local tTargetLZData =  M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
                         local tLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
                         if bTravelToSameIsland and tLZTeamData then
