@@ -1857,6 +1857,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                 iLandFactoriesHave = table.getn(tLandFactories)
             end
         end
+
         local aiBrain = oOptionalBrainOverride or ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
         if bDebugMessages == true then LOG(sFunctionRef..': Near start, iLandFactoriesHave='..iLandFactoriesHave..'; Highest air fac tech='..(aiBrain[M28Economy.refiOurHighestAirFactoryTech] or 'nil')..'; bGoingSecondAir='..tostring(aiBrain[M28Economy.refbGoingSecondAir] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Focus on T1 spam='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] or false)..'; oOptionalBrainOverride='..(oOptionalBrainOverride.Nickname or 'nil')..'; aiBrain='..(aiBrain.Nickname or 'nil')) end
 
@@ -2117,8 +2118,9 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                             end
                                         end
                                     end
+                                    if iLandFactoriesHave >= 4 and M28Map.iMapSize >= 1000 and not(TeamHasAirControl(iTeam)) then iAirFactoriesForEveryLandFactory = iAirFactoriesForEveryLandFactory * 1.5 end
 
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesForEveryLandFactory='..iAirFactoriesForEveryLandFactory..'; iLandFactoriesWantedBeforeAir='..iLandFactoriesWantedBeforeAir..'; iLandFactoriesHave='..iLandFactoriesHave) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesForEveryLandFactory='..iAirFactoriesForEveryLandFactory..'; iLandFactoriesWantedBeforeAir='..iLandFactoriesWantedBeforeAir..'; iLandFactoriesHave='..iLandFactoriesHave..'; Our team AirAA threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]..'; Enemy AirAA threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]..'; Do we have air control='..tostring(TeamHasAirControl(iTeam))) end
                                     if iLandFactoriesHave < iLandFactoriesWantedBeforeAir then
                                         if bDebugMessages == true then LOG(sFunctionRef..': We want land fac3') end
                                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

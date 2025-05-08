@@ -81,6 +81,7 @@ refbDisableOvercharge = 'M28ACUOCDs' --true if dont want to use overcharge manua
 reftbInArmyIndexBigThreatTable = 'M28UnitInBigThreatTable' --[x] is army index; true if have added unit to table of big threats for that army index
 refbConstructionStart = 'M28UnitConStrt' --True if constructionstarted event logic has been run for this unit
 reftiTimeOfLastEnhancementComplete = 'M28TLstECmpl' --table, [x] = enhancement ID, gametimeseconds that the upgrade completed
+refsLastEnhancementStarted = 'M28ULstEnS' --last enhancement started for the unit (used to track if they have switched out enhancements)
 refoClosestEnemyFromLastCloseToEnemyUnitCheck = 'M28ClEnU' --If running the 'close to enemy unit' check, this will retunr the closest enemy unit before the code aborts
 refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked unit identified' logic
 refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was created

@@ -953,17 +953,26 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             --Max mex to build
                             local iHydroDistToStart = M28Utilities.GetDistanceBetweenPositions(tClosestHydroToACU, tLZOrWZData[M28Map.subrefMidpoint])
                             local iMexInLandZone = 0
+                            local oHydroToConsiderAssisting
+                            local iClosestHydroDist = 1000
                             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(tLZOrWZData[M28Map.subrefLZMexLocations]) end
                             if bDebugMessages == true then LOG(sFunctionRef..': Hydro is nearby, Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iMexInLandZone='..iMexInLandZone..'; Gross base energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Dist of closest hydro='..iHydroDistToStart) end
                             --Do we have a hydro underconstruction in this land zone?
                             if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 12 * iResourceMod then
                                 local tHydroInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                 if M28Utilities.IsTableEmpty(tHydroInZone) == false then
+                                    local iCurHydroDist
                                     bHaveUnderConstructionFirstHydro = true
                                     for iHydro, oHydro in tHydroInZone do
                                         if oHydro:GetFractionComplete() == 1 and oHydro:GetAIBrain() == aiBrain then
                                             bHaveUnderConstructionFirstHydro = false
                                             break
+                                        else
+                                            iCurHydroDist = M28Utilities.GetDistanceBetweenPositions(oHydro:GetPosition(), oACU:GetPosition())
+                                            if iCurHydroDist < iClosestHydroDist then
+                                                oHydroToConsiderAssisting = oHydro
+                                                iClosestHydroDist = iCurHydroDist
+                                            end
                                         end
                                     end
                                 end
@@ -984,8 +993,13 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) <= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMex) >= aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) and aiBrain:GetEconomyStored('ENERGY') <= math.min(2000, aiBrain:GetEconomyStored('MASS') * 20) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': LOUD/QUIET build order = want to get a pgen before hydro to avoid stalling') end
                                 ACUActionBuildPower(aiBrain, oACU)
-                            elseif bHaveUnderConstructionFirstHydro and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.2 * iResourceMod or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] >= math.min(3, iMexInLandZone)) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have underconstruction hydro and equiv of 3 mexes or every mex in zone so will try and assist it') end
+                            elseif bHaveUnderConstructionFirstHydro and
+                                (aiBrain[M28Economy.refiBrainResourceMultiplier] <= 1.2 or
+                                (oHydroToConsiderAssisting:GetFractionComplete() <= 0.7 - math.min(0.55, 0.35 * (iClosestHydroDist - 10)/10) and (iClosestHydroDist <= 60 - math.min(50, (aiBrain[M28Economy.refiBrainBuildRateMultiplier]-1)*100))) or
+                                aiBrain:GetEconomyStored('ENERGY') <= 450 or
+                                iClosestHydroDist <= 2 + oACU:GetBlueprint().Economy.MaxBuildDistance)
+                             and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.2 * iResourceMod or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] >= math.min(3, iMexInLandZone)) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have underconstruction hydro and equiv of 3 mexes or every mex in zone so will try and assist it, oHydroToConsiderAssisting:GetFractionComplete()='..oHydroToConsiderAssisting:GetFractionComplete()..'; iClosestHydroDist='..iClosestHydroDist..'; E stored='..aiBrain:GetEconomyStored('ENERGY')..'; Resource multiplier='..aiBrain[M28Economy.refiBrainResourceMultiplier]..'; aiBrain[M28Economy.refiBrainBuildRateMultiplier]='..aiBrain[M28Economy.refiBrainBuildRateMultiplier]) end
                                 ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOptionalUnderConstructionHydro)
                             elseif (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]) >= 5 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(6, 2 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] * 3 + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] * 9)) * iResourceMod then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build pgens or extra hydro, is oOptionalUnderConstructionHydro valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalUnderConstructionHydro))) end
@@ -1003,7 +1017,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                         M28Utilities.ErrorHandler('ACU wants to build a mex but failed to find anywhere')
                                     end
                                 end
-                            elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 * iResourceMod and (iResourceMod <= 1.7 or aiBrain:GetEconomyStored('MASS') <= 80) then
+                            elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 * iResourceMod and (iResourceMod <= 1.7 or aiBrain:GetEconomyStored('MASS') <= 80) and (iResourceMod <= 1.4 or aiBrain[M28Economy.refiBrainBuildRateMultiplier] <= 1.4 or iClosestHydroDist <= 40 or aiBrain:GetEconomyStored('ENERGY') <= 450) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try to assist a hydro nearby') end
                                 ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOptionalUnderConstructionHydro)
                             else --We ahve alreadyu confirmed we have < min energy per tick wanted earlier, so want to build pgen
@@ -2309,6 +2323,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
 
     local bWantToRun = false
     local iTeam = oACU:GetAIBrain().M28Team
+
     --Dont run if in core base unless low health or close to the rally point
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for brain '..oACU:GetAIBrain().Nickname..'; Is ACU in core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..' iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs] or false)..'; Does enemy have sub? count='..(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refiEnemySubCount] or 0)..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
     if tLZTeamData[M28Map.subrefLZbCoreBase] and (M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.2 and (oACU[refbUseACUAggressively] or (M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.4 and ((oACU[refiUpgradeCount] or 0) > 0 or not(M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU])) and (false and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.75 or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 70)) or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 15)) and ((M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.5 or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) > 5 + M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint],tLZTeamData[M28Map.reftClosestEnemyBase])))  then
@@ -5451,6 +5466,78 @@ function AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWater
     return false
 end
 
+function RunFromEnemyTeleport(oACU, iTeam, tLZOrWZData)
+    --Returns true if we have given an order to run from a nearby enemy teleport
+    local sFunctionRef = 'RunFromEnemyTeleport'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails]) == false then
+        --Are any teleport targets within 60 of us? If so then run in the opposite direction unless we are underwater or have a powerufl gun upgrade
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we need to run from enemy teleport') end
+        if not(M28UnitInfo.IsUnitUnderwater(oACU)) and (oACU[refiUpgradeCount] <= 2 or not(oACU:HasEnhancement('MicrowaveLaserGenerator') or oACU:HasEnhancement('BlastAttack'))) then
+            local iClosestTeleportDist = 50
+            local iCurTeleportDist
+            local tClosestTeleport
+            local oNearestTeleportUnit
+            local iCurTeleportUnitDist
+            local iNearestTeleportUnitDist = 1000
+            for iEntry, tTeleportData in M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails] do
+                if M28UnitInfo.IsUnitValid(tTeleportData[M28Team.subrefoTeleportUnit]) and (tTeleportData[M28Team.subrefoTeleportUnit][M28UnitInfo.refiDFRange] or 0) > 0 then
+                    iCurTeleportDist = M28Utilities.GetDistanceBetweenPositions(tTeleportData[M28Team.subreftTeleportTarget], oACU:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurTeleportDist='..iCurTeleportDist..'; iClosestTeleportDist threshold='..iClosestTeleportDist) end
+                    if iCurTeleportDist < iClosestTeleportDist then
+                        iClosestTeleportDist = iCurTeleportDist
+                        tClosestTeleport = {tTeleportData[M28Team.subreftTeleportTarget][1], tTeleportData[M28Team.subreftTeleportTarget][2], tTeleportData[M28Team.subreftTeleportTarget][3]}
+                    end
+                    iCurTeleportUnitDist = M28Utilities.GetDistanceBetweenPositions(tTeleportData[M28Team.subrefoTeleportUnit]:GetPosition(), oACU:GetPosition())
+                    if iCurTeleportUnitDist < iNearestTeleportUnitDist then
+                        iNearestTeleportUnitDist = iCurTeleportUnitDist
+                        oNearestTeleportUnit = tTeleportData[M28Team.subrefoTeleportUnit]
+                    end
+                end
+            end
+
+            --Cover off the following scenarios:
+            --1 - enemy has teleported and is now moving closer to us
+            --2 - enemy teleported, and then teleports again (while in range of us) to just infront of where we would be trying to run (so we run back towards them/into their range)
+            local tRunToLocation
+            if bDebugMessages == true then LOG(sFunctionRef..': tClosestTeleport='..repru(tClosestTeleport)..'; oNearestTeleportUnit='..(oNearestTeleportUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestTeleportUnit) or 'nil')..'; iNearestTeleportUnitDist='..iNearestTeleportUnitDist..'; oNearestTeleportUnit[M28UnitInfo.refiDFRange]='..(oNearestTeleportUnit[M28UnitInfo.refiDFRange] or 'nil')) end
+            local iAngleToRun
+            if oNearestTeleportUnit and (iNearestTeleportUnitDist <= oNearestTeleportUnit[M28UnitInfo.refiDFRange] + 3 or iNearestTeleportUnitDist <= 50) then
+                --Want to run from nearest teleport unit; check if also want to run from a teleport location
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit state of oNearestTeleportUnit='..M28UnitInfo.GetUnitState(oNearestTeleportUnit)) end
+                if oNearestTeleportUnit:IsUnitState('Teleporting') and tClosestTeleport then
+                    iAngleToRun = (M28Utilities.GetAngleFromAToB(oNearestTeleportUnit:GetPosition(), oACU:GetPosition()) + M28Utilities.GetAngleFromAToB(tClosestTeleport, oACU:GetPosition())) / 2
+                else
+                    iAngleToRun = M28Utilities.GetAngleFromAToB(oNearestTeleportUnit:GetPosition(), oACU:GetPosition())
+                end
+            elseif tClosestTeleport then
+                iAngleToRun = M28Utilities.GetAngleFromAToB(tClosestTeleport, oACU:GetPosition())
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iANgleToRun='..(iAngleToRun or 'nil')) end
+            if iAngleToRun then
+                local iPlateauWanted = NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition())
+                for iDist = 30, 5, -5 do
+                    tRunToLocation = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleToRun, 30, true)
+                    if M28Utilities.IsTableEmpty(tRunToLocation) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, tRunToLocation) == iPlateauWanted then
+                        break
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tRunToLocation) == false then
+                    --IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+                    M28Orders.IssueTrackedMove(oACU, tRunToLocation, 1, false, 'RunFrTel', true)
+                    --Make sure we dont dodge shots or do something that causes us to stop
+                    M28Micro.TrackTemporaryUnitMicro(oACU, 1, nil, false)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Given ACU order to move away from enemy teleport, iAngleToRun='..iAngleToRun..'; tRunToLocation='..repru(tRunToLocation)) end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -5466,6 +5553,7 @@ function GetACUOrder(aiBrain, oACU)
     local tLZOrWZData
     local tLZOrWZTeamData
     local iTeam = oACU:GetAIBrain().M28Team
+
     if iPlateauOrZero == 0 then
         tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
         tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
@@ -5592,7 +5680,9 @@ function GetACUOrder(aiBrain, oACU)
     elseif oACU[M28UnitInfo.refbSpecialMicroActive] and not(oACU[refbACUSnipeModeActive]) then
         --Do nothing unless are in range of PD in which case retreat despite the special micro
         if bDebugMessages == true then LOG(sFunctionRef..': ACU has special micro active, Time remaining='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 0) - GetGameTimeSeconds()) end
-        if DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+        if RunFromEnemyTeleport(oACU, iTeam, tLZOrWZData) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Are running from a nearby enemy teleport attempt') end
+        elseif DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
             if bDebugMessages == true then LOG(sFunctionRef..': have flagged that acu wants to run, iPlateauOrZero='..iPlateauOrZero..'; Enemy DF structure threat='..(tLZOrWZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0)..'; ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Is table of enemy units empty='..tostring( M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
             ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
             if iPlateauOrZero > 0 and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.8 then
@@ -5783,27 +5873,8 @@ function GetACUOrder(aiBrain, oACU)
             M28Orders.IssueTrackedMove(oACU, oACU[reftSpecialObjectiveMoveLocation], 3, false, 'ACUObj', false)
             bProceedWithLogic = false
             --Move away from a teleport
-        elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails]) == false then
-            --Are any teleport targets within 60 of us? If so then run in the opposite direction unless we are underwater or have a powerufl gun upgrade
-            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we need to run from enemy teleport') end
-            if not(M28UnitInfo.IsUnitUnderwater(oACU)) and (oACU[refiUpgradeCount] <= 2 or not(oACU:HasEnhancement('MicrowaveLaserGenerator') or oACU:HasEnhancement('BlastAttack'))) then
-                local iClosestTeleportDist = 50
-                local iCurTeleportDist
-                local tClosestTeleport
-                for iEntry, tTeleportData in M28Team.tTeamData[iTeam][M28Team.reftRecentEnemyTeleportDetails] do
-                    iCurTeleportDist = M28Utilities.GetDistanceBetweenPositions(tTeleportData[M28Team.subreftTeleportTarget], tLZOrWZData[M28Map.subrefMidpoint])
-                    if bDebugMessages == true then LOG(sFunctionRef..': iCurTeleportDist='..iCurTeleportDist..'; iClosestTeleportDist threshold='..iClosestTeleportDist) end
-                    if iCurTeleportDist < iClosestTeleportDist then
-                        iClosestTeleportDist = iCurTeleportDist
-                        tClosestTeleport = {tTeleportData[M28Team.subreftTeleportTarget][1], tTeleportData[M28Team.subreftTeleportTarget][2], tTeleportData[M28Team.subreftTeleportTarget][3]}
-                    end
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': tClosestTeleport='..repru(tClosestTeleport)) end
-                if tClosestTeleport then
-                    bProceedWithLogic = false
-                    M28Orders.IssueTrackedMove(oACU, M28Utilities.MoveInDirection(tClosestTeleport, M28Utilities.GetAngleFromAToB(tClosestTeleport, oACU:GetPosition()), 50, true))
-                end
-            end
+        elseif RunFromEnemyTeleport(oACU, iTeam, tLZOrWZData) then
+            bProceedWithLogic = false
         end
         if bDebugMessages == true then LOG(sFunctionRef..': oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder] or false)..'; bProceedWithLogic='..tostring(bProceedWithLogic or false)..'; Is table of enemy units for this LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
         if bProceedWithLogic and oACU[refiUpgradeCount] >= 3 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(oACU[M28UnitInfo.refbSpecialMicroActive]) and oACU[reftPreferredUpgrades][1] and oACU:GetBlueprint()[oACU[reftPreferredUpgrades][1]].BuildCostMass <= 10 and not(oACU:IsUnitState('Upgrading')) then

@@ -6267,6 +6267,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                     end
 
+                    local iDistFromNearestEnemyToFriendlyBase = 10000 --used in some niche scenarios so we attack nearest unit e.g. mex instead of further away one
+                    if oNearestEnemyToFriendlyBase then iDistFromNearestEnemyToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tLZTeamData[M28Map.reftClosestFriendlyBase]) end
+
                     --local bCheckIfNearLocationToAvoid = not(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftiLocationsToAvoid]))
 
 
@@ -6606,17 +6609,30 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Special case where want to move instead of attack move, bar exception if have land exp that is already close to the move target') end
 
                                                                     if not(IgnoreOrderDueToStuckUnit(oUnit)) then
+                                                                        local oNearestEnemyToConsider = oNearestEnemyToFriendlyBase
+                                                                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) > iDistFromNearestEnemyToFriendlyBase then
+                                                                            --Get nearest enemy to this unit (to cover cases e.g. like on the ditch where we have to travel around water, meaning the closest enemy to the base won't be the closest unit to us, causing us to ignore mexes, engineers etc. that may be undefended to attack a much further away target
+                                                                            local iDistToUs
+                                                                            local iClosestDistToUs = 10000
+                                                                            for iEnemy, oEnemy in tLZTeamData[M28Map.subrefTEnemyUnits] do
+                                                                                iDistToUs = M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit:GetPosition())
+                                                                                if iDistToUs < iClosestDistToUs then
+                                                                                    iClosestDistToUs = iDistToUs
+                                                                                    oNearestEnemyToConsider = oEnemy
+                                                                                end
+                                                                            end
+                                                                        end
                                                                         --Normally want to move, but exception came across where ythotha told to move at an enemy factory wouldn't move, so if dealing with a structure, and it isn't too far away, then want to attack-move
-                                                                        if ((oUnit[M28UnitInfo.refiUnitMassCost] or GetUnitMassCost(oUnit)) >= 2000 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 7) or (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemyToFriendlyBase.UnitId) and oUnit[M28UnitInfo.refiCombatRange] >= 10 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) <= 8 and M28UnitInfo.GetBuildingSize(oNearestEnemyToFriendlyBase.UnitId) >= 3) then
+                                                                        if ((oUnit[M28UnitInfo.refiUnitMassCost] or GetUnitMassCost(oUnit)) >= 2000 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToConsider[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 7) or (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemyToConsider.UnitId) and oUnit[M28UnitInfo.refiCombatRange] >= 10 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToConsider:GetPosition()) <= 8 and M28UnitInfo.GetBuildingSize(oNearestEnemyToConsider.UnitId) >= 3) then
                                                                             if bDebugMessages == true then LOG(sFunctionRef..': Will give an attack move order due to how close we are') end
-                                                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'KMvAe'..iLandZone, false)
+                                                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToConsider[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'KMvAe'..iLandZone, false)
                                                                             --Further exception for QUIET/LOUD with a fatboy
                                                                         elseif oUnit[M28UnitInfo.refiDFRange] >= 90 and iVisibleLandCombatMassInFatboyRange >= 1500 and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(oUnit[M28UnitInfo.refbLastShotBlocked]) and ENtityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) then
                                                                             if bDebugMessages == true then LOG(sFunctionRef..': QUIET and LOUD fatboy attackmove eception due to firing issues') end
-                                                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'FBKMvAe'..iLandZone, false)
+                                                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToConsider[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'FBKMvAe'..iLandZone, false)
                                                                         else
                                                                             if bDebugMessages == true then LOG(sFunctionRef..': Will give a move order to the nearest enemy') end
-                                                                            M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'KMve'..iLandZone, false)
+                                                                            M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToConsider[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'KMve'..iLandZone, false)
                                                                         end
 
 
