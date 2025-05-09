@@ -7,6 +7,7 @@ local file_exists = function(name)
     end
 end
 
+local SimPing = import("/lua/simping.lua")
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
@@ -2299,7 +2300,7 @@ function SendMessageAboutTooManyPings(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SendMessagePing(tLocation, iBrainIndex, sMessage)
+function ForkedSendMessagePing(tLocation, iBrainIndex, sMessage, iOptionalSecondsBeforeRemoving)
     local data = {
         Owner = iBrainIndex - 1,
         Location = tLocation,
@@ -2309,7 +2310,26 @@ function SendMessagePing(tLocation, iBrainIndex, sMessage)
     --Below per import("/lua/simping.lua").PingTypes[data.Type]
     local tBasePingData = {Type = 'Marker', Lifetime = 5, Ring = '/game/marker/ring_yellow02-blur.dds', ArrowColor = 'yellow', Sound = 'UI_Main_IG_Click', Marker = true}
     data = table.merged(data, tBasePingData)
-    import("/lua/simping.lua").SpawnPing(data)
+    SimPing.SpawnPing(data)
+    if iOptionalSecondsBeforeRemoving then
+        local iPingID = SimPing.GetPingID(data.Owner) - 1
+        WaitSeconds(iOptionalSecondsBeforeRemoving)
+        RemovePing(data.Owner, iPingID)
+    end
+end
+
+function SendMessagePing(tLocation, iBrainIndex, sMessage, iOptionalSecondsBeforeRemoving)
+    ForkThread(ForkedSendMessagePing, tLocation, iBrainIndex, sMessage, iOptionalSecondsBeforeRemoving) --Want to call via forked thread in case iOptionalSecondsBeforeRemoving is specified
+end
+
+function RemovePing(iOwner, iPingID)
+    --E.g. if want to remove a marker ping, as not possible to set them to expire after x seconds (other pings can have a time limit set on them though so shouldnt need to use this)
+    --iOwner is iBrainIndex - 1
+    local ping = {}
+    ping.Action = 'delete'
+    ping.Owner = iOwner
+    ping.ID = iPingID
+    SimPing.UpdateMarker(ping)
 end
 
 
@@ -2409,7 +2429,7 @@ function SendWarningWhenHaveVisualOnEnemy(aiBrain, oUnit)
                         SendMessage(aiBrain, sMessageCode, 'Enemy '..sUnitName.. ' detected', 0, 1000000, true, true, nil, nil, nil)
                     end
                 else
-                    SendMessagePing(oUnit:GetPosition(), aiBrain:GetArmyIndex(), sUnitName)
+                    SendMessagePing(oUnit:GetPosition(), aiBrain:GetArmyIndex(), sUnitName, 90)
                 end
             end
             if M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true) then
