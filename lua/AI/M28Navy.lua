@@ -58,6 +58,7 @@ refiClosestNonHoverDist = 0
 refiCurDist = 0
 refiCurMidpointDist = 0
 refiCurRangeAdjustedDist = 0
+refiCurAntiNavyRangeAdjustedDist = 0
 refiOverallClosestNonHoverRangeDist = 0
 refiClosestSurfaceToMidpointDist = 0
 refiClosestNonHoverToMidpointDist = 0
@@ -3525,7 +3526,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then
 
             local iClosestDist, iClosestSurfaceDist, iClosestNonHoverDist
-
+            if bDebugMessages == true then LOG(sFunctionRef..': Will record details of nearest enemy units') end
             iClosestDist, iClosestSurfaceDist, iClosestNonHoverDist, oNearestEnemyToFriendlyBase, oNearestEnemySurfaceToFriendlyBase, oNearestEnemyNonHoverToFriendlyBase = GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZTeamData, iTeam, tEnemySurfaceUnits, tEnemyNonHoverUnits)
 
             if not(oNearestEnemyToFriendlyBase) then
@@ -3683,7 +3684,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         for iUnit, oUnit in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
                             if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) >= iAntiNavyMinEnemyRange then
                                 iDistUntilEnemyAntiNavyInRangeOfClosestEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) - (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)
-                                if bDebugMessages == true then LOG(sFunctionRef..': iDistUntilEnemyAntiNavyInRangeOfClosestEnemy='..iDistUntilEnemyAntiNavyInRangeOfClosestEnemy..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Actual dist to closest enemy='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())..'; Anti navy range='..oUnit[M28UnitInfo.refiAntiNavyRange]) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iDistUntilEnemyAntiNavyInRangeOfClosestEnemy='..iDistUntilEnemyAntiNavyInRangeOfClosestEnemy..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Actual dist to closest enemy='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())..'; Anti navy range='..oUnit[M28UnitInfo.refiAntiNavyRange]..'; Unit assigned WZ for our team='..(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] or 'nil')) end
                                 if iDistUntilEnemyAntiNavyInRangeOfClosestEnemy <= 16 and (iDistUntilEnemyAntiNavyInRangeOfClosestEnemy <= iStructureThreshold or EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then --within 16 of being in range of the unit closest to our base
                                     if bDebugMessages == true then LOG(sFunctionRef..': Enemy antinavy close enough to support their nearest enemy unit that we cant try attacking nearest enemy and then retreating when its antinavy support arrives') end
                                     bClosestUnitHasAntiNavyCover = true
@@ -6454,6 +6455,8 @@ function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZ
     local sFunctionRef = 'GetNearestEnemyUnitsAndUpdateUnitTables'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     refiMaxDist = 100000
     if bOnlyConsiderDoublyAdjacentZones then refiMaxDist = 200 end
     refiClosestDist = refiMaxDist
@@ -6484,12 +6487,16 @@ function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZ
         --bDontIncludeAdjZoneUnitHere - for if we wil lbe including only the closest unit using the variables
 
         --This records the closest unit for surface; and separately hover; units.  It gets reset for each new (adjacent) zone being considered so we end up including the closest in every adj zone.  The main zone includes slighlty more than this
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDealingWithAdjZone='..tostring(bDealingWithAdjZone or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bOnlyConsiderDoublyAdjacentZones='..tostring(bOnlyConsiderDoublyAdjacentZones or false)..'; Unit mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')) end
         if (not(bDealingWithAdjZone) or M28UnitInfo.IsUnitValid(oUnit)) and (not(bOnlyConsiderDoublyAdjacentZones) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 250) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Is this a campaign map='..tostring(M28Map.bIsCampaignMap)..'; Is unit in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))) end
             if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()) then
-                refiCurDist = M28Utilities.GetDistanceBetweenPositions(tWZTeamData[M28Map.reftClosestFriendlyBase], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
+                --Changed in v229 to use actual position, since the 'updatnearestunit' logic goes off this; meaning if we refer to the last known position here we can end up in the scenario where say a destroyer infront of a cruiser is spotted; we retreat; they both advance; and we think only the cruiser has advanced (due to firing), when a player would recognise they would likely advance together
+                refiCurDist = M28Utilities.GetDistanceBetweenPositions(tWZTeamData[M28Map.reftClosestFriendlyBase], oUnit:GetPosition())
                 refiCurRangeAdjustedDist = refiCurDist - (oUnit[M28UnitInfo.refiCombatRange] or 0)
+                refiCurAntiNavyRangeAdjustedDist = refiCurDist - (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)
                 refiCurMidpointDist = -1
-
+                if bDebugMessages == true then LOG(sFunctionRef..': ConsiderIfUnitIsClosest: oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; refiCurDist='..refiCurDist..'; Actual dist based on actual position='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestFriendlyBase])..'; oUnit[M28UnitInfo.refiCombatRange]='..(oUnit[M28UnitInfo.refiCombatRange] or 'nil')..'; refiClosestDist ='..refiClosestDist..'; refiCurRangeAdjustedDist='..refiCurRangeAdjustedDist..'; refiClosestNonHoverToMidpointByRange='..refiClosestNonHoverToMidpointByRange..'; bDealingWithAdjZone='..tostring(bDealingWithAdjZone or false)) end
                 if refiCurDist < refiClosestDist then
                     --[[if bDealingWithAdjZone then
                         iCurMidpointDist = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
@@ -6536,11 +6543,12 @@ function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZ
                     end
                 end
                 if not(EntityCategoryContains(categories.HOVER, oUnit.UnitId)) then
-                    if refiCurRangeAdjustedDist < refiClosestNonHoverToMidpointByRange then
-                        refiClosestNonHoverToMidpointByRange = refiCurRangeAdjustedDist
+                    --If looking at non-hover then most likely it is for subs/antinavy attacks
+                    if refiCurAntiNavyRangeAdjustedDist < refiClosestNonHoverToMidpointByRange then
+                        refiClosestNonHoverToMidpointByRange = refiCurAntiNavyRangeAdjustedDist
                         oClosestNonHoverToMidpointByRange = oUnit
-                        if refiCurRangeAdjustedDist < refiOverallClosestNonHoverRangeDist then
-                            refiOverallClosestNonHoverRangeDist = refiCurRangeAdjustedDist
+                        if refiCurAntiNavyRangeAdjustedDist < refiOverallClosestNonHoverRangeDist then
+                            refiOverallClosestNonHoverRangeDist = refiCurAntiNavyRangeAdjustedDist
                             oOverallClosestNonHoverRangeUnit = oUnit
                         end
                     end
@@ -6553,11 +6561,14 @@ function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZ
                                 oNearestEnemyNonHoverToFriendlyBase = oUnit
                                 refiClosestNonHoverToMidpointDist = refiCurMidpointDist
                                 oClosestNonHoverToMidpointByDist = oUnit --means it gets added to tEnemyNonHover units later on
+                                if bDebugMessages == true then LOG(sFunctionRef..': Updating oClosestNonHoverToMidpointByDist to be oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            elseif bDebugMessages == true then LOG(sFunctionRef..': Dealing with adj zone, we arent closer than refiClosestNonHoverToMidpointDist, refiCurMidpointDist='..refiCurMidpointDist..'; refiClosestNonHoverToMidpointDist='..refiClosestNonHoverToMidpointDist)
                             end
                         else
                             refiClosestNonHoverDist = refiCurDist
                             oNearestEnemyNonHoverToFriendlyBase = oUnit
                             table.insert(tEnemyNonHoverUnits, oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Recording unit against enemy nonhoverunits and as the nearest enemy to friendly base, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                         end
                     elseif not(bDealingWithAdjZone) then
                         if oClosestNonHoverToMidpointByRange == oUnit then
@@ -6567,13 +6578,12 @@ function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZ
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..(refiCurDist or 'nil')..'; iClosestDist='..refiClosestDist..'; iClosestSurfaceDist='..refiClosestSurfaceDist..'; iClosestNonHoverDist='..refiClosestNonHoverDist..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))..'; iCurRangeAdjustedDist='..refiCurRangeAdjustedDist..'; iClosestSurfaceToMidpointByRange='..refiClosestSurfaceToMidpointByRange..'; iClosestNonHoverToMidpointByRange='..refiClosestNonHoverToMidpointByRange) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..(refiCurDist or 'nil')..'; iClosestDist='..refiClosestDist..'; iClosestSurfaceDist='..refiClosestSurfaceDist..'; iClosestNonHoverDist='..refiClosestNonHoverDist..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))..'; iCurRangeAdjustedDist='..refiCurRangeAdjustedDist..'; iClosestSurfaceToMidpointByRange='..refiClosestSurfaceToMidpointByRange..'; iClosestNonHoverToMidpointByRange='..refiClosestNonHoverToMidpointByRange) end
     end
 
     function ConsiderUnitsInZone(tCurWZTeamData, bDealingWithAdjZone)
+        if bDebugMessages == true then LOG(sFunctionRef..': ConsiderUnitsInZone: Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tCurWZTeamData[M28Map.subrefTEnemyUnits]))) end
         if M28Utilities.IsTableEmpty(tCurWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent zone; is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam][M28Map.subrefTEnemyUnits]))) end
-
             refiClosestSurfaceDist = refiMaxDist
             refiClosestSurfaceToMidpointDist = refiMaxDist
             refiClosestNonHoverToMidpointDist = refiMaxDist
@@ -6590,7 +6600,7 @@ function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZ
                 end
             end
             --Add closest unit from adj zone (by dist, and if different by range) to tables of enemy surface/non hover units:
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering units in iAdjWZ; oClosestSurfaceToMidpointByDist='..(oClosestSurfaceToMidpointByDist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestSurfaceToMidpointByDist) or 'nil')..'; oClosestSurfaceToMidpointByRange='..(oClosestSurfaceToMidpointByRange.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestSurfaceToMidpointByRange) or 'nil')..'; oClosestNonHoverToMidpointByDist='..(oClosestNonHoverToMidpointByDist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestNonHoverToMidpointByDist) or 'nil')..'; oClosestNonHoverToMidpointByRange='..(oClosestNonHoverToMidpointByRange.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestNonHoverToMidpointByRange) or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering units in zone; bDealingWithAdjZone='..tostring(bDealingWithAdjZone or false)..'; oClosestSurfaceToMidpointByDist='..(oClosestSurfaceToMidpointByDist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestSurfaceToMidpointByDist) or 'nil')..'; oClosestSurfaceToMidpointByRange='..(oClosestSurfaceToMidpointByRange.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestSurfaceToMidpointByRange) or 'nil')..'; oClosestNonHoverToMidpointByDist='..(oClosestNonHoverToMidpointByDist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestNonHoverToMidpointByDist) or 'nil')..'; oClosestNonHoverToMidpointByRange='..(oClosestNonHoverToMidpointByRange.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestNonHoverToMidpointByRange) or 'nil')) end
             if oClosestSurfaceToMidpointByDist then table.insert(tEnemySurfaceUnits, oClosestSurfaceToMidpointByDist) end
             if oClosestSurfaceToMidpointByRange and not(oClosestSurfaceToMidpointByRange == oClosestSurfaceToMidpointByDist) then table.insert(tEnemySurfaceUnits, oClosestSurfaceToMidpointByRange) end
             if oClosestNonHoverToMidpointByDist then table.insert(tEnemyNonHoverUnits, oClosestNonHoverToMidpointByDist) end
@@ -6598,9 +6608,10 @@ function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZ
         end
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy units in this zone') end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy units in this zone, bOnlyConsiderDoublyAdjacentZones='..tostring(bOnlyConsiderDoublyAdjacentZones or false)..'; Is tWZTeamData[M28Map.subrefTEnemyUnits] empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))) end
     if not(bOnlyConsiderDoublyAdjacentZones) then
-        ConsiderUnitsInZone(tWZTeamData[M28Map.subrefTEnemyUnits], false)
+        if bDebugMessages == true then LOG(sFunctionRef..': About to call considerunitsinzone') end
+        ConsiderUnitsInZone(tWZTeamData, false)
     end
 
     --(wasn't sure why the below lines were here, commented out given new approach for adj zones to include even if not the closest)
