@@ -5514,10 +5514,7 @@ function SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZToSupport, iM
             end
         end
         for iUnit, oUnit in tMAAToAdvance do
-            if oUnit.Dead then
-                --Redundancy for rare error
-                tbRemovedMAAReferencesByRef[iUnit] = true
-            elseif oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iStartingWZ then
+            if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iStartingWZ then
                 tDistToTargetByRef[iUnit] = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetPosition)
             else
                 --Unit is from a different zone - need to change the value of its assignment so it is considered for orders by the zone that it is part of
