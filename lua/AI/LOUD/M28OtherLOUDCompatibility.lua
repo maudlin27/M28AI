@@ -172,7 +172,8 @@ function UpdateUnitCategories()
         M28UnitInfo.refCategoryNavalSurface = M28UnitInfo.refCategoryNavalSurface + categories.DESTROYER + categories.CRUISER + categories.BATTLESHIP --destroyer is necessary, other 2 are as redundancy
 
         --Amphibious - in LOUD engineers and ACUs lack the amphibious category
-        M28UnitInfo.refCategoryAmphibious = M28UnitInfo.refCategoryAmphibious + categories.ENGINEER * categories.MOBILE * categories.LAND - categories.AEON * categories.HOVER
+        --Also, in QUIET destroyer doesnt have amphibious; assuming same will be the case for LOUD
+        M28UnitInfo.refCategoryAmphibious = M28UnitInfo.refCategoryAmphibious + categories.ENGINEER * categories.MOBILE * categories.LAND - categories.AEON * categories.HOVER + categories.urs0201
 
         --Czar doesnt register the czar
         M28UnitInfo.refCategoryCzar = M28UnitInfo.refCategoryCzar + categories.uaa0310
