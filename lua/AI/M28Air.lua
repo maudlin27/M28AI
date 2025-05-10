@@ -3517,9 +3517,16 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] = true
     else M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] = false
     end
+    --Intiies and small numbers of asfs - require a higher factor (we also add a further absolute check below)
+    if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] <= 1500 then iAirControlFactor = iAirControlFactor + 0.1 end
 
     if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * iAirControlFactor < M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] then
-        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] = true
+        --With low numbers of inties there is more of a risk we think we have air control when we dont
+        if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > 1000 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] + math.max(200, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) then
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] = true
+        else
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] = false
+        end
     else M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] = false
     end
     if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])..'; refiEnemyAirAAThreat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]..'; subrefiHighestFriendlyFactoryTech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; OurAAThreat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]) end
@@ -3569,7 +3576,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 
         local bOnlyConsiderThreatInZonesInSameDirection = true --true in all cases, but as variable incase ever want to change
         bOnlyConsiderThreatInZonesInSameDirection = false
-
+        local iMaxModDist
         function AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, toOptionalUnitOverride, iOptionalAdjacentZoneSearchType, iOptionalMinDistToClosestEnemyBaseIfGroundThreat)
             --See above for refiAASearchTypes, i.e. refiAvoidAllAA, refiAvoidOnlyGroundAA, refiIgnoreAllAA
 
@@ -3605,8 +3612,8 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         iGroundAAThreshold = 0
                     end
                     local bEnemyHasTooMuchAA = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy air units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]))..'; iAlongPathAAThreshold='..iAlongPathAAThreshold..'; Mod dist%='..(tLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; SValue='..tLZTeamData[M28Map.subrefLZSValue]) end
-                    if M28Utilities.IsTableEmpty(toOptionalUnitOverride or tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy air units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]))..'; iAlongPathAAThreshold='..iAlongPathAAThreshold..'; Mod dist%='..(tLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; SValue='..tLZTeamData[M28Map.subrefLZSValue]..'; iMaxModDist='..(iMaxModDist or 'nil')..'; ModDist%='..tLZTeamData[M28Map.refiModDistancePercent]) end
+                    if M28Utilities.IsTableEmpty(toOptionalUnitOverride or tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false and (not(iMaxModDist) or tLZTeamData[M28Map.refiModDistancePercent] <= iMaxModDist) then
                         --Add units from here unless there is too much AA
                         local bUseDetailedCheck = false
                         if tLZTeamData[M28Map.subrefLZSValue] > 10 and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 then bUseDetailedCheck = true end --More precise check if we have friendly structures in the zone
@@ -3717,7 +3724,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     local bEnemyHasTooMuchAA = false
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy air units empty for this WZ='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]))) end
 
-                    if M28Utilities.IsTableEmpty(toOptionalUnitOverride or tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
+                    if M28Utilities.IsTableEmpty(toOptionalUnitOverride or tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false and (not(iMaxModDist) or tWZTeamData[M28Map.refiModDistancePercent] <= iMaxModDist) then
                         local iAlongPathAAThreshold = iOptionalAirThreatThresholdOverride
                         if not(iAlongPathAAThreshold) or refiAASearchType == refiAvoidOnlyGroundAA then
                             if tWZTeamData[M28Map.refiModDistancePercent] <= 0.25 or tWZTeamData[M28Map.subrefLZSValue] >= 2000 or ( tWZTeamData[M28Map.subrefLZSValue] >= 10 and tWZTeamData[M28Map.refiModDistancePercent] <= 0.4) then
@@ -4236,6 +4243,12 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                 iTorpGroundAAThreshold = math.max(iTorpGroundAAThreshold * 1.5, iTorpAirAAThreshold * 0.1)
                             end
                             if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iAASearchType = refiIgnoreAllAA end
+                            if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+                                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then iMaxModDist = 0.45
+                                else
+                                    iMaxModDist = 0.6
+                                end
+                            end
 
                             for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                 tEnemyAirTargets = {}
