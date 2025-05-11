@@ -756,13 +756,19 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                 iMassMod = 0.25 --e.g. for overlayantinavy or submersibles with no attack
                                 if EntityCategoryContains(refCategoryAntiNavy, oUnit.UnitId) then
                                     iMassMod = 1
-                                    if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId)) then iMassMod = 0.8 end --Destroyers dont seem sa good in a sub vs destroyer war mass for mass
+                                    if M28Utilities.bLoudModActive and not(EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId)) then iMassMod = 0.8 end --Destroyers dont seem sa good in a sub vs destroyer war mass for mass
                                 elseif EntityCategoryContains(categories.LAND * refCategoryAntiNavy, oUnit.UnitId) then
                                     iMassMod = 0.5 --brick, wagner etc
                                     --UEF units (which are either really bad or good at antinavy)
                                 elseif EntityCategoryContains(categories.UEF * refCategoryAntiNavy, oUnit.UnitId) then
                                     --Destroyer and battlecruiser
-                                    if EntityCategoryContains(categories.DIRECTFIRE * categories.TECH2, oUnit.UnitId) then iMassMod = 0.25 --valiant
+                                    if EntityCategoryContains(categories.DIRECTFIRE * categories.TECH2, oUnit.UnitId) then
+                                        --UEF destroyers are bad in FAF but very good in QUIET (and presumably LOUD)
+                                        if M28Utilities.bQuietModActive or M28Utilities.bLoudModActive or not(oUnit.UnitId == 'ues0201') then
+                                            iMassMod = 1
+                                        else
+                                            iMassMod = 0.3 --valiant
+                                        end
                                     elseif EntityCategoryContains(categories.DIRECTFIRE * categories.TECH3, oUnit.UnitId) then iMassMod = 0.15 --battlecruiser
                                     elseif EntityCategoryContains(categories.TECH2 - categories.DIRECTFIRE, oUnit.UnitId) then iMassMod = 1.2 --Cooper
                                     else

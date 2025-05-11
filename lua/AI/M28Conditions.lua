@@ -2722,6 +2722,7 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
     local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if tWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] then
         if bDebugMessages == true then LOG(sFunctionRef..': Want to be very aggressive with all nearby naval units') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2736,6 +2737,10 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
             iModMod = iModMod + 0.75
             local iRoughSurfaceThreat = iAdjacentAlliedCombatThreat + tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iAdjacentAlliedSubmersibleThreat
             if iRoughSurfaceThreat > 6000 then iModMod = iModMod - 0.5 * math.min(1, (iRoughSurfaceThreat / 30000)) end
+        end
+        if bConsideringSubmarinesNotSurface and M28Utilities.bQuietModActive then
+            --Destroyers do well vs subs in QUIET (e.g. 8k UEF destroyers beat 13.5k Aeon subs testing 2025-05-11) so increase threshold in QUIET
+            iModMod = iModMod + 0.2
         end
         local iEnemyAntiNavyMod = 1.5 + iModMod
         local iEnemyCombatModHigh = 1.3 + iModMod
