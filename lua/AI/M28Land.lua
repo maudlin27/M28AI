@@ -4893,6 +4893,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     table.insert(tUnitsNearFatboyInFurtherAwayZones, oEnemy)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy to table of nearest DF units and to units near fatboy in further away zones') end
                                 end
+                                --Sometimes the nearest enemy to our midpoint might be a dif unit, but this unit might still be closer to the fatboy, so want to include if its in range of the fatboy to be safe
+                            elseif not(oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) and oEnemy[M28UnitInfo.refiUnitMassCost] >= 500 then
+                                if M28UnitInfo.IsUnitValid(oEnemy) then
+                                    table.insert(tLZTeamData[M28Map.reftoNearestDFEnemies], oEnemy)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit in adj zone, will add to table of nearest DF enemies to be safe in case it isnt already recorded (will lead to some doublecounting') end
+                                end
                             end
                         end
                     end
@@ -6367,12 +6373,35 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             --Fatboy special logic if fatboy not in water - although default logic works fori t, want to do a more detailed check that looks into further away zones for nearby enemies
                                             if (oUnit[M28UnitInfo.refiDFRange] or 0) >= 100 and not(bFiringAtNegligibleThreatInLRExperimentalRange) and oUnit[M28UnitInfo.refbCanKite] and (GetEnemyCombatThreatInAdjacentZones() >= 8000 or iVisibleLandCombatMassInFatboyRange >= 3000) then
                                                 --First make sure the fatboy is closer to enemy base than the closest friendly base is (otherwise we risk 'retreating' to a base that takes us closer to the enemy)
-                                                if (iVisibleLandCombatMassInFatboyRange >= 6000 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) or (tLZTeamData[M28Map.refiModDistancePercent] >= 0.1 and not(bFiringAtNegligibleThreatInLRExperimentalRange and GetEnemyCombatThreatInAdjacentZones() >= 8000))) and oNearestEnemyToFriendlyBase and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()) < oUnit[M28UnitInfo.refiDFRange] - 10 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) < M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.reftClosestEnemyBase]) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if fatboy is closer to enemy base than our closest friendly base, and significant visible mass, iVisibleLandCombatMassInFatboyRange='..iVisibleLandCombatMassInFatboyRange..'; Is table of nearby enemy t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Dist to oNearestEnemyToFriendlyBase='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()))
+                                                    if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then LOG(sFunctionRef..'; [M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]='..oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])..'; Dist to this='..M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition())..'; Can see this unit='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false))) end
+                                                end
+                                                if (iVisibleLandCombatMassInFatboyRange >= 6000 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) or (tLZTeamData[M28Map.refiModDistancePercent] >= 0.1 and not(bFiringAtNegligibleThreatInLRExperimentalRange and GetEnemyCombatThreatInAdjacentZones() >= 8000)))
+                                                        and oNearestEnemyToFriendlyBase and (M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()) < oUnit[M28UnitInfo.refiDFRange] - 10 or (iVisibleLandCombatMassInFatboyRange >= 12000 and M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) < oUnit[M28UnitInfo.refiDFRange] - 4)) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) < M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.reftClosestEnemyBase]) then
                                                     bUseNormalLogic = false
+                                                    local oClosestEnemy
+                                                    local iDistToClosestEnemy
+                                                    if (iVisibleLandCombatMassInFatboyRange >= 8000 and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], oUnit[M28UnitInfo.refiDFRange] - 6, iTeam, false, nil, oUnit, oUnit, oUnit[M28UnitInfo.refiDFRange] - 10, false)) or M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+                                                        if not(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) then
+                                                            oClosestEnemy = oNearestEnemyToFriendlyBase
+                                                            iDistToClosestEnemy = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition())
+                                                        else
+                                                            local iDistToClosestToBaseEnemy = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition())
+                                                            local iDistToLastEnemyCheckEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition())
+                                                            if iDistToLastEnemyCheckEnemy < iDistToClosestToBaseEnemy then
+                                                                iDistToClosestEnemy = iDistToLastEnemyCheckEnemy
+                                                                oClosestEnemy = oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]
+                                                            else
+                                                                iDistToClosestEnemy = iDistToClosestToBaseEnemy
+                                                                oClosestEnemy = oNearestEnemyToFriendlyBase
+                                                            end
+                                                        end
+                                                    end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': iDistToClosestEnemy='..iDistToClosestEnemy..'; oClosestEnemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)) end
                                                     --QUIET/LOUD - special logic where attack-move towards enemy instead of kiting if it isnt too close (due to fatboy being inaccurate when firing)
-                                                    if (M28Utilities.bQuietModActive or M28Utilities.bLoudModActive) and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition()) >= oUnit[M28UnitInfo.refiCombatRange] - 25 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) or M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], oUnit[M28UnitInfo.refiCombatRange] - 7, iTeam, false, nil, nil, oUnit, nil, false)) then
+                                                    if (M28Utilities.bQuietModActive or M28Utilities.bLoudModActive) and iDistToClosestEnemy >= oUnit[M28UnitInfo.refiCombatRange] - 25 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) or M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], oUnit[M28UnitInfo.refiCombatRange] - 7, iTeam, false, nil, nil, oUnit, nil, false)) then
                                                         if bDebugMessages == true then LOG(sFunctionRef..': QUIET/LOUD exception - attackmove as enemy in range but not too close') end
-                                                        M28Orders.IssueTrackedAttackMove(oUnit, oNearestEnemyToFriendlyBase:GetPosition(), 3, false, 'FatbKtQT',false)
+                                                        M28Orders.IssueTrackedAttackMove(oUnit, oClosestEnemy:GetPosition(), 3, false, 'FatbKtQT',false)
                                                     else
                                                         --Want to do kiting retreat towards nearest friendly base, or (if in a significantly different direction to the nearest enemy unit and mod dist is low
                                                         local tBaseRally
@@ -6406,7 +6435,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             else
                                                                 local iAngleToNearestEnemy
                                                                 if oNearestEnemyToFriendlyBase then
-                                                                    iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
+                                                                    iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemy:GetPosition())
                                                                 else
                                                                     iAngleToNearestEnemy = iAngleToNearestEnemy - 180 --redundancy
                                                                 end
