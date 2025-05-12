@@ -9822,7 +9822,15 @@ function ConsiderManualNavalPrioritisationFlag(oBrain)
         local iTeam = oBrain.M28Team
         local tStartLZData, tStartLZTeamData = GetLandOrWaterZoneData(GetPlayerStartPosition(oBrain), true, iTeam)
         if not(tStartLZTeamData[refbBaseInSafePosition]) and M28Utilities.IsTableEmpty(tStartLZData[subrefAdjacentWaterZones]) == false then
-            oBrain[M28Overseer.refbPrioritiseNavy] = true
+            --40% prioritise navy, 20% prioritise air, 40% normal
+            if not(oBrain[M28Overseer.refbPrioritiseAir]) and not(oBrain[M28Overseer.refbPrioritiseNavy]) and not(oBrain[M28Overseer.refbPrioritiseDefence]) then
+                local iRand = math.random(1,5)
+                if iRand <= 2 then
+                    oBrain[M28Overseer.refbPrioritiseNavy] = true
+                elseif iRand == 3 then
+                    oBrain[M28Overseer.refbPrioritiseAir] = true
+                end
+            end
         end
     end
 end

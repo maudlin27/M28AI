@@ -17514,12 +17514,27 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
 
     --Lower priority mass reclaim where will request engineers to reclaim
     iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want minor reclaim for zone, team % mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Total mass reclaim='..tWZData[M28Map.subrefTotalMassReclaim]) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35 and tWZData[M28Map.subrefTotalMassReclaim] >= 5 then
-        local iReclaimFactor = 75
+        local iReclaimFactor
         if GetGameTimeSeconds() <= 540 then
             iReclaimFactor = 125
+        else
+            if bHaveLowMass then
+                if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.01 then
+                    iReclaimFactor = 50
+                else
+                    iReclaimFactor = 60
+                end
+            else
+                iReclaimFactor = 70
+            end
         end
-        iBPWanted = math.min(40, math.max(5, tWZData[M28Map.subrefTotalMassReclaim] / iReclaimFactor))
+        iBPWanted = math.max(5, tWZData[M28Map.subrefTotalMassReclaim] / iReclaimFactor)
+        if not(bHaveLowMass) then
+            if iBPWanted > 40 then iBPWanted = math.max(40, iBPWanted * 0.5) end
+        elseif iBPWanted > 60 then iBPWanted = 60 + (iBPWanted - 60) * 0.5
+        end
         if iBPWanted > 15 and GetGameTimeSeconds() <= 540 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then
             iBPWanted = math.min(iBPWanted, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * 10)
         end
@@ -17528,7 +17543,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
 
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Lower priority reclaim, Total mass in Pond ' .. iPond .. ' WZ ' .. iWaterZone .. '=' .. tWZData[M28Map.subrefTotalMassReclaim])
+            LOG(sFunctionRef .. ': Lower priority reclaim, Total mass in Pond ' .. iPond .. ' WZ ' .. iWaterZone .. '=' .. tWZData[M28Map.subrefTotalMassReclaim]..'; BP to assign='..math.min(100, math.max(5, iBPWanted)))
         end
         HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(5, iBPWanted)), {false, nil}, false)
     end
@@ -18392,16 +18407,30 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZData, tLZOrWZTeamData,
     end
     if not (tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not (tLZOrWZTeamData[M28Map.subrefWZbCoreBase]) then
         local iBPCap
-        if (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 10 or (bIsWaterZone and tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to gap BP wanted due to enemy threat, bIsWaterZone='..tostring(bIsWaterZone)..'; iLandOrWaterZone='..iLandOrWaterZone..'; tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]='..(tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')..'; Our highest fac tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')..'; .subrefLZTThreatAllyCombatTotal='..(tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; subrefWZTThreatAllyCombatTotal='..(tLZOrWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil')) end
+        if (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 10 then
             iBPCap = 0
             --Exception - cap of 5 for campaign with objective to repair (i.e. M2 UEF)
             if M28Map.bIsCampaignMap and tLZOrWZTeamData[M28Map.subrefLZFortify] and (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < 1000 and M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subreftoUnitsToRepair][1] and M28UnitInfo.GetUnitHealthPercent(M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subreftoUnitsToRepair][1]) < 0.15 then
                 iBPCap = 5
                 --Other exception - high reclaim zone where our combat units have more threat tahn the enemy
             elseif tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * 250 then
-                if (tLZOrWZTeamData[M28Map.subrefLZTAlliedCombatUnits] or 0) > (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 3 and (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
-                    iBPCap = 5
-                    if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 then iBPCap = 2 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] end
+                if bDebugMessages == true then LOG(sFunctionRef..': Alot of reclaim so want to consider having engineers reclaim even though dangerous if we have enough friendly combat threat') end
+                if tLZOrWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 3 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have more threat than enemy so will increase BP wanted based on how much reclaim there is') end
+                    if (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
+                        if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 then
+                            iBPCap = math.min(30, tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] / 250) --i.e. more than 0
+                        else
+                            --BP cap remains at 0
+                        end
+                    else
+                        iBPCap = 5
+                        --If lots of reclaim increase cap further
+                        if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 then
+                            iBPCap = math.min(60, tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] / 80)
+                        end
+                    end
                 end
             end
             --Clear any engineers already traveling here
@@ -18413,8 +18442,12 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZData, tLZOrWZTeamData,
                 if M28Utilities.IsTableEmpty(tTravelingEngineers) == false then
                     for iEngi, oEngi in tTravelingEngineers do
                         if iBPCap > 0 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will hold off clearing engineer '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' and will set BP cap to 0') end
-                            iBPCap = 0
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will hold off clearing engineer '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' and will set BP cap to 0 based on engi BP') end
+                            if iBPCap > 5 then
+                                iBPCap = math.max(0, iBPCap - tiBPByTech[M28UnitInfo.GetUnitTechLevel(oEngi)])
+                            else
+                                iBPCap = 0
+                            end
                         else
                             M28Orders.IssueTrackedClearCommands(oEngi)
                         end
@@ -18424,9 +18457,15 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZData, tLZOrWZTeamData,
             if bDebugMessages == true then LOG(sFunctionRef..': iBPCap after clearing traveling engineers='..iBPCap) end
         elseif tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] then
             iBPCap = 5
+            if tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 400 and tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 250 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
+                iBPCap = math.max(5, math.min(60, tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] / 75))
+            end
         end
         if not(iBPCap) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false and bIsWaterZone then
             iBPCap = 5
+            if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 then
+                iBPCap = math.min(30, tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] / 200)
+            end
         end
         if iBPCap then
             if bDebugMessages == true then
