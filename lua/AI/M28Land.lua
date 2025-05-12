@@ -6434,57 +6434,41 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             local iAngleToRetreat
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Considering fatboy kiting retreat location, LZData mod dist%='.. tLZTeamData[M28Map.refiModDistancePercent]..'; iAngleToRally='..iAngleToRally..'; Angle to nearest enemy to midpoint='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Angle to nearest enemy base='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])..'; Dist to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])) end
                                                             --if bDebugMessages == true then LOG(sFunctionRef..': Considering fatboy kiting retreat location, LZData mod dist%='.. tLZTeamData[M28Map.refiModDistancePercent]..'; iAngleToRally='..iAngleToRally..'; Angle to nearest enemy to midpoint='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Angle to nearest enemy base='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])..'; Dist to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]))
-                                                            if tLZTeamData[M28Map.refiModDistancePercent] >= 0.4 then
-                                                                local bRunFromNearestEnemy = false
-                                                                local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemy:GetPosition())
-                                                                if iDistToClosestEnemy <= 80 and iDistToClosestEnemy - (oClosestEnemy[M28UnitInfo.refiDFRange] or 0) <= 30 then
-                                                                    local tFurtherBackupDist = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestEnemy - 180, 30, true, true, false)
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': High mod dist consider running from enemy - if we run back by 30 are we in the same plateau? iPlateau='..iPlateau..'; Plateau of tFurtherBackupDist='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tFurtherBackupDist) or 'nil')) end
-                                                                    if M28Utilities.IsTableEmpty(tFurtherBackupDist) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tFurtherBackupDist) == iPlateau then
-                                                                        bRunFromNearestEnemy = true
-                                                                    end
-                                                                end
-                                                                if bRunFromNearestEnemy then
-                                                                    iAngleToRetreat = iAngleToNearestEnemy - 180
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to run from nearest enemy') end
-                                                                else
-                                                                    iAngleToRetreat = iAngleToRally
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will head towards rally point') end
-                                                                end
+                                                            local iAngleToNearestEnemy
+                                                            if oNearestEnemyToFriendlyBase then
+                                                                iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemy:GetPosition())
                                                             else
-                                                                local iAngleToNearestEnemy
-                                                                if oNearestEnemyToFriendlyBase then
-                                                                    iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemy:GetPosition())
-                                                                else
-                                                                    iAngleToNearestEnemy = iAngleToNearestEnemy - 180 --redundancy
-                                                                end
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to go in opposite direction to nearest enemy, or to the rally, Angle dif between algoe to enemy and angle to rally='.. M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally)..'; iDistToClosestEnemy='..iDistToClosestEnemy..'; Closest enemy DF range='..(oClosestEnemy[M28UnitInfo.refiDFRange] or 0)..'; ClosestEnemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)) end
-                                                                local bRunFromNearestEnemy = false
+                                                                iAngleToNearestEnemy = iAngleToRally - 180 --redundancy
+                                                            end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to go in opposite direction to nearest enemy, or to the rally, Angle dif between algoe to enemy and angle to rally='.. M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally)..'; iDistToClosestEnemy='..iDistToClosestEnemy..'; Closest enemy DF range='..(oClosestEnemy[M28UnitInfo.refiDFRange] or 0)..'; ClosestEnemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)) end
+                                                            local bRunFromNearestEnemy = false
+                                                            local iAngleToRunFromNearestEnemy = iAngleToNearestEnemy - 180
+                                                            local iAngleDifFromRunningFromEnemyAndRally = M28Utilities.GetAngleDifference(iAngleToRunFromNearestEnemy, iAngleToRally)
+                                                            local iAngleToNearestEnemyBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])
 
-                                                                if M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally) <= 100 then
-                                                                    local iAngleToNearestEnemyBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])
-                                                                    if M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestEnemyBase) <= 115 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 60 then
-                                                                        --Moving towards the rally point isn't htat much of a dif from moving to the closest enemy or from moving to the closest enemy base, and our mod dist is already fairly low, so we may well be moving towards danger with the nearest base being overrun
-                                                                        bRunFromNearestEnemy = true
-                                                                    end
-                                                                end
-                                                                if not(bRunFromNearestEnemy) and iDistToClosestEnemy <= 80 and iDistToClosestEnemy - (oClosestEnemy[M28UnitInfo.refiDFRange] or 0) <= 30 then
-                                                                    --If we can run in the same plateau for at least a dist of 30 then run backwards
-                                                                    local tFurtherBackupDist = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestEnemy - 180, 30, true, true, false)
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': If we run back by 30 are we in the same plateau? iPlateau='..iPlateau..'; Plateau of tFurtherBackupDist='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tFurtherBackupDist) or 'nil')) end
-                                                                    if M28Utilities.IsTableEmpty(tFurtherBackupDist) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tFurtherBackupDist) == iPlateau then
-                                                                        bRunFromNearestEnemy = true
-                                                                    end
-                                                                end
-                                                                if bRunFromNearestEnemy then
-                                                                    iAngleToRetreat = iAngleToNearestEnemy - 180
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will run in opposite direction to nearest enemy, iAngleToRetreat='..iAngleToRetreat..'; iAngleToNearestEnemy='..iAngleToNearestEnemy..'; iAngleToRally='..iAngleToRally) end
-                                                                end
-                                                                if not(iAngleToRetreat) then
-                                                                    iAngleToRetreat = iAngleToRally
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Not running in opposite direction so will go to rally, iAngleToRetreat='..iAngleToRetreat..'; iAngleToNearestEnemy='..iAngleToNearestEnemy..'; iAngleToRally='..iAngleToRally) end
+                                                            if tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestEnemyBase) <= 115 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 60 then
+                                                                --Moving towards the rally point isn't htat much of a dif from moving to the closest enemy or from moving to the closest enemy base, and our mod dist is already fairly low, so we may well be moving towards danger with the nearest base being overrun
+                                                                bRunFromNearestEnemy = true
+                                                            elseif iAngleDifFromRunningFromEnemyAndRally <= 10 then
+                                                                --Might as well run to the rally
+                                                            elseif iVisibleLandCombatMassInFatboyRange >= 10000 and iAngleDifFromRunningFromEnemyAndRally <= 45 or (tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and iDistToClosestEnemy - (oClosestEnemy[M28UnitInfo.refiDFRange] or 0) <= 60) then
+                                                                --Might as well run from nearest enemy as not that much dif to running to the nearest rally, but enough fo a difference that we may well turn around for a while trying to go to the rally
+                                                                bRunFromNearestEnemy = true
+                                                            end
+                                                            if bRunFromNearestEnemy then
+                                                                --Double check if we move 30 back we can path there
+                                                                local tFurtherBackupDist = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToRunFromNearestEnemy, 30, true, true, false)
+                                                                if M28Utilities.IsTableEmpty(tFurtherBackupDist) or not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tFurtherBackupDist) == iPlateau) then
+                                                                    bRunFromNearestEnemy = false
                                                                 end
                                                             end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to go to rally or away from nearest enemy, bRunFromNearestEnemy='..tostring(bRunFromNearestEnemy)..'; iAngleDifFromRunningFromEnemyAndRally='..iAngleDifFromRunningFromEnemyAndRally..'; iDistToClosestEnemy='..iDistToClosestEnemy..'; Dist until in range of them='..iDistToClosestEnemy - (oClosestEnemy[M28UnitInfo.refiDFRange] or 0) <= 60) end
+                                                            if bRunFromNearestEnemy then
+                                                                iAngleToRetreat = iAngleToRunFromNearestEnemy
+                                                            else
+                                                                iAngleToRetreat = iAngleToRally
+                                                            end
+
 
 
                                                             while iCurDistToBackup >= 2 do
@@ -6501,6 +6485,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                         else --redundancy
                                                             tFatboyRetreatLocation = tBaseRally
                                                         end
+
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Giving kiting retreat order to fatboy, iCurDistToBackup='..iCurDistToBackup) end
                                                         oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                                         ForkThread(BackupUnitTowardsRallyIfAvailable, oUnit, tFatboyRetreatLocation, iPlateau, 'FatbKit', true, nil, 60)
