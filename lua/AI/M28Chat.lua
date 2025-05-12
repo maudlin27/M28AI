@@ -2385,7 +2385,7 @@ function SendWarningWhenHaveVisualOnEnemy(aiBrain, oUnit)
         if bHaveHumanOrOtherAIOnTeam and ScenarioInfo.Options.M28Teammate == 1 then
             local fnSendMessage = function()
                 --If enemy has fired weapon but we lack visual of them then just send a message
-                if oUnit[M28UnitInfo.refiLastWeaponEvent] and not(CanSeeUnit(aiBrain, oUnit, true)) and ((oUnit[M28UnitInfo.refiCombatRange] or 0) >= 100 or EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId)) then
+                if oUnit[M28UnitInfo.refiLastWeaponEvent] and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true)) and ((oUnit[M28UnitInfo.refiCombatRange] or 0) >= 100 or EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId)) then
                     if EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
                         local iLoadedSMD = 0
                         local iUnloadedSMD = 0
