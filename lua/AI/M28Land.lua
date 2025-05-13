@@ -6446,12 +6446,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             local iAngleDifFromRunningFromEnemyAndRally = M28Utilities.GetAngleDifference(iAngleToRunFromNearestEnemy, iAngleToRally)
                                                             local iAngleToNearestEnemyBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])
 
-                                                            if tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestEnemyBase) <= 115 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 60 then
+                                                            if tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and (M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestEnemyBase) <= 115 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 60) then
                                                                 --Moving towards the rally point isn't htat much of a dif from moving to the closest enemy or from moving to the closest enemy base, and our mod dist is already fairly low, so we may well be moving towards danger with the nearest base being overrun
                                                                 bRunFromNearestEnemy = true
                                                             elseif iAngleDifFromRunningFromEnemyAndRally <= 10 then
                                                                 --Might as well run to the rally
-                                                            elseif iVisibleLandCombatMassInFatboyRange >= 10000 and iAngleDifFromRunningFromEnemyAndRally <= 45 or (tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and iDistToClosestEnemy - (oClosestEnemy[M28UnitInfo.refiDFRange] or 0) <= 60) then
+                                                            elseif (iVisibleLandCombatMassInFatboyRange >= 10000 and iAngleDifFromRunningFromEnemyAndRally <= 80) or (tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and iDistToClosestEnemy - (oClosestEnemy[M28UnitInfo.refiDFRange] or 0) <= 60 and iDistToClosestEnemy >= 30) then
                                                                 --Might as well run from nearest enemy as not that much dif to running to the nearest rally, but enough fo a difference that we may well turn around for a while trying to go to the rally
                                                                 bRunFromNearestEnemy = true
                                                             end
