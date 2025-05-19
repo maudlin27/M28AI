@@ -3004,8 +3004,21 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
     local iTeam = aiBrain.M28Team
     local tLZOrWZData, tLZOrWZTeamData
     local iMexesOnMap = table.getn(M28Map.tMassPoints)
+    -- QUIET T2.5 MEXES
+    -- need Maudlin28 in-place on T2.5 stuff
+    local tQuietT25MexUnitIds = {
+        'UAB1204',
+        'UEB1204',
+        'URB1204',
+        'XSB1204',
+    }
 
-
+    local function IsQuietT25Mex(unitId)
+        for _, id in tQuietT25MexUnitIds do
+            if id == unitId then return true end
+        end
+        return false
+    end
 
     if iPlateauOrZero == 0 then
         tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
@@ -3067,7 +3080,7 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
             else
                 iTimeToWait = 7 * 60
             end
-        elseif iMexTechLevel == 2 then
+        elseif iMexTechLevel == 2 and not IsQuietT25Mex(oMex.UnitId) then
             if aiBrain[refiGrossMassBaseIncome] < 10 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or iMexesOnMap > 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
                 iTimeToWait = 8 * 60 + 4 * 60 * (10-aiBrain[refiGrossMassBaseIncome]) / 10
             elseif aiBrain[refiGrossMassBaseIncome] < 5 and iMexesOnMap <= 60 and M28UnitInfo.GetUnitLifetimeCount(oMex) <= 3 then --Prioritise first few t3 mex upgrades
@@ -3082,13 +3095,21 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
                     iTimeToWait = iTimeToWait - 20
                 end
             end
+        elseif iMexTechLevel == 2 and M28Utilities.bQuietModActive and IsQuietT25Mex(oMex.UnitId) then
+            if aiBrain[refiGrossMassBaseIncome] < 10 or iMexesOnMap > 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                iTimeToWait = 2 * 60 + 4 * 60 * (10-aiBrain[refiGrossMassBaseIncome]) / 10
+            elseif aiBrain[refiGrossMassBaseIncome] < 5 and iMexesOnMap <= 60 and M28UnitInfo.GetUnitLifetimeCount(oMex) <= 3 then
+                iTimeToWait = 1 * 60 + 2 * 60 * (10-aiBrain[refiGrossMassBaseIncome]) / 10
+            else
+                iTimeToWait = 4 * 60
+            end
         elseif bT3MexCanBeUpgraded and (M28Utilities.bLoudModActive and not M28Utilities.bQuietModActive) and iMexTechLevel == 3 then
             iTimeToWait = 0
         elseif bT3MexCanBeUpgraded and M28Utilities.bQuietModActive and iMexTechLevel == 3 then
             if aiBrain[refiGrossMassBaseIncome] < 10 or iMexesOnMap > 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                 iTimeToWait = 4 * 60 + 4 * 60 * (10 - aiBrain[refiGrossMassBaseIncome]) / 10
             elseif aiBrain[refiGrossMassBaseIncome] < 5 and iMexesOnMap <= 60 and M28UnitInfo.GetUnitLifetimeCount(oMex) <= 4 then
-                iTimeToWait = 2 * 60 + 2 * 60 * (25-aiBrain[refiGrossMassBaseIncome]) / 10
+                iTimeToWait = 2 * 60 + 2 * 60 * (10-aiBrain[refiGrossMassBaseIncome]) / 10
             else
                 iTimeToWait = 8 * 60
             end
