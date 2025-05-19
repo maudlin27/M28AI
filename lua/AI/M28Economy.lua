@@ -3082,8 +3082,16 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
                     iTimeToWait = iTimeToWait - 20
                 end
             end
-        elseif bT3MexCanBeUpgraded and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and iMexTechLevel == 3 then
+        elseif bT3MexCanBeUpgraded and (M28Utilities.bLoudModActive and not M28Utilities.bQuietModActive) and iMexTechLevel == 3 then
             iTimeToWait = 0
+        elseif bT3MexCanBeUpgraded and M28Utilities.bQuietModActive and iMexTechLevel == 3 then
+            if aiBrain[refiGrossMassBaseIncome] < 10 or iMexesOnMap > 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                iTimeToWait = 4 * 60 + 4 * 60 * (10 - aiBrain[refiGrossMassBaseIncome]) / 10
+            elseif aiBrain[refiGrossMassBaseIncome] < 5 and iMexesOnMap <= 60 and M28UnitInfo.GetUnitLifetimeCount(oMex) <= 4 then
+                iTimeToWait = 2 * 60 + 2 * 60 * (25-aiBrain[refiGrossMassBaseIncome]) / 10
+            else
+                iTimeToWait = 8 * 60
+            end
         else --redundancy
             local tLZData = M28Map.GetLandOrWaterZoneData(oMex:GetPosition())
             local iMexesInZone = (tLZData[M28Map.subrefLZMexCount] or 0)
