@@ -4579,7 +4579,7 @@ function EnemyBaseEarlyBomber(oBomber)
                         if M28Utilities.IsTableEmpty(tEnemyBaseLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                             for iUnit, oUnit in tEnemyBaseLZTeamData[M28Map.subrefTEnemyUnits] do
                                 if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                                if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
+                                if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) and oUnit:GetFractionComplete() >= 0.9 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering potential target='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                     if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) or (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit:GetHealth() <= iStrikeDamage and oUnit:GetFractionComplete() == 1) then
                                         table.insert(tEnemyTargets, oUnit)
