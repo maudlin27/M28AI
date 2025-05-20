@@ -6396,8 +6396,21 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     --Add special bombardment ship categories
     --Seraphim T2 - get bombardment ships
     if iFactoryTechLevel >= 2 and categories.bss0206 and oFactory:CanBuild('bss0206') and ConsiderBuildingCategory(categories.bss0206) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Seraphim T2 navy - get bombardment ships, sBPIDToBuild='..sBPIDToBuild) end
-        return sBPIDToBuild
+        if bDebugMessages == true then LOG(sFunctionRef..': Seraphim T2 navy - get bombardment ships unless ahve loads and low mass, sBPIDToBuild='..sBPIDToBuild..'; bAboutToOverflowMass='..tostring(bAboutToOverflowMass)) end
+        if bAboutToOverflowMass then
+            if bDebugMessages == true then LOG(sFunctionRef..': will get bombardment to avoid overflow') end
+            return sBPIDToBuild
+        else
+            local iCurT2BombardmentUnits = aiBrain:GetCurrentUnits(categories.bss0206)
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurT2BombardmentUnits='..iCurT2BombardmentUnits) end
+            if iCurT2BombardmentUnits <= 20 and (iCurT2BombardmentUnits <= 10 or not(bHaveLowMass)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': will get bombardment ship') end
+                return sBPIDToBuild
+            elseif not(bHaveLowMass) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship) <= 5and ConsiderBuildingCategory(M28UnitInfo.refCategoryBattleship) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will get battleship instead') end
+                return sBPIDToBuild
+            end
+        end
     elseif iFactoryTechLevel >= 3 then
         local iCurBattleships = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship) + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tWZTeamData, M28UnitInfo.refCategoryBattleship)
         if bDebugMessages == true then LOG(sFunctionRef..': Are at T3 and in bombardment mode, is categories.brmst3bom nil='..tostring(categories.brmst3bom == nil)) end
@@ -6413,7 +6426,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if iCurBattleships >= 1 and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
             local iCurMissileShips = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMissileShip * categories.TECH3) + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tWZTeamData, M28UnitInfo.refCategoryBattleship)
             if bDebugMessages == true then LOG(sFunctionRef..': iCurMissileShips='..iCurMissileShips..'; iCurBattleships='..iCurBattleships..'; Time since last had bombardment with battleships='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100)) end
-            if iCurMissileShips < iCurBattleships * 2 and (iCurMissileShips == 0 or iCurMissileShips <= iCurBattleships or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100) <= 15) then
+            if iCurMissileShips < iCurBattleships * 2 and (bAboutToOverflowMass or (iCurMissileShips <= 20 and (iCurMissileShips <= 8 or not(bHaveLowMass)))) and (iCurMissileShips == 0 or iCurMissileShips <= iCurBattleships or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100) <= 15) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryMissileShip * categories.TECH3 - categories.SUBMERSIBLE) then return sBPIDToBuild end
             end
         end
@@ -6424,6 +6437,9 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             iBSWantedAdjust = math.max(-1, iBSWantedAdjust - 5 * (6000 - iPondSize) / iPondSize)
         elseif iPondSize >= 100000 then
             iBSWantedAdjust = iBSWantedAdjust + 1
+        end
+        if bHaveLowMass and iBSWantedAdjust >= 1 then
+            iBSWantedAdjust = math.min(4, iBSWantedAdjust - 1)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bAboutToOverflowMass='..tostring(bAboutToOverflowMass)..'; iPondSize='..iPondSize..'; iCurBattleships='..iCurBattleships..'; iBSWantedAdjust='..iBSWantedAdjust..'; bHaveLowMass='..tostring(bHaveLowMass)) end
         if bAboutToOverflowMass or (iCurBattleships < 5+ iBSWantedAdjust and (not (bHaveLowMass) or iCurBattleships <= 1 + iBSWantedAdjust * 0.5)) then
