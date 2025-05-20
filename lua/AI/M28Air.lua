@@ -4663,7 +4663,7 @@ function EnemyBaseEarlyBomber(oBomber)
                                             --If fired recently but not really recently then presumably our bomb missed so we want to fire at this target again
                                             (oBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] >= 3)) then
                                 --M28Micro.HoverBombTarget(oBomber, oNearestEnemy)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will call hoverbomb logic') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will call hoverbomb logic to target '..oNearestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemy)) end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 --NOTE: Dont call via fork thread, as otherwise we end up calling the same logic multiple times and it overriding orders
                                 M28Micro.T1HoverBombTarget(oBomber, oNearestEnemy, true, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemy.UnitId) or oNearestEnemy:GetFractionComplete() < 1), true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
@@ -4727,11 +4727,11 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
         end
 
         if tStartLZOrWZData then
-            function FilterToAvailableTargets(tPotentialTargets, iOptionalCategory) --COPY OF BELOW
+            function FilterToAvailableTargets(tPotentialTargets, iOptionalCategory) --COPY OF BELOW from managebombers, but with adj to ignore part-complete units
                 if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
                     local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
                     for iUnit, oUnit in tPotentialTargets do
-                        if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
+                        if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) and (oUnit:GetFractionComplete() >= 0.9 or EntityCategoryContains(M28UnitInfo.refCategoryGroundAA, oUnit.UnitId)) then
                             if not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId) then
                                 table.insert(tEnemyTargets, oUnit)
                             end

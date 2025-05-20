@@ -2241,14 +2241,16 @@ function T1HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAtta
                     end
                 end
                 if bManualAttack then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Given order to attack oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)) end
                     M28Orders.IssueTrackedAttack(oBomber, oTarget, false, 'HoverBmA', true)
                 elseif tMoveViaPoint then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Given order to move to via point') end
                     M28Orders.IssueTrackedMove(oBomber, tMoveViaPoint, iReorderDist, false, 'HverBmM', true)
                 else
                     M28Utilities.ErrorHandler('Made mistake have nil move via point')
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': end of loop, will repeat unless have reached max microing time, iMaxMicroTime='..iMaxMicroTime..'; Time spent so far='..GetGameTimeSeconds() - iStartTime) end
+            if bDebugMessages == true then LOG(sFunctionRef..': end of loop, will repeat unless have reached max microing time, Time='..GetGameTimeSeconds()..'; iMaxMicroTime is '..iMaxMicroTime..'; Time spent so far='..GetGameTimeSeconds() - iStartTime) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(1)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
