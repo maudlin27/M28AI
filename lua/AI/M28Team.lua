@@ -5230,8 +5230,15 @@ function EnemyNovaxSatelliteMonitor(oNovax, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iNearbyZoneMidpointDistThreshold = 150 --Dist between the novax zone midpoint and the cur zone midpoint - want to beh igher than main search range in case novax is towards the edge of the midpoint
-    local iNovaxDistToMidpointThreshold = 100
+    local iNearbyZoneMidpointDistThreshold  --Dist between the novax zone midpoint and the cur zone midpoint - want to beh igher than main search range in case novax is towards the edge of the midpoint
+    local iNovaxDistToMidpointThreshold
+    if M28Map.iMapSize >= 1000 then
+        iNovaxDistToMidpointThreshold = 150
+        iNearbyZoneMidpointDistThreshold = 200
+    else
+        iNearbyZoneMidpointDistThreshold = 150
+        iNovaxDistToMidpointThreshold = 100
+    end
     while M28UnitInfo.IsUnitValid(oNovax) and tTeamData[iTeam][subrefiActiveM28BrainCount] > 0 do
         local tStartLZOrWZData, tStartLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oNovax:GetPosition(), true, iTeam)
         if tStartLZOrWZData then

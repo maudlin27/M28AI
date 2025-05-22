@@ -603,6 +603,7 @@ end
 ---@param iSegmentZ number
 ---@return table
 function GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
+    --SEE ALSO M28Engineer.GetBuildingMidpointPositionFromPathingSegments
     --Returns the position/location of land segment X and Z references iSegmentX and iSegmentZ (i.e. the map is divided into equal sized square segments, with each segment allocated to a land zone)
     local x = iSegmentX * iLandZoneSegmentSize - iLandZoneSegmentSize * 0.5 + rMapPotentialPlayableArea[1]
     local z = iSegmentZ * iLandZoneSegmentSize - iLandZoneSegmentSize * 0.5 + rMapPotentialPlayableArea[2] --If changing this, then also update AssignRemainingSegmentsToLandZone which manually does this for performance
@@ -1025,7 +1026,8 @@ function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
     if not(bMapLandSetupComplete) then --e.g. if this is a campaign we may want to change playable area size
         --iTableSizeCap = SegmentCount^2; SegmentCount = iTotalSize / SegmentSize; (TotalSize/SegmentSize)^2 = iTableSizeCap; SemgentSize = TotalSize/Sqrt(iTableSizeCap)
         iLandZoneSegmentSize = math.ceil(iHighestSize / math.sqrt(iTableSizeCap))
-        if iMapSize > 256 then ilandZoneSegmentSize = math.max(iLandZoneSegmentSize, 2) end --otherwise get too many building locations
+        if iMapSize > 256 then iLandZoneSegmentSize = math.max(iLandZoneSegmentSize, 2) end --otherwise get too many building locations
+        import('/mods/M28AI/lua/AI/M28Engineer.lua').iLandZoneSegmentSize = iLandZoneSegmentSize
 
         --Record the max values
         iMaxLandSegmentX, iMaxLandSegmentZ = GetPathingSegmentFromPosition({rMapPotentialPlayableArea[3], 0, rMapPotentialPlayableArea[4]})
@@ -9651,7 +9653,7 @@ function RecordBackupGameEnderLocation()
                     end
                     if iPreferredSize then
                         --Determine the arti location values
-                        local tMidpoint = GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)
+                        local tMidpoint = M28Engineer.GetBuildingMidpointPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)
                         tMidpoint[1] = tMidpoint[1] + iMidpointAdjust --Snapto grid moves things to the nearest .5, i.e. doesnt do round numbers; however have disabled logic relating to this
                         tMidpoint[3] = tMidpoint[3] + iMidpointAdjust
 
@@ -9668,8 +9670,8 @@ function RecordBackupGameEnderLocation()
 
 
                         if bDebugMessages == true then
-                            LOG(sFunctionRef..': Location recorded for plateau '..iPlateau..' zone '..iLandZone..'; tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]='..repru(tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment])..'; will draw in gold, can aiBrain build structure here='..tostring(aiBrain:CanBuildStructureAt(M28Engineer.tsBlueprintsBySize[iPreferredSize], GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..' (using blueprint '..M28Engineer.tsBlueprintsBySize[iPreferredSize]..'), Can brain build novax here='..tostring(aiBrain:CanBuildStructureAt('xeb2402', GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..'; Midpoint='..repru(tMidpoint)..'; iMidpointAdjust='..iMidpointAdjust)
-                            M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(GetPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ), iPreferredSize*0.5), 4, 400)
+                            LOG(sFunctionRef..': Location recorded for plateau '..iPlateau..' zone '..iLandZone..'; tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment]='..repru(tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment])..'; will draw in gold, can aiBrain build structure here='..tostring(aiBrain:CanBuildStructureAt(M28Engineer.tsBlueprintsBySize[iPreferredSize], M28Engineer.GetBuildingMidpointPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..' (using blueprint '..M28Engineer.tsBlueprintsBySize[iPreferredSize]..'), Can brain build novax here='..tostring(aiBrain:CanBuildStructureAt('xeb2402', M28Engineer.GetBuildingMidpointPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ)))..'; Midpoint='..repru(tMidpoint)..'; iMidpointAdjust='..iMidpointAdjust)
+                            M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(M28Engineer.GetBuildingMidpointPositionFromPathingSegments(iPreferredSegX, iPreferredSegZ), iPreferredSize*0.5), 4, 400)
                             --Draw the large arti locations in red, and shield locations in blue
                             for iEntry, tLocation in tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment][subreftLargeArtiLocations] do
                                 M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, tLZData[subrefGameEnderTemplateBackupLocationSizeAndSegment][subrefiLargeArtiMaxSize]*0.5), 2, 400)
