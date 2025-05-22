@@ -943,20 +943,29 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                             if iCurSkirmishersOfTech > 2 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemies are nearby so want DF tanks more than skirmishers once we have a couple of skirmishers, unless we have similar numbers and skirmishers seem to be doing ok') end
                                 local iCurDFTankOfTech = oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryDFTank * iTechCategory)
-                                if iCurDFTankOfTech < iCurSkirmishersOfTech then
-                                    iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
-                                    if iFactoryTechLevel == 1 then iBaseCategoryWanted = iBaseCategoryWanted - M28UnitInfo.refCategoryLightAttackBot end
+                                if M28Utilities.bQuietModActive then
+                                    --In Quiet mod, ensure we have a significant DF force before switching to skirmishers
+                                    --Only care about QUIET as in QUIET we want to ensure our force isn't just brittle and dies to a DF force with Mobile Shields
+                                    if iCurDFTankOfTech < 8 or iCurDFTankOfTech < iCurSkirmishersOfTech * 2 then
+                                        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+                                        if iFactoryTechLevel == 1 then iBaseCategoryWanted = iBaseCategoryWanted - M28UnitInfo.refCategoryLightAttackBot end
+                                    end
                                 else
-                                    local aiBrain = oFactory:GetAIBrain()
-                                    local iDFLCOfTech = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryDFTank * iTechCategory)
-                                    local iSkirmisherLCOfTech = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategorySkirmisher * iTechCategory)
-                                    --We have >= DF tanks to skirmishers in actual units; if our LC is < this, then want to do DF tanks, otherwise want to analyse closer
-                                    if iDFLCOfTech <= iSkirmisherLCOfTech then
+                                    if iCurDFTankOfTech < iCurSkirmishersOfTech then
                                         iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
                                         if iFactoryTechLevel == 1 then iBaseCategoryWanted = iBaseCategoryWanted - M28UnitInfo.refCategoryLightAttackBot end
-                                    elseif iCurDFTankOfTech / iDFLCOfTech > iCurSkirmishersOfTech / iSkirmisherLCOfTech then
-                                        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
-                                        if iFactoryTechLevel == 1 then iBaseCategoryWanted = iBaseCategoryWanted - M28UnitInfo.refCategoryLightAttackBot end
+                                    else
+                                        local aiBrain = oFactory:GetAIBrain()
+                                        local iDFLCOfTech = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryDFTank * iTechCategory)
+                                        local iSkirmisherLCOfTech = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategorySkirmisher * iTechCategory)
+                                        --We have >= DF tanks to skirmishers in actual units; if our LC is < this, then want to do DF tanks, otherwise want to analyse closer
+                                        if iDFLCOfTech <= iSkirmisherLCOfTech then
+                                            iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+                                            if iFactoryTechLevel == 1 then iBaseCategoryWanted = iBaseCategoryWanted - M28UnitInfo.refCategoryLightAttackBot end
+                                        elseif iCurDFTankOfTech / iDFLCOfTech > iCurSkirmishersOfTech / iSkirmisherLCOfTech then
+                                            iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+                                            if iFactoryTechLevel == 1 then iBaseCategoryWanted = iBaseCategoryWanted - M28UnitInfo.refCategoryLightAttackBot end
+                                        end
                                     end
                                 end
                             end
