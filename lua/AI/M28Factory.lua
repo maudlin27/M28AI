@@ -967,7 +967,11 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
 
                     if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and iFactoryTechLevel >= 2 and categories.ual0204 and EntityCategoryContains(categories.AEON, oFactory.UnitId) then
                         local iAltCategoryWanted
-                        if iFactoryTechLevel == 2 and iBaseCategoryWanted == M28UnitInfo.refCategorySkirmisher * iTechCategory then
+                        local aiBrain = oFactory:GetAIBrain()
+                        local iCurSniperCount = aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySniperBot * iTechCategory)
+                        local iMaxSnipers = 8 -- Cap on number of T2 snipers we want
+
+                        if iFactoryTechLevel == 2 and iBaseCategoryWanted == M28UnitInfo.refCategorySkirmisher * iTechCategory and iCurSniperCount < iMaxSnipers then
                             iAltCategoryWanted = M28UnitInfo.refCategorySniperBot * iTechCategory
                             if GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iAltCategoryWanted, oFactory) then iBaseCategoryWanted = iAltCategoryWanted end
                         elseif not(M28Utilities.bQuietModActive) and iFactoryTechLevel == 3 and (oFactory[refiTotalBuildCount] <= 10 or math.random(1,3) == 1) then
