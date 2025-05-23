@@ -287,8 +287,8 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
 
     local iCurEngineers
     if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild]
-    --Exception - scouts where factory is on a different island to the core base
-    and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, sBPIDToBuild)) or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbTeamHasOmniVision] or tLZTeamData[M28Map.subrefLZbCoreBase] or not(tLZTeamData[M28Map.subrefLZCoreExpansion]) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) then
+            --Exception - scouts where factory is on a different island to the core base
+            and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, sBPIDToBuild)) or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbTeamHasOmniVision] or tLZTeamData[M28Map.subrefLZbCoreBase] or not(tLZTeamData[M28Map.subrefLZCoreExpansion]) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
         sBPIDToBuild = nil
     else
@@ -530,7 +530,8 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             if iMaxSpareWanted >= 0 and not(M28Conditions.TeamHasLowMass(aiBrain.M28Team)) and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or oFactory[refiTotalBuildCount] <= 10 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3) then
                 iMaxSpareWanted = math.max(2, 1 + math.floor((M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] or 0) * 10)) * M28Engineer.tiBPByTech[iFactoryTechLevel]
             end
-            if (tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 0) > iMaxSpareWanted or (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetUnitTechLevel(sBPIDToBuild)] or 0) > iMaxSpareWanted then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if have enough spare BP, iFactoryTechLevel='..iFactoryTechLevel..'; tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel]='..(tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 'nil')..'; iMaxSpareWanted='..iMaxSpareWanted..'; Tech level of BP wanted='..M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)..'; Spare BP for this tech level='.. (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)] or 'nil')) end
+            if (tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 0) > iMaxSpareWanted or (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)] or 0) > iMaxSpareWanted then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have sufficient spare engineers, iMaxSpareWanted='..iMaxSpareWanted) end
                 sBPIDToBuild = nil
             end
@@ -1966,7 +1967,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     end
 
     --ALso high priority engineers more generally if arent building any and want more
-    if bDebugMessages == true then LOG(sFunctionRef..': High priority engineers if few are being built: Want BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP])..'; Defend against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': High priority T3 engineers if few are being built: Want BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP])..'; Defend against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
     if tLZTeamData[M28Map.subrefTbWantBP] and iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 250) then
         local iCurBPWanted = tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][3]
         if iCurBPWanted > 20 then
@@ -1979,8 +1980,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     iMaxEngisAtOnce = math.min(3, iLandFactoriesInLZ - 1)
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': iMaxEngisAtOnce='..iMaxEngisAtOnce) end
             if iCurEngineersBeingBuilt < iMaxEngisAtOnce and (iCurEngineersBeingBuilt <= 2 or not(bHaveLowMass)) and iCurEngineersBeingBuilt * M28Engineer.tiBPByTech[3] < iCurBPWanted then
-                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try getting T3 engineer') end
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer * categories.TECH3) then return sBPIDToBuild end
             end
         end
     end
@@ -2197,7 +2200,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if not (iCategoryToGet) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     --If dont have highest factory tech level vs enemy ground, and have either very low mass or stalling E power, and on same island as core base, then dont build afterall
                     if iFactoryTechLevel < 3 and iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] and ((bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) or (bHaveLowMass and aiBrain:GetEconomyStoredRatio('MASS') <= 0.01)) and tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])
-                    and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) or not(M28Conditions.CloseToEnemyUnit(oFactory:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 80, iTeam, true, nil, nil, nil, nil, nil))) then
+                            and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) or not(M28Conditions.CloseToEnemyUnit(oFactory:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 80, iTeam, true, nil, nil, nil, nil, nil))) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Dont have enough resources to want to consider building to deal with adjacent zone threats with combat units') end
                         bDontGetCombat = true
                     end
@@ -4461,6 +4464,25 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         oFactory[refbWantNextUnitToBeEngineer] = false
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
     end
+
+    --T2-T3 fac that hasnt built any engineers yet of the desired tech level and doesnt have enemy air to ground threat or combat threat in the zone, and not stalling mass
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Very high priority engi for tech builder, oFactory[refiTotalBuildCount]='..(oFactory[refiTotalBuildCount] or 'nil')..'; iFactoryTechLevel='..iFactoryTechLevel..'; Want BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP])..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) end
+    if oFactory[refiTotalBuildCount] <= 3 and iFactoryTechLevel >= 2 and (tLZTeamData[M28Map.subrefTbWantBP] or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) and (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 4 < tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) * 4 < tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] then
+        local iEngiCat
+        if iFactoryTechLevel == 2 then iEngiCat = M28UnitInfo.refCategoryEngineer - categories.TECH1
+        else iEngiCat = M28UnitInfo.refCategoryEngineer * categories.TECH3
+        end
+        local iMinEngisWanted = 1
+        if not(bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] then iMinEngisWanted = 2 end
+        local iCurEngisofCat = aiBrain:GetCurrentUnits(iEngiCat)
+        if bDebugMessages == true then LOG(sFunctionRef..'; iCurEngisOfCat='..iCurEngisofCat..'; iMinEngisWanted='..iMinEngisWanted..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Number of engis of relevant cat under construction in LZ='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, iEngiCat)) end
+        if iCurEngisofCat < iMinEngisWanted and iCurEngisofCat + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, iEngiCat) < iMinEngisWanted then
+            if bDebugMessages == true then LOG(sFunctionRef..': High priority build engineers of factory tech as dont have any') end
+            if ConsiderBuildingCategory(iEngiCat) then return sBPIDToBuild end
+        end
+    end
+
     --Low power - only consider building engineers (if have lots of mass) unless enemies already attacking
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': If low power then will only consider building engineers or emergency AirAA, bHaveLowPower=' .. tostring(bHaveLowPower))
@@ -5935,7 +5957,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if iEngisBuilt < 3 + iSurfaceAndSubersibleNavyBuilt * 2 then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
                 --Check this engineer is the tech level wanted to avoid infinite loop
-                if M28UnitInfo.GetUnitTechLevel(sBPIDToBuild) >= iFactoryTechLevel then
+                if M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild) >= iFactoryTechLevel then
                     return sBPIDToBuild
                 end
             end

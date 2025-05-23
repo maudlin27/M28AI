@@ -538,22 +538,20 @@ function GetUnitState(oUnit)
 end
 
 function GetUnitTechLevel(oUnit)
-    local sUnitId = oUnit.UnitId
-    local iTechLevel = 1
-    if EntityCategoryContains(categories.TECH1, sUnitId) then iTechLevel = 1
-    elseif EntityCategoryContains(categories.TECH2, sUnitId) then iTechLevel = 2
-    elseif EntityCategoryContains(categories.TECH3, sUnitId) then iTechLevel = 3
-    elseif EntityCategoryContains(categories.EXPERIMENTAL, sUnitId) then iTechLevel = 4
+    if oUnit.UnitId then
+        return GetBlueprintTechLevel(oUnit.UnitId)
+    else
+        M28Utilities.ErrorHandler('Invalid blueprint reference, dont have .UnitId, have we used the blueprint instead of the unit? will return 1')
+        return 1
     end
-    return iTechLevel
 end
 
 function GetBlueprintTechLevel(sUnitId)
     local iTechLevel = 1
-    if EntityCategoryContains(categories.TECH1, sUnitId) then iTechLevel = 1
-    elseif EntityCategoryContains(categories.TECH2, sUnitId) then iTechLevel = 2
-    elseif EntityCategoryContains(categories.TECH3, sUnitId) then iTechLevel = 3
+    --Start with T3 instead of T1, in case have a unit with multiple techs
+    if EntityCategoryContains(categories.TECH3, sUnitId) then iTechLevel = 3
     elseif EntityCategoryContains(categories.EXPERIMENTAL, sUnitId) then iTechLevel = 4
+    elseif EntityCategoryContains(categories.TECH2, sUnitId) then iTechLevel = 2
     end
     return iTechLevel
 end
