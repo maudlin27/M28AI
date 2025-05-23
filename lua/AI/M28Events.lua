@@ -90,7 +90,7 @@ end
 function OnACUKilled(oUnit)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'OnACUKilled'
-        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
         if bDebugMessages == true then
@@ -107,15 +107,38 @@ function OnACUKilled(oUnit)
         if ScenarioInfo.Options.Victory == "demoralization" then
             bDefeated = true
         elseif oKilledBrain and not(oKilledBrain.M28IsDefeated) and ScenarioInfo.Options.Victory == 'decapitation' then
-            local tCurUnits = oKilledBrain:GetListOfUnits(categories.COMMAND + categories.SUBCOMMANDER, false, true)
-            if M28Utilities.IsTableEmpty(tCurUnits) then
+            --In FAF this means all teammate ACUs; outside of FAF means ACUs and SACUs of that player
+            if M28Utilities.bFAFActive then
                 bDefeated = true
+                if EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId) and oKilledBrain:GetCurrentUnits(categories.COMMAND) > 0 then
+                    bDefeated = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': We still have an ACU so not defeated yet') end
+                else
+                    local iTeam = oKilledBrain.M28Team
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly brains on our team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]))) end
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering teammate '..oBrain.Nickname..'; IsDefeated='..tostring(oBrain:IsDefeated())..'; Cur ACUs owned='..oBrain:GetCurrentUnits(categories.COMMAND)) end
+                            if not(oBrain == oKilledBrain) and oBrain.IsDefeated and not(oBrain:IsDefeated()) then
+                                if oBrain:GetCurrentUnits(categories.COMMAND) > 0 then
+                                    bDefeated = false
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
             else
-                bDefeated = true
-                for iOwnedUnit, oOwnedUnit in tCurUnits do
-                    if not(oOwnedUnit == oUnit) and not(oOwnedUnit.Dead) and not(oUnit['M28Dead']) then
-                        bDefeated = false
-                        break
+                local tCurUnits = oKilledBrain:GetListOfUnits(categories.COMMAND + categories.SUBCOMMANDER, false, true)
+                if M28Utilities.IsTableEmpty(tCurUnits) then
+                    bDefeated = true
+                else
+                    bDefeated = true
+                    for iOwnedUnit, oOwnedUnit in tCurUnits do
+                        if not(oOwnedUnit == oUnit) and not(oOwnedUnit.Dead) and not(oUnit['M28Dead']) then
+                            bDefeated = false
+                            break
+                        end
                     end
                 end
             end
