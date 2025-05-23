@@ -1873,9 +1873,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 -- In QUIET mod, only build sniper bots if we have significantly more DF units than snipers so we can ensure Experimentals cant just chase down the Snipers
                 -- as we have a lot of fast experimental units
                 if M28Utilities.bQuietModActive then
-                    local iCurDF = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDirectFire)
+                    local iCurDFTank = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDFTank)
                     local iCurSniper = aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySniperBot)
-                    if iCurDF > iCurSniper * 3 then
+                    if iCurDFTank > iCurSniper * 3 then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategorySniperBot) then return sBPIDToBuild end
                     end
                 else
