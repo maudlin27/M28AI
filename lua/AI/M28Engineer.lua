@@ -13636,12 +13636,37 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Preemptive fixed AA if we have T2+ air fac and no fixed T2+ ground AA and dont have much MAA threat here either
     --Also includes T3 SAM preemptive builder in greater numbers if we lack air control and have at least 10 mass per tick and not low mass
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want fixed AA due to haveing T2+ air, iCurPriority='..iCurPriority..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]) end
-    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 and tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < 800 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] - 1) then
+    if GetGameTimeSeconds() >= 25*60 then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want fixed AA due to haveing T2+ air, iCurPriority='..iCurPriority..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]..'; Assassination or similar='..tostring(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 and tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < 24000 and (tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] <= 3000 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < aiBrain[M28Economy.refiGrossMassBaseIncome] * 600)) and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < 800 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] - 1)) then
         --Does enemy have air to ground threat that exceeds our AA threat in this zone, and/or do we have at least 2 T3 mexes in this zone and not have low mass?
-        if bDebugMessages == true then LOG(sFunctionRef..': enemy air to ground threat='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0)..'; Ally groundAA in this zone='..(tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Mex count by tech='..tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(3, tLZData[M28Map.subrefLZMexCount] * 0.5)) end
-        if (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0) > (tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) or (not(bHaveLowMass) and not(bHaveLowPower) and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(3, tLZData[M28Map.subrefLZMexCount] * 0.5) or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= math.max(700, (M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] or 0) * 1.2)))) then
+        local iThreatRatioWanted = 1
+        if M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] then iThreatRatioWanted = iThreatRatioWanted + 0.5
+        end
+        if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] then
+            iThreatRatioWanted = iThreatRatioWanted * 0.4
+        elseif M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] then
+            iThreatRatioWanted = iThreatRatioWanted + 0.5
+        end
+        if bHaveLowMass then
+            iThreatRatioWanted = iThreatRatioWanted - 0.1
+            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iThreatRatioWanted = iThreatRatioWanted * 0.5 end
+        end
+        if bHaveLowPower then
+            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then iThreatRatioWanted = iThreatRatioWanted * 0.5
+            else iThreatRatioWanted = iThreatRatioWanted * 0.8
+            end
+        end
+        if iNearbyEnemyAirToGroundThreat >= 2500 then iThreatRatioWanted = iThreatRatioWanted + 0.2 end
+        local iCurrentThreatRatio
+        if (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0) > 0 then
+            iCurrentThreatRatio = tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] / M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]
+        else
+            iCurrentThreatRatio = 1000
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': enemy air to ground threat='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 0)..'; Ally groundAA in this zone='..(tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Mex count by tech='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; iThreatRatioWanted='..iThreatRatioWanted) end
 
+        if iCurrentThreatRatio < iThreatRatioWanted or (tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < 800 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] - 1) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > (tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) or (not(bHaveLowMass) and not(bHaveLowPower) and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(3, tLZData[M28Map.subrefLZMexCount] * 0.5) or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= math.max(700, (M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] or 0) * 1.2)))))) then
             --Do we already have fixed AA in this LZ?
             local iAACategory = M28UnitInfo.refCategoryStructureAA - categories.TECH1
             if M28Team.subrefiHighestFriendlyFactoryTech >= 3 then iAACategory = iAACategory * categories.TECH3 end
@@ -13652,20 +13677,25 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     if oUnit:GetFractionComplete() then bHaveFixedAA = true break end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': bHaveFixedAA='..tostring(bHaveFixedAA)) end
-            if not(bHaveFixedAA) then
-                iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
-                if iNearbyEnemyAirToGroundThreat > 0 then iBPWanted = iBPWanted * 2 end
-                if not(bHaveLowPower) then
-                    if not(bHaveLowMass) then iBPWanted = iBPWanted * 3
-                    else iBPWanted = iBPWanted * 1.5
-                    end
+            iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
+            if iCurrentThreatRatio < iThreatRatioWanted then iBPWanted = iBPWanted * (0.5 + 3 * (iThreatRatioWanted - iCurrentThreatRatio) / iThreatRatioWanted) end
+            if not(bHaveFixedAA) then iBPWanted = iBPWanted * 1.5 end
+            if not(bHaveLowPower) then
+                if not(bHaveLowMass) then iBPWanted = iBPWanted * 3
+                else iBPWanted = iBPWanted * 1.5
                 end
+            end
+            local iApproachingAirThreat = M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZData, tLZTeamData, iTeam, 200)
+            if bDebugMessages == true then LOG(sFunctionRef..': bHaveFixedAA='..tostring(bHaveFixedAA)..'; iBPWanted='..iBPWanted..'; iCurrentThreatRatio='..iCurrentThreatRatio..'; iThreatRatioWanted='..iThreatRatioWanted..'; iApproachingAirThreat='..iApproachingAirThreat) end
+
+            if not(bHaveFixedAA)
+                    or (tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) == 0
+                    or (iApproachingAirThreat > 0 and (iApproachingAirThreat > 2500 or tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] <= 300 or iApproachingAirThreat * 4 > tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]))
+                    or iCurrentThreatRatio * 2 < iThreatRatioWanted
+                    or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
+                    or (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and iCurrentThreatRatio * 1.5 < iThreatRatioWanted) then
                 HaveActionToAssign(refActionBuildAA, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted)
-                if bDebugMessages == true then LOG(sFunctionRef..': T2 plus preemptive AA builder, iBPWanted='..iBPWanted) end
-            elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and not(bHaveLowMass) and not(M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.refbHaveAirControl]) and table.getn(tExistingFixedAA) < 4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Want to get T3 AA preemptively') end
-                HaveActionToAssign(refActionBuildAA, 3, 30)
+                if bDebugMessages == true then LOG(sFunctionRef..': preemptive AA builder, iBPWanted='..iBPWanted) end
             end
         end
     end
