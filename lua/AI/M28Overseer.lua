@@ -2213,6 +2213,11 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
             end
         end
+        --UEF M1 - Air fac upgrading breaks the mission
+        if ScenarioInfo.AirFactory.UnitId and not(ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit]) and ScenarioInfo.AirFactory:GetBlueprint().General.UpgradesTo and ScenarioInfo.AirFactory:GetAIBrain().M28AI then
+            if bDebugMessages == true then LOG(sFunctionRef..': Flagging not to upgrade unit '..ScenarioInfo.AirFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(ScenarioInfo.AirFactory.UnitId)..' as it may be an objective unit') end
+            ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit] = true
+        end
     else
         if bDebugMessages == true then LOG(sFunctionRef..': No active M28 brains so aborting') end
     end

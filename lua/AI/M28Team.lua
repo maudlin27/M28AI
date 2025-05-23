@@ -5230,8 +5230,15 @@ function EnemyNovaxSatelliteMonitor(oNovax, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iNearbyZoneMidpointDistThreshold = 150 --Dist between the novax zone midpoint and the cur zone midpoint - want to beh igher than main search range in case novax is towards the edge of the midpoint
-    local iNovaxDistToMidpointThreshold = 100
+    local iNearbyZoneMidpointDistThreshold  --Dist between the novax zone midpoint and the cur zone midpoint - want to beh igher than main search range in case novax is towards the edge of the midpoint
+    local iNovaxDistToMidpointThreshold
+    if M28Map.iMapSize >= 1000 then
+        iNovaxDistToMidpointThreshold = 150
+        iNearbyZoneMidpointDistThreshold = 200
+    else
+        iNearbyZoneMidpointDistThreshold = 150
+        iNovaxDistToMidpointThreshold = 100
+    end
     while M28UnitInfo.IsUnitValid(oNovax) and tTeamData[iTeam][subrefiActiveM28BrainCount] > 0 do
         local tStartLZOrWZData, tStartLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oNovax:GetPosition(), true, iTeam)
         if tStartLZOrWZData then
@@ -5272,6 +5279,20 @@ function SetIfLoseGameOnACUDeath(iTeam)
     if ScenarioInfo.Options.Share == 'FullShare' or ScenarioInfo.Options.Victory == 'team_assassination' then
         if tTeamData[iTeam][subrefiActiveM28BrainCount] > 1 then
             bAssassinationOrSimilar = false
+            if ScenarioInfo.Options.Victory == 'decapitation' and M28Utilities.bFAFActive then
+                --Check as if only 1 ACU left on team then should be assassination
+                local iPlayerWithACUCount = 0
+                for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains] do
+                    if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
+                        if oBrain:GetCurrentUnits(categories.COMMAND) >= 1 then
+                            iPlayerWithACUCount = iPlayerWithACUCount + 1
+                        end
+                    end
+                end
+                if iPlayerWithACUCount <= 1 then
+                    bAssassinationOrSimilar = true
+                end
+            end
         else
             local iFriendlyBrainCount = 0
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains]) == false then

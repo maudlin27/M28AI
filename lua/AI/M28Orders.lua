@@ -809,6 +809,7 @@ function IssueTrackedUpgrade(oUnit, sUpgradeRef, bAddToExistingQueue, sOptionalO
             oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderUpgrade, [subrefsOrderBlueprint] = sUpgradeRef})
             IssueUpgrade({oUnit}, sUpgradeRef)
+            oUnit[M28UnitInfo.refbIssuedUpgrade] = true
         end
         if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     end
@@ -977,7 +978,6 @@ function IssueTrackedKillUnit(oUnit)
             else
                 oUnit[M28UnitInfo.refbTriedToKill] = true
             end
-
             oUnit:Kill()
         end
     end

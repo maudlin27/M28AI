@@ -109,6 +109,7 @@ refbNonM28ExpConstruction = 'M28UUcE' --true if unit has been recorded against t
 refbHaveSeenUnitByTeam = 'M28UHvSn' --true if we have detected the unit in some way
 refbScoutCombatOverride = 'M28ScCmO' --true if we want the scout to be treated as a normal combat unit
 refbTriedUpgrading = 'M28TrUpgr' --used for buildings like pgens, true if have tried upgrading (for redundancy to avoid trying to upgrade multiple times)
+refbIssuedUpgrade = 'M28IssUpg' --true if the IssueUpgrade order is called; done to help with campaign compatibility
 
     --Unit micro related
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI
@@ -537,22 +538,20 @@ function GetUnitState(oUnit)
 end
 
 function GetUnitTechLevel(oUnit)
-    local sUnitId = oUnit.UnitId
-    local iTechLevel = 1
-    if EntityCategoryContains(categories.TECH1, sUnitId) then iTechLevel = 1
-    elseif EntityCategoryContains(categories.TECH2, sUnitId) then iTechLevel = 2
-    elseif EntityCategoryContains(categories.TECH3, sUnitId) then iTechLevel = 3
-    elseif EntityCategoryContains(categories.EXPERIMENTAL, sUnitId) then iTechLevel = 4
+    if oUnit.UnitId then
+        return GetBlueprintTechLevel(oUnit.UnitId)
+    else
+        M28Utilities.ErrorHandler('Invalid blueprint reference, dont have .UnitId, have we used the blueprint instead of the unit? will return 1')
+        return 1
     end
-    return iTechLevel
 end
 
 function GetBlueprintTechLevel(sUnitId)
     local iTechLevel = 1
-    if EntityCategoryContains(categories.TECH1, sUnitId) then iTechLevel = 1
-    elseif EntityCategoryContains(categories.TECH2, sUnitId) then iTechLevel = 2
-    elseif EntityCategoryContains(categories.TECH3, sUnitId) then iTechLevel = 3
+    --Start with T3 instead of T1, in case have a unit with multiple techs
+    if EntityCategoryContains(categories.TECH3, sUnitId) then iTechLevel = 3
     elseif EntityCategoryContains(categories.EXPERIMENTAL, sUnitId) then iTechLevel = 4
+    elseif EntityCategoryContains(categories.TECH2, sUnitId) then iTechLevel = 2
     end
     return iTechLevel
 end
