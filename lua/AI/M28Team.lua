@@ -5279,6 +5279,20 @@ function SetIfLoseGameOnACUDeath(iTeam)
     if ScenarioInfo.Options.Share == 'FullShare' or ScenarioInfo.Options.Victory == 'team_assassination' then
         if tTeamData[iTeam][subrefiActiveM28BrainCount] > 1 then
             bAssassinationOrSimilar = false
+            if ScenarioInfo.Options.Victory == 'decapitation' and M28Utilities.bFAFActive then
+                --Check as if only 1 ACU left on team then should be assassination
+                local iPlayerWithACUCount = 0
+                for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains] do
+                    if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
+                        if oBrain:GetCurrentUnits(categories.COMMAND) >= 1 then
+                            iPlayerWithACUCount = iPlayerWithACUCount + 1
+                        end
+                    end
+                end
+                if iPlayerWithACUCount <= 1 then
+                    bAssassinationOrSimilar = true
+                end
+            end
         else
             local iFriendlyBrainCount = 0
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyHumanAndAIBrains]) == false then
