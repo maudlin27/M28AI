@@ -61,9 +61,9 @@ AddObjective = function(Type,         -- 'primary', 'bonus', etc
         IsLoading,    -- Are we loading a saved game?
         loadedTag     -- If IsLoading is specified, whats the tag?
 )
-
-    ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').ObjectiveAdded, Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
-    return M28OldAddObjective(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+    local oObjective = M28OldAddObjective(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+    ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').ObjectiveAdded, oObjective, Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+    return oObjective
 end
 
 local M28OldReclaim = Reclaim

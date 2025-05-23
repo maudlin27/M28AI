@@ -3759,7 +3759,7 @@ function CreateUnitReclaimedTrigger(oUnit)
     end
 end
 
-function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+function ObjectiveAdded(oObjective, Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'ObjectiveAdded'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -3956,11 +3956,36 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
 
             --Record units as objective targets generally (used to trigger onkilled callback from upgrades)
             if M28Utilities.IsTableEmpty(Target.Units) == false then
+                local iTotalTargetUnitCounts = 0
+                local iDeadUpgradingTargetUnitCount = 0
+                local toDeadUpgradingTargetUnits = {}
                 for iUnit, oUnit in Target.Units do
+                    iTotalTargetUnitCounts = iTotalTargetUnitCounts + 1
+                    if bDebugMessages == true then LOG(sFunctionRef..': Recording we have an objective for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; oUnit[M28UnitInfo.refbIssuedUpgrade]='..tostring(oUnit[M28UnitInfo.refbIssuedUpgrade] or false)..'; Is Unit.EventCallbacks.OnKilled nil='..tostring(oUnit.EventCallbacks.OnKilled == nil)..'; iTotalTargetUnitCounts='..iTotalTargetUnitCounts) end
                     oUnit[M28UnitInfo.refbObjectiveUnit] = true
-                    --Trigger the on-death for the unit if it is an external factory unit
-                    if EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId) and oUnit.EventCallbacks.OnKilled then
-                        oUnit:DoUnitCallbacks('OnKilled')
+                    if oUnit.EventCallbacks.OnKilled then
+                        --Trigger the on-death for the unit if it is an external factory unit
+                        if EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId) then
+                            oUnit:DoUnitCallbacks('OnKilled')
+                            --Also trigger if it is a building unit that can upgrade to another unit, and is showing as dead, was an M28 unit, and we have a building of a higher tech levle in its place (e.g. for UEF mission 1 where we can upgrade the air factory)
+                        elseif oUnit[M28UnitInfo.refbIssuedUpgrade] and not(M28UnitInfo.IsUnitValid(oUnit)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Running onkilled clalback') end
+                            oUnit:DoUnitCallbacks('OnKilled')
+                        end
+                    elseif oUnit[M28UnitInfo.refbIssuedUpgrade] and oUnit.Dead then
+                        iDeadUpgradingTargetUnitCount = iDeadUpgradingTargetUnitCount + 1
+                        table.insert(toDeadUpgradingTargetUnits, oUnit)
+                    end
+                end
+                --Issue if upgraded the unit fully before objective called, then it might not have an EventCallback.OnKilled for it; added for UEF SC M1 but didnt solve the problem, left in though as the error message may be useful and it's possible in another scenario it might work
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking for redundancy from upgrades canceling objective, oObjective.Active='..tostring(oObjective.Active)..'; Type='..Type..'; iTotalTargetUnitCounts='..iTotalTargetUnitCounts..'; iDeadUpgradingTargetUnitCount='..iDeadUpgradingTargetUnitCount..'; Is oObjective.OnUnitKilled nil='..tostring(oObjective.OnUnitKilled == nil)) end
+                if iTotalTargetUnitCounts > 0 and iDeadUpgradingTargetUnitCount == iTotalTargetUnitCounts and Type == 'primary' and oObjective.OnUnitKilled and M28Utilities.IsTableEmpty(toDeadUpgradingTargetUnits) == false then
+                    M28Utilities.ErrorHandler('All primary objective units are dead due to upgrading them, will attempt to trigger onkilled callback, is objective active='..tostring(oObjective.Active or false), true, true)
+                    if oObjective.Active then
+                        for iUnit, oUnit in toDeadUpgradingTargetUnits do
+                            if bDebugMessages == true then LOG(sFunctionRef..': will call OnUnitKilled for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            oObjective.OnUnitKilled(oUnit)
+                        end
                     end
                 end
             end

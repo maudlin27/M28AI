@@ -4642,10 +4642,15 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                         if not(bIsWaterZone) then
                                                             iLZOrWZToRunTo =  M28Land.GetLandZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
                                                             if not(iLZOrWZToRunTo == iLandZone) and iLZOrWZToRunTo then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
-                                                                --Run to the LZ
-                                                                M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'RunTo'..iLZOrWZToRunTo)
-                                                                bEngiIsUnavailable = true
-                                                                TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateauOrPond, iLZOrWZToRunTo})
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will run to LZ '..iLZOrWZToRunTo..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint]))..'; refbConstructionStart='..tostring(oEngineer[M28UnitInfo.refbConstructionStart] or false)) end
+                                                                if M28Map.bIsCampaignMap and not(oEngineer[M28UnitInfo.refbConstructionStart]) and not(M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint])) then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': campaign map, dont want engi that we havent constructed to retreat outside of playable area in case prevents expansion') end
+                                                                else
+                                                                    --Run to the LZ
+                                                                    M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'RunTo'..iLZOrWZToRunTo)
+                                                                    bEngiIsUnavailable = true
+                                                                    TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateauOrPond, iLZOrWZToRunTo})
+                                                                end
                                                             end
                                                         else
                                                             iLZOrWZToRunTo = M28Navy.GetWaterZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
