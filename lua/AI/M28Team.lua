@@ -5356,7 +5356,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
 
                 for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                     --Ignore if have chosen a land AI, or cant build bombers or t1 air facs
-                    if not(oBrain[M28Overseer.refbPrioritiseLand]) and not(M28UnitInfo.IsUnitRestricted('uea0103', oBrain:GetArmyIndex())) and not(M28UnitInfo.IsUnitRestricted('ueb0102', oBrain:GetArmyIndex())) then
+                    if not(oBrain[M28Overseer.refbPrioritiseLand]) and not(oBrain.M28Easy) and not(M28UnitInfo.IsUnitRestricted('uea0103', oBrain:GetArmyIndex())) and not(M28UnitInfo.IsUnitRestricted('ueb0102', oBrain:GetArmyIndex())) then
                         --Get dist to closest enemy
                         local tCurStart = M28Map.GetPlayerStartPosition(oBrain)
                         iCurPlateau, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tCurStart)
