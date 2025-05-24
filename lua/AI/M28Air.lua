@@ -3206,6 +3206,8 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                     if iInterimBestRange > 0 and (iDistanceToInterim + iInterimBestRange + 5 <= iDistanceToDestination or iDistanceFromInterimToDestination - iInterimBestRange <= 50) then
                         --More detailed check; dont know what part in the zone we are targeting so want a margin of error
                         local iDistToUnit, iAngleToUnit, iDistFromUnitToTarget
+                        local iMobileAdjustment = 15
+                        local iCurRangeInclAdjustment
                         for iUnit, oUnit in tEnemyAAUnits do
                             if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.8 and (oUnit[M28UnitInfo.refiAARange] or 0) > 0 then
                                 --IsLineFromAToBInRangeOfCircleAtC(iDistFromAToB, iDistFromAToC, iDistFromBToC, iAngleFromAToB, iAngleFromAToC, iCircleRadius)
@@ -3214,7 +3216,9 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                                 iAngleToUnit = M28Utilities.GetAngleFromAToB(tStartZoneMidpoint, oUnit:GetPosition())
                                 iDistFromUnitToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tDestinationMidpoint)
                                 if bDebugMessages == true then LOG(sFunctionRef..'; Considering if will be in range of enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is in range='..tostring(M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iDistanceToDestination, iDistToUnit, iDistFromUnitToTarget, iAngleToDestination, iAngleToUnit, oUnit[M28UnitInfo.refiAARange] + 35))..'; Unit position='..repru(oUnit:GetPosition())..'; tDestinationMidpoint='..repru(tDestinationMidpoint)..'; tStartZoneMidpoint='..repru(tStartZoneMidpoint)..'; iDistToUnit from start zone midpoint='..iDistToUnit..'; iDistFromUnitToTarget, being destination midpoint='..iDistFromUnitToTarget..'; iAngleToUnit='..iAngleToUnit) end
-                                if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iDistanceToDestination, iDistToUnit, iDistFromUnitToTarget, iAngleToDestination, iAngleToUnit, oUnit[M28UnitInfo.refiAARange] + 35) then
+                                iCurRangeInclAdjustment = oUnit[M28UnitInfo.refiAARange] + 35
+                                if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then iCurRangeInclAdjustment = iCurRangeInclAdjustment + iMobileAdjustment end
+                                if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iDistanceToDestination, iDistToUnit, iDistFromUnitToTarget, iAngleToDestination, iAngleToUnit, iCurRangeInclAdjustment) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have too much AA when checking if in range of enemy, iGroundAAThreat before increase='..iGroundAAThreat)
                                         --Draw line
                                         --ForkThread(M28Utilities.ForkedDrawLine, tStartZoneMidpoint, tDestinationMidpoint, math.random(1, 8))
@@ -6739,6 +6743,7 @@ function ManageGunships(iTeam, iAirSubteam)
                         iMaxEnemyGroundAA = -1 --   -1 is used to denote infinite in this case
                     else
                         iMaxEnemyGroundAA = iOurGunshipThreat / iGunshipThreatFactorWanted
+                        if bDebugMessages == true then LOG(sFunctionRef..': iMaxEnemyGroundAA based on threat factor only='..iMaxEnemyGroundAA..'; will now adjust for shields, tLZOrWZTeamData[M28Map.subrefThreatEnemyShield]='..(tLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 'nil')) end
                         --Further adjust for enemy shield value
                         if (tLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
                             if M28Utilities.bFAFActive then
@@ -6748,23 +6753,39 @@ function ManageGunships(iTeam, iAirSubteam)
                                 --Shields stack, so allow a 3:1 threat ratio
                                 iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.25, iMaxEnemyGroundAA - math.min(12000, tLZOrWZTeamData[M28Map.subrefThreatEnemyShield]))
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iMaxEnemyGroundAA after shield adjustment='..iMaxEnemyGroundAA) end
                         end
                     end
                     --Adjust ground AA if we have T2 or T3 mexes or high structure value here (subject to an overall cap)
                     if iGunshipThreatFactorWanted > 2.5 and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] or 0) > 0 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] or 0) > 0 or (tLZOrWZTeamData[M28Map.subrefLZSValue] or 0) >= 1000 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have T2 or T3 mexes we want to defend, so will increase the groundAA threat we think we can handle by 50% (subjcet to overall limit), iMaxEnemyGroundAA before adjustment='..iMaxEnemyGroundAA..'; iGunshipThreatFactorWanted='..iGunshipThreatFactorWanted..'; Expected threshold after adjustment='..math.max(iMaxEnemyGroundAA, math.min(iMaxEnemyGroundAA * 1.5, iOurGunshipThreat / 2.5), iOurGunshipThreat / 4.5)) end
                         iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA, math.min(iMaxEnemyGroundAA * 1.5, iOurGunshipThreat / 2.5), iOurGunshipThreat / 4.5)
 
                     end
-                    if iGroundAAThresholdAdjust and iMaxEnemyGroundAA >= 0 then iMaxEnemyGroundAA = math.max(0, iMaxEnemyGroundAA + iGroundAAThresholdAdjust) end
+                    if iGroundAAThresholdAdjust and iMaxEnemyGroundAA >= 0 then
+                        iMaxEnemyGroundAA = math.max(0, iMaxEnemyGroundAA + iGroundAAThresholdAdjust)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished increasing for iGroundAAThresholdAdjust='..iGroundAAThresholdAdjust) end
+                    end
                     --decrease max groundAA for higher values (since the more MAA/SAMs in one place, the harder it will be for low health gunships to heal, instead they just die
                     if iOurGunshipThreat >= 10000 then
                         if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= math.max(10000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills])) then
-                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.1, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 10000) / (iGunshipThreatFactorWanted * 0.5))
+                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.1, iMaxEnemyGroundAA - math.max(0, (iMaxEnemyGroundAA - 5000)) / (iGunshipThreatFactorWanted * 0.5))
                             if iOurGunshipThreat >= 20000 then
-                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 20000) / (iGunshipThreatFactorWanted * 0.25))
+                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - math.max(0, (iMaxEnemyGroundAA - 10000)) / (iGunshipThreatFactorWanted * 0.25))
                             end
                         elseif iOurGunshipThreat >= 12000 then
-                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.6, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 12000) / (iGunshipThreatFactorWanted * 0.2))
+                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.6, iMaxEnemyGroundAA - math.max(0, (iMaxEnemyGroundAA - 6000)) / (iGunshipThreatFactorWanted * 0.2))
+                            local iLossToKillRatioToUse = 1
+                            if M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= math.max(10000,  M28Team.tTeamData[iTeam][M28Team.refiGunshipKills])  then
+                                if M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] == 0 then
+                                    iLossToKillRatioToUse = 2.5
+                                else
+                                    iLossToKillRatioToUse = math.min(2.5, M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] / M28Team.tTeamData[iTeam][M28Team.refiGunshipKills])
+                                end
+                                iMaxEnemyGroundAA = iMaxEnemyGroundAA * math.min(1, (1 - 0.1 * (iLossToKillRatioToUse - 1)))
+                                if bDebugMessages == true then LOG(sFunctionRef..': Reduced groundAA threshold due to heavy losses for gunships, iMaxEnemyGroundAA='..iMaxEnemyGroundAA) end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Reducing the enemy groundAA threshold due to high threat levels, iMaxEnemyGroundAA after reduction='..iMaxEnemyGroundAA) end
                         end
                     end
 
