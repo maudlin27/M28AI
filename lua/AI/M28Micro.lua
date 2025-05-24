@@ -744,7 +744,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DodgeShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget) == 'ual010115' then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' owned by brain '..oTarget:GetAIBrain().Nickname..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; oAttacker='..(oAttacker.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAttacker) or 'nil')) end
 
     local bAdjustDodgeMicroCount = false
@@ -805,7 +805,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
 
     --Non-experimental skirmishers - try to move at an adjustment to the angle to the destination rather htan the unit facing direction so less likely to move into range of enemy
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if have skirmisher or ACU; ACU time since last wanted to retreat (if this was an ACU)='..GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or 0)) end
-    if EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - categories.EXPERIMENTAL, oTarget.UnitId) or (oTarget[M28UnitInfo.refiTimeLastTriedRetreating] and GetGameTimeSeconds() - oTarget[M28UnitInfo.refiTimeLastTriedRetreating] <= math.max(2, M28Land.iTicksPerLandCycle * 0.1 + 0.1)) or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - oTarget[M28ACU.refiTimeLastWantedToRun] <= 3)
+    if EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - categories.EXPERIMENTAL + M28UnitInfo.refCategoryLandScout, oTarget.UnitId) or (oTarget[M28UnitInfo.refiTimeLastTriedRetreating] and GetGameTimeSeconds() - oTarget[M28UnitInfo.refiTimeLastTriedRetreating] <= math.max(2, M28Land.iTicksPerLandCycle * 0.1 + 0.1)) or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - oTarget[M28ACU.refiTimeLastWantedToRun] <= 3)
             --MMLs - we might be near PD meaning dodging will take us in range of it
             or ((oTarget[M28UnitInfo.refiIndirectRange] or 0) > 0 and not(EntityCategoryContains(categories.TECH1, oTarget.UnitId)) and not(oTarget[M28UnitInfo.refbSpecialMicroActive]) and not(oTarget[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove)) then
         local iAngleDifToDestination = M28Utilities.GetAngleDifference(iCurFacingAngle, iAngleToDestination)
