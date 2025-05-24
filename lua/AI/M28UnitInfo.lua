@@ -1357,33 +1357,43 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                             if bDebugMessages == true then LOG(sFunctionRef..': Unit contains overlayantiair category') end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': iMassMod pre AA DPS adj='..iMassMod..'; iAADPS='..iAADPS) end
-                        if iMassMod < 1 and iAADPS > 0 then
-                            local iMassAAFactor = 2.1
-                            --FAF - a sam costs 800 mass, and deals 343 dps, so 1 dps is worth about 2.3 mass; for an archer, its 26 dps for 55 mass, so 1 dps is worth about 2.1 mass; will therefore use threshold of 2.1 mass for no aoe (also about 2.1 in LOUD), and 2.3 mass for decent AOE
-                            if iBestAirAAAOE >= 1 then iMassAAFactor = 2.3 end
-                            if sCurUnitPathing == M28Map.refPathingTypeNone then iMassAAFactor = iMassAAFactor * 0.5 end --needed as we double threat for structures later on
+                        if iAADPS > 0 then
+                            if iMassMod < 1 then
+                                local iMassAAFactor = 2.1
+                                --FAF - a sam costs 800 mass, and deals 343 dps, so 1 dps is worth about 2.3 mass; for an archer, its 26 dps for 55 mass, so 1 dps is worth about 2.1 mass; will therefore use threshold of 2.1 mass for no aoe (also about 2.1 in LOUD), and 2.3 mass for decent AOE
+                                if iBestAirAAAOE >= 1 then iMassAAFactor = 2.3 end
+                                if sCurUnitPathing == M28Map.refPathingTypeNone then iMassAAFactor = iMassAAFactor * 0.5 end --needed as we double threat for structures later on
 
-                            --Adjust AA factor further for high health units; a SAM has 5k health for 800 mass, so 6.25 health per mass; for an archer, its 5.6 health per mass
-                            local iHealthPerMass = oBP.Defense.MaxHealth / oBP.Economy.BuildCostMass
-                            if iHealthPerMass >= 6 then
-                                local iMaxHealthFactor = 2.2
-                                if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then iMaxHealthFactor = 2.5 end
-                                iMassAAFactor = iMassAAFactor * math.min(iMaxHealthFactor, (iHealthPerMass - 6) / 12 + 1) --Main threat of AA unit is the damage, not the health, so cap the amount threat is increased by unit health (e.g. dont want ythotha deterring air attacks just because its high health)
+                                --Adjust AA factor further for high health units; a SAM has 5k health for 800 mass, so 6.25 health per mass; for an archer, its 5.6 health per mass
+                                local iHealthPerMass = oBP.Defense.MaxHealth / oBP.Economy.BuildCostMass
+                                if iHealthPerMass >= 6 then
+                                    local iMaxHealthFactor = 2.2
+                                    if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then iMaxHealthFactor = 2.5 end
+                                    iMassAAFactor = iMassAAFactor * math.min(iMaxHealthFactor, (iHealthPerMass - 6) / 12 + 1) --Main threat of AA unit is the damage, not the health, so cap the amount threat is increased by unit health (e.g. dont want ythotha deterring air attacks just because its high health)
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': considienrg AA threat adjust for unit '..sCurUnitBP..'; iMassMod pre AA dps adj='..iMassMod..'; iMassAAFactor='..iMassAAFactor..'; iHealthPerMass='..iHealthPerMass) end
+
+                                iMassMod = math.min(1.5, math.max(iMassMod, iMassAAFactor * iAADPS / (oBP.Economy.BuildCostMass or 1)))
+                                --Add unit category to table of AA if doesnt contain AA and it is a decent AA unit - add to both refCategoryGroundAA and to refCategoryAntiAir
+
+                                if iMassMod >= 0.4 then
+                                    if not(EntityCategoryContains(refCategoryGroundAA, sCurUnitBP)) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit didnt have groundAA category so are adding this now') end
+                                        refCategoryGroundAA = refCategoryGroundAA + categories[sCurUnitBP]
+                                    end
+                                    if EntityCategoryContains(categories.MOBILE * categories.NAVAL, sCurUnitBP) and not(EntityCategoryContains(refCategoryNavalAA, sCurUnitBP)) then
+                                        refCategoryNavalAA = refCategoryNavalAA + categories[sCurUnitBP]
+                                    end
+                                    if not(EntityCategoryContains(refCategoryAntiAir, sCurUnitBP)) then refCategoryAntiAir = refCategoryAntiAir + categories[sCurUnitBP] end
+                                end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': considienrg AA threat adjust for unit '..sCurUnitBP..'; iMassMod pre AA dps adj='..iMassMod..'; iMassAAFactor='..iMassAAFactor..'; iHealthPerMass='..iHealthPerMass) end
-
-                            iMassMod = math.min(1.5, math.max(iMassMod, iMassAAFactor * iAADPS / (oBP.Economy.BuildCostMass or 1)))
-                            --Add unit category to table of AA if doesnt contain AA and it is a decent AA unit - add to both refCategoryGroundAA and to refCategoryAntiAir
-
-                            if iMassMod >= 0.4 then
-                                if not(EntityCategoryContains(refCategoryGroundAA, sCurUnitBP)) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit didnt have groundAA category so are adding this now') end
-                                    refCategoryGroundAA = refCategoryGroundAA + categories[sCurUnitBP]
+                            --Mobile T2+T3 AA - FAF has boosted T3 MAA slightly, while T2 are very strong for their  cost
+                            if iMassMod == 1 and EntityCategoryContains(refCategoryAntiAir * categories.MOBILE * categories.LAND - categories.TECH1 - categories.EXPERIMENTAL, sCurUnitBP) then
+                                if EntityCategoryContains(categories.TECH3, sCurUnitBP) then
+                                    iMassMod = 1.1
+                                elseif EntityCategoryContains(categories.TECH2, sCurUnitBP) then
+                                    iMassMod = 1.3
                                 end
-                                if EntityCategoryContains(categories.MOBILE * categories.NAVAL, sCurUnitBP) and not(EntityCategoryContains(refCategoryNavalAA, sCurUnitBP)) then
-                                    refCategoryNavalAA = refCategoryNavalAA + categories[sCurUnitBP]
-                                end
-                                if not(EntityCategoryContains(refCategoryAntiAir, sCurUnitBP)) then refCategoryAntiAir = refCategoryAntiAir + categories[sCurUnitBP] end
                             end
                         end
                     end
