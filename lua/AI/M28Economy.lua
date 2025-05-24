@@ -3111,7 +3111,7 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
             elseif aiBrain[refiGrossMassBaseIncome] < 5 and iMexesOnMap <= 60 and M28UnitInfo.GetUnitLifetimeCount(oMex) <= 4 then
                 iTimeToWait = 2 * 60 + 2 * 60 * (10-aiBrain[refiGrossMassBaseIncome]) / 10
             else
-                iTimeToWait = 8 * 60
+                iTimeToWait = 4 * 60
             end
         else --redundancy
             local tLZData = M28Map.GetLandOrWaterZoneData(oMex:GetPosition())
@@ -3329,7 +3329,7 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                             if (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) or ((tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 100) <= 2)) and (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and M28Utilities.IsTableEmpty(oJustBuilt[M28Building.reftTMLInRangeOfThisUnit]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 then
                                 --Upgrade another mex in this zone (or this mex if T3 LOUD)
                                 bTryingToUpgradeMex = true
-                                if iMexTechLevel >= 3 and not((oJustBuilt:GetBlueprint().General.UpgradesTo or '') == '') then
+                                if iMexTechLevel >= 3 and not((oJustBuilt:GetBlueprint().General.UpgradesTo or '') == '') and not M28Utilities.bQuietModActive then -- Only want to rush T3.5 Mex upgrade if LOUD
                                     if bDebugMessages == true then LOG(sFunctionRef..': Upgrading this unit again') end
                                     UpgradeUnit(oJustBuilt, true)
                                 elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then --redundancy
