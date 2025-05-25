@@ -4271,7 +4271,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateauOrPond == 2 and iLandZone == 22 and GetGameTimeSeconds() >= 12.5*60 then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..' for iPlateauOrPond='..iPlateauOrPond..'; iLandZone='..iLandZone..'; reprs of tEngineers='..reprs(tEngineers)) end
 
@@ -4343,7 +4343,25 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
 
     local iLZOrWZToRunTo
     local iThresholdToRunFromMobileEnemies = 35
-    if bInCoreZone or (bIsWaterZone and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then iThresholdToRunFromMobileEnemies = 10 end
+    if bInCoreZone or (bIsWaterZone and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
+        iThresholdToRunFromMobileEnemies = 10
+        --Zone with lots of reclaim where we have stronger combat threat than enemy - consider lower run threshold
+    elseif tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 250 then
+        local iFriendlyThreatRatioWanted = 1.3
+        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1200 then iFriendlyThreatRatioWanted = 1.1 end
+
+        if bIsWaterZone then
+            if tLZTeamData[M28Map.subrefWZThreatEnemySubmersible] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] and tLZTeamData[M28Map.subrefWZThreatEnemySurface] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedSurface] then
+                iThresholdToRunFromMobileEnemies = 20
+            end
+        else
+            if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= iFriendlyThreatRatioWanted * (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) * iFriendlyThreatRatioWanted then
+                iThresholdToRunFromMobileEnemies = 16
+            end
+        end
+        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 2000 and iThresholdToRunFromMobileEnemies >= 35 and ((bIsWaterZone and tLZTeamData[M28Map.subrefWZThreatAlliedSurface] >= 300) or (not(bIsWaterZone) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= 100)) then iThresholdToRunFromMobileEnemies = 26 end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': setting iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; Our combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Our mobile DF='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Signif mass reclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]) end
 
     local iEnemyUnitSearchRange = iThresholdToRunFromMobileEnemies + math.max(10, (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0))
     local iActualEnemySearchRange
