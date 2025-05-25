@@ -5447,7 +5447,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 if (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]) then
                     --Are we far behind on air?
                     if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] then
-                        if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] then
+                        if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] <= 2000 then
                             if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
                         end
                     else
@@ -5481,7 +5481,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     end
                 end
 
-                --Bombers if have nearby enemy navy (and no torp bombers)
+                --Bombers if have nearby enemy navy (and no torp bombers and few gunships or bombers)
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] == 0 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] <= 1000 then
                     --Do we have an adjacent water zone that has enemies
@@ -5516,13 +5516,13 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 --AirAA in proportion to gunship+bomber threat (based on if far behind on air or not); if have air control then only get if dont have low mass
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 local iAirAAWanted = M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 100
-                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
-                    iAirAAWanted = math.max(iAirAAWanted * 2, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 3 + math.max(0, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 4000) * 2 + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] * 2)
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] or (not (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 20000) then
+                    iAirAAWanted = math.max(iAirAAWanted * 3, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 5 + math.max(0, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 4000) * 10 + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] * 5, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat])
                 elseif not (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
-                    iAirAAWanted = math.max(iAirAAWanted * 1.5, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 2 + math.max(0, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 4000) * 1.5 + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat])
+                    iAirAAWanted = math.max(iAirAAWanted * 1.5, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 2 + math.max(0, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 4000) * 1.5 + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat], M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.5)
                 else
                     --We have air control
-                    iAirAAWanted = math.max(iAirAAWanted, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 0.75 + math.max(0, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 4000) * 0.3 + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] * 0.75)
+                    iAirAAWanted = math.max(iAirAAWanted, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 0.75 + math.max(0, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 4000) * 0.3 + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] * 0.75, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.3)
                 end
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Will consider getting AirAA in proportion to gunship threat now, iAirAACountOfSearchCategory='..iAirAACountOfSearchCategory..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..';  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]='.. M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; iAirAAWanted='..iAirAAWanted) end
