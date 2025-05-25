@@ -5014,7 +5014,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     end --e.g. some 5km maps the enemy ACU being closer to enemy base than ours can trigger an emergency type response!
                     if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 and (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10 or (not(tLZTeamData[M28Map.refbBaseInSafePosition]) and (M28Map.iMapSize > 512 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.5 > math.min(2000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat])))) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Adjacent zone has enemy threat so will try and build gunship unless we lack air control and have more mass in air to ground than airaa, tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Our AirAA='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; Our gunship='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]..'; Our bomber='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]) end
-                        if (tAdjLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) <= 1500 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 200 then
+                        if ((tAdjLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) <= 1500 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 200)
+                        or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 500 and M28Team.tAirSubteam[iAirSubteam][M28Team.refbFarBehindOnAir] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] / 5 < M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat])
+                        then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will try getting more AirAA so enemy cant just kill our gunships') end
                             if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
                         end
@@ -5399,7 +5401,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 --Gunship if dont have at least 3
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 local iCurGunships = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship)
-                if iCurGunships < 2 then
+                if iCurGunships < 2 and (iCurGunships == 0 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] < 1500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Fewer than 2 Gunships so will try and get a Gunships') end
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
                 end
@@ -5408,7 +5410,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if ((M28Utilities.bQuietModActive) and M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] <= M28Team.tTeamData[iTeam][M28Team.refiBomberKills]) or (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] / M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]) then
                     local iCurBombers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber)
-                    if iCurBombers < 2 or (iCurBombers < 4 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] > M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 1.25) then
+                    if (iCurBombers < 2 or (iCurBombers < 4 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] > M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 1.25)) and (iCurBombers == 0 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) then
                         if bDebugMessages == true then LOG(sFunctionRef..': iCurBombers='..iCurBombers..'; will try and get a basic number') end
                         if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
                     end
