@@ -286,13 +286,13 @@ function AirTeamOverseer(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function AddUnitWantingPriorityScout(oUnit, bDontCheckIfInTable, iAirSubteamOverride)
+function AddUnitWantingPriorityScout(oUnit, bDontCheckIfInTable, iAirSubteamIfUnitIsEnemy)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitWantingPriorityScout'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local bAddUnit = true
-    local iAirSubteam = iAirSubteamOverride or oUnit:GetAIBrain().M28AirSubteam
+    local iAirSubteam = iAirSubteamIfUnitIsEnemy or oUnit:GetAIBrain().M28AirSubteam
     if not(bDontCheckIfInTable) and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false then
         for iExistingUnit, oExistingUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] do
             if oExistingUnit == oUnit then bAddUnit = false break end
@@ -303,6 +303,15 @@ function AddUnitWantingPriorityScout(oUnit, bDontCheckIfInTable, iAirSubteamOver
         if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] = {} end
         table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout], oUnit)
         oUnit[refiTimeLastWantedPriorityAirScout] = GetGameTimeSeconds()
+    end
+end
+
+function RemoveUnitFromPriorityScoutTable(oUnit, iAirSubteamIfUnitIsEnemy)
+    local iAirSubteam = iAirSubteamIfUnitIsEnemy or oUnit:GetAIBrain().M28AirSubteam
+    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false then
+        for iExistingUnit, oExistingUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] do
+            if oExistingUnit == oUnit then table.remove(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout], iExistingUnit) break end
+        end
     end
 end
 
@@ -6726,7 +6735,7 @@ function ManageGunships(iTeam, iAirSubteam)
                     end
                 end
                 if bDebugMessages == true then LOG('AddEnemyGroundUnitsToTargetsSubjectToAA: Deciding whether to add units for land zone '..iLandOrWaterZone..' plateau '..iPlateauOrZero..'; bOnlyIncludeIfMexToProtect='..tostring(bOnlyIncludeIfMexToProtect)..'; IsHighValueZoneToProtect='..tostring(IsHighValueZoneToProtect())..'; Enemy combat threat in zone if LZ='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; Mobile DF total if LZ='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Enemy AA total if LZ='..(tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)..'; tLZOrWZTeamData[M28Map.refiModDistancePercent]='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; bConsiderAttackingEnemyGunships='..tostring(bConsiderAttackingEnemyGunships)..'; tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Is table of enemy units in the zone empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; bUseDefensively='..tostring(bUseDefensively)) end
-                if (not(bOnlyIncludeIfMexToProtect) or IsHighValueZoneToProtect()) and (not(bUseDefensively) or tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.35 or IsHighValueZoneToProtect() or (true and GetGameTimeSeconds() <= 22*60)) and (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false or (bConsiderAttackingEnemyGunships and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) == false)) then
+                if (not(bOnlyIncludeIfMexToProtect) or IsHighValueZoneToProtect()) and (not(bUseDefensively) or tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.35 or IsHighValueZoneToProtect()) and (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false or (bConsiderAttackingEnemyGunships and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) == false)) then
                     local bDoDetailedGroundAACheck = bDetailedAACheckOverride
                     if IsHighValueZoneToProtect() then
                         if (tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then iGunshipThreatFactorWanted = math.min(iGunshipThreatFactorWanted, math.max(iGunshipThreatFactorWanted * 0.5, 1.5))
@@ -7243,7 +7252,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                         if M28Utilities.GetDistanceBetweenPositions(tGunshipLandOrWaterZoneData[M28Map.subrefMidpoint], tGunshipLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase]) >= 150 then iMaxDefensiveRange = math.min(50, iMaxDefensiveRange * 0.5) end
                                     end
                                 end
-                                if true and GetGameTimeSeconds() >= 22*60 and not(bUseDefensively) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and iOurGunshipAA < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] then bUseDefensively = true end
+                                if not(bUseDefensively) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and iOurGunshipAA < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] then bUseDefensively = true end
                                 if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iMaxDefensiveRange = math.max(iMaxDefensiveRange, 1000) end
 
                                 if bDebugMessages == true then LOG(sFunctionRef..': oFrontGunship='..oFrontGunship.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFrontGunship)..'; iGunshipPlateauOrZero='..(iGunshipPlateauOrZero or 'nil')..'; iGunshipLandOrWaterZone='..(iGunshipLandOrWaterZone or 'nil')..'; tGunshipMidpoint='..repru(tGunshipMidpoint)..'; bUseDefensively='..tostring(bUseDefensively)) end
@@ -12652,4 +12661,50 @@ function GetHealthRunThreshold(iMaxHealth, oUnit)
     end
 
     return iProjectileLowHealthThreshold
+end
+
+function MonitorEnemyACUForScoutPrioritisation(oACU, iTeam)
+    --E.g. call if enemy has stealth upgrade
+    local bCurrentlyAssignedScout = false
+    local iTimeToReassess = 10
+    local iPlateau, iLandZone
+    local bWantScoutAssigned
+    local tbAirSubteams = {} --[x] is the air subteam, returns true
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+        tbAirSubteams[oBrain.M28AirSubteam] = true
+    end
+    while M28UnitInfo.IsUnitValid(oACU) do
+        --If enemy has cloak then ensure a priority for scouting
+        bWantScoutAssigned = true
+        if M28UnitInfo.IsUnitUnderwater(oACU) then
+            bWantScoutAssigned = false
+        else
+            iPlateau = oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+            iLandZone = oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+            local tCurLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+            if tCurLZTeamData[M28Map.refiOmniCoverage] >= 50 or tCurLZTeamData[M28Map.refiModDistancePercent] >= 0.45 then
+                bWantScoutAssigned = false
+            end
+        end
+        if bWantScoutAssigned then
+            if bCurrentlyAssignedScout then
+                --Do nothing
+            else
+                for iAirSubteam, bTrue in tbAirSubteams do
+                    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false then
+                        AddUnitWantingPriorityScout(oACU, false, iAirSubteam)
+                    end
+                end
+            end
+        else
+            if bCurrentlyAssignedScout then
+                for iAirSubteam, bTrue in tbAirSubteams do
+                    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false then
+                        RemoveUnitFromPriorityScoutTable(oACU, iAirSubteam)
+                    end
+                end
+            end
+        end
+        WaitSeconds(iTimeToReassess)
+    end
 end

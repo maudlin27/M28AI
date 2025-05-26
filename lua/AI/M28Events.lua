@@ -947,6 +947,12 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     if oUnit[M28Land.refoAssignedMobileStealth] then
                         oUnit[M28Land.refoAssignedMobileStealth][M28Land.refoMobileStealthTarget] = nil
                     end
+                    --Have all enemy M28 teams send air scouts to keep an eye on this unit
+                    for iTeam = 1, M28Team.iTotalTeamCount do
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                            ForkThread(M28Air.MonitorEnemyACUForScoutPrioritisation,oUnit, iTeam)
+                        end
+                    end
                     --Treat enemies with laser com or seraphim gun as being land experimentals so they are seen as greater threat
                 elseif sEnhancement == 'MicrowaveLaserGenerator' or sEnhancement == 'BlastAttack' then
                     --double-check the upgrade mass cost indicates it is a deadly upgrade
