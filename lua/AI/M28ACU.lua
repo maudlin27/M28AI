@@ -41,6 +41,7 @@ refiTimeLastToldToAttackUnitInOtherZone = 'M28ACUTimeLastAttackUnit'
 refiLastPlateauAndZoneToAttackUnitIn = 'M28ACULastZoneToAttack' --PlateauOrZero and Land/Water zone ref if given move to zone order in order to attack a unit
 reftiTimeLastRanFromZoneByPlateau = 'M28ACUTimeLastRanByZone' --[x] is plateau or zero, [y] is the zone (currently only have logic for LZs though), returns gametimeseconds that last ran when in that zone
 refbUseACUAggressively = 'M28ACUUseAggress' --Against ACU
+refbSupportFriendlyACUAttack = 'M28ACUSupAtc' --e.g. if we have an ACU trying to push into enemy ACU to cancel an upgrade, then this will be true (and effectively means we search for enemy ACU with a larger search range for the same check)
 reftSpecialObjectiveMoveLocation = 'M28ACUObjMoveLoc' --If has a value, ACU will move here
 refbACUHasTeleport = 'M28ACUHasTel' --true if ACU has teleport (will assume it also has good gun upgrade) - used to impact on telesnipe logic
 refbPlanningToGetTeleport = 'M28ACUPlanningTeleport' --true if are planning on getting teleport upgrade on the ACU
@@ -49,6 +50,7 @@ refiTimeLastConsideredUpgradePath = 'M28ACUTimUpP' --Gametimeseconds we last con
 refoShieldRallyTarget = 'M28ACUShR' --Shield unit that ACU is trying to shelter under
 refbWantsPriorityUpgrade = 'M28ACUPrU' --true if want to get upgrade asap (e.g. enemy ACU getting upgrade and we want our own upgrade to defend against it)
 refbOnlyOverchargeHighValueTargets = 'M28ACUOCHV' --true if we only want to overcharge high value targets - e.g. intended for if we are trying to chase down an enemy ACU
+iACUAssassinationUpgradingRangeAdjust = 25 --increase to apply to assassination search range if target is upgrading (use global variable since want to be consistent where use in several places)
 
 --ACU related variables against the ACU's brain
 refoPrimaryACU = 'M28PrimACU' --ACU unit for the brain; recorded against aibrain
@@ -2957,7 +2959,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
                     for iEnemyACU, oEnemyACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
                         if (oEnemyACU[M28UnitInfo.refiDFRange] or 0) > (oACU[M28UnitInfo.refiDFRange] or 0) then
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
-                            if iCurDist < iClosestEnemyACU then iClosestEnemyACU = iCurDist end
+                            if iCurDist < iClosestEnemyACU and (not(oEnemyACU:IsUnitState('Upgrading')) or iCurDist <= (oEnemyACU[M28UnitInfo.refiDFRange] or 0) + 40) then iClosestEnemyACU = iCurDist end
                         end
                     end
                 end
@@ -7373,6 +7375,7 @@ function HaveNearbyVulnerableEnemyACUToAttack(oACU, iTeam, tLZData, tLZTeamData,
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': iTotalEnemyCombat='..iTotalEnemyCombat..'; iTotalFriendlyCombat='..iTotalFriendlyCombat) end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to attack nearest enemy ACU, oACU[refbUseACUAggressively]='..tostring(oACU[refbUseACUAggressively])..'; iTargetLandZone='..iTargetLandZone..'; iStartLandZone='..iStartLandZone..'; bAttackNearestACU='..tostring(bAttackNearestACU)) end
             end
             if bAttackNearestACU then
                 --We have already checked in the condition immediately preciding this if we want to attack enemies we are in range of, so we can just go and move towards the enemy ACU
@@ -7390,7 +7393,7 @@ function HaveNearbyVulnerableEnemyACUToAttack(oACU, iTeam, tLZData, tLZTeamData,
     return bAttackNearestACU
 end
 
-function IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, iOurACUPlateauOrZero, iDistanceThreshold, bMustBeWithinExplosionThreshold)
+function IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, iOurACUPlateauOrZero, iDistanceThreshold, bMustBeWithinExplosionThreshold, bCalledFromUpgradingSnipeLogic)
     --Returns true/false if the target is suitable for an all-in ACU attack, and if returns how close the unit is
     local sFunctionRef = 'IsTargetSuitableSnipeTarget'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -7401,17 +7404,21 @@ function IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, iOurACUPlateauOrZero, i
     local iClosestDist
     local bIsSuitable
     if M28UnitInfo.IsUnitValid(oSnipeTarget) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering oSnipeTarget='..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..' owned by '..oSnipeTarget:GetAIBrain().Nickname..'; iOurACUPlateauOrZero='..iOurACUPlateauOrZero..'; iDistanceThreshold='..iDistanceThreshold..'; Enemy plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, oSnipeTarget:GetPosition()) or 'nil')..'; iCurDist='..M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), oACU:GetPosition())..'; oACU[refbACUSnipeModeActive]='..tostring(oACU[refbACUSnipeModeActive] or false)..'; bMustBeWithinExplosionThreshold='..tostring(bMustBeWithinExplosionThreshold or false)) end
+        local iDistAdjust = 0
+        if oSnipeTarget:IsUnitState('Upgrading') then iDistAdjust = iACUAssassinationUpgradingRangeAdjust end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering oSnipeTarget='..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..' owned by '..oSnipeTarget:GetAIBrain().Nickname..'; iOurACUPlateauOrZero='..iOurACUPlateauOrZero..'; iDistanceThreshold='..iDistanceThreshold..'; Enemy plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, oSnipeTarget:GetPosition()) or 'nil')..'; iCurDist='..M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), oACU:GetPosition())..'; oACU[refbACUSnipeModeActive]='..tostring(oACU[refbACUSnipeModeActive] or false)..'; bMustBeWithinExplosionThreshold='..tostring(bMustBeWithinExplosionThreshold or false)..'; iDistanceThreshold='..iDistanceThreshold..'; iDistAdjust='..iDistAdjust) end
         if NavUtils.GetLabel(M28Map.refPathingTypeHover, oSnipeTarget:GetPosition()) == iOurACUPlateauOrZero then
             local iCurDist = M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), oACU:GetPosition())
-            if iCurDist <= iDistanceThreshold then
+            if iCurDist <= iDistanceThreshold + iDistAdjust then
                 --We are in range of enemy ACU, check how many ACUs we have in range
                 local iACUsInRange = 1
                 local aiBrain = oACU:GetAIBrain()
                 local tFriendlyACUs = aiBrain:GetUnitsAroundPoint(categories.COMMAND, oSnipeTarget:GetPosition(), 40, 'Ally')
+                local bUpgradingSnipeLogic = bCalledFromUpgradingSnipeLogic
                 if M28Utilities.IsTableEmpty(tFriendlyACUs) == false then
                     for iFriendlyACU, oFriendlyACU in tFriendlyACUs do
-                        if not(oFriendlyACU == oACU) and M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oSnipeTarget:GetPosition()) <= oFriendlyACU[M28UnitInfo.refiDFRange] then
+                        if oFriendlyACU[refbSupportFriendlyACUAttack] then bUpgradingSnipeLogic = true end
+                        if not(oFriendlyACU == oACU) and M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oSnipeTarget:GetPosition()) <= oFriendlyACU[M28UnitInfo.refiDFRange] + iDistAdjust then
                             if oFriendlyACU[refbACUSnipeModeActive] or M28UnitInfo.GetUnitCurHealthAndShield(oFriendlyACU) >= 4000 then
                                 if iACUsInRange >= 2 then
                                     iACUsInRange = iACUsInRange + 0.5
@@ -7428,9 +7435,11 @@ function IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, iOurACUPlateauOrZero, i
                 --Check enemy doesnt have mobile or fixed shield
                 local iEnemyACUHealth = M28UnitInfo.GetUnitCurHealthAndShield(oSnipeTarget) + M28Logic.IsTargetUnderShield(aiBrain, oSnipeTarget, 0, true, false, false, true, false)
                 --death nuke does 2k damage; however are likely able to get a couple of shots off if enemy is just above this level
-                if iEnemyACUHealth < iACUsInRange * 3000 and not(M28UnitInfo.IsUnitUnderwater(oSnipeTarget)) and (not(bMustBeWithinExplosionThreshold) or (iEnemyACUHealth <= 2200 and iCurDist <= 28)) then
+                if (iEnemyACUHealth < iACUsInRange * 3000 and not(M28UnitInfo.IsUnitUnderwater(oSnipeTarget)) and (not(bMustBeWithinExplosionThreshold) or (iEnemyACUHealth <= 2200 and iCurDist <= 28)))
+                        or (oSnipeTarget:IsUnitState('Upgrading') and bUpgradingSnipeLogic) then
                     iClosestDist = iCurDist
                     bIsSuitable = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Suitable snipe target') end
                 end
             end
         end
@@ -7441,7 +7450,7 @@ function IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, iOurACUPlateauOrZero, i
 end
 
 function DoesACUWantToSuicideIntoEnemyACU(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOrWZTeamData)
-    local sFunctionRef = 'HaveNearbyVulnerableEnemyACUToAttack'
+    local sFunctionRef = 'DoesACUWantToSuicideIntoEnemyACU'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -7471,9 +7480,167 @@ function DoesACUWantToSuicideIntoEnemyACU(oACU, iTeam, iPlateauOrZero, iLandOrWa
             end
         end
     end
+    --Special case - we have no upgrades, enemy ACU is nearby getting an upgrade, and it is relatively early on, and we have multiple friendly ACUs - consider pushing in to force them to cancel the upgrade
+    if oACU[refiUpgradeCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] < 2 and not(oACU[refbACUSnipeModeActive]) and iPlateauOrZero > 0 and not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftM28ACUs]) == false and (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) <= 2000 and oACU:GetHealth() >= 5000 then
+        --Get nearest enemy ACU, and number of total nearby enemy ACUs
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy has nearby upgrading ACU, and none nearby that have completed the upgrade, and we have multiple friendly ACUs') end
+        local iMaxDistToEnemyACU = oACU[M28UnitInfo.refiDFRange] + iACUAssassinationUpgradingRangeAdjust --NOTE: Have an issue where it also needs to be a valid snipe target or else we dont actually try and snipe it
+        local iSearchDistEnemyACUs = 100
+        local iNearbyEnemyACUCount = 0
+        local iFriendlyACUSearchRange = 40
+        local bEnemyHasNearbyUpgradedACU = false
+        local iCurDist
+        local oClosestACUToConsiderAttacking
+        if oACU[refbSupportFriendlyACUAttack] then iMaxDistToEnemyACU = iMaxDistToEnemyACU + 25 end
+        --First see if we have a nearby enemy ACU that is either upgrading or unupgraded, and dont have many enemy ACUs
+        for iEnemyACU, oEnemyACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering ACU owned by '..oEnemyACU:GetAIBrain().Nickname..' and how close it is to oACU owned by '..oACU:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; Is enemy ACU upgrading='..tostring(oEnemyACU:IsUnitState('Upgrading'))) end
+            if iCurDist <= iSearchDistEnemyACUs then
+                iNearbyEnemyACUCount = iNearbyEnemyACUCount + 1
+                if (oEnemyACU[refiUpgradeCount] or 0) > 0 or (oACU:IsUnitState('Upgrading') and oACU:GetWorkProgress() >= 0.8 and (oACU:GetHealth() >= 2500 or iCurDist >= 30)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': ACU is almost done with its upgrade or already has upgrade, so will assume it has gun') end
+                    bEnemyHasNearbyUpgradedACU = true
+                    break
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Enemy ACU plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, oEnemyACU:GetPosition()) or 'nil')..'; our ACU iPlateauOrZero='..iPlateauOrZero..'; Land label for enemy ACU='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, oEnemyACU:GetPosition()) or 'nil')) end
+                if iCurDist <= iMaxDistToEnemyACU and NavUtils.GetLabel(M28Map.refPathingTypeHover, oEnemyACU:GetPosition()) == iPlateauOrZero and (NavUtils.GetLabel(M28Map.refPathingTypeLand, oEnemyACU:GetPosition()) or 0) > 0 then
+                    --Check it is either upgrading (so vulnerable to us pushing in) or we are almost in range
+                    if oEnemyACU:IsUnitState('Upgrading') or iCurDist <= oACU[refiDFRange] + 2 or oACU[refbSupportFriendlyACUAttack] then
+                        iMaxDistToEnemyACU = iCurDist
+                        oClosestACUToConsiderAttacking = oEnemyACU
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording as enemy ACU to consider attacking') end
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to try and attack an ACU e.g. that is stuck upgrading, oClosestACUToConsiderAttacking='..(oClosestACUToConsiderAttacking.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestACUToConsiderAttacking) or 'nil')..'; bEnemyHasNearbyUpgradedACU='..tostring(bEnemyHasNearbyUpgradedACU)..'; iNearbyEnemyACUCount='..iNearbyEnemyACUCount) end
+        if oClosestACUToConsiderAttacking and not(bEnemyHasNearbyUpgradedACU) and iNearbyEnemyACUCount == 1 then
+            --Only 1 enemy ACU, and it either lacks an upgrade or is trying to get one, so consider attacking to force a cancellation if either we have multiple ACUs, or we have significantly more health
+            local bHaveMuchMoreHealthOrFriendlyACUs = false
+            local toFriendlyACUsToConsiderSupportingAttack = {}
+            if oACU:GetHealth() >= oClosestACUToConsiderAttacking:GetHealth() + math.max(2000, oClosestACUToConsiderAttacking:GetHealth() * 0.5) then
+                bHaveMuchMoreHealthOrFriendlyACUs = true
+            else
+                --Do we have nearby friendly ACUs?
+                for iFriendlyACU, oFriendlyACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
+                    if not(oFriendlyACU == oACU) and not(oFriendlyACU:IsUnitState('Upgrading')) and (oFriendlyACU:GetHealth() >= 4000 or not(oFriendlyACU[refiTimeLastWantedToRun] or GetGameTimeSeconds() - oFriendlyACU[refiTimeLastWantedToRun] > 1.01)) and M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oACU:GetPosition()) <= iFriendlyACUSearchRange then
+                        table.insert(toFriendlyACUsToConsiderSupportingAttack, oFriendlyACU)
+                        bHaveMuchMoreHealthOrFriendlyACUs = true
+                    end
+                end
+            end
+            table.insert(toFriendlyACUsToConsiderSupportingAttack, oACU)
+            if bDebugMessages == true then LOG(sFunctionRef..': Is closest ACU a potential snipe target='..tostring(IsTargetSuitableSnipeTarget(oACU, oClosestACUToConsiderAttacking, iPlateauOrZero, oACU[M28UnitInfo.refiDFRange], false, true))..'; oClosestACUToConsiderAttacking owner='..oClosestACUToConsiderAttacking:GetAIBrain().Nickname..'; bHaveMuchMoreHealthOrFriendlyACUs='..tostring(bHaveMuchMoreHealthOrFriendlyACUs)..'; oACU health='..oACU:GetHealth()..'; oClosestACUToConsiderAttacking health='..oClosestACUToConsiderAttacking:GetHealth()) end
+            --Note-  we will adjust the distance threshold by iACUAssassinationUpgradingRangeAdjust in IsTargetSuitableSnipeTarget if target is upgrading
+            if bHaveMuchMoreHealthOrFriendlyACUs and IsTargetSuitableSnipeTarget(oACU, oClosestACUToConsiderAttacking, iPlateauOrZero, oACU[M28UnitInfo.refiDFRange], false, true) then
+                --We have a nearby enemy ACU without gun that we either have much more health than, or we have multiple ACUs to attack it with
+                local iNearbyEnemyDF = 0
+                local iNearbyFriendlyDF = 0
+                local iEnemySearchLessRangeDist = 45
+                local iFriendlySearchLessRangeDist = 20
+                local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                local tbZoneConsidered = {}
+                local toEnemyUnitsNearRange = {}
+                local toFriendlyUnitsNearRange = {}
+                local toFriendlyACUsInLZCombatUnits = {}
+                function ConsiderEnemyAndFriendlyUnits(iCurZone, tCurLZTeamData)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurZone='..iCurZone..'; Have we already considered this='..tostring(tbZoneConsidered[iCurZone])) end
+                    if not(tbZoneConsidered[iCurZone]) then
+                        tbZoneConsidered[iCurZone] = true
+                        if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                            local tEnemyCombatUnits = EntityCategoryFilterDown(categories.DIRECTFIRE + M28UnitInfo.refCategoryIndirect * categories.TECH1, tCurLZTeamData[M28Map.subrefTEnemyUnits])
+                            if M28Utilities.IsTableEmpty(tEnemyCombatUnits) == false then
+                                for iUnit, oUnit in tEnemyCombatUnits do
+                                    if not(oUnit.Dead) then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())
+                                        if iCurDist > iEnemySearchLessRangeDist then
+                                            iCurDist = math.min(iCurDist, M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUToConsiderAttacking:GetPosition()))
+                                        end
+                                        if iCurDist <= iEnemySearchLessRangeDist or iCurDist - oUnit[M28UnitInfo.refiCombatRange] <= iEnemySearchLessRangeDist then
+                                            table.insert(toEnemyUnitsNearRange, oUnit)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Including enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', enemy unit dist to our ACU='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())..'; Dist to enemy ACU='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUToConsiderAttacking:GetPosition())..'; Combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Threat of enemy unit='..M28UnitInfo.GetCombatThreatRating({ oUnit}, true)) end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied combat units empty='..tostring(M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefLZTAlliedCombatUnits]))..'; subrefLZTThreatAllyCombatTotal='..tCurLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileDFTotal='..tCurLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
+                        if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) == false then
+                            for iUnit, oUnit in tCurLZTeamData[M28Map.subrefLZTAlliedCombatUnits] do
+                                if not(oUnit.Dead) then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())
+                                    if iCurDist > iFriendlySearchLessRangeDist then
+                                        iCurDist = math.min(iCurDist, M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUToConsiderAttacking:GetPosition()))
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering friendly unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to our ACU='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())..'; Dist to enemy ACU='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUToConsiderAttacking:GetPosition())..'; Combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; iFriendlySearchLessRangeDist='..iFriendlySearchLessRangeDist..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
+                                    if iCurDist <= iFriendlySearchLessRangeDist or iCurDist - oUnit[M28UnitInfo.refiCombatRange] <= iFriendlySearchLessRangeDist then
+                                        if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
+                                            table.insert(toFriendlyUnitsNearRange, oUnit)
+                                            if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then table.insert(toFriendlyACUsInLZCombatUnits, oUnit) end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                --search this zone and adjacent zones for DF enemies, and consider pushing attack if total threat isnt too great; will do a precise check (since fairly rare we call this logic)
+                ConsiderEnemyAndFriendlyUnits(iLandOrWaterZone, tLZOrWZTeamData)
+                local iEnemyACUZone = oClosestACUToConsiderAttacking[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                tbZoneConsidered[iLandOrWaterZone] = true
+                if not(iEnemyACUZone == iLandOrWaterZone) then
+                    local tEnemyLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iEnemyACUZone]
+                    ConsiderEnemyAndFriendlyUnits(iEnemyACUZone, tEnemyLZData[M28Map.subrefLZTeamData][iTeam])
+                    if M28Utilities.IsTableEmpty(tEnemyLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tEnemyLZData[M28Map.subrefLZAdjacentLandZones] do
+                            ConsiderEnemyAndFriendlyUnits(iAdjLZ, M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam])
+                        end
+                    end
+                end
+
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                    for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                        ConsiderEnemyAndFriendlyUnits(iAdjLZ, M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam])
+                    end
+                end
+                local bIncludeCurACU = false
+                for iFriendlyACU, oFriendlyACU in toFriendlyACUsToConsiderSupportingAttack do
+                    bIncludeCurACU = true
+                    if M28Utilities.IsTableEmpty(toFriendlyACUsInLZCombatUnits) == false then
+                        for iRecordedACU, oRecordedACU in toFriendlyACUsInLZCombatUnits do
+                            if oRecordedACU == oFriendlyACU then
+                                bIncludeCurACU = false
+                                break
+                            end
+                        end
+                    end
+                    if bIncludeCurACU then
+                        table.insert(toFriendlyUnitsNearRange, oFriendlyACU)
+                    end
+                end
+                iNearbyEnemyDF = M28UnitInfo.GetCombatThreatRating(toEnemyUnitsNearRange, true)
+                iNearbyFriendlyDF = M28UnitInfo.GetCombatThreatRating(toFriendlyUnitsNearRange, false)
+                if bDebugMessages == true then LOG(sFunctionRef..': iNearbyEnemyDF='..iNearbyEnemyDF..'; iNearbyFriendlyDF='..iNearbyFriendlyDF) end
+                if iNearbyFriendlyDF > iNearbyEnemyDF and iNearbyFriendlyDF > 1.2 * iNearbyEnemyDF then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want to press the attack with our ACU, oClosestACUToConsiderAttacking owned by brain '..oClosestACUToConsiderAttacking:GetAIBrain().Nickname) end
+                    if M28Utilities.IsTableEmpty(toFriendlyUnitsNearRange) == false then
+                        for iFriendlyACU, oFriendlyACU in toFriendlyUnitsNearRange do
+                            oFriendlyACU[refbSupportFriendlyACUAttack] = true
+                        end
+                    end
+                    oClosestEnemyACU = oClosestACUToConsiderAttacking
+                    ForkThread(SuicideACUIntoSnipeTarget, oACU, oClosestEnemyACU)
+                end
+            end
+        end
+    end
+
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, is oClosestEnemyACU valid='..tostring(M28UnitInfo.IsUnitValid(oClosestEnemyACU))) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    if oClosestEnemyACU then return true end
+    if oClosestEnemyACU then return true
+    elseif oACU[refbSupportFriendlyACUAttack] then oACU[refbSupportFriendlyACUAttack] = nil
+    end
 end
 
 function SuicideACUIntoSnipeTarget(oACU, oSnipeTarget)
