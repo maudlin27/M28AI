@@ -286,13 +286,13 @@ function AirTeamOverseer(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function AddUnitWantingPriorityScout(oUnit, bDontCheckIfInTable, iAirSubteamOverride)
+function AddUnitWantingPriorityScout(oUnit, bDontCheckIfInTable, iAirSubteamIfUnitIsEnemy)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitWantingPriorityScout'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local bAddUnit = true
-    local iAirSubteam = iAirSubteamOverride or oUnit:GetAIBrain().M28AirSubteam
+    local iAirSubteam = iAirSubteamIfUnitIsEnemy or oUnit:GetAIBrain().M28AirSubteam
     if not(bDontCheckIfInTable) and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false then
         for iExistingUnit, oExistingUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] do
             if oExistingUnit == oUnit then bAddUnit = false break end
@@ -303,6 +303,15 @@ function AddUnitWantingPriorityScout(oUnit, bDontCheckIfInTable, iAirSubteamOver
         if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] = {} end
         table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout], oUnit)
         oUnit[refiTimeLastWantedPriorityAirScout] = GetGameTimeSeconds()
+    end
+end
+
+function RemoveUnitFromPriorityScoutTable(oUnit, iAirSubteamIfUnitIsEnemy)
+    local iAirSubteam = iAirSubteamIfUnitIsEnemy or oUnit:GetAIBrain().M28AirSubteam
+    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false then
+        for iExistingUnit, oExistingUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] do
+            if oExistingUnit == oUnit then table.remove(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout], iExistingUnit) break end
+        end
     end
 end
 
@@ -3206,6 +3215,8 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                     if iInterimBestRange > 0 and (iDistanceToInterim + iInterimBestRange + 5 <= iDistanceToDestination or iDistanceFromInterimToDestination - iInterimBestRange <= 50) then
                         --More detailed check; dont know what part in the zone we are targeting so want a margin of error
                         local iDistToUnit, iAngleToUnit, iDistFromUnitToTarget
+                        local iMobileAdjustment = 15
+                        local iCurRangeInclAdjustment
                         for iUnit, oUnit in tEnemyAAUnits do
                             if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.8 and (oUnit[M28UnitInfo.refiAARange] or 0) > 0 then
                                 --IsLineFromAToBInRangeOfCircleAtC(iDistFromAToB, iDistFromAToC, iDistFromBToC, iAngleFromAToB, iAngleFromAToC, iCircleRadius)
@@ -3214,7 +3225,9 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                                 iAngleToUnit = M28Utilities.GetAngleFromAToB(tStartZoneMidpoint, oUnit:GetPosition())
                                 iDistFromUnitToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tDestinationMidpoint)
                                 if bDebugMessages == true then LOG(sFunctionRef..'; Considering if will be in range of enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is in range='..tostring(M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iDistanceToDestination, iDistToUnit, iDistFromUnitToTarget, iAngleToDestination, iAngleToUnit, oUnit[M28UnitInfo.refiAARange] + 35))..'; Unit position='..repru(oUnit:GetPosition())..'; tDestinationMidpoint='..repru(tDestinationMidpoint)..'; tStartZoneMidpoint='..repru(tStartZoneMidpoint)..'; iDistToUnit from start zone midpoint='..iDistToUnit..'; iDistFromUnitToTarget, being destination midpoint='..iDistFromUnitToTarget..'; iAngleToUnit='..iAngleToUnit) end
-                                if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iDistanceToDestination, iDistToUnit, iDistFromUnitToTarget, iAngleToDestination, iAngleToUnit, oUnit[M28UnitInfo.refiAARange] + 35) then
+                                iCurRangeInclAdjustment = oUnit[M28UnitInfo.refiAARange] + 35
+                                if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then iCurRangeInclAdjustment = iCurRangeInclAdjustment + iMobileAdjustment end
+                                if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iDistanceToDestination, iDistToUnit, iDistFromUnitToTarget, iAngleToDestination, iAngleToUnit, iCurRangeInclAdjustment) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have too much AA when checking if in range of enemy, iGroundAAThreat before increase='..iGroundAAThreat)
                                         --Draw line
                                         --ForkThread(M28Utilities.ForkedDrawLine, tStartZoneMidpoint, tDestinationMidpoint, math.random(1, 8))
@@ -6682,6 +6695,7 @@ function ManageGunships(iTeam, iAirSubteam)
         end
         local iZonesWithPotentialTargetsCount = 0
         local bHaveEnemyInCoreBase = false
+        local bUseDefensively = false
         function AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck, bDetailedAACheckOverride)
             --Campaign specific-  check this is within the playable area first
             tNewlyAddedEnemies = {}
@@ -6720,8 +6734,8 @@ function ManageGunships(iTeam, iAirSubteam)
                         return false
                     end
                 end
-                if bDebugMessages == true then LOG('AddEnemyGroundUnitsToTargetsSubjectToAA: Deciding whether to add units for land zone '..iLandOrWaterZone..' plateau '..iPlateauOrZero..'; bOnlyIncludeIfMexToProtect='..tostring(bOnlyIncludeIfMexToProtect)..'; IsHighValueZoneToProtect='..tostring(IsHighValueZoneToProtect())..'; Enemy combat threat in zone if LZ='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; Mobile DF total if LZ='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Enemy AA total if LZ='..(tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)..'; tLZOrWZTeamData[M28Map.refiModDistancePercent]='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; bConsiderAttackingEnemyGunships='..tostring(bConsiderAttackingEnemyGunships)..'; tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Is table of enemy units in the zone empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
-                if (not(bOnlyIncludeIfMexToProtect) or IsHighValueZoneToProtect()) and (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false or (bConsiderAttackingEnemyGunships and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) == false)) then
+                if bDebugMessages == true then LOG('AddEnemyGroundUnitsToTargetsSubjectToAA: Deciding whether to add units for land zone '..iLandOrWaterZone..' plateau '..iPlateauOrZero..'; bOnlyIncludeIfMexToProtect='..tostring(bOnlyIncludeIfMexToProtect)..'; IsHighValueZoneToProtect='..tostring(IsHighValueZoneToProtect())..'; Enemy combat threat in zone if LZ='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; Mobile DF total if LZ='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Enemy AA total if LZ='..(tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)..'; tLZOrWZTeamData[M28Map.refiModDistancePercent]='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; bConsiderAttackingEnemyGunships='..tostring(bConsiderAttackingEnemyGunships)..'; tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Is table of enemy units in the zone empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; bUseDefensively='..tostring(bUseDefensively)) end
+                if (not(bOnlyIncludeIfMexToProtect) or IsHighValueZoneToProtect()) and (not(bUseDefensively) or tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.35 or IsHighValueZoneToProtect()) and (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false or (bConsiderAttackingEnemyGunships and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) == false)) then
                     local bDoDetailedGroundAACheck = bDetailedAACheckOverride
                     if IsHighValueZoneToProtect() then
                         if (tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then iGunshipThreatFactorWanted = math.min(iGunshipThreatFactorWanted, math.max(iGunshipThreatFactorWanted * 0.5, 1.5))
@@ -6739,6 +6753,7 @@ function ManageGunships(iTeam, iAirSubteam)
                         iMaxEnemyGroundAA = -1 --   -1 is used to denote infinite in this case
                     else
                         iMaxEnemyGroundAA = iOurGunshipThreat / iGunshipThreatFactorWanted
+                        if bDebugMessages == true then LOG(sFunctionRef..': iMaxEnemyGroundAA based on threat factor only='..iMaxEnemyGroundAA..'; will now adjust for shields, tLZOrWZTeamData[M28Map.subrefThreatEnemyShield]='..(tLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 'nil')) end
                         --Further adjust for enemy shield value
                         if (tLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 0 then
                             if M28Utilities.bFAFActive then
@@ -6748,23 +6763,39 @@ function ManageGunships(iTeam, iAirSubteam)
                                 --Shields stack, so allow a 3:1 threat ratio
                                 iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.25, iMaxEnemyGroundAA - math.min(12000, tLZOrWZTeamData[M28Map.subrefThreatEnemyShield]))
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iMaxEnemyGroundAA after shield adjustment='..iMaxEnemyGroundAA) end
                         end
                     end
                     --Adjust ground AA if we have T2 or T3 mexes or high structure value here (subject to an overall cap)
                     if iGunshipThreatFactorWanted > 2.5 and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] or 0) > 0 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] or 0) > 0 or (tLZOrWZTeamData[M28Map.subrefLZSValue] or 0) >= 1000 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have T2 or T3 mexes we want to defend, so will increase the groundAA threat we think we can handle by 50% (subjcet to overall limit), iMaxEnemyGroundAA before adjustment='..iMaxEnemyGroundAA..'; iGunshipThreatFactorWanted='..iGunshipThreatFactorWanted..'; Expected threshold after adjustment='..math.max(iMaxEnemyGroundAA, math.min(iMaxEnemyGroundAA * 1.5, iOurGunshipThreat / 2.5), iOurGunshipThreat / 4.5)) end
                         iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA, math.min(iMaxEnemyGroundAA * 1.5, iOurGunshipThreat / 2.5), iOurGunshipThreat / 4.5)
 
                     end
-                    if iGroundAAThresholdAdjust and iMaxEnemyGroundAA >= 0 then iMaxEnemyGroundAA = math.max(0, iMaxEnemyGroundAA + iGroundAAThresholdAdjust) end
+                    if iGroundAAThresholdAdjust and iMaxEnemyGroundAA >= 0 then
+                        iMaxEnemyGroundAA = math.max(0, iMaxEnemyGroundAA + iGroundAAThresholdAdjust)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished increasing for iGroundAAThresholdAdjust='..iGroundAAThresholdAdjust) end
+                    end
                     --decrease max groundAA for higher values (since the more MAA/SAMs in one place, the harder it will be for low health gunships to heal, instead they just die
                     if iOurGunshipThreat >= 10000 then
                         if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= math.max(10000, M28Team.tTeamData[iTeam][M28Team.refiGunshipKills])) then
-                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.1, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 10000) / (iGunshipThreatFactorWanted * 0.5))
+                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.1, iMaxEnemyGroundAA - math.max(0, (iMaxEnemyGroundAA - 5000)) / (iGunshipThreatFactorWanted * 0.5))
                             if iOurGunshipThreat >= 20000 then
-                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 20000) / (iGunshipThreatFactorWanted * 0.25))
+                                iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.5, iMaxEnemyGroundAA - math.max(0, (iMaxEnemyGroundAA - 10000)) / (iGunshipThreatFactorWanted * 0.25))
                             end
                         elseif iOurGunshipThreat >= 12000 then
-                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.6, iMaxEnemyGroundAA - (iMaxEnemyGroundAA - 12000) / (iGunshipThreatFactorWanted * 0.2))
+                            iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA * 0.6, iMaxEnemyGroundAA - math.max(0, (iMaxEnemyGroundAA - 6000)) / (iGunshipThreatFactorWanted * 0.2))
+                            local iLossToKillRatioToUse = 1
+                            if M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= math.max(10000,  M28Team.tTeamData[iTeam][M28Team.refiGunshipKills])  then
+                                if M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] == 0 then
+                                    iLossToKillRatioToUse = 2.5
+                                else
+                                    iLossToKillRatioToUse = math.min(2.5, M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] / M28Team.tTeamData[iTeam][M28Team.refiGunshipKills])
+                                end
+                                iMaxEnemyGroundAA = iMaxEnemyGroundAA * math.min(1, (1 - 0.1 * (iLossToKillRatioToUse - 1)))
+                                if bDebugMessages == true then LOG(sFunctionRef..': Reduced groundAA threshold due to heavy losses for gunships, iMaxEnemyGroundAA='..iMaxEnemyGroundAA) end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Reducing the enemy groundAA threshold due to high threat levels, iMaxEnemyGroundAA after reduction='..iMaxEnemyGroundAA) end
                         end
                     end
 
@@ -7201,7 +7232,6 @@ function ManageGunships(iTeam, iAirSubteam)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy GroundAA threat exists in same zone as gunships and we have no targets so want to retreat') end
                             else
                                 --If lack AirAA then only consider adjacent zones to the gunship, provided one of them has ground to air threat of at least 200
-                                local bUseDefensively = false
                                 local iMaxDefensiveRange = 50
                                 if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if we want to use gunships defnesively, our AA threat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; iOurGunshipAA='..iOurGunshipAA..'; Enemy AirAA threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) end
                                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] + iOurGunshipAA < math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.7) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] > 0) then
@@ -7222,6 +7252,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                         if M28Utilities.GetDistanceBetweenPositions(tGunshipLandOrWaterZoneData[M28Map.subrefMidpoint], tGunshipLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase]) >= 150 then iMaxDefensiveRange = math.min(50, iMaxDefensiveRange * 0.5) end
                                     end
                                 end
+                                if not(bUseDefensively) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and iOurGunshipAA < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] then bUseDefensively = true end
                                 if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iMaxDefensiveRange = math.max(iMaxDefensiveRange, 1000) end
 
                                 if bDebugMessages == true then LOG(sFunctionRef..': oFrontGunship='..oFrontGunship.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFrontGunship)..'; iGunshipPlateauOrZero='..(iGunshipPlateauOrZero or 'nil')..'; iGunshipLandOrWaterZone='..(iGunshipLandOrWaterZone or 'nil')..'; tGunshipMidpoint='..repru(tGunshipMidpoint)..'; bUseDefensively='..tostring(bUseDefensively)) end
@@ -7241,7 +7272,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                     for iEntry, tSubtable in tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                         --Once found a zone with targets, use that unless we have another zone where mex is under threat that we want to consider instaed
                                         if bUseDefensively and tSubtable[M28Map.subrefiDistance] > iMaxDefensiveRange then break end
-                                        if iPostFirstTargetCount == 0 or (tSubtable[M28Map.subrefiDistance] <= iDistanceOfFirstTarget + iPostTargetMaxDistance and not(bDontLookForMoreTargets)) then
+                                        if iPostFirstTargetCount == 0 or (tSubtable[M28Map.subrefiDistance] <= iDistanceOfFirstTarget + iPostTargetMaxDistance) then
                                             if bMidpointPlayableOverride and tSubtable[M28Map.subrefiDistance] >= 120 then bMidpointPlayableOverride = false end
                                             if not(bCheckForAirAA) and tSubtable[M28Map.subrefiDistance] > iDistToStartCheckingForAirAA then bCheckForAirAA = true end
                                             if tSubtable[M28Map.subrefiDistance] <= 110 or M28Map.bIsCampaignMap then
@@ -12630,4 +12661,50 @@ function GetHealthRunThreshold(iMaxHealth, oUnit)
     end
 
     return iProjectileLowHealthThreshold
+end
+
+function MonitorEnemyACUForScoutPrioritisation(oACU, iTeam)
+    --E.g. call if enemy has stealth upgrade
+    local bCurrentlyAssignedScout = false
+    local iTimeToReassess = 10
+    local iPlateau, iLandZone
+    local bWantScoutAssigned
+    local tbAirSubteams = {} --[x] is the air subteam, returns true
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+        tbAirSubteams[oBrain.M28AirSubteam] = true
+    end
+    while M28UnitInfo.IsUnitValid(oACU) do
+        --If enemy has cloak then ensure a priority for scouting
+        bWantScoutAssigned = true
+        if M28UnitInfo.IsUnitUnderwater(oACU) then
+            bWantScoutAssigned = false
+        else
+            iPlateau = oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+            iLandZone = oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+            local tCurLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+            if tCurLZTeamData[M28Map.refiOmniCoverage] >= 50 or tCurLZTeamData[M28Map.refiModDistancePercent] >= 0.45 then
+                bWantScoutAssigned = false
+            end
+        end
+        if bWantScoutAssigned then
+            if bCurrentlyAssignedScout then
+                --Do nothing
+            else
+                for iAirSubteam, bTrue in tbAirSubteams do
+                    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false then
+                        AddUnitWantingPriorityScout(oACU, false, iAirSubteam)
+                    end
+                end
+            end
+        else
+            if bCurrentlyAssignedScout then
+                for iAirSubteam, bTrue in tbAirSubteams do
+                    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false then
+                        RemoveUnitFromPriorityScoutTable(oACU, iAirSubteam)
+                    end
+                end
+            end
+        end
+        WaitSeconds(iTimeToReassess)
+    end
 end

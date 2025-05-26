@@ -947,6 +947,12 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     if oUnit[M28Land.refoAssignedMobileStealth] then
                         oUnit[M28Land.refoAssignedMobileStealth][M28Land.refoMobileStealthTarget] = nil
                     end
+                    --Have all enemy M28 teams send air scouts to keep an eye on this unit
+                    for iTeam = 1, M28Team.iTotalTeamCount do
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                            ForkThread(M28Air.MonitorEnemyACUForScoutPrioritisation,oUnit, iTeam)
+                        end
+                    end
                     --Treat enemies with laser com or seraphim gun as being land experimentals so they are seen as greater threat
                 elseif sEnhancement == 'MicrowaveLaserGenerator' or sEnhancement == 'BlastAttack' then
                     --double-check the upgrade mass cost indicates it is a deadly upgrade
@@ -1455,6 +1461,9 @@ function OnWeaponFired(oWeapon)
                     end
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
                     ForkThread(M28Building.ConsiderManualT2ArtiTarget, oUnit, oWeapon)
+                    local iTeam = oParentBrain.M28Team
+                    local tLZTeamData = M28Map.tAllPlateaus[oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam]
+                    if tLZTeamData then tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] = GetGameTimeSeconds() end
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
                     --Micro asfs and inties to hover-fire at slower targets
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs((oWeapon.Blueprint or oWeapon.bp))..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; (oWeapon.Blueprint or oWeapon.bp).RackSalvoSize='..(oWeapon.Blueprint or oWeapon.bp).RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0)) end

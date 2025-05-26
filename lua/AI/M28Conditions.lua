@@ -1529,6 +1529,8 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                         if bDebugMessages == true then LOG(sFunctionRef..': We dont have enough eco to justify more factories due to enemy firebase, bIgnoreMainEcoConditions='..tostring(bIgnoreMainEcoConditions or false)) end
                         if bIgnoreMainEcoConditions then bWantMoreFactories = true end
                     end
+                elseif iAirFacsInZone <= 1 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want a second air fac due to priority scouting targets') end
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': We dont have enough eco to justify more factories, bIgnoreMainEcoConditions='..tostring(bIgnoreMainEcoConditions or false)) end
                     if bIgnoreMainEcoConditions then bWantMoreFactories = true end
@@ -1935,7 +1937,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                 end
                             end
 
-                            if bDebugMessages == true then LOG(sFunctionRef..': iOurIsland='..iOurIsland..'; iEnemyIsland='..(iEnemyIsland or 'nil')..'; iOurPlateau='..iOurPlateau..'; iEnemyPlateau='..(iEnemyPlateau or 'nil')..'; air fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iOurIsland='..iOurIsland..'; iEnemyIsland='..(iEnemyIsland or 'nil')..'; iOurPlateau='..iOurPlateau..'; iEnemyPlateau='..(iEnemyPlateau or 'nil')..'; air fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; subrefiTeamAverageEnergyPercentStored%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Dif between our cur gross E, and E when last unable to build from air fac='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] - (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0)) end
                             --If already ahve an air fac (or 5km map) then consider building land fac if we have fewer than 3 land facs or dont have full energy, or have less gross energy than when our air facs last failed ot build air:
                             if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 0 or M28Map.iMapSize < 512) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.9 or iLandFactoriesHave < 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0)) and
                                     --Also require 1 of the following:

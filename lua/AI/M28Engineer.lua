@@ -4343,7 +4343,25 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
 
     local iLZOrWZToRunTo
     local iThresholdToRunFromMobileEnemies = 35
-    if bInCoreZone or (bIsWaterZone and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then iThresholdToRunFromMobileEnemies = 10 end
+    if bInCoreZone or (bIsWaterZone and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
+        iThresholdToRunFromMobileEnemies = 10
+        --Zone with lots of reclaim where we have stronger combat threat than enemy - consider lower run threshold
+    elseif tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 250 then
+        local iFriendlyThreatRatioWanted = 1.3
+        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1200 then iFriendlyThreatRatioWanted = 1.1 end
+
+        if bIsWaterZone then
+            if tLZTeamData[M28Map.subrefWZThreatEnemySubmersible] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] and tLZTeamData[M28Map.subrefWZThreatEnemySurface] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedSurface] then
+                iThresholdToRunFromMobileEnemies = 20
+            end
+        else
+            if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= iFriendlyThreatRatioWanted * (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) * iFriendlyThreatRatioWanted then
+                iThresholdToRunFromMobileEnemies = 16
+            end
+        end
+        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 2000 and iThresholdToRunFromMobileEnemies >= 35 and ((bIsWaterZone and tLZTeamData[M28Map.subrefWZThreatAlliedSurface] >= 300) or (not(bIsWaterZone) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= 100)) then iThresholdToRunFromMobileEnemies = 26 end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': setting iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; Our combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Our mobile DF='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Signif mass reclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]) end
 
     local iEnemyUnitSearchRange = iThresholdToRunFromMobileEnemies + math.max(10, (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0))
     local iActualEnemySearchRange
@@ -19725,7 +19743,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Only want to get for core base or minor zones iwth lots of mexes that have a positive mod distance
 
-    if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Is team stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Is team stalling power='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; refbBaseInSafePosition='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition] or false)..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Is team stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Is team stalling power='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; refbBaseInSafePosition='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition] or false)..'; Time='..GetGameTimeSeconds()..'; Time of last T2 arti shot='..(tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 'nil')) end
     if tLZTeamData[M28Map.subrefLZbCoreBase] or
             ((tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and (tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4))) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiModDistancePercent] > 0.05) then
 
@@ -19886,6 +19904,18 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
 
 
                 if iEnemyLongRangeThreat >= 1600 then iThreatWanted = math.max(iThreatWanted, 500) end --Want 1 T2 arti if enemy has significant long rnage threat, even if we have friendly units
+                if iThreatWanted > 1000 and iEnemyLongRangeThreat >= 1000 and (not(tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired]) or GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] >= 60) and not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                    --If we cant path to our main base by land then reduce t2 arti to build if it hasnt fired recently
+                    if bDebugMessages == true then LOG(sFunctionRef..': This island ref='..tLZData[M28Map.subrefLZIslandRef]..'; Island refo f closest friendly base='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) or 'nil')) end
+                    if not(tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) then
+                        if tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3 then
+                            iThreatWanted = math.min(iThreatWanted, 3000 + 0.3 * (iThreatWanted - 3000))
+                        else
+                            iThreatWanted = math.min(iThreatWanted, 1000 + 0.25*(iThreatWanted - 1000))
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Our T2 arti havent fired much and are on a dif island to main base, so significantly reducing threat wanted to '..iThreatWanted) end
+                    end
+                end
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
                     iThreatWanted = math.max(iThreatWanted, 2 * M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], true))
                 end
