@@ -429,6 +429,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiTimeLastShowedBuildLocationFailure = 'TLFBL' --Gametimeseconds we last showed a warning that we had nowhere to build
             refiNonM28TeammateFactoryCount = 'NMTFc' --Approx number of teammate factories in the zone
             refiNonM28TeammateMexCount = 'NMTMx' --approx number of teammate mexes in the zone
+            refiTimeOurT2ArtiLastFired = 'T2Arts' --Gametimeseconds we had a t2 arti fire a shot in this zone (to help avoiding overbuilding on plateaus that might not need it)
             --reftiLocationsToAvoid = 'TLocAv' --if have enemy aoe unit targeting an M28 unit, then the first 10 such locations get recorded - removed as not sure it actually made things better
 
 --Pond and naval variables

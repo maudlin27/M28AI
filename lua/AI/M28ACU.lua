@@ -7506,7 +7506,7 @@ function DoesACUWantToSuicideIntoEnemyACU(oACU, iTeam, iPlateauOrZero, iLandOrWa
                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy ACU plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, oEnemyACU:GetPosition()) or 'nil')..'; our ACU iPlateauOrZero='..iPlateauOrZero..'; Land label for enemy ACU='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, oEnemyACU:GetPosition()) or 'nil')) end
                 if iCurDist <= iMaxDistToEnemyACU and NavUtils.GetLabel(M28Map.refPathingTypeHover, oEnemyACU:GetPosition()) == iPlateauOrZero and (NavUtils.GetLabel(M28Map.refPathingTypeLand, oEnemyACU:GetPosition()) or 0) > 0 then
                     --Check it is either upgrading (so vulnerable to us pushing in) or we are almost in range
-                    if oEnemyACU:IsUnitState('Upgrading') or iCurDist <= oACU[refiDFRange] + 2 or oACU[refbSupportFriendlyACUAttack] then
+                    if oEnemyACU:IsUnitState('Upgrading') or iCurDist <= (oACU[M28UnitInfo.refiDFRange] or 0) + 2 or oACU[refbSupportFriendlyACUAttack] then
                         iMaxDistToEnemyACU = iCurDist
                         oClosestACUToConsiderAttacking = oEnemyACU
                         if bDebugMessages == true then LOG(sFunctionRef..': Recording as enemy ACU to consider attacking') end
