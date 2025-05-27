@@ -2496,13 +2496,14 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and iFactoryTechLevel == 2 and categories.brmt2medm then iSkirmisherCategory = iSkirmisherCategory + categories.brmt2medm end
         --If enemy has T3 then change skirmisher category to just be normal tanks
         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 then
-            if iFactoryTechLevel <= 2 then iSkirmisherCategory = M28UnitInfo.refCategoryIndirect * categories.TECH1
+            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has T3 tech so will include t1 arti in our skirmisher category, totalbuildcount='..oFactory[refiTotalBuildCount]..'; LowMass='..tostring(bHaveLowMass)..'; % mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
+            if iFactoryTechLevel <= 2  then iSkirmisherCategory = M28UnitInfo.refCategoryIndirect * categories.TECH1
             else iSkirmisherCategory = iSkirmisherCategory - categories.TECH1 - categories.TECH2
             end
         end
 
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if iFactoryTechLevel >= 2 and bHaveHighestLZTech and tLZTeamData[M28Map.subrefLZbCoreBase] then
+        if iFactoryTechLevel >= 2 and bHaveHighestLZTech and tLZTeamData[M28Map.subrefLZbCoreBase] and (iFactoryTechLevel >= 3 or oFactory[refiTotalBuildCount] <= 15 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3) then
             --Can we path to enemy base from this land zone?
             local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
             local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
@@ -2512,11 +2513,14 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if iCurIsland == iEnemyIsland and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] <= 8000 or M28Conditions.TeamHasAirControl(iTeam)) and math.min(8 - M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) > math.max(1, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
                 if bCanPathToEnemyWithLand then
                     if iFactoryTechLevel == 2 and not(aiBrain.M28Easy) and ConsiderBuildingCategory(iSkirmisherCategory) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try building skirmisher as T2 fac on same island as enemy base') end
                         return sBPIDToBuild
                         --Initial T3 tanks - want tanks instead of sniperbots if enemy has lower health units/isnt at T3
                     elseif iFactoryTechLevel == 3 and not(aiBrain.M28Easy) and oFactory[refiTotalBuildCount] >= 5 and (oFactory[refiTotalBuildCount] >= 15 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth] >= 2400 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3)) and ConsiderBuildingCategory(iSkirmisherCategory) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try building skirmisher as T3 fac') end
                         return sBPIDToBuild
                     elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will get land combat') end
                         return sBPIDToBuild
                     end
                 else
