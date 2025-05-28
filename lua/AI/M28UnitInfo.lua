@@ -1175,7 +1175,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
         if bBlueprintThreat then
             local oUnit = tUnits[1]
             local oBP = __blueprints[oUnit.UnitId]
-            if bDebugMessages == true then LOG(sFunctionRef..': About to calculate threat using actual unit data, iThreatRef='..iThreatRef) end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to calculate threat using actual unit data, iThreatRef='..iThreatRef..'; UnitId='..oUnit.UnitId..'; Name='..LOC(__blueprints[oUnit.UnitId].Description)) end
             --get actual threat calc
             local iMassMod = 0 --For non-offensive structures
             --Does the unit contain any of the categories of interest?
@@ -1311,7 +1311,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         if oBP.Weapon then
                             for iWeapon, tWeapon in oBP.Weapon do
                                 bCanShootAir = false
-                                if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable and (not(tWeapon.TargetRestrictOnlyAllow) or tWeapon.TargetRestrictOnlyAllow == 'AIR' or tWeapon.TargetRestrictOnlyAllow == 'AIR -SATELLITE') or (EntityCategoryContains(categories.ANTIAIR, oUnit.UnitId) and table.getn(oBP.Weapon) == 1) then
+                                if tWeapon.Damage and tWeapon.FireTargetLayerCapsTable and (not(tWeapon.TargetRestrictOnlyAllow) or tWeapon.TargetRestrictOnlyAllow == 'AIR' or tWeapon.TargetRestrictOnlyAllow == 'AIR -SATELLITE' or tWeapon.FireTargetLayerCapsTable.Water == 'Air') or (EntityCategoryContains(categories.ANTIAIR, oUnit.UnitId) and table.getn(oBP.Weapon) == 1) then
                                     for iType, sTargets in tWeapon.FireTargetLayerCapsTable do
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with sTargets='..repru(sTargets)) end
                                         if sTargets == 'Air' then --and tWeapon.CannotAttackGround then
@@ -1346,7 +1346,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                             else
                                 iMassMod = 1 --Cruisers and T3 aircraft carriers have antiair as well as overlay antiair
                             end
-                        --QUIET+FAF - ACUs cant (unupgraded) shoot air units; LOUD they used to, in sandbox they didnt but have left in to be prudent
+                            --QUIET+FAF - ACUs cant (unupgraded) shoot air units; LOUD they used to, in sandbox they didnt but have left in to be prudent
                         elseif EntityCategoryContains(categories.OVERLAYANTIAIR, sCurUnitBP) == true and (M28Utilities.bLoudModActive or not(EntityCategoryContains(categories.COMMAND, sCurUnitBP)))  then
                             iMassMod = 0.04
                             if sCurUnitBP == 'ues0401' then iMassMod = 1 --atlantis misclassifiefd as not anti-air
