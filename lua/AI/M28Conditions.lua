@@ -1000,6 +1000,14 @@ function GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, iCate
     return iCount
 end
 
+function GetNumberOfConstructedUnitsInAirSubteam(iAirSubteam, iCategory)
+    local iCount = 0
+    for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+        iCount = iCount + oBrain:GetCurrentUnits(iCategory)
+    end
+    return iCount
+end
+
 function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory)
     --Returns the number of factories that are building a unit meeting iCategoryWanted
     --if bAllConstructionNotFactory then instead returns number of part-complete units of iCategoryWanted
