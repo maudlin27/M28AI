@@ -1501,7 +1501,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
 
     local aiBrain = oACU:GetAIBrain()
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by brain '..aiBrain.Nickname..'; oACU[refbStartedUnderwater]='..tostring(oACU[refbStartedUnderwater] or false)..'; oACU[refiUpgradeCount='..oACU[refiUpgradeCount]..'; aiBrain[M28Economy.refiGrossEnergyBaseIncome]='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; aiBrain[M28Economy.refiGrossMassBaseIncome]='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Is aeon or cybran='..tostring(EntityCategoryContains(categories.AEON + categories.CYBRAN, oACU.UnitId))..'; aiBrain[M28Economy.refiBrainResourceMultiplier]='..aiBrain[M28Economy.refiBrainResourceMultiplier]..'; bWantToDoTeleSnipe='..tostring(bWantToDoTeleSnipe or false)..'; oACU[refbPlanningToGetTeleport]='..tostring(oACU[refbPlanningToGetTeleport] or false)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by brain '..aiBrain.Nickname..'; oACU[refbStartedUnderwater]='..tostring(oACU[refbStartedUnderwater] or false)..'; oACU[refiUpgradeCount='..oACU[refiUpgradeCount]..'; aiBrain[M28Economy.refiGrossEnergyBaseIncome]='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; aiBrain[M28Economy.refiGrossMassBaseIncome]='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Is aeon or cybran='..tostring(EntityCategoryContains(categories.AEON + categories.CYBRAN, oACU.UnitId))..'; aiBrain[M28Economy.refiBrainResourceMultiplier]='..aiBrain[M28Economy.refiBrainResourceMultiplier]..'; bWantToDoTeleSnipe='..tostring(bWantToDoTeleSnipe or false)..'; oACU[refbPlanningToGetTeleport]='..tostring(oACU[refbPlanningToGetTeleport] or false)..'; aiBrain[refbPlanningToGetShield]='..tostring(aiBrain[refbPlanningToGetShield] or false)) end
     local oBP = oACU:GetBlueprint()
 
     oACU[refiTimeLastConsideredUpgradePath] = GetGameTimeSeconds()
@@ -1549,7 +1549,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'T3Engineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization', 'DamageStabilizationAdvanced'}
             end
         end
-    --oACU[refiUpgradeCount] == 0 and (oBP.Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and GetGameTimeSeconds() <= 60 and not(oACU[reftPreferredUpgrades][1] == 'ResourceAllocation') then
+        --oACU[refiUpgradeCount] == 0 and (oBP.Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and GetGameTimeSeconds() <= 60 and not(oACU[reftPreferredUpgrades][1] == 'ResourceAllocation') then
     elseif aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.7 and (M28Map.iMapSize >= 1000 or aiBrain[M28Economy.refiBrainResourceMultiplier] >= 4.0) then
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar] then
@@ -1661,10 +1661,10 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                     --Do nothing - already determined upgrade path
                 else
                     if oACU[refbPlanningToGetShield] == nil then
-                        if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.6 then
+                        if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.8 then
                             oACU[refbPlanningToGetShield] = true
                         end
-                    elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 then
+                    elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.5 then
                         oACU[refbPlanningToGetShield] = true
                     end
 
@@ -1676,7 +1676,18 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                     end
                 end
             else
-                oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+                if oACU[refbPlanningToGetShield] == nil then
+                    if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.8 then
+                        oACU[refbPlanningToGetShield] = true
+                    end
+                elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.5 then
+                    oACU[refbPlanningToGetShield] = true
+                end
+                if oACU[refbPlanningToGetShield] or M28Conditions.ACULikelyToWantCombatUpgradeOrShield(oACU) or oACU:HasEnhancement('Shield') or oACU:HasEnhancement('ShieldHeavy') then
+                    oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield', 'ShieldHeavy'}
+                else
+                    oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+                end
             end
             if oBP.Enhancements['FAF_CrysalisBeamAdvanced'] then
                 local iCurEntries = table.getn(oACU[reftPreferredUpgrades])
@@ -1702,7 +1713,9 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                     end
                     if bHaveInitialRange then
                         if bDebugMessages == true then LOG(sFunctionRef..': Adding in FAF_CrysalisBeamAdvanced to enhancements wanted') end
-                        if iCurEntries >= 4 and  not(oACU[reftPreferredUpgrades][4] == 'FAF_CrysalisBeamAdvanced') then table.insert( oACU[reftPreferredUpgrades], 4, 'FAF_CrysalisBeamAdvanced')
+                        local iEntryWanted = 4
+                        if oACU[reftPreferredUpgrades][3] == 'ResourceAllocation' then iEntryWanted = 3 end
+                        if iCurEntries >= iEntryWanted and  not(oACU[reftPreferredUpgrades][iEntryWanted] == 'FAF_CrysalisBeamAdvanced') then table.insert( oACU[reftPreferredUpgrades], iEntryWanted, 'FAF_CrysalisBeamAdvanced')
                         else table.insert(oACU[reftPreferredUpgrades], 'FAF_CrysalisBeamAdvanced')
                         end
                     end
@@ -1853,7 +1866,25 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 oACU[reftPreferredUpgrades] = { sLowestUpgrade }
                 --Further backup - sometimes (e.g. cmapaign) RAS might be available but gun isnt
             elseif oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
-                oACU[reftPreferredUpgrades] = { 'ResourceAllocation' }
+                if bDebugMessages == true then LOG(sFunctionRef..': Adding in RAS if the upgrade slot is available') end
+                local bSlotAvailable = true
+                if oACU[refiUpgradeCount] > 0 then
+                    local sSlotWanted = oBP.Enhancements['ResourceAllocation'].Slot
+                    for sUpgrade, tUpgrade in oBP.Enhancements do
+                        if tUpgrade.Slot == sSlotWanted and oACU:HasEnhancement(sUpgrade) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Already using slot '..sSlotWanted..' for the upgrade '..sUpgrade) end
+                            bSlotAvailable = false
+                            break
+                        end
+                    end
+                end
+                if bSlotAvailable then
+                    oACU[reftPreferredUpgrades] = { 'ResourceAllocation' }
+                    if oBP.Enhancements['ResourceAllocationAdvanced'] and not (tRestrictedEnhancements['ResourceAllocationAdvanced']) then
+                        table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocationAdvanced')
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding in RAS advanced as well') end
+                    end
+                end
                 --LOUD support where ACU upgrades dont show as improving max radius
             else
                 local tsOtherUpgradeNames = {
@@ -1920,8 +1951,25 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         end
     end
     if (oACU[refiUpgradeCount] or 0) > 0 and oACU[reftPreferredUpgrades] and table.getn(oACU[reftPreferredUpgrades]) <= 2 and (EntityCategoryContains(categories.AEON, oACU.UnitId) or table.getn(oACU[reftPreferredUpgrades]) <= 1) and oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Adding RAS to table of preferred upgrades') end
-        table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocation')
+        local bSlotAvailable = true
+        if oACU[refiUpgradeCount] > 0 then
+            local sSlotWanted = oBP.Enhancements['ResourceAllocation'].Slot
+            for sUpgrade, tUpgrade in oBP.Enhancements do
+                if tUpgrade.Slot == sSlotWanted and oACU:HasEnhancement(sUpgrade) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Already using slot '..sSlotWanted..' for the upgrade '..sUpgrade) end
+                    bSlotAvailable = false
+                    break
+                end
+            end
+        end
+        if bSlotAvailable or (M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) == 1 and not(oACU:HasEnhancement('ShieldHeavy')) and M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs] and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] <= 1000 and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar]) and M28Map.tAllPlateaus[oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][1]][M28Map.subrefPlateauLandZones][oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][2]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.refbBaseInSafePosition]) then
+            table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocation')
+            if bDebugMessages == true then LOG(sFunctionRef..': Adding RAS to table of preferred upgrades') end
+            if oBP.Enhancements['ResourceAllocationAdvanced'] and not (tRestrictedEnhancements['ResourceAllocationAdvanced']) then
+                table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocationAdvanced')
+                if bDebugMessages == true then LOG(sFunctionRef..': Adding in RAS advanced as well') end
+            end
+        end
     end
 
     --Remove any upgrades that we already have
@@ -6317,7 +6365,7 @@ function GetACUOrder(aiBrain, oACU)
                                             if not(ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero)) then
                                                 --ACU damaged and we have a T3 shield in the zone - make sure we are underneath shield coverage
                                                 local bHaveMovedToBeUnderShield = false
-                                                if oACU:GetHealthPercent() <= 0.8 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                                if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.8 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                                                     local tFriendlyShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield - categories.TECH2 - categories.TECH1, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                                     if M28Utilities.IsTableEmpty(tFriendlyShields) == false then
                                                         local iCurShieldHealth, iMaxShieldHealth, iCurShieldDist
