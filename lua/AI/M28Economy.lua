@@ -1757,6 +1757,14 @@ function ManageMassStalls(iTeam)
                                     else
                                         if bDebugMessages == true then
                                             LOG(sFunctionRef .. ': About to consider pausing unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4')
+                                            if oUnit.GetWorkProgress then
+                                                local oUnitTarget = oUnit:GetFocusUnit()
+                                                if oUnitTarget then
+                                                    LOG(sFunctionRef..': Work progress='..oUnit:GetWorkProgress()..'; oUnitTarget='..(oUnitTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitTarget) or 'nil'))
+                                                else
+                                                    LOG(sFunctionRef..': Work progress (no valid target)='..oUnit:GetWorkProgress())
+                                                end
+                                            end
                                         end
 
 
@@ -1769,7 +1777,7 @@ function ManageMassStalls(iTeam)
                                         if oUnit[M28Building.refbSpecialLauncherTargeting] then
                                             bApplyActionToUnit = false
                                             --Factories, ACU and engineers - dont pause if >=85% done, or if is land factory that hasn't built many units (so e.g. if have just placed a land factory on a core expansion we dont immediately pause it)
-                                        elseif oUnit.GetWorkProgress and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + M28UnitInfo.refCategoryFactory, oUnit.UnitId) and ((oUnit:GetWorkProgress() or 0) >= 0.85 or (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= iMinBuildCountBeforePausingHQ and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or oBrain[refiOurHighestLandFactoryTech] <= M28UnitInfo.GetUnitTechLevel(oUnit)))) then
+                                        elseif oUnit.GetWorkProgress and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + M28UnitInfo.refCategoryFactory, oUnit.UnitId) and ((oUnit:GetWorkProgress() or 0) >= 0.85 or ((oUnit:GetWorkProgress() or 0) >= 0.8 and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit:GetFocusUnit().UnitId)) or (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= iMinBuildCountBeforePausingHQ and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or oBrain[refiOurHighestLandFactoryTech] <= M28UnitInfo.GetUnitTechLevel(oUnit)))) then
                                             bApplyActionToUnit = false
                                             if bDebugMessages == true then LOG(sFunctionRef..': Either 85% completion or pausing a land factory that hasnt built much') end
                                         elseif oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] then bApplyActionToUnit = false
@@ -2400,6 +2408,15 @@ function ManageEnergyStalls(iTeam)
                                                 end
                                             end
                                         else
+
+                                            if oUnit.GetWorkProgress then
+                                                local oUnitTarget = oUnit:GetFocusUnit()
+                                                if oUnitTarget then
+                                                    LOG(sFunctionRef..': EWork progress='..oUnit:GetWorkProgress()..'; oUnitTarget='..(oUnitTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitTarget) or 'nil')..'; Av E%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; defending vs t3 arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]))
+                                                else
+                                                    LOG(sFunctionRef..': EWork progress (no valid target)='..oUnit:GetWorkProgress())
+                                                end
+                                            end
                                             if bDebugMessages == true then
                                                 LOG(sFunctionRef .. ': About to consider pausing/unpausingunit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4; bConsideringFactory='..tostring(bConsideringFactory)..'; brain gross energy='..oBrain[refiGrossEnergyBaseIncome]..'; Primary fac='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false))
                                             end
@@ -2443,6 +2460,9 @@ function ManageEnergyStalls(iTeam)
                                                             end
                                                         elseif iActionRef == M28Engineer.refActionManageGameEnderTemplate and oUnit[M28Engineer.refbPrimaryBuilder] then
                                                             bApplyActionToUnit = false
+                                                        elseif oUnit:GetWorkProgress() >= 0.9 and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryPower, oUnit:GetFocusUnit().UnitId) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.1 or oUnit:GetWorkProgress() >= 0.98) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.5 or not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) then
+                                                            bApplyActionToUnit = false
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Almost completed an experimental unit so dont want to stop now unless really stalling E') end
                                                         end
                                                         break
                                                     end
