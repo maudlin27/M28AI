@@ -1132,7 +1132,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 if oEnemyToConsiderAttacking and M28UnitInfo.IsUnitValid(oEnemyToConsiderAttacking) then
                     tLZTeamData[M28Map.refbWantLandScout] = false
                     iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemyToConsiderAttacking:GetPosition(), oScout:GetPosition())
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy to attack with combat scout, oEnemyToConsiderAttacking='..oEnemyToConsiderAttacking.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToConsiderAttacking)..'; iCurDist='..iCurDist..'; oScout[M28UnitInfo.refbLastShotBlocked]='..tostring(oScout[M28UnitInfo.refbLastShotBlocked])..'; Health% of enemy to consider attacking='..M28UnitInfo.GetUnitHealthPercent(oEnemyToConsiderAttacking)..'; Time of last weapon event='..GetGameTimeSeconds() - (oScout[M28UnitInfo.refiLastWeaponEvent] or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy to attack with combat scout, oEnemyToConsiderAttacking='..oEnemyToConsiderAttacking.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToConsiderAttacking)..'; iCurDist='..iCurDist..'; oScout[M28UnitInfo.refbLastShotBlocked]='..tostring(oScout[M28UnitInfo.refbLastShotBlocked])..'; Health% of enemy to consider attacking='..M28UnitInfo.GetUnitHealthPercent(oEnemyToConsiderAttacking)..'; Time of last weapon event='..GetGameTimeSeconds() - (oScout[M28UnitInfo.refiLastWeaponEvent] or 0)) end
                     if iCurDist >= 9 then
                         --Move closer if our shot is blocked and enemy isnt an engineer; also some redundancy incase our shot is blocked but isnt registering as blocked
                         if (oScout[M28UnitInfo.refbLastShotBlocked] or (iCurDist >= 8 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oEnemyToConsiderAttacking.UnitId) and (M28UnitInfo.GetUnitHealthPercent(oEnemyToConsiderAttacking) >= 1 or oEnemyToConsiderAttacking:GetHealth() <= 10))) and (not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEnemyToConsiderAttacking.UnitId)) or (iCurDist >= 5 and iCurDist > oEnemyToConsiderAttacking:GetBlueprint().Economy.MaxBuildDistance)) then
@@ -1329,7 +1329,8 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
 
                     if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
                         tLZTeamData[M28Map.refbWantLandScout] = false
-                        if table.getn(tAvailableScouts) > 1 then
+                        --Want to apply if core base, as we dont treat core bases as wanting land scouts normally, meaning if only adjacent zones are also core bases we get stuck where we think we never have any targets for land scouts on the island
+                        if tLZTeamData[M28Map.subrefLZbCoreBase] or table.getn(tAvailableScouts) > 1 then
                             --Look for further away zones in this island wanting land scouts
                             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                                 for iEntry, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
@@ -1370,6 +1371,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                     M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam] = {}
                                 end
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have available land scouts still for P'..iPlateau..'Z'..iLandZone..' at time='..GetGameTimeSeconds()..' so will record this for the island '..tLZData[M28Map.subrefLZIslandRef]) end
                             M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam][tLZData[M28Map.subrefLZIslandRef]] = GetGameTimeSeconds()
                             --If we are here then we still have available land scouts; if we have ap atrol path then patrol; if we have a mex then go here, if we have an adjcent zone go here, otherwise move randomly if we have no orders
                             for iScout, oScout in tAvailableScouts do

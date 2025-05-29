@@ -322,7 +322,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                     elseif oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled.UnitId) and M28Chat.IsTeamCoalition(oKillerBrain.M28Team) and M28Utilities.IsTableEmpty(oUnitKilled:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled:GetPosition(), M28Map.iMapSize * 2, 'Ally')) then
                                         local bSendToTeam = false
                                         if math.random(1,2) == 1 and M28Utilities.IsTableEmpty(M28Team.tTeamData[oKillerBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false and table.getn(M28Team.tTeamData[oKillerBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) >= 2 then bSendToTeam = true end
-                                        M28Chat.SendMessage(oKillerBrain, 'CoalKillArti', LOC('<LOC X01_M01_200_010>[{i HQ}]: That\'s the last of them -- all the artillery positions are down.'), 1, 600, false, true, 'X01_HQ_M01_03631', 'X01_VO', bSendToTeam)
+                                                --SendMessage(aiBrain, sMessageType,        sMessage,                                                                       iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank, oOptionalOnlyBrainToSendTo)
+                                        M28Chat.SendMessage(oKillerBrain, 'CoalKillArti', LOC('<LOC X01_M01_200_010>[{i HQ}]: That\'s the last of them -- all the artillery positions are down.'), 1,       600,                            bSendToTeam,          true,               'X01_HQ_M01_03631', 'X01_VO')
                                         --Dont trigger if killed via nuke
                                     elseif oKillerUnit and not(EntityCategoryContains(M28UnitInfo.refCategorySML, oKillerUnit.UnitId)) then
                                         --Check mod dist is far enoguh away from our core base that unlikely it has dealt lots of damage
@@ -980,15 +981,15 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
                 end
                 --Flag that enemy has a dangerous ACU if they have multiple combat upgrades
-                if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28UnitInfo.refiDFMassThreatOverride] or 0) - M28UnitInfo.iBaseACUThreat >= 1600 and (oUnit:GetMaxHealth() >= M28UnitInfo.iBaseACUExpectedHealth + 2000 or (oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0)) then
-                local iTeamToIgnore = oUnit:GetAIBrain().M28Team
-                for iCurTeam = 1, M28Team.iTotalTeamCount do
-                if (M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Flagging that the enemy has a dangerous ACU for team '..iCurTeam..'; due to ACU owned by '..oUnit:GetAIBrain().Nickname..' with upgrade count='..oUnit[M28ACU.refiUpgradeCount]) end
-                M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasDangerousACU] = true
+                if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28UnitInfo.refiDFMassThreatOverride] or 0) - M28UnitInfo.iBaseACUThreat >= 1600 and (oUnit:GetMaxHealth() >= M28UnitInfo.iBaseACUExpectedHealth + 2000 or (oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0) or oUnit:HasEnhancement('StealthGenerator')) then
+                    local iTeamToIgnore = oUnit:GetAIBrain().M28Team
+                    for iCurTeam = 1, M28Team.iTotalTeamCount do
+                        if not(iCurTeam == iTeamToIgnore) and (M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Flagging that the enemy has a dangerous ACU for team '..iCurTeam..'; due to ACU owned by '..oUnit:GetAIBrain().Nickname..' with upgrade count='..oUnit[M28ACU.refiUpgradeCount]) end
+                            M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasDangerousACU] = true
+                        end
+                    end
                 end
-                    end
-                    end
 
 
             elseif EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId) then
