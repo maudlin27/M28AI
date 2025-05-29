@@ -2408,17 +2408,16 @@ function ManageEnergyStalls(iTeam)
                                                 end
                                             end
                                         else
-
-                                            if oUnit.GetWorkProgress then
-                                                local oUnitTarget = oUnit:GetFocusUnit()
-                                                if oUnitTarget then
-                                                    LOG(sFunctionRef..': EWork progress='..oUnit:GetWorkProgress()..'; oUnitTarget='..(oUnitTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitTarget) or 'nil')..'; Av E%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; defending vs t3 arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]))
-                                                else
-                                                    LOG(sFunctionRef..': EWork progress (no valid target)='..oUnit:GetWorkProgress())
-                                                end
-                                            end
                                             if bDebugMessages == true then
                                                 LOG(sFunctionRef .. ': About to consider pausing/unpausingunit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4; bConsideringFactory='..tostring(bConsideringFactory)..'; brain gross energy='..oBrain[refiGrossEnergyBaseIncome]..'; Primary fac='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false))
+                                                if oUnit.GetWorkProgress then
+                                                    local oUnitTarget = oUnit:GetFocusUnit()
+                                                    if oUnitTarget then
+                                                        LOG(sFunctionRef..': EWork progress='..oUnit:GetWorkProgress()..'; oUnitTarget='..(oUnitTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitTarget) or 'nil')..'; Av E%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; defending vs t3 arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]))
+                                                    else
+                                                        LOG(sFunctionRef..': EWork progress (no valid target)='..oUnit:GetWorkProgress())
+                                                    end
+                                                end
                                             end
 
 
