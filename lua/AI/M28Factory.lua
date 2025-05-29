@@ -1212,6 +1212,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDontConsiderLandScouts = false
     if M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision] then
         bDontConsiderLandScouts = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Team has omni vision so dont want to get more land scouts') end
     elseif not(tLZTeamData[M28Map.refbWantLandScout]) and GetGameTimeSeconds() - (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam][tLZData[M28Map.subrefLZIslandRef]] or -1000) <= math.max(5, M28Land.iTicksPerLandCycle * 0.2) then
         bDontConsiderLandScouts = true
     end
