@@ -6779,7 +6779,7 @@ function GetBlueprintToBuildForExperimentalLandFactory(aiBrain, oFactory)
     --Emergency defence
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then
-        if ConsiderBuildingCategory(M28UnitInfo.refCategoryAA - categories.EXPERIMENTAL) then return sBPIDToBuild end
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryGroundAA - categories.EXPERIMENTAL) then return sBPIDToBuild end
     end
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
