@@ -980,15 +980,15 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
                 end
                 --Flag that enemy has a dangerous ACU if they have multiple combat upgrades
-                if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28UnitInfo.refiDFMassThreatOverride] or 0) - M28UnitInfo.iBaseACUThreat >= 1600 and (oUnit:GetMaxHealth() >= M28UnitInfo.iBaseACUExpectedHealth + 2000 or (oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0)) then
-                local iTeamToIgnore = oUnit:GetAIBrain().M28Team
-                for iCurTeam = 1, M28Team.iTotalTeamCount do
-                if (M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Flagging that the enemy has a dangerous ACU for team '..iCurTeam..'; due to ACU owned by '..oUnit:GetAIBrain().Nickname..' with upgrade count='..oUnit[M28ACU.refiUpgradeCount]) end
-                M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasDangerousACU] = true
+                if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28UnitInfo.refiDFMassThreatOverride] or 0) - M28UnitInfo.iBaseACUThreat >= 1600 and (oUnit:GetMaxHealth() >= M28UnitInfo.iBaseACUExpectedHealth + 2000 or (oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0) or oUnit:HasEnhancement('StealthGenerator')) then
+                    local iTeamToIgnore = oUnit:GetAIBrain().M28Team
+                    for iCurTeam = 1, M28Team.iTotalTeamCount do
+                        if not(iCurTeam == iTeamToIgnore) and (M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Flagging that the enemy has a dangerous ACU for team '..iCurTeam..'; due to ACU owned by '..oUnit:GetAIBrain().Nickname..' with upgrade count='..oUnit[M28ACU.refiUpgradeCount]) end
+                            M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasDangerousACU] = true
+                        end
+                    end
                 end
-                    end
-                    end
 
 
             elseif EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId) then

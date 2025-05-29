@@ -11028,7 +11028,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
         local bPrioritiseSniperBots = false
 
         if aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon or aiBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then bAreSeraOrAeon = true end
-        if bAreSeraOrAeon then bPrioritiseSniperBots = M28Conditions.PrioritiseSniperBots(tLZOrWZData, iTeam, tLZOrWZTeamData) end
+        if bAreSeraOrAeon then bPrioritiseSniperBots = M28Conditions.PrioritiseSniperBots(tLZOrWZData, iTeam, tLZOrWZTeamData, iPlateau, iLandOrWaterZone) end
         if bDebugMessages == true then LOG(sFunctionRef..': Exp constructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Island ref='..(tLZOrWZData[M28Map.subrefLZIslandRef] or 0)..'; Is table of enemy land exp empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))..'; time last near unit cap='..(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 'nil')..'; T3 mex in zone='..(tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] or 'nil')..'; Mex count in zone='..(tLZOrWZData[M28Map.subrefLZMexCount] or 'nil')..'; Number of land and indirect T3 built in game='..M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3)..'; Air to ground threat='..(M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] or 0)..'; Want more factories='..tostring(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandOrWaterZone, true))..'; Enemy base island ref='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')..'; Our island ref='..(tLZOrWZData[M28Map.subrefLZIslandRef] or 'nil')..'; Cur naval facs='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryNavalFactory, iTeam)..'; Cur land and air facs='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, iTeam)..'; bAreSeraOrAeon='..tostring(bAreSeraOrAeon or false)..'; bPrioritiseSniperBots='..tostring(bPrioritiseSniperBots)..'; Do we want more factories='..tostring(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandOrWaterZone, true))..'; Do we want air fac='..tostring(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData))..'; Number of T3 air facs in zone='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory)..'; Time='..GetGameTimeSeconds()) end
 
         --Tech and turtle - always get experimental instead of more factories
@@ -13468,7 +13468,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Assist land factory if we want to focus on getting sniperbots
     iCurPriority = iCurPriority + 1
-    if ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestLandFactoryTech] >= 2 and M28Conditions.PrioritiseSniperBots(tLZData, iTeam, tLZTeamData) then
+    if ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refiOurHighestLandFactoryTech] >= 2 and M28Conditions.PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, iPlateau, iLandZone) then
         iBPWanted = 90
         if not(bHaveLowMass) then iBPWanted = 180 end
         local oClosestFactory
