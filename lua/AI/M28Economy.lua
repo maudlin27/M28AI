@@ -55,14 +55,18 @@ bT3MexCanBeUpgraded = false
 iSpecialHQCategory = 'M28EconomyFactoryHQ' --Used as a way of choosing to pause HQ
 iSpecialSurplusUpgradeCategory = 'M28EconomySurplusUpgrade' --used as a way of choosing to pause excess upgrades
 
-function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
+function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker, iOptionalWait)
     --Work out the upgrade ID wanted; if bUpdateUpgradeTracker is true then records upgrade against unit's aiBrain
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitToUpgrade='..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..' owned by '..oUnitToUpgrade:GetAIBrain().Nickname..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])..'; Unit enhancement upgrade count='..(oUnitToUpgrade[M28ACU.refiUpgradeCount] or 'nil')..'; refbTriedUpgrading='..tostring(oUnitToUpgrade[M28UnitInfo.refbTriedUpgrading] or false)..'; refbObjectiveUnit='..tostring(oUnitToUpgrade[M28UnitInfo.refbObjectiveUnit] or false)..'; Is oUnitToUpgrade.EventCallbacks.OnKilled nil='..tostring(oUnitToUpgrade.EventCallbacks.OnKilled == nil)) M28Utilities.ErrorHandler('Audit trail for unit upgrade', true, true) end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitToUpgrade='..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..' owned by '..oUnitToUpgrade:GetAIBrain().Nickname..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])..'; Unit enhancement upgrade count='..(oUnitToUpgrade[M28ACU.refiUpgradeCount] or 'nil')..'; refbTriedUpgrading='..tostring(oUnitToUpgrade[M28UnitInfo.refbTriedUpgrading] or false)..'; refbObjectiveUnit='..tostring(oUnitToUpgrade[M28UnitInfo.refbObjectiveUnit] or false)..'; Is oUnitToUpgrade.EventCallbacks.OnKilled nil='..tostring(oUnitToUpgrade.EventCallbacks.OnKilled == nil)..'; iOptionalWait='..(iOptionalWait or 'nil')) M28Utilities.ErrorHandler('Audit trail for unit upgrade', true, true) end
+    if iOptionalWait then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
     --Campaign specific - dont upgrade a campaign objective unit if it doesnt have an active OnKilled callback
     if oUnitToUpgrade[M28UnitInfo.refbObjectiveUnit] and M28Map.bIsCampaignMap and not(oUnitToUpgrade.EventCallbacks.OnKilled) then
         if bDebugMessages == true then LOG(sFunctionRef..': Wont upgrade afterall as we might break a campaign objective') end
@@ -80,57 +84,62 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
 
     if sUpgradeID and M28UnitInfo.IsUnitValid(oUnitToUpgrade) then
         local aiBrain = oUnitToUpgrade:GetAIBrain()
-        if bDebugMessages == true then LOG(sFunctionRef..': About to issue ugprade to unit '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..'; Current state='..M28UnitInfo.GetUnitState(oUnitToUpgrade)..'; Work progress='..(oUnitToUpgrade:GetWorkProgress() or 'nil')..'; Is unit upgrading='..tostring(oUnitToUpgrade:IsUnitState('Upgrading'))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to issue ugprade to unit '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..'; Current state='..M28UnitInfo.GetUnitState(oUnitToUpgrade)..'; Work progress='..(oUnitToUpgrade:GetWorkProgress() or 'nil')..'; Is unit upgrading='..tostring(oUnitToUpgrade:IsUnitState('Upgrading'))..'; Fraction complete='..oUnitToUpgrade:GetFractionComplete()) end
 
-        if not(oUnitToUpgrade:IsUnitState('Upgrading')) and not(oUnitToUpgrade:IsUnitState('BeingUpgraded')) then
-            local bAddToExistingQueue = true
+        if not(oUnitToUpgrade:IsUnitState('Upgrading')) then
+            if not(oUnitToUpgrade:IsUnitState('BeingUpgraded')) then
+                local bAddToExistingQueue = true
 
 
 
-            --Factory specific - if work progress is <=5% then cancel so can do the upgrade
-            if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnitToUpgrade.UnitId) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Are upgrading a factory '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..'; work progress='..oUnitToUpgrade:GetWorkProgress()) end
-                if oUnitToUpgrade.GetWorkProgress and oUnitToUpgrade:GetWorkProgress() <= 0.05 then
-                    --Are we building an engineer or transport?
-                    local oUnitThatAreBuilding = oUnitToUpgrade:GetFocusUnit()
-                    if not(M28UnitInfo.IsUnitValid(oUnitThatAreBuilding) and EntityCategoryContains(M28UnitInfo.refCategoryTransport + M28UnitInfo.refCategoryEngineer, oUnitThatAreBuilding.UnitId)) then
-                        bAddToExistingQueue = false
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have barely started with current construction so will cancel so can get upgrade sooner') end
-                    end
-                end
-            end
-
-            --Air factory upgrades - if we are upgrading from T1 to T2 and havent build a transport, and have plateaus, then want to get a transport first
-            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory * categories.TECH1, oUnitToUpgrade.UnitId) and aiBrain[refiOurHighestAirFactoryTech] == 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH1) == 1 then
-                --Do we have locations for transports to drop?
-                if bDebugMessages == true then LOG(sFunctionRef..': Is island drop shortlist empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist]))..'; Is table of far away same island zone shortlist empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]))..'; Lifetime transport count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport)) end
-                if (M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) == 0 then
-                    local refbQueuedTransport = 'M28QueuedTransport'
-                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have already queued up transport for this unit='..tostring(oUnitToUpgrade[refbQueuedTransport] or false)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist]='..repru(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist])..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]='..repru(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist])) end
-
-                    if not(oUnitToUpgrade[refbQueuedTransport]) then
-                        --Havent built any transports yet so build a T1 transport before we upgrade to T2 air
-                        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,           oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
-                        local sTransportID = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryTransport, oUnitToUpgrade)
-                        if sTransportID then
-                            oUnitToUpgrade[refbQueuedTransport] = true
-                            M28Orders.IssueTrackedFactoryBuild(oUnitToUpgrade, sTransportID, false, 'PreUp')
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will queue up a transport for factory '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)) end
+                --Factory specific - if work progress is <=5% then cancel so can do the upgrade
+                if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnitToUpgrade.UnitId) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Are upgrading a factory '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..'; work progress='..oUnitToUpgrade:GetWorkProgress()) end
+                    if oUnitToUpgrade.GetWorkProgress and oUnitToUpgrade:GetWorkProgress() <= 0.05 then
+                        --Are we building an engineer or transport?
+                        local oUnitThatAreBuilding = oUnitToUpgrade:GetFocusUnit()
+                        if not(M28UnitInfo.IsUnitValid(oUnitThatAreBuilding) and EntityCategoryContains(M28UnitInfo.refCategoryTransport + M28UnitInfo.refCategoryEngineer, oUnitThatAreBuilding.UnitId)) then
+                            bAddToExistingQueue = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have barely started with current construction so will cancel so can get upgrade sooner') end
                         end
                     end
                 end
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH2 + M28UnitInfo.refCategoryAirFactory * categories.TECH2, oUnitToUpgrade.UnitId) and aiBrain[refiOurHighestFactoryTechLevel] <= 2 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer - categories.TECH1) <= 5 then
-                --About to go for T3 factory but have hardl yany engineers so queue up an extra one
-                --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
-                local sEngiID = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryEngineer, oUnitToUpgrade)
-                if sEngiID then
-                    M28Orders.IssueTrackedFactoryBuild(oUnitToUpgrade, sEngiID, false, 'PreUp')
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': About to go to T3 on factory '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..' but only have '..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer - categories.TECH1)..' T2 plus engis so will queue up another engi before the upgrade. sEngiID='..(sEngiID or 'nil')) end
-            end
 
-            --Issue upgrade
-            M28Orders.IssueTrackedUpgrade(oUnitToUpgrade, sUpgradeID, bAddToExistingQueue)
+                --Air factory upgrades - if we are upgrading from T1 to T2 and havent build a transport, and have plateaus, then want to get a transport first
+                if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory * categories.TECH1, oUnitToUpgrade.UnitId) and aiBrain[refiOurHighestAirFactoryTech] == 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH1) == 1 then
+                    --Do we have locations for transports to drop?
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is island drop shortlist empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist]))..'; Is table of far away same island zone shortlist empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]))..'; Lifetime transport count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport)) end
+                    if (M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) == 0 then
+                        local refbQueuedTransport = 'M28QueuedTransport'
+                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have already queued up transport for this unit='..tostring(oUnitToUpgrade[refbQueuedTransport] or false)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist]='..repru(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist])..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]='..repru(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist])) end
+
+                        if not(oUnitToUpgrade[refbQueuedTransport]) then
+                            --Havent built any transports yet so build a T1 transport before we upgrade to T2 air
+                            --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,           oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+                            local sTransportID = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryTransport, oUnitToUpgrade)
+                            if sTransportID then
+                                oUnitToUpgrade[refbQueuedTransport] = true
+                                M28Orders.IssueTrackedFactoryBuild(oUnitToUpgrade, sTransportID, false, 'PreUp')
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will queue up a transport for factory '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)) end
+                            end
+                        end
+                    end
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH2 + M28UnitInfo.refCategoryAirFactory * categories.TECH2, oUnitToUpgrade.UnitId) and aiBrain[refiOurHighestFactoryTechLevel] <= 2 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer - categories.TECH1) <= 5 then
+                    --About to go for T3 factory but have hardl yany engineers so queue up an extra one
+                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+                    local sEngiID = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryEngineer, oUnitToUpgrade)
+                    if sEngiID then
+                        M28Orders.IssueTrackedFactoryBuild(oUnitToUpgrade, sEngiID, false, 'PreUp')
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to go to T3 on factory '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..' but only have '..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer - categories.TECH1)..' T2 plus engis so will queue up another engi before the upgrade. sEngiID='..(sEngiID or 'nil')) end
+                end
+
+                --Issue upgrade
+                M28Orders.IssueTrackedUpgrade(oUnitToUpgrade, sUpgradeID, bAddToExistingQueue)
+            --Issue where if we give the upgrade presumably just as the unit has finihsed its own upgrade, then it shows as beingupgrade while also being complete; so we wait 1 second and try again
+            elseif oUnitToUpgrade:GetFractionComplete() == 1 then
+                    ForkThread(UpgradeUnit, oUnitToUpgrade, false, 1)
+            end
         end
 
         --Clear any pausing of the unit

@@ -2647,6 +2647,10 @@ function DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iFactoryBeingUpgradedC
     if M28Utilities.IsTableEmpty(tTeamData[aiBrain.M28Team][subreftTeamUpgradingHQs]) == false then
         local iTotalUpgrading
         for iUpgrading, oUpgrading in tTeamData[aiBrain.M28Team][subreftTeamUpgradingHQs] do
+            if true and GetGameTimeSeconds() >= 38*60 and not(M28UnitInfo.IsUnitValid(oUpgrading)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have invalid upgrading unit='..(oUpgrading.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUpgrading) or 'nil')) end
+                M28Utilities.ErrorHandler('Invalid oUpgrading unit')
+            end
             if EntityCategoryContains(iFactoryBeingUpgradedCategory, oUpgrading.UnitId) then
                 if M28UnitInfo.IsUnitValid(oUpgrading) and oUpgrading:GetAIBrain() == aiBrain then
                     if bDebugMessages == true then LOG(sFunctionRef..': The upgrading unit '..oUpgrading.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUpgrading)..' brain is equal to aiBrain '..aiBrain.Nickname) end
@@ -2656,6 +2660,7 @@ function DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iFactoryBeingUpgradedC
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                     end
+                elseif bDebugMessages == true then LOG(sFunctionRef..': Upgrading unit is either invalid or owned by a dif brain, is valid='..tostring(M28UnitInfo.IsUnitValid(oUpgrading)))
                 end
             end
         end
@@ -2810,7 +2815,7 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
     local sFunctionRef = 'ConsiderPriorityAirFactoryUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; tTeamData[iM28Team][subrefiHighestEnemyAirTech]='..tTeamData[iM28Team][subrefiHighestEnemyAirTech]) end
 
     if tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] < 3 and not(tTeamData[iM28Team][refbFocusOnT1Spam]) then
         --Campaign specific - dont be as keen to urgently upgrade air (as it may be enemy starts at t3 air while we start at t1)
@@ -2879,11 +2884,13 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
                 --Prioritise air factory if enemy has T3 air and we dont
                 if not(bWantUpgrade) and tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyAirTech] and tTeamData[iM28Team][subrefiHighestEnemyAirTech] >= 3 then
                     for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has t3 air and we dont, oBrain='..oBrain.Nickname..'; oBrain[M28Economy.refiOurHighestAirFactoryTech]='..oBrain[M28Economy.refiOurHighestAirFactoryTech]) end
                         if oBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 then
                             --Do we have any active air factory upgrades?
                             bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ))
-
+                            if bDebugMessages == true then LOG(sFunctionRef..': bWantUpgrade (based on if we have active HQ upgrades for air HQ)='..tostring(bWantUpgrade)) end
                             if bWantUpgrade then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade for this tech level') end
                                 M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestAirFactoryTech]))
                             end
                         end
