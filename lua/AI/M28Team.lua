@@ -2646,6 +2646,7 @@ function DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iFactoryBeingUpgradedC
     if bDebugMessages == true then LOG(sFunctionRef..': Does our team have an empty table of upgrading HQs='..tostring(M28Utilities.IsTableEmpty(tTeamData[aiBrain.M28Team][subreftTeamUpgradingHQs]))) end
     if M28Utilities.IsTableEmpty(tTeamData[aiBrain.M28Team][subreftTeamUpgradingHQs]) == false then
         local iTotalUpgrading
+        local tiEntriesToRemove
         for iUpgrading, oUpgrading in tTeamData[aiBrain.M28Team][subreftTeamUpgradingHQs] do
             if true and GetGameTimeSeconds() >= 38*60 and not(M28UnitInfo.IsUnitValid(oUpgrading)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have invalid upgrading unit='..(oUpgrading.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUpgrading) or 'nil')) end
@@ -2653,15 +2654,27 @@ function DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iFactoryBeingUpgradedC
             end
             if EntityCategoryContains(iFactoryBeingUpgradedCategory, oUpgrading.UnitId) then
                 if M28UnitInfo.IsUnitValid(oUpgrading) and oUpgrading:GetAIBrain() == aiBrain then
-                    if bDebugMessages == true then LOG(sFunctionRef..': The upgrading unit '..oUpgrading.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUpgrading)..' brain is equal to aiBrain '..aiBrain.Nickname) end
-                    if bReturnNumberInstead then
-                        iTotalUpgrading = (iTotalUpgrading or 0) + 1
+                    --Check - is our last order not upgrading, and we have 0 work progress?
+                    if oUpgrading:GetWorkProgress() == 0 and not(oUpgrading:IsUnitState('Upgrading')) and not(oUpgrading[M28UnitInfo.refbPaused]) and not(oUpgrading[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderUpgrade) and not(oUpgrading[M28Orders.reftiLastOrders][2]) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': oUpgrading unit '..oUpgrading.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUpgrading)..' owned by '..aiBrain.Nickname..' doesnt appear to actually be upgrading so will remove from table') end
+                        if not(tiEntriesToRemove) then tiEntriesToRemove = {} end
+                        table.insert(tiEntriesToRemove, iUpgrading)
                     else
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        return true
+                        if bDebugMessages == true then LOG(sFunctionRef..': The upgrading unit '..oUpgrading.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUpgrading)..' brain is equal to aiBrain '..aiBrain.Nickname) end
+                        if bReturnNumberInstead then
+                            iTotalUpgrading = (iTotalUpgrading or 0) + 1
+                        else
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        end
                     end
                 elseif bDebugMessages == true then LOG(sFunctionRef..': Upgrading unit is either invalid or owned by a dif brain, is valid='..tostring(M28UnitInfo.IsUnitValid(oUpgrading)))
                 end
+            end
+        end
+        if tiEntriesToRemove then
+            for iCurEntry = table.getn(tiEntriesToRemove), 1, -1 do
+                table.remove(tTeamData[aiBrain.M28Team][subreftTeamUpgradingHQs], iCurEntry)
             end
         end
         if bReturnNumberInstead then
