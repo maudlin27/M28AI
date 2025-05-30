@@ -2328,7 +2328,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if bDebugMessages == true then LOG(sFunctionRef..': Checking T3 mobile artillery conditions - iEnemyAirToGroundThreat='..iEnemyAirToGroundThreat..'; iDFTotalThreat='..iDFTotalThreat..'; iIndirectTotalThreat='..iIndirectTotalThreat) end
             
             -- T3 Mobile Artillery is a bit stronger then it is in FAF, and essential at T3 Phase (due to various factors for M28AI)
-            if iEnemyAirToGroundThreat <= tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and iDFTotalThreat > iIndirectTotalThreat * 2.5 then
+            if iEnemyAirToGroundThreat <= tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and iDFTotalThreat > iIndirectTotalThreat * 5 then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryT3MobileArtillery) then return sBPIDToBuild end
             end
         end
