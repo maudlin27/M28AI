@@ -2602,6 +2602,38 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 end
             end
 
+            --Search for if enemy has significant AirAA within 200 of support point, and if so if the mod distance is <= ours, in which case rework the support and rally points (to avoid us deciding not to attack the AirAA threat, and instead suiciding air units on their way to the rally point)
+            if true and GetGameTimeSeconds() >= 36*60 then
+                local tSupportRallyLZData, tSupportRallyLZTeamData = M28Map.GetLandOrWaterZoneData(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], true, iTeam)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering moving support point back again if nearby enemy airaa threat, tSupportRallyLZTeamData[M28Map.refiModDistancePercent]='..tSupportRallyLZTeamData[M28Map.refiModDistancePercent]) end
+                if M28Utilities.IsTableEmpty(tSupportRallyLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false and tSupportRallyLZTeamData[M28Map.refiModDistancePercent] >= 0.15 then
+                    local iAirAAThreshold = math.max(150, (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] or 0) * 0.2)
+                    local iLowestAirAAModDist = 100
+                    for iEntry, tSubtable in tSupportRallyLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                        if tSubtable[M28Map.subrefiDistance] >= 200 then break end
+                        local tCurLZOrWZTeamData
+                        if tSubtable[M28Map.subrefbIsWaterZone] then
+                            tCurLZOrWZTeamData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefWZTeamData][iTeam]
+                        else
+                            tCurLZOrWZTeamData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefLZTeamData][iTeam]
+                        end
+                        if (tCurLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) > iAirAAThreshold then
+                            iLowestAirAAModDist = math.min(iLowestAirAAModDist, tCurLZOrWZTeamData[M28Map.refiModDistancePercent])
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Searched nearby zones iwthin a distance of 200, iLowestAirAAModDist='..iLowestAirAAModDist..'; tSupportRallyLZTeamData[M28Map.refiModDistancePercent]='..tSupportRallyLZTeamData[M28Map.refiModDistancePercent]) end
+                    if iLowestAirAAModDist <= tSupportRallyLZTeamData[M28Map.refiModDistancePercent] then
+                        local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], true, iTeam)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Rally point mod dist%='..tRallyLZTeamData[M28Map.refiModDistancePercent]) end
+                        if tRallyLZTeamData[M28Map.refiModDistancePercent] < tSupportRallyLZTeamData[M28Map.refiModDistancePercent] then
+                            --Make teh support point the rally point instead
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will make the support point the rally point') end
+                            M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][3]}
+                        end
+                    end
+                end
+            end
+
             --Final adjustment - if have any recent nuke launch locations that are near either the rally point or support point,  then move away from here
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
                 local iTimeThreshold = math.max(10, 60 * M28Map.iMapSize / 1000) + 10
@@ -2625,7 +2657,11 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     if iReassessCount >= 5 then break end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..'; Will draw air sub rally point') M28Utilities.DrawLocation(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], nil, 10, 10) end
+            if bDebugMessages == true then
+                LOG(sFunctionRef..'; Will draw air sub rally point in blue at '..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) M28Utilities.DrawLocation(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], nil, 10, 10)
+                LOG(sFunctionRef..': SupportPoint='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; Will draw in gold') M28Utilities.DrawLocation(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], 4, 10, 10)
+
+            end
         else
             M28Utilities.ErrorHandler('No air support point for air subteam '..iAirSubteam)
         end
