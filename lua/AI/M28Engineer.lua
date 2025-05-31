@@ -19976,13 +19976,17 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     end
 
                     if iT2ArtiThreat >= math.max(11000, math.min(iLongRangeFurtherAwayThreat * 1.25, 30000)) then iThreatWanted = iThreatWanted * 0.8 end
-                    if tLZTeamData[M28Map.refbBaseInSafePosition] then iThreatWanted = iThreatWanted * 0.75 end
-                    iThreatWanted = iThreatWanted - iT2ArtiThreat
+                    if tLZTeamData[M28Map.refbBaseInSafePosition] then iThreatWanted = iThreatWanted * 0.75
+                    elseif iT2ArtiThreat >= 6000 and iThreatWanted >= 6000 and GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 0) >= 40 then
+                        iThreatWanted = 6000 + (iThreatWanted - 6000)*0.5
+                        if bDebugMessages == true then LOG(sFunctionRef..': Not fired t2 arti recently so reducing threat further') end
+                    end
+                    local iNetThreatWanted = iThreatWanted - iT2ArtiThreat
                     iBPWanted = 240 --default
                     local bAreBuildingShieldOrTML = false
                     local iTMLBPWanted = 0
                     if tLZTeamData[M28Map.refbGetTMLBattery] and (not(M28Team.tTeamData[iTeam][M28Team.refbTMLBatteryMissedLots]) or iT2ArtiCount >= 6 or (iT2ArtiCount >= 3 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTMLBatteryUnits]) or table.getn(tLZTeamData[M28Map.reftoTMLBatteryUnits]) <= iT2ArtiCount))) then iTMLBPWanted = GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, bHaveLowMass) end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; Threat rating of all nearby enemy T2 arti='..M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], true)..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; iTMLBPWanted='..(iTMLBPWanted or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted..'; iNetThreatWanted='..iNetThreatWanted..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; Threat rating of all nearby enemy T2 arti='..M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits], true)..'; iLongRangeFurtherAwayThreat='..iLongRangeFurtherAwayThreat..'; iTMLBPWanted='..(iTMLBPWanted or 'nil')) end
                     if iT2ArtiThreat > 0 and tLZTeamData[M28Map.refiRadarCoverage] <= math.min(60, M28UnitInfo.iT1RadarSize - 20) then
                         if tLZTeamData[M28Map.subrefLZbCoreBase] then
                             HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
@@ -19995,7 +19999,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         end
                         if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
                         local oArtiToShield = M28Utilities.GetNearestUnit(toT2ArtiWantingShields, tLZData[M28Map.subrefMidpoint])
-                        if not(oArtiToShield) and iThreatWanted > 0 then
+                        if not(oArtiToShield) and iNetThreatWanted > 0 then
                             --Redundancy
                             M28Utilities.ErrorHandler('Have arti for P'..iPlateau..'Z'..iLandZone..' that want shielding but werent able to get one to shield - shoudlnt be possible')
                             --HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted, tLZData[M28Map.subrefMidpoint])
@@ -20027,9 +20031,9 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         end
                         if iT2ArtiCount > 0 then iBPWanted = 0 end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we already ahve enough T2 arti threat, iThreatWanted='..iThreatWanted..'; iT2ArtiThreat='..iT2ArtiThreat..'; HaveLowMass='..tostring(bHaveLowMass)) end
-                    if iBPWanted > 0 and (iThreatWanted > iT2ArtiThreat or (iT2ArtiThreat <= 3000 and not(bHaveLowMass) and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (iT2ArtiThreat <= 1500 or iThreatWanted >= 800))) and (iThreatWanted >= 500 or (iThreatWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
-                        if iThreatWanted <= 4000 and iT2ArtiThreat >= 1000 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we already ahve enough T2 arti threat, iThreatWanted='..iThreatWanted..'; iT2ArtiThreat='..iT2ArtiThreat..'; iNetThreatWanted='..iNetThreatWanted..'; HaveLowMass='..tostring(bHaveLowMass)) end
+                    if iBPWanted > 0 and (iNetThreatWanted > 0 or (iT2ArtiThreat <= 3000 and not(bHaveLowMass) and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (iT2ArtiThreat <= 1500 or iNetThreatWanted >= 800))) and (iNetThreatWanted >= 500 or (iNetThreatWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
+                        if iNetThreatWanted <= 4000 and iT2ArtiThreat >= 1000 then
                             iBPWanted = math.min(120, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])
                             if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
                         else
