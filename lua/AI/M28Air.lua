@@ -1512,7 +1512,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
         --Dealing with a land zone
         local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
         local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-        if bDebugMessages == true then LOG(sFunctionRef..': About to check if there is AA in land zone, iOptionalGroundThreatThreshold='..(iOptionalGroundThreatThreshold or 'nil')..'; iOptionalAirAAThreatThreshold='..(iOptionalAirAAThreatThreshold or 'nil')..'; tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; tLZTeamData[M28Map.refiEnemyAirAAThreat]='..(tLZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to check if there is AA in land zone, iOptionalGroundThreatThreshold='..(iOptionalGroundThreatThreshold or 'nil')..'; iOptionalAirAAThreatThreshold='..(iOptionalAirAAThreatThreshold or 'nil')..'; tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; tLZTeamData[M28Map.refiEnemyAirAAThreat]='..(tLZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil')..'; tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]='..(tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 'nil')) end
         if IsThereAAInZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange) then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
@@ -11145,9 +11145,21 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         end
                     end
                     if bReturnToRally then
-                        if bDebugMessages == true then LOG(sFunctionRef..': will return to air sub rally point') end
-                        local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
-                        M28Orders.IssueTrackedMove(oBomber, tMovePoint, 10, false, 'ExBIdle', false)
+                        --Check micro not active
+                        if not(oBomber[M28UnitInfo.refbSpecialMicroActive]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': will return to air sub rally point') end
+                            --Consider microing to turn
+                            local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+                            local iAngleToRally = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tMovePoint)
+                            local iFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
+                            if M28Utilities.GetAngleDifference(iAngleToRally, iFacingAngle) > 45 then
+                                ForkThread(M28Micro.TurnAirUnitAndMoveToTarget,oBomber, tMovePoint, 15, nil)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Doing micro turn to rally') end
+                            else
+                                M28Orders.IssueTrackedMove(oBomber, tMovePoint, 10, false, 'ExBIdle', false)
+                            end
+                        elseif bDebugMessages == true then LOG(sFunctionRef..': Want to go to rally but micro active so wont give new order')
+                        end
                     end
                 else
                     --Have targets for bomber, send orders for targeting - if enemy has dangerous AA then target the closest such AA, otherwise pick the target that will deal the most damage
