@@ -7940,7 +7940,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             if (oUnit[M28UnitInfo.refiUnitMassCost] or GetUnitMassCost(oUnit)) >= 2000 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestFatboyOrACUInIslandToSuicideInto:GetPosition()) <= 5 then
                                                 M28Orders.IssueTrackedAggressiveMove(oUnit, oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), 6, false, 'SuicFBA'..iLandZone)
                                             else
-                                                M28Orders.IssueTrackedMove(oUnit, oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), 6, false, 'SuicFBM'..iLandZone)
+                                                --Special micro to close in the gap
+                                                if oUnit[M28UnitInfo.refiUnitMassCost] >= 10000 and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oClosestFatboyOrACUInIslandToSuicideInto.UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestFatboyOrACUInIslandToSuicideInto:GetPosition()) > math.max(50, oUnit[M28UnitInfo.refiDFRange] or 5) and NavUtils.GetLabel(M28Map.refPathingTypeLand, oClosestFatboyOrACUInIslandToSuicideInto:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will run special micro to suicide experimental into fatboy unless micro is already active') end
+                                                    if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+                                                        ForkThread(M28Micro.SuicideExperimentalIntoFatboy, oUnit, oClosestFatboyOrACUInIslandToSuicideInto, iTeam, iPlateau)
+                                                    end
+                                                else
+                                                    M28Orders.IssueTrackedMove(oUnit, oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), 6, false, 'SuicFBM'..iLandZone)
+                                                end
                                             end
                                         elseif bMoveBlockedNotAttackMove and (oUnit[M28UnitInfo.refbLastShotBlocked] or M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbScoutCombatOverride])) then
                                             M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'BAWE'..iLandZone)

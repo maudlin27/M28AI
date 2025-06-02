@@ -2544,3 +2544,67 @@ function AssignACUAttackGridSlot(tUnits, oACU)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function SuicideExperimentalIntoFatboy(oUnit, oFatboy, iTeam, iPlateau)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SuicideExperimentalIntoFatboy'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iDistanceFromFatboyWanted = math.max(oUnit[M28UnitInfo.refiDFRange], 40)
+    local iCurFacingAngle
+    local iAngleToFatboy
+    local iCurAngleAdjust
+    local iAngleAdjustFactor = 30 --amount we will move by
+    local iReadjustInterval = 2.2 --better than 1.5 and 3.0 in a simple ythotha vs fatboy sandbox test
+    local iDistToAbort = 10
+    local iDistanceToMove = iDistanceFromFatboyWanted
+    local iPlateauWanted = iPlateau
+    local iCurDist
+    if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+        EnableUnitMicroUntilManuallyTurnOff(oUnit, false)
+
+        while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oFatboy) and not(M28UnitInfo.IsUnitUnderwater(oFatboy)) do
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oFatboy:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..iCurDist) end
+            if iCurDist > iDistanceFromFatboyWanted then
+                iCurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oUnit)
+                iAngleToFatboy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oFatboy:GetPosition())
+                if M28Utilities.GetAngleDifference(iCurFacingAngle + iAngleAdjustFactor, iAngleToFatboy) <= M28Utilities.GetAngleDifference(iCurFacingAngle - iAngleAdjustFactor, iAngleToFatboy) then
+                    iCurAngleAdjust = iAngleAdjustFactor
+                else
+                    iCurAngleAdjust = -iAngleAdjustFactor
+                end
+                local tPotentialMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurFacingAngle + iCurAngleAdjust, iDistanceToMove, true, true, false)
+                if not(NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) == iPlateauWanted) then
+                    tPotentialMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurFacingAngle + iCurAngleAdjust * 0.5, iDistanceToMove, true, true, false)
+                    if not(NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialMoveLocation) == iPlateauWanted) then
+                        --Revert to normal logic
+                        M28Orders.IssueTrackedMove(oUnit, oFatboy:GetPosition(), 5, false, 'SuicFBAb', true)
+                        break
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurFacingAngle='..iCurFacingAngle..'; iAngleToFatboy='..iAngleToFatboy..'; iCurAngleAdjust='..iCurAngleAdjust..'; Angle to potential move location='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tPotentialMoveLocation)..'; Time='..GetGameTimeSeconds()) end
+                M28Orders.IssueTrackedMove(oUnit, tPotentialMoveLocation, 5, false, 'SuicFBM', true)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(iReadjustInterval)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            else
+                break
+                --Tried with the below but it actually performed slightly worse than just having the default logic apply!
+                --[[if iCurDist <= iDistToAbort then
+                    --Are presumably in range so will revert to normal logic
+                    break
+                else
+                    --Move directly to the fatboy
+                    M28Orders.IssueTrackedMove(oUnit, oFatboy:GetPosition(), 5, false, 'SuicFBNr', true)
+                    WaitSeconds(10)
+                end--]]
+            end
+
+        end
+        if M28UnitInfo.IsUnitValid(oUnit) then
+            oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
