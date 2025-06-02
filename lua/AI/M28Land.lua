@@ -8167,7 +8167,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     --Wnat to retreat as we have nearby t2 arti that could support us, so only engage if are almost in range
                                     iThresholdDistUntilInRangeToAttackExp = 10 --i.e. attack if withi n10 of being in range
                                 else
-                                    iThresholdDistUntilInRangeToAttackExp =  iBestEnemyExpRange + 15
+                                    --Pre-v235 this was  iThresholdDistUntilInRangeToAttackExp =  iBestEnemyExpRange + 15, presumably to stop experimentals idling while taking fatboy fire; however it'd also result in them suiciding into enemy fatboy, so have changed in v235 to below, may need to adjust further though
+                                    if tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] <= 20 then
+                                        iThresholdDistUntilInRangeToAttackExp = math.min(iBestEnemyExpRange + 20, 50)
+                                    else
+                                        iThresholdDistUntilInRangeToAttackExp = math.min(iBestEnemyExpRange + 15, 40)
+                                    end
                                 end
                             end
                         end
@@ -8231,7 +8236,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         if bDebugMessages == true then LOG(sFunctionRef..': Experimental - attack nearest ACU') end
                                         GetUnitToAttackNearestACU(oUnit)
                                         --CloseToEnemyUnit(tStartPosition,       tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
-                                    elseif bConsiderAttackingExperimental and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oClosestEnemyExpToBase.UnitId))) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestEnemyExpToBase:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange] <= iThresholdDistUntilInRangeToAttackExp and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyExperimentals, 14, iTeam, true,                    nil,                    oUnit,                              oUnit) then
+                                    elseif bConsiderAttackingExperimental and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oClosestEnemyExpToBase.UnitId))) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestEnemyExpToBase:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange] <= iThresholdDistUntilInRangeToAttackExp and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyExperimentals, 14, iTeam, true,                    nil,                    oUnit,                              oUnit) and (not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestEnemyExpToBase:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange] <= 10 or (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] <= 10)) then
                                         --move to nearest enemy experimental if we arent in range of it yet but a friendly unit is, and we are an experimental level unit or it is a fatboy
                                         local bMoveTowardsExperimental = false
                                         --Want to move instead of attackmove if we are an experimental (or up against a fatboy) and aren't already in range (by a reasonable margin if against a fatboy)
@@ -8734,7 +8739,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         for iCurUnit = table.getn(tAvailableCombatUnits), 1, -1 do
                             if tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiUnitMassCost] <= iMaxThreatToAssign or ((tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiDFRange] or 0) > 0 and (EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.EXPERIMENTAL, tAvailableCombatUnits[iCurUnit].UnitId) and M28UnitInfo.GetUnitLifetimeCount(tAvailableCombatUnits[iCurUnit]) > 3)) then
                                 iCurAssignedThreat = iCurAssignedThreat + tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiUnitMassCost]
-                                M28Orders.IssueTrackedMove(tAvailableCombatUnits[iCurUnit], oEnemyToFocusOn:GetPosition(), 5, false, 'NegMZAC'..iLandZone, false)
+                                --Issue where ythotha stuck not firing at mex, dist away was 4, so do a dist of 8 to be safe
+                                if bDebugMessages == true then LOG(sFunctionRef..': dist to oEnemyToFocusOn='..M28Utilities.GetDistanceBetweenPositions(tAvailableCombatUnits[iCurUnit]:GetPosition(),oEnemyToFocusOn:GetPosition())) end
+                                if M28Utilities.GetDistanceBetweenPositions(tAvailableCombatUnits[iCurUnit]:GetPosition(),oEnemyToFocusOn:GetPosition()) <= 8 and (not(tAvailableCombatUnits[iCurUnit][M28UnitInfo.refbLastShotBlocked]) or GetGameTimeSeconds() - (tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiLastWeaponEvent] or 0) > math.max(2, (tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiTimeBetweenDFShots] or 2))) then
+                                    M28Orders.IssueTrackedAggressiveMove(tAvailableCombatUnits[iCurUnit], oEnemyToFocusOn:GetPosition(), 5, false, 'NegMZAM'..iLandZone, false)
+                                else
+                                    M28Orders.IssueTrackedMove(tAvailableCombatUnits[iCurUnit], oEnemyToFocusOn:GetPosition(), 5, false, 'NegMZAC'..iLandZone, false)
+                                end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Assigned available combat unit '..tAvailableCombatUnits[iCurUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableCombatUnits[iCurUnit])..' to deal with threats in this and adjacent zones, iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign..'; oEnemyToFocusOn='..oEnemyToFocusOn.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToFocusOn)) end
                                 table.remove(tAvailableCombatUnits, iCurUnit)
                                 if iCurAssignedThreat >= iMaxThreatToAssign then break end

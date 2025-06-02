@@ -1455,7 +1455,7 @@ function IsThereNearbyAirAA(iTeam, iPlateau, iLandOrWaterZone, bIsWaterZone, iSe
     local sFunctionRef = 'IsThereNearbyAirAA'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 25.5*60 then bDebugMessages = true end
+
 
     local tStartLZOrWZData, tStartLZOrWZTeamData
     if bIsWaterZone then
@@ -3623,7 +3623,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 36*60+35 then bDebugMessages = true end
+
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
@@ -11102,9 +11102,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
 
                 if M28Utilities.IsTableEmpty(tEnemyGroundTargets) or not(bHaveTargetWhereShotIsntBlocked) then
                     --Check if want exp bomber to run to rally point if nearby enemy airAA (if give no targets for exp bomber then they will go to rally point or air staging
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if too great an enemy threat in zone IsThereAANearLandOrWaterZone='..tostring(IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA) or false)..'; IsThereNearbyAirAA='..tostring(IsThereNearbyAirAA(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), 200, iMaxEnemyAirAA, oBomber:GetPosition()) or false)..'; Have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; iMaxEnemyAirAA='..iMaxEnemyAirAA) end
-                    bDebugMessages = false
                     if (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and not(IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA))) or (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and not(IsThereNearbyAirAA(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), 200, iMaxEnemyAirAA, oBomber:GetPosition()))) then
                         --If there is enemy groundAA in the zone we are currently in and we are facing the rally point and are more than 20 from it, then keep moving to the rally point
                         if (tBomberLandOrWaterZoneTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) + (tBomberLandOrWaterZoneTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) < 1000 or M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oBomber), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(),M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) >= 25 then
