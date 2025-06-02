@@ -4361,13 +4361,20 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         end
         if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 2000 and iThresholdToRunFromMobileEnemies >= 35 and ((bIsWaterZone and tLZTeamData[M28Map.subrefWZThreatAlliedSurface] >= 300) or (not(bIsWaterZone) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= 100)) then iThresholdToRunFromMobileEnemies = 26 end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': setting iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; Our combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Our mobile DF='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Signif mass reclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': setting iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; Our combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Our mobile DF='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Signif mass reclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]..'; Is tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]))) end
 
     local iEnemyUnitSearchRange = iThresholdToRunFromMobileEnemies + math.max(10, (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0))
     local iActualEnemySearchRange
     local iActualEnemyCategorySearch
     local iEasyEnemyCategorySearch = M28UnitInfo.refCategoryStructure
     local iNormalEnemyCategorySearch = M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine
+    local bCheckLRThreats = false
+    if tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]) == false and iEnemyUnitSearchRange < 100 then bCheckLRThreats = true end
+    local bConsiderRunningFromEnemies = true
+    if tLZTeamData[M28Map.subrefLZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
+        --Last base so make a last stand
+        bConsiderRunningFromEnemies = false
+    end
 
     local bCheckForReclaim
     if (tLZData[M28Map.subrefTotalSignificantMassReclaim] or 0) >= 20 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 8 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.1 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35)) then
@@ -4398,7 +4405,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         end
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyUnitSearchRange='..iEnemyUnitSearchRange..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; Time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyUnitSearchRange='..iEnemyUnitSearchRange..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; bCheckLRThreats='..tostring(bCheckLRThreats)..'; bConsiderRunningFromEnemies='..tostring(bConsiderRunningFromEnemies)..'; Time='..GetGameTimeSeconds()) end
         local bIgnoreIfEnemyUnderwater = false
         local bConsiderReclaimableEnemiesInBuildRangeOnly
         for iEngineer, oEngineer in tEngineers do
@@ -4495,6 +4502,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                 end
                                             end
                                         end
+
                                         --for iSubtable, tSubtable in tNearbyEnemiesByZone do
                                         --if M28Utilities.IsTableEmpty(tSubtable) == false then
                                         --for iUnit, oUnit in tSubtable do
@@ -4559,7 +4567,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                             end
                                         end
                                         local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; oNearestReclaimableDangerousEnemy='..(oNearestReclaimableDangerousEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableDangerousEnemy) or 'nil')..'; iEngiBuildDistance='..iEngiBuildDistance..'; iNearestReclaimableDangerousEnemy='..iNearestReclaimableDangerousEnemy) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; oNearestReclaimableDangerousEnemy='..(oNearestReclaimableDangerousEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableDangerousEnemy) or 'nil')..'; oNearestReclaimableEnemy='..(oNearestReclaimableEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy) or 'nil')..'; iEngiBuildDistance='..iEngiBuildDistance..'; iNearestReclaimableDangerousEnemy='..iNearestReclaimableDangerousEnemy) end
                                         if oNearestReclaimableEnemy and iNearestReclaimableEnemy < 20 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= iEngiBuildDistance) or iNearestReclaimableEnemy <= (iEngiBuildDistance + 7) or (iNearestReclaimableEnemy <= iEngiBuildDistance + 14 and (tLZTeamData[M28Map.subrefLZbCoreBase] or tLZTeamData[M28Map.subrefLZCoreExpansion]))) then
                                             --Reclaim enemy
                                             --Switch the target to the nearest dangerous enemy if it is in our build range
@@ -4641,16 +4649,33 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                             end
                                         else
                                             --Enemy not close enough to reclaim, do we want to run?
-                                            if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                                            if bConsiderRunningFromEnemies then
                                                 --Above will have done getunitsaroundpoint; if dont have enemies that want to run from and we lack good intel in this zone, then do a more detailed check based on memory
-                                                if bCheckForEnemies and iClosestDistUntilInRangeOfMobileEnemy > iThresholdToRunFromMobileEnemies and (tLZTeamData[M28Map.refiOmniCoverage] or 0) < 50 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Are enemy DF units close to this engineer='..tostring(M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iThresholdToRunFromMobileEnemies, iTeam, true))) end
-                                                    if M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iThresholdToRunFromMobileEnemies, iTeam, true) then
-                                                        iClosestDistUntilInRangeOfMobileEnemy = iThresholdToRunFromMobileEnemies - 0.1
+                                                if bCheckForEnemies and iClosestDistUntilInRangeOfMobileEnemy > iThresholdToRunFromMobileEnemies and (tLZTeamData[M28Map.refiOmniCoverage] or 0) < 50 then
+                                                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Are enemy DF units close to this engineer='..tostring(M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iThresholdToRunFromMobileEnemies, iTeam, true))) end
+                                                        if M28Conditions.CloseToEnemyUnit(oEngineer:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iThresholdToRunFromMobileEnemies, iTeam, true) then
+                                                            iClosestDistUntilInRangeOfMobileEnemy = iThresholdToRunFromMobileEnemies - 0.1
+                                                        end
+                                                    end
+                                                    if bCheckLRThreats and iClosestDistUntilInRangeOfMobileEnemy > iThresholdToRunFromMobileEnemies then
+                                                        --Also consider running from LR threats
+                                                        local iCurDistUntilInRangeOfLREnemy
+                                                        for iUnit, oUnit in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] do
+                                                            if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                                                                iCurDistUntilInRangeOfLREnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition()) - oUnit[M28UnitInfo.refiDFRange]
+                                                                if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
+                                                                    if iCurDistUntilInRangeOfLREnemy < iClosestDistUntilInRangeOfMobileEnemy then iClosestDistUntilInRangeOfMobileEnemy = iCurDistUntilInRangeOfLREnemy end
+                                                                else
+                                                                    if iCurDistUntilInRangeOfLREnemy < iClosestDistUntilInRangeOfStaticEnemy then iClosestDistUntilInRangeOfStaticEnemy = iCurDistUntilInRangeOfLREnemy end
+                                                                end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering LR unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in range of us, iCurDistUntilInRangeOfLREnemy='..iCurDistUntilInRangeOfLREnemy) end
+                                                            end
+                                                        end
                                                     end
                                                 end
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Not close enough to reclaim enemy, and not a core LZ, iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; iClosestDistUntilInRangeOfMobileEnemy='..iClosestDistUntilInRangeOfMobileEnemy..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies) end
-                                                if iClosestDistUntilInRangeOfStaticEnemy < 8 or iClosestDistUntilInRangeOfMobileEnemy <= iThresholdToRunFromMobileEnemies then
+                                                if (iClosestDistUntilInRangeOfStaticEnemy < 8 or iClosestDistUntilInRangeOfMobileEnemy <= iThresholdToRunFromMobileEnemies) and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or iClosestDistUntilInRangeOfStaticEnemy < 4 or iClosestDistUntilInRangeOfMobileEnemy < 8) then
                                                     --Dont run if we are building a land factory and have a friendly combat threat in the zone or factory is near-complete
                                                     if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 40 and (oEngineer:IsUnitState('Building') or oEngineer:IsUnitState('Reclaiming')) and (oEngineer:GetWorkProgress() >= 0.75 or (oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryPD, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]))) then
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Want to risk engineer sticking around to try and complete its building') end

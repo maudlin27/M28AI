@@ -2648,7 +2648,7 @@ function DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iFactoryBeingUpgradedC
         local iTotalUpgrading
         local tiEntriesToRemove
         for iUpgrading, oUpgrading in tTeamData[aiBrain.M28Team][subreftTeamUpgradingHQs] do
-            if true and GetGameTimeSeconds() >= 38*60 and not(M28UnitInfo.IsUnitValid(oUpgrading)) then
+            if not(M28UnitInfo.IsUnitValid(oUpgrading)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have invalid upgrading unit='..(oUpgrading.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUpgrading) or 'nil')) end
                 M28Utilities.ErrorHandler('Invalid oUpgrading unit')
             end
