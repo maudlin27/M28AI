@@ -1449,6 +1449,114 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function IsThereNearbyAirAA(iTeam, iPlateau, iLandOrWaterZone, bIsWaterZone, iSearchDistance, iAirAAThreshold, tSearchPoint)
+    --Intended for ahwassa (although could also work for gunships and bombers if wanted) - longer range airaa check
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsThereNearbyAirAA'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if GetGameTimeSeconds() >= 25.5*60 then bDebugMessages = true end
+
+    local tStartLZOrWZData, tStartLZOrWZTeamData
+    if bIsWaterZone then
+        tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+        tStartLZOrWZTeamData = tStartLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+    else
+        tStartLZOrWZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+        tStartLZOrWZTeamData = tStartLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+    end
+    local iCumulativeAirAAThreat = (tStartLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
+    local bHaveAirAAWithinSearchDistance
+    if iCumulativeAirAAThreat > 0 then
+        if iCumulativeAirAAThreat > iAirAAThreshold then
+            if bDebugMessages == true then LOG(sFunctionRef..': Large airaa threat in cur zone so will return true') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        else
+            bHaveAirAAWithinSearchDistance = true
+        end
+    end
+    local iSimpleZoneSearchRadius = iSearchDistance + 60
+    RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData)
+    if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+        local iOtherPlateauOrZero, iOtherLZOrWZ, tClosestZoneAirUnits, tOtherNearbyAirUnits
+        if bDebugMessages == true then LOG(sFunctionRef..': About to search other zones from StartPlateau='..iPlateau..'Z'..iLandOrWaterZone..'; iAirAAThreshold='..iAirAAThreshold) end
+        for iEntry, tPathingDetails in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+            if tPathingDetails[M28Map.subrefiDistance] > iSimpleZoneSearchRadius then
+                break
+            end
+            iOtherPlateauOrZero = tPathingDetails[M28Map.subrefiPlateauOrPond]
+            iOtherLZOrWZ = tPathingDetails[M28Map.subrefiLandOrWaterZoneRef]
+            if tPathingDetails[M28Map.subrefbIsWaterZone] then iOtherPlateauOrZero = 0 end
+            if iOtherLZOrWZ then
+                local tOtherLZOrWZData
+                local tOtherLZOrWZTeamData
+                if iOtherPlateauOrZero == 0 then
+                    tOtherLZOrWZData = M28Map.tPondDetails[tPathingDetails[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][iOtherLZOrWZ]
+                    tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                else
+                    tOtherLZOrWZData = M28Map.tAllPlateaus[iOtherPlateauOrZero][M28Map.subrefPlateauLandZones][iOtherLZOrWZ]
+                    tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                end
+                --Check actual midpoint is close enough to our unit
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iOtherPlateauOrZero..'Z'..iOtherLZOrWZ..'; Enemy AirAAThreat='..(tOtherLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0)..'; iCumulativeAirAAThreat before this='..iCumulativeAirAAThreat..'; Dist between zones='..tPathingDetails[M28Map.subrefiDistance]) end
+                if (tOtherLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) > 0 then
+                    if not(tClosestZoneAirUnits) or iCumulativeAirAAThreat <= 300 then
+                        if not(tClosestZoneAirUnits) then
+                            tClosestZoneAirUnits = tOtherLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]
+                        else
+                            if not(tOtherNearbyAirUnits) then tOtherNearbyAirUnits = {} end
+                            for iUnit, oUnit in tOtherLZOrWZTeamData[M28Map.reftLZEnemyAirUnits] do
+                                table.insert(tOtherNearbyAirUnits, oUnit)
+                            end
+                        end
+                    end
+                    iCumulativeAirAAThreat = iCumulativeAirAAThreat + tOtherLZOrWZTeamData[M28Map.refiEnemyAirAAThreat]
+                    if iCumulativeAirAAThreat > iAirAAThreshold then
+                        break
+                    end
+                end
+            end
+        end
+        if iCumulativeAirAAThreat > iAirAAThreshold then
+            if not(bHaveAirAAWithinSearchDistance) and M28Utilities.IsTableEmpty(tClosestZoneAirUnits) == false then
+                for iUnit, oUnit in tClosestZoneAirUnits do
+                    if not(oUnit.Dead) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering how close enemy oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is to tSearchPoint, dist='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tSearchPoint)) end
+                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tSearchPoint) <= iSearchDistance then
+                            bHaveAirAAWithinSearchDistance = true
+                            break
+                        end
+                    end
+                end
+                if not(bHaveAirAAWithinSearchDistance) and M28Utilities.IsTableEmpty(tOtherNearbyAirUnits) == false then
+                    for iUnit, oUnit in tOtherNearbyAirUnits do
+                        if not(oUnit.Dead) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering how close other enemy oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is to tSearchPoint, dist='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tSearchPoint)) end
+                            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tSearchPoint) <= iSearchDistance then
+                                bHaveAirAAWithinSearchDistance = true
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bHaveAirAAWithinSearchDistance='..tostring(bHaveAirAAWithinSearchDistance)) end
+            if bHaveAirAAWithinSearchDistance then
+                if bDebugMessages == true then LOG(sFunctionRef..': Returning true due to enemy air threat that is sufficiently close') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            end
+        end
+    else
+        --Dont have pathing so revert to the simpler adjacent zone check
+        if bDebugMessages == true then LOG(sFunctionRef..': No valid pathing so defaulting to adjacent zone check') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWaterZone, nil, iAirAAThreshold, nil, tSearchPoint)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWaterZone, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, bIncludeEnemyGroundAAInAirAAThreat, tOptionalDetailedGroundAAPositionCheck, iIncludeForDetailedIfWithinThisDistOfBeingInRange)
     --returns true if enemy has AA threat in current zone or adjacent land or water zone
     --e.g. used to determine air rally points and support locations, doesnt factor in the path
@@ -10839,7 +10947,11 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         end
                     end
                 end
-                iMaxEnemyAirAA = iMaxEnemyAirAA + (tBomberLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tBomberLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+                    iMaxEnemyAirAA = iMaxEnemyAirAA + (tBomberLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tBomberLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)
+                else
+                    iMaxEnemyAirAA = iMaxEnemyAirAA + ((tBomberLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tBomberLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)) * 0.5
+                end
                 if iTotalExpBombers > 1 then
                     iMaxEnemyAirAA = iMaxEnemyAirAA * (1 + (iTotalExpBombers-1) * 0.5)
                 end
@@ -10990,8 +11102,10 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
 
                 if M28Utilities.IsTableEmpty(tEnemyGroundTargets) or not(bHaveTargetWhereShotIsntBlocked) then
                     --Check if want exp bomber to run to rally point if nearby enemy airAA (if give no targets for exp bomber then they will go to rally point or air staging
-                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if too great an enemy threat in zone IsThereAANearLandOrWaterZone='..tostring(IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA))) end
-                    if not(IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA)) then
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if too great an enemy threat in zone IsThereAANearLandOrWaterZone='..tostring(IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA) or false)..'; IsThereNearbyAirAA='..tostring(IsThereNearbyAirAA(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), 200, iMaxEnemyAirAA, oBomber:GetPosition()) or false)..'; Have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; iMaxEnemyAirAA='..iMaxEnemyAirAA) end
+                    bDebugMessages = false
+                    if (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and not(IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA))) or (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and not(IsThereNearbyAirAA(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), 200, iMaxEnemyAirAA, oBomber:GetPosition()))) then
                         --If there is enemy groundAA in the zone we are currently in and we are facing the rally point and are more than 20 from it, then keep moving to the rally point
                         if (tBomberLandOrWaterZoneTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) + (tBomberLandOrWaterZoneTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) < 1000 or M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oBomber), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(),M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) >= 25 then
                             --no nearby enemy air threat so can just evaluate each land zone or water zone on its own merits - cycle through each in order of distance, but first consider adjacent locations
