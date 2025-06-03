@@ -8311,13 +8311,39 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                     end
                                                 end
                                                 if oClosestMex then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will suicide unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' into oClosestMex='..oClosestMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestMex)) end
-                                                    bUnitIsSuicidingIntoMex = true
-                                                    if iClosestMex <= oUnit[M28UnitInfo.refiCombatRange] + 2 then
-                                                        M28Orders.IssueTrackedAttack(oUnit, oClosestMex, false, 'SuicMxAt')
+                                                    --Have a mex that is close; if the closest distance is almost in our range then attack it; but dont attack if we arent in range of enemy units yet and narest enemy unit is further from our rally than we are
+                                                    if iClosestMex <= (oUnit[M28UnitInfo.refiCombatRange] + 3) then
+                                                        bUnitIsSuicidingIntoMex = true
                                                     else
-                                                        if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                                            M28Orders.IssueTrackedAttackMove(oUnit, oClosestMex:GetPosition(), 2, false, 'SuicMxAM')
+                                                        local bInRangeOfEnemy = M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 4, iTeam, true, nil, nil, oUnit)
+                                                        if not(bInRangeOfEnemy) then
+                                                            if not(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) then
+                                                                bUnitIsSuicidingIntoMex = true
+                                                            else
+                                                                --We arent in range of the enemy; but if we move to be in range of the mex will we be in range of them?
+                                                                local iDistToClosestEnemyLessRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) - (oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 0)
+                                                                if iDistToClosestEnemyLessRange > (iClosestMex - (oUnit[M28UnitInfo.refiCombatRange] or 0)) then
+                                                                    bUnitIsSuicidingIntoMex = true
+                                                                    --Is the enemy closer to our rally point? if so then also want to suicide
+                                                                elseif M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), tRallyPoint) < M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) then
+                                                                    bUnitIsSuicidingIntoMex = true
+                                                                end
+                                                            end
+                                                        else
+                                                            --We are in range of the enemy already; if enemy is closer to our rally point than us then still suicide
+                                                            if M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), tRallyPoint) < M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) then
+                                                                bUnitIsSuicidingIntoMex = true
+                                                            end
+                                                        end
+                                                    end
+                                                    if bUnitIsSuicidingIntoMex then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Will suicide unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' into oClosestMex='..oClosestMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestMex)) end
+                                                        if iClosestMex <= oUnit[M28UnitInfo.refiCombatRange] + 2 then
+                                                            M28Orders.IssueTrackedAttack(oUnit, oClosestMex, false, 'SuicMxAt')
+                                                        else
+                                                            if not(IgnoreOrderDueToStuckUnit(oUnit)) then
+                                                                M28Orders.IssueTrackedMove(oUnit, oClosestMex:GetPosition(), 2, false, 'SuicMxM')
+                                                            end
                                                         end
                                                     end
                                                 end
