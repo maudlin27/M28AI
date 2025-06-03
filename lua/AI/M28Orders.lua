@@ -115,6 +115,7 @@ function IssueTrackedClearCommands(oUnit)
                         --LOG('Just cleared unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from being recorded as assistin unit '..tLastOrder[subrefoOrderUnitTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLastOrder[subrefoOrderUnitTarget]))
                     end
                 end
+            elseif tLastOrder[subrefiOrderType] == refiOrderUpgrade and oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'xsb02022' then M28Utilities.ErrorHandler('Clearing upgrade order audit trail', true, true)
             end
         end
         oUnit[reftiLastOrders] = nil

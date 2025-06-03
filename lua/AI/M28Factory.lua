@@ -4723,6 +4723,26 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
         end
 
+        --Lack air control, are building an exp bomber or already have large gunship/bomber threat, and have enough E stored to justify building asf (as well as enough gross E)
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Do we have enough E stored to afford an asf? M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored]..'; Gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Have air control='..tostring(not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]))) end
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.4 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] >= 50000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 900 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+            local bLargeGunshipOrBomberThreat = false
+            if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 14000 then
+                bLargeGunshipOrBomberThreat = true
+            else
+                local bBuildingInThisZone, iMassInOtherZones = M28Engineer.GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, false, 300, M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, false, nil, aiBrain.M28AirSubteam)
+                if bBuildingInThisZone or iMassInOtherZones > 0 then
+                    bLargeGunshipOrBomberThreat = true
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': low power deciding whether to build asf due to lacking air control and wanting to support bombers/gunships/ahwassa, bLargeGunshipOrBomberThreat='..tostring(bLargeGunshipOrBomberThreat)) end
+            if bLargeGunshipOrBomberThreat then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try and get asf') end
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
+            end
+        end
+
         --Approaching enemy experimental - build gunships or bombers even if have low power, provided we have more than a base level
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 250 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
