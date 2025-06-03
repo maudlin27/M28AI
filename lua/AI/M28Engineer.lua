@@ -13913,22 +13913,34 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --High priority T2 radar if we have sniperbots or fatboy
     iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': SNiperbot t2 radar builder, tLZTeamData[M28Map.refiRadarCoverage] ='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; T2+T3 mexes='..tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
     if tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT1RadarSize and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] or 0) >= 3 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]  and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) then
         local bHaveAnySnipersOrFatboy = false
+        local iCurSniperBots = 0
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
             if oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFatboy) > 0 then
                 bHaveAnySnipersOrFatboy = true
                 break
-            elseif oBrain:GetCurrentUnits(M28UnitInfo.refCategorySniperBot) >= 3 then
-                bHaveAnySnipersOrFatboy = true
-                break
+            else
+                iCurSniperBots = iCurSniperBots + oBrain:GetCurrentUnits(M28UnitInfo.refCategorySniperBot)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; Cur sniperbots cumulative='..iCurSniperBots..'; M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]='..M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]) end
+                if iCurSniperBots >= 3 then
+                    bHaveAnySnipersOrFatboy = true
+                    break
+                elseif iCurSniperBots > 0 and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 500 then
+                    bHaveAnySnipersOrFatboy = true
+                    break
+                end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': bHaveAnySnipersOrFatboy='..tostring(bHaveAnySnipersOrFatboy)) end
         if bHaveAnySnipersOrFatboy then
+            if bDebugMessages == true then LOG(sFunctionRef..': Do we have T2 radar in zone already? Is table empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT2Radar, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) end
             if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT2Radar, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) then
                 iBPWanted = 15
                 if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 40 end
                 HaveActionToAssign(refActionBuildT2Radar, 2, iBPWanted)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try and build t2 radar') end
             end
         end
     end
