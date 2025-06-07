@@ -872,7 +872,7 @@ function RunFromEnemy(oUnitToRun, oEnemy, iTeam, iPlateau, iDistanceToRun)
     local bCurPositionValid = IsPositionValid(tPotentialRunPosition)
     local bNextPositionValid = IsPositionValid(tNextRunPosition)
     if bDebugMessages == true then LOG(sFunctionRef..': bCurPositionValid='..tostring(bCurPositionValid)..'; bNextPositionValid='..tostring(bNextPositionValid)) end
-    if not(bCurPositionValid) or (true and GetGameTimeSeconds() > 11*60 and not(bNextPositionValid)) then
+    if not(bCurPositionValid) or not(bNextPositionValid) then
         --Consider running slightly towards the nearest rally point
         if bDebugMessages == true then LOG(sFunctionRef..': Dont have a valid run position so will try and run to the rally point instead') end
         local iUnitPlateau, iUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnitToRun:GetPosition())
