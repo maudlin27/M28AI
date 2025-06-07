@@ -369,11 +369,11 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 elseif sBPIDToBuild == 'xsl0202' or sBPIDToBuild == 'wsl0202' then --SeraphimLightT2DF
                     if (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT2] and oFactory[refiTotalBuildCount] >= 10) or aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 or (oFactory[refiTotalBuildCount] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * (categories.xsl0202 + categories.wsl0202)) >= 20 then
                         if oFactory:CanBuild('brpt2btbot') then
-                            aiBrain[reftBlueprintPriorityOverride]['xsl0202'] = nil
+                            aiBrain[reftBlueprintPriorityOverride]['xsl0202'] = 1 --Az request
                             aiBrain[reftBlueprintPriorityOverride]['wsl0202'] = nil
                             aiBrain[reftBlueprintPriorityOverride]['brpt2btbot'] = 1
                             sBPIDToBuild = 'brpt2btbot'
-                            if bDebugMessages == true then LOG(sFunctionRef..': want to build iltha instead of Ilshavoh') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': want to build ilshie instead of onyzum') end
                         end
                     end
                 elseif sBPIDToBuild == 'url0303' or sBPIDToBuild == 'brmt3bt' then --CybranLightT3DF
