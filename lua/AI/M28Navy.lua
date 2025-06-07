@@ -3739,7 +3739,34 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                 if bDebugMessages == true then LOG(sFunctionRef..': Not in range of enemy yet (or enemy ahs no antinavy), and we outrange enemy; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Antinavy range='..oUnit[M28UnitInfo.refiAntiNavyRange]..'; oNearestEnemyNonHoverToFriendlyBase='..oNearestEnemyNonHoverToFriendlyBase.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase)..'; oNearestEnemyNonHoverToFriendlyBase antinavy range='..(oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; Distance to the nearest enemy to midpoint='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit:GetPosition())..'; Enemy unit actual position='..repru(oNearestEnemyNonHoverToFriendlyBase:GetPosition())..'; Enemy last recorded position='..repru(oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Our unit position='..repru(oUnit:GetPosition())..'; WZ midpoint position='..repru(tWZData[M28Map.subrefMidpoint])) end
                                 --Not in range yet, so attack move to the nearest enemy
                                 if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit[M28UnitInfo.refiAntiNavyRange] * 0.5, false, 'NSKAMve'..iWaterZone)
+                                    if oNearestEnemyNonHoverToFriendlyBase:GetFractionComplete() <= 0.75 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemyNonHoverToFriendlyBase.UnitId) and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                        --Look for engineers in zone
+                                        local tEnemyNonHoverEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer - categories.HOVER, tWZTeamData[M28Map.subrefTEnemyUnits])
+                                        local oNearbyEngineerToAttackInstead
+                                        local iClosestEngi = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyNonHoverToFriendlyBase:GetPosition(), oUnit:GetPosition()) + 15
+                                        local iCurDist
+                                        if M28Utilities.IsTableEmpty( tEnemyNonHoverEngineers) == false then
+                                            for iEngi, oEngi in tEnemyNonHoverEngineers do
+                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), oUnit:GetPosition())
+                                                if iCurDist < iClosestEngi then
+                                                    iClosestEngi = iCurDist
+                                                    oNearbyEngineerToAttackInstead = oEngi
+                                                end
+                                            end
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': oNearbyEngineerToAttackInstead='..(oNearbyEngineerToAttackInstead.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearbyEngineerToAttackInstead) or 'nil')..'; iClosestEngi (defaults to nearest enemy+15)='..iClosestEngi) end
+                                        if oNearbyEngineerToAttackInstead then
+                                            if iClosestEngi < oUnit[M28UnitInfo.refiAntiNavyRange] then
+                                                M28Orders.IssueTrackedAttack(oUnit, oNearbyEngineerToAttackInstead, false, 'NSKAEng'..iWaterZone, false)
+                                            else
+                                                M28Orders.IssueTrackedMove(oUnit, oNearbyEngineerToAttackInstead:GetPosition(), oUnit[M28UnitInfo.refiAntiNavyRange] * 0.5, false, 'NSKEMve'..iWaterZone)
+                                            end
+                                        else
+                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit[M28UnitInfo.refiAntiNavyRange] * 0.5, false, 'NSKAMve'..iWaterZone)
+                                        end
+                                    else
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyNonHoverToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oUnit[M28UnitInfo.refiAntiNavyRange] * 0.5, false, 'NSKAMve'..iWaterZone)
+                                    end
                                 end
                             else
                                 --Enemy has DF units and they are already in our range so retreat
@@ -4325,8 +4352,8 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering order for outranged combat unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bOnlyAttackWithOutrangedIfFiredRecently='..tostring(bOnlyAttackWithOutrangedIfFiredRecently)..'; oUnit[M28UnitInfo.refiLastWeaponEvent]='..(oUnit[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; bEnemyToFocusOnIsUnderwater='..tostring(bEnemyToFocusOnIsUnderwater)..'; Dist to nearest enemy to friendly base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())..'; Antinavy range='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
                             if bOnlyAttackWithOutrangedIfFiredRecently and oUnit[M28UnitInfo.refiLastWeaponEvent] and
-                                ((oUnit[M28UnitInfo.refiTimeBetweenDFShots] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] < oUnit[M28UnitInfo.refiTimeBetweenDFShots]) or
-                                (bEnemyToFocusOnIsUnderwater and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 and (M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) < oUnit[M28UnitInfo.refiAntiNavyRange] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] <= 6))) then
+                                    ((oUnit[M28UnitInfo.refiTimeBetweenDFShots] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] < oUnit[M28UnitInfo.refiTimeBetweenDFShots]) or
+                                            (bEnemyToFocusOnIsUnderwater and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 and (M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) < oUnit[M28UnitInfo.refiAntiNavyRange] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] <= 6))) then
 
                                 if bDebugMessages == true then LOG(sFunctionRef..': we have fired our weapon recently and enemy is in our range, so will retreat with SR unit despite generally wanting to attack with SR units') end
                                 KitingRetreatOfUnit(oUnit)
