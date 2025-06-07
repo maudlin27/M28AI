@@ -944,7 +944,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                             if iCurSkirmishersOfTech > 2 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemies are nearby so want DF tanks more than skirmishers once we have a couple of skirmishers, unless we have similar numbers and skirmishers seem to be doing ok') end
                                 local iCurDFTankOfTech = oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryDFTank * iTechCategory)
-                                if iCurDFTankOfTech < iCurSkirmishersOfTech then
+                                if iCurDFTankOfTech < iCurSkirmishersOfTech or (iFactoryTechLevel <= 2 and not(EntityCategoryContains(categories.AEON, oFactory.UnitId)) and iCurSkirmishersOfTech >= math.max(6, iCurDFTankOfTech * 3)) then
                                     iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
                                     if iFactoryTechLevel == 1 then iBaseCategoryWanted = iBaseCategoryWanted - M28UnitInfo.refCategoryLightAttackBot end
                                 else
@@ -1851,7 +1851,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
     end
 
-    --Want to prioritise sniperbots to deal with enemy land experimental (when enemy lacks fatboy/megalith)
+    --Want to prioritise sniperbots to deal with enemy land experimental (when enemy lacks fatboy/megalith); exception in QUIET though as land experimentals can be faster
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if (M28Utilities.bLoudModActive or EntityCategoryContains(categories.AEON + categories.SERAPHIM, oFactory.UnitId)) and (iFactoryTechLevel == 3 or tLZTeamData[M28Map.subrefLZbCoreBase]) then
         if M28Conditions.PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, iPlateau, iLandZone, true) and (not(bHaveLowMass) or not(aiBrain[M28Overseer.refbPrioritiseAir]) and not(aiBrain[M28Overseer.refbPrioritiseNavy])) then

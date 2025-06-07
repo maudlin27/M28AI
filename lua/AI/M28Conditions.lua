@@ -3582,7 +3582,18 @@ function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, iPlateau, iLandZone, 
                         if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasLandExpOnSameIsland='..tostring(bEnemyHasLandExpOnSameIsland or false)..'; LC sniperbot='..GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySniperBot)..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) end
                         if bEnemyHasLandExpOnSameIsland then
                             bDangerousExperimentalOrACUThreat = true
-                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has experimental that we want to try and beat') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has experimental that we want to try and beat, if in QUIET will check if it is fast') end
+                            if M28Utilities.bQuietModActive then
+                                for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                                    if not(oUnit.Dead) then
+                                        if (oUnit[M28UnitInfo.refiDFRange] or 0) >= 55 or (oUnit:GetBlueprint().Physics.MaxSpeed or 0) > 2.5 then --2.5 is speed of monkeylord or ythotha in faf
+                                            bDangerousExperimentalOrACUThreat = false
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental is either too fast or too long range to risk sniperbots') end
+                                            break
+                                        end
+                                    end
+                                end
+                            end
                         end
                     end
                 else
