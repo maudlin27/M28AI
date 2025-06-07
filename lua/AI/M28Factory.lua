@@ -2278,7 +2278,23 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                                             iEnemyAirToGroundThreat = iEnemyAirToGroundThreat + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat]
                                         end
                                     end
-                                    if iDFTotalThreat >= 8000 and iDFTotalThreat > iIndirectTotalThreat * 8 and iEnemyAirToGroundThreat <= tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] and (EntityCategoryContains(categories.AEON, oFactory.UnitId)) or iDFTotalThreat > iIndirectTotalThreat * 10 then
+                                    local iIndirectThreatFactorWanted
+                                    if M28Map.iMapSize >= 512 then
+                                        if M28Map.iMapSize >= 1000 then iIndirectThreatFactorWanted = 7
+                                        else iIndirectThreatFactorWanted = 8
+                                        end
+                                        if M28Utilities.bQuietModActive then --Az request for more mobile t3 arti in QUIET
+                                            iIndirectThreatFactorWanted = iIndirectThreatFactorWanted * 0.5
+                                        end
+                                    else
+                                        iIndirectThreatFactorWanted = 9
+                                    end
+                                    if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
+                                        if iIndirectThreatFactorWanted >= 5 then iIndirectThreatFactorWanted = iIndirectThreatFactorWanted - 2
+                                        else iIndirectThreatFactorWanted = iIndirectThreatFactorWanted - 0.5
+                                        end
+                                    end
+                                    if iDFTotalThreat >= 8000 and iDFTotalThreat > iIndirectTotalThreat * iIndirectThreatFactorWanted and iEnemyAirToGroundThreat <= tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] then
                                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryT3MobileArtillery) then return sBPIDToBuild end
                                     elseif ConsiderBuildingCategory(iCategoryToGet) then
                                         return sBPIDToBuild
@@ -2293,6 +2309,16 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         end
                     end
                 end
+            end
+        end
+
+        -- Consider T3 mobile artillery in QUIET if we have a lot of DF and no enemies in this or adjacent LZ (Az request)
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if M28Utilities.bQuietModActive and iFactoryTechLevel >= 3 and not(bDontConsiderBuildingMAA) then
+            -- T3 Mobile Artillery is a bit stronger then it is in FAF, and essential at T3 Phase (due to various factors for M28AI)
+            if bDebugMessages == true then LOG(sFunctionRef..': QUIET additional t3 mobile arti builder, tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]) end
+            if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] <= math.min(6000, tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] * 0.5) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= math.max(2000, (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) * 5) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryT3MobileArtillery) then return sBPIDToBuild end
             end
         end
 
