@@ -2734,11 +2734,6 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if tWZTeamData[M28Map.subrefWZbSuicideIntoEnemy] then
-        if bDebugMessages == true then LOG(sFunctionRef..': Want to be very aggressive with all nearby naval units') end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return true
-    end
 
     local bAreInScenario2 = false
     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then bAreInScenario2 = true
@@ -3587,7 +3582,18 @@ function PrioritiseSniperBots(tLZData, iTeam, tLZTeamData, iPlateau, iLandZone, 
                         if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasLandExpOnSameIsland='..tostring(bEnemyHasLandExpOnSameIsland or false)..'; LC sniperbot='..GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySniperBot)..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) end
                         if bEnemyHasLandExpOnSameIsland then
                             bDangerousExperimentalOrACUThreat = true
-                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has experimental that we want to try and beat') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has experimental that we want to try and beat, if in QUIET will check if it is fast') end
+                            if M28Utilities.bQuietModActive then
+                                for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                                    if not(oUnit.Dead) then
+                                        if (oUnit[M28UnitInfo.refiDFRange] or 0) >= 55 or (oUnit:GetBlueprint().Physics.MaxSpeed or 0) > 2.5 then --2.5 is speed of monkeylord or ythotha in faf
+                                            bDangerousExperimentalOrACUThreat = false
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental is either too fast or too long range to risk sniperbots') end
+                                            break
+                                        end
+                                    end
+                                end
+                            end
                         end
                     end
                 else
