@@ -7756,6 +7756,26 @@ function ManageGunships(iTeam, iAirSubteam)
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Closest priority enemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)..'; Is closest enemy near an active nuke='..tostring( M28Conditions.IsTargetNearActiveNukeTarget(oClosestEnemy:GetPosition(), iTeam, 60))..'; M28Utilities.bLoudModActive='..tostring(M28Utilities.bLoudModActive or false)) end
+            --Consider searching a bit further away for enemy AA if this isn't a high value target or a unit with AA
+            if M28Utilities.IsTableEmpty(tiPlateauAndZoneForEnemiesToBeIn) and (oClosestEnemy[M28UnitInfo.refiAARange] or 0) == 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryAllShieldUnits + categories.COMMAND + M28UnitInfo.refCategoryGroundAA, oClosestEnemy.UnitId)) then
+                local toNearbyAAUnits = oFrontGunship:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, oClosestEnemy:GetPosition(), 80, 'Enemy')
+                if bDebugMessages == true then LOG(sFunctionRef..': Is toNearbyAAUnits empty='..tostring(M28Utilities.IsTableEmpty(toNearbyAAUnits))) end
+                if M28Utilities.IsTableEmpty(toNearbyAAUnits) == false then
+                    local iClosestAALessRange = 10
+                    local iCurAALessRange
+                    for iEnemyAA, oEnemyAA in toNearbyAAUnits do
+                        if oEnemyAA:GetFractionComplete() >= 0.6 then
+                            iCurAALessRange = M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), oEnemyAA:GetPosition()) - (oEnemyAA[M28UnitInfo.refiAARange] or 0)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering alternate enemy AA to target, oEnemyAA='..oEnemyAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyAA)..'; iCurAALessRange='..iCurAALessRange) end
+                            if iCurAALessRange < iClosestAALessRange then
+                                iClosestAALessRange = iCurAALessRange
+                                oClosestEnemy = oEnemyAA
+                                if bDebugMessages == true then LOG(sFunctionRef..': Changing oClosestEnemy to be this unit') end
+                            end
+                        end
+                    end
+                end
+            end
 
             --Check we arent near a nuke
             if M28Conditions.IsTargetNearActiveNukeTarget(oClosestEnemy:GetPosition(), iTeam, 60) then
