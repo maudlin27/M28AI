@@ -2887,6 +2887,29 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                             if bDebugMessages == true then LOG(sFunctionRef..': No land zone so will return to base if have no orders, order count='..(oACU[M28Orders.refiOrderCount] or 'nil')) end
                             if oACU[M28Orders.refiOrderCount] == 0 then
                                 bWantToRun = true
+                            else
+                                --Is this water zone dangerous, and are we trying to travel to water?
+                                local tOrderTarget
+                                if M28UnitInfo.IsUnitValid(oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) then tOrderTarget = oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]:GetPosition()
+                                else tOrderTarget = oACU[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]
+                                end
+                                if M28Utilities.IsTableEmpty(tOrderTarget) == false then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Terrain height of target='..NavUtils.GetTerrainHeight(tOrderTarget[1], tOrderTarget[3])..'; Map water height='..M28Map.iMapWaterHeight) end
+                                    if NavUtils.GetTerrainHeight(tOrderTarget[1], tOrderTarget[3]) < M28Map.iMapWaterHeight then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Are trying to move underwater, will run instead if the water is dangerous') end
+                                        local iAntiNavyThreat = (tLZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0)
+                                        if iAntiNavyThreat >= 800 then
+                                            bWantToRun = true
+                                        elseif M28Utilities.IsTableEmpty(tLZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                                            for _, iAdjWZ in tLZData[M28Map.subrefWZAdjacentWaterZones] do
+                                                local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                                iAntiNavyThreat = iAntiNavyThreat + (tAdjWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0)
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iAntiNavyThreat in this and adjacent zones='..iAntiNavyThreat) end
+                                        end
+                                    end
+                                end
+
                             end
                         end
                     end
