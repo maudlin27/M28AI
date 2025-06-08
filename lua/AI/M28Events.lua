@@ -2958,14 +2958,19 @@ function OnReclaimFinished(oEngineer, oReclaim)
                     end
                 end
             elseif EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
-                --Only try getting more reclaim if we havent wanted to run recently
+                --Only try getting more reclaim if we havent wanted to run recently and we arent trying to move somewhere else
                 if GetGameTimeSeconds() - (oEngineer[M28ACU.refiTimeLastWantedToRun] or 0) >= 2 or (M28UnitInfo.GetUnitHealthAndShieldPercent(oEngineer) >= 0.99 and M28Utilities.IsTableEmpty(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.reftEnemyLandExperimentals]) and M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.refiEnemyT3ArtiCount] <= 1) then
-                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-                    if (iLandZone or 0) > 0 then
-                        local iTeam =  oEngineer:GetAIBrain().M28Team
-                        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-                        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                        M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
+                    M28Orders.UpdateRecordedOrders(oEngineer)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to give a new reclaim order to oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Last order type='..(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] or 'nil')) end
+                    if not(oEngineer[M28Orders.reftiLastOrders][1]) or oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueReclaim then
+                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+                        if (iLandZone or 0) > 0 then
+                            local iTeam =  oEngineer:GetAIBrain().M28Team
+                            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                            local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider giving a reclaim order to the ACU') end
+                            M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
+                        end
                     end
                 end
             elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then

@@ -163,9 +163,10 @@ function IssueTrackedClearCommands(oUnit)
         if oUnit[M28Air.refoAirAACurTarget] then oUnit[M28Air.refoAirAACurTarget] = nil end
 
         --Clear orders:
+
         if oUnit.UnitId == 'xsl0001' and oUnit:IsUnitState('Teleporting') then M28Utilities.ErrorHandler('Are canceling teleport on a teleporting unit') end
-        --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'eel00011' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
-            LOG('Just about to issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit state before clearing='..M28UnitInfo.GetUnitState(oUnit))
+        --[[if GetGameTimeSeconds() >= 17*60 and oUnit.UnitId == 'uel0001' and oUnit:GetAIBrain():GetArmyIndex() == 2 then
+            LOG('TEMPCODE Just about to issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit state before clearing='..M28UnitInfo.GetUnitState(oUnit))
             M28Utilities.ErrorHandler('Audit trail', true, true)
         end--]]
 
@@ -649,6 +650,7 @@ end
 
 
 function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+
     if bDontConsiderCombinedArmy or (oUnit.M28Active and (oOrderTarget.M28Active or not(oOrderTarget:GetAIBrain() == oUnit:GetAIBrain()))) then
         UpdateRecordedOrders(oUnit)
         --Issue order if we arent already trying to attack them
@@ -662,8 +664,7 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
             else tLastOrder = oUnit[reftiLastOrders][1]
             end
         end
-
-        --if oUnit.UnitId == 'eel0001' then LOG('Tracked reclaim: is last order unit target nil='..tostring(tLastOrder[subrefoOrderUnitTarget] == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; tLastOrder[subrefiOrderType]='..(tLastOrder[subrefiOrderType] or 'nil')..'; Is last order target equal to oOrderTarget='..tostring(oOrderTarget == tLastOrder[subrefoOrderUnitTarget])..'; oOrderTarget.CachePosition='..repru(oOrderTarget.CachePosition)..'; oLastOrderTarget cacheposition='..repru(tLastOrder[subrefoOrderUnitTarget].CachePosition)..'; First part of condition='..tostring((not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderUnitTarget])))..'; Second part of condition='..tostring((not(oUnit:IsUnitState('Reclaiming')) and (not(oOrderTarget) or (oOrderTarget.GetPosition and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition()) <= (oUnit:GetBlueprint().Economy.MaxBuildDistance or 5)) or (not(oOrderTarget.GetPosition) and oOrderTarget.CachePosition and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget.CachePosition) <= (oUnit:GetBlueprint().Economy.MaxBuildDistance or 5)))))) end
+        --if GetGameTimeSeconds() >= 17*60 and oUnit.UnitId == 'uel0001' and oUnit:GetAIBrain():GetArmyIndex() == 2 then LOG('TEMPCODE Tracked reclaim: is last order unit target nil='..tostring(tLastOrder[subrefoOrderUnitTarget] == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; tLastOrder[subrefiOrderType]='..(tLastOrder[subrefiOrderType] or 'nil')..'; Is last order target equal to oOrderTarget='..tostring(oOrderTarget == tLastOrder[subrefoOrderUnitTarget])..'; oOrderTarget.CachePosition='..repru(oOrderTarget.CachePosition)..'; oLastOrderTarget cacheposition='..repru(tLastOrder[subrefoOrderUnitTarget].CachePosition)..'; First part of condition='..tostring((not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderUnitTarget])))..'; Second part of condition='..tostring((not(oUnit:IsUnitState('Reclaiming')) and (not(oOrderTarget) or (oOrderTarget.GetPosition and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition()) <= (oUnit:GetBlueprint().Economy.MaxBuildDistance or 5)) or (not(oOrderTarget.GetPosition) and oOrderTarget.CachePosition and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget.CachePosition) <= (oUnit:GetBlueprint().Economy.MaxBuildDistance or 5)))))) end
         if (not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) or (not(oUnit:IsUnitState('Reclaiming')) and (not(oOrderTarget) or (oOrderTarget.GetPosition and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition()) <= (oUnit:GetBlueprint().Economy.MaxBuildDistance or 5)) or (not(oOrderTarget.GetPosition) and oOrderTarget.CachePosition and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget.CachePosition) <= (oUnit:GetBlueprint().Economy.MaxBuildDistance or 5))))) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
 
             if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
