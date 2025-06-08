@@ -2488,8 +2488,8 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                 else
                                     if bDebugMessages == true then LOG(sFunctionRef..': If high health and stealth will just attack, otherwise will assess nearby enemy threat, ACU upgrade count='..(oACU[refiUpgradeCount] or 'nil')..'; ACU has stealth, nano, cor cloak='..tostring(oACU:HasEnhancement('StealthGenerator') or oACU:HasEnhancement('FAF_SelfRepairSystem') or oACU:HasEnhancement('CloakingGenerator'))..'; Does ACU have a valid assigned mobile stealth='..tostring(M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileStealth]))..';  tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]..'; M28Map.iMapSize='..M28Map.iMapSize..'; M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]='..tostring(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar])..'; ScenarioInfo.Options.Victory='..ScenarioInfo.Options.Victory..'; ScenarioInfo.Options.Share='..ScenarioInfo.Options.Share..'; Stealth condition combined='..tostring((oACU:HasEnhancement('StealthGenerator') or oACU:HasEnhancement('FAF_SelfRepairSystem') or oACU:HasEnhancement('CloakingGenerator') or (M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileStealth]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28Land.refoAssignedMobileStealth]:GetPosition()) <= (oACU[M28Land.refoAssignedMobileStealth]:GetBlueprint().Intel.RadarStealthFieldRadius or 10))))) end
                                     if iHealthPercent >= 0.99 and oACU[refiUpgradeCount] >= 1 and (oACU:HasEnhancement('StealthGenerator') or oACU:HasEnhancement('FAF_SelfRepairSystem') or oACU:HasEnhancement('CloakingGenerator') or (M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedMobileStealth]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28Land.refoAssignedMobileStealth]:GetPosition()) <= (oACU[M28Land.refoAssignedMobileStealth]:GetBlueprint().Intel.RadarStealthFieldRadius or 10)))
-                                    and ((tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and (tLZTeamData[M28Map.refiModDistancePercent] <= 0.35 or M28Map.iMapSize < 1000)) or not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]))
-                                     then
+                                            and ((tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 and (tLZTeamData[M28Map.refiModDistancePercent] <= 0.35 or M28Map.iMapSize < 1000)) or not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]))
+                                    then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Are stealthed and on high health so will ignore enemy threat and be aggressive') end
                                     else
 
@@ -3324,7 +3324,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
         local iCurDist
@@ -3459,12 +3459,15 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurDist='..(M28Utilities.GetTravelDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition(), sPathing) or 'nil')..'; bUnitInFurtherAwayZoneWeRanFrom='..tostring(bUnitInFurtherAwayZoneWeRanFrom or false)..'; iUnitZone='..(iUnitZone or 'nil')..'; refiLastPlateauAndZoneToAttackUnitIn='..reprs(oACU[refiLastPlateauAndZoneToAttackUnitIn])..'; refiTimeLastToldToAttackUnitInOtherZone='..reprs(oACU[refiTimeLastToldToAttackUnitInOtherZone])..'; Is unit under shield='..tostring(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 3000, false, false, false, false, false))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurDist='..(M28Utilities.GetTravelDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition(), sPathing) or 'nil')..'; bUnitInFurtherAwayZoneWeRanFrom='..tostring(bUnitInFurtherAwayZoneWeRanFrom or false)..'; iUnitZone='..(iUnitZone or 'nil')..'; refiLastPlateauAndZoneToAttackUnitIn='..reprs(oACU[refiLastPlateauAndZoneToAttackUnitIn])..'; refiTimeLastToldToAttackUnitInOtherZone='..reprs(oACU[refiTimeLastToldToAttackUnitInOtherZone])..'; Is unit under shield='..tostring(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 3000, false, false, false, false, false))..'; iUnitPlateau='..iUnitPlateau) end
                     if not(bUnitInFurtherAwayZoneWeRanFrom) then
                         --iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())
                         iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition(), sPathing)
                         if iCurDist then
-                            if iCurDist < iClosestDist then
+                            --If unit in water and we cant reach it with DF then ignore
+                            if iUnitPlateau == 0 and iClosestDist > 1 + oACU[M28UnitInfo.refiDFRange] and not(NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oACU:GetPosition()), oACU[M28UnitInfo.refiDFRange], true, true, false)) == (tLZData[M28Map.subrefLZIslandRef] or 0)) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Nearby naval unit, but it doesnt look like we can reach it if we advance, so we will ignore it') end
+                            elseif iCurDist < iClosestDist then
                                 iClosestDist = iCurDist
                                 oEnemyToTarget = oUnit
                                 if not(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 3000, false, false, false, false, false)) then
@@ -3506,7 +3509,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                             if not(oEnemyACU.Dead) then
                                 iOurDistToACU = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy ACU owned by '..oEnemyACU:GetAIBrain().Nickname..'; iOurDistToACU='..iOurDistToACU..'; iEnemyACUSearchDistance='..iEnemyACUSearchDistance) end
-                                if iOurDistToACU <= iEnemyACUSearchDistance then
+                                if iOurDistToACU <= iEnemyACUSearchDistance and not(M28UnitInfo.IsUnitUnderwater(oEnemyACU)) then
                                     if oEnemyACU[M28UnitInfo.refiDFRange] > oACU[M28UnitInfo.refiDFRange] then
                                         if bDebugMessages == true then LOG(sFunctionRef..': enemy has an ACU that outranges us and is relatively close so we wont consider supporting friendly ACUs') end
                                         oEnemyToTarget = nil --redundancy
@@ -3758,7 +3761,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
 
                     local oUnitToMoveTo
                     --If within 2 of being in range of enemy ACU that we outrange then keep pressing forwards (we will ignore this if we decide we still want kiting retreat)
-                    if iClosestACU <= oACU[M28UnitInfo.refiDFRange] + 2 and (M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) or (M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedLandScout]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28Land.refoAssignedLandScout]:GetPosition()) <= 40) or (iOurACUHealthPercent >= 0.9 and iClosestACU <= oACU[M28UnitInfo.refiDFRange] and tLZTeamData[M28Map.refiModDistancePercent] <= 0.8 and M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) < iOurACUHealthPercent - 0.05)) and iOurACUHealthPercent * 0.95 > M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) then
+                    if iUnitPlateau > 0 and iClosestACU <= oACU[M28UnitInfo.refiDFRange] + 2 and (M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) or (M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedLandScout]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28Land.refoAssignedLandScout]:GetPosition()) <= 40) or (iOurACUHealthPercent >= 0.9 and iClosestACU <= oACU[M28UnitInfo.refiDFRange] and tLZTeamData[M28Map.refiModDistancePercent] <= 0.8 and M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) < iOurACUHealthPercent - 0.05)) and iOurACUHealthPercent * 0.95 > M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) then
                         local iOurVisualRange = oACU:GetBlueprint().Intel.VisionRadius
                         if bDebugMessages == true then LOG(sFunctionRef..': iOurVisualRange='..iOurVisualRange..'; iClosestACU='..iClosestACU..'; oClosestACU owner='..oClosestACU:GetAIBrain().Nickname) end
                         if iClosestACU > iOurVisualRange - 3 or (oACU[M28UnitInfo.refbLastShotBlocked] or iOurACUHealthPercent > 0.4 + M28UnitInfo.GetUnitHealthPercent(oClosestACU) or M28Logic.IsShotBlocked(oACU, oClosestACU, false, false)) then
@@ -3841,6 +3844,9 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                             if iCurDist <= 8 or ((iCurDist <= oACU[M28UnitInfo.refiDFRange] - math.min(10, math.max(0.25, iMaxDistToBeInRange - 2)) or (iCurDist <= oACU[M28UnitInfo.refiDFRange] and iCurDist <= 2 + (oEnemyToTarget[M28UnitInfo.refiDFRange] or 0))) and (EntityCategoryContains(categories.COMMAND + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandCombat * categories.TECH2 + categories.TECH3 - M28UnitInfo.refCategoryEngineer, oEnemyToTarget.UnitId) or (iNearbyMobileEnemyDFThreat >= 500 and iCurDist <= oACU[M28UnitInfo.refiDFRange] - 8))) or (bConsiderAttackMoveDueToIntel and iCurDist < oACU[M28UnitInfo.refiDFRange] - 3.5) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to attack move, bConsiderAttackMoveDueToIntel='..tostring(bConsiderAttackMoveDueToIntel)) end
                                 M28Orders.IssueTrackedAggressiveMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUAtcM', false)
+                            elseif iUnitPlateau == 0 and iCurDist <= oACU[M28UnitInfo.refiDFRange] + 2 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Targeting naval unit so attackmove towards it') end
+                                M28Orders.IssueTrackedAggressiveMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUAtcNM', false)
                             else
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will move to closest enemy') end
                                 if M28Conditions.GiveAttackMoveAsWeaponStuck(oACU) then
@@ -7752,7 +7758,6 @@ function SuicideACUIntoSnipeTarget(oACU, oSnipeTarget)
     local iTimeOriginallyInSnipeMode = GetGameTimeSeconds()
     local aiBrain = oACU:GetAIBrain()
     while M28UnitInfo.IsUnitValid(oACU) do
-
         bOnlyAttackIfInExplosionRange = false
         if not(oSnipeTarget.Dead) and GetGameTimeSeconds() - iTimeOriginallyInSnipeMode >= 5 then --5s delay in case could get into a cycle where we say we shoudl suicide in the main logic, then we abort immediately in this loop. at least this way we have 5s of trying to kill them first
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, aiBrain.M28Team)
