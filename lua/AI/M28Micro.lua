@@ -654,10 +654,10 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                     --If we are a large unit then only dodge if will be a while for the shot to hit
                                     local oBP = oTarget:GetBlueprint()
                                     local iAverageSize = (oBP.SizeX + oBP.SizeZ) * 0.5
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Unit speed='..oBP.Physics.MaxSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..';  math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)='.. math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oTarget))..'; SizeY='..oBP.SizeY..'; Terrain height='..GetTerrainHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3])..'; Surface height='..GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3])..'; water height='..M28Map.iMapWaterHeight..'; aoe='..(oWeaponBP.DamageRadius or 'nil')..'; Unit speed='..oBP.Physics.MaxSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..';  math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)='.. math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)) end
                                     if iAverageSize < 0.89 or (iTimeUntilImpact > math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed) and (iTimeUntilImpact >= 2 or not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)))) then
                                         --Are we not underwater?
-                                        if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                                        if not(M28UnitInfo.IsUnitUnderwater(oTarget)) then
                                             --If dealing with an ACU then drastically reduce the dodge time so we can overcharge if we havent recently and have enemies in range and enough power
                                             if EntityCategoryContains(categories.COMMAND, oTarget.UnitId) then
                                                 if oTarget:IsUnitState('Teleporting') or (oTarget:IsUnitState('Upgrading') and M28UnitInfo.GetUnitHealthPercent(oTarget) >= 0.9 - oTarget:GetWorkProgress()) then
