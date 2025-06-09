@@ -8612,6 +8612,7 @@ function UpdateTransportShortlistForPondDrops(iTeam, tbPlateausWithPlayerStartOr
                     end
                 end
             end
+            local tbPondsInDropList = {}
             if M28Utilities.IsTableEmpty(tWZWithUnderwaterMexesByPond) == false then
                 for iPond, tWZs in tWZWithUnderwaterMexesByPond do
                     --Get the mex that is closest to a friendly base
@@ -8633,6 +8634,24 @@ function UpdateTransportShortlistForPondDrops(iTeam, tbPlateausWithPlayerStartOr
                     if iClosestWZRef then
                         if bDebugMessages == true then LOG(sFunctionRef..': Adding water zone '..iClosestWZRef..' to potential drop zones') end
                         AddZoneToPotentialDropZonesSameIslandOrDifPond(iTeam, 0, iClosestWZRef)
+                        tbPondsInDropList[M28Map.tiPondByWaterZone[iClosestWZRef]] = true
+                    end
+                end
+            end
+            --Consider dropping pond naval start positions
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering priority pond for brain='..oBrain.Nickname..'; refiPriorityPondRef='..(oBrain[M28Navy.refiPriorityPondRef] or 'nil')..'; tbPondsInDropList='..repru(tbPondsInDropList)) end
+                if oBrain[M28Navy.refiPriorityPondRef] and not(tbPondsInDropList[M28Navy.refiPriorityPondRef]) then
+                    local tNavalBuildLocation = M28Map.tPondDetails[oBrain[M28Navy.refiPriorityPondRef]][M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()]
+                    if M28Utilities.IsTableEmpty(tNavalBuildLocation) == false then
+                        --How far away is this naval build location to our start position?
+                        local iTargetPlateau, iTargetWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tNavalBuildLocation)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering adding naval build location to transport drop dist, iTargetWZ='..(iTargetWZ or 'nil')..'; Brain='..oBrain.Nickname..'; Dist from naval build location to base='..M28Utilities.GetDistanceBetweenPositions(tNavalBuildLocation, M28Map.GetPlayerStartPosition(oBrain))) end
+                        if iTargetWZ and iTargetPlateau == 0 and M28Utilities.GetDistanceBetweenPositions(tNavalBuildLocation, M28Map.GetPlayerStartPosition(oBrain)) >= 110 then
+                            AddZoneToPotentialDropZonesSameIslandOrDifPond(iTeam, 0, iTargetWZ)
+                            tbPondsInDropList[M28Map.tiPondByWaterZone[iTargetWZ]] = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding naval zone to drop location, iTargetWZ='..iTargetWZ) end
+                        end
                     end
                 end
             end
@@ -9319,7 +9338,6 @@ function GetWaterZoneForTransportToTravelTo(iTeam, oUnit)
 
     local iTargetWaterZone
     if not(oUnit[refbCombatDrop]) or M28Utilities.IsTableEmpty(oUnit:GetCargo()) then
-
         local tShortlist = M28Team.tTeamData[iTeam][M28Team.reftiPotentialPondDropZones]
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code for shortlist, time='..GetGameTimeSeconds()..', is shortlist empty='..tostring(M28Utilities.IsTableEmpty(tShortlist))) end
         if M28Utilities.IsTableEmpty(tShortlist) == false then
@@ -9340,9 +9358,9 @@ function GetWaterZoneForTransportToTravelTo(iTeam, oUnit)
                     local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
                     if bDontHaveLocationInPlayableArea then bDontHaveLocationInPlayableArea = not(M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint])) end
                     if not(bDontHaveLocationInPlayableArea) then
-                        --Only drop if there are unbuilt mexes in this zone
-                        if bDebugMessages == true then LOG(sFunctionRef..': is table of unbuilt locations empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]))) end
-                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+                        --If there are mexes in this WZ, then only drop if there are unbuilt mexes in this zone (we might be dropping 0 mex WZ to build naval fac though)
+                        if bDebugMessages == true then LOG(sFunctionRef..': is table of unbuilt locations empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]))..'; subrefWZMexCount='..(tWZData[M28Map.subrefWZMexCount] or 0)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits]))) end
+                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false or ((tWZData[M28Map.subrefWZMexCount] or 0) == 0 and (M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits])))) then
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZData[M28Map.subrefMidpoint])
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering water zone '..iWaterZone..' with distance of '..iCurDist) end
                             if iCurDist < iClosestDist then
