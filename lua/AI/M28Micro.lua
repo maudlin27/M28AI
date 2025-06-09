@@ -482,6 +482,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDodgingShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        
     if not(ScenarioInfo.Options.M28DodgeMicro == 2) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId)) then
         local oWeaponBP = oWeapon.Blueprint or oWeapon.bp
         if bDebugMessages == true then
@@ -522,8 +523,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                         if oCurUnit:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oCurUnit) then
                             if not(oUnit[M28UnitInfo.refbEasyBrain]) then
                                 --Engineers - dont dodge if almost done construction
-                                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oCurUnit.UnitId) and oCurUnit:GetWorkProgress() >= 0.95 then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Wont dodge shot as almost done with construction') end
+                                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oCurUnit.UnitId) and oCurUnit:GetWorkProgress() >= 0.4 and (oCurUnit:GetWorkProgress() >= 0.95 or ((oWeaponBP.Damage or 100) <= 50 and (oCurUnit:GetWorkProgress() >= 0.8 or oCurUnit:GetFocusUnit().UnitId and EntityCategoryContains(categories.DEFENSE, oCurUnit:GetFocusUnit().UnitId)))) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Wont dodge shot as almost done with construction or low damaage shot and we are building defensive unit, work progress='..oCurUnit:GetWorkProgress()..'; Weapon damage='..(oWeaponBP.Damage or 'nil')) end
                                 else
                                     if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to consider dodging for') end
                                     table.insert(tUnitsToConsiderDodgeFor, oCurUnit)
