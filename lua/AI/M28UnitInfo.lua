@@ -110,6 +110,8 @@ refbHaveSeenUnitByTeam = 'M28UHvSn' --true if we have detected the unit in some 
 refbScoutCombatOverride = 'M28ScCmO' --true if we want the scout to be treated as a normal combat unit
 refbTriedUpgrading = 'M28TrUpgr' --used for buildings like pgens, true if have tried upgrading (for redundancy to avoid trying to upgrade multiple times)
 refbIssuedUpgrade = 'M28IssUpg' --true if the IssueUpgrade order is called; done to help with campaign compatibility
+refiTimeLastCanceledUpgrade = 'M28CancUpT' --time of last cancelling upgrade
+refiDistToEnemyBaseWhenLastCanceledUpgrade = 'M28CancUpD' --Dist to closest enemy base when last canceled upgrade
 
     --Unit micro related
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI

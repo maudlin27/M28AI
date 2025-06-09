@@ -608,6 +608,26 @@ function SafeToUpgradeUnit(oUnit)
         local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
         if M28Utilities.IsTableEmpty(tLZData) == false then
             local tLZTeamData = tLZData[M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+            --Have we recently canceled our upgrade? If so then dont get
+            if bDebugMessages == true then LOG(sFunctionRef..': Time since last cancelled='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastCanceledUpgrade] or 0)) end
+            if oUnit[M28UnitInfo.refiTimeLastCanceledUpgrade] then
+                local iTimeSinceLastCancelled = GetGameTimeSeconds() - oUnit[M28UnitInfo.refiTimeLastCanceledUpgrade]
+                local bCancel = false
+                if iTimeSinceLastCancelled <= 30 then
+                    bCancel = true
+                elseif iTimeSinceLastCancelled <= 60 then
+                    local iDistToBase = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])
+                    if iDistToBase - (oUnit[M28UnitInfo.refiDistToEnemyBaseWhenLastCanceledUpgrade] or 0) < 50 then
+                        bCancel = true
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to cancel due to recently cancelling upgrade, iTimeSinceLastCancelled='..iTimeSinceLastCancelled..'; Dist to enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])..'; Dist when we cancelled='..(oUnit[M28UnitInfo.refiDistToEnemyBaseWhenLastCanceledUpgrade] or 0)..'; bCancel='..tostring(bCancel)) end
+                if bCancel then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will return false (that not safe') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return false
+                end
+            end
             if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
                 bSafeZone = true
             elseif tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 150 then

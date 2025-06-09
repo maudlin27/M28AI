@@ -1265,13 +1265,17 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
 
                 --Logic specific to M28 units dealt damage
                 if self:GetAIBrain().M28AI then
-                    if bDebugMessages == true then LOG(sFunctionRef..': M28AI owned unit just taken damage, unit='..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..'; Is this a gunship that can refuel='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, self.UnitId) and not(self.MyShield) and not(self[M28UnitInfo.refbProjectilesMeanShouldRefuel]))..'; self.MyShield==nil='..tostring(self.MyShield == nil)..'; self[M28UnitInfo.refbProjectilesMeanShouldRefuel]='..tostring(self[M28UnitInfo.refbProjectilesMeanShouldRefuel] or false)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': M28AI owned unit just taken damage, unit='..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..'; Is this a gunship that can refuel='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, self.UnitId) and not(self.MyShield) and not(self[M28UnitInfo.refbProjectilesMeanShouldRefuel]))..'; self.MyShield==nil='..tostring(self.MyShield == nil)..'; self[M28UnitInfo.refbProjectilesMeanShouldRefuel]='..tostring(self[M28UnitInfo.refbProjectilesMeanShouldRefuel] or false)..'; oUnitCausingDamage='..(oUnitCausingDamage.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitCausingDamage) or 'nil')) end
                     if EntityCategoryContains(categories.COMMAND, self.UnitId) then
                         if self:IsUnitState('Upgrading') then
                             --Do we want to cancel the upgrade? If were hit by a TML then want to
                             if M28UnitInfo.IsUnitValid(oUnitCausingDamage) and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
                                 if not(self[M28UnitInfo.refbEasyBrain]) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will cancel upgrade and move away temporarily') end
                                     M28Micro.MoveAwayFromTargetTemporarily(self, 5, oUnitCausingDamage:GetPosition())
+                                    self[M28UnitInfo.refiTimeLastCanceledUpgrade] = GetGameTimeSeconds()
+                                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(self:GetPosition(), true, self:GetAIBrain().M28Team)
+                                    self[M28UnitInfo.refiDistToEnemyBaseWhenLastCanceledUpgrade] = M28Utilities.GetDistanceBetweenPositions(self:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])
                                 end
                             end
                         end

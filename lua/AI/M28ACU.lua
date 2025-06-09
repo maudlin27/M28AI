@@ -2168,7 +2168,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                         end
 
                         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) == false then iActiveACUUpgrades = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have enough resources to get this upgrade, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Other active upgrades='..iActiveACUUpgrades..'; Is safe to get upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))..'; iEnergyCostPerTick='..iEnergyCostPerTick..'; iMassCostPerTick='..iMassCostPerTick..'; iResourceFactor'..iResourceFactor..'; iDistToEnemyBase='..iDistToEnemyBase..'; oACU[refiUpgradeCount]='..(oACU[refiUpgradeCount] or 0)..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; Have low mass='..tostring(M28Conditions.HaveLowMass(aiBrain))..'; iResourceFactor='..iResourceFactor..'; aiBrain[M28Factory.refiHighestFactoryBuildCount]='..aiBrain[M28Factory.refiHighestFactoryBuildCount]) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have enough resources to get this upgrade, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Other active upgrades='..iActiveACUUpgrades..'; Is safe to get upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU) or false)..'; iEnergyCostPerTick='..iEnergyCostPerTick..'; iMassCostPerTick='..iMassCostPerTick..'; iResourceFactor'..iResourceFactor..'; iDistToEnemyBase='..iDistToEnemyBase..'; oACU[refiUpgradeCount]='..(oACU[refiUpgradeCount] or 0)..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; Have low mass='..tostring(M28Conditions.HaveLowMass(aiBrain))..'; iResourceFactor='..iResourceFactor..'; aiBrain[M28Factory.refiHighestFactoryBuildCount]='..aiBrain[M28Factory.refiHighestFactoryBuildCount]) end
                         --Aeon exception - if we have the first gun upgrade, have high health %, and are close to a core base, then consider getting the second upgrade regardless of eco
 
                         if sPotentialUpgrade == 'HeatSink' and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.5 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.75 then
@@ -5754,6 +5754,7 @@ function GetACUOrder(aiBrain, oACU)
                         bCanceledUpgrade = true
                     end
                 end
+            elseif bDebugMessages == true then LOG(sFunctionRef..': Dont want to return to base so wont cancel upgrade except in a few niche cases')
             end
             if bDebugMessages == true then LOG(sFunctionRef..': bCanceledUpgrade='..tostring(bCanceledUpgrade or false)) end
             if not(bCanceledUpgrade) and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) >= 35 and DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
@@ -5765,10 +5766,16 @@ function GetACUOrder(aiBrain, oACU)
                         --Cancel upgrade
                         if bDebugMessages == true then LOG(sFunctionRef..': Want to cancel ACU upgrade') end
                         M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'CURun')
+                        bCanceledUpgrade = true
                     end
                 end
             elseif bDebugMessages == true then LOG(sFunctionRef..': ACU doesnt want to return to core base')
             end
+            if bCanceledUpgrade then
+                oACU[M28UnitInfo.refiTimeLastCanceledUpgrade] = GetGameTimeSeconds()
+                oACU[M28UnitInfo.refiDistToEnemyBaseWhenLastCanceledUpgrade] = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
+            end
+
         end
     elseif oACU:IsUnitState('Teleporting') then
         --Do nothing
@@ -5984,10 +5991,16 @@ function GetACUOrder(aiBrain, oACU)
             --Are there enemies in the same LZ as the ACU? If so then consider action for these
             local sUpgradeWanted = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero)
             if sUpgradeWanted then
-                if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) > 1.5 or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeWanted then
-                    M28Orders.IssueTrackedEnhancement(oACU, sUpgradeWanted, false, 'ACULCUpr')
+                if M28Conditions.SafeToUpgradeUnit(oACU) then
+                    if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastIssuedACUEnhancementOrder] or -100) > 1.5 or oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sUpgradeWanted then
+                        M28Orders.IssueTrackedEnhancement(oACU, sUpgradeWanted, false, 'ACULCUpr')
+                        bProceedWithLogic = false
+                        if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..sUpgradeWanted..'; will proceed with getting it due to its low cost') end
+                    end
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': We want to get upgrade but it isnt safe, so return to base') end
+                    ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
                     bProceedWithLogic = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..sUpgradeWanted..'; will proceed with getting it due to its low cost') end
                 end
             end
         end
