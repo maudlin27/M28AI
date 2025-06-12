@@ -4600,8 +4600,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
         --1-off air scout to help bomber find engineers if we have just built a bomber
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if bDebugMessages == true then LOG(sFunctionRef..': High priority low power first air scout to support engi hunter check, iFactoryTechLevel='..iFactoryTechLevel..'; Time of last engi hunter order='..GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTimeOfLastEngiHunterBomberOrder] or 0)..'; Lifetime air scout='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirScout)..'; Number of bombers we own='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber)..'; Enemies in this or adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Factory[refbJustBuiltFirstT1Bomber]='..tostring(oFactory[refbJustBuiltFirstT1Bomber] or false)..'; Air scouts under construction in team='..M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirScout)..'; Mass%='..aiBrain:GetEconomyStoredRatio('MASS')) end
-        if iFactoryTechLevel == 1 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and oFactory[refbJustBuiltFirstT1Bomber] and (bHaveLowMass or aiBrain:GetEconomyStoredRatio('MASS') <= 0.65) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirScout) == 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBomber) > 0 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber) > 0 and M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirScout) == 0 then
+        if bDebugMessages == true then LOG(sFunctionRef..': High priority low power first air scout to support engi hunter check, iFactoryTechLevel='..iFactoryTechLevel..'; Time of last engi hunter order='..GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTimeOfLastEngiHunterBomberOrder] or 0)..'; Lifetime air scout='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirScout)..'; Number of bombers we own='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber)..'; Enemies in this or adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Factory[refbJustBuiltFirstT1Bomber]='..tostring(oFactory[refbJustBuiltFirstT1Bomber] or false)..'; Air scouts under construction in team='..M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirScout)..'; Mass%='..aiBrain:GetEconomyStoredRatio('MASS')) end
+        if iFactoryTechLevel == 1 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and oFactory[refbJustBuiltFirstT1Bomber] and (bHaveLowMass or aiBrain:GetEconomyStoredRatio('MASS') <= 0.65) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirScout) == 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBomber) > 0 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber) > 0 and M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirScout) == 0 then
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and get an air scout as we have none') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
         end
@@ -4685,7 +4685,39 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': 1 bomber high prioerty builder, Lifetime build count='..M28Conditions.GetAirSubteamLifetimeBuildCount(iAirSubteam, M28UnitInfo.refCategoryBomber)) end
         if iFactoryTechLevel == 1 and M28Map.iMapSize > 256 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbDontBuildEngiHunterEngineers]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) == 0 and M28Conditions.GetAirSubteamLifetimeBuildCount(iAirSubteam, M28UnitInfo.refCategoryBomber) == 0 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 24 then
             if bDebugMessages == true then LOG(sFunctionRef..': Will get high priority bomber to hunt engis') end
-            if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber * categories.TECH1) then return sBPIDToBuild end
+        end
+
+        --1-off bomber to hunt enemy engineers near a naval factory
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Naval engi hunter check, aiBrain[M28Economy.refiGrossEnergyBaseIncome]='..(aiBrain[M28Economy.refiGrossEnergyBaseIncome] or 'nil')..'; Is reftiWaterZonesForBomberToKillEngis empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiWaterZonesForBomberToKillEngis]))) end
+        if aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 24 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiWaterZonesForBomberToKillEngis]) == false then
+            local iTotalBombersWanted = 0
+            for iWaterZone, iBombersWanted in M28Team.tTeamData[iTeam][M28Team.reftiWaterZonesForBomberToKillEngis] do
+                if iBombersWanted > 0 then
+                    iTotalBombersWanted = iTotalBombersWanted + iBombersWanted
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Naval bomber check, iTotalBombersWanted='..iTotalBombersWanted) end
+            if iTotalBombersWanted > 0 then
+                local iCurBombersOwnedOrBeingBuilt = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryBomber * categories.TECH1, false)
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurBombersOwnedOrBeingBuilt in this zone='..iCurBombersOwnedOrBeingBuilt) end
+                if iCurBombersOwnedOrBeingBuilt < iTotalBombersWanted then
+                    iCurBombersOwnedOrBeingBuilt = iCurBombersOwnedOrBeingBuilt + M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryBomber * categories.TECH1, nil)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurBombersOwnedOrBeingBuilt after checking start position zones='..iCurBombersOwnedOrBeingBuilt) end
+                    if iCurBombersOwnedOrBeingBuilt < iTotalBombersWanted then
+                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                            iCurBombersOwnedOrBeingBuilt = iCurBombersOwnedOrBeingBuilt + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber * categories.TECH1)
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurBombersOwnedOrBeingBuilt after checking all brain current bombers='..iCurBombersOwnedOrBeingBuilt) end
+                        if iCurBombersOwnedOrBeingBuilt < iTotalBombersWanted then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try getting a bomber') end
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber * categories.TECH1) then return sBPIDToBuild end
+                        end
+                    end
+                end
+
+            end
         end
 
         --AirAA for T1-T2 when probably have enough and enemy has air to gorund threat
@@ -5130,6 +5162,36 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
             end
 
+            --1-off bomber to hunt enemy engineers near a naval factory
+            iCurrentConditionToTry = iCurrentConditionToTry + 1
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiWaterZonesForBomberToKillEngis]) == false then
+                local iTotalBombersWanted = 0
+                for iWaterZone, iBombersWanted in M28Team.tTeamData[iTeam][M28Team.reftiWaterZonesForBomberToKillEngis] do
+                    if iBombersWanted > 0 then
+                        iTotalBombersWanted = iTotalBombersWanted + iBombersWanted
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Naval bomber check, iTotalBombersWanted='..iTotalBombersWanted) end
+                if iTotalBombersWanted > 0 then
+                    local iCurBombersOwnedOrBeingBuilt = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryBomber * categories.TECH1, false)
+                    if iCurBombersOwnedOrBeingBuilt < iTotalBombersWanted then
+                        iCurBombersOwnedOrBeingBuilt = iCurBombersOwnedOrBeingBuilt + M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryBomber * categories.TECH1, nil)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurBombersOwnedOrBeingBuilt after checking start position zones='..iCurBombersOwnedOrBeingBuilt) end
+                        if iCurBombersOwnedOrBeingBuilt < iTotalBombersWanted then
+                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                iCurBombersOwnedOrBeingBuilt = iCurBombersOwnedOrBeingBuilt + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber * categories.TECH1)
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurBombersOwnedOrBeingBuilt after checking all brain current bombers='..iCurBombersOwnedOrBeingBuilt) end
+                            if iCurBombersOwnedOrBeingBuilt < iTotalBombersWanted then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try getting a bomber') end
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber * categories.TECH1) then return sBPIDToBuild end
+                            end
+                        end
+                    end
+
+                end
+            end
+
             --Determine the AirAA category to produce
             local iAirAASearchCategory
             if iFactoryTechLevel == 3 then
@@ -5201,8 +5263,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         end
                     end
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': Number of 30%+ completion experimentals under construction in other zones='..M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL)) end
-                    if M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL, 0.3) > 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Number of 30%+ completion experimentals under construction in other zones='..M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL)) end
+                    if M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL, 0.3) > 0 then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
                     end
                 end

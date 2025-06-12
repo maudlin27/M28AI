@@ -3646,7 +3646,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 end
                                 local bAirExpForThisZone, iOtherLandZonesWithAirExperimental, AiriMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateauOrZero, iLandOrWaterZone, false, nil, M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar, nil, nil, aiBrain.M28AirSubteam)
                                 iCurAirExperimentals = iCurAirExperimentals + iOtherLandZonesWithAirExperimental
-                                local iUnderConstructionLandExp = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryLandExperimental)
+                                local iUnderConstructionLandExp = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryLandExperimental)
                                 if aiBrain[M28Overseer.refbPrioritiseAir] and not(bDontGetAirExp) then
                                     iCategoryWanted = (M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                                     bGettingNonSeraphimAirExp = true
@@ -3730,7 +3730,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 local iCurT3ArtiCount = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryExperimentalArti) * 3
                                 local iLifetimeAirExpCount = M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL)
                                 local iLifetimeGroundExpCount =  M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental)
-                                local iUnderConstructionLandExp = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryLandExperimental)
+                                local iUnderConstructionLandExp = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryLandExperimental)
                                 local bHaveLargeBuildAreaAvailable = false
                                 if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][24] or 0) > 0 then
                                     bHaveLargeBuildAreaAvailable = true
@@ -3738,7 +3738,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                 iCurAirExperimentals = iCurAirExperimentals + iOtherLandZonesWithAirExperimental
 
                                 local iEnemyT3ArtiEquivalent = M28Conditions.GetEnemyT3ArtiEquivalent(iTeam, 0.4, 3, true, nil)
-                                local iFriendlyGameEnderUnderConstruction = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryGameEnder)
+                                local iFriendlyGameEnderUnderConstruction = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryGameEnder)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering aeon specific experimental, iCurAirExperimentals='..iCurAirExperimentals..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Land exp='..iTeamLandExperimentals..'; iFriendlyGameEnderUnderConstruction='..iFriendlyGameEnderUnderConstruction..'; iEnemyT3ArtiEquivalent='..iEnemyT3ArtiEquivalent..'; refbDefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or false)..'; iEnemyLandExperimentalCount='..iEnemyLandExperimentalCount..'; Our gunship threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; iOur bomber threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]..'; iLifetimeAirExpCount='..iLifetimeAirExpCount..'; iLifetimeGroundExpCount='..iLifetimeGroundExpCount..'; bHaveLargeBuildAreaAvailable='..tostring(bHaveLargeBuildAreaAvailable)..'; iUnderConstructionLandExp='..iUnderConstructionLandExp) end
 
                                 if aiBrain[M28Overseer.refbPrioritiseAir] and not(bDontGetAirExp) then
@@ -4877,7 +4877,7 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] >= 750 then
             iCategoryToBuild = iCategoryToBuild - M28UnitInfo.refCategoryParagon
         elseif M28Conditions.GetTeamLifetimeBuildCount(aiBrain.M28Team, M28UnitInfo.refCategoryParagon) > 0 then
-            local iParagonUnderConstruction = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZOrWZTeamData, aiBrain.M28Team, M28UnitInfo.refCategoryParagon)
+            local iParagonUnderConstruction = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZOrWZTeamData, aiBrain.M28Team, M28UnitInfo.refCategoryParagon)
             if iParagonUnderConstruction > 0 then
                 iCategoryToBuild = iCategoryToBuild - M28UnitInfo.refCategoryParagon
             end
@@ -12408,7 +12408,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bDebugMessages == true then LOG(sFunctionRef..': iAirStagingInThisZoneUnderConstruction='..iAirStagingInThisZoneUnderConstruction..'; Active brain count='.. M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Highest air fac tech='.. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]) end
         if iAirStagingInThisZoneUnderConstruction == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 and (bHaveLowMass or bHaveLowPower or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3) then
             --How many under construction air staging do we have
-            iUnderConstructionInOtherZonesWithLowResources = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirStaging)
+            iUnderConstructionInOtherZonesWithLowResources = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirStaging)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': iExistingAirStaging='..iExistingAirStaging..'; bHaveLowMass='..tostring(bHaveLowMass)..'; iAirStagingInThisZoneUnderConstruction='..iAirStagingInThisZoneUnderConstruction..'; iUnderConstructionInOtherZonesWithLowResources='..iUnderConstructionInOtherZonesWithLowResources) end
         if iUnderConstructionInOtherZonesWithLowResources == 0 and (iExistingAirStaging <= 1 or (iExistingAirStaging < 3 and not(bHaveLowMass)) or (iExistingAirStaging < 8 and oExistingM28Brain and oExistingM28Brain:GetCurrentUnits(M28UnitInfo.refCategoryAllNonExpAir) >= 50 * iExistingAirStaging)) then
@@ -14008,10 +14008,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
             --T3 radar
             iCurPriority = iCurPriority + 1
-            if bDebugMessages == true then LOG(sFunctionRef..': High priority Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; aiBrain[M28Overseer.refbBuiltLongRangeLandUnit]='..tostring(aiBrain[M28Overseer.refbBuiltLongRangeLandUnit])..'; Omni under construction elsewhere='..M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryT3Radar)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': High priority Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; aiBrain[M28Overseer.refbBuiltLongRangeLandUnit]='..tostring(aiBrain[M28Overseer.refbBuiltLongRangeLandUnit])..'; Omni under construction elsewhere='..M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryT3Radar)) end
             if not(bSaveMassForMML) and tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT2RadarSize then
                 --Require T3 mexes before building T3 radar unless we have a fatboy and no T3 radar under construction elsewhere
-                if tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] == 1 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] == 0) or (aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] and M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryT3Radar) == 0) then
+                if tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] == 1 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] == 0) or (aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] and M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryT3Radar) == 0) then
                     if M28UnitInfo.iT3RadarSize - M28UnitInfo.iT2RadarSize >= 100 or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryT3Radar) == 0 then
                         iBPWanted = 30
                         if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 100 end
@@ -14378,7 +14378,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     local iSMDUnderConstructionInThisZone = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategorySMD, true)
                     local bStillGetSMD = true
                     if iSMDUnderConstructionInThisZone == 0 then
-                        local iSMDUnderConstructionInOtherZones = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategorySMD)
+                        local iSMDUnderConstructionInOtherZones = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, M28UnitInfo.refCategorySMD)
                         if iSMDUnderConstructionInOtherZones > 0 then bStillGetSMD = false end
                     end
                     if bStillGetSMD then

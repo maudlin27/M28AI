@@ -2547,7 +2547,7 @@ function AssignACUAttackGridSlot(tUnits, oACU)
 end
 
 function SuicideExperimentalIntoFatboy(oUnit, oFatboy, iTeam, iPlateau)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SuicideExperimentalIntoFatboy'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

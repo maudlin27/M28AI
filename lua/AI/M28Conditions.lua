@@ -2886,9 +2886,9 @@ function IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam
     return bWantIndirectReinforcements
 end
 
-function GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, iCategory, iOptionalMinConstruction)
+function GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, iCategory, iOptionalMinConstruction)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones'
+    local sFunctionRef = 'GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iUnderConstructionInOtherZones = 0

@@ -270,6 +270,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbTMLForLongRangeThreatMonitorActive = 'M28TMLBatMon' --true if have active threat for TML battery
     refbTMLBatteryMissedLots = 'M28TMBatMis' --true if TML battey has fired a lot of times and missed targets
     refiGeneralPingsInLast30Seconds = 'M28TmPngs' --number of unrecognised pings created in the last 30s
+    reftiWaterZonesForBomberToKillEngis = 'M28NvBmb' --[x] is the water zone, = 0 if considering water zone for a fac but dont want a bomber, positivei f want bomber (in theory could make more than 1); if enemy builds a naval fac we should monitor it for if it has multiple engis assisting, and if so consider sending a bomber to the water zone to kill the engis
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -1925,6 +1926,9 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 tTeamData[aiBrain.M28Team][subrefbEnemyGettingFabsOrRAS] = true
                             elseif EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
                                 ForkThread(EnemyNovaxSatelliteMonitor, oUnit, aiBrain.M28Team)
+                                --Track the first naval fac enemy tries building in a pond so can consider bombers to harass engineers at it
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory * categories.TECH1, oUnit.UnitId) then
+                                ForkThread(M28Air.MonitorNavalFacForBomberTarget, oUnit, aiBrain)
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni
