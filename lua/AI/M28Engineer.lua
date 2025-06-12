@@ -4697,7 +4697,8 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                             end
                                                         else
                                                             iLZOrWZToRunTo = M28Navy.GetWaterZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
-                                                            if not(iLZOrWZToRunTo == iLandZone) then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
+
+                                                            if not(iLZOrWZToRunTo == iLandZone) and not(iLandZone == M28Navy.GetWaterZoneToRunTo(iTeam, iPlateauOrPond, iLZOrWZToRunTo, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom))  then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build); similarly if we would run here from the WZ we want to run to
                                                                 --Run to the LZ
                                                                 M28Orders.IssueTrackedMove(oEngineer, M28Map.tPondDetails[iPlateauOrPond][M28Map.subrefPondWaterZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'NRunTo'..iLZOrWZToRunTo)
                                                                 bEngiIsUnavailable = true
