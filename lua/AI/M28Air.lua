@@ -8668,6 +8668,7 @@ function UpdateTransportShortlistForPondDrops(iTeam, tbPlateausWithPlayerStartOr
                 end
             end
             --Consider dropping pond naval start positions
+            local iCurTravelDist
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering priority pond for brain='..oBrain.Nickname..'; refiPriorityPondRef='..(oBrain[M28Navy.refiPriorityPondRef] or 'nil')..'; tbPondsInDropList='..repru(tbPondsInDropList)) end
                 if oBrain[M28Navy.refiPriorityPondRef] and not(tbPondsInDropList[M28Navy.refiPriorityPondRef]) then
@@ -8676,10 +8677,15 @@ function UpdateTransportShortlistForPondDrops(iTeam, tbPlateausWithPlayerStartOr
                         --How far away is this naval build location to our start position?
                         local iTargetPlateau, iTargetWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tNavalBuildLocation)
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering adding naval build location to transport drop dist, iTargetWZ='..(iTargetWZ or 'nil')..'; Brain='..oBrain.Nickname..'; Dist from naval build location to base='..M28Utilities.GetDistanceBetweenPositions(tNavalBuildLocation, M28Map.GetPlayerStartPosition(oBrain))) end
-                        if iTargetWZ and iTargetPlateau == 0 and M28Utilities.GetDistanceBetweenPositions(tNavalBuildLocation, M28Map.GetPlayerStartPosition(oBrain)) >= 110 then
-                            AddZoneToPotentialDropZonesSameIslandOrDifPond(iTeam, 0, iTargetWZ)
-                            tbPondsInDropList[M28Map.tiPondByWaterZone[iTargetWZ]] = true
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adding naval zone to drop location, iTargetWZ='..iTargetWZ) end
+                        if iTargetWZ and iTargetPlateau == 0 then
+                            iCurTravelDist = (M28Utilities.GetTravelDistanceBetweenPositions(M28Map.GetPlayerStartPosition(oBrain), tNavalBuildLocation, M28Map.refPathingTypeHover) or M28Utilities.GetDistanceBetweenPositions(tNavalBuildLocation, M28Map.GetPlayerStartPosition(oBrain)) + 150)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDist='..iCurTravelDist) end
+                            if iCurTravelDist >= 150 then
+
+                                AddZoneToPotentialDropZonesSameIslandOrDifPond(iTeam, 0, iTargetWZ)
+                                tbPondsInDropList[M28Map.tiPondByWaterZone[iTargetWZ]] = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding naval zone to drop location, iTargetWZ='..iTargetWZ) end
+                            end
                         end
                     end
                 end
