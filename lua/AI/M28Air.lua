@@ -665,116 +665,143 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
 
     local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
     if M28Utilities.IsTableEmpty(tLastOrder) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Air unit has no last orders so returning false') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     else
-        local iDistToTarget, tOrderTarget
-        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
-            if M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
-                tOrderTarget = tTargetOverride or tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()
-                iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
-            else
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return false
-            end
-        elseif tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove then
-            if oUnit[refoAirAACurTarget] and M28UnitInfo.IsUnitValid(oUnit[refoAirAACurTarget]) then
-                tOrderTarget = tTargetOverride or oUnit[refoAirAACurTarget]:GetPosition()
-                iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
-            else
-                tOrderTarget = tTargetOverride or tLastOrder[M28Orders.subreftOrderPosition]
-                iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
-            end
-        else
-            --Other target so treat as not in combat/wanting to refuel
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has different command to move or attack so will treat as not in combat as it may be refueling') end
+        if true and GetGameTimeSeconds() >= 25*60+30 and not(oUnit[refoAirAACurTarget]) and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
+            if bDebugMessages == true then LOG(sFunctionRef..': AirAA unit with no AACurTarget so returning false') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
-        end
-        if bDebugMessages == true then
-            LOG(sFunctionRef..': Considering if air unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in combat, iDistToTarget='..iDistToTarget..'; tLastOrder[M28Orders.subrefoOrderUnitTarget]='..(tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')..'; oUnit[refoAirAACurTarget]='..(oUnit[refoAirAACurTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit[refoAirAACurTarget]) or 'nil')..'; Time='..GetGameTimeSeconds()..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; VDist3='..VDist3(oUnit:GetPosition(), tOrderTarget)..'; refiAARange='..(oUnit[M28UnitInfo.refiAARange] or 'nil'))
-            if oUnit[refoAirAACurTarget] then LOG(sFunctionRef..': Dist to oUnit[refoAirAACurTarget]='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoAirAACurTarget]:GetPosition())..'; VDist3='..VDist3(oUnit:GetPosition(),oUnit[refoAirAACurTarget]:GetPosition())) end
-        end
-        if iDistToTarget < 100 then
-            local iDistThreshold = 100
-            if EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
-                iDistThreshold = 30
-                iDistThreshold = math.min((oUnit[M28UnitInfo.refiAARange] or 35) - 5, 50)
-                if oUnit[refoAirAACurTarget].UnitId then
-                    if EntityCategoryContains(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryTransport - categories.EXPERIMENTAL, oUnit[refoAirAACurTarget].UnitId) then
-                        iDistThreshold = 55
-                    elseif EntityCategoryContains(categories.EXPERIMENTAL, oUnit[refoAirAACurTarget].UnitId) then
-                        iDistThreshold = 70
-                    end
+        else
+            local iDistToTarget, tOrderTarget
+            if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
+                if M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
+                    tOrderTarget = tTargetOverride or tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()
+                    iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': last order was to attack but no valid unit to target so returning false') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return false
                 end
-            elseif EntityCategoryContains(categories.TECH1, oUnit.UnitId) then iDistThreshold = 50
-            elseif EntityCategoryContains(categories.TECH2, oUnit.UnitId) then iDistThreshold = 65
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': iDistThreshold='..iDistThreshold..'; iDistToTarget='..iDistToTarget) end
-            if iDistToTarget > iDistThreshold then
-                if bDebugMessages == true then LOG(sFunctionRef..': too far from target so not in combat') end
+            elseif tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove then
+                if oUnit[refoAirAACurTarget] and M28UnitInfo.IsUnitValid(oUnit[refoAirAACurTarget]) then
+                    tOrderTarget = tTargetOverride or oUnit[refoAirAACurTarget]:GetPosition()
+                    iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
+                else
+                    tOrderTarget = tTargetOverride or tLastOrder[M28Orders.subreftOrderPosition]
+                    iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
+                end
+            else
+                --Other target so treat as not in combat/wanting to refuel
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has different command to move or attack so will treat as not in combat as it may be refueling') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false
-            else
-                --Our target is relatively close, if we are not an airAA unit then treat as in combat if we have an attack order
+            end
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Considering if air unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in combat, iDistToTarget='..iDistToTarget..'; tLastOrder[M28Orders.subrefoOrderUnitTarget]='..(tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')..'; oUnit[refoAirAACurTarget]='..(oUnit[refoAirAACurTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit[refoAirAACurTarget]) or 'nil')..'; Time='..GetGameTimeSeconds()..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; VDist3='..VDist3(oUnit:GetPosition(), tOrderTarget)..'; refiAARange='..(oUnit[M28UnitInfo.refiAARange] or 'nil'))
+                if oUnit[refoAirAACurTarget] then LOG(sFunctionRef..': Dist to oUnit[refoAirAACurTarget]='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoAirAACurTarget]:GetPosition())..'; VDist3='..VDist3(oUnit:GetPosition(),oUnit[refoAirAACurTarget]:GetPosition())) end
+            end
+            if iDistToTarget < 100 then
+                local iDistThreshold = 100
                 if EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
-                    if oUnit[refoAirAACurTarget] then
-                        if EntityCategoryContains(M28UnitInfo.refCategoryAirScout, oUnit[refoAirAACurTarget].UnitId) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Targeting air scout so will be available for new orders') end
-                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            return false
-                        else
-                            if bDebugMessages == true then LOG(sFunctionRef..': We are an AirAA unit close to a target htat isnt an air scout so will commit to that target') end
-                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            return true
+                    iDistThreshold = 30
+                    iDistThreshold = math.min((oUnit[M28UnitInfo.refiAARange] or 35) - 5, 50)
+                    if oUnit[refoAirAACurTarget].UnitId then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryTransport - categories.EXPERIMENTAL, oUnit[refoAirAACurTarget].UnitId) then
+                            iDistThreshold = 55
+                        elseif EntityCategoryContains(categories.EXPERIMENTAL, oUnit[refoAirAACurTarget].UnitId) then
+                            iDistThreshold = 70
+                            --asfs about to engage with each other
+                        elseif true and GetGameTimeSeconds() >= 25*60+10 and iDistToTarget > iDistThreshold and iDistToTarget <= 60 and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit[refoAirAACurTarget].UnitId) then
+                            --Get angle dif - if we are both almost facing each other then likely to be in range before can turn around, and have less time to adjust targets
+                            local iAngleToTarget = GetAngleFromAToB(oUnit:GetPosition(), oUnit[refoAirAACurTarget]:GetPosition())
+                            local iOurUnitFacingAngle = M28UnitInfo.GetUnitFacingAngle(oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iAngleToTarget='..iAngleToTarget..'; iOurUnitFacingAngle='..iOurUnitFacingAngle..'; Dif='..M28Utilities.GetAngleDifference(iAngleToTarget, iOurUnitFacingAngle)) end
+                            if M28Utilities.GetAngleDifference(iAngleToTarget, iOurUnitFacingAngle) <= 35 then
+                                local iEnemyUnitFacingAngle = M28UnitInfo.GetUnitFacingAngle(oUnit[refoAirAACurTarget])
+                                if bDebugMessages == true then LOG(sFunctionRef..': iEnemyUnitFacingAngle='..iEnemyUnitFacingAngle..'; Dif='..M28Utilities.GetAngleDifference(iAngleToTarget + 180, iEnemyUnitFacingAngle)) end
+                                if M28Utilities.GetAngleDifference(iAngleToTarget + 180, iEnemyUnitFacingAngle) <= 35 then
+                                    iDistThreshold = 60
+                                end
+                            end
                         end
-                        --Treat as in combat if nearby enemy air to the target; not sure if below code is actually used?
-                    elseif tOrderTarget then
-                        local iPlateau, iLandZone, iWaterZone
-                        iPlateau, iLandZone =  M28Map.GetPlateauAndLandZoneReferenceFromPosition(tOrderTarget)
-                        if iPlateau then
-                            if (iLandZone or 0) == 0 then
-                                iWaterZone = M28Map.GetWaterZoneFromPosition(tOrderTarget)
-                                if (iWaterZone or 0) == 0 then
-                                    --unlikely we are going to a rally point or air staging if it isnt on land or water that can be pathed to by ground
-                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                    return true
+                    end
+                elseif EntityCategoryContains(categories.TECH1, oUnit.UnitId) then iDistThreshold = 50
+                elseif EntityCategoryContains(categories.TECH2, oUnit.UnitId) then iDistThreshold = 65
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iDistThreshold='..iDistThreshold..'; iDistToTarget='..iDistToTarget) end
+                if iDistToTarget > iDistThreshold then
+                    if bDebugMessages == true then LOG(sFunctionRef..': too far from target so not in combat') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return false
+                else
+                    --Our target is relatively close, if we are not an airAA unit then treat as in combat if we have an attack order
+                    if EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
+                        if oUnit[refoAirAACurTarget] then
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAirScout, oUnit[refoAirAACurTarget].UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Targeting air scout so will be available for new orders') end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return false
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': We are an AirAA unit close to a target htat isnt an air scout so will commit to that target') end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
+                            end
+                            --Treat as in combat if nearby enemy air to the target; not sure if below code is actually used?
+                        elseif tOrderTarget then
+                            local iPlateau, iLandZone, iWaterZone
+                            iPlateau, iLandZone =  M28Map.GetPlateauAndLandZoneReferenceFromPosition(tOrderTarget)
+                            if iPlateau then
+                                if (iLandZone or 0) == 0 then
+                                    iWaterZone = M28Map.GetWaterZoneFromPosition(tOrderTarget)
+                                    if (iWaterZone or 0) == 0 then
+                                        --unlikely we are going to a rally point or air staging if it isnt on land or water that can be pathed to by ground
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Order target not on valid zone, will return that are in combat') end
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                        return true
+                                    else
+                                        --Check if enemy air in water zone
+                                        local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
+                                        if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has air units in the target water zone, so assuming we are in combat') end
+                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                            return true
+                                        end
+                                    end
                                 else
-                                    --Check if enemy air in water zone
-                                    local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
-                                    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
+                                    --Check if enemy air in land zone
+                                    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': enemy has air units in the LZ that we are in, so returning true') end
                                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                         return true
                                     end
                                 end
                             else
-                                --Check if enemy air in land zone
-                                local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': enemy has air units in the LZ that we are in, so returning true') end
-                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                    return true
-                                end
+                                --unlikely we are going to a rally point or air staging if it isnt on land or water that can be pathed to by ground
+                                if bDebugMessages == true then LOG(sFunctionRef..': Order target not on valid plateau, will return that are in combat') end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
                             end
-                        else
-                            --unlikely we are going to a rally point or air staging if it isnt on land or water that can be pathed to by ground
+                        end
+                    else
+                        --Bomber so unavailable if attack order
+                        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Bomber has attack order so returning true') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         end
                     end
-                else
-                    --Bomber so unavailable if attack order
-                    if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        return true
-                    end
                 end
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': no dist to target so returning false') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return false
             end
-        else
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            return false
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code - returning false') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
@@ -875,6 +902,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                     end
                 end
                 for iUnit, oUnit in tCurUnits do
+                    if GetGameTimeSeconds() >= 25*60+30 and( oUnit.UnitId == 'uaa0303' or oUnit.UnitId == 'ura0303') then bDebugMessages = true end
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 1 then --Needed as sometimes an invalid unit is included from getlistofunits; also because underproduction units are included with getlistofunits
                         if bRecordInTorpBomberWaterZoneList then
                             iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
@@ -3111,6 +3139,7 @@ function UpdateOrdersForExistingAirAATargets(tInCombatUnits, bReturnTableOfAssig
     local tExistingThreatAssignedByUnitRef = {}
     if bDebugMessages == true then LOG(sFunctionRef..': updating orders for all InCombatUnits, bReturnTableOfAssignedThreat='..tostring(bReturnTableOfAssignedThreat or false)..'; Is table of tInCombatUnits empty='..tostring(M28Utilities.IsTableEmpty(tInCombatUnits))..'; Brain of first in combat unit='..tInCombatUnits[1]:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
     for iAAUnit, oAirAA in tInCombatUnits do
+        if bDebugMessages == true then LOG(sFunctionRef..': Updating orders for oAirAA unit='..oAirAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirAA)..'; Is cur target valid='..tostring(M28UnitInfo.IsUnitValid(oAirAA[refoAirAACurTarget]))) end
         --Update move orders
         if M28UnitInfo.IsUnitValid(oAirAA[refoAirAACurTarget]) then
             if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to target enemy unit '..oAirAA[refoAirAACurTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirAA[refoAirAACurTarget])..' with oAirAA='..oAirAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirAA)..' at time='..GetGameTimeSeconds()) end
@@ -3125,6 +3154,7 @@ function UpdateOrdersForExistingAirAATargets(tInCombatUnits, bReturnTableOfAssig
             end
         else
             oAirAA[refoAirAACurTarget] = nil
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont have a valid target so will clear refoAirAACurTarget') end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Finished targeting AirAA existing targets') end
@@ -3683,6 +3713,19 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         iAirControlFactor = math.max(iAirControlFactor + 0.1, math.min(1.5, iAirControlFactor + iAdjustValue))
     end
     if not(M28Utilities.bFAFActive) then iAirControlFactor = iAirControlFactor + 0.03 end
+    --Larger maps - increase control factor slightly more as we are less likely to have intel of enemy air force
+    if M28Map.iMapSize >= 700 then
+        if M28Map.iMapSize > 1024 then
+            iAirControlFactor = iAirControlFactor + 0.1
+            iFarBehindFactor = math.min(0.99, iFarBehindFactor + 0.06)
+        elseif M28Map.iMapSize >= 1000 then
+            iAirControlFactor = iAirControlFactor + 0.06
+            iFarBehindFactor = math.min(0.99, iFarBehindFactor + 0.03)
+        else
+            iAirControlFactor = iAirControlFactor + 0.03
+            iFarBehindFactor = math.min(0.99, iFarBehindFactor + 0.01)
+        end
+    end
     if GetGameTimeSeconds() >= 2700 then --After 45m, increase the factor wanted by below % over the next 30m (due to risk as enemies' production expands they can surprise us with more asf at once)
         iAirControlFactor = math.min(0.08, 0.08 * (GetGameTimeSeconds() - 2700) / 1800) + iAirControlFactor
     end
