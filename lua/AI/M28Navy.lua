@@ -764,7 +764,16 @@ function MoveToShieldTarget(oShield, tEnemyBase)
     local oBP = oShield:GetBlueprint()
     local iShieldDistanceWanted = math.max(3, oBP.Defense.Shield.ShieldSize * 0.5 - 1 - oBP.Physics.MaxSpeed - (oShield[M28Land.refoMobileShieldTarget]:GetBlueprint().Physics.MaxSpeed or 0))
     --Have an issue with larger shields like shield boats where the shield isn't maintained all the time; can afford to be a bit closer with a larger shield
-    if iShieldDistanceWanted >= 10 then iShieldDistanceWanted = math.max(10, iShieldDistanceWanted * 0.66) end
+    if iShieldDistanceWanted >= 10 then  --prev did 66% but would sometimes lead to unit not being shielded by uef shield boat e.g. if it was moving forwards
+        iShieldDistanceWanted = math.max(10, iShieldDistanceWanted * 0.6 - 4)
+        if iShieldDistanceWanted > 10 then
+            local iAngleToTarget = M28Utilities.GetAngleFromAToB(oShield:GetPosition(), oShield[M28Land.refoMobileShieldTarget]:GetPosition())
+            local iTargetFacingAngle = M28UnitInfo.GetUnitFacingAngle(oShield[M28Land.refoMobileShieldTarget])
+            if M28Utilities.GetAngleDifference(iAngleToTarget, iTargetFacingAngle) <= 90 then --e.g. if target unit moves it is likely to move further away from us, so want to be sligthly closer
+                iShieldDistanceWanted = math.max(iShieldDistanceWanted - 3, 10)
+            end
+        end
+    end
     M28Orders.IssueTrackedMove(oShield, M28Utilities.MoveInDirection(oShield[M28Land.refoMobileShieldTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oShield[M28Land.refoMobileShieldTarget]:GetPosition()), iShieldDistanceWanted, true, false, true), math.min(4, iShieldDistanceWanted - 1), false, 'WShU'..oShield[M28Land.refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield[M28Land.refoMobileShieldTarget]))
 end
 
@@ -779,7 +788,7 @@ function ShieldUnitsInWaterZone(tTeamTargetWZData, tShieldsToAssign, bAssignAllS
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ShieldUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    
+
     local bNoUnitsWantingShielding = true
     if M28Utilities.IsTableEmpty(tTeamTargetWZData[M28Map.subrefWZTAlliedCombatUnits]) and M28Utilities.IsTableEmpty(tTeamTargetWZData[M28Map.reftoWZUnitsWantingMobileShield]) then
         M28Utilities.ErrorHandler('Are trying to send mobile shields to support a water zone that has no allied combat units in it and no units wanting shielding')
@@ -1023,11 +1032,23 @@ function ManageMobileShieldsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
     for iUnit, oUnit in tMobileShields do
         iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering what to do with unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield) end
-        if not(oUnit[M28UnitInfo.refbEasyBrain]) and iCurShield < iMaxShield * 0.5 then
+        if not(oUnit[M28UnitInfo.refbEasyBrain]) and iCurShield < iMaxShield * 0.5 and
+        --Want to avoid shield leaving cruiser defenceless
+        (tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or iCurShield < iMaxShield * 0.3 or not(oUnit[M28Land.refoMobileShieldTarget].UnitId) or not(EntityCategoryContains(M28UnitInfo.refCategoryCruiser, oUnit[M28Land.refoMobileShieldTarget].UnitId))) then
             --Retreat
             table.insert(tShieldsToRetreat, oUnit)
         elseif oUnit[M28Land.refoMobileShieldTarget] and M28UnitInfo.IsUnitValid(oUnit[M28Land.refoMobileShieldTarget]) then
             --make sure we are behind the target
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Will shield unit '..oUnit[M28Land.refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28Land.refoMobileShieldTarget])..'; Dist to unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28Land.refoMobileShieldTarget]:GetPosition())..'; Unit shield radius='..(oUnit:GetBlueprint().Defense.Shield.ShieldSize or 'nil'))
+                local oBP = oUnit:GetBlueprint()
+                local iShieldDistanceWanted = math.max(3, oBP.Defense.Shield.ShieldSize * 0.5 - 1 - oBP.Physics.MaxSpeed - (oUnit[M28Land.refoMobileShieldTarget]:GetBlueprint().Physics.MaxSpeed or 0))
+                --Have an issue with larger shields like shield boats where the shield isn't maintained all the time; can afford to be a bit closer with a larger shield
+                if iShieldDistanceWanted >= 10 then iShieldDistanceWanted = math.max(10, iShieldDistanceWanted * 0.6 - 4) end
+                local iAngleToTarget = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28Land.refoMobileShieldTarget]:GetPosition())
+                local iTargetFacingAngle = M28UnitInfo.GetUnitFacingAngle(oUnit[M28Land.refoMobileShieldTarget])
+                LOG(sFunctionRef..': Expected iShieldDistanceWanted based on copy of the code (might be outdated)='..iShieldDistanceWanted..'; iAngleToTarget='..iAngleToTarget..'; iTargetFacingAngle='..iTargetFacingAngle..'; Angle dif='..M28Utilities.GetAngleDifference(iAngleToTarget, iTargetFacingAngle))
+            end
             MoveToShieldTarget(oUnit, tEnemyBase)
         else
             table.insert(tShieldsToAssign, oUnit)
@@ -3457,11 +3478,15 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     if (not(bHaveRunFromAir) and tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] and GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] <= iRetreatFromAirDuration and tWZTeamData[M28Map.subrefWZThreatAlliedMAA] < 500)
             --Below is to be consistent so if we are retreating subs or surface from air we will do the same for the other
             or (bHaveRunFromAir and (M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tMissileShips) == false)) then
-        bHaveRunFromAir = true
-        if bDebugMessages == true then LOG(sFunctionRef..': We have retreated from air before so want to retreat all naval units, time since last ran='..GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir]..'; iRetreatFromAirDuration='..iRetreatFromAirDuration) end
-        if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false and (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0) > 0 then RetreatAllUnits(tAvailableSubmarines) tAvailableSubmarines = nil end
-        if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then RetreatAllUnits(tAvailableCombatUnits) tAvailableCombatUnits = nil end
-        if M28Utilities.IsTableEmpty(tMissileShips) == false then RetreatAllUnits(tMissileShips) tMissileShips = nil end
+        if bDebugMessages == true then LOG(sFunctionRef..': We have retreated from air before so want to retreat all naval units, time since last ran='..GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir]..'; iRetreatFromAirDuration='..iRetreatFromAirDuration..'; however if our adjacent airaa threat is high enough and there is no air to ground threat in this zone then will consider not running if it has been more than 25% of the retreatfromair duration') end
+        if tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] and iFriendlyAdjacentUnweightedAAThreat > M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] and GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] > 0.3 * iRetreatFromAirDuration and (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) <= (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Been long enough since we last ran given our nearby AA so wont run anymore') end
+        else
+            bHaveRunFromAir = true
+            if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false and (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 0) > 0 then RetreatAllUnits(tAvailableSubmarines) tAvailableSubmarines = nil end
+            if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then RetreatAllUnits(tAvailableCombatUnits) tAvailableCombatUnits = nil end
+            if M28Utilities.IsTableEmpty(tMissileShips) == false then RetreatAllUnits(tMissileShips) tMissileShips = nil end
+        end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Finished considering whether units should run from air, bHaveRunFromAir='..tostring(bHaveRunFromAir or false)..'; Time since last ran='..  GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] or 0)..'; tWZTeamData[M28Map.subrefWZThreatAlliedMAA]='..tWZTeamData[M28Map.subrefWZThreatAlliedMAA]..'; iEnemyAdjacentAirToGroundThreat='..iEnemyAdjacentAirToGroundThreat..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Is table of combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))) end
 
