@@ -270,6 +270,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbTMLForLongRangeThreatMonitorActive = 'M28TMLBatMon' --true if have active threat for TML battery
     refbTMLBatteryMissedLots = 'M28TMBatMis' --true if TML battey has fired a lot of times and missed targets
     refiGeneralPingsInLast30Seconds = 'M28TmPngs' --number of unrecognised pings created in the last 30s
+    reftiWaterZonesForBomberToKillEngis = 'M28NvBmb' --[x] is the water zone, = 0 if considering water zone for a fac but dont want a bomber, positivei f want bomber (in theory could make more than 1); if enemy builds a naval fac we should monitor it for if it has multiple engis assisting, and if so consider sending a bomber to the water zone to kill the engis
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -314,6 +315,7 @@ tAirSubteamData = {}
     reftoPriorityTorpedoUnitTargets = 'M28ATrpT' --table of units to consider targeting with torpedo bombers if underwater - e.g. to use for ACUs hiding underwater
     toFrontT3Bomber = 'M28FrnT3' --furthest t3 bomber from our air rally point - so can consider as a priority target to defend
     reftoActiveBomberTargets = 'M28BmbTr' --table of enemy units currently being targeted by bombers (gets reset each air cycle and repopulated based on unavailable bombers and attack orders given to bombers)
+    refiLastAirAASupportPointAngleAdjust = 'M28SupAng' --will adjust the support point slightly to try and keep asfs moving in a similar direction
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -1925,6 +1927,9 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 tTeamData[aiBrain.M28Team][subrefbEnemyGettingFabsOrRAS] = true
                             elseif EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
                                 ForkThread(EnemyNovaxSatelliteMonitor, oUnit, aiBrain.M28Team)
+                                --Track the first naval fac enemy tries building in a pond so can consider bombers to harass engineers at it
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory * categories.TECH1, oUnit.UnitId) then
+                                ForkThread(M28Air.MonitorNavalFacForBomberTarget, oUnit, aiBrain)
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni

@@ -1265,13 +1265,17 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
 
                 --Logic specific to M28 units dealt damage
                 if self:GetAIBrain().M28AI then
-                    if bDebugMessages == true then LOG(sFunctionRef..': M28AI owned unit just taken damage, unit='..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..'; Is this a gunship that can refuel='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, self.UnitId) and not(self.MyShield) and not(self[M28UnitInfo.refbProjectilesMeanShouldRefuel]))..'; self.MyShield==nil='..tostring(self.MyShield == nil)..'; self[M28UnitInfo.refbProjectilesMeanShouldRefuel]='..tostring(self[M28UnitInfo.refbProjectilesMeanShouldRefuel] or false)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': M28AI owned unit just taken damage, unit='..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..'; Is this a gunship that can refuel='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, self.UnitId) and not(self.MyShield) and not(self[M28UnitInfo.refbProjectilesMeanShouldRefuel]))..'; self.MyShield==nil='..tostring(self.MyShield == nil)..'; self[M28UnitInfo.refbProjectilesMeanShouldRefuel]='..tostring(self[M28UnitInfo.refbProjectilesMeanShouldRefuel] or false)..'; oUnitCausingDamage='..(oUnitCausingDamage.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitCausingDamage) or 'nil')) end
                     if EntityCategoryContains(categories.COMMAND, self.UnitId) then
                         if self:IsUnitState('Upgrading') then
                             --Do we want to cancel the upgrade? If were hit by a TML then want to
                             if M28UnitInfo.IsUnitValid(oUnitCausingDamage) and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
                                 if not(self[M28UnitInfo.refbEasyBrain]) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will cancel upgrade and move away temporarily') end
                                     M28Micro.MoveAwayFromTargetTemporarily(self, 5, oUnitCausingDamage:GetPosition())
+                                    self[M28UnitInfo.refiTimeLastCanceledUpgrade] = GetGameTimeSeconds()
+                                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(self:GetPosition(), true, self:GetAIBrain().M28Team)
+                                    self[M28UnitInfo.refiDistToEnemyBaseWhenLastCanceledUpgrade] = M28Utilities.GetDistanceBetweenPositions(self:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])
                                 end
                             end
                         end
@@ -1370,7 +1374,7 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
                 --Logic relating to the bomber itself:
                 if not(oUnit.Dead) then
                     --Ahwassa and strats - micro the bomber so they turn around and retreat to rally point/nearest base, but dont micro the first couple of strats as the enemy is less likely to have T3 AA (and slowing down to micro could cause them to die to flak)
-                    if EntityCategoryContains(categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber, sUnitID) and ((not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and not(oUnit[M28Air.rebEarlyBomberTargetBase])) or not(EntityCategoryContains(categories.TECH1, sUnitID))) then
+                    if EntityCategoryContains(categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber, sUnitID) and ((not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and not(oUnit[M28Air.rebEarlyBomberTargetBase]) and not(oUnit[M28Air.refiBomberTargetNavalEngiWZ])) or not(EntityCategoryContains(categories.TECH1, sUnitID))) then
                         --bombers - micro to turn around and go to rally point
                         if oUnit:GetAIBrain().M28AI then
                             local oTargetUnit = oUnit[M28Orders.reftiLastOrders][M28Orders.subrefoOrderUnitTarget]
@@ -1388,8 +1392,9 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
                                     else
                                         if bDebugMessages == true then LOG(sFunctionRef..': Do nothing as bomber firing a salvo and is a 1st bomber') end
                                     end
+                                elseif oUnit[M28Air.refiBomberTargetNavalEngiWZ] then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Do nothing as naval engi bomber') end
                                 else
-
                                     --Track exp bombs fired (relevant for when trying to use our aoe to hit mobile targets safely)
                                     if bDebugMessages == true then LOG(sFunctionRef..': will get bomber to head towards rally point, bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Bomber position='..repru(oUnit:GetPosition())..'; Rally point='..repru(M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist to rally point='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to its owners start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Map.GetPlayerStartPosition(oUnit:GetAIBrain()))..'; oTargetUnit='..(oTargetUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTargetUnit) or 'nil')) end
                                     if M28UnitInfo.IsUnitValid(oTargetUnit) and EntityCategoryContains(categories.EXPERIMENTAL, sUnitID) then
@@ -2958,14 +2963,19 @@ function OnReclaimFinished(oEngineer, oReclaim)
                     end
                 end
             elseif EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
-                --Only try getting more reclaim if we havent wanted to run recently
+                --Only try getting more reclaim if we havent wanted to run recently and we arent trying to move somewhere else
                 if GetGameTimeSeconds() - (oEngineer[M28ACU.refiTimeLastWantedToRun] or 0) >= 2 or (M28UnitInfo.GetUnitHealthAndShieldPercent(oEngineer) >= 0.99 and M28Utilities.IsTableEmpty(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.reftEnemyLandExperimentals]) and M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.refiEnemyT3ArtiCount] <= 1) then
-                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-                    if (iLandZone or 0) > 0 then
-                        local iTeam =  oEngineer:GetAIBrain().M28Team
-                        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-                        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                        M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
+                    M28Orders.UpdateRecordedOrders(oEngineer)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to give a new reclaim order to oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Last order type='..(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] or 'nil')) end
+                    if not(oEngineer[M28Orders.reftiLastOrders][1]) or oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueReclaim then
+                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+                        if (iLandZone or 0) > 0 then
+                            local iTeam =  oEngineer:GetAIBrain().M28Team
+                            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                            local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider giving a reclaim order to the ACU') end
+                            M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
+                        end
                     end
                 end
             elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then

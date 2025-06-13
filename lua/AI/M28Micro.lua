@@ -482,6 +482,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDodgingShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        
     if not(ScenarioInfo.Options.M28DodgeMicro == 2) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId)) then
         local oWeaponBP = oWeapon.Blueprint or oWeapon.bp
         if bDebugMessages == true then
@@ -522,8 +523,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                         if oCurUnit:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oCurUnit) then
                             if not(oUnit[M28UnitInfo.refbEasyBrain]) then
                                 --Engineers - dont dodge if almost done construction
-                                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oCurUnit.UnitId) and oCurUnit:GetWorkProgress() >= 0.95 then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Wont dodge shot as almost done with construction') end
+                                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oCurUnit.UnitId) and oCurUnit:GetWorkProgress() >= 0.4 and (oCurUnit:GetWorkProgress() >= 0.95 or ((oWeaponBP.Damage or 100) <= 50 and (oCurUnit:GetWorkProgress() >= 0.8 or oCurUnit:GetFocusUnit().UnitId and EntityCategoryContains(categories.DEFENSE, oCurUnit:GetFocusUnit().UnitId)))) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Wont dodge shot as almost done with construction or low damaage shot and we are building defensive unit, work progress='..oCurUnit:GetWorkProgress()..'; Weapon damage='..(oWeaponBP.Damage or 'nil')) end
                                 else
                                     if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to consider dodging for') end
                                     table.insert(tUnitsToConsiderDodgeFor, oCurUnit)
@@ -654,10 +655,10 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                     --If we are a large unit then only dodge if will be a while for the shot to hit
                                     local oBP = oTarget:GetBlueprint()
                                     local iAverageSize = (oBP.SizeX + oBP.SizeZ) * 0.5
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Unit speed='..oBP.Physics.MaxSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..';  math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)='.. math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oTarget))..'; SizeY='..oBP.SizeY..'; Terrain height='..GetTerrainHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3])..'; Surface height='..GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3])..'; water height='..M28Map.iMapWaterHeight..'; aoe='..(oWeaponBP.DamageRadius or 'nil')..'; Unit speed='..oBP.Physics.MaxSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..';  math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)='.. math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)) end
                                     if iAverageSize < 0.89 or (iTimeUntilImpact > math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed) and (iTimeUntilImpact >= 2 or not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)))) then
                                         --Are we not underwater?
-                                        if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                                        if not(M28UnitInfo.IsUnitUnderwater(oTarget)) then
                                             --If dealing with an ACU then drastically reduce the dodge time so we can overcharge if we havent recently and have enemies in range and enough power
                                             if EntityCategoryContains(categories.COMMAND, oTarget.UnitId) then
                                                 if oTarget:IsUnitState('Teleporting') or (oTarget:IsUnitState('Upgrading') and M28UnitInfo.GetUnitHealthPercent(oTarget) >= 0.9 - oTarget:GetWorkProgress()) then
@@ -2546,7 +2547,7 @@ function AssignACUAttackGridSlot(tUnits, oACU)
 end
 
 function SuicideExperimentalIntoFatboy(oUnit, oFatboy, iTeam, iPlateau)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SuicideExperimentalIntoFatboy'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
