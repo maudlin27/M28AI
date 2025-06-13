@@ -4597,13 +4597,12 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 
                                 end
                                 if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
-                                    local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
                                     --Alternate where on the move point we will gather at, to try and make it more likely asfs will be facing the same direction when idling
                                     local iAngleAdjust = (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastAirAASupportPointAngleAdjust] or 0) + 15
                                     if iAngleAdjust >= 360 then iAngleAdjust = iAngleAdjust - 360 end
                                     M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastAirAASupportPointAngleAdjust] = iAngleAdjust
                                     local iDistToMove = 20 --asf max speed is 22
-                                    if GetGameTimeSeconds() >= 25*60 then tMovePoint = M28Utilities.MoveInDirection(tMovePoint, iAngleAdjust, iDistToMove, true, false, M28Map.bIsCampaignMap) end
+                                    local tMovePoint = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iAngleAdjust, iDistToMove, true, false, M28Map.bIsCampaignMap)
 
                                     local bConsiderCtrlK = false
                                     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and iAvailableAndInCombatAirAAThreat >= 1750 and M28Conditions.TeamHasLowMass(iTeam) then
