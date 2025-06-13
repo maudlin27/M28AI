@@ -669,7 +669,7 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     else
-        if true and GetGameTimeSeconds() >= 25*60+30 and not(oUnit[refoAirAACurTarget]) and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
+        if not(oUnit[refoAirAACurTarget]) and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
             if bDebugMessages == true then LOG(sFunctionRef..': AirAA unit with no AACurTarget so returning false') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
@@ -713,9 +713,9 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
                         elseif EntityCategoryContains(categories.EXPERIMENTAL, oUnit[refoAirAACurTarget].UnitId) then
                             iDistThreshold = 70
                             --asfs about to engage with each other
-                        elseif true and GetGameTimeSeconds() >= 25*60+10 and iDistToTarget > iDistThreshold and iDistToTarget <= 60 and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit[refoAirAACurTarget].UnitId) then
+                        elseif iDistToTarget > iDistThreshold and iDistToTarget <= 60 and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit[refoAirAACurTarget].UnitId) then
                             --Get angle dif - if we are both almost facing each other then likely to be in range before can turn around, and have less time to adjust targets
-                            local iAngleToTarget = GetAngleFromAToB(oUnit:GetPosition(), oUnit[refoAirAACurTarget]:GetPosition())
+                            local iAngleToTarget = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[refoAirAACurTarget]:GetPosition())
                             local iOurUnitFacingAngle = M28UnitInfo.GetUnitFacingAngle(oUnit)
                             if bDebugMessages == true then LOG(sFunctionRef..': iAngleToTarget='..iAngleToTarget..'; iOurUnitFacingAngle='..iOurUnitFacingAngle..'; Dif='..M28Utilities.GetAngleDifference(iAngleToTarget, iOurUnitFacingAngle)) end
                             if M28Utilities.GetAngleDifference(iAngleToTarget, iOurUnitFacingAngle) <= 35 then
