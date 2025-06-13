@@ -315,6 +315,7 @@ tAirSubteamData = {}
     reftoPriorityTorpedoUnitTargets = 'M28ATrpT' --table of units to consider targeting with torpedo bombers if underwater - e.g. to use for ACUs hiding underwater
     toFrontT3Bomber = 'M28FrnT3' --furthest t3 bomber from our air rally point - so can consider as a priority target to defend
     reftoActiveBomberTargets = 'M28BmbTr' --table of enemy units currently being targeted by bombers (gets reset each air cycle and repopulated based on unavailable bombers and attack orders given to bombers)
+    refiLastAirAASupportPointAngleAdjust = 'M28SupAng' --will adjust the support point slightly to try and keep asfs moving in a similar direction
 
 
 --Land subteam data varaibles (used for factory production logic)

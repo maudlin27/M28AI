@@ -902,7 +902,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                     end
                 end
                 for iUnit, oUnit in tCurUnits do
-                    if GetGameTimeSeconds() >= 25*60+30 and( oUnit.UnitId == 'uaa0303' or oUnit.UnitId == 'ura0303') then bDebugMessages = true end
+
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 1 then --Needed as sometimes an invalid unit is included from getlistofunits; also because underproduction units are included with getlistofunits
                         if bRecordInTorpBomberWaterZoneList then
                             iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
@@ -3701,16 +3701,16 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 
     --Update if we have air control and/or are far behind on air
     local iFarBehindFactor = 0.75
-    local iAirControlFactor = 1.2
+    local iAirControlFactor = 1.25 --having too many cases where we think we have superior force and we still lose the air fight - limits to what micro can achieve due to performance concerns, so try and get around by requiring significantly greater force
     if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 25000 then
         local iEnemyThreatOverThreshold = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] - 25000
         iFarBehindFactor = math.min(0.9, 0.75 + iEnemyThreatOverThreshold / 1000)
-        iAirControlFactor = math.max(iAirControlFactor, math.min(1.4, iEnemyThreatOverThreshold / 1000))
+        iAirControlFactor = math.max(iAirControlFactor, math.min(1.45, iEnemyThreatOverThreshold / 1000))
     end
     if M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] < M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] and M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] >= 1000 then
         local iAdjustValue = 0.1 * math.min(1.7, (M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] - M28Team.tTeamData[iTeam][M28Team.refiAirAAKills]) / 20000)
         iFarBehindFactor = math.min(0.99, iFarBehindFactor + iAdjustValue)
-        iAirControlFactor = math.max(iAirControlFactor + 0.1, math.min(1.5, iAirControlFactor + iAdjustValue))
+        iAirControlFactor = math.max(iAirControlFactor + 0.1, math.min(1.55, iAirControlFactor + iAdjustValue))
     end
     if not(M28Utilities.bFAFActive) then iAirControlFactor = iAirControlFactor + 0.03 end
     --Larger maps - increase control factor slightly more as we are less likely to have intel of enemy air force
@@ -4598,6 +4598,13 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                 end
                                 if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
                                     local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
+                                    --Alternate where on the move point we will gather at, to try and make it more likely asfs will be facing the same direction when idling
+                                    local iAngleAdjust = (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastAirAASupportPointAngleAdjust] or 0) + 15
+                                    if iAngleAdjust >= 360 then iAngleAdjust = iAngleAdjust - 360 end
+                                    M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastAirAASupportPointAngleAdjust] = iAngleAdjust
+                                    local iDistToMove = 20 --asf max speed is 22
+                                    if GetGameTimeSeconds() >= 25*60 then tMovePoint = M28Utilities.MoveInDirection(tMovePoint, iAngleAdjust, iDistToMove, true, false, M28Map.bIsCampaignMap) end
+
                                     local bConsiderCtrlK = false
                                     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and iAvailableAndInCombatAirAAThreat >= 1750 and M28Conditions.TeamHasLowMass(iTeam) then
                                         local tInties = EntityCategoryFilterDown(categories.TECH1, tAvailableAirAA)
@@ -4615,7 +4622,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                             if bConsiderCtrlK and EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
                                                 bConsiderCtrlK = false
                                                 local bMoveUnitToRally = false
-                                                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) >= 10 then
+                                                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMovePoint) >= 10 then
                                                     local tUnitZoneData, tUnitTeamZoneData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                                                     if not(tUnitTeamZoneData[M28Map.subrefLZbCoreBase]) then bMoveUnitToRally = true end
                                                 end
