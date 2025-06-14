@@ -332,6 +332,7 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
     refiEnemyMobileDFThreatNearOurSide = 'M28LSTEnDFOS' --total enemy DF in zones <=0.6 mod dist
     refiEnemyGroundAAThreatNearOurSide = 'M28LSTAADFOS' --total enemy groundAA in zones <=0.6 mod dist
     refbPrioritiseProduction = 'M28LSTPrPdn' --true if due to the enemy mobile threat vs ours we want to prioritise production over ecoing
+    reftoPriorityUnitsWantingMobileStealth = 'M28PrMbSt' --e.g. land experimentals that want mobile stealth
 
 --Other variables dependent on above:
 tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, --include ACU here so that if ACU gets laser or blast gun upgrade it will get assigned to land experimentals
