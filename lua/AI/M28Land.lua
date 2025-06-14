@@ -3079,21 +3079,24 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': MAA will retreat, tTempRetreatLocation='..repru(tTempRetreatLocation)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': MAA will retreat, tTempRetreatLocation='..repru(tTempRetreatLocation)..'; Angle from mAA to this='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), (tTempRetreatLocation or {0,0,0}))) end
                 if M28Utilities.IsTableEmpty(tTempRetreatLocation) == false then
-                    M28Orders.IssueTrackedMove(oUnit, tTempRetreatLocation, 6, 'ORun'..iLandZone)
+                    M28Orders.IssueTrackedMove(oUnit, tTempRetreatLocation, 6, false, 'ORun'..iLandZone)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+                            --IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
                     M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'MAAConsA'..iLandZone)
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..'; Will retreat to rally point, angle to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)..'; Dist to rally='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)) end
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'MAAConsL'..iLandZone)
                 end
+                oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = GetGameTimeSeconds()
             elseif bRetreatWithAllMAA then
                 if bAmphibiousUnit then
                     M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'ARun'..iLandZone)
                 else
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'Run'..iLandZone)
                 end
+                oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = GetGameTimeSeconds()
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Will treat MAA as not in danger and consider advancing with it') end
                 table.insert(tMAAToAdvance, oUnit)
