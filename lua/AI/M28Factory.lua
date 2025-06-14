@@ -2071,7 +2071,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 iOtherT2Wanted = 0.5
             end
             if iT2FactoryEquivalent >= iOtherT2Wanted then
-                if ConsiderUpgrading() then  return sBPIDToBuild end
+                --Safe base - require 4 T3 mexes
+                if not(tLZTeamData[M28Map.refbBaseInSafePosition]) or iFactoryTechLevel == 1 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(4, tLZData[M28Map.subrefLZMexCount]) then
+                    if ConsiderUpgrading() then  return sBPIDToBuild end
+                end
             end
         end
     end

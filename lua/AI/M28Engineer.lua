@@ -9786,6 +9786,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     else
                         local oBestProgress
                         local iMexProgressAdjust --If we are stalling mass and want to assist an upgrade then prioritise mex upgrades over factory upgrades
+                        local iLandFacProgressAdjust
+                        if tLZOrWZTeamData[M28Map.refbBaseInSafePosition] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then iLandFacProgressAdjust = -0.6 end
                         if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 5 then iMexProgressAdjust = 0.75
                         elseif tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.2 then
                             iMexProgressAdjust = 0.5
@@ -9793,13 +9795,15 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         if vOptionalVariable and M28UnitInfo.IsUnitValid(vOptionalVariable) then
                             oBestProgress = vOptionalVariable
                         else
-                            local iBestProgress = -1
+                            local iBestProgress = -0.4 --so we wont assist a t3 land fac upgrade in the air slot initially even if no other upgrades
                             local iCurProgress
                             for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
                                 if M28UnitInfo.IsUnitValid(oUnit) and oUnit.GetWorkProgress then
                                     iCurProgress = (oUnit:GetWorkProgress() or 0)
                                     if bDebugMessages == true then LOG(sFunctionRef..': iCurProgress='..iCurProgress..' for upgrading unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMexProgressAdust='..iMexProgressAdjust) end
-                                    if iMexProgressAdjust and EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iCurProgress = iCurProgress + iMexProgressAdjust end
+                                    if iMexProgressAdjust and EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iCurProgress = iCurProgress + iMexProgressAdjust
+                                    elseif iLandFacProgressAdjust and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH1, oUnit.UnitId) then iCurProgress = iCurProgress + iLandFacProgressAdjust
+                                    end
                                     if iCurProgress > iBestProgress then
                                         iBestProgress = iCurProgress
                                         oBestProgress = oUnit
@@ -13713,11 +13717,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if bDebugMessages == true then LOG(sFunctionRef..': oMex that want to assist='..(oFactoryOrMexToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryOrMexToAssist) or 'nil')) end
             end
         end
-        --safe zones - consider assisting an HQ upgrade
+        --safe zones - consider assisting an air HQ upgrade
         if not(oFactoryOrMexToAssist) and tLZTeamData[M28Map.refbBaseInSafePosition] then
             local tUpgradingAirFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoActiveUpgrades])
             if M28Utilities.IsTableEmpty(tUpgradingAirFac) == false then
-                local oFactoryOrMexToAssist
                 for iUpgradingUnit, oUpgradingUnit in tUpgradingAirFac do
                     if M28UnitInfo.GetUnitTechLevel(oUpgradingUnit) >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then
                         oFactoryOrMexToAssist = oUpgradingUnit
