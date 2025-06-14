@@ -6596,7 +6596,15 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             end
         end
         local iBSWantedAdjust = 0
-        if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100) <= 4.1 then iBSWantedAdjust = 5 end
+        if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBattleshipBombardmentByPond][iPond] or -100) <= 4.1 then
+            if bHaveLowMass then
+                iBSWantedAdjust = 2
+            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.2 then
+                iBSWantedAdjust = 3
+            else
+                iBSWantedAdjust = 4
+            end
+        end
         local iPondSize = M28Map.tPondDetails[iPond][M28Map.subrefiSegmentCount] * M28Map.iLandZoneSegmentSize
         if iPondSize <= 6000 then
             iBSWantedAdjust = math.max(-1, iBSWantedAdjust - 5 * (6000 - iPondSize) / iPondSize)
@@ -6606,8 +6614,12 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if bHaveLowMass and iBSWantedAdjust >= 1 then
             iBSWantedAdjust = math.min(4, iBSWantedAdjust - 1)
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': bAboutToOverflowMass='..tostring(bAboutToOverflowMass)..'; iPondSize='..iPondSize..'; iCurBattleships='..iCurBattleships..'; iBSWantedAdjust='..iBSWantedAdjust..'; bHaveLowMass='..tostring(bHaveLowMass)) end
-        if bAboutToOverflowMass or (iCurBattleships < 5+ iBSWantedAdjust and (not (bHaveLowMass) or iCurBattleships <= 1 + iBSWantedAdjust * 0.5)) then
+        if aiBrain[M28Economy.refiGrossMassBaseIncome] <= 200 then --Limit battleships based on pond value
+            iBSWantedAdjust = math.min(iBSWantedAdjust, math.max(-1, M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] * 0.25 - 3))
+        end
+        if 4 + iBSWantedAdjust < aiBrain[M28Economy.refiGrossMassBaseIncome] then  iBSWantedAdjust = iBSWantedAdjust + 1 end
+        if bDebugMessages == true then LOG(sFunctionRef..': bAboutToOverflowMass='..tostring(bAboutToOverflowMass)..'; iPondSize='..iPondSize..'; iCurBattleships='..iCurBattleships..'; iBSWantedAdjust='..iBSWantedAdjust..'; bHaveLowMass='..tostring(bHaveLowMass)..'; M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]]='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')) end
+        if bAboutToOverflowMass or (iCurBattleships < 4+ iBSWantedAdjust and (not (bHaveLowMass) or iCurBattleships <= 1 + iBSWantedAdjust * 0.5)) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryBattleship) then
                 return sBPIDToBuild
             end
