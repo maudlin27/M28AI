@@ -1214,7 +1214,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bDontConsiderLandScouts = true
         if bDebugMessages == true then LOG(sFunctionRef..': Team has omni vision so dont want to get more land scouts') end
     elseif not(tLZTeamData[M28Map.refbWantLandScout]) and GetGameTimeSeconds() - (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam][tLZData[M28Map.subrefLZIslandRef]] or -1000) <= math.max(5, M28Land.iTicksPerLandCycle * 0.2) then
-        bDontConsiderLandScouts = true
+        --Exception - this isnt a core base, we lack radar coverage, and have no land scouts here, but there are enemies in this or adjacent zone
+        if tLZTeamData[M28Map.subrefLZbCoreBase] or tLZTeamData[M28Map.refiRadarCoverage] > 20 or not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandScout, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false then
+            bDontConsiderLandScouts = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Failed to give orders to land scout on this island recently so wont get more, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; Is table of land scouts in this zone empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandScout, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) end
+        end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': bDontConsiderLandScouts='..tostring(bDontConsiderLandScouts or false)..'; M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam][tLZData[M28Map.subrefLZIslandRef]]='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam][tLZData[M28Map.subrefLZIslandRef]] or 'nil')) end
     local bDontConsiderBuildingMAA = false
@@ -1543,9 +1547,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             --If enemy has any air units then want at least 110 MAA; if they have any air to ground want at least 165; if air to ground threat for this LZ then want
             if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] > 0 and iNearbyMAAThreat < 110) or iNearbyAirToGroundThreat > iNearbyMAAThreat then
                 if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Want to have a basic level of MAA unless we have lots already; MAA that we alreayd have=' .. oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA))
+                    LOG(sFunctionRef .. ': Want to have a basic level of MAA unless we have lots already; MAA that we alreayd have=' .. oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA)..'; iNearbyMAAThreat='..iNearbyMAAThreat..'; Enemy air other threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]..'; Enemy AirAA threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]..'; iNearbyAirToGroundThreat='..iNearbyAirToGroundThreat)
                 end
-                if oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA) <= 5 or (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] * 4 > math.min(1000, iNearbyMAAThreat)) then
+                if (iNearbyMAAThreat < 50 or oFactory[refiTotalBuildCount] >= 6 or iNearbyAirToGroundThreat > iNearbyMAAThreat) and (oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA) <= 5 or (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] * 4 > math.min(1000, iNearbyMAAThreat))) then
                     --Only build if we ahve <2 under construction in this LZ
                     if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryMAA) < 2 then
                         if bDebugMessages == true then
@@ -1703,6 +1707,15 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer * categories.TECH1) then return sBPIDToBuild end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
             end
+        end
+    end
+
+    --Core expansion with enemies in an adjacent zone or this, and a notable combat threat in this zone, that needs land scouts
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if not(bDontConsiderLandScouts) and tLZTeamData[M28Map.refiRadarCoverage] < 20 and tLZTeamData[M28Map.refbWantLandScout] and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandScout, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to get land scout to support other units unless we lack any combat or AA (If vs air therat), tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] ='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] ) end
+        if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 50 and (tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] >= 30 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits])) then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
         end
     end
 
