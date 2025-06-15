@@ -7784,9 +7784,9 @@ function ManageGunships(iTeam, iAirSubteam)
                 tRevisedEnemyGroundTargets = {}
                 for iUnit, oUnit in tEnemyGroundOrGunshipTargets do
                     for iEntry, tPlateauAndZone in tiPlateauAndZoneForEnemiesToBeIn do
-                        if (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][2] == tPlateauAndZone[2] and oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1] == tPlateauAndZone[1]) then
+                        if (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == tPlateauAndZone[2] and oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == tPlateauAndZone[1]) then
                             table.insert(tRevisedEnemyGroundTargets, oUnit)
-                        elseif tPlateauAndZone[1] == 0 and oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam] == tPlateauAndZone[2] then
+                        elseif tPlateauAndZone[1] == 0 and oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == tPlateauAndZone[2] then
                             table.insert(tRevisedEnemyGroundTargets, oUnit)
                         end
                     end
@@ -10653,7 +10653,7 @@ function GetNovaxTarget(aiBrain, oNovax)
             if bDebugMessages == true then LOG(sFunctionRef .. ': Considering enemy unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; Unit state=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Does it contain mobile category=' .. tostring(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) .. '; is it underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; Is it under shield=' .. tostring(DoShieldsCoverUnit(oUnit, oUnit))..'; Unti AIBrain owner='..oUnit:GetAIBrain().Nickname..' with index '..oUnit:GetAIBrain():GetArmyIndex()..'; Dist to unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())) end
             if not (oUnit:IsUnitState('Attached') and EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                 --Ignore units that are shielded
-                if not (DoShieldsCoverUnit(oUnit, oUnit)) or (EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) and (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1] or 0) > 0 and (M28Map.tAllPlateaus[oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1]][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefThreatEnemyShield] or 0) == 0 and not(DoShieldsCoverUnit(oUnit, oUnit, true, math.max(iShieldHealthThreshold + 1000, iShieldHealthThreshold * 1.3)))) then
+                if not (DoShieldsCoverUnit(oUnit, oUnit)) or (EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) and (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 0) > 0 and (M28Map.tAllPlateaus[oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefThreatEnemyShield] or 0) == 0 and not(DoShieldsCoverUnit(oUnit, oUnit, true, math.max(iShieldHealthThreshold + 1000, iShieldHealthThreshold * 1.3)))) then
                     iMassFactor = GetUnitTypeMassWeighting(oUnit)
                     oUnitBP = oUnit:GetBlueprint()
                     iCurDPSMod = 0
