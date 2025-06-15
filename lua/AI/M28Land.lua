@@ -4713,7 +4713,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             --Nearest enemy is inside our range, is there another high value target that we should target?
             if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, oUnit.UnitId) then
 
-                local iCategoryToSearch = M28UnitInfo.refCategoryLandExperimental + categories.COMMAND
+                local iCategoryToSearch = M28UnitInfo.refCategoryLandExperimental + categories.COMMAND + M28UnitInfo.refCategoryDestroyer --I.e. salems on land should be attacked if we are in range of them
                 --Ythotha - also consider enemy T3 land combat to try and avoid it constantly changing targets
 
                 --Below is if wanted to generalise, however concerned about riks of overkill
