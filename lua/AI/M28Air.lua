@@ -6088,6 +6088,29 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                                             break
                                         end
                                     end
+                                    --Send extra torps (i.e. overkill) for AA
+                                    if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+                                        if M28Utilities.IsTableEmpty(tEnemyPriority1) == false then
+                                            --AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, bForceGroundFire, bTargetAAAndShieldsFirst, bIgnoreMicro, iOptionalOverkillFactor)
+                                            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority1, iAirSubteam,  nil,                nil,                    nil,            2)
+                                            if M28Utilities.IsTableEmpty(tAvailableBombers) then
+                                                break
+                                            end
+                                            if M28Utilities.IsTableEmpty(tEnemyPriority2) == false then
+                                                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority2, iAirSubteam,  nil,                nil,                    nil,            2)
+                                                if M28Utilities.IsTableEmpty(tAvailableBombers) then
+                                                    break
+                                                end
+                                            end
+                                            if M28Utilities.IsTableEmpty(tEnemyOther) == false then
+                                                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyOther, iAirSubteam,  nil,                nil,                    nil,            2)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty after assigning torp targets with double threat factor='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
+                                                if M28Utilities.IsTableEmpty(tAvailableBombers) then
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
                                 end
                                 --Clear enemy targets (incase e.g. we have decided not to attack some of them because we have enough threat assigned already or outside playable area)
                                 tEnemyTargets = {}
@@ -6153,8 +6176,9 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, bForceGroundFire, bTargetAAAndShieldsFirst, bIgnoreMicro)
+function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, bForceGroundFire, bTargetAAAndShieldsFirst, bIgnoreMicro, iOptionalOverkillFactor)
     --NOTE: If want to prioritise by category then do by changing tEnemyTargets and calling this function multiple times
+    --iOptionalOverkillFactor - e.g. if 2 then will send twice as many units as normal (intended where we still have available torp bombers after considering targets)
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignTorpOrBomberTargets'
@@ -6262,6 +6286,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                         if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.25 end
                     end
                 end
+
                 local tBasePosition = oEnemyUnit:GetPosition()
                 iCurLoopCount = 0
                 --If dealing with an anti-air unit then increase strike damage wanted by 50% to allow for some of the torps dying
@@ -6275,6 +6300,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                         iTotalStrikeDamageWanted = iTotalStrikeDamageWanted + (iShieldHealth or 0)
                     end
                 end
+                if iOptionalOverkillFactor then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * iOptionalOverkillFactor end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oEnemyUnit='..(oEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit)..'; oEnemyUnit[refiStrikeDamageAssigned]='..(oEnemyUnit[refiStrikeDamageAssigned] or 'nil')..'; iTotalStrikeDamageWanted='..iTotalStrikeDamageWanted)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oEnemyUnit))) end
                 bAlreadyRecorded = false
                 if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoActiveBomberTargets]) == false then
