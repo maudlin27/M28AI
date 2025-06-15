@@ -3487,6 +3487,15 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMegalith, oUnit.UnitId) then
                                 M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMegalith, true)
                             end
+                            --Track priority units for mobile stealth (want to consider stealthing even if under construction, hence do at this stage)
+                            if M28Map.iMapSize >= 500 and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - categories.STEALTHFIELD - categories.url0402, oUnit.UnitId) then
+                                --Want to build mobile stealth if we have cybran on the team
+                                local iLandSubteam = oUnit:GetAIBrain().M28LandSubteam
+                                if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionCybran][3] or 0) > 0 or (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionCybran][2] or 0) > 0 then
+                                    if not(M28Team.tLandSubteamData[iLandSubteam][M28Team.reftoPriorityUnitsWantingMobileStealth]) then M28Team.tLandSubteamData[iLandSubteam][M28Team.reftoPriorityUnitsWantingMobileStealth] = {} end
+                                    table.insert(M28Team.tLandSubteamData[iLandSubteam][M28Team.reftoPriorityUnitsWantingMobileStealth], oUnit)
+                                end
+                            end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
                             --Check for rare case where enemy base is taken over by us but enemy isnt dead (doing here instead of onconstructed as onconstructed wouldnt trigger consistently)
                             local iMexPlateau, iMexZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())

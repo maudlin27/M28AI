@@ -4210,12 +4210,16 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBa
             local bHaveCloserTeammate = false
             local bHaveDangerousEnemyBase = false
             for iBaseFriendlyBase, tBaseFriendlyBase in tAllyBases do
-                if bDebugMessages == true then LOG(sFunctionRef..': About to check if we have any friendl ybases that are closer to every enemy base than this, iBaseFriendlyBase='..iBaseFriendlyBase..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)..'; Size of tEnemyBases='..table.getn(tEnemyBases)) end
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': About to check if we have any friendl ybases that are closer to every enemy base than this, iBaseFriendlyBase='..iBaseFriendlyBase..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)..'; Size of tEnemyBases='..table.getn(tEnemyBases))
+                    local iPlateau, iZone = GetClosestPlateauOrZeroAndZoneToPosition(tBaseFriendlyBase)
+                    LOG(sFunctionRef..': iPlateau='..(iPlateau or 'nil')..'; iZone='..(iZone or 'nil'))
+                end
                 bHaveDangerousEnemyBase = false
                 for iEntry, tEnemyBase in tEnemyBases do
                     bHaveCloserTeammate = false
                     iMaxDistToBaseWanted = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tBaseFriendlyBase) - 10
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to consider whether we have a friendly base protecting iBaseFriendlyBase '..iBaseFriendlyBase..' from the enemy base iEntry='..iEntry) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to consider whether we have a friendly base protecting iBaseFriendlyBase '..iBaseFriendlyBase..' from the enemy base iEntry='..iEntry..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted) end
                     for iFriendlyBase, tCurFriendlyBase in tAllyBases do
                         if not(iBaseFriendlyBase == iFriendlyBase) then
                             iCurFriendlyDistToBase = M28Utilities.GetDistanceBetweenPositions(tEnemyBase,  tCurFriendlyBase)
@@ -4257,7 +4261,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBa
                     end
                     if bDebugMessages == true then
                         local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tBaseFriendlyBase)
-                        LOG(sFunctionRef..': iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is tBaseLZOrWZData empty='..tostring(M28Utilities.IsTableEmpty(tBaseLZOrWZData))..'; Is team data empty='..tostring(M28Utilities.IsTableEmpty(tBaseLZOrWZTeamData)))
+                        LOG(sFunctionRef..': Recording base as being safe, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is tBaseLZOrWZData empty='..tostring(M28Utilities.IsTableEmpty(tBaseLZOrWZData))..'; Is team data empty='..tostring(M28Utilities.IsTableEmpty(tBaseLZOrWZTeamData)))
                         if iPlateauOrZero == 0 then
                             LOG(sFunctionRef..': Pond='..(tiPondByWaterZone[iLandOrWaterZone] or 'nil'))
                         end

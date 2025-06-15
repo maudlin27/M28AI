@@ -332,6 +332,7 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
     refiEnemyMobileDFThreatNearOurSide = 'M28LSTEnDFOS' --total enemy DF in zones <=0.6 mod dist
     refiEnemyGroundAAThreatNearOurSide = 'M28LSTAADFOS' --total enemy groundAA in zones <=0.6 mod dist
     refbPrioritiseProduction = 'M28LSTPrPdn' --true if due to the enemy mobile threat vs ours we want to prioritise production over ecoing
+    reftoPriorityUnitsWantingMobileStealth = 'M28PrMbSt' --e.g. land experimentals that want mobile stealth
 
 --Other variables dependent on above:
 tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, --include ACU here so that if ACU gets laser or blast gun upgrade it will get assigned to land experimentals
@@ -2802,7 +2803,10 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                                 end
                                 if tBrainStartZoneTeamData then
                                     local bHaveActiveAirUpgrade = DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ)
-                                    if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and (bHaveActiveAirUpgrade or (GetGameTimeSeconds() <= 1200 and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= oBrain[M28Economy.refiOurHighestAirFactoryTech])) then bWantUpgrade = false
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to ignore this brain, tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition]='..tostring(tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition])..'; bHaveActiveAirUpgrade='..tostring(bHaveActiveAirUpgrade)..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]..'; oBrain[M28Economy.refiOurHighestAirFactoryTech]='..oBrain[M28Economy.refiOurHighestAirFactoryTech]..'; tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3]='..tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3]..'; Brain mass%='..oBrain:GetEconomyStoredRatio('MASS')) end
+                                    if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and (bHaveActiveAirUpgrade or (GetGameTimeSeconds() <= 1200 and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= oBrain[M28Economy.refiOurHighestAirFactoryTech]) or (oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, tBrainStartZoneData[M28Map.subrefLZMexCount]))) then
+                                        bWantUpgrade = false
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want land fac upgrade yet for air slot') end
                                     elseif bHaveActiveAirUpgrade and oBrain:GetEconomyStoredRatio('MASS') <= 0.3 and (oBrain:GetEconomyStoredRatio('MASS') <= 0.05 or oBrain[M28Economy.refiOurHighestLandFactoryTech] <= oBrain[M28Economy.refiOurHighestAirFactoryTech] or oBrain[M28Overseer.refbPrioritiseAir]) then
                                         local bWantMMLOrT3Arti, bWantT3 = M28Conditions.SaveMassForMMLOrMobileT3ArtiForFirebase(tBrainStartZoneData, tBrainStartZoneTeamData, iStartPlateauOrZero, iM28Team, true)
                                         if not(bWantMMLOrT3Arti) or (not(bWantT3 and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2)) then
@@ -5004,7 +5008,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                         if bDebugMessages == true then LOG(sFunctionRef..': Adding to priority torpedo unit targets') end
                     else
                         if M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) == false then --redundancy
-                            for iRecorded, oRecorded in M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) do
+                            for iRecorded, oRecorded in tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] do
                                 if oRecorded == oUnit then
                                     table.remove(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets], iRecorded)
                                     break

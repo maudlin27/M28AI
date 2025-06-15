@@ -7343,14 +7343,14 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
                 for iEntry, tTemplateTable in M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; Active shield monitor='..tostring(tTemplateTable[M28Map.subrefGEbActiveShieldMonitor])..'; Is table of shield units empty='..tostring(M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEShieldUnits]))) end
                     if tTemplateTable[M28Map.subrefGEbActiveShieldMonitor] and M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEShieldUnits]) == false then
-                        if tTemplateTable[M28Map.subrefGEShieldUnits][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1] == iPlateauOrZero and M28UnitInfo.IsUnitValid(tTemplateTable[M28Map.subrefGEShieldUnits][1]) then
+                        if tTemplateTable[M28Map.subrefGEShieldUnits][1][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateauOrZero and M28UnitInfo.IsUnitValid(tTemplateTable[M28Map.subrefGEShieldUnits][1]) then
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(tTemplateTable[M28Map.subrefGEShieldUnits][1]:GetPosition(), oACU:GetPosition())
                             if bDebugMessages == true then LOG(sFunctionRef..': dist to shield '..tTemplateTable[M28Map.subrefGEShieldUnits][1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tTemplateTable[M28Map.subrefGEShieldUnits][1])..'='..iCurDist) end
                             if iCurDist < iClosestShield then
                                 if bCheckIfOtherACUsUnderShield then
                                     for iFriendlyACU, oFriendlyACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
                                         if not(oFriendlyACU == oACU) then
-                                            if oFriendlyACU[refoShieldRallyTarget] and oFriendlyACU[refoShieldRallyTarget] == tTemplateTable[M28Map.subrefGEShieldUnits][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1] then
+                                            if oFriendlyACU[refoShieldRallyTarget] and oFriendlyACU[refoShieldRallyTarget] == tTemplateTable[M28Map.subrefGEShieldUnits][1] then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Wont go to nearest shield as it is already a rally target for another ACU') end
                                                 iClosestShield = iClosestShield + 250
                                             end
@@ -7358,7 +7358,7 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
                                     end
                                 end
                                 if iCurDist < iClosestShield then
-                                    oClosestShield = tTemplateTable[M28Map.subrefGEShieldUnits][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1]
+                                    oClosestShield = tTemplateTable[M28Map.subrefGEShieldUnits][1]
                                     iClosestShield = iCurDist
                                 end
                             end
