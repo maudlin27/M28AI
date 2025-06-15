@@ -5008,7 +5008,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                         if bDebugMessages == true then LOG(sFunctionRef..': Adding to priority torpedo unit targets') end
                     else
                         if M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) == false then --redundancy
-                            for iRecorded, oRecorded in M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets]) do
+                            for iRecorded, oRecorded in tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets] do
                                 if oRecorded == oUnit then
                                     table.remove(tAirSubteamData[iAirSubteam][reftoPriorityTorpedoUnitTargets], iRecorded)
                                     break
