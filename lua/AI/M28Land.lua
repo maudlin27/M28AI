@@ -2471,7 +2471,13 @@ function MoveToStealthTarget(oStealth, tEnemyBase, tOptionalStealthLZTeamData, t
 
     if bMoveToUnit then
         local oBP = oStealth:GetBlueprint()
-        local iStealthDistanceWanted = math.max(8, oBP.Intel.RadarStealthFieldRadius - 1 - oBP.Physics.MaxSpeed - (oStealth[refoMobileStealthTarget]:GetBlueprint().Physics.MaxSpeed or 0))
+        local oTargetBP = oStealth[refoMobileStealthTarget]:GetBlueprint()
+        local iStealthDistanceWanted = math.max(8, oBP.Intel.RadarStealthFieldRadius - 1 - oBP.Physics.MaxSpeed - (oTargetBP.Physics.MaxSpeed or 0))
+        local iSize = math.max(oTargetBP.SizeX, oTargetBP.SizeZ)
+        if iSize >= 1 then
+            iStealthDistanceWanted = iStealthDistanceWanted - math.min(1.5, iSize * 0.5)
+        end
+
         M28Orders.IssueTrackedMove(oStealth, M28Utilities.MoveInDirection(oStealth[refoMobileStealthTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oStealth[refoMobileStealthTarget]:GetPosition()), iStealthDistanceWanted, true, false, true), math.min(5, iStealthDistanceWanted - 1), false, 'StU'..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]))
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2832,6 +2838,7 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
             --Check priority table of units wanting stealth
             local aiBrain = tStealthsToAssign[1]:GetAIBrain()
             if M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.reftoPriorityUnitsWantingMobileStealth]) == false then
+                bDebugMessages = true
                 local oClosestPriorityUnitWantingStealth
                 local iClosestPriorityUnitWantingStealthDist = 250
                 local iCurPriorityUnitWantingStealthDist
@@ -2839,7 +2846,7 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
                     if not(oUnit.Dead) and not(M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileStealth])) and NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] then
                         iCurPriorityUnitWantingStealthDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
                         if iCurPriorityUnitWantingStealthDist < iClosestPriorityUnitWantingStealthDist then
-                            local tUnitLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][2]][M28Map.subrefLZTeamData][iTeam]
+                            local tUnitLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam]
                             if bDebugMessages == true then LOG(sFunctionRef..': Have a priority unit wanting mobile stealth, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' tUnitLZTeamData[refiEnemyOmniCoverage]='..(tUnitLZTeamData[M28Map.refiEnemyOmniCoverage] or 'nil')) end
                             if (tUnitLZTeamData[M28Map.refiEnemyOmniCoverage] or 0) < 40 then
                                 --Want to assign a mobile stealth to the closest such unit
@@ -2851,10 +2858,11 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for priority units wanting stealth, oClosestPriorityUnitWantingStealth='..(oClosestPriorityUnitWantingStealth.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestPriorityUnitWantingStealth) or 'nil')) end
                 if M28UnitInfo.IsUnitValid(oClosestPriorityUnitWantingStealth) then
-                    local tTargetUnitLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oClosestPriorityUnitWantingStealth[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][2]][M28Map.subrefLZTeamData][iTeam]
+                    local tTargetUnitLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oClosestPriorityUnitWantingStealth[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam]
                     if tTargetUnitLZTeamData then
                         --StealthUnitsInLandZone(tTeamTargetLZData, tStealthsToAssign, bAssignAllStealths, toOptionalUnitsToStealth)
                         StealthUnitsInLandZone(tTargetUnitLZTeamData, tStealthsToAssign, false, {oClosestPriorityUnitWantingStealth})
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished calling StealthUnitsInLandZone for the target unit zone='..(oClosestPriorityUnitWantingStealth[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')) end
                     end
                 end
             end
@@ -5171,7 +5179,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                     local toNearbyOtherDFEnemies = {}
                                                     --Include enemies almost in range of the enemy ACU's position
                                                     for iUnit, oUnit in tEnemyACULZTeamData[M28Map.reftoNearestDFEnemies] do
-                                                        if not(oUnit.Dead) and not(oUnit == oClosestACUToMidpoint) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUToMidpoint:GetPosition()) - oUnit[M28UnitInfo.refiDFRange] <= 10 then
+                                                        if not(oUnit.Dead) and not(oUnit == oClosestACUToMidpoint) and oUnit[M28UnitInfo.refiDFRange] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUToMidpoint:GetPosition()) - oUnit[M28UnitInfo.refiDFRange] <= 10 then
                                                             table.insert(toNearbyOtherDFEnemies, oUnit)
                                                         end
                                                     end

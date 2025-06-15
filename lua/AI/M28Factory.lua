@@ -1151,7 +1151,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMegalith) > 0 then bDebugMessages = true end
+
 
     local iCategoryToBuild
     local iTeam = aiBrain.M28Team
@@ -1380,10 +1380,27 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Mobile stealth if we are at T2+ as part of the land zone reinforcement logic
     local bConsiderMobileStealths = false
-    if iFactoryTechLevel >= 2 and not (bHaveLowPower) and not (M28Team.tTeamData[iTeam][M28Team.subrefbEnemyHasOmni]) and not (M28Team.tTeamData[iTeam][M28Team.subrefbEnemyBuiltOmni]) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoStealthTargetsByPlateau][iPlateau] or -100) >= 15 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 15 * iFactoryTechLevel and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 70 then
+    if iFactoryTechLevel >= 2 and not (bHaveLowPower) and not (M28Team.tTeamData[iTeam][M28Team.subrefbEnemyHasOmni]) and (not (M28Team.tTeamData[iTeam][M28Team.subrefbEnemyBuiltOmni]) or (M28Map.iMapSize >= 500 and (tLZTeamData[M28Map.refiEnemyOmniCoverage] or 0) == 0) and M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 500) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoStealthTargetsByPlateau][iPlateau] or -100) >= 15 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 15 * iFactoryTechLevel and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 70 then
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 60 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= (1 + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryMobileLandStealth)) * 16 then
             local iCurMobileStealths = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLandStealth)
-            if iCurMobileStealths <= 16 and iCurMobileStealths * 600 <= math.max(1800, (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]) * 0.3) then
+            local iMobileStealthFactor = 1
+            if M28Team.tTeamData[iTeam][M28Team.subrefbEnemyBuiltOmni] then
+                iMobileStealthFactor = 0.5
+            end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 then
+                local iNonCybranCount = 0
+                local iCybranCount = 0
+                for iBrain, oBrain in M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains] do
+                    if oBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
+                        iCybranCount = iCybranCount + 1
+                    else
+                        iNonCybranCount = iNonCybranCount + 1
+                    end
+                end
+                iMobileStealthFactor = iMobileStealthFactor * (1 + iNonCybranCount / (iNonCybranCount + iCybranCount))
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurMobileStealths='..iCurMobileStealths..'; iMobileStealthFactor='..iMobileStealthFactor..'; subrefiAlliedDFThreat='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]..'; subrefiAlliedIndirectThreat='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]) end
+            if iCurMobileStealths <= 16 * iMobileStealthFactor and iCurMobileStealths * 600 <= iMobileStealthFactor * math.max(1800, (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]) * 0.3) then
                 bConsiderMobileStealths = true
             end
         end
@@ -1392,7 +1409,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if iFactoryTechLevel >= 2 and M28Conditions.IsTableOfUnitsStillValid(M28Team.tLandSubteamData[iLandSubteam][M28Team.reftoPriorityUnitsWantingMobileStealth]) and EntityCategoryContains(categories.CYBRAN, oFactory.UnitId) and (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) or aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 750) then
         for iUnit, oUnit in M28Team.tLandSubteamData[iLandSubteam][M28Team.reftoPriorityUnitsWantingMobileStealth] do
             if not(M28UnitInfo.IsUnitValid(oUnit[M28Land.refoAssignedMobileStealth])) and NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oFactory:GetPosition()) <= 250 then
-                local tUnitLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][2]][M28Map.subrefLZTeamData][iTeam]
+                local tUnitLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam]
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build mobile stealth as priority unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' lacks one, so setting flag for high priority builder, unless enemy has omni coverage for this zone, tUnitLZTeamData[refiEnemyOmniCoverage]='..(tUnitLZTeamData[M28Map.refiEnemyOmniCoverage] or 'nil')) end
                 if (tUnitLZTeamData[M28Map.refiEnemyOmniCoverage] or 0) < 40 then
                     bConsiderMobileStealths = true

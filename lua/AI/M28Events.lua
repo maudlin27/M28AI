@@ -3488,7 +3488,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                 M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMegalith, true)
                             end
                             --Track priority units for mobile stealth (want to consider stealthing even if under construction, hence do at this stage)
-                            if M28Map.iMapSize >= 500 and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - categories.STEALTHFIELD - categories.url0402, oJustBuilt.UnitId) then
+                            if M28Map.iMapSize >= 500 and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - categories.STEALTHFIELD - categories.url0402, oUnit.UnitId) then
                                 --Want to build mobile stealth if we have cybran on the team
                                 local iLandSubteam = oUnit:GetAIBrain().M28LandSubteam
                                 if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionCybran][3] or 0) > 0 or (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionCybran][2] or 0) > 0 then
