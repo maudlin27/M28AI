@@ -6593,7 +6593,10 @@ function ManageGunships(iTeam, iAirSubteam)
             if M28Utilities.IsTableEmpty(tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                 local iSearchDistance = 100
                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iSearchDistance = 80 end
-                if bDebugMessages == true then LOG(sFunctionRef..': iEnemyAirAAThreatNearGunship before considering nearby zones and getunitsaroundpoint='..iEnemyAirAAThreatNearGunship) end
+                if true and GetGameTimeSeconds() >= 41*60 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 20000 then
+                    iSearchDistance = iSearchDistance + math.min(80, (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 20000) / 1000)
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iEnemyAirAAThreatNearGunship before considering nearby zones and getunitsaroundpoint='..iEnemyAirAAThreatNearGunship..'; iSearchDistance='..iSearchDistance) end
                 for iEntry, tSubtable in tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                     if tSubtable[M28Map.subrefiDistance] <= iSearchDistance then
                         local tOtherZoneData, tOtherTeamData
@@ -6833,6 +6836,11 @@ function ManageGunships(iTeam, iAirSubteam)
         --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
         M28Team.tAirSubteamData[iAirSubteam][M28Team.refiOurGunshipAAThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false,  true,               false,              false, false, false)
         local iOurGunshipAA = math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.refiOurGunshipAAThreat] * 0.25, M28UnitInfo.GetAirThreatLevel(tGunshipsNearFront, false, true, false, false, false, false))
+        --Reduce AA for larger values, as e.g. czars and restorers with threat of 130k per above got wiped out by asf force with threat of 120k
+        if true and GetGameTimeSeconds() >= 41*60 and iOurGunshipAA >= 20000 then
+            iOurGunshipAA = 20000 + (iOurGunshipAA - 20000) * 0.6
+        end
+
         local bHaveT3Gunships = false
         if iOurGunshipThreat >= 2000 then
             if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, tAvailableGunships[1].UnitId) then bHaveT3Gunships = true
@@ -7507,7 +7515,23 @@ function ManageGunships(iTeam, iAirSubteam)
                                         if M28Utilities.GetDistanceBetweenPositions(tGunshipLandOrWaterZoneData[M28Map.subrefMidpoint], tGunshipLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase]) >= 150 then iMaxDefensiveRange = math.min(50, iMaxDefensiveRange * 0.5) end
                                     end
                                 end
-                                if not(bUseDefensively) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and iOurGunshipAA < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] then bUseDefensively = true end
+                                if not(bUseDefensively) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and iOurGunshipAA < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] then
+                                    bUseDefensively = true
+                                    --If enemy appears to be attacking us be more likely to retreat
+                                elseif true and GetGameTimeSeconds() >= 41*60 and iEnemyAirAAThreatNearGunship >= 10000 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] > iOurGunshipAA then
+                                    if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+                                        bUseDefensively = true
+                                    else
+                                        --Check for nearby friendly AirAA threat
+                                        local tNearbyAirAA = oFrontGunship:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryAirAA - M28UnitInfo.refCategoryGunship, oFrontGunship:GetPosition(), 100, 'Ally')
+                                        local iOurNearbyAirAA = M28UnitInfo.GetAirThreatLevel(tNearbyAirAA, false, true, false, false, false, false)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has strong nearby airaa threat, iOurNearbyAirAA excl gunships='..iOurNearbyAirAA..'; iOurGunshipAA='..iOurGunshipAA..'; iEnemyAirAAThreatNearGunship='..iEnemyAirAAThreatNearGunship..'; Total enemy AirAA threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) end
+                                        if iOurGunshipAA + iOurNearbyAirAA < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] and iOurGunshipAA < 2 * iEnemyAirAAThreatNearGunship then
+                                            bUseDefensively = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will use gunships defensively due to enemy AirAA threat') end
+                                        end
+                                    end
+                                end
                                 if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iMaxDefensiveRange = math.max(iMaxDefensiveRange, 1000) end
 
                                 if bDebugMessages == true then LOG(sFunctionRef..': oFrontGunship='..oFrontGunship.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFrontGunship)..'; iGunshipPlateauOrZero='..(iGunshipPlateauOrZero or 'nil')..'; iGunshipLandOrWaterZone='..(iGunshipLandOrWaterZone or 'nil')..'; bUseDefensively='..tostring(bUseDefensively)) end
