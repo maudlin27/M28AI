@@ -2838,7 +2838,6 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
             --Check priority table of units wanting stealth
             local aiBrain = tStealthsToAssign[1]:GetAIBrain()
             if M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.reftoPriorityUnitsWantingMobileStealth]) == false then
-                bDebugMessages = true
                 local oClosestPriorityUnitWantingStealth
                 local iClosestPriorityUnitWantingStealthDist = 250
                 local iCurPriorityUnitWantingStealthDist

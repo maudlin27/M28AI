@@ -6593,8 +6593,8 @@ function ManageGunships(iTeam, iAirSubteam)
             if M28Utilities.IsTableEmpty(tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                 local iSearchDistance = 100
                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iSearchDistance = 80 end
-                if true and GetGameTimeSeconds() >= 41*60 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 20000 then
-                    iSearchDistance = iSearchDistance + math.min(80, (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 20000) / 1000)
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 25000 then
+                    iSearchDistance = iSearchDistance + math.min(80, (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 25000) / 1000)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iEnemyAirAAThreatNearGunship before considering nearby zones and getunitsaroundpoint='..iEnemyAirAAThreatNearGunship..'; iSearchDistance='..iSearchDistance) end
                 for iEntry, tSubtable in tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
@@ -6837,8 +6837,8 @@ function ManageGunships(iTeam, iAirSubteam)
         M28Team.tAirSubteamData[iAirSubteam][M28Team.refiOurGunshipAAThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false,  true,               false,              false, false, false)
         local iOurGunshipAA = math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.refiOurGunshipAAThreat] * 0.25, M28UnitInfo.GetAirThreatLevel(tGunshipsNearFront, false, true, false, false, false, false))
         --Reduce AA for larger values, as e.g. czars and restorers with threat of 130k per above got wiped out by asf force with threat of 120k
-        if true and GetGameTimeSeconds() >= 41*60 and iOurGunshipAA >= 20000 then
-            iOurGunshipAA = 20000 + (iOurGunshipAA - 20000) * 0.6
+        if iOurGunshipAA >= 25000 then
+            iOurGunshipAA = 20000 + (iOurGunshipAA - 25000) * 0.6
         end
 
         local bHaveT3Gunships = false
@@ -7518,7 +7518,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                 if not(bUseDefensively) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and iOurGunshipAA < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] then
                                     bUseDefensively = true
                                     --If enemy appears to be attacking us be more likely to retreat
-                                elseif true and GetGameTimeSeconds() >= 41*60 and iEnemyAirAAThreatNearGunship >= 10000 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] > iOurGunshipAA then
+                                elseif iEnemyAirAAThreatNearGunship >= 10000 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] > iOurGunshipAA then
                                     if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
                                         bUseDefensively = true
                                     else
