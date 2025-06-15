@@ -3195,7 +3195,20 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all faction land exp and nuke builders, is iCategoryWanted nil='..tostring(iCategoryWanted == nil)) end
+                --Have paragon on team - have a % hcance we will get a land or air experimental (to avoid risk we get overwhelmed) - also do it randomly between the two, so harder for enemy to hard-counter (e.g. mass asf to counter air exp, or mass gunship to counter land exp)
+                if not(iCategoryWanted) and aiBrain[M28Economy.refbBuiltParagon] then
+                    local iRand = math.random(1,4)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Exp re paragon - % chance of building mobile experimental, iRand='..iRand) end
+                    if iRand == 3 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will get land experimental') end
+                    elseif iRand >= 3 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': will get air experimental') end
+                        iCategoryWanted = (M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.STRUCTURE - categories.TRANSPORTFOCUS
+                    end
+                end
                 if not(iCategoryWanted) then
+
                     --Check if we have gameender under construction anywhere, and if we want to consider another
                     local bEnemyHasExperimentalShields = false --support for mods that add experimental shields that make certain units like the ahwassa and fatboy much less effective
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
