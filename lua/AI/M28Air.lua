@@ -902,7 +902,6 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                     end
                 end
                 for iUnit, oUnit in tCurUnits do
-
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 1 then --Needed as sometimes an invalid unit is included from getlistofunits; also because underproduction units are included with getlistofunits
                         if bRecordInTorpBomberWaterZoneList then
                             iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
@@ -916,11 +915,12 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                         else
                             local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
                             local oExistingValidAttackTarget
-                            if tLastOrder and tLastOrder[M28Orders.subrefoOrderUnitTarget] and (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack) and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
-                                oExistingValidAttackTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]
+                            if oUnit[refoStrikeDamageAssigned] then
+                                if M28UnitInfo.IsUnitValid(oUnit[refoStrikeDamageAssigned]) then oExistingValidAttackTarget = oUnit[refoStrikeDamageAssigned] end
                             elseif oUnit[refoAirAACurTarget] then
                                 if M28UnitInfo.IsUnitValid(oUnit[refoAirAACurTarget]) then oExistingValidAttackTarget = oUnit[refoAirAACurTarget] end
-
+                            elseif tLastOrder and tLastOrder[M28Orders.subrefoOrderUnitTarget] and (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack) and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
+                                oExistingValidAttackTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]
                             end
 
                             --Gunship projectile logic - update table/flag
@@ -944,7 +944,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                 end
                             end
 
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs of tLastOrder='..reprs(tLastOrder)..'; Is oExistingValidAttackTarget valid='..tostring(M28UnitInfo.IsUnitValid(oExistingValidAttackTarget))) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs of tLastOrder='..reprs(tLastOrder)..'; Is oExistingValidAttackTarget valid='..tostring(M28UnitInfo.IsUnitValid(oExistingValidAttackTarget))..'; refoStrikeDamageAssigned='..(oUnit[refoStrikeDamageAssigned].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(refoStrikeDamageAssigned) or 'nil')) end
                             if oUnit:IsUnitState('Attached') then
                                 --Clear any orders it might have as it is refueling
                                 if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel then
@@ -962,7 +962,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                 if bDebugMessages == true then LOG(sFunctionRef..' Unit with ground attack order was linked to target that is dead so will be made available') end
                                 table.insert(tAvailableUnits, oUnit)
                             elseif (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack and tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oUnit:GetPosition()) <= 90)
-                                    or (oExistingValidAttackTarget and ( (EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and (M28Map.GetWaterZoneFromPosition(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()) or 0) > 0) or (EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(tLastOrder[M28Orders.subrefoOrderUnitTarget])))) and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 90) then
+                                    or (oExistingValidAttackTarget and ( (EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and (M28Map.GetWaterZoneFromPosition(oExistingValidAttackTarget:GetPosition()) or 0) > 0) or (EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(oExistingValidAttackTarget)))) and M28Utilities.GetDistanceBetweenPositions(oExistingValidAttackTarget:GetPosition(), oUnit:GetPosition()) <= 90) then
                                 M28Orders.UpdateRecordedOrders(oUnit)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have bomber or torp bomber with valid last attack target that is relatively nearby, dist to target='..M28Utilities.GetDistanceBetweenPositions( tLastOrder[M28Orders.subreftOrderPosition], oUnit:GetPosition())..'; angle to target='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(),  tLastOrder[M28Orders.subreftOrderPosition])..'; Unit facing direction='..M28UnitInfo.GetUnitFacingAngle(oUnit)..'; Speed='..M28UnitInfo.GetUnitSpeed(oUnit)..'; Time since last fired bomb='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastBombFired] or 0)..'; refiTimeBetweenBombs='..(oUnit[M28UnitInfo.refiTimeBetweenBombs] or 'nil')) end
                                 --Ahwassa - had a rare issue where given a target that is outside its range, it flies straight towards it and never drops its bomb; based on logs of the distance it is when at full speed and the typical speed per the (unreliable) getunitspeed function, the below should hopefully catch cases where it isn't firing early enough that it is of some benefit, without badly affecting too many normal cases and causing the bomb to not fire due to the redndancy
@@ -6070,6 +6070,8 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                                         AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority1, iAirSubteam)
                                         if M28Utilities.IsTableEmpty(tAvailableBombers) then
                                             break
+                                        else
+                                            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority1, iAirSubteam,  nil,                nil,                    nil,            2)
                                         end
                                     end
                                     local tEnemyPriority2 = EntityCategoryFilterDown(iPriorityCat2, tEnemyTargets)
@@ -6090,24 +6092,18 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                                     end
                                     --Send extra torps (i.e. overkill) for AA
                                     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
-                                        if M28Utilities.IsTableEmpty(tEnemyPriority1) == false then
-                                            --AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, bForceGroundFire, bTargetAAAndShieldsFirst, bIgnoreMicro, iOptionalOverkillFactor)
-                                            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority1, iAirSubteam,  nil,                nil,                    nil,            2)
+                                        --We have already done priority1 units above
+                                        if M28Utilities.IsTableEmpty(tEnemyPriority2) == false then
+                                            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority2, iAirSubteam,  nil,                nil,                    nil,            2)
                                             if M28Utilities.IsTableEmpty(tAvailableBombers) then
                                                 break
                                             end
-                                            if M28Utilities.IsTableEmpty(tEnemyPriority2) == false then
-                                                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority2, iAirSubteam,  nil,                nil,                    nil,            2)
-                                                if M28Utilities.IsTableEmpty(tAvailableBombers) then
-                                                    break
-                                                end
-                                            end
-                                            if M28Utilities.IsTableEmpty(tEnemyOther) == false then
-                                                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyOther, iAirSubteam,  nil,                nil,                    nil,            2)
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty after assigning torp targets with double threat factor='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
-                                                if M28Utilities.IsTableEmpty(tAvailableBombers) then
-                                                    break
-                                                end
+                                        end
+                                        if M28Utilities.IsTableEmpty(tEnemyOther) == false then
+                                            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyOther, iAirSubteam,  nil,                nil,                    nil,            2)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty after assigning torp targets with double threat factor='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
+                                            if M28Utilities.IsTableEmpty(tAvailableBombers) then
+                                                break
                                             end
                                         end
                                     end
@@ -6243,7 +6239,6 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
 
         local aiBrain
         local bTorpBombers = false
-        local bEnemyHasTorpDefence = false
         local iUnitTorpDefenceCount
         if tAvailableBombers[1] then
             aiBrain = tAvailableBombers[1]:GetAIBrain()
@@ -6264,6 +6259,8 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
         --Go through enemy units by distance to rally point (so target the nearest ones first)
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
         local iEnemyTorpDefenceCount, bAlreadyRecorded
+        local bBlockingShoreline, iAngleToRally
+
         for iCurEnemyUnit, iDistance in M28Utilities.SortTableByValue(toEnemyUnitsByDistance, false) do
             --for iCurEnemyUnit = iEnemyTargetSize, 1, -1 do
             iClosestUnitDist = 100000
@@ -6308,6 +6305,17 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                         if oRecorded == oEnemyUnit then bAlreadyRecorded = true break end
                     end
                 end
+                bBlockingShoreline = false
+                if bTorpBombers and (oEnemyUnit[refiStrikeDamageAssigned] or 0) < iTotalStrikeDamageWanted * 1.5 then
+                    --Based on basic sandbox test torps looked like most of them dropped their bombs around 12 short of the cruiser (a few were less than 12, and a very small % were a bit more than 12)
+                    iAngleToRally = M28Utilities.GetAngleFromAToB(oEnemyUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                    local tLikelyDropPoint = M28Utilities.MoveInDirection(oEnemyUnit:GetPosition(), iAngleToRally, 12)
+                    if tLikelyDropPoint and GetTerrainHeight(tLikelyDropPoint[1], tLikelyDropPoint[3]) >= M28Map.iMapWaterHeight then
+                        bBlockingShoreline = true
+                        iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5 --some shots may hit shore
+                    end
+                    if bDebugMessages == true then M28Utilities.DrawLocation(tLikelyDropPoint) end
+                end
                 if not(bAlreadyRecorded) then table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoActiveBomberTargets], oEnemyUnit) end
                 while (oEnemyUnit[refiStrikeDamageAssigned] or 0) < iTotalStrikeDamageWanted do
                     iCurLoopCount = iCurLoopCount + 1
@@ -6322,21 +6330,31 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                         end
                     end
 
-                    --Attack if we already have an attack order on this unit, or we ahve visibility of it - decided ot comment out as had added  to try and avoid a bug with units not targeting but it was caused by somethign else, left commented out in case want to reintroduce at a later point
-                    bIssueAttackUnitOrder = not(bForceGroundFire)
-                    --if bIssueAttackUnitOrder then bIssueAttackUnitOrder = M28UnitInfo.CanSeeUnit(aiBrain, oEnemyUnit) end
-
-                    if bIssueAttackUnitOrder then
-                        M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'ATrp', bIgnoreMicro)
-                    else
-                        --Bomber - use attackground; torp bomber - use attackmove
-                        if EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oClosestUnit.UnitId) then
-                            M28Orders.IssueTrackedAggressiveMove(oClosestUnit, oEnemyUnit:GetPosition(), 6, false, 'AMTrp', bIgnoreMicro)
+                    if bBlockingShoreline then
+                        --Move until very close (assuming we are coming from the rally point or similar angle)
+                            --Tried with >=20 dist and some of the shots would hit the shore; with 18 they seemed ok, same for 17, so will do 17
+                        if iClosestUnitDist >= 17 and M28Utilities.GetAngleDifference(iAngleToRally, M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) <= 80 then
+                            M28Orders.IssueTrackedMove(oClosestUnit, oEnemyUnit:GetPosition(), 2, false, 'TrpBchBl', false)
                         else
-                            --Bomber - ground fire
-                            --IssueTrackedGroundAttack(oUnit,      tOrderPosition,         iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder, oOptionalLinkedUnitTarget)
-                            M28Orders.IssueTrackedGroundAttack(oClosestUnit, oEnemyUnit:GetPosition(), 1,                       false,              'ABGrn',            bIgnoreMicro,                   oEnemyUnit)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Issued ground attack for oEnemyUnit='..oEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit)..' at position '..repru(oEnemyUnit:GetPosition())) end
+                            M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'ATrp', bIgnoreMicro)
+                        end
+                    else
+                        --Attack if we already have an attack order on this unit, or we ahve visibility of it - decided ot comment out as had added  to try and avoid a bug with units not targeting but it was caused by somethign else, left commented out in case want to reintroduce at a later point
+                        bIssueAttackUnitOrder = not(bForceGroundFire)
+                        --if bIssueAttackUnitOrder then bIssueAttackUnitOrder = M28UnitInfo.CanSeeUnit(aiBrain, oEnemyUnit) end
+
+                        if bIssueAttackUnitOrder then
+                            M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'ATrp', bIgnoreMicro)
+                        else
+                            --Bomber - use attackground; torp bomber - use attackmove
+                            if EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oClosestUnit.UnitId) then
+                                M28Orders.IssueTrackedAggressiveMove(oClosestUnit, oEnemyUnit:GetPosition(), 6, false, 'AMTrp', bIgnoreMicro)
+                            else
+                                --Bomber - ground fire
+                                --IssueTrackedGroundAttack(oUnit,      tOrderPosition,         iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder, oOptionalLinkedUnitTarget)
+                                M28Orders.IssueTrackedGroundAttack(oClosestUnit, oEnemyUnit:GetPosition(), 1,                       false,              'ABGrn',            bIgnoreMicro,                   oEnemyUnit)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Issued ground attack for oEnemyUnit='..oEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit)..' at position '..repru(oEnemyUnit:GetPosition())) end
+                            end
                         end
                     end
                     AddAssignedAttacker(oEnemyUnit, oClosestUnit) --Must do this after sending the order or else will be cleared
