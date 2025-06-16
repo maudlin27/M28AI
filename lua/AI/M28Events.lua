@@ -221,6 +221,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     if bDebugMessages == true then LOG(sFunctionRef..': Have an instigator, checking if have valid killer unit. Is valid='..tostring(M28UnitInfo.IsUnitValid(oKillerUnit))) end
                     if oKillerUnit and oKillerUnit.GetAIBrain then
                         oKillerBrain = oKillerUnit:GetAIBrain()
+                        if bDebugMessages == true then LOG(sFunctionRef..': oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..'; oKillerBrain='..oKillerBrain.Nickname..'; Killer unit assigned plateau+zone (for killed unit brain team)='..repru(oKillerUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oUnitKilled:GetAIBrain().M28Team])..'; Assigned water zone='..(oKillerUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][oUnitKilled:GetAIBrain().M28Team] or 'nil')) end
 
                         --Non-M28 specific killer logic:
 
@@ -322,7 +323,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                     elseif oKillerUnit and EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled.UnitId) and M28Chat.IsTeamCoalition(oKillerBrain.M28Team) and M28Utilities.IsTableEmpty(oUnitKilled:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitKilled:GetPosition(), M28Map.iMapSize * 2, 'Ally')) then
                                         local bSendToTeam = false
                                         if math.random(1,2) == 1 and M28Utilities.IsTableEmpty(M28Team.tTeamData[oKillerBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false and table.getn(M28Team.tTeamData[oKillerBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) >= 2 then bSendToTeam = true end
-                                                --SendMessage(aiBrain, sMessageType,        sMessage,                                                                       iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank, oOptionalOnlyBrainToSendTo)
+                                        --SendMessage(aiBrain, sMessageType,        sMessage,                                                                       iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank, oOptionalOnlyBrainToSendTo)
                                         M28Chat.SendMessage(oKillerBrain, 'CoalKillArti', LOC('<LOC X01_M01_200_010>[{i HQ}]: That\'s the last of them -- all the artillery positions are down.'), 1,       600,                            bSendToTeam,          true,               'X01_HQ_M01_03631', 'X01_VO')
                                         --Dont trigger if killed via nuke
                                     elseif oKillerUnit and not(EntityCategoryContains(M28UnitInfo.refCategorySML, oKillerUnit.UnitId)) then
