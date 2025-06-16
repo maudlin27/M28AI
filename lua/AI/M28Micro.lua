@@ -637,7 +637,6 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                     if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..'; Is weapon target a bot='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, (oWeaponTarget.UnitId or 'uel0001')))..'; bOnlyDodgeIfNotMoving='..tostring(bOnlyDodgeIfNotMoving)..'; tWeaponTarget='..repru(tWeaponTarget)..'; iRadiusSize='..(iRadiusSize or 'nil')..'; oWeaponBP.WeaponCategory='..(oWeaponBP.WeaponCategory or 'nil')..'; oWeaponBP.Label='..(oWeaponBP.Label or 'nil')..'; bOnlyDodgeIfNotMoving='..tostring(bOnlyDodgeIfNotMoving)) end
                     if iTimeUntilImpact > 0.8 or (oWeaponTarget and EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, oWeaponTarget.UnitId) and iTimeUntilImpact >= 0.2) then
                         for iTarget, oTarget in tUnitsToConsiderDodgeFor do
-                            if oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget) == 'url010119' and GetGameTimeSeconds() >= 15*60+45 then bDebugMessages = true else bDebugMessages = false end
                             bCancelDodge = false
                             if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Weapon damage='..oWeaponBP.Damage..'; Target health='..oTarget:GetHealth()) end
                             --Does the shot do enough damage that we want to try and dodge it? (experimentals - consider high damage shots like ythotha ball)
@@ -746,7 +745,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DodgeShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget) == 'url010119' and GetGameTimeSeconds() >= 15*60+45 then bDebugMessages = true else bDebugMessages = false end
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' owned by brain '..oTarget:GetAIBrain().Nickname..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; oAttacker='..(oAttacker.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAttacker) or 'nil')..'; Attacker assigned LZ for oUnit team='..(oAttacker[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oTarget:GetAIBrain().M28Team][2] or 'nil')) end
 
     local bAdjustDodgeMicroCount = false
