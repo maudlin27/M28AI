@@ -637,6 +637,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                     if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..'; Is weapon target a bot='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, (oWeaponTarget.UnitId or 'uel0001')))..'; bOnlyDodgeIfNotMoving='..tostring(bOnlyDodgeIfNotMoving)..'; tWeaponTarget='..repru(tWeaponTarget)..'; iRadiusSize='..(iRadiusSize or 'nil')..'; oWeaponBP.WeaponCategory='..(oWeaponBP.WeaponCategory or 'nil')..'; oWeaponBP.Label='..(oWeaponBP.Label or 'nil')..'; bOnlyDodgeIfNotMoving='..tostring(bOnlyDodgeIfNotMoving)) end
                     if iTimeUntilImpact > 0.8 or (oWeaponTarget and EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, oWeaponTarget.UnitId) and iTimeUntilImpact >= 0.2) then
                         for iTarget, oTarget in tUnitsToConsiderDodgeFor do
+                            if oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget) == 'url010119' and GetGameTimeSeconds() >= 15*60+45 then bDebugMessages = true else bDebugMessages = false end
                             bCancelDodge = false
                             if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Weapon damage='..oWeaponBP.Damage..'; Target health='..oTarget:GetHealth()) end
                             --Does the shot do enough damage that we want to try and dodge it? (experimentals - consider high damage shots like ythotha ball)
@@ -745,8 +746,8 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DodgeShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' owned by brain '..oTarget:GetAIBrain().Nickname..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; oAttacker='..(oAttacker.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAttacker) or 'nil')) end
+    if oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget) == 'url010119' and GetGameTimeSeconds() >= 15*60+45 then bDebugMessages = true else bDebugMessages = false end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' owned by brain '..oTarget:GetAIBrain().Nickname..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; oAttacker='..(oAttacker.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAttacker) or 'nil')..'; Attacker assigned LZ for oUnit team='..(oAttacker[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oTarget:GetAIBrain().M28Team][2] or 'nil')) end
 
     local bAdjustDodgeMicroCount = false
     if not(ScenarioInfo.Options.M28DodgeMicro == 1) then
@@ -803,25 +804,58 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
             iAngleAdjust = math.min(iAngleAdjust, 30)
         end
     end
+    local bRunAwayFromNearestEnemy = false
 
     --Non-experimental skirmishers - try to move at an adjustment to the angle to the destination rather htan the unit facing direction so less likely to move into range of enemy
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering if have skirmisher or ACU; ACU time since last wanted to retreat (if this was an ACU)='..GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or 0)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if have skirmisher or ACU; ACU time since last wanted to retreat (if this was an ACU)='..GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or 0)..'; Time since last wanted to retreat for non-ACU='..GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiTimeLastTriedRetreating] or 0)..'; oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]='..(oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) or 'nil')) end
     if EntityCategoryContains(M28UnitInfo.refCategorySkirmisher - categories.EXPERIMENTAL + M28UnitInfo.refCategoryLandScout, oTarget.UnitId) or (oTarget[M28UnitInfo.refiTimeLastTriedRetreating] and GetGameTimeSeconds() - oTarget[M28UnitInfo.refiTimeLastTriedRetreating] <= math.max(2, M28Land.iTicksPerLandCycle * 0.1 + 0.1)) or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - oTarget[M28ACU.refiTimeLastWantedToRun] <= 3)
             --MMLs - we might be near PD meaning dodging will take us in range of it
             or ((oTarget[M28UnitInfo.refiIndirectRange] or 0) > 0 and not(EntityCategoryContains(categories.TECH1, oTarget.UnitId)) and not(oTarget[M28UnitInfo.refbSpecialMicroActive]) and not(oTarget[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove)) then
-        local iAngleDifToDestination = M28Utilities.GetAngleDifference(iCurFacingAngle, iAngleToDestination)
-        if bDebugMessages == true then LOG(sFunctionRef..': iAngleDifToDestination='..iAngleDifToDestination..'; iAngleAdjust='..iAngleAdjust) end
-        if iAngleDifToDestination >= math.max(iAngleAdjust, 45) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Increasing angle adjust as have a skirmisher or retreating ACU, iAngleAdjust before increase='..iAngleAdjust..'; iAngleDifToDestination='..iAngleDifToDestination) end
-            iAngleAdjust = math.max(iAngleAdjust, iAngleDifToDestination * 0.7)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] valid='..tostring(M28UnitInfo.IsUnitValid(oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]))) end
+        if M28UnitInfo.IsUnitValid(oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and (oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 0) > 0 then
+            local iDistToNearestEnemy = M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
+            --If we went towards this unit are we likely getting into its DF range?
+            if bDebugMessages == true then LOG(sFunctionRef..': iDistToNearestEnemy='..iDistToNearestEnemy..'; Target[refoClosestEnemyFromLastCloseToEnemyUnitCheck] DF range='..(oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 'nil')) end
+            if iDistToNearestEnemy - 10 < oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] then
+                bRunAwayFromNearestEnemy = true
+            end
+        end
+        if not(bRunAwayFromNearestEnemy) then
+            local iAngleDifToDestination = M28Utilities.GetAngleDifference(iCurFacingAngle, iAngleToDestination)
+            if bDebugMessages == true then LOG(sFunctionRef..': iAngleDifToDestination='..iAngleDifToDestination..'; iAngleAdjust='..iAngleAdjust) end
+            if iAngleDifToDestination >= math.max(iAngleAdjust, 45) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Increasing angle adjust as have a skirmisher or retreating ACU, iAngleAdjust before increase='..iAngleAdjust..'; iAngleDifToDestination='..iAngleDifToDestination) end
+                iAngleAdjust = math.max(iAngleAdjust, iAngleDifToDestination * 0.7)
+            end
         end
     end
 
     if M28Utilities.GetAngleDifference(iCurFacingAngle + iAngleAdjust, iAngleToDestination) > M28Utilities.GetAngleDifference(iCurFacingAngle - iAngleAdjust, iAngleToDestination) then
         iAngleAdjust = iAngleAdjust * -1
     end
+    local iAngleToMove = iCurFacingAngle + iAngleAdjust
+    if bRunAwayFromNearestEnemy then
+        local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oTarget:GetPosition(), oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
+        --If we move the planned angle, will that mean we get closer to this enemy significantly?
+        if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether our current angle will take us too close to nearest enemy, oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]='..oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])..'; iAngleToNearestEnemy='..iAngleToNearestEnemy..'; iAngleToMove currently='..iAngleToMove..'; Angle dif='..M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToMove)) end
+        if M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToMove) <= 100 then
+            --Want to move in opposite direction to nearest enemy; if we were already moving this way then want to change slightly so we hopefully dodge the shot while also still running
+            local iAngleFromNearestEnemy = iAngleToNearestEnemy - 180
+            if iAngleFromNearestEnemy < 0 then iAngleFromNearestEnemy = iAngleFromNearestEnemy + 360 end
+            if bDebugMessages == true then LOG(sFunctionRef..': Dif between angle from nearest enemy and angle to destination='..M28Utilities.GetAngleDifference(iAngleFromNearestEnemy, iAngleToDestination)) end
+            if M28Utilities.GetAngleDifference(iAngleFromNearestEnemy, iAngleToDestination) < 20 then
+                --Move either +15 or -15 from nearest enemy, based on which gives the greatest dif to our current angletodestination
+                if M28Utilities.GetAngleDifference(iAngleFromNearestEnemy + 15, iAngleToDestination) > M28Utilities.GetAngleDifference(iAngleFromNearestEnemy - 15, iAngleToDestination) then
+                    iAngleToMove = iAngleFromNearestEnemy + 15
+                else
+                    iAngleToMove = iAngleFromNearestEnemy - 15
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iAngleToMove so we run from nearest enemy='..iAngleToMove) end
+            end
+        end
+    end
 
-    local tTempDestination = M28Utilities.MoveInDirection(oTarget:GetPosition(), iCurFacingAngle + iAngleAdjust, iDistanceToRun, true, false, true)
+    local tTempDestination = M28Utilities.MoveInDirection(oTarget:GetPosition(), iAngleToMove, iDistanceToRun, true, false, true)
     if bDebugMessages == true then LOG(sFunctionRef..': oTarget (ie unit that is dodging)='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; clearing current orders which have a possible destination of '..repru(tCurDestination)..'; and giving an order to move to '..repru(tTempDestination)..'; Dist from our position to temp position='..M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), tTempDestination)..'; iAngleAdjust='..iAngleAdjust..'; Unit size='..iUnitSize..'; iTimeToDodge='..iTimeToDodge) end
     --M28Orders.IssueTrackedClearCommands(oTarget)
     TrackTemporaryUnitMicro(oTarget, iTimeToDodge)
