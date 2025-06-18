@@ -269,7 +269,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                         return false
                     else
                         local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType]
-                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')..'; oEngineer[refiEngineerStuckCheckCount]='..(oEngineer[refiEngineerStuckCheckCount] or 'nil')) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')..'; oEngineer[refiEngineerStuckCheckCount]='..(oEngineer[refiEngineerStuckCheckCount] or 'nil')..'; refiRepairProgressWhenLastChecked='..(oEngineer[M28Engineer.refiRepairProgressWhenLastChecked] or 'nil')) end
                         --Rare case where engineer acn be given a move order yet doesn't move - below is to try and mitigate it
                         if oEngineer:IsUnitState('Moving') and oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and not(bDebugOnly) then
                             if (oEngineer[refiEngineerStuckCheckCount] or 0) == 0 then
@@ -430,7 +430,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return true
                             else
-                                if bDebugMessages == true then LOG(sFunctionRef..': Are assigned to repair a unit that isnt complete or healed yet so not available') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Are assigned to repair a unit that isnt complete or healed yet so not available, oUnitRepairing='..oUnitRepairing.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitRepairing)..'; reftArtiTemplateRefs on unitrepairing='..repru(oUnitRepairing[M28Building.reftArtiTemplateRefs])) end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return false
                             end
@@ -462,7 +462,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                 end
             end
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': Engineer is building or repairing so treating as unavailable') end --, refiEngineerBuildWithoutFocusUnitCount='..(oEngineer[refiEngineerBuildWithoutFocusUnitCount] or 0)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Engineer is building or repairing so treating as unavailable in most cases') end --, refiEngineerBuildWithoutFocusUnitCount='..(oEngineer[refiEngineerBuildWithoutFocusUnitCount] or 0)) end
             if oEngineer:IsUnitState('Building') then
                 local oFocusObject = oEngineer:GetFocusUnit()
                 if oFocusObject then
@@ -483,6 +483,28 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                         end
                     end
                 end
+            elseif oEngineer:IsUnitState('Repairing') then
+                --Repairing GE template unit that has a long way until completed - reassess periodically what we whould do with the engineer (as it may have made sense to repair to use up spare mass a while ago, but we may no longer want to do that now)
+                if not(oEngineer[M28Engineer.refiAssignedAction]) and not(oEngineer[M28Engineer.refiRepairProgressWhenLastChecked]) then
+                    --E.g. might be we cleared engineer tracking to make available, but it wasnt given any new orders, and is still repairing, in which case want to still keep it as being available
+                    local oFocusUnit = oEngineer:GetFocusUnit()
+                    if M28UnitInfo.IsUnitValid(oFocusUnit) and oFocusUnit[M28Building.reftArtiTemplateRefs] and oFocusUnit:GetFractionComplete() < 0.5 and oFocusUnit:GetFractionComplete() > 0.1 and (oFocusUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oFocusUnit)) >= 30000 and oEngineer:GetAIBrain():GetEconomyStoredRatio('MASS') < 0.05 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will treat engi as available despite no value for refiRepairProgressWhenLastChecked') end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Engi is repairing, oEngineer[M28Engineer.refiRepairProgressWhenLastChecked]='..(oEngineer[M28Engineer.refiRepairProgressWhenLastChecked] or 'nil')) end
+                if oEngineer[M28Engineer.refiRepairProgressWhenLastChecked] then
+                    local oFocusUnit = oEngineer:GetFocusUnit()
+                    if bDebugMessages == true then LOG(sFunctionRef..': Expect we are repairing an arti/similar in a GE template but not part of GE template logic, oFocusUnit='..(oFocusUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocusUnit) or 'nil')..'; Work progress='..oEngineer:GetWorkProgress()..'; oEngineer[M28Engineer.refiRepairProgressWhenLastChecked]='..oEngineer[M28Engineer.refiRepairProgressWhenLastChecked]..'; Brain % mass stored='..oEngineer:GetAIBrain():GetEconomyStoredRatio('MASS')) end
+                    if M28UnitInfo.IsUnitValid(oFocusUnit) and oFocusUnit[M28Building.reftArtiTemplateRefs] and oFocusUnit:GetFractionComplete() < 0.5 and oFocusUnit:GetFractionComplete() > oEngineer[M28Engineer.refiRepairProgressWhenLastChecked] + 0.1 and (oFocusUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oFocusUnit)) >= 30000 and oEngineer:GetAIBrain():GetEconomyStoredRatio('MASS') < 0.05 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will treat engineer as available and return true') end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
+                end
+
             end
 
             --Below was to try and resolve issue with engi appearing to try and build somewhere and failing, but realised likely was just unit cap

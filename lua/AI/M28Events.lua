@@ -1079,6 +1079,8 @@ function OnShieldBubbleDamaged(self, instigator)
         if not(oShield.Dead) then
             if oShield:GetAIBrain().M28AI then
                 oShield[M28UnitInfo.refiTimeLastDamaged] = GetGameTimeSeconds()
+                --If damaged by Aeon T3 arti set a temporary flag
+                if instigator.UnitId == 'uab2302' then oShield[M28Building.refiTimeOfLastAeonT3ArtiDamageToShield] = GetGameTimeSeconds() end
             end
             --LOG('instigator='..reprs(instigator))
             if M28UnitInfo.IsUnitValid(instigator) and instigator:GetAIBrain().M28AI and IsEnemy(oShield:GetAIBrain():GetArmyIndex(), instigator:GetAIBrain():GetArmyIndex()) then

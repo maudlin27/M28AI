@@ -7288,7 +7288,6 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
 
     local iTeam = oACU:GetAIBrain().M28Team
     --Do we want to run to GE template? only consider if enemy has multiple land exp, large air to ground threat, or we have built lots of experimentals
-
     if bDebugMessages == true then LOG(sFunctionRef..': start of code for ACU owned by brain '..oACU:GetAIBrain().Nickname..', is it dangerous for ACUs='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])..'; Defend vs arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Our constructed exp count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Enemy Air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Time='..GetGameTimeSeconds()) end
     if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and ((M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 1)) or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 3 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 25000) then
 
@@ -7370,19 +7369,43 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
         if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for shield to run to in GE template, oClosestShield='..(oClosestShield.Unitid or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestShield) or 'nil')) end
         if oClosestShield then
             oACU[refoShieldRallyTarget] = oClosestShield
-            if bDebugMessages == true then LOG(sFunctionRef..': iClosestShield='..iClosestShield..'; Shield radius='..(oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0)..'; Shield health='..oClosestShield.MyShield:GetHealth()..'; brain'..oACU:GetAIBrain().Nickname) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iClosestShield='..iClosestShield..'; Shield radius='..(oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0)..'; Shield health='..oClosestShield.MyShield:GetHealth()..'; brain'..oACU:GetAIBrain().Nickname..'; oClosestShield[M28Building.reftArtiTemplateRefs]='..repru(oClosestShield[M28Building.reftArtiTemplateRefs])) end
             if iClosestShield <= 6 or (iClosestShield < math.min((oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5 - 3.5, 26) and oClosestShield.MyShield.GetHealth and oClosestShield.MyShield:GetHealth() >= 5000) then
-                local sUpgradeToGet, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, false)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering if want upgrade, sUpgradeToGet='..(sUpgradeToGet or 'nil')..'; Have low mass='..tostring(M28Conditions.HaveLowMass(oACU:GetAIBrain()))..'; Have low power='..tostring(M28Conditions.HaveLowPower(oACU:GetAIBrain()))..'; Stalling mass='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefbTeamIsStallingMass])..'; Gross brain mass='..oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome]) end
-                if sUpgradeToGet and (bIgnoreOtherUpgradeConditions or (not(M28Conditions.HaveLowPower(oACU:GetAIBrain())) or oACU:GetAIBrain()[M28Economy.refbBuiltParagon]) and not(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefbTeamIsStallingMass]) and (not(M28Conditions.HaveLowMass(oACU:GetAIBrain())) or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 50)) then
-                    M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpLg')
-                    if bDebugMessages == true then LOG(sFunctionRef..': Are under shield already but want to get an upgrade so will get upgrade') end
+                --We want to be positioned inbetween the shield and the GE arti being shielded, to make sure if the shield is destroyed we are covered by other shields (as for some templates they only cover the midpoint of each shield)
+                local tPositionToBeCloserTo
+
+                if oClosestShield[M28Building.reftArtiTemplateRefs] then
+                    local tTemplate = M28Map.tAllPlateaus[oClosestShield[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oClosestShield[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][iTeam][M28Map.reftActiveGameEnderTemplates][oClosestShield[M28Building.reftArtiTemplateRefs][3]]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is tTemplate[M28Map.subrefGEArtiLocations][1] nil='..tostring((tTemplate[M28Map.subrefGEArtiLocations][1] == nil))..'; is tTemplate nil='..tostring(tTemplate == nil)) end
+                    if tTemplate[M28Map.subrefGEArtiLocations][1] then
+                        local iACUDistToArti = M28Utilities.GetDistanceBetweenPositions(tTemplate[M28Map.subrefGEArtiLocations][1], oACU:GetPosition())
+                        local iShieldDistToArti = M28Utilities.GetDistanceBetweenPositions(tTemplate[M28Map.subrefGEArtiLocations][1], oClosestShield:GetPosition())
+                        if iACUDistToArti + 2 >= iShieldDistToArti then
+                            tPositionToBeCloserTo = M28Utilities.MoveInDirection(oClosestShield:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestShield:GetPosition(), tTemplate[M28Map.subrefGEArtiLocations][1]), 4)
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iACUDistToArti='..iACUDistToArti..'; iShieldDistToArti='..iShieldDistToArti..'; tPositionToBeCloserTo='..repru(tPositionToBeCloserTo)) end
+
+                    end
+                end
+                if tPositionToBeCloserTo then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will move to be inbetween shield and the arti being protected') end
+                    M28Orders.IssueTrackedMove(oACU, tPositionToBeCloserTo, 3, false, 'RunToGEAr')
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true
-                elseif iClosestShield <= 3 or (oClosestShield.MyShield.GetHealth and oClosestShield.MyShield:GetHealth() >= 5000) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Are under the shield already so will consider normal ACU logic') end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return false
+                else
+
+                    local sUpgradeToGet, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, false)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want upgrade, sUpgradeToGet='..(sUpgradeToGet or 'nil')..'; Have low mass='..tostring(M28Conditions.HaveLowMass(oACU:GetAIBrain()))..'; Have low power='..tostring(M28Conditions.HaveLowPower(oACU:GetAIBrain()))..'; Stalling mass='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefbTeamIsStallingMass])..'; Gross brain mass='..oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome]) end
+                    if sUpgradeToGet and (bIgnoreOtherUpgradeConditions or (not(M28Conditions.HaveLowPower(oACU:GetAIBrain())) or oACU:GetAIBrain()[M28Economy.refbBuiltParagon]) and not(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefbTeamIsStallingMass]) and (not(M28Conditions.HaveLowMass(oACU:GetAIBrain())) or oACU:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 50)) then
+                        M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpLg')
+                        if bDebugMessages == true then LOG(sFunctionRef..': Are under shield already but want to get an upgrade so will get upgrade') end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    elseif iClosestShield <= 3 or (oClosestShield.MyShield.GetHealth and oClosestShield.MyShield:GetHealth() >= 5000) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Are under the shield already so will consider normal ACU logic') end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return false
+                    end
                 end
             elseif bDebugMessages == true then LOG(sFunctionRef..': want to move closer to the shield')
             end

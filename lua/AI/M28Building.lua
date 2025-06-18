@@ -89,6 +89,7 @@ reftArtiTemplateRefs = 'M28ArtiTemplateRef' --returns {iPlateau, iLandZone, iTem
 refiTimeOfLastDischarge = 'M28ShLastDisc' --gametime that we gave a discharge order, so can check for redundancies
 refbRecentlyCheckedTMDOrTML = 'M28BRChTm' --true if we have recently checked this unit for if it has tml/tmd coverage etc. against land zone
 refiManuallyEnabledTime = 'M28ShLstMnEn' --gametimeseconds that we ran enableshield due to a potential bug
+refiTimeOfLastAeonT3ArtiDamageToShield = 'M28ShLstAT3' --Gametimeseconds that an Aeon T3 arti last dealt damage to this shield
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
@@ -4825,18 +4826,24 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                 iSecondsBetweenShieldCycles = 0.1 --review position next tick
                 if bDebugMessages == true then LOG(sFunctionRef..': we either have no or 1 active shield so wont discharge but will check again in 1 tick') end
             else
-                --We will presumably have waited the appropriate time before getting here, so can disable the lowest health shield; work out how long we want to wait for the next shield
-                if iCompletedShieldCount > 1 then
-                    iSecondsBetweenShieldCycles = iLongestRechargeTime / (iCompletedShieldCount - 1)
+                --If Aeon shell landed then the DOT effect could be beneath other shields; if we have 3+ shields active then seems unlikely, while if lowest health shield is <6k it wouldnt protect from the DOT effect either
+                if oLowestHealthActiveShield[refiTimeOfLastAeonT3ArtiDamageToShield] and iCompletedShieldCount <= 2 and GetGameTimeSeconds() - oLowestHealthActiveShield[refiTimeOfLastAeonT3ArtiDamageToShield] <= 1 and iLowestHealth >= 6000 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': The lowest health shield took T3 arti fire from aeon recently, so a chance the shell DOT effect could destroy things if it occurred beneath the other shield currently active') end
+                    iSecondsBetweenShieldCycles = 0.1 --review position next tick
                 else
-                    --Redundancy - should be impossible to get here
-                    iSecondsBetweenShieldCycles = 10
-                end
-                M28UnitInfo.DischargeShield(oLowestHealthActiveShield)
-                if bDebugMessages == true then LOG(sFunctionRef..': have just discharged shield '..oLowestHealthActiveShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestHealthActiveShield)..' at time='..GetGameTimeSeconds()) end
-                oLowestHealthActiveShield[refiTimeOfLastDischarge] = GetGameTimeSeconds()
-                if bUpdateName then
-                    M28Orders.UpdateUnitNameForOrder(oLowestHealthActiveShield, 'DischZ'..(oLowestHealthActiveShield[reftArtiTemplateRefs][2] or 'nil')..'T'..(oLowestHealthActiveShield[reftArtiTemplateRefs][3] or 'nil')..'; Tm='..math.floor(GetGameTimeSeconds()))
+                    --We will presumably have waited the appropriate time before getting here, so can disable the lowest health shield; work out how long we want to wait for the next shield
+                    if iCompletedShieldCount > 1 then
+                        iSecondsBetweenShieldCycles = iLongestRechargeTime / (iCompletedShieldCount - 1)
+                    else
+                        --Redundancy - should be impossible to get here
+                        iSecondsBetweenShieldCycles = 10
+                    end
+                    M28UnitInfo.DischargeShield(oLowestHealthActiveShield)
+                    if bDebugMessages == true then LOG(sFunctionRef..': have just discharged shield '..oLowestHealthActiveShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestHealthActiveShield)..' at time='..GetGameTimeSeconds()) end
+                    oLowestHealthActiveShield[refiTimeOfLastDischarge] = GetGameTimeSeconds()
+                    if bUpdateName then
+                        M28Orders.UpdateUnitNameForOrder(oLowestHealthActiveShield, 'DischZ'..(oLowestHealthActiveShield[reftArtiTemplateRefs][2] or 'nil')..'T'..(oLowestHealthActiveShield[reftArtiTemplateRefs][3] or 'nil')..'; Tm='..math.floor(GetGameTimeSeconds()))
+                    end
                 end
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
