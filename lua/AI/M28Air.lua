@@ -10548,6 +10548,7 @@ function GetNovaxTarget(aiBrain, oNovax)
 
     --Get list of significant enemy shielding (will ignore targets under these shields)
     local iMediumSearchRange = 53 --Omni range is 60, so getunitsaroundpoint baed on this range should be fine; means we wont pickup all nearby enemy shields, but should still do ok
+    local iShortSearchRange = 32 --ragne of novax laser
     local tNearbyEnemyShields = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3 - M28UnitInfo.refCategoryFatboy, oNovax:GetPosition(), iMediumSearchRange + 60, 'Enemy') --shield boats have a size of 120 so a radius of 60, so want to include max enemy search range (iMediumSearchRange) plus this, to make sure all shields are taken into account
     --tNearbyEnemyShields = GetEnemyUnitsInCurrentAndAdjacentZonesOfCategory(iStartPlateauOrZero, tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3)
     local tNotLowHealthNearbyShields = {}
@@ -10718,7 +10719,7 @@ function GetNovaxTarget(aiBrain, oNovax)
         local toUnshieldedNearbyFixedShields = {}
         for iUnit, oUnit in tEnemyUnits do
             --Ignore units that are mobile and attached, or underwater
-            if bDebugMessages == true then LOG(sFunctionRef .. ': Considering enemy unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; Unit state=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Does it contain mobile category=' .. tostring(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) .. '; is it underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; Is it under shield=' .. tostring(DoShieldsCoverUnit(oUnit, oUnit))..'; Unti AIBrain owner='..oUnit:GetAIBrain().Nickname..' with index '..oUnit:GetAIBrain():GetArmyIndex()..'; Dist to unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())) end
+            if bDebugMessages == true then LOG(sFunctionRef .. ': Considering enemy unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; Unit state=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Does it contain mobile category=' .. tostring(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) .. '; is it underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; Is it under shield=' .. tostring(DoShieldsCoverUnit(oUnit, oUnit))..'; Unti AIBrain owner='..oUnit:GetAIBrain().Nickname..' with index '..oUnit:GetAIBrain():GetArmyIndex()..'; Dist to unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())..'; Fraction complete='..oUnit:GetFractionComplete()..'; Under construction shield condition='..tostring(iFractionComplete > 0.35 and oUnitBP.Defense.Shield.ShieldMaxHealth and oUnitBP.Defense.Shield.ShieldMaxHealth >= 10000 and oUnit:GetHealth() <= 500 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition()) <= iShortSearchRange)) end
             if not (oUnit:IsUnitState('Attached') and EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                 --Ignore units that are shielded
                 if not (DoShieldsCoverUnit(oUnit, oUnit)) or (EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) and (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 0) > 0 and (M28Map.tAllPlateaus[oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefThreatEnemyShield] or 0) == 0 and not(DoShieldsCoverUnit(oUnit, oUnit, true, math.max(iShieldHealthThreshold + 1000, iShieldHealthThreshold * 1.3)))) then
@@ -10728,8 +10729,12 @@ function GetNovaxTarget(aiBrain, oNovax)
                     iCurValue = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * iMassFactor
                     iFractionComplete = oUnit:GetFractionComplete()
                     if iFractionComplete < 0.9 then
-                        if iFractionComplete < 0.2 or not((EntityCategoryContains(M28UnitInfo.refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and not(M28Utilities.bFAFActive)))) then
+                        if iFractionComplete < 0.1 or not((EntityCategoryContains(M28UnitInfo.refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and not(M28Utilities.bFAFActive)))) then
                             iCurValue = iCurValue * iFractionComplete
+                            --Under construction shield that is nearing completion and is in range of novax - massively increase value (to avoid e.g. prioritising a different unit such as damaged t3 arti when enemy shield if built will prevent us damaging it as well)
+                        elseif iFractionComplete > 0.25 and oUnitBP.Defense.Shield.ShieldMaxHealth and oUnitBP.Defense.Shield.ShieldMaxHealth >= 10000 and oUnit:GetHealth() <= 500 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition()) <= iShortSearchRange then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Massively increasing value of under construction shield t hat is in our range') end
+                            iCurValue = iCurValue * 10
                         end
                     end
                     if oUnitBP.Defense.Shield and M28UnitInfo.IsUnitShieldEnabled(oUnit) then
@@ -10825,7 +10830,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef .. ' Unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. ' iCurValue=' .. iCurValue .. '; iTimeToTarget=' .. iTimeToTarget .. '; iTimeToKillTarget=' .. iTimeToKillTarget .. '; iCurShield=' .. iCurShield .. '; iMaxShield=' .. iMaxShield .. '; iCurDPSMod=' .. iCurDPSMod) end
+                    if bDebugMessages == true then LOG(sFunctionRef .. ' Unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. ' iCurValue=' .. iCurValue .. '; iTimeToTarget=' .. iTimeToTarget .. '; iTimeToKillTarget=' .. iTimeToKillTarget .. '; iCurShield=' .. iCurShield .. '; iMaxShield=' .. iMaxShield .. '; iCurDPSMod=' .. iCurDPSMod..'; Cur health='..oUnit:GetHealth()) end
                     if iCurValue > iBestTargetValue then
                         if bDebugMessages == true then LOG(sFunctionRef .. ': Have a new best target, iBestTargetValue=' .. iBestTargetValue .. '; Target=' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                         iBestTargetValue = iCurValue
