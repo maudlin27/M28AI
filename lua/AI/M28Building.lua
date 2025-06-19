@@ -4721,6 +4721,7 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
         local M28Config = import('/mods/M28AI/lua/M28Config.lua')
         local bUpdateName = M28Config.M28ShowUnitNames
         local iCurShieldRadius, iShieldWithHealth
+
         local tArtiMidpoint, iLowestHealthDistToArtiMidpoint, iCurDistToArtiMidpoint
         if table.getn(tTableRef[M28Map.subrefGEArtiLocations]) == 1 then
             tArtiMidpoint = tTableRef[M28Map.subrefGEArtiLocations][1]
@@ -4733,6 +4734,7 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
             tArtiMidpoint[1] = tArtiMidpoint[1] / table.getn(tTableRef[M28Map.subrefGEArtiLocations])
             tArtiMidpoint[3] = tArtiMidpoint[3] / table.getn(tTableRef[M28Map.subrefGEArtiLocations])
         end
+        local iTimeOfLastDischarge
 
         while M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEShieldUnits]) do
             --Get the highest and lowest health active shields
@@ -4863,13 +4865,20 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                         --Redundancy - should be impossible to get here
                         iSecondsBetweenShieldCycles = 10
                     end
-                    M28UnitInfo.DischargeShield(oLowestHealthActiveShield)
-                    if bDebugMessages == true then LOG(sFunctionRef..': have just discharged shield '..oLowestHealthActiveShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestHealthActiveShield)..' at time='..GetGameTimeSeconds()) end
-                    oLowestHealthActiveShield[refiTimeOfLastDischarge] = GetGameTimeSeconds()
-                    if bUpdateName then
-                        M28Orders.UpdateUnitNameForOrder(oLowestHealthActiveShield, 'DischZ'..(oLowestHealthActiveShield[reftArtiTemplateRefs][2] or 'nil')..'T'..(oLowestHealthActiveShield[reftArtiTemplateRefs][3] or 'nil')..'; Tm='..math.floor(GetGameTimeSeconds()))
+                    if iShieldWithHealth <= 3 and iTimeOfLastDischarge and GetGameTimeSeconds() - iTimeOfLastDischarge + 0.5 < iSecondsBetweenShieldCycles then
+                        if bDebugMessages == true then LOG(sFunctionRef..': It hasnt been long enoug hsince our last discharge so will wait before discharing even if we have multiple shields active') end
+                        iSecondsBetweenShieldCycles = 0.5
+                    else
+                        M28UnitInfo.DischargeShield(oLowestHealthActiveShield)
+                        iTimeOfLastDischarge = GetGameTimeSeconds()
+                        if bDebugMessages == true then LOG(sFunctionRef..': have just discharged shield '..oLowestHealthActiveShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestHealthActiveShield)..' at time='..GetGameTimeSeconds()) end
+                        oLowestHealthActiveShield[refiTimeOfLastDischarge] = GetGameTimeSeconds()
+                        if bUpdateName then
+                            M28Orders.UpdateUnitNameForOrder(oLowestHealthActiveShield, 'DischZ'..(oLowestHealthActiveShield[reftArtiTemplateRefs][2] or 'nil')..'T'..(oLowestHealthActiveShield[reftArtiTemplateRefs][3] or 'nil')..'; Tm='..math.floor(GetGameTimeSeconds()))
+                        end
                     end
                 end
+
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(iSecondsBetweenShieldCycles)
