@@ -1486,7 +1486,11 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                     local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
                                     if iDistToLastOrder <= 125 then
                                         --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
-                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                        if oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater
+                                            M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs0EA'..iWaterZone)
+                                        else
+                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs1EA'..iWaterZone)
+                                        end
                                         if bDebugMessages == true then LOG(sFunctionRef..': Exp wants to move somewhere to support but land target htat isnt too far away so will go there') end
                                     else
                                         local iAngleToLastOrder = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
@@ -1502,7 +1506,11 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                         end
                                         if bHaveLandZoneNearby then
                                             if bDebugMessages == true then LOG(sFunctionRef..': will proceed to land for Exp instead of moving') end
-                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                            if oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater
+                                                M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs2aEA'..iWaterZone)
+                                            else
+                                                M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs2bEA'..iWaterZone)
+                                            end
                                         else
                                             --No land zone nearby - still consider attackmoving if enemy has dangerous enemy in our range
                                             local bNearbySignificantValueEnemy
@@ -1517,7 +1525,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                                     end
                                                 end
                                             end
-                                            if bNearbySignificantValueEnemy then
+                                            if bNearbySignificantValueEnemy and (not(M28UnitInfo.IsUnitUnderwater(oUnit)) or (oUnit[M28UnitInfo.refiAntiNavyRange] >= 30 and oUnit.UnitId == 'xrl0403')) then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Significant value enemy in our DF range so will attack-move to the amphibious destination') end
                                                 M28Orders.IssueTrackedAggressiveMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAMToLZ'..iLZToSupport..'Fr'..iWaterZone)
                                             else
@@ -1544,8 +1552,13 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                             if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 3 and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 and M28Utilities.IsTableEmpty(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) == false and M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) then
                                 local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
                                 if iDistToLastOrder <= 125 then
-                                    --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
-                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                    --Fatboy - move instead of attack-move or it can get stuck underwater
+                                    if oUnit.UnitId == 'uel0401' then
+                                        M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs3EA'..iWaterZone)
+                                    else
+                                        --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs4EA'..iWaterZone)
+                                    end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Exp wants to consolidate but land target htat isnt too far away so will go there') end
                                 else
                                     local iAngleToLastOrder = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
@@ -1561,7 +1574,12 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                     end
                                     if bHaveLandZoneNearby then
                                         if bDebugMessages == true then LOG(sFunctionRef..': will proceed to land for Exp instead of consolidating') end
-                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACsEA'..iWaterZone)
+                                        --fatboy can get stuck underwater with attackmove so move instead
+                                        if oUnit.UnitId == 'uel0401' then
+                                            M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs5EA'..iWaterZone)
+                                        else
+                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs6EA'..iWaterZone)
+                                        end
                                     else
                                         if bDebugMessages == true then LOG(sFunctionRef..': Sending exp to consolidate, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
                                         oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
