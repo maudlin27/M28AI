@@ -4721,6 +4721,18 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
         local M28Config = import('/mods/M28AI/lua/M28Config.lua')
         local bUpdateName = M28Config.M28ShowUnitNames
         local iCurShieldRadius, iShieldWithHealth
+        local tArtiMidpoint, iLowestHealthDistToArtiMidpoint, iCurDistToArtiMidpoint
+        if table.getn(tTableRef[M28Map.subrefGEArtiLocations]) == 1 then
+            tArtiMidpoint = tTableRef[M28Map.subrefGEArtiLocations][1]
+        else
+            tArtiMidpoint = {}
+            for iArtiLocation, tArtiLocation in tTableRef[M28Map.subrefGEArtiLocations] do
+                tArtiMidpoint[1] = (tArtiMidpoint[1] or 0) + tArtiLocation[1]
+                tArtiMidpoint[3] = (tArtiMidpoint[3] or 0) + tArtiLocation[3]
+            end
+            tArtiMidpoint[1] = tArtiMidpoint[1] / table.getn(tTableRef[M28Map.subrefGEArtiLocations])
+            tArtiMidpoint[3] = tArtiMidpoint[3] / table.getn(tTableRef[M28Map.subrefGEArtiLocations])
+        end
 
         while M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEShieldUnits]) do
             --Get the highest and lowest health active shields
@@ -4788,14 +4800,27 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                     if oShield[refbProtectingAllArtiAndShieldLocations] then
                         iCompletedShieldCount = iCompletedShieldCount + 1
                         iCurHealth, iMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' at time='..GetGameTimeSeconds()..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; Is shield enabled='..tostring(M28UnitInfo.IsUnitShieldEnabled(oShield))..'; Time since last discharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield paused='..tostring(oShield[M28UnitInfo.refbPaused] or false)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' at time='..GetGameTimeSeconds()..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; Is shield enabled='..tostring(M28UnitInfo.IsUnitShieldEnabled(oShield))..'; Time since last discharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield paused='..tostring(oShield[M28UnitInfo.refbPaused] or false)..'; Dist to arti midpoint='..M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), tArtiMidpoint)) end
                         if iCurHealth > 0 then
                             iShieldWithHealth = iShieldWithHealth + 1
                             if iCurHealth < iLowestHealth then
                                 iLowestHealth = iCurHealth
                                 oLowestHealthActiveShield = oShield
+                            elseif iCurHealth == iLowestHealth then
+                                if not(oLowestHealthActiveShield) then
+                                    iLowestHealth = iCurHealth
+                                    oLowestHealthActiveShield = oShield
+                                else
+                                    --Want to discharge the shield furthest from the midpoint if they both have equal health
+                                    iLowestHealthDistToArtiMidpoint = M28Utilities.GetDistanceBetweenPositions(oHighestHealthActiveShield:GetPosition(), tArtiMidpoint)
+                                    iCurDistToArtiMidpoint = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), tArtiMidpoint)
+                                    if iCurDistToArtiMidpoint > iLowestHealthDistToArtiMidpoint then
+                                        iLowestHealthDistToArtiMidpoint = iCurDistToArtiMidpoint
+                                        oLowestHealthActiveShield = oShield
+                                    end
+                                end
                             end
-                            if iCurHealth >= iHighestHealth then --want this to be >= and above to be < so that if we have 2 of the same shields at 100% health, we will have different shields recorded for lowest and highest health
+                            if iCurHealth > iHighestHealth or (iCurHealth == iHighestHealth and (not(oHighestHealthActiveShield) or oLowestHealthActiveShield == oHighestHealthActiveShield)) then --want this to be >= and above to be < so that if we have 2 of the same shields at 100% health, we will have different shields recorded for lowest and highest health
                                 iHighestHealth = iCurHealth
                                 oHighestHealthActiveShield = oShield
                             end
