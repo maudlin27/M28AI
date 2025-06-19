@@ -5045,7 +5045,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
         end
         if M28Utilities.IsTableEmpty(tTargetLZData[M28Map.subrefLZAdjacentLandZones]) == false then
             for _, iAdjLZ in tTargetLZData[M28Map.subrefLZAdjacentLandZones] do
-                local tAdjLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
+                local tAdjLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
                 local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
                 if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                     local tAdjPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
@@ -5249,8 +5249,11 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, tBestTarget before applying default if it is nil='..repru(tBestTarget)..'; will consider adjusting if close to mobile target') end
-    if not(tBestTarget) then tBestTarget = oSnipeTarget:GetPosition() end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, tBestTarget before applying default if it is nil='..repru(tBestTarget)..'; will consider adjusting if close to mobile target, bJustCheckIfLocationWithLowPDThreat='..tostring(bJustCheckIfLocationWithLowPDThreat or false)) end
+    if not(tBestTarget) then
+        if bDebugMessages == true then LOG(sFunctionRef..': No safe targets, will just try teleporting to the snipe target') end
+        tBestTarget = oSnipeTarget:GetPosition()
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': dist to snipe target='..M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), tBestTarget)..'; Does ACU have laser upgrade='..tostring(oACU:HasEnhancement('MicrowaveLaserGenerator'))..'; oSnipeTarget='..(oSnipeTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget) or 'nil')) end
     --Issue - laser doesnt fire if are too close (which can happen if try to teleport right ontop of the enemy ACU)
     if EntityCategoryContains(categories.MOBILE, oSnipeTarget.UnitId) and oACU.HasEnhancement and oACU:HasEnhancement('MicrowaveLaserGenerator') and M28Utilities.GetDistanceBetweenPositions(tBestTarget, oSnipeTarget:GetPosition()) <= 4 then
@@ -5272,6 +5275,8 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Targeting mobile unit, bHaveAltTarget='..tostring(bHaveAltTarget)..'; tBestTarget='..repru(tBestTarget)) end
     end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bJustCheckIfLocationWithLowPDThreat='..tostring(bJustCheckIfLocationWithLowPDThreat or false)..'; if true then will return false; tBestTarget='..repru(tBestTarget)) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     if bJustCheckIfLocationWithLowPDThreat then return false

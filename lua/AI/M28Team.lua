@@ -4616,15 +4616,18 @@ function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
                     if tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] < 10000 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 30000 and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] <= 2500 then
                         local tPDInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefTEnemyUnits])
                         if not(tPDInZone) then tPDInZone = {} end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iCurPlateauOrZero..'Z'..iCurLandOrWaterZone..'; Is table of adj LZs empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                             for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                 local tAdjLZData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
                                 local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; Is subrefTEnemyUnits empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))) end
                                 if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                     local tAdjPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is tAdjPD empty='..tostring( M28Utilities.IsTableEmpty(tAdjPD))) end
                                     if M28Utilities.IsTableEmpty(tAdjPD) == false then
                                         for iPD, oPD in tAdjPD do
-                                            table.insert(tPDInZone, tAdjPD)
+                                            table.insert(tPDInZone, oPD)
                                         end
                                     end
                                 end
@@ -4634,18 +4637,20 @@ function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
                                 local tPDInRange = {}
                                 for iPD, oPD in tPDInZone do
                                     if M28UnitInfo.IsUnitValid(oPD) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Dist between PD and target unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oPD:GetPosition())..'; PD DF range='..oPD[M28UnitInfo.refiDFRange]) end
                                         if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oPD:GetPosition()) <= 5 + oPD[M28UnitInfo.refiDFRange] then
                                             table.insert(tPDInRange, oPD)
                                         end
                                     end
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is tPDInRange empty='..tostring(M28Utilities.IsTableEmpty(tPDInRange))) end
                                 if M28Utilities.IsTableEmpty(tPDInRange) == false then
                                     iNearbyPDThreat = M28UnitInfo.GetMassCostOfUnits(tPDInRange)
                                 end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iNearbyPDThreat='..iNearbyPDThreat) end
                             if iNearbyPDThreat <= 2000 then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of potential tele snipe targets') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of potential tele snipe targets as not much PD threat') end
                                 table.insert(tTeamData[iTeam][reftoPotentialTeleSnipeTargets], oUnit)
                             else
                                 --Still add if there is al ocation with low PD threat
