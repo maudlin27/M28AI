@@ -10729,8 +10729,11 @@ function GetNovaxTarget(aiBrain, oNovax)
                     iCurValue = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * iMassFactor
                     iFractionComplete = oUnit:GetFractionComplete()
                     if iFractionComplete < 0.9 then
-                        if iFractionComplete < 0.1 or not((EntityCategoryContains(M28UnitInfo.refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and not(M28Utilities.bFAFActive)))) then
+                        if iFractionComplete < 0.15 or not((EntityCategoryContains(M28UnitInfo.refCategoryAllShieldUnits, oUnit.UnitId) or (oUnit.MyShield and not(M28Utilities.bFAFActive)))) then
                             iCurValue = iCurValue * iFractionComplete
+                            if oUnitBP.Defense.Shield.ShieldMaxHealth and oUnitBP.Defense.Shield.ShieldMaxHealth >= 10000 and oUnit:GetHealth() <= 500 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition()) <= iShortSearchRange then
+                                iCurValue = iCurValue * 3 --still want slight increase in value of part-complete shield even if low completion %
+                            end
                             --Under construction shield that is nearing completion and is in range of novax - massively increase value (to avoid e.g. prioritising a different unit such as damaged t3 arti when enemy shield if built will prevent us damaging it as well)
                         elseif iFractionComplete > 0.25 and oUnitBP.Defense.Shield.ShieldMaxHealth and oUnitBP.Defense.Shield.ShieldMaxHealth >= 10000 and oUnit:GetHealth() <= 500 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition()) <= iShortSearchRange then
                             if bDebugMessages == true then LOG(sFunctionRef..': Massively increasing value of under construction shield t hat is in our range') end
