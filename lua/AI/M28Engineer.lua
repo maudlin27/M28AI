@@ -346,6 +346,7 @@ tbIgnoreEngineerAssistance = { --Any actions where we dont want to assist an eng
     [refActionLoadOntoTransport] = true,
     [refActionBuildWall] = true,
     [refActionManageGameEnderTemplate] = true, --will have special logic to handle
+    [refActionAssistNavalFactory] = true,
 }
 
 tbActionsWithFactionSpecificLogic = { --Any actions where it is important to know what factions we have available when deciding what to build
@@ -9219,7 +9220,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             local iSubstituteAction = tiActionSubstitute[iActionToAssign]
             for iEngi, oEngi in toAssignedEngineers do
                 if not(oEngi[M28UnitInfo.refbSpecialMicroActive]) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..': Considering if oEngi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' already has iActionToAssign '..iActionToAssign..'; oEngi[refiAssignedAction]='..(oEngi[refiAssignedAction] or 'nil')..'; Engi priority='..(oEngi[refiAssignedActionPriority] or 'nil')..'; iCurPriority='..iCurPriority..'; Engi tech level='..M28UnitInfo.GetUnitTechLevel(oEngi)..'; iMinTechWanted='..iMinTechWanted) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..': Considering if oEngi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' already has iActionToAssign '..iActionToAssign..'; oEngi[refiAssignedAction]='..(oEngi[refiAssignedAction] or 'nil')..'; Priority of engis action='..(oEngi[refiAssignedActionPriority] or 'nil')..'; iCurPrioriyt='..iCurPriority..'; Engi tech level='..M28UnitInfo.GetUnitTechLevel(oEngi)..'; iMinTechWanted='..iMinTechWanted) end
                     if oEngi[refiAssignedAction] == iActionToAssign or (iSubstituteAction and oEngi[refiAssignedAction] == iSubstituteAction) then
                         if not(bAlreadyHaveTechLevelWanted) and M28UnitInfo.GetUnitTechLevel(oEngi) >= iMinTechWanted then
                             --Only flag as having min tech level wanted if we will be able to make use of this engineer per the later code
@@ -9370,7 +9371,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 end
 
                 local oBuildingToAssist
-                if iConstructionCountToIgnore < 100 then
+                if iConstructionCountToIgnore < 100 and not(iActionToAssign == refActionAssistNavalFactory) then --Dont want naval fac to assist an upgrading fac, but instead get the highest tech one
                     --We adjust power to only consider the min tech levle not higher ones (presumably so we can build t1/t2 power when we have access to t3, if we need more power to build t3); therefore need to take this into account here
                     local iUnderConstructionCategory
                     if iActionToAssign == refActionBuildPower then
@@ -9535,37 +9536,32 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                         end
                                         --T2+ naval fac - assist the factory with the highest progress
                                     elseif iActionToAssign == refActionAssistNavalFactory then
-                                        local iBestProgressByMass = -1
-                                        local iCurProgressByMass, oCurConstruction
-                                        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] <= 2 then
-                                            for iUnit, oUnit in tUnitsOfCategoryInLZ do
-                                                if oUnit:GetWorkProgress() > 0 then
-                                                    iCurProgressByMass = 0
-                                                    oCurConstruction = oUnit:GetFocusUnit()
-                                                    if M28UnitInfo.IsUnitValid(oCurConstruction) then iCurProgressByMass = oUnit:GetWorkProgress() * M28UnitInfo.GetMassCostOfUnits(oCurConstruction) end
-                                                    if iCurProgressByMass > iBestProgressByMass then
-                                                        oUnitToAssist = oUnit
-                                                        iBestProgressByMass = iCurProgressByMass
+                                        local iHighestTechLevel = 0
+                                        local iCurTechLevel, iCurDistToFriendlyBase, iClosestDistToFriendlyBase
+                                        if M28Utilities.IsTableEmpty(tUnitsOfCategoryInLZ) == false then
+                                            for iHQ, oHQ in tUnitsOfCategoryInLZ do
+                                                iCurTechLevel = M28UnitInfo.GetUnitTechLevel(oHQ)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering assisting oHQ='..oHQ.UnitId..M28UnitInfo.GetUnitLifetimeCount(oHQ)..'; iCurTechLevel='..iCurTechLevel..'; Fraction complete='..oHQ:GetFractionComplete()..'; Dist to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(oHQ:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])..'; iHighestTechLevel='..iHighestTechLevel) end
+                                                if iCurTechLevel > iHighestTechLevel then
+                                                    oUnitToAssist = oHQ
+                                                    iHighestTechLevel = iCurTechLevel
+                                                    iClosestDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oHQ:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+                                                    if oHQ:GetFractionComplete() < 1 then iClosestDistToFriendlyBase = iClosestDistToFriendlyBase + 80 end --Prioritise constructed naval facs over ones upgrading to be the same tech
+                                                elseif iCurTechLevel == iHighestTechLevel then
+                                                    iCurDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oHQ:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+                                                    if oHQ:GetFractionComplete() < 1 then iCurDistToFriendlyBase = iCurDistToFriendlyBase + 80 end
+                                                    if iCurDistToFriendlyBase < iClosestDistToFriendlyBase then
+                                                        iClosestDistToFriendlyBase = iCurDistToFriendlyBase
+                                                        oUnitToAssist = oHQ
                                                     end
-                                                else
-                                                    oBackupUnit = oUnitToAssist
-                                                end
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to assist unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with work progress '..oUnit:GetWorkProgress()) end
-                                            end
-                                        else
-                                            --Having issues with engineers that jump back and forth potentially causing pathingi ssues on small ponds, so just stick with primary naval fac
-                                            local iBestTechFound = 1
-                                            local iCurTech
-                                            for iUnit, oUnit in tUnitsOfCategoryInLZ do
-                                                iCurTech = M28UnitInfo.GetUnitTechLevel(oUnit)
-                                                if iCurTech > iBestTechFound then
-                                                    iBestTechFound = M28UnitInfo.GetUnitTechLevel(oUnit)
-                                                    oUnitToAssist = oUnit
-                                                elseif not(oUnitToAssist) then oUnitToAssist = oUnit
                                                 end
                                             end
                                         end
-                                        if not(oUnitToAssist) then oUnitToAssist = oBackupUnit end
+                                        if oUnitToAssist then
+                                            tLZOrWZTeamData[M28Map.refoLastNavalFacAssisted] = oUnitToAssist
+                                            tLZOrWZTeamData[M28Map.refiHighestNavalFacAssistBP] = math.max(iTotalBuildPowerWanted, (tLZOrWZTeamData[M28Map.refiHighestNavalFacAssistBP] or 0))
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': oUnitToAssist='..(oUnitToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToAssist) or 'nil')..'; is oUnitToAssist valid='..tostring(M28UnitInfo.IsUnitValid(oUnitToAssist))..'; iCurPriority='..iCurPriority) end
                                     else
                                         for iUnit, oUnit in tUnitsOfCategoryInLZ do
                                             if oUnit:GetWorkProgress() > 0 then
@@ -11182,13 +11178,20 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
             local oFactoryToAssist
             local tFactoriesInZone = EntityCategoryFilterDown(iCategoryToSearch, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             local iHighestTechLevel = 0
-            local iCurTechLevel
+            local iCurTechLevel, iCurDistToFriendlyBase, iClosestDistToFriendlyBase
             if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
                 for iHQ, oHQ in tFactoriesInZone do
                     iCurTechLevel = M28UnitInfo.GetUnitTechLevel(oHQ)
                     if iCurTechLevel > iHighestTechLevel then
                         oFactoryToAssist = oHQ
                         iHighestTechLevel = iCurTechLevel
+                        iClosestDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oHQ:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+                    elseif iCurTechLevel == iHighestTechLevel then
+                        iCurDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oHQ:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
+                        if iCurDistToFriendlyBase < iClosestDistToFriendlyBase then
+                            iClosestDistToFriendlyBase = iCurDistToFriendlyBase
+                            oFactoryToAssist = oHQ
+                        end
                     end
                 end
             end
@@ -17527,7 +17530,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                 for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
                     local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                    bEnemyHasLongRangeOrHover = M28Conditions.DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOurCombatThreat)
+                    bEnemyHasLongRangeOrHover = M28Conditions.DoesWaterZoneHaveUnitsThatCounterTorpDefence(tAdjWZTeamData, iOurCombatThreat)
                     iEnemyCombatThreat = iEnemyCombatThreat + (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                     if bEnemyHasLongRangeOrHover then break end
                 end
@@ -17552,7 +17555,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
 
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': iExistingTorpThreat='..iExistingTorpThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat) end
-                    if iExistingTorpThreat <= math.max(3500,  iEnemyCombatThreat * 1.5) then --redundancy
+                    if iExistingTorpThreat <= math.min(7500, math.max(3500,  iEnemyCombatThreat * 1.5)) then --redundancy
                         if iMinTechWanted >= 2 then
                             HaveActionToAssign(refActionBuildTorpLauncher, iMinTechWanted, iBPWanted)
                         else
@@ -17940,6 +17943,26 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             iBPWanted = tWZTeamData[M28Map.subrefiActiveMexUpgrades] * 15
         end
         HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted)
+    end
+
+    --Assist naval fac if have recently assisted one that hasnt built much
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Do we have a last naval fac assisted? iCurPriority='..iCurPriority..'; refoLastNavalFacAssisted='..(tWZTeamData[M28Map.refoLastNavalFacAssisted].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tWZTeamData[M28Map.refoLastNavalFacAssisted]) or 'nil')..'; Pond value='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')..'; Fac build count='..(tWZTeamData[M28Map.refoLastNavalFacAssisted][M28Factory.refiTotalBuildCount] or 'nil')) end
+    if tWZTeamData[M28Map.refoLastNavalFacAssisted] and M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] >= 14 and ((tWZTeamData[M28Map.refoLastNavalFacAssisted][M28Factory.refiTotalBuildCount] or 0) < 5 or not(bHaveLowMass)) then
+        local iFacTechLevel = M28UnitInfo.GetUnitTechLevel(tWZTeamData[M28Map.refoLastNavalFacAssisted])
+        if (tWZTeamData[M28Map.refoLastNavalFacAssisted][M28Factory.refiTotalBuildCount] or 0) < 3 or iFacTechLevel <= 2 or not(bHaveLowMass) then
+            local iBPWanted = math.min(8 * tiBPByTech[iFacTechLevel], (tWZTeamData[M28Map.refiHighestNavalFacAssistBP] or 50))
+            if bHaveLowMass then
+                if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then
+                    iBPWanted = iBPWanted * 0.5
+                else
+                    iBPWanted = iBPWanted * 0.75
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will assist naval fac as tWZTeamData[M28Map.refoLastNavalFacAssisted] is valid, iBPWanted='..iBPWanted) end
+            --AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau,                                                             iLandOrWaterZone, iTeam, tLZOrWZData, tLZOrWZTeamData, bIsWaterZone, iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
+            AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint]), iWaterZone, iTeam, tWZData, tWZTeamData,        true,      refActionAssistNavalFactory, 1,         iBPWanted,          false,                  false)
+        end
     end
 
     --Extra naval facs if need build power and dont have low mass and have positive net energy income
