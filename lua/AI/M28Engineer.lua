@@ -10207,7 +10207,12 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) then
                 for iNuke, oNuke in M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers] do
                     if EntityCategoryContains(categories.BATTLESHIP, oNuke.UnitId) then
-                        iEnemyBattleshipNukes = iEnemyBattleshipNukes + 1
+                        if bDebugMessages == true then LOG(sFunctionRef..': Battleship progress='..oNuke:GetWorkProgress()..'; GetNukeSiloAmmoCount='..oNuke:GetNukeSiloAmmoCount()) end
+                        if oNuke:GetNukeSiloAmmoCount() > 0 then
+                            iEnemyNormalNukes = iEnemyNormalNukes + 1
+                        elseif oNuke:GetFractionComplete() >= 1 then
+                            iEnemyBattleshipNukes = iEnemyBattleshipNukes + 1
+                        end
                     elseif EntityCategoryContains(categories.EXPERIMENTAL, oNuke.UnitId) then
                         iEnemyNormalNukes = iEnemyNormalNukes + 8
                     else
@@ -10220,9 +10225,9 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             elseif bDebugMessages == true then
                 LOG(sFunctionRef .. ': No SML detected but will build SMD anyway as a precaution as we have a good economy')
             end
-            if iEnemyBattleshipNukes > 0 and iEnemyNormalNukes == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 or M28Map.bIsCampaignMap) then
+            if iEnemyBattleshipNukes > 0 and iEnemyNormalNukes == 0 and (bHaveLowMass or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 600 or M28Map.bIsCampaignMap or tLZTeamData[M28Map.subrefMexCountByTech][3] < 4))) then
                 iEnemyNukes = 0
-            elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
+            elseif iEnemyNormalNukes > 0 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
                 iEnemyNukes = math.max(iEnemyNormalNukes, iEnemyBattleshipNukes * 0.2, 1) --Redundancy - if table isnt empty enemy must have at least one, and will assume they have 1 if we are building as a precaution
             else
                 iEnemyNukes = math.max(iEnemyNormalNukes, iEnemyBattleshipNukes * 0.2)
@@ -10265,13 +10270,13 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
 
             if iSMDWanted <= 0 and tLZTeamData[M28Map.reftObjectiveSMDLocation] then iSMDWanted = 1 end
             if bDebugMessages == true then LOG(sFunctionRef..': iSMDsWeHave='..iSMDsWeHave..'; iSMDWanted='..iSMDWanted..'; iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
-            if iSMDsWeHave < iSMDWanted or iSMDsWithNoMissiles > 0 then
+            if iSMDsWeHave < iSMDWanted or (iSMDsWithNoMissiles > 0 and iEnemyNormalNukes > 0 and iSMDWanted <= 1) then
                 if bHaveLowMass or iSMDsWeHave > 0 then iBPWanted = 150
                 elseif bWantMorePower then iBPWanted = 225
                 else iBPWanted = 300 end
                 if not(bCoreZone) then iBPWanted = iBPWanted * 0.5 end
             end
-            if iSMDsWithNoMissiles > 0 and (iSMDsWeHave >= iSMDWanted or iSMDsWeHave == iSMDsWithNoMissiles) and iUnderConstructionSMD ==0 then
+            if iSMDsWithNoMissiles > 0 and (iSMDsWeHave >= iSMDWanted or iSMDsWeHave == iSMDsWithNoMissiles) and iUnderConstructionSMD ==0 and iEnemyNormalNukes > 0 then
                 --If have under construction SMD then finish it off
                 bAssistSMD = true
                 iBPWanted = math.max(150, iBPWanted * 3)

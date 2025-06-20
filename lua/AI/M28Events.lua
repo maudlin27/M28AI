@@ -1806,28 +1806,10 @@ function OnMissileBuilt(self, weapon)
                         end
                     end
                 end
-
-                --If 2+ missiles then pause, and consider unpausing later
-                if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy nuke launchers empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]))..'; Have low power='..tostring(M28Conditions.HaveLowPower(self:GetAIBrain().M28Team))..'; Gross mass='..M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.subrefiTeamGrossMass]..'; Mass % stored='..M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.subrefiTeamAverageMassPercentStored]) end
-                if iMissiles >= 2 and not(EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId)) then
-                    if not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) or
-                            --SMD specific
-                            (iMissiles >= 4 or M28Utilities.IsTableEmpty(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]) or iMissiles >= 2 + table.getn(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers])) then
-                        local iTeam = self:GetAIBrain().M28Team
-                        --Dont pause if overflowing
-                        if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99))) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
-                            --self:SetPaused(true)
-                            M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(self, true)
-                            M28UnitInfo.SetUnitMissileAutoBuildStatus(self, false)
-                            --if self.SetAutoMode then self:SetAutoMode(false) end
-
-                            --Recheck every 10s
-                            ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)
-                        end
-                    end
-                end
+                --SMD - use specical function to assess if have too many missiles
+                local bPauseMissile
                 if EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId) then
+                    bPauseMissile = M28Conditions.WantToPauseSMD(self, true)
                     --Do we have any SMD without missiles, and no yolona on the team? If so then change the flag about needing resources for missiles
                     local bHaveSMDOrSMLNeedingMissiles = false
                     local iTeam = self:GetAIBrain().M28Team
@@ -1853,6 +1835,26 @@ function OnMissileBuilt(self, weapon)
                     if not(bHaveSMDOrSMLNeedingMissiles) then
                         M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = false
                     end
+                else
+                    --Nuke launcher - If 2+ missiles then pause, and consider unpausing later
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy nuke launchers empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]))..'; Have low power='..tostring(M28Conditions.HaveLowPower(self:GetAIBrain().M28Team))..'; Gross mass='..M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.subrefiTeamGrossMass]..'; Mass % stored='..M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.subrefiTeamAverageMassPercentStored]) end
+                    if iMissiles >= 2 and not(EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId)) then
+                        local iTeam = self:GetAIBrain().M28Team
+                        --Dont pause if overflowing
+                        if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99))) then
+                            bPauseMissile = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
+                        end
+                    end
+                end
+                if bPauseMissile then
+                    --self:SetPaused(true)
+                    M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(self, true)
+                    M28UnitInfo.SetUnitMissileAutoBuildStatus(self, false)
+                    --if self.SetAutoMode then self:SetAutoMode(false) end
+
+                    --Recheck every 10s
+                    ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)
                 end
             end
 

@@ -4238,3 +4238,78 @@ function GetEnemyTeamActualMassIncome(iTeam)
     end
     return iHighestMass
 end
+
+function WantToPauseSMD(oUnit, bCalledFromOnMissileBuilt)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'WantToPauseSMD'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Returns true if SMD has enough missiles loaded and not overflowing in resources
+    local iMissiles
+    if bCalledFromOnMissileBuilt then iMissiles = 1 --For some reason the count is off by 1, presumably a slight delay between the event being called and the below ammo counts working
+    else iMissiles = 0
+    end
+    if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
+    if bDebugMessages == true then LOG(sFunctionRef..': iMissiles based on tactical silo ammo='..iMissiles) end
+    if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
+    local iTeam = oUnit:GetAIBrain().M28Team
+    local bHaveEnoughSubjectToEco = false
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start for SMD oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMissiles='..iMissiles..'; bCalledFromOnMissileBuilt='..tostring(bCalledFromOnMissileBuilt or false)) end
+    if iMissiles >= 4 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) then
+        bHaveEnoughSubjectToEco = true
+    elseif iMissiles == 0 or (oUnit[M28UnitInfo.refiLastWeaponEvent] and iMissiles < 2) then
+        --want more missiles
+    else
+        bHaveEnoughSubjectToEco = true --will change back to false later
+        --If only SMLs are battleships with no nukes then stop at 1 missile for minor zones, or core zones with no enemy battleships within range
+        local toBattleshipsToConsider
+        for iNuke, oNuke in M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers] do
+            if not(oNuke.IsDead) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oNuke.UnitId) then
+                    if oNuke:GetNukeSiloAmmoCount() > 0 then
+                        bHaveEnoughSubjectToEco = false
+                        toBattleshipsToConsider = nil
+                        break
+                    else
+                        if not(toBattleshipsToConsider) then toBattleshipsToConsider = {} end
+                        table.insert(toBattleshipsToConsider, oNuke)
+                    end
+                else
+                    bHaveEnoughSubjectToEco = false
+                    toBattleshipsToConsider = nil
+                    break
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is toBattleshipsToConsider nil='..tostring(toBattleshipsToConsider == nil)) end
+        if toBattleshipsToConsider and bHaveEnoughSubjectToEco and oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] then
+            local tSMDLZTeamData = M28Map.tAllPlateaus[oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam]
+            if bDebugMessages == true then LOG(sFunctionRef..': tSMDLZTeamData[M28Map.subrefLZbCoreBase]='..tostring(tSMDLZTeamData[M28Map.subrefLZbCoreBase] or false)) end
+            if iMissiles >= 3 or (iMissiles >= 1 and not(tSMDLZTeamData[M28Map.subrefLZbCoreBase])) then
+                bHaveEnoughSubjectToEco = true
+            elseif iMissiles >= 1 then
+                --Pause unless battleship in range
+                bHaveEnoughSubjectToEco = true
+                for iNuke, oNuke in toBattleshipsToConsider do
+                    if oNuke[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist between battleship and nuke='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNuke:GetPosition())..'; Nuke range='..(oNuke[M28UnitInfo.refiManualRange] or 410)) end
+                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNuke:GetPosition()) <= 50 + (oNuke[M28UnitInfo.refiManualRange] or 410) then
+                            bHaveEnoughSubjectToEco = false
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near end, time='..GetGameTimeSeconds()..'; bHaveEnoughSubjectToEco='..tostring(bHaveEnoughSubjectToEco)) end
+    if bHaveEnoughSubjectToEco then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have low power='..tostring(HaveLowPower(iTeam))..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
+        if HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99))) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Returning true') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

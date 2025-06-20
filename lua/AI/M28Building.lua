@@ -358,45 +358,62 @@ function ForkedCheckForAnotherMissile(oUnit)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1) --make sure we have an accurate number for missiles
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        local iMissiles = 0
-        if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
-        if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
-        if bDebugMessages == true then LOG(sFunctionRef..': iMissiles outside of loop='..iMissiles) end
-        if iMissiles >= 2 then
+        local bUnpause
+        if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
             oUnit[refbMissileChecker] = true
             while M28UnitInfo.IsUnitValid(oUnit) do
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitSeconds(10)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 if M28UnitInfo.IsUnitValid(oUnit) then
-                    local iTeam = oUnit:GetAIBrain().M28Team
-                    iMissiles = 0
-                    if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
-                    if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iMissiles='..iMissiles..'; Time='..GetGameTimeSeconds()) end
-                    if iMissiles < 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 400) then
-
-                        --oUnit:SetPaused(false)
-                        --oUnit:SetAutoMode(true)
-                        M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
-                        M28UnitInfo.SetUnitMissileAutoBuildStatus(oUnit, true)
-
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will change unit state so it isnt paused and set autobuild status to true, time='..GetGameTimeSeconds()) end
+                    if not(M28Conditions.WantToPauseSMD(oUnit, false)) then
+                        bUnpause = true
                         break
                     end
-                else
-                    break
                 end
-
             end
         else
-            if M28UnitInfo.IsUnitValid(oUnit) then
-                if bDebugMessages == true then LOG(sFunctionRef..': setting unit autobuild status to true, time='..GetGameTimeSeconds()) end
-                --oUnit:SetPaused(false)
-                M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
-                M28UnitInfo.SetUnitMissileAutoBuildStatus(oUnit, true)
+            local iMissiles = 0
+            if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
+            if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
+            if bDebugMessages == true then LOG(sFunctionRef..': iMissiles outside of loop='..iMissiles) end
+            if iMissiles >= 2 and M28UnitInfo.IsUnitValid(oUnit) then
+                oUnit[refbMissileChecker] = true
+                local iTeam = oUnit:GetAIBrain().M28Team
+                while M28UnitInfo.IsUnitValid(oUnit) do
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitSeconds(10)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        iMissiles = 0
+                        if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
+                        if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iMissiles='..iMissiles..'; Time='..GetGameTimeSeconds()) end
+                        if iMissiles < 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 400) then
+                            bUnpause = true
+
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will change unit state so it isnt paused and set autobuild status to true, time='..GetGameTimeSeconds()) end
+                            break
+                        end
+                    else
+                        break
+                    end
+
+                end
+            else
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    bUnpause = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will unpause unit as not enough missiles') end
+                end
             end
         end
+        if bUnpause and M28UnitInfo.IsUnitValid(oUnit) then
+            if bDebugMessages == true then LOG(sFunctionRef..': setting unit autobuild status to true, time='..GetGameTimeSeconds()) end
+            --oUnit:SetPaused(false)
+            M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
+            M28UnitInfo.SetUnitMissileAutoBuildStatus(oUnit, true)
+        end
+        if oUnit[refbMissileChecker] then oUnit[refbMissileChecker] = nil end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
