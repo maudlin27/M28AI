@@ -89,6 +89,7 @@ reftArtiTemplateRefs = 'M28ArtiTemplateRef' --returns {iPlateau, iLandZone, iTem
 refiTimeOfLastDischarge = 'M28ShLastDisc' --gametime that we gave a discharge order, so can check for redundancies
 refbRecentlyCheckedTMDOrTML = 'M28BRChTm' --true if we have recently checked this unit for if it has tml/tmd coverage etc. against land zone
 refiManuallyEnabledTime = 'M28ShLstMnEn' --gametimeseconds that we ran enableshield due to a potential bug
+refiTimeOfLastAeonT3ArtiDamageToShield = 'M28ShLstAT3' --Gametimeseconds that an Aeon T3 arti last dealt damage to this shield
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
@@ -357,45 +358,62 @@ function ForkedCheckForAnotherMissile(oUnit)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1) --make sure we have an accurate number for missiles
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        local iMissiles = 0
-        if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
-        if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
-        if bDebugMessages == true then LOG(sFunctionRef..': iMissiles outside of loop='..iMissiles) end
-        if iMissiles >= 2 then
+        local bUnpause
+        if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
             oUnit[refbMissileChecker] = true
             while M28UnitInfo.IsUnitValid(oUnit) do
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitSeconds(10)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 if M28UnitInfo.IsUnitValid(oUnit) then
-                    local iTeam = oUnit:GetAIBrain().M28Team
-                    iMissiles = 0
-                    if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
-                    if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iMissiles='..iMissiles..'; Time='..GetGameTimeSeconds()) end
-                    if iMissiles < 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 400) then
-
-                        --oUnit:SetPaused(false)
-                        --oUnit:SetAutoMode(true)
-                        M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
-                        M28UnitInfo.SetUnitMissileAutoBuildStatus(oUnit, true)
-
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will change unit state so it isnt paused and set autobuild status to true, time='..GetGameTimeSeconds()) end
+                    if not(M28Conditions.WantToPauseSMD(oUnit, false)) then
+                        bUnpause = true
                         break
                     end
-                else
-                    break
                 end
-
             end
         else
-            if M28UnitInfo.IsUnitValid(oUnit) then
-                if bDebugMessages == true then LOG(sFunctionRef..': setting unit autobuild status to true, time='..GetGameTimeSeconds()) end
-                --oUnit:SetPaused(false)
-                M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
-                M28UnitInfo.SetUnitMissileAutoBuildStatus(oUnit, true)
+            local iMissiles = 0
+            if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
+            if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
+            if bDebugMessages == true then LOG(sFunctionRef..': iMissiles outside of loop='..iMissiles) end
+            if iMissiles >= 2 and M28UnitInfo.IsUnitValid(oUnit) then
+                oUnit[refbMissileChecker] = true
+                local iTeam = oUnit:GetAIBrain().M28Team
+                while M28UnitInfo.IsUnitValid(oUnit) do
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitSeconds(10)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        iMissiles = 0
+                        if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
+                        if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iMissiles='..iMissiles..'; Time='..GetGameTimeSeconds()) end
+                        if iMissiles < 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 400) then
+                            bUnpause = true
+
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will change unit state so it isnt paused and set autobuild status to true, time='..GetGameTimeSeconds()) end
+                            break
+                        end
+                    else
+                        break
+                    end
+
+                end
+            else
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    bUnpause = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will unpause unit as not enough missiles') end
+                end
             end
         end
+        if bUnpause and M28UnitInfo.IsUnitValid(oUnit) then
+            if bDebugMessages == true then LOG(sFunctionRef..': setting unit autobuild status to true, time='..GetGameTimeSeconds()) end
+            --oUnit:SetPaused(false)
+            M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
+            M28UnitInfo.SetUnitMissileAutoBuildStatus(oUnit, true)
+        end
+        if oUnit[refbMissileChecker] then oUnit[refbMissileChecker] = nil end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -4721,6 +4739,20 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
         local bUpdateName = M28Config.M28ShowUnitNames
         local iCurShieldRadius, iShieldWithHealth
 
+        local tArtiMidpoint, iLowestHealthDistToArtiMidpoint, iCurDistToArtiMidpoint
+        if table.getn(tTableRef[M28Map.subrefGEArtiLocations]) == 1 then
+            tArtiMidpoint = tTableRef[M28Map.subrefGEArtiLocations][1]
+        else
+            tArtiMidpoint = {}
+            for iArtiLocation, tArtiLocation in tTableRef[M28Map.subrefGEArtiLocations] do
+                tArtiMidpoint[1] = (tArtiMidpoint[1] or 0) + tArtiLocation[1]
+                tArtiMidpoint[3] = (tArtiMidpoint[3] or 0) + tArtiLocation[3]
+            end
+            tArtiMidpoint[1] = tArtiMidpoint[1] / table.getn(tTableRef[M28Map.subrefGEArtiLocations])
+            tArtiMidpoint[3] = tArtiMidpoint[3] / table.getn(tTableRef[M28Map.subrefGEArtiLocations])
+        end
+        local iTimeOfLastDischarge
+
         while M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEShieldUnits]) do
             --Get the highest and lowest health active shields
             iLowestHealth = 1000000
@@ -4787,14 +4819,27 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                     if oShield[refbProtectingAllArtiAndShieldLocations] then
                         iCompletedShieldCount = iCompletedShieldCount + 1
                         iCurHealth, iMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' at time='..GetGameTimeSeconds()..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; Is shield enabled='..tostring(M28UnitInfo.IsUnitShieldEnabled(oShield))..'; Time since last discharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield paused='..tostring(oShield[M28UnitInfo.refbPaused] or false)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' at time='..GetGameTimeSeconds()..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; Is shield enabled='..tostring(M28UnitInfo.IsUnitShieldEnabled(oShield))..'; Time since last discharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield paused='..tostring(oShield[M28UnitInfo.refbPaused] or false)..'; Dist to arti midpoint='..M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), tArtiMidpoint)) end
                         if iCurHealth > 0 then
                             iShieldWithHealth = iShieldWithHealth + 1
                             if iCurHealth < iLowestHealth then
                                 iLowestHealth = iCurHealth
                                 oLowestHealthActiveShield = oShield
+                            elseif iCurHealth == iLowestHealth then
+                                if not(oLowestHealthActiveShield) then
+                                    iLowestHealth = iCurHealth
+                                    oLowestHealthActiveShield = oShield
+                                else
+                                    --Want to discharge the shield furthest from the midpoint if they both have equal health
+                                    iLowestHealthDistToArtiMidpoint = M28Utilities.GetDistanceBetweenPositions(oHighestHealthActiveShield:GetPosition(), tArtiMidpoint)
+                                    iCurDistToArtiMidpoint = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), tArtiMidpoint)
+                                    if iCurDistToArtiMidpoint > iLowestHealthDistToArtiMidpoint then
+                                        iLowestHealthDistToArtiMidpoint = iCurDistToArtiMidpoint
+                                        oLowestHealthActiveShield = oShield
+                                    end
+                                end
                             end
-                            if iCurHealth >= iHighestHealth then --want this to be >= and above to be < so that if we have 2 of the same shields at 100% health, we will have different shields recorded for lowest and highest health
+                            if iCurHealth > iHighestHealth or (iCurHealth == iHighestHealth and (not(oHighestHealthActiveShield) or oLowestHealthActiveShield == oHighestHealthActiveShield)) then --want this to be >= and above to be < so that if we have 2 of the same shields at 100% health, we will have different shields recorded for lowest and highest health
                                 iHighestHealth = iCurHealth
                                 oHighestHealthActiveShield = oShield
                             end
@@ -4825,19 +4870,32 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                 iSecondsBetweenShieldCycles = 0.1 --review position next tick
                 if bDebugMessages == true then LOG(sFunctionRef..': we either have no or 1 active shield so wont discharge but will check again in 1 tick') end
             else
-                --We will presumably have waited the appropriate time before getting here, so can disable the lowest health shield; work out how long we want to wait for the next shield
-                if iCompletedShieldCount > 1 then
-                    iSecondsBetweenShieldCycles = iLongestRechargeTime / (iCompletedShieldCount - 1)
+                --If Aeon shell landed then the DOT effect could be beneath other shields; if we have 3+ shields active then seems unlikely, while if lowest health shield is <6k it wouldnt protect from the DOT effect either
+                if oLowestHealthActiveShield[refiTimeOfLastAeonT3ArtiDamageToShield] and iCompletedShieldCount <= 2 and GetGameTimeSeconds() - oLowestHealthActiveShield[refiTimeOfLastAeonT3ArtiDamageToShield] <= 1 and iLowestHealth >= 6000 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': The lowest health shield took T3 arti fire from aeon recently, so a chance the shell DOT effect could destroy things if it occurred beneath the other shield currently active') end
+                    iSecondsBetweenShieldCycles = 0.1 --review position next tick
                 else
-                    --Redundancy - should be impossible to get here
-                    iSecondsBetweenShieldCycles = 10
+                    --We will presumably have waited the appropriate time before getting here, so can disable the lowest health shield; work out how long we want to wait for the next shield
+                    if iCompletedShieldCount > 1 then
+                        iSecondsBetweenShieldCycles = iLongestRechargeTime / (iCompletedShieldCount - 1)
+                    else
+                        --Redundancy - should be impossible to get here
+                        iSecondsBetweenShieldCycles = 10
+                    end
+                    if iShieldWithHealth <= 3 and iTimeOfLastDischarge and GetGameTimeSeconds() - iTimeOfLastDischarge + 0.5 < iSecondsBetweenShieldCycles then
+                        if bDebugMessages == true then LOG(sFunctionRef..': It hasnt been long enoug hsince our last discharge so will wait before discharing even if we have multiple shields active') end
+                        iSecondsBetweenShieldCycles = 0.5
+                    else
+                        M28UnitInfo.DischargeShield(oLowestHealthActiveShield)
+                        iTimeOfLastDischarge = GetGameTimeSeconds()
+                        if bDebugMessages == true then LOG(sFunctionRef..': have just discharged shield '..oLowestHealthActiveShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestHealthActiveShield)..' at time='..GetGameTimeSeconds()) end
+                        oLowestHealthActiveShield[refiTimeOfLastDischarge] = GetGameTimeSeconds()
+                        if bUpdateName then
+                            M28Orders.UpdateUnitNameForOrder(oLowestHealthActiveShield, 'DischZ'..(oLowestHealthActiveShield[reftArtiTemplateRefs][2] or 'nil')..'T'..(oLowestHealthActiveShield[reftArtiTemplateRefs][3] or 'nil')..'; Tm='..math.floor(GetGameTimeSeconds()))
+                        end
+                    end
                 end
-                M28UnitInfo.DischargeShield(oLowestHealthActiveShield)
-                if bDebugMessages == true then LOG(sFunctionRef..': have just discharged shield '..oLowestHealthActiveShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestHealthActiveShield)..' at time='..GetGameTimeSeconds()) end
-                oLowestHealthActiveShield[refiTimeOfLastDischarge] = GetGameTimeSeconds()
-                if bUpdateName then
-                    M28Orders.UpdateUnitNameForOrder(oLowestHealthActiveShield, 'DischZ'..(oLowestHealthActiveShield[reftArtiTemplateRefs][2] or 'nil')..'T'..(oLowestHealthActiveShield[reftArtiTemplateRefs][3] or 'nil')..'; Tm='..math.floor(GetGameTimeSeconds()))
-                end
+
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(iSecondsBetweenShieldCycles)

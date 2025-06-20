@@ -269,7 +269,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                         return false
                     else
                         local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType]
-                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')..'; oEngineer[refiEngineerStuckCheckCount]='..(oEngineer[refiEngineerStuckCheckCount] or 'nil')) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')..'; oEngineer[refiEngineerStuckCheckCount]='..(oEngineer[refiEngineerStuckCheckCount] or 'nil')..'; refiRepairProgressWhenLastChecked='..(oEngineer[M28Engineer.refiRepairProgressWhenLastChecked] or 'nil')) end
                         --Rare case where engineer acn be given a move order yet doesn't move - below is to try and mitigate it
                         if oEngineer:IsUnitState('Moving') and oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and not(bDebugOnly) then
                             if (oEngineer[refiEngineerStuckCheckCount] or 0) == 0 then
@@ -430,7 +430,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return true
                             else
-                                if bDebugMessages == true then LOG(sFunctionRef..': Are assigned to repair a unit that isnt complete or healed yet so not available') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Are assigned to repair a unit that isnt complete or healed yet so not available, oUnitRepairing='..oUnitRepairing.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitRepairing)..'; reftArtiTemplateRefs on unitrepairing='..repru(oUnitRepairing[M28Building.reftArtiTemplateRefs])) end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return false
                             end
@@ -462,7 +462,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                 end
             end
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': Engineer is building or repairing so treating as unavailable') end --, refiEngineerBuildWithoutFocusUnitCount='..(oEngineer[refiEngineerBuildWithoutFocusUnitCount] or 0)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Engineer is building or repairing so treating as unavailable in most cases') end --, refiEngineerBuildWithoutFocusUnitCount='..(oEngineer[refiEngineerBuildWithoutFocusUnitCount] or 0)) end
             if oEngineer:IsUnitState('Building') then
                 local oFocusObject = oEngineer:GetFocusUnit()
                 if oFocusObject then
@@ -483,6 +483,28 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                         end
                     end
                 end
+            elseif oEngineer:IsUnitState('Repairing') then
+                --Repairing GE template unit that has a long way until completed - reassess periodically what we whould do with the engineer (as it may have made sense to repair to use up spare mass a while ago, but we may no longer want to do that now)
+                if not(oEngineer[M28Engineer.refiAssignedAction]) and not(oEngineer[M28Engineer.refiRepairProgressWhenLastChecked]) then
+                    --E.g. might be we cleared engineer tracking to make available, but it wasnt given any new orders, and is still repairing, in which case want to still keep it as being available
+                    local oFocusUnit = oEngineer:GetFocusUnit()
+                    if M28UnitInfo.IsUnitValid(oFocusUnit) and oFocusUnit[M28Building.reftArtiTemplateRefs] and oFocusUnit:GetFractionComplete() < 0.5 and oFocusUnit:GetFractionComplete() > 0.1 and (oFocusUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oFocusUnit)) >= 30000 and oEngineer:GetAIBrain():GetEconomyStoredRatio('MASS') < 0.05 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will treat engi as available despite no value for refiRepairProgressWhenLastChecked') end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Engi is repairing, oEngineer[M28Engineer.refiRepairProgressWhenLastChecked]='..(oEngineer[M28Engineer.refiRepairProgressWhenLastChecked] or 'nil')) end
+                if oEngineer[M28Engineer.refiRepairProgressWhenLastChecked] then
+                    local oFocusUnit = oEngineer:GetFocusUnit()
+                    if bDebugMessages == true then LOG(sFunctionRef..': Expect we are repairing an arti/similar in a GE template but not part of GE template logic, oFocusUnit='..(oFocusUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocusUnit) or 'nil')..'; Work progress='..oEngineer:GetWorkProgress()..'; oEngineer[M28Engineer.refiRepairProgressWhenLastChecked]='..oEngineer[M28Engineer.refiRepairProgressWhenLastChecked]..'; Brain % mass stored='..oEngineer:GetAIBrain():GetEconomyStoredRatio('MASS')) end
+                    if M28UnitInfo.IsUnitValid(oFocusUnit) and oFocusUnit[M28Building.reftArtiTemplateRefs] and oFocusUnit:GetFractionComplete() < 0.5 and oFocusUnit:GetFractionComplete() > oEngineer[M28Engineer.refiRepairProgressWhenLastChecked] + 0.1 and (oFocusUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oFocusUnit)) >= 30000 and oEngineer:GetAIBrain():GetEconomyStoredRatio('MASS') < 0.05 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will treat engineer as available and return true') end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
+                end
+
             end
 
             --Below was to try and resolve issue with engi appearing to try and build somewhere and failing, but realised likely was just unit cap
@@ -3951,7 +3973,7 @@ function DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOptionalAlli
 end
 
 function IsUnitLongRangeThreat(oUnit)
-    if (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) >= 72 or EntityCategoryContains(M28UnitInfo.refCategoryPD , oUnit.UnitId) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] >= 60) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 and not(oUnit.UnitId == 'url0402') then
+    if (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) >= 72 or EntityCategoryContains(M28UnitInfo.refCategoryPD , oUnit.UnitId) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] >= 60) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 600 and not(oUnit.UnitId == 'url0402') then
         return true
         --Indirectfire arti non-building threats
     elseif (oUnit[M28UnitInfo.refiIndirectRange] or 0) >= 65 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) <= 240 and not(EntityCategoryContains(categories.SILO + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryMML, oUnit.UnitId)) then
@@ -4215,4 +4237,79 @@ function GetEnemyTeamActualMassIncome(iTeam)
         if iMass > iHighestMass then iHighestMass = iMass end
     end
     return iHighestMass
+end
+
+function WantToPauseSMD(oUnit, bCalledFromOnMissileBuilt)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'WantToPauseSMD'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Returns true if SMD has enough missiles loaded and not overflowing in resources
+    local iMissiles
+    if bCalledFromOnMissileBuilt then iMissiles = 1 --For some reason the count is off by 1, presumably a slight delay between the event being called and the below ammo counts working
+    else iMissiles = 0
+    end
+    if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
+    if bDebugMessages == true then LOG(sFunctionRef..': iMissiles based on tactical silo ammo='..iMissiles) end
+    if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
+    local iTeam = oUnit:GetAIBrain().M28Team
+    local bHaveEnoughSubjectToEco = false
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start for SMD oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMissiles='..iMissiles..'; bCalledFromOnMissileBuilt='..tostring(bCalledFromOnMissileBuilt or false)) end
+    if iMissiles >= 4 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) then
+        bHaveEnoughSubjectToEco = true
+    elseif iMissiles == 0 or (oUnit[M28UnitInfo.refiLastWeaponEvent] and iMissiles < 2) then
+        --want more missiles
+    else
+        bHaveEnoughSubjectToEco = true --will change back to false later
+        --If only SMLs are battleships with no nukes then stop at 1 missile for minor zones, or core zones with no enemy battleships within range
+        local toBattleshipsToConsider
+        for iNuke, oNuke in M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers] do
+            if not(oNuke.IsDead) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oNuke.UnitId) then
+                    if oNuke:GetNukeSiloAmmoCount() > 0 then
+                        bHaveEnoughSubjectToEco = false
+                        toBattleshipsToConsider = nil
+                        break
+                    else
+                        if not(toBattleshipsToConsider) then toBattleshipsToConsider = {} end
+                        table.insert(toBattleshipsToConsider, oNuke)
+                    end
+                else
+                    bHaveEnoughSubjectToEco = false
+                    toBattleshipsToConsider = nil
+                    break
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is toBattleshipsToConsider nil='..tostring(toBattleshipsToConsider == nil)) end
+        if toBattleshipsToConsider and bHaveEnoughSubjectToEco and oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] then
+            local tSMDLZTeamData = M28Map.tAllPlateaus[oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam]
+            if bDebugMessages == true then LOG(sFunctionRef..': tSMDLZTeamData[M28Map.subrefLZbCoreBase]='..tostring(tSMDLZTeamData[M28Map.subrefLZbCoreBase] or false)) end
+            if iMissiles >= 3 or (iMissiles >= 1 and not(tSMDLZTeamData[M28Map.subrefLZbCoreBase])) then
+                bHaveEnoughSubjectToEco = true
+            elseif iMissiles >= 1 then
+                --Pause unless battleship in range
+                bHaveEnoughSubjectToEco = true
+                for iNuke, oNuke in toBattleshipsToConsider do
+                    if oNuke[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist between battleship and nuke='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNuke:GetPosition())..'; Nuke range='..(oNuke[M28UnitInfo.refiManualRange] or 410)) end
+                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNuke:GetPosition()) <= 50 + (oNuke[M28UnitInfo.refiManualRange] or 410) then
+                            bHaveEnoughSubjectToEco = false
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near end, time='..GetGameTimeSeconds()..'; bHaveEnoughSubjectToEco='..tostring(bHaveEnoughSubjectToEco)) end
+    if bHaveEnoughSubjectToEco then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have low power='..tostring(HaveLowPower(iTeam))..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
+        if HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99))) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Returning true') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

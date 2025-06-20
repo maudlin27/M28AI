@@ -611,8 +611,9 @@ end
 
 function TestCustom(aiBrain)
     --LOG('MObile SMD blueprint: '..repru(__blueprints['srl0321']))
-    --M28Map.DrawSpecificLandZone(16, 1, 3)
-    M28Map.DrawSpecificPlateauLandZones(16)
+    M28Map.DrawSpecificLandZone(77, 14, 3)
+    M28Map.DrawSpecificWaterZone(11, 2, nil)
+    --M28Map.DrawSpecificPlateauLandZones(16)
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end
 

@@ -4519,6 +4519,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local iNormalBomberCategoryToBuild, iGunshipCategoryUnlessBombersBetter, iBackupAirToGroundCategory, bAirToGroundIsIneffective = GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam, iFactoryTechLevel, iAirSubteam, aiBrain)
 
     --MAIN BUILDER LOGIC:
+    --Paragon built or very large mass and E - upgrade air fac
+    if iFactoryTechLevel < 3 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 200 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 20000 then
+        if ConsiderUpgrading() then return sBPIDToBuild end
+    end
     --Early bomber build order
     if bDebugMessages == true then LOG(sFunctionRef..': First bomber logic check, iFactoryTechLevel='..iFactoryTechLevel..'; aiBrain[M28Overseer.refbFirstBomber]='..tostring(aiBrain[M28Overseer.refbFirstBomber] or false)..'; Factory LC='..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Bomber LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBomber)) end
     iCurrentConditionToTry = iCurrentConditionToTry + 1

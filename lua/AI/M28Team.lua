@@ -1477,24 +1477,32 @@ function LongRangeDFAndIFThreatMonitor(iTeam, bDealingWithIndirectThreat)
                         end
                         local bIsBuilding = EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)
                         if bIsBuilding then iMaxDist = iMaxDist - 8 end --can do more precise dist check with buildings
-                        local iMaxTravelDist = iMaxDist * 2
-                        local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
-                        local iAdjLZ
+                        local tLZOrWZData
+                        if iPlateauOrZero == 0 then
+                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                        else
+                            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                        end
+                        local iAdjLZOrWZ, iAdjPlateau
                         local iCurDist
 
 
-                        if bDebugMessages == true then LOG(sFunctionRef..': Unit has changed zones, is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))..'; iMaxTravelDist='..iMaxTravelDist) end
-                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
-                            local tbZonesOnthisPlateauAdded = {}
-                            for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
-                                if tSubtable[M28Map.subrefLZTravelDist] > iMaxTravelDist then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Are too far from the other zone so will stop searching, travel dist='..tSubtable[M28Map.subrefLZTravelDist]..'; iMaxTravelDist='..iMaxTravelDist..'; Zone='..tSubtable[M28Map.subrefLZNumber]) end
-                                    --Double check all adjacent zones have this recorded
-                                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit has changed zones, is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]))) end
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
+                            M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is pathing to other zones still empty after updating='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]))) end
+                        end
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                            local tbZonesByPlateauAdded = {}
+                            for iEntry, tSubtable in tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                                if tSubtable[M28Map.subrefiDistance] > iMaxDist then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Are too far from the other zone so will stop searching, dist='..tSubtable[M28Map.subrefiDistance]..'; iMaxDist='..iMaxDist..'; Plat or Pond='..tSubtable[M28Map.subrefiPlateauOrPond]..'; Zone='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]) end
+                                    --Double check all adjacent land zones have this recorded
+                                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
                                         local bInclude
-                                        for _, iAdjacentLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Double checking that all adjacent LZs have recorded this LR unit, iAdjacentLZ='..iAdjacentLZ..'; Already considered='..tostring(tbZonesOnthisPlateauAdded[iAdjacentLZ] or false)) end
-                                            if not(tbZonesOnthisPlateauAdded[iAdjacentLZ]) then
+                                        for _, iAdjacentLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Double checking that all adjacent LZs have recorded this LR unit, iAdjacentLZ='..iAdjacentLZ..'; Already considered='..tostring(tbZonesByPlateauAdded[iPlateauOrZero][iAdjacentLZ] or false)) end
+                                            if not(tbZonesByPlateauAdded[iPlateauOrZero][iAdjacentLZ]) then
                                                 bInclude = true
                                                 local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjacentLZ][M28Map.subrefLZTeamData][iTeam]
                                                 if not(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef]) then
@@ -1511,7 +1519,35 @@ function LongRangeDFAndIFThreatMonitor(iTeam, bDealingWithIndirectThreat)
                                                     end
                                                 end
                                                 if bInclude then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Just added adjacent zone unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of long range threats for zone '..iAdjLZ..' on plateau '..iPlateauOrZero..'; Dist between midpoints='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])..'; Unit dist to adjLZData midpoint='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], oUnit:GetPosition())..'; Dist to closest friendly base='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], oUnit:GetPosition())) end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Just added adjacent zone unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of long range threats for zone '..iAdjacentLZ..' on plateau '..iPlateauOrZero..'; Dist to closest friendly base='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], oUnit:GetPosition())) end
+                                                    table.insert(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef], oUnit)
+                                                end
+                                            end
+                                        end
+                                    elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentLandZones]) == false then
+                                        local bInclude, iAdjacentPlateau, iAdjacentLZ
+                                        for _, tSubtable in tLZOrWZData[M28Map.subrefAdjacentLandZones] do
+                                            iAdjacentPlateau = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
+                                            iAdjacentLZ = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Double checking that all adjacent LZs have recorded this LR unit, iAdjacentLZ='..iAdjacentLZ..'; Already considered='..tostring(tbZonesByPlateauAdded[iAdjacentLZ] or false)) end
+                                            if not(tbZonesByPlateauAdded[iAdjacentPlateau][iAdjacentLZ]) then
+                                                bInclude = true
+                                                local tAdjLZTeamData = M28Map.tAllPlateaus[iAdjacentPlateau][M28Map.subrefPlateauLandZones][iAdjacentLZ][M28Map.subrefLZTeamData][iTeam]
+                                                if not(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef]) then
+                                                    tAdjLZTeamData[sLZTeamDataLRUnitsTableRef] = {}
+                                                else
+                                                    --Redundancy - make sure not already here
+                                                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef]) == false then
+                                                        for iRecordedUnit, oRecordedUnit in tAdjLZTeamData[sLZTeamDataLRUnitsTableRef] do
+                                                            if oUnit == oRecordedUnit then
+                                                                bInclude = false
+                                                                break
+                                                            end
+                                                        end
+                                                    end
+                                                end
+                                                if bInclude then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Just added adjacent zone unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of long range threats for zone '..iAdjacentLZ..' on iAdjacentPlateau='..iAdjacentPlateau..'; Dist to closest friendly base='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], oUnit:GetPosition())) end
                                                     table.insert(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef], oUnit)
                                                 end
                                             end
@@ -1520,33 +1556,40 @@ function LongRangeDFAndIFThreatMonitor(iTeam, bDealingWithIndirectThreat)
 
                                     break
                                 end
-                                iAdjLZ = tSubtable[M28Map.subrefLZNumber]
-                                tbZonesOnthisPlateauAdded[iAdjLZ] = true
-                                local tAdjLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
-                                if bIsBuilding then iCurDist = M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], oUnit:GetPosition()) else iCurDist = M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are close to zone '..iAdjLZ..'; Dist between midpoints to this='..M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])..'; iMaxDist='..iMaxDist..'; iCurDist='..iCurDist) end
-                                if iCurDist <= iMaxDist then
-                                    local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
-                                    local bInclude = true
-                                    if not(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef]) then
-                                        tAdjLZTeamData[sLZTeamDataLRUnitsTableRef] = {}
-                                    else
-                                        --Redundancy - make sure not already here
-                                        if M28Utilities.IsTableEmpty(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef]) == false then
-                                            for iRecordedUnit, oRecordedUnit in tAdjLZTeamData[sLZTeamDataLRUnitsTableRef] do
-                                                if oUnit == oRecordedUnit then
-                                                    bInclude = false
-                                                    break
+                                --Dont record long range threats in water zones
+                                if not(tSubtable[M28Map.subrefbIsWaterZone]) then
+                                    iAdjPlateau = tSubtable[M28Map.subrefiPlateauOrPond]
+                                    iAdjLZOrWZ = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
+                                    if not(tbZonesByPlateauAdded[iAdjPlateau]) then tbZonesByPlateauAdded[iAdjPlateau] = {} end
+                                    tbZonesByPlateauAdded[iAdjPlateau][iAdjLZOrWZ] = true
+                                    local tAdjLZData = M28Map.tAllPlateaus[iAdjPlateau][M28Map.subrefPlateauLandZones][iAdjLZOrWZ]
+                                    if bIsBuilding then iCurDist = M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], oUnit:GetPosition()) else iCurDist = M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZOrWZData[M28Map.subrefMidpoint]) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are close to zone '..iAdjLZOrWZ..'; Dist between midpoints to this='..M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZOrWZData[M28Map.subrefMidpoint])..'; iMaxDist='..iMaxDist..'; iCurDist='..iCurDist) end
+                                    if iCurDist <= iMaxDist then
+                                        local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam] --wont be water zone as we are only considering non-water zones per above
+                                        local bInclude = true
+                                        if not(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef]) then
+                                            tAdjLZTeamData[sLZTeamDataLRUnitsTableRef] = {}
+                                        else
+                                            --Redundancy - make sure not already here
+                                            if M28Utilities.IsTableEmpty(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef]) == false then
+                                                for iRecordedUnit, oRecordedUnit in tAdjLZTeamData[sLZTeamDataLRUnitsTableRef] do
+                                                    if oUnit == oRecordedUnit then
+                                                        bInclude = false
+                                                        break
+                                                    end
                                                 end
                                             end
                                         end
-                                    end
-                                    if bInclude then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Just added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of long range threats for zone '..iAdjLZ..' on plateau '..iPlateauOrZero..'; Dist between midpoints='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])..'; Unit dist to adjLZData midpoint='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], oUnit:GetPosition())..'; Dist to closest friendly base='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], oUnit:GetPosition())) end
-                                        table.insert(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef], oUnit)
+                                        if bInclude then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Just added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of long range threats for zone '..iAdjLZOrWZ..' on plateau '..iAdjPlateau..'; base iPlateauOrZero='..iPlateauOrZero..'; Dist between midpoints='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZOrWZData[M28Map.subrefMidpoint])..'; Unit dist to adjLZData midpoint='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], oUnit:GetPosition())..'; Dist to closest friendly base='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], oUnit:GetPosition())) end
+                                            table.insert(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef], oUnit)
+                                        end
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': straight line dist is too far away so wont record') end
                                     end
                                 else
-                                    if bDebugMessages == true then LOG(sFunctionRef..': straight line dist is too far away so wont record') end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': we dont record long range threats against water zones, only against land zones') end
                                 end
                             end
                         end
@@ -1570,6 +1613,8 @@ function AddUnitToLongRangeThreatTable(oUnit, iTeam, bCheckifAlreadyInTable, bDe
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitToLongRangeThreatTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     local bNotInTable = not(bCheckifAlreadyInTable)
     local sreftLREnemyUnitsTableRef
@@ -4571,15 +4616,18 @@ function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
                     if tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] < 10000 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 30000 and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] <= 2500 then
                         local tPDInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefTEnemyUnits])
                         if not(tPDInZone) then tPDInZone = {} end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iCurPlateauOrZero..'Z'..iCurLandOrWaterZone..'; Is table of adj LZs empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                             for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                 local tAdjLZData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
                                 local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; Is subrefTEnemyUnits empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))) end
                                 if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                     local tAdjPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is tAdjPD empty='..tostring( M28Utilities.IsTableEmpty(tAdjPD))) end
                                     if M28Utilities.IsTableEmpty(tAdjPD) == false then
                                         for iPD, oPD in tAdjPD do
-                                            table.insert(tPDInZone, tAdjPD)
+                                            table.insert(tPDInZone, oPD)
                                         end
                                     end
                                 end
@@ -4589,18 +4637,20 @@ function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
                                 local tPDInRange = {}
                                 for iPD, oPD in tPDInZone do
                                     if M28UnitInfo.IsUnitValid(oPD) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Dist between PD and target unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oPD:GetPosition())..'; PD DF range='..oPD[M28UnitInfo.refiDFRange]) end
                                         if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oPD:GetPosition()) <= 5 + oPD[M28UnitInfo.refiDFRange] then
                                             table.insert(tPDInRange, oPD)
                                         end
                                     end
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is tPDInRange empty='..tostring(M28Utilities.IsTableEmpty(tPDInRange))) end
                                 if M28Utilities.IsTableEmpty(tPDInRange) == false then
                                     iNearbyPDThreat = M28UnitInfo.GetMassCostOfUnits(tPDInRange)
                                 end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iNearbyPDThreat='..iNearbyPDThreat) end
                             if iNearbyPDThreat <= 2000 then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of potential tele snipe targets') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of potential tele snipe targets as not much PD threat') end
                                 table.insert(tTeamData[iTeam][reftoPotentialTeleSnipeTargets], oUnit)
                             else
                                 --Still add if there is al ocation with low PD threat
