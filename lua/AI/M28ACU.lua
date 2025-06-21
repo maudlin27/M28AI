@@ -2206,10 +2206,22 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                                                 end
                                             end
                                         else
-                                            --Require T3 mex if 3rd+ upgrade and the upgrade has a significant cost
-                                            if bDebugMessages == true then LOG(sFunctionRef..': T3 mex count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex)..'; T2 mex count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Mex)) end
-                                            if (oACU[refiUpgradeCount] or 0) < 2 or tEnhancement.BuildCostMass <= 800 or aiBrain[M28Economy.refbBuiltParagon] or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) > 1 or (tEnhancement.BuildCostMass <= 2000 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and (oACU[refiUpgradeCount] or 0) == 2 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade) >= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Mex) >= 6 * (tEnhancement.BuildCostMass - 1000) / 1000) then
-                                                sUpgradeWanted = sPotentialUpgrade
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will get the upgrade unless naval map, aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] or false)..'; M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]='..(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] or 'nil')..'; Approaching ACU threat='..M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone, iTeam, 150)) end
+                                            local bProceedWithUpgrade = aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] or M28Map.bIsCampaignMap or aiBrain[M28Economy.refbBuiltParagon] or M28Map.iMapSize <= 500 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= 3 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 30 or (M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) or M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 1000
+                                            if not(bProceedWithUpgrade) and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
+                                                local iApproachingACUThreat, oApproachingACU = M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone, iTeam, 150)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': oApproachingACU DF range='..(oApproachingACU[M28UnitInfo.refiDFRange] or 'nil')) end
+                                                if iApproachingACUThreat >= 1500 and oApproachingACU and oApproachingACU[M28UnitInfo.refiDFRange] >= 26 then
+                                                    bProceedWithUpgrade = true
+                                                end
+                                            end
+                                            if bProceedWithUpgrade then --M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone, iTeam, 150) >= 1500) then
+                                                --Require T3 mex if 3rd+ upgrade and the upgrade has a significant cost
+                                                if bDebugMessages == true then LOG(sFunctionRef..': T3 mex count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex)..'; T2 mex count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Mex)) end
+                                                if (oACU[refiUpgradeCount] or 0) < 2 or tEnhancement.BuildCostMass <= 800 or aiBrain[M28Economy.refbBuiltParagon] or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) > 1 or (tEnhancement.BuildCostMass <= 2000 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and (oACU[refiUpgradeCount] or 0) == 2 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasDangerousACU] and M28UnitInfo.GetUpgradeCombatWeighting(sPotentialUpgrade) >= 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Mex) >= 6 * (tEnhancement.BuildCostMass - 1000) / 1000) then
+                                                    --Naval maps - delay getting upgrade until have t3 mexes if no threat on our land mass and no appraoching ACU
+                                                    sUpgradeWanted = sPotentialUpgrade
+                                                end
                                             end
                                         end
                                     end
