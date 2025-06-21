@@ -5622,11 +5622,22 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] then
                         if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] <= 2000 then
                             if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
+                        elseif iFactoryTechLevel >= 3 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Far behind so will get airaa instead of torp bombers') end
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
                         end
                     else
-                        --Not far behind on air so get more torps
+                        --Not far behind on air so get more torps, unless we lack air control and dont have lots of asfs vs torps
                         if bDebugMessages == true then LOG(sFunctionRef..': Not far behind on air so will try and get more torp bombers') end
-                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
+                        local iFactorWanted = 4
+                        if iFactoryTechLevel <= 2 then iFactorWanted = 1.5 end
+                        if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] <= 2000 or M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * iFactorWanted then
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
+                        elseif iFactoryTechLevel >= 3 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will get more AirAA as although we want torp bombers we dont have a high airaa vs torp bomber threat, and we lack air control') end
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
+                        end
                     end
                 end
 
