@@ -3661,7 +3661,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
@@ -3836,7 +3836,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         end
                     end
                     local bEnemyHasTooMuchAA = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy air units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]))..'; iAlongPathAAThreshold='..iAlongPathAAThreshold..'; Mod dist%='..(tLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; SValue='..tLZTeamData[M28Map.subrefLZSValue]..'; iMaxModDist='..(iMaxModDist or 'nil')..'; ModDist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; iGroundAAThreshold='..iGroundAAThreshold) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy air units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]))..'; iAlongPathAAThreshold='..iAlongPathAAThreshold..'; Mod dist%='..(tLZTeamData[M28Map.refiModDistancePercent] or 'nil')..'; SValue='..tLZTeamData[M28Map.subrefLZSValue]..'; iMaxModDist='..(iMaxModDist or 'nil')..'; ModDist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; iGroundAAThreshold='..(iGroundAAThreshold or 'nil')) end
                     if M28Utilities.IsTableEmpty(toOptionalUnitOverride or tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false and (not(iMaxModDist) or tLZTeamData[M28Map.refiModDistancePercent] <= iMaxModDist) then
                         --Add units from here unless there is too much AA
                         local bUseDetailedCheck = false
@@ -3885,13 +3885,16 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                 end
                             end
                             --AddEnemyAirUnitsAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, tbAlongPathPlateauAndZonesAlreadyAdded, tEnemyAirTargets, iAirAAThreshold, iGroundAAThreshold, iMaxModDistPercent)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy air units along path to get to iLandZone='..iLandZone..' from iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone) end
                             AddEnemyAirUnitsAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, tbAlongPathPlateauAndZonesAlreadyAdded, tEnemyAirTargets, iAlongPathAAThreshold, (iGroundAAThreshold or 0), tLZTeamData[M28Map.refiModDistancePercent] + 0.025, iMinDistToEnemyBase)
                         end
                     end
                     if not(bEnemyHasTooMuchAA) and bAddAdjacentZones then
                         local iAdjacentAASearchType = iOptionalAdjacentZoneSearchType or refiAASearchType
 
-                        if iAdjacentAASearchType == refiIgnoreAllAA then
+                        if not(iAdjacentAASearchType == refiAvoidAllAA) and tLZTeamData[M28Map.refiEnemyAirAAThreat] <= 50 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+                            iAdjacentAASearchType = refiIgnoreAllAA
+                        elseif iAdjacentAASearchType == refiIgnoreAllAA then
                             iAdjacentAASearchType = refiAvoidOnlyGroundAA
                         end
 
@@ -4001,13 +4004,15 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                 end
                             end
                             --AddEnemyAirUnitsAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, tbAlongPathPlateauAndZonesAlreadyAdded, tEnemyAirTargets, iAirAAThreshold, iGroundAAThreshold, iMaxModDistPercent)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy air units along path to get to iWaterZone='..iWaterZone..' from iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone) end
                             AddEnemyAirUnitsAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, tbAlongPathPlateauAndZonesAlreadyAdded, tEnemyAirTargets, iAlongPathAAThreshold, (iGroundAAThreshold or 0), tWZTeamData[M28Map.refiModDistancePercent] + 0.025, iMinDistToEnemyBase)
                         end
                     end
                     if not(bEnemyHasTooMuchAA) and bAddAdjacentZones then
                         local iAdjacentAASearchType = iOptionalAdjacentZoneSearchType or refiAASearchType
-
-                        if iAdjacentAASearchType == refiIgnoreAllAA then
+                        if not(iAdjacentAASearchType == refiAvoidAllAA) and tWZTeamData[M28Map.refiEnemyAirAAThreat] <= 50 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+                            iAdjacentAASearchType = refiIgnoreAllAA
+                        elseif iAdjacentAASearchType == refiIgnoreAllAA then
                             iAdjacentAASearchType = refiAvoidOnlyGroundAA
                         end
 
@@ -4113,6 +4118,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 bAvoidLargeEnemyAirAA = false
                 bAlwaysProtectACU = true
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': bAvoidLargeEnemyAirAA='..tostring(bAvoidLargeEnemyAirAA)..'; bAlwaysProtectACU='..tostring(bAlwaysProtectACU)..'; M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])) end
 
             function GetAASearchTypeForPriorityUnit(oUnit, iPlateauOrZero, tUnitLZOrWZData, tUnitLZOrWZTeamData)
                 --Only consider avoiding AA if no enemy air to ground threat in this zone or adjacent zone
@@ -4123,6 +4129,13 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 elseif (tUnitLZOrWZTeamData[M28Map.refiModDistancePercent] or 0) >= 0.7 and not(EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then
                     if not(tUnitLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] >= 3000 and EntityCategoryContains(categories.AIR, oUnit.UnitId)) then
                         bAvoidGroundAA = true
+                    end
+                end
+                if not(bAvoidGroundAA) and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+                    if EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId) then
+                        if tUnitLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] <= 200 then bAvoidGroundAA = true end
+                    else
+                        if tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] < 50 then bAvoidGroundAA = true end
                     end
                 end
 
@@ -4148,6 +4161,10 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         end
 
                     end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil')) end
+                if not(bAvoidAAThreat) and bAvoidGroundAA and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < 1.1*(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering further adj to say we should avoid aa threat, mod dist% for priority unit='..tUnitLZOrWZTeamData[M28Map.refiModDistancePercent]) end
                 end
 
                 local iPriorityAASearchType
