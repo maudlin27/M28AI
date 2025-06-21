@@ -1486,7 +1486,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                     local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
                                     if iDistToLastOrder <= 125 then
                                         --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
-                                        if oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater
+                                        if M28UnitInfo.IsUnitUnderwater(oUnit) or oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater; also messes with megalith targeting priorities
                                             M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs0EA'..iWaterZone)
                                         else
                                             M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs1EA'..iWaterZone)
@@ -1506,7 +1506,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                         end
                                         if bHaveLandZoneNearby then
                                             if bDebugMessages == true then LOG(sFunctionRef..': will proceed to land for Exp instead of moving') end
-                                            if oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater
+                                            if M28UnitInfo.IsUnitUnderwater(oUnit) or oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater; also messes with megalith targeting priorities
                                                 M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs2aEA'..iWaterZone)
                                             else
                                                 M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs2bEA'..iWaterZone)
@@ -1525,7 +1525,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                                     end
                                                 end
                                             end
-                                            if bNearbySignificantValueEnemy and (not(M28UnitInfo.IsUnitUnderwater(oUnit)) or (oUnit[M28UnitInfo.refiAntiNavyRange] >= 30 and oUnit.UnitId == 'xrl0403')) then
+                                            if bNearbySignificantValueEnemy and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then --Attackmove messes with fatboy and megalith tareting when underwater, e.g. causes them to get stuck not moving, and to not target right weapon priorities
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Significant value enemy in our DF range so will attack-move to the amphibious destination') end
                                                 M28Orders.IssueTrackedAggressiveMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAMToLZ'..iLZToSupport..'Fr'..iWaterZone)
                                             else
@@ -1553,7 +1553,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                 local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
                                 if iDistToLastOrder <= 125 then
                                     --Fatboy - move instead of attack-move or it can get stuck underwater
-                                    if oUnit.UnitId == 'uel0401' then
+                                    if M28UnitInfo.IsUnitUnderwater(oUnit) or oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater; also messes with megalith targeting priorities
                                         M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs3EA'..iWaterZone)
                                     else
                                         --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
@@ -1575,7 +1575,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                     if bHaveLandZoneNearby then
                                         if bDebugMessages == true then LOG(sFunctionRef..': will proceed to land for Exp instead of consolidating') end
                                         --fatboy can get stuck underwater with attackmove so move instead
-                                        if oUnit.UnitId == 'uel0401' then
+                                        if M28UnitInfo.IsUnitUnderwater(oUnit) or oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater; also messes with megalith targeting priorities
                                             M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs5EA'..iWaterZone)
                                         else
                                             M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs6EA'..iWaterZone)

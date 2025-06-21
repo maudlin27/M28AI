@@ -3490,6 +3490,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             if EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) then
                                 M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityFatboy, true)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMegalith, oUnit.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Setting weapon priorities for megalith') end
                                 M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMegalith, true)
                             end
                             --Track priority units for mobile stealth (want to consider stealthing even if under construction, hence do at this stage)
