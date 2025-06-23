@@ -1409,7 +1409,9 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
 
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try turning around to a retreat location if special micro not already active, oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
                                     if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and M28Utilities.IsTableEmpty(tRetreatLocation) == false then
-                                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, tRetreatLocation, 15, 3)
+                                        local iTimeToTurnToRally = 15
+                                        if oUnit.UnitId == 'xsa0402' then iTimeToTurnToRally = M28Air.GetTimeForExpBomberToTurnToRally(oUnit, oWeapon, projectile) end
+                                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, tRetreatLocation, iTimeToTurnToRally, 3)
                                     end
                                 end
                             end

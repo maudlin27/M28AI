@@ -368,8 +368,10 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                     tMobileLandAndGunshipsInArea = EntityCategoryFilterDown(M28UnitInfo.refCategoryGunship, tAllUnitsInArea)
                     bDontCheckIfFriendlyGunships = false --we get friendly gunships to split up via separate logic
                     iTimeToRun = math.max(iTimeToRun + 1.5, 5.5) --v68 - increased time from iTimeToRun, 3.5 due to issue with ahwassa bomb damage being spread over time
-                    table.insert(M28Air.tiRecentExpBomberTargets, {tBombTarget[1], tBombTarget[2], tBombTarget[3]})
+                    table.insert(M28Air.tiRecentExpBomberTargets, {tBombTarget[1], tBombTarget[2], tBombTarget[3]}) --NOTE: GetTimeForExpBomberToTurnToRally assumes this is updated here (i.e. called via fork thread so this code runs after GetTimeForExpBomberToTurnToRally)
                     ForkThread(M28Air.RemoveFirstExpBomberTarget, 10)
+                    --also track last target
+                    --oBomber[M28Air.refiExpLastBombTarget] = {tBombTarget[1], tBombTarget[2], tBombTarget[3]}
                 else
                     tMobileLandAndGunshipsInArea = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileLand - categories.EXPERIMENTAL + M28UnitInfo.refCategoryGunship, tAllUnitsInArea)
                 end
