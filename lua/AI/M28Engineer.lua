@@ -6829,7 +6829,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
         sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstAeon,    nil,        nil,        nil,            nil,                                nil,                    10)
         --Paragon override if we are trying to build paragon or t3 arti
         if (aiBrain[M28Economy.refbBuiltParagon] or (M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 150)) and (sArtiToBuild == 'xab1401' or sArtiToBuild == 'uab2302') then
-            GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTableRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, bWantToChangeDueToNovax, bWantToChangeDueToBuildingMultipleGameEnder)
+            GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTableRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, false, false)
             sArtiToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory], oFirstAeon,    nil,        nil,        nil,            nil,                                nil,                    10)
         end
     end
