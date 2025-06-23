@@ -13477,7 +13477,7 @@ end
 function GetTimeForExpBomberToTurnToRally(oUnit, oWeapon, oProjectile)
     --Assumes we are calling this when bomb is fired, whereas tiRecentExpBomberTargets should be updated from M28Micro which is via forked thread so should take place after bomb fired
     --i.e. if cycle through tiRecentExpBomberTargets it should only show other bombs, not this unit's bomb
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetTimeForExpBomberToTurnToRally'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

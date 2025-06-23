@@ -4948,24 +4948,47 @@ function RecordNukeTarget(iTeam, tLaunchLocation)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordNukeTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    local bCheckIfRecentlyRecorded = true
     if not(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then
         if not(M28Team.tTeamData[iTeam]) then M28Team.tTeamData[iTeam] = {} end
         M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = {}
+        bCheckIfRecentlyRecorded = false
     end
     local iCurTime = math.floor(GetGameTimeSeconds())
-    local iCycleCount = 0
-    while M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] do
-        iCurTime = iCurTime - 0.0001
-        iCycleCount = iCycleCount + 1
-        if iCycleCount >= 30 then
-            M28Utilities.ErrorHandler('Potential infinite loop, aborted recording nuke missile location')
-            break
+    local bIgnoreAsRecentlyRecorded = false
+    if bCheckIfRecentlyRecorded then
+        for iTime, tRecordedLaunchLocation in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurTime-iTime='..(iCurTime - iTime)..'; Dist to tRecordedLaunchLocation='..M28Utilities.GetDistanceBetweenPositions(tLaunchLocation, tRecordedLaunchLocation)) end
+            if iCurTime - iTime <= 2 and M28Utilities.GetDistanceBetweenPositions(tLaunchLocation, tRecordedLaunchLocation) <= 4 then
+                bIgnoreAsRecentlyRecorded = true
+                break
+            end
         end
     end
-    M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] = { tLaunchLocation[1],tLaunchLocation[2], tLaunchLocation[3] }
-    ForkThread(RemoveOldNukeTarget, iTeam, iCurTime, math.max(180, 60*M28Map.iMapSize / 1024))
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iTeam='..iTeam..'; tLaunchLocation='..repru(tLaunchLocation)..'; Time='..GetGameTimeSeconds()..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])) end
+    if not(bIgnoreAsRecentlyRecorded) then
+
+        local iOrigCurTime = iCurTime
+        local iCycleCount = 0
+        if bDebugMessages == true then LOG(sFunctionRef..': Recording nuke target, iTeam='..iTeam..'; tLaunchLocation='..repru(tLaunchLocation)..'; Time='..GetGameTimeSeconds()..'; iCurTime='..iCurTime..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])) end
+        if M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] then iCurTime = GetGameTimeSeconds() end
+        while M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] do
+            iCurTime = iCurTime - 0.0001
+            --Wierd issue where sometimes but not always iCurTime doesnt change (likely also rseolved by having iCurTime switch to gametimeseconds
+            if iOrigCurTime == iCurTime then
+                iCurTime = iCurTime - 0.1
+            end
+            iCycleCount = iCycleCount + 1
+            if bDebugMessages == true then LOG(sFunctionRef..': iCycleCount='..iCycleCount..'; iCurTime='..iCurTime..'; is M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] nil='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] == nil)) end
+            if iCycleCount >= 30 then
+                M28Utilities.ErrorHandler('Potential infinite loop, aborted recording nuke missile location')
+                break
+            end
+        end
+        M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] = { tLaunchLocation[1],tLaunchLocation[2], tLaunchLocation[3] }
+        ForkThread(RemoveOldNukeTarget, iTeam, iCurTime, math.max(180, 60*M28Map.iMapSize / 1024))
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, iTeam='..iTeam..'; tLaunchLocation='..repru(tLaunchLocation)..'; Time='..GetGameTimeSeconds()..'; iCurTime='..iCurTime..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])) end
+    elseif bDebugMessages == true then LOG(sFunctionRef..': End of code, not recording as have recenlty recorded this location or a very nearby one')
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
