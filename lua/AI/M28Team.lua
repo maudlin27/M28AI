@@ -314,6 +314,7 @@ tAirSubteamData = {}
     refbDontBuildEngiHunterEngineers = 'M28ASTEbBr' --true if one of the air subteam has gone first bomber; also true if we dont want to get engi hunters at all
     reftoPriorityTorpedoUnitTargets = 'M28ATrpT' --table of units to consider targeting with torpedo bombers if underwater - e.g. to use for ACUs hiding underwater
     toFrontT3Bomber = 'M28FrnT3' --furthest t3 bomber from our air rally point - so can consider as a priority target to defend
+    toFrontAttackingTorpBomber = 'M28FrnTrp' --If we are attacking with torp bombers then this should record the front torp bomber
     reftoActiveBomberTargets = 'M28BmbTr' --table of enemy units currently being targeted by bombers (gets reset each air cycle and repopulated based on unavailable bombers and attack orders given to bombers)
     refiLastAirAASupportPointAngleAdjust = 'M28SupAng' --will adjust the support point slightly to try and keep asfs moving in a similar direction
 

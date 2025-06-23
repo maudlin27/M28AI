@@ -1409,7 +1409,9 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
 
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try turning around to a retreat location if special micro not already active, oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
                                     if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and M28Utilities.IsTableEmpty(tRetreatLocation) == false then
-                                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, tRetreatLocation, 15, 3)
+                                        local iTimeToTurnToRally = 15
+                                        if oUnit.UnitId == 'xsa0402' then iTimeToTurnToRally = M28Air.GetTimeForExpBomberToTurnToRally(oUnit, oWeapon, projectile) end
+                                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, tRetreatLocation, iTimeToTurnToRally, 3)
                                     end
                                 end
                             end
@@ -3490,6 +3492,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             if EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) then
                                 M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityFatboy, true)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMegalith, oUnit.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Setting weapon priorities for megalith') end
                                 M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMegalith, true)
                             end
                             --Track priority units for mobile stealth (want to consider stealthing even if under construction, hence do at this stage)

@@ -1486,7 +1486,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                     local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
                                     if iDistToLastOrder <= 125 then
                                         --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
-                                        if oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater
+                                        if M28UnitInfo.IsUnitUnderwater(oUnit) or oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater; also messes with megalith targeting priorities
                                             M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs0EA'..iWaterZone)
                                         else
                                             M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs1EA'..iWaterZone)
@@ -1506,7 +1506,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                         end
                                         if bHaveLandZoneNearby then
                                             if bDebugMessages == true then LOG(sFunctionRef..': will proceed to land for Exp instead of moving') end
-                                            if oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater
+                                            if M28UnitInfo.IsUnitUnderwater(oUnit) or oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater; also messes with megalith targeting priorities
                                                 M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs2aEA'..iWaterZone)
                                             else
                                                 M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs2bEA'..iWaterZone)
@@ -1525,7 +1525,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                                     end
                                                 end
                                             end
-                                            if bNearbySignificantValueEnemy and (not(M28UnitInfo.IsUnitUnderwater(oUnit)) or (oUnit[M28UnitInfo.refiAntiNavyRange] >= 30 and oUnit.UnitId == 'xrl0403')) then
+                                            if bNearbySignificantValueEnemy and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then --Attackmove messes with fatboy and megalith tareting when underwater, e.g. causes them to get stuck not moving, and to not target right weapon priorities
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Significant value enemy in our DF range so will attack-move to the amphibious destination') end
                                                 M28Orders.IssueTrackedAggressiveMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAMToLZ'..iLZToSupport..'Fr'..iWaterZone)
                                             else
@@ -1553,7 +1553,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                 local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
                                 if iDistToLastOrder <= 125 then
                                     --Fatboy - move instead of attack-move or it can get stuck underwater
-                                    if oUnit.UnitId == 'uel0401' then
+                                    if M28UnitInfo.IsUnitUnderwater(oUnit) or oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater; also messes with megalith targeting priorities
                                         M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs3EA'..iWaterZone)
                                     else
                                         --M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) <= 125 then
@@ -1575,7 +1575,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                     if bHaveLandZoneNearby then
                                         if bDebugMessages == true then LOG(sFunctionRef..': will proceed to land for Exp instead of consolidating') end
                                         --fatboy can get stuck underwater with attackmove so move instead
-                                        if oUnit.UnitId == 'uel0401' then
+                                        if M28UnitInfo.IsUnitUnderwater(oUnit) or oUnit.UnitId == 'uel0401' then --dont want fatboy stuck underwater; also messes with megalith targeting priorities
                                             M28Orders.IssueTrackedMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs5EA'..iWaterZone)
                                         else
                                             M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], iOrderReissueDistToUse, false, 'NACs6EA'..iWaterZone)
@@ -4938,9 +4938,11 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         else
             --Naval AA - Are we close to an enemy unit, and the rally point we would be using isn't in the opposite direction?
             local bMovedInOppositeDirectionInstead = false
+            if bDebugMessages == true then LOG(sFunctionRef..': Will run to rally unless takes us nearer nearest enemy, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]='..(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) or 'nil')) end
             if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
                 local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
                 local iAngleToEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': iAngleToRally='..iAngleToRally..'; iAngleToEnemy='..iAngleToEnemy..'; Angle dif='..M28Utilities.GetAngleDifference(iAngleToRally, iAngleToEnemy)) end
                 if M28Utilities.GetAngleDifference(iAngleToRally, iAngleToEnemy) <= 65 then
                     local tRunFromEnemyPosition = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToEnemy + 180, 15, true, false, M28Map.bIsCampaignMap)
                     if M28Utilities.IsTableEmpty(tRunFromEnemyPosition) == false then
@@ -4948,7 +4950,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering running away from nearest enemy, Pond of run position='..( M28Map.tPondBySegment[iRunSegmentX][iRunSegmentZ] or 'nil')..'; iPond='..(iPond)) end
                         if M28Map.tPondBySegment[iRunSegmentX][iRunSegmentZ] == iPond then
                             bMovedInOppositeDirectionInstead = true
-                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iResisueOrderDistanceHover, false, (sOrderDesc or 'Run')..'Aw'..iWaterZone)
+                            M28Orders.IssueTrackedMove(oUnit, tRunFromEnemyPosition, iResisueOrderDistanceHover, false, (sOrderDesc or 'Run')..'Aw'..iWaterZone)
                         end
                     end
                 end
@@ -5030,7 +5032,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
             if not(oUnit.Dead) then --to stop rare error
                 --Run if within 30 of being in range of enemy combat
                 if bDebugMessages == true then
-                    LOG(sFunctionRef..': MAA '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' - checking if is too close to enemy, is close='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], iRunThreshold, iTeam, true                    ,nil                        ,nil                            ,nil                                        ,nil                                    ,true))..'; iRunThreshold='..iRunThreshold..'; will run back if are too close; will list out enemy units and distance to us in a moment; Is unit too close to T2 arti='..tostring(DoesUnitWantToRunFromT2Arti(oUnit, 10)))
+                    LOG(sFunctionRef..': MAA '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' - checking if is too close to enemy, is close='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], iRunThreshold, iTeam, true                    ,nil                        ,nil                            ,nil                                        ,nil                                    ,true))..'; iRunThreshold='..iRunThreshold..'; will run back if are too close; will list out enemy units and distance to us in a moment; Is unit too close to T2 arti='..tostring(DoesUnitWantToRunFromT2Arti(oUnit, 10))..'; bHaveNearbyWaterEnemies='..tostring(bHaveNearbyWaterEnemies))
                     if bHaveNearbyWaterEnemies then
                         for iEnemy, oEnemy in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
                             LOG('oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF r ange='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; Dist to this MAA unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Actual distance using actual position='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy:GetPosition()))
@@ -5045,9 +5047,9 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                         end
                     end
                 end
-                --                      CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                             iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
-                if (bHaveNearbyWaterEnemies and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], iRunThreshold, iTeam, true                    ,nil                        ,oUnit                            ,nil                                        ,nil                                    ,true))
-                        or (bHaveNearbyLandUnits and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyLandToAvoid, iRunThreshold, iTeam, true                    ,nil                        ,oUnit                            ,nil                                        ,nil                                    ,true)) then
+                --                                              CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                             iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
+                if (bHaveNearbyWaterEnemies and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], iRunThreshold, iTeam, true                    ,nil                        ,nil                            ,oUnit                                        ,nil                                    ,true))
+                    or (bHaveNearbyLandUnits and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyLandToAvoid, iRunThreshold, iTeam, true                    ,nil                        ,nil                            ,oUnit                                        ,nil                                    ,true)) then
                     RetreatUnitTowardsNavalOrAmphibiousRally(oUnit, 'RunDF')
                 else
                     --Check not in range of T2 arti

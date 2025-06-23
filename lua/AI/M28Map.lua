@@ -561,6 +561,8 @@ tPondDetails = {}
 
             --T3 arti (same ref used for LZ and WZ):
             subrefiIneffectiveArtiShotCount = 'T3ArtC' --Every time t3 arti fires a shot at a zone this increases, when it does notable damage this decreases
+            refoLastNavalFacAssisted = 'LstNFa' --last time we gave an order to assist a naval fac it was this one
+            refiHighestNavalFacAssistBP = 'LstNVbp' --Highest amount of BP we have used to assist last naval fac
 
             --subrefTScoutsTravelingHere - uses same variable as land zone
             --subrefAlliedACU --Uses same variable as land zone

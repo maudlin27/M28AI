@@ -368,8 +368,10 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                     tMobileLandAndGunshipsInArea = EntityCategoryFilterDown(M28UnitInfo.refCategoryGunship, tAllUnitsInArea)
                     bDontCheckIfFriendlyGunships = false --we get friendly gunships to split up via separate logic
                     iTimeToRun = math.max(iTimeToRun + 1.5, 5.5) --v68 - increased time from iTimeToRun, 3.5 due to issue with ahwassa bomb damage being spread over time
-                    table.insert(M28Air.tiRecentExpBomberTargets, {tBombTarget[1], tBombTarget[2], tBombTarget[3]})
+                    table.insert(M28Air.tiRecentExpBomberTargets, {tBombTarget[1], tBombTarget[2], tBombTarget[3]}) --NOTE: GetTimeForExpBomberToTurnToRally assumes this is updated here (i.e. called via fork thread so this code runs after GetTimeForExpBomberToTurnToRally)
                     ForkThread(M28Air.RemoveFirstExpBomberTarget, 10)
+                    --also track last target
+                    --oBomber[M28Air.refiExpLastBombTarget] = {tBombTarget[1], tBombTarget[2], tBombTarget[3]}
                 else
                     tMobileLandAndGunshipsInArea = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileLand - categories.EXPERIMENTAL + M28UnitInfo.refCategoryGunship, tAllUnitsInArea)
                 end
@@ -655,8 +657,9 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                     --If we are a large unit then only dodge if will be a while for the shot to hit
                                     local oBP = oTarget:GetBlueprint()
                                     local iAverageSize = (oBP.SizeX + oBP.SizeZ) * 0.5
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oTarget))..'; SizeY='..oBP.SizeY..'; Terrain height='..GetTerrainHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3])..'; Surface height='..GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3])..'; water height='..M28Map.iMapWaterHeight..'; aoe='..(oWeaponBP.DamageRadius or 'nil')..'; Unit speed='..oBP.Physics.MaxSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..';  math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)='.. math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)) end
-                                    if iAverageSize < 0.89 or (iTimeUntilImpact > math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed) and (iTimeUntilImpact >= 2 or not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)))) then
+                                    local iExpectedTimeWanted = math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oTarget))..'; SizeY='..oBP.SizeY..'; Terrain height='..GetTerrainHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3])..'; Surface height='..GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3])..'; water height='..M28Map.iMapWaterHeight..'; aoe='..(oWeaponBP.DamageRadius or 'nil')..'; oTarget max speed='..oBP.Physics.MaxSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..'; iExpectedTimeWanted='..iExpectedTimeWanted..'; speed of oTarget='..M28UnitInfo.GetUnitSpeed(oTarget)) end
+                                    if iAverageSize < 0.89 or ((iTimeUntilImpact >= 2 or not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)) and (iTimeUntilImpact > iExpectedTimeWanted) or (oTarget and iTimeUntilImpact >= 1.2 and oWeaponBP.Damage >= 300 and iTimeUntilImpact + 0.3 > iExpectedTimeWanted and oBP.Physics.MaxSpeed >= 4 and M28UnitInfo.GetUnitSpeed(oTarget) >= 2.5))) then
                                         --Are we not underwater?
                                         if not(M28UnitInfo.IsUnitUnderwater(oTarget)) then
                                             --If dealing with an ACU then drastically reduce the dodge time so we can overcharge if we havent recently and have enemies in range and enough power
