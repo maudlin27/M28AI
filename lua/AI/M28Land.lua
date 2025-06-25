@@ -8486,8 +8486,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 else
                                                     local bMoveTowardsBaseInstead = false
                                                     local iAngleToBase
+                                                    local iAngleToNearestEnemy
                                                     if tMoveTowardsBaseRetreatPoint then --If this is not nil then it means the rally point will take us a different angle to the nearest friendly base, which might cause us to move closer/within range of enemy units
-                                                        local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())
+                                                        iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())
                                                         iAngleToBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
                                                         if 180 - M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToBase) <= 45 then
                                                             bMoveTowardsBaseInstead = true
@@ -8510,14 +8511,27 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             end
                                                         end
                                                     else
-                                                        if bDebugMessages == true then
-                                                            LOG(sFunctionRef..': Will retreat towards rally point, tRallyPoint='..repru(tRallyPoint)..'; Unit position='..repru(oUnit:GetPosition())..'; Unit special micro='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; last order position='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]))
-                                                            --M28Utilities.DrawLocation(tRallyPoint)
+                                                        if not(iAngleToNearestEnemy) and oNearestEnemyToFriendlyBase then iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) end
+                                                        local bRunFromNearestEnemy = false
+                                                        if iAngleToNearestEnemy then
+                                                            local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will retreat towards rally point unless takes us towards nearest enemy, iAngleToNearestEnemy='..(iAngleToNearestEnemy or 'nil')..'; iAngleToRally='..iAngleToRally) end
+                                                            if M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestEnemy) <= 90 then
+                                                                bRunFromNearestEnemy = true
+                                                                RunFromEnemy(oUnit, oNearestEnemyToFriendlyBase, iTeam, iPlateau, 10)
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Will run from the enemy closest to our base') end
+                                                            end
                                                         end
-                                                        if (oUnit[M28UnitInfo.refbWeaponUnpacks] or not(oUnit[M28UnitInfo.refbCanKite])) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 13 then
-                                                            M28Orders.IssueTrackedAggressiveMove(oUnit, tRallyPoint, 6, false, sRetreatMessage..iLandZone)
-                                                        else
-                                                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, sRetreatMessage..iLandZone)
+                                                        if not(bRunFromNearestEnemy) then
+                                                            if bDebugMessages == true then
+                                                                LOG(sFunctionRef..': Will retreat towards rally point, tRallyPoint='..repru(tRallyPoint)..'; Unit position='..repru(oUnit:GetPosition())..'; Unit special micro='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; last order position='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]))
+                                                                --M28Utilities.DrawLocation(tRallyPoint)
+                                                            end
+                                                            if (oUnit[M28UnitInfo.refbWeaponUnpacks] or not(oUnit[M28UnitInfo.refbCanKite])) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 13 then
+                                                                M28Orders.IssueTrackedAggressiveMove(oUnit, tRallyPoint, 6, false, sRetreatMessage..iLandZone)
+                                                            else
+                                                                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, sRetreatMessage..iLandZone)
+                                                            end
                                                         end
                                                     end
                                                 end
