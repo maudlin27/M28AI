@@ -2289,6 +2289,25 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                             if iFactoryTankLC >= 5 and (iIndirectLC == 0 or iIndirectLC * 8 < iFactoryTankLC) then
                                 iCategoryToGet = M28UnitInfo.refCategoryIndirect
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get indirect fire category') end
+                            elseif iFactoryTankLC >= 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+                                local iPDThreat = 0
+                                for _, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                                    iPDThreat = iPDThreat + iThreat
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': considering if Wamt indirect fire to support our PD (from enemy IF), iPDThreat='..iPDThreat..'; Mobile IF='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0)) end
+                                if iPDThreat > 0 and (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) == 0 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] < 0.1 * iPDThreat and iFactoryTankLC >= 2 * iIndirectLC) then
+                                    iCategoryToGet = M28UnitInfo.refCategoryIndirect
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will get indirect fire to protet pd') end
+                                end
+                            end
+                        elseif not(bDontGetCombat) and (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) == 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+                            local iPDThreat = 0
+                            for _, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                                iPDThreat = iPDThreat + iThreat
+                            end
+                            if iPDThreat > 0 and (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) == 0 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] < 0.1 * iPDThreat and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryDFTank) >= M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect)) then
+                                iCategoryToGet = M28UnitInfo.refCategoryIndirect
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will get indirect fire to protet pd') end
                             end
                         end
                         if not(bDontGetCombat) and (iTankLC < 3 or
