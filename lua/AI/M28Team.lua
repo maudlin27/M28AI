@@ -5661,3 +5661,19 @@ function MonitorEnemyTeleportUpgrade(oACU, iTeam, sEnhancement)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function ConsiderDelayedMexDetection(oMex)
+    WaitSeconds(30) --Competent human will be able to infer a mex is built within this timeframe typically
+    if M28UnitInfo.IsUnitValid(oMex) then
+        local oBuiltBrain = oMex:GetAIBrain()
+        local tTeamsUpdated = {}
+        for iBrain, oBrain in tTeamData[oBuiltBrain.M28Team][subreftoEnemyBrains] do
+            if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                tTeamsUpdated[oBrain.M28Team] = true
+                if not(oMex[M28UnitInfo.reftbConsideredForAssignmentByTeam][oBrain.M28Team]) then
+                    AssignUnitToLandZoneOrPond(oBrain, oMex, false, false, true)
+                end
+            end
+        end
+    end
+end
