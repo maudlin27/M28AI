@@ -7728,7 +7728,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     --Do a detailed check based on skirmisher enemies that are close to being in range of the closest enemy unit
                                     local iMassOfNearbySkirmisherEnemies = 0
                                     for iEnemy, oEnemy in tSkirmisherEnemies do
-                                        if not(oEnemy.Dead) and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oNearestEnemyToFriendlyBase) - oEnemy[M28UnitInfo.refiCombatRange] <= 30 then
+                                        if not(oEnemy.Dead) and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) - (oEnemy[M28UnitInfo.refiCombatRange] or 0) <= 30 then
                                             iMassOfNearbySkirmisherEnemies = iMassOfNearbySkirmisherEnemies + (oEnemy[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oEnemy))
                                         end
                                     end
