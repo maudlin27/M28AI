@@ -6533,7 +6533,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                                 --Have put a weapon event <=6s to try and cover the scenario where megalith is trying to retreat back but all the enemy units have gotten bheind it and it ends up unable to fire (havent actually seen in practice, so is a preemptive change)
                                                                 if iDistToNearestEnemy >= (oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 0) or (EntityCategoryContains(categories.TECH3, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) <= 6 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.EXPERIMENTAL, tLZTeamData[M28Map.reftoNearestDFEnemies])))) then
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Want to do megalith retreat micro for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                                                                    if M28Micro.MegalithRetreatMicro(oUnit, tAmphibiousRallyPoint, tLZTeamData[M28Map.reftClosestFriendlyBase], oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+                                                                    if M28Micro.MegalithRetreatMicro(oUnit, tAmphibiousRallyPoint, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
                                                                         bUseNormalLogic = false
                                                                     end
                                                                 end
@@ -6548,23 +6548,16 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                                 if M28UnitInfo.GetCombatThreatRating(tNearbyEnemiesInOurRange, true, false) >= 5000 then
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and retreat megalith with micro unless we are almost in range of a significant enemy force') end
                                                                     local toEnemiesAlmostInRange = {}
-                                                                    local iClosestEnemyDist = 10000
-                                                                    local oClosestEnemyToMegalith
                                                                     for iEnemy, oEnemy in tNearbyEnemiesInOurRange do
                                                                         if (oEnemy[M28UnitInfo.refiCombatRange] or 0) > 0 then
-                                                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
-                                                                            if iCurDist < oEnemy[M28UnitInfo.refiCombatRange] + 3 then
+                                                                            if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) < oEnemy[M28UnitInfo.refiCombatRange] + 3 then
                                                                                 table.insert(toEnemiesAlmostInRange, oEnemy)
-                                                                                if iCurDist < iClosestEnemyDist then
-                                                                                    iClosestEnemyDist = iCurDist
-                                                                                    oClosestEnemyToMegalith = oEnemy
-                                                                                end
                                                                             end
                                                                         end
                                                                     end
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': Mass cost of enemies almost in range='..M28UnitInfo.GetMassCostOfUnits(toEnemiesAlmostInRange, true)) end
                                                                     if M28Utilities.IsTableEmpty(toEnemiesAlmostInRange) or M28UnitInfo.GetMassCostOfUnits(toEnemiesAlmostInRange, true) < 10000 then
-                                                                        if M28Micro.MegalithRetreatMicro(oUnit, tAmphibiousRallyPoint, tLZTeamData[M28Map.reftClosestFriendlyBase], oClosestEnemyToMegalith) then
+                                                                        if M28Micro.MegalithRetreatMicro(oUnit, tAmphibiousRallyPoint, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
                                                                             bUseNormalLogic = false
                                                                         end
                                                                     else

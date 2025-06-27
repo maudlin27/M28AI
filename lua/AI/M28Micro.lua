@@ -1730,9 +1730,9 @@ function DelayedUnitMove(oUnit, tMoveDirection, iMoveThreshold, bAddToExistingQu
     end
 end
 
-function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClosestEnemyUnit)
+function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase)
     --Tries to retreat the unit, returns false if couldnt find suitable retreat location
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MegalithRetreatMicro'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1751,67 +1751,35 @@ function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClosest
 
 
         if M28Utilities.GetAngleDifference(iAngleToRally, iAngleIfMoving) <= 60 or M28Utilities.GetAngleDifference(iAngleToClosestBase, iAngleIfMoving) <= 60 then
-            --Do we have an enemy in our range that we are near facing?
-            local bFacingEnemy = false
-            if M28UnitInfo.IsUnitValid(oClosestEnemyUnit) and M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyUnit:GetPosition())) <= 40 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Angle to closest enemy='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyUnit:GetPosition())..'; iFacingDirection='..iFacingDirection..'; ANgle dif='..M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyUnit:GetPosition()))) end
-                bFacingEnemy = true
-            else
-                --Check all nearby enemies
-                local tNearbyEnemyUnits = oUnit:GetAIBrain():GetUnitsAroundPoint(categories.DIRECTFIRE + categories.INDIRECTFIRE + M28UnitInfo.refCategoryExperimentalLevel - categories.AIR * categories.MOBILE, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange], 'Enemy')
-                if M28Utilities.IsTableEmpty(tNearbyEnemyUnits) == false then
-                    for iEnemy, oEnemy in tNearbyEnemyUnits do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Angle to enemy='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition())..'; iFacingDirection='..iFacingDirection..'; ANgle dif='..M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition()))) end
-                        if M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition())) <= 40 and not(M28UnitInfo.IsUnitUnderwater(oEnemy)) then
-                            bFacingEnemy = true
-                            break
+            local iDistanceToMove = 8 --worked ok with value of 5
+            tMoveDirection = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleIfMoving, iDistanceToMove, true, false, true)
+            if M28Utilities.IsTableEmpty(tMoveDirection) == false then
+                --Looks like megalith has to be stationery or reversing for this to work?
+                local tCurOrder = oUnit[M28Orders.reftiLastOrders][1]
+                local bClearAndWait = false
+                if tCurOrder then
+                    if tCurOrder[M28Orders.refiOrderIssueMove] == M28Orders.refiOrderIssueMove and M28Utilities.IsTableEmpty(tCurOrder[M28Orders.subreftOrderPosition]) == false then
+                        if M28Utilities.GetDistanceBetweenPositions(tMoveDirection, tCurOrder[M28Orders.subreftOrderPosition]) >= iDistanceToMove then
+                            bClearAndWait = true
                         end
+                    else
+                        bClearAndWait = true
                     end
+
                 end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': bFacingEnemy='..tostring(bFacingEnemy or false)) end
-            if bFacingEnemy then
-                local iDistanceToMove = 8 --worked ok with value of 5
-                tMoveDirection = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleIfMoving, iDistanceToMove, true, false, true)
-                if M28Utilities.IsTableEmpty(tMoveDirection) == false then
-                    local t60thpoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleIfMoving, iDistanceToMove * 0.6, true, false, true)
-                    if M28Utilities.IsTableEmpty(t60thpoint) == false then
-                        --If there are buildings around here then megalith wont go backwards but instead will turn around
-                        local tUnitsAroundDestination = GetUnitsInRect(M28Utilities.GetRectAroundLocation(t60thpoint, 5))
-                        if M28Utilities.IsTableEmpty(tUnitsAroundDestination) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tUnitsAroundDestination)) then
-
-
-                            --Looks like megalith has to be stationery or reversing for this to work?
-                            local tCurOrder = oUnit[M28Orders.reftiLastOrders][1]
-                            local bClearAndWait = false
-                            if tCurOrder then
-                                if tCurOrder[M28Orders.refiOrderIssueMove] == M28Orders.refiOrderIssueMove and M28Utilities.IsTableEmpty(tCurOrder[M28Orders.subreftOrderPosition]) == false then
-                                    if M28Utilities.GetDistanceBetweenPositions(tMoveDirection, tCurOrder[M28Orders.subreftOrderPosition]) >= iDistanceToMove then
-                                        bClearAndWait = true
-                                    end
-                                else
-                                    bClearAndWait = true
-                                end
-
-                            end
-                            if bClearAndWait then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will clear orders then do delayed move') end
-                                M28Orders.IssueTrackedClearCommands(oUnit)
-                                ForkThread(DelayedUnitMove, oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MegDelM', false, 0.75) --tried with 0.25s delay and led to megalith turning around; 0.75 worked in the replay where megalith moved in a circle before; if find it doesnt work in other caess though the nincrease to 1s and add unit micro tracking
-                            else
-                                if bDebugMessages == true then LOG(sFunctionRef..': Are already trying to kite so will just check if move order needs updating') end
-                                M28Orders.IssueTrackedMove(oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MegMiRM', false)
-                            end
-                            bGivenOrder = true
-                        else
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have buildings around the target destination so dont want to try and move there') end
-                        end
-                    end
+                if bClearAndWait then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will clear orders then do delayed move') end
+                    M28Orders.IssueTrackedClearCommands(oUnit)
+                    ForkThread(DelayedUnitMove, oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MegDelM', false, 0.75) --tried with 0.25s delay and led to megalith turning around; 0.75 worked in the replay where megalith moved in a circle before; if find it doesnt work in other caess though the nincrease to 1s and add unit micro tracking
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Are already trying to kite so will just check if move order needs updating') end
+                    M28Orders.IssueTrackedMove(oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MegMiRM', false)
                 end
+                bGivenOrder = true
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bGivenOrder='..tostring(bGivenOrder or false)..'; tMoveDirection='..repru(tMoveDirection)..'; iFacingDirection='..iFacingDirection..'; iAngleToRally='..iAngleToRally..'; iAngleToClosestBase='..iAngleToClosestBase..'; iAngleIfMoving='..iAngleIfMoving..'; oClosestEnemyUnit='..(oClosestEnemyUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyUnit) or 'nil')..'; Time since last fired weapon='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time='..GetGameTimeSeconds()) end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bGivenOrder='..tostring(bGivenOrder or false)..'; tMoveDirection='..repru(tMoveDirection)..'; iFacingDirection='..iFacingDirection..'; iAngleToRally='..iAngleToRally..'; iAngleToClosestBase='..iAngleToClosestBase..'; iAngleIfMoving='..iAngleIfMoving..'; Time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bGivenOrder
 end
