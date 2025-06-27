@@ -1769,7 +1769,7 @@ end
 
 function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClosestEnemyUnit)
     --Tries to retreat the unit, returns false if couldnt find suitable retreat location
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MegalithRetreatMicro'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1854,6 +1854,166 @@ function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClosest
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bGivenOrder='..tostring(bGivenOrder or false)..'; tMoveDirection='..repru(tMoveDirection)..'; iFacingDirection='..iFacingDirection..'; iAngleToRally='..iAngleToRally..'; iAngleToClosestBase='..iAngleToClosestBase..'; iAngleIfMoving='..iAngleIfMoving..'; oClosestEnemyUnit='..(oClosestEnemyUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyUnit) or 'nil')..'; Time since last fired weapon='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time='..GetGameTimeSeconds()) end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bGivenOrder
+end
+
+function MonkeylordRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClosestEnemyUnit)
+    --Tries to retreat the unit, returns false if couldnt find suitable retreat location
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MonkeylordRetreatMicro'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bGivenOrder = false
+
+    if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+
+        --Only consider applying micro if moving in opposite direction to that which we are facing should result in us moving in similar direction to rally point or closest base
+        local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
+        local tRallyOrBaseToGoTo
+        local iAngleToRallyOrBase
+        local iAngleDifToRallyOrBase
+        local iFacingDirection = M28UnitInfo.GetUnitFacingAngle(oUnit)
+        local iAngleIfMoving = iFacingDirection + 180
+        if iAngleIfMoving > 360 then iAngleIfMoving = iAngleIfMoving - 360 end
+        local tMoveDirection
+
+
+        iAngleDifToRallyOrBase = M28Utilities.GetAngleDifference(iAngleToRally, iAngleIfMoving)
+        if iAngleDifToRallyOrBase <= 60 then
+            tRallyOrBaseToGoTo = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]}
+            iAngleToRallyOrBase = iAngleToRally
+        else
+            local iAngleToClosestBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tClosestFriendlyBase)
+            iAngleDifToRallyOrBase = M28Utilities.GetAngleDifference(iAngleToClosestBase, iAngleIfMoving)
+            if iAngleDifToRallyOrBase <= 60 then
+                tRallyOrBaseToGoTo = {tClosestFriendlyBase[1], tClosestFriendlyBase[2], tClosestFriendlyBase[3]}
+                iAngleToRallyOrBase = iAngleToClosestBase
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iAngleToRallyOrBase='..(iAngleToRallyOrBase or 'nil')..'; iAngleDifToRallyOrBase='..(iAngleDifToRallyOrBase or 'nil')..'; iAngleIfMoving='..iAngleIfMoving..'; tRallyOrBaseToGoTo='..repru(tRallyOrBaseToGoTo)..'; oUnit:GetPosition()='..repru(oUnit:GetPosition())) end
+        if tRallyOrBaseToGoTo then
+            --Do we have an enemy in our range that we are near facing?
+            local iMaxAngleDif
+            if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) <= 1 then --incase we dont have proper time betweenshots due to laser and bolters being dif
+                iMaxAngleDif = 50
+            else
+                iMaxAngleDif = 40
+            end
+            local bFacingEnemy = false
+            if M28UnitInfo.IsUnitValid(oClosestEnemyUnit) and M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyUnit:GetPosition())) <= iMaxAngleDif then
+                if bDebugMessages == true then LOG(sFunctionRef..': Angle to closest enemy='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyUnit:GetPosition())..'; iFacingDirection='..iFacingDirection..'; ANgle dif='..M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyUnit:GetPosition()))) end
+                bFacingEnemy = true
+            else
+                --Check all nearby enemies
+                local tNearbyEnemyUnits = oUnit:GetAIBrain():GetUnitsAroundPoint(categories.DIRECTFIRE + categories.INDIRECTFIRE + M28UnitInfo.refCategoryExperimentalLevel - categories.AIR * categories.MOBILE, oUnit:GetPosition(), math.max(64, oUnit[M28UnitInfo.refiDFRange]) + 12, 'Enemy')
+                if M28Utilities.IsTableEmpty(tNearbyEnemyUnits) == false then
+                    for iEnemy, oEnemy in tNearbyEnemyUnits do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Angle to enemy='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition())..'; iFacingDirection='..iFacingDirection..'; ANgle dif='..M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition()))..'; iMaxAngleDif='..iMaxAngleDif) end
+                        if M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition())) <= iMaxAngleDif and not(M28UnitInfo.IsUnitUnderwater(oEnemy)) then
+                            bFacingEnemy = true
+                            break
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bFacingEnemy='..tostring(bFacingEnemy or false)) end
+            if bFacingEnemy then
+                local iDistanceToMove = 8
+                --Monkeylord - want to move/rotate to one side to move backwards
+                local iAngleAdjustmentWanted = 20
+                --base angle dif is iAngleDifToRallyOrBase
+                --NOTE: In contrast to normally where would want to move with the smallest angle dif, here we want to move with the biggest angle dif, since that should cause us to then turn in the opposite direction
+                if M28Utilities.GetAngleDifference(iAngleIfMoving + iAngleAdjustmentWanted, iAngleToRallyOrBase) < iAngleDifToRallyOrBase + iAngleAdjustmentWanted then
+                    iAngleAdjustmentWanted = iAngleAdjustmentWanted * -1
+                end
+                iAngleIfMoving = iAngleIfMoving + iAngleAdjustmentWanted
+
+                tMoveDirection = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleIfMoving, iDistanceToMove, true, false, true)
+                if M28Utilities.IsTableEmpty(tMoveDirection) == false then
+                    --if bDebugMessages == true then M28Utilities.DrawLocation(tMoveDirection) end
+                    local t60thpoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleIfMoving, iDistanceToMove * 0.6, true, false, true)
+                    if M28Utilities.IsTableEmpty(t60thpoint) == false then
+                        --If there are buildings around here then megalith wont go backwards but instead will turn around; so a good chance monkeylord will also suffer problems
+                        local tUnitsAroundDestination = GetUnitsInRect(M28Utilities.GetRectAroundLocation(t60thpoint, 5))
+                        if M28Utilities.IsTableEmpty(tUnitsAroundDestination) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tUnitsAroundDestination)) then
+
+
+                            local tCurOrder = oUnit[M28Orders.reftiLastOrders][1]
+                            local bClearAndWait = false
+                            --If monkeylord is advancing and then starts doing this micro, it causes it to keep moving forwards when turning
+                            if tCurOrder then
+                                if tCurOrder[M28Orders.refiOrderIssueMove] == M28Orders.refiOrderIssueMove and M28Utilities.IsTableEmpty(tCurOrder[M28Orders.subreftOrderPosition]) == false then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Monkeylord last order was a move order, dist from cur position to order position='..M28Utilities.GetDistanceBetweenPositions(tMoveDirection, tCurOrder[M28Orders.subreftOrderPosition])..'; Monkeylord speed='..M28UnitInfo.GetUnitSpeed(oUnit)) end
+                                    if M28Utilities.GetDistanceBetweenPositions(tMoveDirection, tCurOrder[M28Orders.subreftOrderPosition]) > iDistanceToMove then
+                                        bClearAndWait = true
+                                    end
+                                else
+                                    bClearAndWait = true
+                                end
+
+                            end
+                            if not(bClearAndWait) then
+                                --Check monkeylord speed and direction
+                                local iVelocityX, iVelocityY, iVelocityZ = oUnit:GetVelocity()
+                                --What direction do we want to be moving? e.g. if enemy is below us then we want velocityZ to be negative (or almost 0); if enemy is to our left we want velocityX to be positive (or almost 0)
+                                --So vertical: if angle to retreat location is 270+ or <= 90 then we want to be moving up (so negative Z); will ignore angles close to neutral re this though
+                                local iThresholdWhereIgnore = 0.03 --when having monkeylord retreat north-east the highest value when it was retreating correctly was 0.094 in one direction, while other was 0.05 at the time; so if it is less than 0.03 then will ignore, otherwise will want correct signage
+                                if math.abs(iVelocityZ) > iThresholdWhereIgnore then
+                                    if iAngleToRallyOrBase <= 80 or iAngleToRallyOrBase >= 280 then
+                                        --Want negative Z or almost 0
+                                        if iVelocityZ > 0 then
+                                            bClearAndWait = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Z movement is in the wrong direction (we are going south and want to go north)') end
+                                        end
+                                    elseif iAngleToRallyOrBase <= 260 and iAngleToRallyOrBase >= 100 then --we want to go down, so want Z to be positive
+                                        if iVelocityZ < 0 then
+                                            bClearAndWait = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Z movement is in the wrong direction (we are going north and want to go south)') end
+                                        end
+                                    end
+                                end
+                                if not(bClearAndWait) and math.abs(iVelocityX) > iThresholdWhereIgnore then
+                                    if iAngleToRallyOrBase >= 10 and iAngleToRallyOrBase <= 170 then
+                                        --Want to move east, i.e. want X to be positive
+                                        if iVelocityX < 0 then
+                                            bClearAndWait = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': X movement is in wrong direction (we are going west when want to go east') end
+                                        end
+                                    elseif iAngleToRallyOrBase >= 190 and iAngleToRallyOrBase <= 350 then
+                                        --Want to move west, i.e. want X to be negative
+                                        if iVelocityX > 0 then
+                                            bClearAndWait = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': X movement is in wrong direction (we are going east when want to go west') end
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iVelocityX='..iVelocityX..'; iVelocityZ='..iVelocityZ..'; bClearAndWait after checks='..tostring(bClearAndWait)) end
+                            end
+                            if bClearAndWait then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will clear orders then do delayed move') end
+                                M28Orders.IssueTrackedClearCommands(oUnit)
+                                ForkThread(DelayedUnitMove, oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MonkDelM', false, 0.75) --tried with 0.25s delay and led to megalith turning around; 0.75 worked in the replay where megalith moved in a circle before; if find it doesnt work in other caess though the nincrease to 1s and add unit micro tracking
+                            else
+
+
+                                --Revise move direction
+
+
+                                if bDebugMessages == true then LOG(sFunctionRef..': will just check if move order needs updating') end
+                                M28Orders.IssueTrackedMove(oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MonMiRM', false)
+                                --end
+                                bGivenOrder = true
+                            end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have buildings around the target destination so dont want to try and move there') end
+                        end
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bGivenOrder='..tostring(bGivenOrder or false)..'; tMoveDirection='..repru(tMoveDirection)..'; iFacingDirection='..iFacingDirection..'; iAngleToRally='..iAngleToRally..'; iAngleIfMoving='..iAngleIfMoving..'; oClosestEnemyUnit='..(oClosestEnemyUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyUnit) or 'nil')..'; Time since last fired weapon='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; Time='..GetGameTimeSeconds()) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bGivenOrder

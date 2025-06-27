@@ -4264,7 +4264,7 @@ function WantToPauseSMD(oUnit, bCalledFromOnMissileBuilt)
         --If only SMLs are battleships with no nukes then stop at 1 missile for minor zones, or core zones with no enemy battleships within range
         local toBattleshipsToConsider
         for iNuke, oNuke in M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers] do
-            if not(oNuke.IsDead) then
+            if not(oNuke.Dead) then
                 if EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oNuke.UnitId) then
                     if oNuke:GetNukeSiloAmmoCount() > 0 then
                         bHaveEnoughSubjectToEco = false
