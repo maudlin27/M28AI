@@ -1789,8 +1789,14 @@ function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClosest
 
         if M28Utilities.GetAngleDifference(iAngleToRally, iAngleIfMoving) <= 60 or M28Utilities.GetAngleDifference(iAngleToClosestBase, iAngleIfMoving) <= 60 then
             --Do we have an enemy in our range that we are near facing?
+            local iMaxAngleDif
+            if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) <= oUnit[M28UnitInfo.refiTimeBetweenDFShots] then
+                iMaxAngleDif = 40
+            else
+                iMaxAngleDif = 30
+            end
             local bFacingEnemy = false
-            if M28UnitInfo.IsUnitValid(oClosestEnemyUnit) and M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyUnit:GetPosition())) <= 40 then
+            if M28UnitInfo.IsUnitValid(oClosestEnemyUnit) and M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyUnit:GetPosition())) <= iMaxAngleDif then
                 if bDebugMessages == true then LOG(sFunctionRef..': Angle to closest enemy='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyUnit:GetPosition())..'; iFacingDirection='..iFacingDirection..'; ANgle dif='..M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyUnit:GetPosition()))) end
                 bFacingEnemy = true
             else
@@ -1798,8 +1804,8 @@ function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClosest
                 local tNearbyEnemyUnits = oUnit:GetAIBrain():GetUnitsAroundPoint(categories.DIRECTFIRE + categories.INDIRECTFIRE + M28UnitInfo.refCategoryExperimentalLevel - categories.AIR * categories.MOBILE, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange], 'Enemy')
                 if M28Utilities.IsTableEmpty(tNearbyEnemyUnits) == false then
                     for iEnemy, oEnemy in tNearbyEnemyUnits do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Angle to enemy='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition())..'; iFacingDirection='..iFacingDirection..'; ANgle dif='..M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition()))) end
-                        if M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition())) <= 40 and not(M28UnitInfo.IsUnitUnderwater(oEnemy)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Angle to enemy='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition())..'; iFacingDirection='..iFacingDirection..'; ANgle dif='..M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition()))..'; iMaxAngleDif='..iMaxAngleDif) end
+                        if M28Utilities.GetAngleDifference(iFacingDirection, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemy:GetPosition())) <= iMaxAngleDif and not(M28UnitInfo.IsUnitUnderwater(oEnemy)) then
                             bFacingEnemy = true
                             break
                         end
