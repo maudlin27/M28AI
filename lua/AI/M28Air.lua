@@ -9593,11 +9593,18 @@ function GetWaterZoneForTransportToTravelTo(iTeam, oUnit)
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZData[M28Map.subrefMidpoint])
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering water zone '..iWaterZone..' with distance of '..iCurDist) end
                             if iCurDist < iClosestDist then
-                                --Is it safe to travel here?
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; iWaterZone='..iWaterZone..'; will see if safe to travel here, does enemy have AA threat='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, 0, iWaterZone, false, 60))) end
-                                if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, 0, iWaterZone, false, 60)) then
-                                    iClosestDist = iCurDist
-                                    iTargetWaterZone = iWaterZone
+                                local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                                if bDebugMessages == true then LOG(sFunctionRef..': Time since last engi drop='..(GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeLastDroppedEngi] or 0))..'; Want BP='..tostring(tWZTeamData[M28Map.subrefTbWantBP])..'; Time since last idle engi by tech='..repru(tWZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech])) end
+                                if not(tWZTeamData[M28Map.refiTimeLastDroppedEngi]) or GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastDroppedEngi] >= 200 then
+                                    --Do we have naval fac or multiple engis here already?
+                                    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) or tWZTeamData[M28Map.subrefTbWantBP] or (GetGameTimeSeconds() - math.max((tWZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][1] or 0), (tWZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][2] or 0), (tWZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][3] or 0)) >= 180) then
+                                        --Is it safe to travel here?
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; iWaterZone='..iWaterZone..'; will see if safe to travel here, does enemy have AA threat='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, 0, iWaterZone, false, 60))) end
+                                        if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, 0, iWaterZone, false, 60)) then
+                                            iClosestDist = iCurDist
+                                            iTargetWaterZone = iWaterZone
+                                        end
+                                    end
                                 end
                             end
                         end

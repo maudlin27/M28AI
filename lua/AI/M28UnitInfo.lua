@@ -815,6 +815,8 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     iMassMod = 0.95
                                 elseif EntityCategoryContains(refCategoryFrigate * categories.CYBRAN, oUnit.UnitId) then
                                     iMassMod = 1.05
+                                elseif oUnit.UnitId == 'url0402' then --Monkeylord - not great in a close up fight
+                                    iMassMod = 0.9
                                 else iMassMod = 1
                                 end
                             elseif EntityCategoryContains(refCategoryFatboy, oUnit.UnitId) then

@@ -3189,10 +3189,13 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                             end
                         end
 
+                        --Override techlevel to upgrade
+                        if iTechLevelToUpgrade >= 2 and not(M28Conditions.WantAnotherT3MexUpgrade(iM28Team)) then iTechLevelToUpgrade = 1 end
+
                         if bDebugMessages == true then LOG(sFunctionRef..': iTechLevelToUpgrade='..iTechLevelToUpgrade..'; tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]..'; bHaveSafeMexToUpgrade='..tostring(bHaveSafeMexToUpgrade or false)) end
                         if iTechLevelToUpgrade >= 1 then
                             if bHaveSafeMexToUpgrade then
-                                GetSafeMexToUpgrade(iM28Team)
+                                GetSafeMexToUpgrade(iM28Team, false, iTechLevelToUpgrade <= 1)
                             else
 
                                 --If dont have safe mex to upgrade - cycle through each brain looking for mex to upgrade
@@ -3294,19 +3297,25 @@ function AddPotentialUnitsToShortlist(toUnitShortlist, tPotentialUnits, bDontChe
     end
 end
 
-function GetSafeMexToUpgrade(iM28Team, bReturnIfSafeInsteadOfUpgrading)
+function GetSafeMexToUpgrade(iM28Team, bReturnIfSafeInsteadOfUpgrading, bDontUpgradeT2Plus)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetSafeMexToUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local toSafeUnitsToUpgrade = {}
     local tPotentialUnits
-    --First prioritise T1 mexes
-    local tiMexCategory = {[1] = M28UnitInfo.refCategoryT1Mex, [2]=M28UnitInfo.refCategoryT2Mex}
-    if M28Economy.bT3MexCanBeUpgraded then table.insert(tiMexCategory, M28UnitInfo.refCategoryT3Mex) end
+    local tiMexCategory
+    if bDontUpgradeT2Plus then
+        --Dont want to upgrade t2 mexes as we have enough upgrading already
+        tiMexCategory = {[1] = M28UnitInfo.refCategoryT1Mex}
+    else
+        --First prioritise T1 mexes
+        tiMexCategory = {[1] = M28UnitInfo.refCategoryT1Mex, [2]=M28UnitInfo.refCategoryT2Mex}
+        if M28Economy.bT3MexCanBeUpgraded then table.insert(tiMexCategory, M28UnitInfo.refCategoryT3Mex) end
+    end
     for iTech, iMexCategory in tiMexCategory do
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-            local tPotentialUnits = oBrain:GetListOfUnits(iMexCategory, false, true)
+            tPotentialUnits = oBrain:GetListOfUnits(iMexCategory, false, true)
             AddPotentialUnitsToShortlist(toSafeUnitsToUpgrade, tPotentialUnits)
         end
         if M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) == false then
@@ -3418,8 +3427,8 @@ function GetAnyMexOrFactoryToUpgrade(iM28Team)
 
     local toUnitsThatCouldUpgrade = {}
     local tPotentialUnits
-    local bPrioritiseFactory = false
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()) end
+    local bConsiderT3Mex = M28Conditions.WantAnotherT3MexUpgrade(iM28Team)
 
     --First consider any t1 factories
     for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
@@ -3450,7 +3459,11 @@ function GetAnyMexOrFactoryToUpgrade(iM28Team)
                 AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
             end --]]
         --end
-        tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryT2Mex, false, true)
+        if bConsiderT3Mex then
+            tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryT2Mex, false, true)
+        else
+            tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryT1Mex, false, true)
+        end
         AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
     end
     if M28Utilities.IsTableEmpty(toUnitsThatCouldUpgrade) then
@@ -3476,7 +3489,6 @@ function GetAnyMexOrFactoryToUpgrade(iM28Team)
         end
 
         --If still no units to upgrade, and have positive net mass income and at least 40% mass stored, then consider factory upgrades
-
     end
     if M28Utilities.IsTableEmpty(toUnitsThatCouldUpgrade) == false then
         local oUnitToUpgrade = M28Economy.GetBestUnitToUpgrade(toUnitsThatCouldUpgrade)
@@ -3717,7 +3729,7 @@ function ConsiderNormalUpgrades(iM28Team)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iCycleCount='..iCycleCount..'; bLookForMexNotHQ='..tostring(bLookForMexNotHQ)..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))..'; Team gross mass='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Lowest land fac tech='..tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]..'; Lowest air fac tech='..tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech]) end
                 if bLookForMexNotHQ then
-                    GetSafeMexToUpgrade(iM28Team)
+                    GetSafeMexToUpgrade(iM28Team, false, M28Conditions.WantAnotherT3MexUpgrade(iM28Team))
                     --Backup - if didnt find anything then get a HQ upgrade if we dont already ahve a HQ upgrade active
                     if bDebugMessages == true then LOG(sFunctionRef..': Tried to get a mex upgrade, tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]..'; iMassUpgradesAtLoopStart='..iMassUpgradesAtLoopStart) end
                     if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart then
@@ -3729,7 +3741,7 @@ function ConsiderNormalUpgrades(iM28Team)
                 else
                     GetSafeHQUpgrade(iM28Team)
                     if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart and (not(tTeamData[iM28Team][refbFocusOnT1Spam]) or tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.8) then
-                        GetSafeMexToUpgrade(iM28Team)
+                        GetSafeMexToUpgrade(iM28Team, false, M28Conditions.WantAnotherT3MexUpgrade(iM28Team))
                     end
                 end
                 --If failed to find a mex or HQ upgrade from above:
@@ -5660,4 +5672,20 @@ function MonitorEnemyTeleportUpgrade(oACU, iTeam, sEnhancement)
         if bDebugMessages == true then LOG(sFunctionRef..': End of loop at time='..GetGameTimeSeconds()..'; Is ACU valid='..tostring(M28UnitInfo.IsUnitValid(oACU))..'; oM28Brain.IsDefeated='..tostring(oM28Brain.IsDefeated or false)..'; Enemy has teleport='..tostring(tTeamData[iTeam][refbEnemyHasTeleport] or false)..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderDelayedMexDetection(oMex)
+    WaitSeconds(30) --Competent human will be able to infer a mex is built within this timeframe typically
+    if M28UnitInfo.IsUnitValid(oMex) then
+        local oBuiltBrain = oMex:GetAIBrain()
+        local tTeamsUpdated = {}
+        for iBrain, oBrain in tTeamData[oBuiltBrain.M28Team][subreftoEnemyBrains] do
+            if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                tTeamsUpdated[oBrain.M28Team] = true
+                if not(oMex[M28UnitInfo.reftbConsideredForAssignmentByTeam][oBrain.M28Team]) then
+                    AssignUnitToLandZoneOrPond(oBrain, oMex, false, false, true)
+                end
+            end
+        end
+    end
 end

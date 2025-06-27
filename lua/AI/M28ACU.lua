@@ -5535,10 +5535,29 @@ function AssistBuildingUpgradeOrStorageConstruction(iPlateauOrZero, iLandOrWater
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    --Consider assisting experimental if approaching enemy threat and experimental is a land or air experimental
 
     local oUnitToAssist
-    if M28Conditions.IsTableOfUnitsStillValid(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) then
+    local aiBrain = oACU:GetAIBrain()
+    local iTeam = aiBrain.M28Team
+    if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and (M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] or 0) >= 8000 then
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+            local tLandOrAirExperimentals = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryAirNonScout * categories.EXPERIMENTAL, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tLandOrAirExperimentals) == false then
+                local iHighestCompletion = 0
+                for iUnit, oUnit in tLandOrAirExperimentals do
+                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() < 1 then
+                        if oUnit:GetFractionComplete() > iHighestCompletion then
+                            iHighestCompletion = oUnit:GetFractionComplete()
+                            oUnitToAssist = oUnit
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will get ACU to assist experimental under construction, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()) end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if not(oUnitToAssist) and M28Conditions.IsTableOfUnitsStillValid(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) then
         local iHighestCompletion = 0
         local iHighestLowPriorityCompletion = 0
         local iCurCompletion
@@ -6174,7 +6193,12 @@ function GetACUOrder(aiBrain, oACU)
                             elseif bDebugMessages == true then LOG(sFunctionRef..': Will run to GE template')
                             end
                         end
-                    elseif DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and (not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7 or (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1.3 * M28Conditions.GetEnemyTeamActualMassIncome(iTeam) or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals], 80, iTeam, true, nil, nil, nil, nil, nil))))) then --and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
+                    elseif DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and
+                        (not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7
+                        or (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1.3 * M28Conditions.GetEnemyTeamActualMassIncome(iTeam)))
+                        or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 5000 and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals], 80, iTeam, true, nil, nil, nil, nil, nil)))
+
+                         then --and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
                         local tRallyPoint
                         local bConsiderMexesAndReclaim = false
                         if not(ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero)) then

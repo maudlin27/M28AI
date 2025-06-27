@@ -2235,6 +2235,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             M28Team.AssignUnitToLandZoneOrPond(oBrain, oJustBuilt, false, false, true)
                         end
                     end
+                    --Mex built by engineer - special case where player would be able to infer a mex has been built after a while
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
+                    ForkThread(M28Team.ConsiderDelayedMexDetection, oJustBuilt)
                 end
                 --Also update the name
                 if M28Config.M28ShowUnitNames then
