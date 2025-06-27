@@ -4313,3 +4313,29 @@ function WantToPauseSMD(oUnit, bCalledFromOnMissileBuilt)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function WantAnotherT3MexUpgrade(iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'WantAnotherT3MexUpgrade'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local bWantT3Mex
+    local iEnemyT3Mex = GetHighestOtherTeamT3MexCount(iTeam)
+    local iOurT3Mex = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0)
+
+    if iOurT3Mex < math.max(iEnemyT3Mex + 2, iOurT3Mex * 1.25) or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) then
+        bWantT3Mex = true
+    else
+        local tUpgradingT2Mexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryT2Mex, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes])
+        if M28Utilities.IsTableEmpty(tUpgradingT2Mexes) then
+            bWantT3Mex = true
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': We already ahve t2 mexes upgrading to t3, size of table='..table.getn(tUpgradingT2Mexes)..'; Our existing mex count by tech='..repru(M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech])) end
+            if table.getn(tUpgradingT2Mexes) < math.max(M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 1, 0.1*M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] + 0.5*M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3], math.min(1 + 10 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored], M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] / 2500)) then
+                bWantT3Mex = true
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to get another t3 mex at this stage, bWantT3Mex='..tostring(bWantT3Mex or false)..'; iEnemyT3Mex='..iEnemyT3Mex..'; iOurT3Mex='..iOurT3Mex..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bWantT3Mex
+end
