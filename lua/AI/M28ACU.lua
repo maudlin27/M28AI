@@ -3336,7 +3336,9 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    
+
+
+
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
         local iCurDist
@@ -3347,7 +3349,21 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
         local iDistThreshold
         if iOptionalDistThresholdOverride then iDistThreshold = iOptionalDistThresholdOverride
         else
-            if (oACU[refiUpgradeCount] or 0) > 0 then iDistThreshold = 70
+            if (oACU[refiUpgradeCount] or 0) > 0 then
+                iDistThreshold = 70
+                if oACU[refiUpgradeCount] >= 2 and (oACU[refiUpgradeCount] >= 3 or not(EntityCategoryContains(categories.AEON, oACU.UnitId))) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and (tLZData[M28Map.subrefTotalSignificantMassReclaim] or 0) <= 250 then
+                    local iMassCostOfEnemyUnits = M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.reftoNearestDFEnemies], true)
+                    if iMassCostOfEnemyUnits < 200 then
+                        iDistThreshold = 80
+                    elseif M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] then
+                        iDistThreshold = 90
+                    elseif iMassCostOfEnemyUnits >= 1000 then
+                        iDistThreshold = 110
+                    else
+                        iDistThreshold = 105
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished deciding dist threshold for upgraded ACU, UpgradeCount='..oACU[refiUpgradeCount]..'; Health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Mass value of DF enemies='..M28UnitInfo.GetMassCostOfUnits(tLZTeamData[M28Map.reftoNearestDFEnemies], true)..'; iDistThreshold='..iDistThreshold) end
             else iDistThreshold = 60
             end
         end
