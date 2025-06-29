@@ -2100,7 +2100,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                         if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tPotentialTargets[iCurEntry]:GetPosition()) then
                                             --Can we hit this unit factoring in AOE?
                                             iCurDist = M28Utilities.GetDistanceBetweenPositions(tPotentialTargets[iCurEntry]:GetPosition(), tStartPos)
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iCurEntry..'; Unit='..tPotentialTargets[iCurEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tPotentialTargets[iCurEntry])..'; iCurDist='..iCurDist..'; iPotentialInRangeDistance='..iPotentialInRangeDistance..'; iTMLRange='..iTMLRange..'; iTMLAOE='..iTMLAOE) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iCurEntry..'; Unit='..tPotentialTargets[iCurEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tPotentialTargets[iCurEntry])..'; iCurDist='..iCurDist..'; iPotentialInRangeDistance='..iPotentialInRangeDistance..'; iTMLRange='..iTMLRange..'; iTMLAOE='..iTMLAOE..'; refiStrikeDamageAssigned='..(tPotentialTargets[iCurEntry][M28Air.refiStrikeDamageAssigned] or 0)) end
                                             if iCurDist <= iPotentialInRangeDistance then
                                                 if iCurDist <= iTMLRange or iCurDist <= iTMLRange + math.max(iTMLAOE, 0.5 * math.min(tPotentialTargets[iCurEntry]:GetBlueprint().Physics.SkirtSizeX, tPotentialTargets[iCurEntry]:GetBlueprint().Physics.SkirtSizeZ)) then
                                                     table.insert(tValidTargets, tPotentialTargets[iCurEntry])
@@ -2152,6 +2152,10 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                                     break
                                                 end
                                             end
+                                        end
+                                        if oUnit[M28Air.refiStrikeDamageAssigned] and iCurTargetValue > 0 and oUnit[M28Air.refiStrikeDamageAssigned] > oUnit:GetHealth() then
+                                            iCurTargetValue = iCurTargetValue * 0.1
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Reducing cur target to 10% as we have assigned bomber striked damage, oUnit[M28Air.refiStrikeDamageAssigned]='..oUnit[M28Air.refiStrikeDamageAssigned]..'; Health='..oUnit:GetHealth()) end
                                         end
                                         if iCurTargetValue > 0 then
                                             if (oUnit[refiTMLShotsFired] or 0) > 0 then
@@ -2216,11 +2220,11 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                             end
                                         end
                                     end
-                                        if iBestTargetValue < iCurTargetValue then
+                                    if iBestTargetValue < iCurTargetValue then
                                         if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then iCurTargetValue = math.max(125, iCurTargetValue * 0.2) end
-                                    iBestTargetValue = iCurTargetValue
-                                    oBestTarget = oUnit
-                                        end
+                                        iBestTargetValue = iCurTargetValue
+                                        oBestTarget = oUnit
+                                    end
                                 end
                                 if oBestTarget then
                                     tTarget = oBestTarget:GetPosition()
