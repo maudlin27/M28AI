@@ -2360,6 +2360,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                         --Loud T2 sniperbots - consider enhancement
                     elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
                         ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
+                        --Sniperbots - if we have built 4+ by the same player then also prioritise omni
+                    elseif (oJustBuilt[M28UnitInfo.refiDFRange] or 0) >= 55 and M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 4 then aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] = true
                     end
 
                     --Experimental air - no longer record in land/water zone

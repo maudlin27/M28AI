@@ -14086,10 +14086,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --High priority omni if we have fatboy or sniperbots
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Priority T3 radar for fatboy and sniperbots,  tLZTeamData[M28Map.refiRadarCoverage]='.. tLZTeamData[M28Map.refiRadarCoverage]..'; Exp cosntructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Team has omni vision='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision])..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Team gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; aiBrain[M28Overseer.refbBuiltLongRangeLandUnit]='..tostring(aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] or false)..'; Brain gross E='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
-    if tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT2RadarSize and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and
-            ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 10)) or
-                    (aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 600 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 900 or not(bHaveLowPower)))) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Priority T3 radar for fatboy and sniperbots,  tLZTeamData[M28Map.refiRadarCoverage]='.. tLZTeamData[M28Map.refiRadarCoverage]..'; Exp cosntructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Team has omni vision='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision])..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Team gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; aiBrain[M28Overseer.refbBuiltLongRangeLandUnit]='..tostring(aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] or false)..'; Brain gross E='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Team grossE='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Brain nickname='..aiBrain.Nickname..'; Is tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
+    if tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT2RadarSize and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 900)) and
+            ((M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 10)) or
+                    (aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] and (M28Map.iMapSize >= 500 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 700)) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 300 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 900 or not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1500))) then
 
         --We have built at least 1 exp, and lack omni coverage, and have enough powe that we could probably support an omni
         local bHaveFatboyOrSnipers = false
@@ -14146,6 +14146,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
             end
         end
+    elseif M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoBestRadar]) and tLZTeamData[M28Map.refoBestRadar]:GetFractionComplete() < 1 and aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] then
+        if not(bHaveLowPower) then
+            iBPWanted = 60
+            if bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iBPWanted = 30 end
+        else iBPWanted = 30
+        end
+        HaveActionToAssign(refActionRepairUnit, 1, iBPWanted, tLZTeamData[M28Map.refoBestRadar])
     end
 
     --Focus on building our own experimental if we have one already under construction and enemy has any non fatboy experimentals, and we have at least 1 T3 mex
