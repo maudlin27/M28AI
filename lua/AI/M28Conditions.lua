@@ -1232,7 +1232,11 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
         --Adjust distance threshold if we have fired recently since being in range to fire again is less important
         if bDebugMessages == true then LOG(sFunctionRef..': About to adjust dist threshold based on if we have fired recently, iDistThreshold before adjustment='..iDistThreshold..'; Time='..GetGameTimeSeconds()..'; Last weapon event='..(oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiLastWeaponEvent] or -100)..'; Time between DF shots='..(oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
         if GetGameTimeSeconds() - (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiLastWeaponEvent] or -100) < (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenIFShots] or 100) then
-            iDistThreshold = iDistThreshold * 1.06
+            if GetGameTimeSeconds() - (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiLastWeaponEvent] or -100) < (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenIFShots] or 100) - math.min(1.2, (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenIFShots] or 100) * 0.2) then
+                iDistThreshold = iDistThreshold * 1
+            else
+                iDistThreshold = iDistThreshold * 1.06
+            end
         else iDistThreshold = iDistThreshold * 0.94
         end
     end
