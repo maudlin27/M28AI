@@ -96,6 +96,9 @@ reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order o
 refbProtectingAllArtiAndShieldLocations = 'M28BuildShdProtAllArti' --true if a shield is covering the midpoint of all arti and shield locations (or arti units) - used os we avoid including in shield cycling shields like aeon shields that are too far away
 refiLastTargetValue = 'M28ArtiTgVal' --value of the last target the arti targeted
 
+--T2 arti specific
+reftbTerrainBlockedTargetsBySegment = 'M28BTArtBl' --against our T2 arti, [x] is segmentX, returns {y}, where [y] is segmentZ, returns true (if blocked)
+
 --Special buildings
 refbActiveOpticsManager = 'M28BuildActOptMan' --true if have active quantum optics manager
 reftScathisBuiltLocation = 'M28ScaBultLoc' --location that scathis construction was started
@@ -2100,7 +2103,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                         if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tPotentialTargets[iCurEntry]:GetPosition()) then
                                             --Can we hit this unit factoring in AOE?
                                             iCurDist = M28Utilities.GetDistanceBetweenPositions(tPotentialTargets[iCurEntry]:GetPosition(), tStartPos)
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iCurEntry..'; Unit='..tPotentialTargets[iCurEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tPotentialTargets[iCurEntry])..'; iCurDist='..iCurDist..'; iPotentialInRangeDistance='..iPotentialInRangeDistance..'; iTMLRange='..iTMLRange..'; iTMLAOE='..iTMLAOE) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iCurEntry..'; Unit='..tPotentialTargets[iCurEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tPotentialTargets[iCurEntry])..'; iCurDist='..iCurDist..'; iPotentialInRangeDistance='..iPotentialInRangeDistance..'; iTMLRange='..iTMLRange..'; iTMLAOE='..iTMLAOE..'; refiStrikeDamageAssigned='..(tPotentialTargets[iCurEntry][M28Air.refiStrikeDamageAssigned] or 0)) end
                                             if iCurDist <= iPotentialInRangeDistance then
                                                 if iCurDist <= iTMLRange or iCurDist <= iTMLRange + math.max(iTMLAOE, 0.5 * math.min(tPotentialTargets[iCurEntry]:GetBlueprint().Physics.SkirtSizeX, tPotentialTargets[iCurEntry]:GetBlueprint().Physics.SkirtSizeZ)) then
                                                     table.insert(tValidTargets, tPotentialTargets[iCurEntry])
@@ -2152,6 +2155,10 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                                     break
                                                 end
                                             end
+                                        end
+                                        if oUnit[M28Air.refiStrikeDamageAssigned] and iCurTargetValue > 0 and oUnit[M28Air.refiStrikeDamageAssigned] > oUnit:GetHealth() then
+                                            iCurTargetValue = iCurTargetValue * 0.1
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Reducing cur target to 10% as we have assigned bomber striked damage, oUnit[M28Air.refiStrikeDamageAssigned]='..oUnit[M28Air.refiStrikeDamageAssigned]..'; Health='..oUnit:GetHealth()) end
                                         end
                                         if iCurTargetValue > 0 then
                                             if (oUnit[refiTMLShotsFired] or 0) > 0 then
@@ -2216,11 +2223,11 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                             end
                                         end
                                     end
-                                        if iBestTargetValue < iCurTargetValue then
+                                    if iBestTargetValue < iCurTargetValue then
                                         if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then iCurTargetValue = math.max(125, iCurTargetValue * 0.2) end
-                                    iBestTargetValue = iCurTargetValue
-                                    oBestTarget = oUnit
-                                        end
+                                        iBestTargetValue = iCurTargetValue
+                                        oBestTarget = oUnit
+                                    end
                                 end
                                 if oBestTarget then
                                     tTarget = oBestTarget:GetPosition()
@@ -4461,8 +4468,8 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
 
     --oOptionalWeapon - if called from the weapon fire event then this means we can check our last target
     --iOptionalDelaySecondsAndWeaponFireCheck - if specified, then will wait this many seconds then check if we have fired since the code started, and if not then proceed (used so if we are targeting a mobile unit and it goes out of our range we arent stuck with an invalid fire order)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderManualT2ArtiTarget'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if not(oArti[M28UnitInfo.refbEasyBrain]) then
         local bProceedWithLogic = true
@@ -4528,7 +4535,8 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
                     end
                 end
             end
-
+            local iCurTargetSegmentX, iCurTargetSegmentZ
+            local bDontConsiderBlockedShots = M28Utilities.IsTableEmpty(oArti[reftbTerrainBlockedTargetsBySegment])
             function UpdateClosestUnit(tUnits)
                 for iUnit, oUnit in tUnits do
                     if not(oUnit.Dead) then
@@ -4537,8 +4545,19 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tArtiPosition)
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..repru(iCurDist)..'; iClosestTargetOfInterest='..repru(iClosestTargetOfInterest)..'; iMinRange='..repru(iMinRange)) end
                             if iCurDist < iClosestTargetOfInterest and iCurDist >= iMinRange then
-                                iClosestTargetOfInterest = iCurDist
-                                oClosestTargetOfInterest = oUnit
+                                if bDontConsiderBlockedShots then
+                                    iClosestTargetOfInterest = iCurDist
+                                    oClosestTargetOfInterest = oUnit
+                                else
+                                    --Check are shot isnt likely to be blocked
+                                    iCurTargetSegmentX, iCurTargetSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is Cur target expected to be blocked='..tostring(oArti[reftbTerrainBlockedTargetsBySegment][iCurTargetSegmentX][iCurTargetSegmentZ] or false)) end
+                                    if not(oArti[reftbTerrainBlockedTargetsBySegment][iCurTargetSegmentX][iCurTargetSegmentZ]) then
+                                        --This doesnt cover the scenario where taret is out of our range; however since we prioritise the closest unit, to stick with that target means we have no targets in our range, so am ok not covering that eventuality
+                                        iClosestTargetOfInterest = iCurDist
+                                        oClosestTargetOfInterest = oUnit
+                                    end
+                                end
                             end
                         end
                     end
@@ -4578,50 +4597,73 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
                     local oOrigUnitTarget = oClosestTargetOfInterest
                     iClosestTargetOfInterest = 100000
                     UpdateClosestUnit(oClosestTargetOfInterest[reftoShieldsProvidingCoverage])
-                    if iClosestTargetOfInterest >= 100000 then --Redundancy
+                    if iClosestTargetOfInterest >= 100000 then --Redundancy (e.g. shot might be blocked on the shield but not the unit being shielded)
                         iClosestTargetOfInterest = iOrigUnitDist
                         oClosestTargetOfInterest = oOrigUnitTarget
                     elseif bDebugMessages == true then LOG(sFunctionRef..': Original target was covered by a fixed shield so will target the shield instead, revised target='..oOrigUnitTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrigUnitTarget)..'; iOrigUnitDist='..iOrigUnitDist)
                     end
                 end
 
-                --Now have selcted the unit we want to target - if its in our range then issue an attack order, otherwise issue a ground fire order
-                local bTargetingMobileUnit = EntityCategoryContains(categories.MOBILE, oClosestTargetOfInterest.UnitId)
-                bGivenOrder = true
-                --Consider whether to ground fire
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to do ground fire attack; iClosestTargetOfInterest='..iClosestTargetOfInterest..'; oArti[M28UnitInfo.refiIndirectRange]='..(oArti[M28UnitInfo.refiIndirectRange] or 'nil')) end
-                if iClosestTargetOfInterest <= oArti[M28UnitInfo.refiIndirectRange] then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Can we see the oClosestTargetOfInterest='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oClosestTargetOfInterest, false))..'; oClosestTargetOfInterest='..(oClosestTargetOfInterest.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestTargetOfInterest) or 'nil')) end
-                    if M28UnitInfo.CanSeeUnit(aiBrain, oClosestTargetOfInterest, false) then
-                        M28Orders.IssueTrackedAttack(oArti, oClosestTargetOfInterest, false, 'ArtAt', false)
-                    else
-                        M28Orders.IssueTrackedGroundAttack(oArti, oClosestTargetOfInterest:GetPosition(), 0.1, false, 'ArtXG', false, oClosestTargetOfInterest)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will do ground attack as cant see the unit') end
-                    end
-                else
-                    --Ground fire as target is out of our range; dont even try ground firing if its not a shield and is well outside our range
+                --If target is out of our range then check if the planned target is in range
+                local tGroundFireTarget
+                if iClosestTargetOfInterest > oArti[M28UnitInfo.refiIndirectRange] then
                     if oClosestTargetOfInterest.MyShield or iClosestTargetOfInterest <= oArti[M28UnitInfo.refiIndirectRange] + 20 then
-
                         local iDistShortfall = 1
                         local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
                         if GetGameTimeSeconds() - (oArti[M28Events.refiLastWeaponEvent] or -100) >= 25 then iDistShortfall = 3 end --greater dist threshold in case are trying to fire at elevated position
-                        local tGroundFireTarget = M28Utilities.MoveInDirection(tArtiPosition, M28Utilities.GetAngleFromAToB(tArtiPosition, oClosestTargetOfInterest:GetPosition()), (oArti[M28UnitInfo.refiIndirectRange] or 115) - iDistShortfall, true, false, M28Map.bIsCampaignMap)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will gorund fire as target unit is outside our range, tGroundFireTarget='..repru(tGroundFireTarget)) end
+
+                        tGroundFireTarget = M28Utilities.MoveInDirection(tArtiPosition, M28Utilities.GetAngleFromAToB(tArtiPosition, oClosestTargetOfInterest:GetPosition()), (oArti[M28UnitInfo.refiIndirectRange] or 115) - iDistShortfall, true, false, M28Map.bIsCampaignMap)
+                        --Is shot blocked for this?
+                        iCurTargetSegmentX, iCurTargetSegmentZ = M28Map.GetPathingSegmentFromPosition(tGroundFireTarget)
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is ground fire expected target expected to be blocked='..tostring(oArti[reftbTerrainBlockedTargetsBySegment][iCurTargetSegmentX][iCurTargetSegmentZ] or false)) end
+                        if oArti[reftbTerrainBlockedTargetsBySegment][iCurTargetSegmentX][iCurTargetSegmentZ] then
+                            tGroundFireTarget = nil
+                            --Try searching for any enemy non-mobile air target
+                            local tAllInRangeEnemyUnits = aiBrain:GetUnitsAroundPoint(categories.ALLUNITS - categories.MOBILE * categories.AIR, oArti:GetPosition(), oArti[M28UnitInfo.refiIndirectRange], 'Enemy')
+                            if M28Utilities.IsTableEmpty(tAllInRangeEnemyUnits) == false then
+                                local oOldClosestUnit = oClosestTargetOfInterest
+                                UpdateClosestUnit(tAllInRangeEnemyUnits)
+                                if oClosestTargetOfInterest == oOldClosestUnit then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': No targets in range that dont ahve blocked shots') end
+                                    oClosestTargetOfInterest = nil
+                                else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will switch to the target '..oClosestTargetOfInterest.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestTargetOfInterest)) end
+                                end
+                            end
+                        end
+                    end
+                end
+                if oClosestTargetOfInterest then
+
+                    --Now have selcted the unit we want to target - if its in our range then issue an attack order, otherwise issue a ground fire order
+                    local bTargetingMobileUnit = EntityCategoryContains(categories.MOBILE, oClosestTargetOfInterest.UnitId)
+                    bGivenOrder = true
+                    --Consider whether to ground fire
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to do ground fire attack; iClosestTargetOfInterest='..iClosestTargetOfInterest..'; oArti[M28UnitInfo.refiIndirectRange]='..(oArti[M28UnitInfo.refiIndirectRange] or 'nil')) end
+                    if iClosestTargetOfInterest <= oArti[M28UnitInfo.refiIndirectRange] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Can we see the oClosestTargetOfInterest='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oClosestTargetOfInterest, false))..'; oClosestTargetOfInterest='..(oClosestTargetOfInterest.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestTargetOfInterest) or 'nil')) end
+                        if M28UnitInfo.CanSeeUnit(aiBrain, oClosestTargetOfInterest, false) then
+                            M28Orders.IssueTrackedAttack(oArti, oClosestTargetOfInterest, false, 'ArtAt', false)
+                        else
+                            M28Orders.IssueTrackedGroundAttack(oArti, oClosestTargetOfInterest:GetPosition(), 0.1, false, 'ArtXG', false, oClosestTargetOfInterest)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will do ground attack as cant see the unit') end
+                        end
+                    else
+                        --Ground fire as target is out of our range; dont even try ground firing if its not a shield and is well outside our range
                         if tGroundFireTarget then
                             M28Orders.IssueTrackedGroundAttack(oArti, tGroundFireTarget, 0.1, false, 'ArtGF', false, oClosestTargetOfInterest)
                         else
-                            M28Utilities.ErrorHandler('Failed to calculate valid ground fire target for arti '..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti))
+                            if bDebugMessages == true then LOG(sFunctionRef..': Not targeting a shield and it is too far outside our range so will abort (or had error finding groundfiretarget)') end
+                            bGivenOrder = false
                         end
-                    else
-                        if bDebugMessages == true then LOG(sFunctionRef..': Not targeting a shield and it is too far outside our range so will abort') end
-                        bGivenOrder = false
                     end
-                end
 
-                --If we were targeting a mobile unit then reconsider targets 5s later if we have failed to fire a shot in the meantime
-                if bTargetingMobileUnit then
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to start a forked thread to re-consider t2 arti target as we are targeting a mobile unit') end
-                    ForkThread(ConsiderManualT2ArtiTarget, oArti, oOptionalWeapon, 5)
+                    --If we were targeting a mobile unit then reconsider targets 5s later if we have failed to fire a shot in the meantime
+                    if bTargetingMobileUnit then
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to start a forked thread to re-consider t2 arti target as we are targeting a mobile unit') end
+                        ForkThread(ConsiderManualT2ArtiTarget, oArti, oOptionalWeapon, 5)
+                    end
                 end
             end
 

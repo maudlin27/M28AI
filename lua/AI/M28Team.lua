@@ -1434,6 +1434,7 @@ function LongRangeDFAndIFThreatMonitor(iTeam, bDealingWithIndirectThreat)
         if bDebugMessages == true then LOG(sFunctionRef..': Size of table at time '..GetGameTimeSeconds()..'='..iTableSize) end
         for iCurEntry = iTableSize, 1, -1 do
             local oUnit = tTeamData[iTeam][sreftLREnemyUnitsTableRef][iCurEntry]
+
             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
             if not(M28UnitInfo.IsUnitValid(oUnit)) then
                 table.remove(tTeamData[iTeam][sreftLREnemyUnitsTableRef], iCurEntry)
@@ -1487,7 +1488,6 @@ function LongRangeDFAndIFThreatMonitor(iTeam, bDealingWithIndirectThreat)
                         local iAdjLZOrWZ, iAdjPlateau
                         local iCurDist
 
-
                         if bDebugMessages == true then LOG(sFunctionRef..': Unit has changed zones, is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]))) end
                         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
                             M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData)
@@ -1510,8 +1510,9 @@ function LongRangeDFAndIFThreatMonitor(iTeam, bDealingWithIndirectThreat)
                                                     tAdjLZTeamData[sLZTeamDataLRUnitsTableRef] = {}
                                                 else
                                                     --Redundancy - make sure not already here
-                                                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef]) == false then
+                                                    if M28Conditions.IsTableOfUnitsStillValid(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef]) then
                                                         for iRecordedUnit, oRecordedUnit in tAdjLZTeamData[sLZTeamDataLRUnitsTableRef] do
+                                                            if bDebugMessages == true then LOG(sFunctionRef..'; Checking if unit is already recorded, ddoes oUnit equal oRecordedUnit='..tostring(oUnit == oRecordedUnit)..'; oRecordedUnit='..oRecordedUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecordedUnit)) end
                                                             if oUnit == oRecordedUnit then
                                                                 bInclude = false
                                                                 break
@@ -1550,6 +1551,14 @@ function LongRangeDFAndIFThreatMonitor(iTeam, bDealingWithIndirectThreat)
                                                 if bInclude then
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Just added adjacent zone unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of long range threats for zone '..iAdjacentLZ..' on iAdjacentPlateau='..iAdjacentPlateau..'; Dist to closest friendly base='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], oUnit:GetPosition())) end
                                                     table.insert(tAdjLZTeamData[sLZTeamDataLRUnitsTableRef], oUnit)
+                                                    if bDebugMessages == true then
+                                                        local tAdjLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjacentLZ]
+                                                        LOG(sFunctionRef..': Just added adjacent zone unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of long range threats for zone '..iAdjacentLZ..' on plateau '..iPlateauOrZero..'; Dist between midpoints='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tAdjLZData[M28Map.subrefMidpoint])..'; Unit dist to adjLZData midpoint='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], oUnit:GetPosition())..'; Dist to closest friendly base='.. M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftClosestFriendlyBase], oUnit:GetPosition()))
+                                                        for iRecorded, oRecorded in tAdjLZTeamData[sLZTeamDataLRUnitsTableRef] do
+                                                            LOG('Cycling through all recorded units post insert, oRecorded='..oRecorded.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecorded)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oRecorded)))
+                                                            if M28UnitInfo.IsUnitValid(oRecorded) then LOG('Recorded unit brain='..oRecorded:GetAIBrain().Nickname) end
+                                                        end
+                                                    end
                                                 end
                                             end
                                         end

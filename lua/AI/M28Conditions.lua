@@ -1201,6 +1201,17 @@ function EnemyTeamHasFaction(iM28Team, iEnemyFaction)
     return false
 end
 
+function IsUnitInRangeOfLRIndirectFireUnits(oUnit, tLZTeamData, iDistThreshold)
+    --Checks whether oUnit can be attacked by any of the long range indirectfire units, or is within iDistThreshold of being able to be attacked
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeIFThreats]) == false then
+        for iEnemy, oEnemy in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeIFThreats] do
+            if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange] <= iDistThreshold then
+                return true
+            end
+        end
+    end
+end
+
 function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
     --Returns true if our distance to any of tUnitsToCheck is <= iDistThreshold; if bIncludeEnemyDFRange is true then our distance to the units is reduced by the enemy unit's DF range (meaning it returns true if we are within iDistThreshold of the enemy unit being able to shoot at us)
     --iAltThresholdToDFRange - if bIncludeEnemyDFRange is true and this also has a value specified, then if we are within iAltThresholdToDFRange will return true regardless of the iDistThreshold test
@@ -1232,7 +1243,11 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
         --Adjust distance threshold if we have fired recently since being in range to fire again is less important
         if bDebugMessages == true then LOG(sFunctionRef..': About to adjust dist threshold based on if we have fired recently, iDistThreshold before adjustment='..iDistThreshold..'; Time='..GetGameTimeSeconds()..'; Last weapon event='..(oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiLastWeaponEvent] or -100)..'; Time between DF shots='..(oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
         if GetGameTimeSeconds() - (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiLastWeaponEvent] or -100) < (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenIFShots] or 100) then
-            iDistThreshold = iDistThreshold * 1.06
+            if GetGameTimeSeconds() - (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiLastWeaponEvent] or -100) < (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenIFShots] or 100) - math.min(1.2, (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenIFShots] or 100) * 0.2) then
+                iDistThreshold = iDistThreshold * 1
+            else
+                iDistThreshold = iDistThreshold * 1.06
+            end
         else iDistThreshold = iDistThreshold * 0.94
         end
     end

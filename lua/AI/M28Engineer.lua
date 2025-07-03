@@ -14086,10 +14086,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --High priority omni if we have fatboy or sniperbots
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Priority T3 radar for fatboy and sniperbots,  tLZTeamData[M28Map.refiRadarCoverage]='.. tLZTeamData[M28Map.refiRadarCoverage]..'; Exp cosntructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Team has omni vision='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision])..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Team gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; aiBrain[M28Overseer.refbBuiltLongRangeLandUnit]='..tostring(aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] or false)..'; Brain gross E='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
-    if tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT2RadarSize and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and
-            ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 10)) or
-                    (aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 600 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 900 or not(bHaveLowPower)))) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Priority T3 radar for fatboy and sniperbots,  tLZTeamData[M28Map.refiRadarCoverage]='.. tLZTeamData[M28Map.refiRadarCoverage]..'; Exp cosntructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Team has omni vision='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision])..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Team gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; aiBrain[M28Overseer.refbBuiltLongRangeLandUnit]='..tostring(aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] or false)..'; Brain gross E='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Team grossE='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Brain nickname='..aiBrain.Nickname..'; Is tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
+    if tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT2RadarSize and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 900)) and
+            ((M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZMexCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 10)) or
+                    (aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] and (M28Map.iMapSize >= 500 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 700)) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 300 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 900 or not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1500))) then
 
         --We have built at least 1 exp, and lack omni coverage, and have enough powe that we could probably support an omni
         local bHaveFatboyOrSnipers = false
@@ -14146,6 +14146,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
             end
         end
+    elseif M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoBestRadar]) and tLZTeamData[M28Map.refoBestRadar]:GetFractionComplete() < 1 and aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] then
+        if not(bHaveLowPower) then
+            iBPWanted = 60
+            if bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iBPWanted = 30 end
+        else iBPWanted = 30
+        end
+        HaveActionToAssign(refActionRepairUnit, 1, iBPWanted, tLZTeamData[M28Map.refoBestRadar])
     end
 
     --Focus on building our own experimental if we have one already under construction and enemy has any non fatboy experimentals, and we have at least 1 T3 mex
@@ -20141,6 +20148,8 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     local iT2ArtiThreat = 0
                     local iT2ArtiCount = 0
                     local toT2ArtiWantingShields = {}
+                    local toT2ArtiWithDownedShields = {}
+                    local toPartCompleteShields = {}
                     local tT2Arti
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                         tT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
@@ -20161,11 +20170,29 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                                     end
                                 end
                             end
+                            local bCurArtiShieldDown
                             for iArti, oArti in tT2Arti do
                                 if oArti:GetFractionComplete() == 1 then iT2ArtiCount = iT2ArtiCount + 1 end
                                 if oArti[M28Building.refbUnitWantsShielding] and M28Utilities.IsTableEmpty(oArti[M28Building.reftoShieldsProvidingCoverage]) and (oArti[refiFailedShieldConstructionCount] or 0) <= 1 then
                                     table.insert(toT2ArtiWantingShields, oArti)
+                                elseif M28Utilities.IsTableEmpty(oArti[M28Building.reftoShieldsProvidingCoverage]) == false then
+                                    bCurArtiShieldDownAndNotBeingBuilt = true
+                                    for iShield, oShield in oArti[M28Building.reftoShieldsProvidingCoverage] do
+                                        if bDebugMessages == true then
+                                            LOG(sFunctionRef..': Considering if oArti is shielded, oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..'; oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Shield fraciton complete='..oShield:GetFractionComplete())
+                                            if oShield:GetFractionComplete() == 1 then LOG(sFunctionRef..': Shield health='..oShield.MyShield:GetHealth()) end
+                                        end
+                                        if not(oShield.Dead) then
+                                            if oShield:GetFractionComplete() < 1 then
+                                                table.insert(toPartCompleteShields, oShield)
+                                                bCurArtiShieldDownAndNotBeingBuilt = false
+                                            elseif oShield.MyShield:GetHealth() <= 3000 and table.getn(oArti[M28Building.reftoShieldsProvidingCoverage]) < 3 then
+                                                table.insert(toT2ArtiWithDownedShields, oArti)
+                                            end
+                                        end
+                                    end
                                 end
+                                if M28Utilities.IsTableEmpty(toT2ArtiWithDownedShields) == false and M28Utilities.IsTableEmpty(toT2ArtiWantingShields) then toT2ArtiWantingShields = toT2ArtiWithDownedShields end
                                 if tNearestEnemyArtiPosition then
                                     --Reduce threat by 50% if arti is far away from closest enemy arti
                                     if M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), tNearestEnemyArtiPosition) > math.max(125, (oArti[M28UnitInfo.refiIndirectRange] or 0) + math.max((oArti[M28UnitInfo.refiIndirectAOE] or 0), 5)) then
@@ -20194,7 +20221,34 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         else
                             HaveActionToAssign(refActionBuildT1Radar, 1, iBPWanted * 0.65)
                         end
-                    elseif M28Utilities.IsTableEmpty(toT2ArtiWantingShields) == false and iT2ArtiCount >= 2 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]) == false then
+                    elseif M28Utilities.IsTableEmpty(toPartCompleteShields) == false then
+                        iBPWanted = 120
+                        if iT2ArtiCount >= 4 then iBPWanted = 240 end
+                        local oNearestCompletionShield
+                        local iNearestCompletionShield = -1
+                        for iShield, oShield in toPartCompleteShields do
+                            if oShield:GetFractionComplete() > iNearestCompletionShield then
+                                iNearestCompletionShield = oShield:GetFractionComplete()
+                                oNearestCompletionShield = oShield
+                            end
+                        end
+                        local bInRangeOfEnemyArti = false
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                            for iEnemyArti, oEnemyArti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                                if M28Utilities.GetDistanceBetweenPositions(oEnemyArti:GetPosition(), oNearestCompletionShield:GetPosition()) <= oEnemyArti[M28UnitInfo.refiCombatRange] + 5 then
+                                    bInRangeOfEnemyArti = true
+                                    break
+                                end
+                            end
+                        end
+                        if not(bInRangeOfEnemyArti) and bHaveLowMass or bHaveLowPower then
+                            --Only reduce buildpower if not in range of enemy t2 arti
+                            iBPWanted = iBPWanted * 0.5
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will assist part complete shield='..oNearestCompletionShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestCompletionShield)..' with fraction complete='..oNearestCompletionShield:GetFractionComplete()..'; iBPWanted='..iBPWanted) end
+                        HaveActionToAssign(refActionRepairUnit, 1, iBPWanted, oNearestCompletionShield)
+                        if bInRangeOfEnemyArti then iBPWanted = 0 end --dont build t2 arti if we want to get shielding
+                    elseif M28Utilities.IsTableEmpty(toT2ArtiWantingShields) == false and iT2ArtiCount >= 2 then
                         if table.getn(toT2ArtiWantingShields) >= 4 or iT2ArtiCount >= 6 then iBPWanted = 240
                         else iBPWanted = 120
                         end
@@ -20211,6 +20265,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             HaveActionToAssign(refActionBuildShield, iShieldTechLevelWanted, iBPWanted, oArtiToShield)
                             if bDebugMessages == true then LOG(sFunctionRef..': Will build shield to cover arti isntead of more arti; however will still try more arti as slightly lower priority. iShieldTechLevelWanted='..iShieldTechLevelWanted) end
                         end
+                        iBPWanted = 0
                     elseif iTMLBPWanted > 0 then
                         bAreBuildingShieldOrTML = true
                         HaveActionToAssign(refActionBuildTML, 2, math.max(iBPWanted, iTMLBPWanted))
@@ -20232,7 +20287,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         end
                         if iT2ArtiCount > 0 then iBPWanted = 0 end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we already ahve enough T2 arti threat, iThreatWanted='..iThreatWanted..'; iT2ArtiThreat='..iT2ArtiThreat..'; iNetThreatWanted='..iNetThreatWanted..'; HaveLowMass='..tostring(bHaveLowMass)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we already ahve enough T2 arti threat, iThreatWanted='..iThreatWanted..'; iT2ArtiThreat='..iT2ArtiThreat..'; iNetThreatWanted='..iNetThreatWanted..'; HaveLowMass='..tostring(bHaveLowMass)..'; iBPWanted='..iBPWanted) end
                     if iBPWanted > 0 and (iNetThreatWanted > 0 or (iT2ArtiThreat <= 3000 and not(bHaveLowMass) and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (iT2ArtiThreat <= 1500 or iNetThreatWanted >= 800))) and (iNetThreatWanted >= 500 or (iNetThreatWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
                         if iNetThreatWanted <= 4000 and iT2ArtiThreat >= 1000 then
                             iBPWanted = math.min(120, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])

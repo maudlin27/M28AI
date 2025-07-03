@@ -972,7 +972,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                     --Strats - if are close to the enemy target and havent fired then assume terrain prevented us
                                 elseif oExistingValidAttackTarget and EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3, oUnit.UnitId) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastBombFired] or 0) > (oUnit[M28UnitInfo.refiTimeBetweenBombs] or 0) + 1 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oExistingValidAttackTarget:GetPosition()) <= math.min(30, (oUnit[M28UnitInfo.refiBomberRange] or 30) * 0.5) and VDist3(oUnit:GetPosition(), oExistingValidAttackTarget:GetPosition()) <= (oUnit[M28UnitInfo.refiBomberRange] or 30) - 10 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Strat bomber appears to have failed to launch bomb at target, will tyr hoverbombing instead, oUnit (bomber)='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oExistingValidAttackTarget='..oExistingValidAttackTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExistingValidAttackTarget)..'; Time='..GetGameTimeSeconds()) end
-                                    ForkThread(M28Micro.T1HoverBombTarget, oUnit, oExistingValidAttackTarget, false, false, false)
+                                    ForkThread(M28Micro.T1OrT3HoverBombTarget, oUnit, oExistingValidAttackTarget, false, false, false)
                                 else
                                     table.insert(tInUseUnits, oUnit)
                                 end
@@ -3320,7 +3320,7 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets, iTeam, iAirSubteam, 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck, bOptionalIgnoreOppositeDirectionZones, bIncludeEnemyGroundAAInAirAAThreat)
+function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck, bOptionalIgnoreOppositeDirectionZones, bIncludeEnemyGroundAAInAirAAThreat, bAssumeWontTargetInterimAAForDetailedCheck)
     --Returns true if enemy has AA threat along the path from start to end (or in an adjacent land/water zone that is close enough to the path)
 
     --iStartPlateauOrZero: 0 if water zone
@@ -3334,6 +3334,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     --tOptionalStartMidpointAdjustForDetailedCheck - ended up removing the code that was making use of this, but in theory this allows a different position to be used than the midpoint for the detailed check
     --bReturnGroundAAUnitsAlongsideAAThreat - only set to true if bReturnGroundAAThreatInstead is true; will also return a table of those groundAA units; recommended that use with bDoDetailedCheckForAA since minimal extra overhead then (so expect the detailed check isn't as expensive vs the normal check which has to do entitycateogyrfilterdown if this is falgged
     --bOptionalIgnoreOppositeDirectionZones - if this is true, and the end plateau+zone has a mod dist that is lower than the start, then will ignore zones whose midpoint is in a significantly different angle to the angle from the start to the end
+    --bAssumeWontTargetInterimAAForDetailedCheck - normally if doing a detailed check if we come across any groundAA in the zone that is in our range, and the zone AA as a whole is too much, then we will abort; if this is set to true then instead we will only include the threat of the in-range enemy units
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DoesEnemyHaveAAThreatAlongPath'
@@ -3369,10 +3370,10 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
         elseif iStartPlateauOrZero == 0 then tMidpoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLandOrWaterZone]][M28Map.subrefPondWaterZones][iStartLandOrWaterZone][M28Map.subrefMidpoint]
         else tMidpoint = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone][M28Map.subrefMidpoint]
         end
-            tStartZoneMidpoint = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
+        tStartZoneMidpoint = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
 
-            iAngleToDestination = M28Utilities.GetAngleFromAToB(tStartZoneMidpoint, tDestinationMidpoint)
-            iDistanceToDestination = M28Utilities.GetDistanceBetweenPositions(tStartZoneMidpoint, tDestinationMidpoint)
+        iAngleToDestination = M28Utilities.GetAngleFromAToB(tStartZoneMidpoint, tDestinationMidpoint)
+        iDistanceToDestination = M28Utilities.GetDistanceBetweenPositions(tStartZoneMidpoint, tDestinationMidpoint)
     end
 
     function IsZoneInSimilarDirection(tLZOrWZData)
@@ -3452,19 +3453,30 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                                 iCurRangeInclAdjustment = oUnit[M28UnitInfo.refiAARange] + 26
                                 if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then iCurRangeInclAdjustment = iCurRangeInclAdjustment + iMobileAdjustment end
                                 if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iDistanceToDestination, iDistToUnit, iDistFromUnitToTarget, iAngleToDestination, iAngleToUnit, iCurRangeInclAdjustment) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Have too much AA when checking if in range of enemy, iGroundAAThreat before increase='..iGroundAAThreat)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have groundAA unit in range from this interim zone, iGroundAAThreat before increase='..iGroundAAThreat)
                                         --Draw line
                                         --ForkThread(M28Utilities.ForkedDrawLine, tStartZoneMidpoint, tDestinationMidpoint, math.random(1, 8))
                                     end
-                                    bTooMuchAA = true
-                                    if bReturnGroundAAThreatInstead then
+
+                                    if bReturnGroundAAThreatInstead or bAssumeWontTargetInterimAAForDetailedCheck then
                                         iCurUnitThreat = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, false, true)
-                                        if M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) == false then iCurUnitThreat = iCurUnitThreat * 2 end
+                                        --If interim AA that would normally cause us to abort, instead we should treat it as being worth double normal value since we will be ignoring it instead of attacking it
+                                        if M28Utilities.IsTableEmpty(oUnit[M28Building.reftoShieldsProvidingCoverage]) == false or bAssumeWontTargetInterimAAForDetailedCheck then iCurUnitThreat = iCurUnitThreat * 2 end
                                         iGroundAAThreat = iGroundAAThreat + iCurUnitThreat
+                                        --Normally we assume that as the interim zone has too much AA in it then if any of the AA in that zone is in range of us we will treat the enemy as having too much threat
+                                        --however, if this flag is true then we will just treat it the same as a groundAA threat in the target zone
+                                        if not(bAssumeWontTargetInterimAAForDetailedCheck) or iGroundAAThreat > (iGroundAAThreatThreshold or 0) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreat after increase='..iGroundAAThreat..'; This is more than iGroundAAThreatThreshold='..(iGroundAAThreatThreshold or 'nil')) end
+                                            bTooMuchAA = true
+                                            if not(bReturnGroundAAThreatInstead) then break end
+                                        end
                                         if bReturnGroundAAUnitsAlongsideAAThreat then
                                             table.insert(toGroundAAUnits, oUnit)
                                         end
-                                    else  break
+
+                                    else
+                                        bTooMuchAA = true
+                                        break
                                     end
                                 end
                             end
@@ -4971,7 +4983,7 @@ function EnemyBaseEarlyBomber(oBomber)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will call hoverbomb logic to target '..oNearestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemy)) end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 --NOTE: Dont call via fork thread, as otherwise we end up calling the same logic multiple times and it overriding orders
-                                M28Micro.T1HoverBombTarget(oBomber, oNearestEnemy, true, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemy.UnitId) or oNearestEnemy:GetFractionComplete() < 1), true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
+                                M28Micro.T1OrT3HoverBombTarget(oBomber, oNearestEnemy, true, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oNearestEnemy.UnitId) or oNearestEnemy:GetFractionComplete() < 1), true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Finished hoverbomb attempt') end
                                 iTicksToWait = 1 --Just to avoid infinite loop risk
@@ -5187,7 +5199,7 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                             --If we have recently fired and enemy is close then hover-bomb
                             if iDistToTarget <= oBomber[M28UnitInfo.refiBomberRange] + 10 and iTimeUntilReadyToFire >= 2 and oBestEnemyTarget:GetHealth() <= 250 and not(oBomber[M28UnitInfo.refbEasyBrain]) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Bomber recently fired and isnt able to fire again for a few seconds so will hoverbomb to attack '..oBestEnemyTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestEnemyTarget)) end
-                                ForkThread(M28Micro.T1HoverBombTarget, oBomber, oBestEnemyTarget, false, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) or oBestEnemyTarget:GetFractionComplete() < 1), false)
+                                ForkThread(M28Micro.T1OrT3HoverBombTarget, oBomber, oBestEnemyTarget, false, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) or oBestEnemyTarget:GetFractionComplete() < 1), false)
                                 tEnemyTargets = nil
                                 tAltEnemyTargets = nil
                                 tBomberTable = nil
@@ -5596,6 +5608,7 @@ function ManageBombers(iTeam, iAirSubteam)
                             if iCurPlateauOrZero and iCurZone then
                                 if tbZoneByPlateauHasTooMuchAA[iCurPlateauOrZero][iCurZone] == nil then
                                     if tbZoneByPlateauHasTooMuchAA[iCurPlateauOrZero] == nil then tbZoneByPlateauHasTooMuchAA[iCurPlateauOrZero] = {} end
+                                                                                             --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck, bOptionalIgnoreOppositeDirectionZones, bIncludeEnemyGroundAAInAirAAThreat, bAssumeWontTargetInterimAAForDetailedCheck)
                                     tbZoneByPlateauHasTooMuchAA[iCurPlateauOrZero][iCurZone] = DoesEnemyHaveAAThreatAlongPath(iTeam, iRallyPlateauOrZero, iRallyLZOrWZ, iCurPlateauOrZero, iCurZone, M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl], iMaxEnemyGroundAAThreat * iAAPriorityThresholdFactor, nil, false, iAirSubteam, true, false, nil, false)
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering priority enemy target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in P'..iCurPlateauOrZero..'Z'..iCurZone..'; Too much AA in this zone='..tostring(tbZoneByPlateauHasTooMuchAA[iCurPlateauOrZero][iCurZone])..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat..'; iAAPriorityThresholdFactor='..iAAPriorityThresholdFactor) end
@@ -12863,7 +12876,7 @@ end
 
 function IsTargetValidForMexHunter(aiBrain, oTarget)
     --Checks target isnt underwater, and isnt covered by a shield
-    if M28UnitInfo.IsUnitValid(oTarget) and not(M28UnitInfo.IsUnitUnderwater(oTarget)) then
+    if M28UnitInfo.IsUnitValid(oTarget) and not(M28UnitInfo.IsUnitUnderwater(oTarget)) and (oTarget:GetFractionComplete() >= 0.9 or oTarget:GetFractionComplete() * (oTarget[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oTarget)) >= 800) then
         if not(M28Logic.IsTargetUnderShield(aiBrain, oTarget, 1000, false, false, false, false, false)) then
             return true
         end
@@ -12909,67 +12922,89 @@ function ApplyMexHuntingLogicToBomber(oBomber)
             local iAirSubteam = aiBrain.M28AirSubteam
             local iDistToRally, iAngleDif, iDistToTarget, iAngleToTarget, iBomberDirection
             while M28UnitInfo.IsUnitValid(oBomber) and oBomber[refbBomberUsingMexHunterLogic] do
-                if not(IsTargetValidForMexHunter(aiBrain, oBomber[refoStrikeDamageAssigned])) then
-                    if not(oBomber[M28UnitInfo.refbSpecialMicroActive]) then
-                        bFoundTarget = AttackTargetForMexHuntingBomber(oBomber)
-                        if not(bFoundTarget) then
-                            --clear target and return to rally
-                            if M28UnitInfo.IsUnitValid(oBomber[refoStrikeDamageAssigned]) then
-                                RemoveAssignedAttacker(oBomber[refoStrikeDamageAssigned], oBomber)
-                            end
-                            --Return to air rally point
-                            local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
-                            iDistToRally = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oBomber:GetPosition())
-                            iAngleDif = M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tRallyPoint), M28UnitInfo.GetUnitFacingAngle(oBomber))
-                            if iDistToRally >= 75 and iAngleDif >= 15 and (iDistToRally >= 150 or iAngleDif >= 30) then
-                                ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oBomber, tRallyPoint, 10, 3)
-                            else
-                                M28Orders.IssueTrackedMove(oBomber, tRallyPoint, 5, false, 'BombMxMv', false)
+                if not(oBomber[M28UnitInfo.refbSpecialMicroActive]) then
+                    if not(IsTargetValidForMexHunter(aiBrain, oBomber[refoStrikeDamageAssigned])) then
+                        if not(oBomber[M28UnitInfo.refbSpecialMicroActive]) then
+                                            --AttackTargetForMexHuntingBomber(oBomber, bCalledFromOnBombFired, oOptionalTargetOverride, bRetryIfNoTargetFound)
+                            bFoundTarget = AttackTargetForMexHuntingBomber(oBomber, false, nil, M28UnitInfo.GetUnitHealthPercent(oBomber) >= 0.6)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Tried attacking target with bomber, bFoundTarget='..tostring(bFoundTarget)) end
+                            if not(bFoundTarget) then
+                                --clear target and return to rally
+                                if M28UnitInfo.IsUnitValid(oBomber[refoStrikeDamageAssigned]) then
+                                    RemoveAssignedAttacker(oBomber[refoStrikeDamageAssigned], oBomber)
+                                end
+                                --Return to air rally point
+                                local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+                                iDistToRally = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oBomber:GetPosition())
+                                iAngleDif = M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tRallyPoint), M28UnitInfo.GetUnitFacingAngle(oBomber))
+                                if iDistToRally >= 75 and iAngleDif >= 15 and (iDistToRally >= 150 or iAngleDif >= 30) then
+                                    ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oBomber, tRallyPoint, 10, 3)
+                                else
+                                    M28Orders.IssueTrackedMove(oBomber, tRallyPoint, 5, false, 'BombMxMv', false)
+                                    --Make bomber available for normal logic if we have good intel or a small map and are now close to rally
+                                    if iDistToRally <= 40 then
+                                        if M28Map.iMapSize <= 256 or M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 5000 or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyLandExperimentals]) == false or M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] > 0 then
+                                            oBomber[refbBomberUsingMexHunterLogic] = false
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will abort mex hunting logic') end
+                                            break
+                                        else
+                                            local tBomberLZData, tBomberLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, aiBrain.M28Team)
+                                            if tBomberLZTeamData[M28Map.refiRadarCoverage] > M28UnitInfo.iT2RadarSize then
+                                                oBomber[refbBomberUsingMexHunterLogic] = false
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Will abort mex hunting logic') end
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
                             end
                         end
-                    end
-                else
-                    --We have an appropriate target, since we already ahve it recorded as a target we shouldnt need any new orders
+                    else
+                        --We have an appropriate target, since we already ahve it recorded as a target we shouldnt need any new orders
 
-                    --Have we likely overshot the target and want to turn around and attack it?
-                    if not(oBomber[M28UnitInfo.refbSpecialMicroActive]) then
-                        iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oBomber[refoStrikeDamageAssigned]:GetPosition())
-                        iAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBomber[refoStrikeDamageAssigned]:GetPosition())
-                        iBomberDirection = M28UnitInfo.GetUnitFacingAngle(oBomber)
-                        iAngleDif = M28Utilities.GetAngleDifference(iAngleToTarget, iBomberDirection)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have overshot our target and want to micro-turn to attack it,  oBomber[refoStrikeDamageAssigned]='.. oBomber[refoStrikeDamageAssigned].UnitId..M28UnitInfo.GetUnitLifetimeCount( oBomber[refoStrikeDamageAssigned])..'; iDistToTarget='..iDistToTarget..'; iAngleToTarget='..iAngleToTarget..'; iBomberDirection='..iBomberDirection..'; iAngleDif='..iAngleDif..'; Time since last fired bomb='..(GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0))..'; Cur time='..GetGameTimeSeconds()) end
-                        --recently fired and target is close (so we wont be able to fire a bomb on a normal attack path)
-                        if GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) <= 2 and iDistToTarget <= 125 and (iAngleDif >= 10 or iDistToTarget <= 100) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and hoverbomb') end
-                            ForkThread(M28Micro.T1HoverBombTarget, oBomber, oBomber[refoStrikeDamageAssigned], false, true, false)
-                            --Not recently fired, and want to turn:
-                        elseif (((iAngleDif >= 45 and iDistToTarget <= 200) or (iDistToTarget <= oBomber[M28UnitInfo.refiBomberRange] * 0.4)) and GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) >= 1)
-                                --However, if we are facing almost the opposite direction we dont want to turn until there is enough distance that we will be able to fire a bomb when we turn
-                                and (iAngleDif <= 60 or iDistToTarget >= 20)
-                        then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will turn around and attack the target, or hover bomb if we are close and fired recently') end
-                            ForkThread(M28Micro.TurnAirUnitAndAttackTarget, oBomber, oBomber[refoStrikeDamageAssigned], false, false)
-                        else
-                            --We just want to attack target as normal - check we have an active order
-                            M28Orders.UpdateRecordedOrders(oBomber)
-                            if M28Utilities.IsTableEmpty(oBomber[M28Orders.reftiLastOrders][1]) then
-                                --Redundancy - issue attack order
-                                AttackTargetForMexHuntingBomber(oBomber, false, oBomber[refoStrikeDamageAssigned])
+                        --Have we likely overshot the target and want to turn around and attack it?
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have we likely overshot target and want to turn around? Ignore if we have active micro though, oBomber[M28UnitInfo.refbSpecialMicroActive]='..tostring(oBomber[M28UnitInfo.refbSpecialMicroActive])) end
+                        if not(oBomber[M28UnitInfo.refbSpecialMicroActive]) then
+                            iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oBomber[refoStrikeDamageAssigned]:GetPosition())
+                            iAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBomber[refoStrikeDamageAssigned]:GetPosition())
+                            iBomberDirection = M28UnitInfo.GetUnitFacingAngle(oBomber)
+                            iAngleDif = M28Utilities.GetAngleDifference(iAngleToTarget, iBomberDirection)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have overshot our target and want to micro-turn to attack it,  oBomber[refoStrikeDamageAssigned]='.. oBomber[refoStrikeDamageAssigned].UnitId..M28UnitInfo.GetUnitLifetimeCount( oBomber[refoStrikeDamageAssigned])..'; iDistToTarget='..iDistToTarget..'; iAngleToTarget='..iAngleToTarget..'; iBomberDirection='..iBomberDirection..'; iAngleDif='..iAngleDif..'; Time since last fired bomb='..(GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0))..'; Cur time='..GetGameTimeSeconds()) end
+                            --recently fired and target is close (so we wont be able to fire a bomb on a normal attack path)
+                            if GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) <= 2 and iDistToTarget <= 125 and (iAngleDif >= 10 or iDistToTarget <= 100) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try and hoverbomb') end
+                                ForkThread(M28Micro.T1OrT3HoverBombTarget, oBomber, oBomber[refoStrikeDamageAssigned], false, true, false, true)
+                                --Not recently fired, and want to turn:
+                            elseif (((iAngleDif >= 45 and iDistToTarget <= 200) or (iDistToTarget <= oBomber[M28UnitInfo.refiBomberRange] * 0.4)) and GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) >= 1)
+                                    --However, if we are facing almost the opposite direction we dont want to turn until there is enough distance that we will be able to fire a bomb when we turn
+                                    and (iAngleDif <= 60 or iDistToTarget >= 20)
+                            then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will turn around and attack the target, or hover bomb if we are close and fired recently') end
+                                ForkThread(M28Micro.TurnAirUnitAndAttackTarget, oBomber, oBomber[refoStrikeDamageAssigned], false, false, true)
+                            else
+                                --We just want to attack target as normal - check we have an active order
+                                M28Orders.UpdateRecordedOrders(oBomber)
+                                if M28Utilities.IsTableEmpty(oBomber[M28Orders.reftiLastOrders][1]) then
+                                    --Redundancy - issue attack order
+                                    AttackTargetForMexHuntingBomber(oBomber, false, oBomber[refoStrikeDamageAssigned])
+                                end
                             end
                         end
                     end
                 end
 
                 WaitTicks(M28Land.iTicksPerLandCycle) --done as proxy for air cycle time
+                if bDebugMessages == true then LOG(sFunctionRef..': About to start new cycle, is bomber valid='..tostring(M28UnitInfo.IsUnitValid(oBomber))..'; oBomber[refbBomberUsingMexHunterLogic]='..tostring((oBomber[refbBomberUsingMexHunterLogic] or false))..'; oBomber[refoStrikeDamageAssigned]='..(oBomber[refoStrikeDamageAssigned].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBomber[refoStrikeDamageAssigned]) or 'nil')..'; Is this valid='..tostring(M28UnitInfo.IsUnitValid(oBomber[refoStrikeDamageAssigned]))..'; Special micro active='..tostring(oBomber[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()) end
             end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
-function AttackTargetForMexHuntingBomber(oBomber, bCalledFromOnBombFired, oOptionalTargetOverride)
+function AttackTargetForMexHuntingBomber(oBomber, bCalledFromOnBombFired, oOptionalTargetOverride, bRetryIfNoTargetFound, bIsThisTheSecondCycle)
     --Searches for a target for the bomber, and gives an order to attack the target, considering microing to turn where relevant
     --returns true if found a target
     --bCalledFromOnBombFired - e.g. if this is called from the bomber on-bomb fired event, this should be true (so if we expect the bomb to kill the target we can ignore this and pick a new one)
+    --bIsThisTheSecondCycle - if true then we called this once and failed to find a target, so are callign again with looser conditions
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AttackTargetForMexHuntingBomber'
@@ -13023,6 +13058,13 @@ function AttackTargetForMexHuntingBomber(oBomber, bCalledFromOnBombFired, oOptio
             tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone]
             tStartLZOrWZTeamData = tStartLZOrWZData[M28Map.subrefLZTeamData][iTeam]
         end
+        local iGroundAAThreshold = 1100
+        local iAirAAThreshold = 325
+        if bIsThisTheSecondCycle then
+            iGroundAAThreshold = 2000
+            iAirAAThreshold = 600
+        end
+
         local iCurDist, iClosestDistToBomber, bCheckForAltTarget, iClosestDistForAltTarget, iCurHealth
         iClosestDistForAltTarget = 10000
         function ConsiderZoneForPotentialTargets(iEndPlateauOrZero, iEndLandOrWaterZone, iMexHunterCategories)
@@ -13038,9 +13080,10 @@ function AttackTargetForMexHuntingBomber(oBomber, bCalledFromOnBombFired, oOptio
             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false and tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] <= 3000 then
                 if bDontCheckForPacifism or not(tLZOrWZTeamData[M28Map.subrefbPacifistArea]) then
                     local tUnitsOfInterest = EntityCategoryFilterDown(iMexHunterCategories, tLZOrWZTeamData[M28Map.subrefTEnemyUnits])
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is tUnitsOfInterest empty='..tostring(M28Utilities.IsTableEmpty(tUnitsOfInterest))..'; Does enemy have groundAA along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, true, 1100, 100000, false, iAirSubteam, true, false, oBomber:GetPosition(), false, nil))..'; Does enemy have too much AirAA along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, false, 1000000, 325, false, iAirSubteam, true, false, oBomber:GetPosition(), false, nil))..'; Does enemy have too much threat (combined)='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, false, 1100, 325, false, iAirSubteam, true, false, oBomber:GetPosition(), false, nil))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is tUnitsOfInterest empty='..tostring(M28Utilities.IsTableEmpty(tUnitsOfInterest))..'; Does enemy have groundAA along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, true, iGroundAAThreshold, 100000, false, iAirSubteam, true, false, oBomber:GetPosition(),                      false,                                      nil,                                  nil,                                nil,                                bIsThisTheSecondCycle))..'; Does enemy have too much AirAA along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, false, 1000000, iAirAAThreshold, false, iAirSubteam, true, false, oBomber:GetPosition(), false, nil))..'; Does enemy have too much threat (combined)='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, false, iGroundAAThreshold, iGroundAAThreshold, false, iAirSubteam, true, false, oBomber:GetPosition(),                      false,                                      nil,                                  nil,                                nil,                                bIsThisTheSecondCycle))) end
                     if M28Utilities.IsTableEmpty(tUnitsOfInterest) == false then
-                        if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, false, 1100, 325, false, iAirSubteam, true, false, oBomber:GetPosition(), false, nil)) then
+                        --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck, bOptionalIgnoreOppositeDirectionZones, bIncludeEnemyGroundAAInAirAAThreat, bAssumeWontTargetInterimAAForDetailedCheck)
+                        if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, false,             iGroundAAThreshold,   iAirAAThreshold,                    false,          iAirSubteam,    true,               false,                          oBomber:GetPosition(),                      false,                                      nil,                                  nil,                                nil,                                bIsThisTheSecondCycle)) then
                             --Pick the closest target that we can kill
                             iClosestDistToBomber = 10000
                             if oClosestLowerPriorityTarget then bCheckForAltTarget = false else bCheckForAltTarget = true end
@@ -13108,7 +13151,8 @@ function AttackTargetForMexHuntingBomber(oBomber, bCalledFromOnBombFired, oOptio
         --recently fired and target is close (so we wont be able to fire a bomb on a normal attack path)
         if bCalledFromOnBombFired and GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) <= 2 and iDistToTarget <= 125 then
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and hoverbomb') end
-            ForkThread(M28Micro.T1HoverBombTarget, oBomber, oTarget, false, true, false)
+            --T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAttackingUntilTargetDead, bAbortForGroundAAUnlessTargetIsEngineer)
+            ForkThread(M28Micro.T1OrT3HoverBombTarget, oBomber, oTarget, false,                 true,                               false, true)
 
             --Get the best aoe location if attacking a structure
         elseif EntityCategoryContains(M28UnitInfo.refCategoryStructure, oTarget.UnitId) or oTarget:GetFractionComplete() < 1 then
@@ -13116,8 +13160,10 @@ function AttackTargetForMexHuntingBomber(oBomber, bCalledFromOnBombFired, oOptio
             local tGroundTarget = M28Logic.GetBestAOETarget(oBomber:GetAIBrain(), oTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, 1, 2, nil, nil, nil, nil, false)
             if M28Utilities.IsTableEmpty(tGroundTarget) then tGroundTarget = oTarget:GetPosition() end --redundancy
             M28Orders.IssueTrackedGroundAttack(oBomber, tGroundTarget, 1, false, 'MexHuntG', false, oTarget)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will do ground attack') end
         else
             --Manual attack as mobile target
+            if bDebugMessages == true then LOG(sFunctionRef..': Will do manual attack') end
             IssueTrackedAttack(oBomber, oTarget, false, 'MexHuntM', false)
         end
     else
@@ -13126,7 +13172,12 @@ function AttackTargetForMexHuntingBomber(oBomber, bCalledFromOnBombFired, oOptio
 
     --return true if found a target
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    if oTarget then return true else return false end
+    if oTarget then return true else
+        if bRetryIfNoTargetFound then return AttackTargetForMexHuntingBomber(oBomber, bCalledFromOnBombFired, oOptionalTargetOverride, false, true)
+        else
+            return false
+        end
+    end
 end
 
 
@@ -13453,7 +13504,7 @@ function EnemyNavalEngineerBomber(oBomber)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will call hoverbomb logic to target '..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)) end
                                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                     --NOTE: Dont call via fork thread, as otherwise we end up calling the same logic multiple times and it overriding orders
-                                    M28Micro.T1HoverBombTarget(oBomber, oEnemyToTarget, true, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oEnemyToTarget.UnitId) or oEnemyToTarget:GetFractionComplete() < 1), true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
+                                    M28Micro.T1OrT3HoverBombTarget(oBomber, oEnemyToTarget, true, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oEnemyToTarget.UnitId) or oEnemyToTarget:GetFractionComplete() < 1), true) --Dont do via fork thread, as want this logic to be dleayed so we dont rerun it
                                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Finished hoverbomb attempt') end
                                     iTicksToWait = 1 --Just to avoid infinite loop risk

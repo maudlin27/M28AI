@@ -9,9 +9,10 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
     local M28OldProjectile = Projectile
     Projectile = Class(M28OldProjectile) {
 
-        --[[OnImpact = function(self, targetType, targetEntity)
+        OnImpact = function(self, targetType, targetEntity)
+            if targetType == 'Terrain' then ForkThread(M28Events.OnImpactTerrain, self, targetType, targetEntity, self:GetPosition(), self:GetCurrentTargetPosition()) end
             M28OldProjectile.OnImpact(self, targetType, targetEntity)
-        end,--]]
+        end,
         --[[OnTrackTargetGround = function(self)
             M28OldProjectile.OnTrackTargetGround(self)
             ForkThread(M28Events.ProjectileFiredAtGround,self)

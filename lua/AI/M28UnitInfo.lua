@@ -817,6 +817,8 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     iMassMod = 1.05
                                 elseif oUnit.UnitId == 'url0402' then --Monkeylord - not great in a close up fight
                                     iMassMod = 0.9
+                                elseif oUnit.UnitId == 'ual0201' then --Aurora - has a good range but much weaker in close up combat
+                                    iMassMod = 0.8
                                 else iMassMod = 1
                                 end
                             elseif EntityCategoryContains(refCategoryFatboy, oUnit.UnitId) then
