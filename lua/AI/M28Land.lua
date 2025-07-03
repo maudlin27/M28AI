@@ -7130,8 +7130,20 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                         M28Orders.IssueTrackedAttack(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'INSAtc'..iLandZone, false)
                                                     else
                                                         --Consider attacking an enemy further away if closest enemy is insignificant
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Will consider switching to a snigifcant enemy target if relevant, is closest enemy from last check valid='..tostring(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]))..'; Mass cost of closest enemy='..(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiUnitMassCost] or 'nil')) end
-                                                        if bIFAttackNearestSignificantEnemy and (not(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) or oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiUnitMassCost] <= 45 or not(EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryIndirect + M28UnitInfo.refCategoryStructure, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId)) or M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) > oUnit[M28UnitInfo.refiIndirectRange] + 3) then
+                                                        local iDistToNearestEnemy = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition())
+                                                        local oMexToConsiderTargetetingInstead
+                                                        if iDistToNearestEnemy > (oUnit[M28UnitInfo.refiIndirectRange] + 10) and M28Utilities.IsTableEmpty(toAdjacentEnemyMexes) == false then
+                                                            for iMex, oMex in toAdjacentEnemyMexes do
+                                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oMex:GetPosition(), oUnit:GetPosition())
+                                                                if iCurDist < iDistToNearestEnemy then
+                                                                    iDistToNearestEnemy = iCurDist
+                                                                    oMexToConsiderTargetetingInstead = oMex
+                                                                end
+                                                            end
+                                                        end
+
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Will consider switching to a snigifcant enemy target if relevant, is closest enemy from last check valid='..tostring(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]))..'; Mass cost of closest enemy='..(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiUnitMassCost] or 'nil')..'; oMexToConsiderTargetetingInstead='..(oMexToConsiderTargetetingInstead.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oMexToConsiderTargetetingInstead) or 'nil')) end
+                                                        if bIFAttackNearestSignificantEnemy and (not(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) or oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiUnitMassCost] <= 45 or not(EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryIndirect + M28UnitInfo.refCategoryStructure, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId)) or iDistToNearestEnemy > oUnit[M28UnitInfo.refiIndirectRange] + 3) then
                                                             --If enemy has a building then focus on this
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Want to attack nearest significant enemy, oNearestEnemyStructureToMidpoint='..(oNearestEnemyStructureToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyStructureToMidpoint) or 'nil')) end
                                                             if oNearestEnemyStructureToMidpoint and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyStructureToMidpoint) then
@@ -7192,9 +7204,17 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             --If have aoe attack and nearest enemy is in range and we havent fired recently and the nearest enemy isnt moving, but we have temporarily lost intel of it, then ground fire it
                                                         elseif (oUnit[M28UnitInfo.refiIndirectAOE] or 0) > 0 and oUnit[M28UnitInfo.refiTimeBetweenIFShots] and M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and not(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:IsUnitState('Moving')) and not(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or -1) > 1 + oUnit[M28UnitInfo.refiTimeBetweenIFShots] * 1.2 and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) <= (oUnit[M28UnitInfo.refiIndirectRange] or 0) then
                                                             M28Orders.IssueTrackedGroundAttack(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), math.min(1, oUnit[M28UnitInfo.refiIndirectAOE] * 0.5), false, 'IHidAtc', false)
+                                                        elseif oMexToConsiderTargetetingInstead then
+                                                            if not(IgnoreOrderDueToStuckUnit(oUnit)) then
+                                                                if iDistToNearestEnemy <= oUnit[M28UnitInfo.refiCombatRange] + 3 then
+                                                                    M28Orders.IssueTrackedAttack(oUnit, oMexToConsiderTargetetingInstead, false, 'IAtMx'..iLandZone, false)
+                                                                else
+                                                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oMexToConsiderTargetetingInstead:GetPosition(), 5, false, 'IAmMx'..iLandZone)
+                                                                end
+                                                            end
                                                         else
                                                             if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                                                M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(15, iIndirectDistanceInsideRangeThreshold), false, 'IKAMve'..iLandZone)
+                                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(15, iIndirectDistanceInsideRangeThreshold), false, 'IKAMve'..iLandZone)
                                                             end
                                                         end
                                                     end
@@ -12449,7 +12469,7 @@ function GetMexesInThisOrAdjacentLandZone(tLZData, tLZTeamData, iTeam, iPlateau,
                         if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyMexes empty='..tostring(M28Utilities.IsTableEmpty(tEnemyMexes))) end
                         if M28Utilities.IsTableEmpty(tEnemyMexes) == false then
                             for iMex, oMex in tEnemyMexes do
-                                if M28UnitInfo.IsUnitValid(oMex) and (not(bRequireVisibilityOfMex) or CanSeeUnit(aiBrainForVisibilityCheck, oMex)) then
+                                if M28UnitInfo.IsUnitValid(oMex) and (not(bRequireVisibilityOfMex) or M28UnitInfo.CanSeeUnit(aiBrainForVisibilityCheck, oMex)) then
                                     if not(toAdjacentEnemyMexes) then toAdjacentEnemyMexes = {} end
                                     table.insert(toAdjacentEnemyMexes, oMex)
                                     if bDebugMessages == true then LOG(sFunctionRef..': recording enemy oMex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)) end
