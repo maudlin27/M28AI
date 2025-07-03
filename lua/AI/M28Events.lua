@@ -4626,7 +4626,6 @@ end
 function OnImpactTerrain(oProjectile, targetType, targetEntity, tProjectilePosition, tTargetPosition)
     local oLauncher = oProjectile.Launcher
     if not( IsDestroyed(oLauncher)) then
-        LOG('TEMPCODE OnImpactTerrain oLauncher='..oLauncher.UnitId)
         --T2 arti logic to register shot is blocked
         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oLauncher.UnitId) then
             local sFunctionRef = 'OnImpactTerrain'
