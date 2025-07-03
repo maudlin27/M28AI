@@ -4622,3 +4622,51 @@ function PingCreated(data)
         end
     end
 end
+
+function OnImpactTerrain(oProjectile, targetType, targetEntity, tProjectilePosition, tTargetPosition)
+    local oLauncher = oProjectile.Launcher
+    if not( IsDestroyed(oLauncher)) then
+        LOG('TEMPCODE OnImpactTerrain oLauncher='..oLauncher.UnitId)
+        --T2 arti logic to register shot is blocked
+        if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oLauncher.UnitId) then
+            local sFunctionRef = 'OnImpactTerrain'
+            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+            --Is our shot far from our target?
+            local tLastOrder = oLauncher[M28Orders.reftiLastOrders][1] --Since we add a delay on t2 arti before giving it a new order (with onweaponfired) hopefully this will be accurate
+            if bDebugMessages == true then LOG(sFunctionRef..': subrefoOrderUnitTarget='..(tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')) end
+            if tLastOrder[M28Orders.subrefoOrderUnitTarget] and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
+                --Did we impact terrain significantly higher up than our arti?
+                if bDebugMessages == true then LOG(sFunctionRef..': tProjectilePosition='..repru(tProjectilePosition)..'; tTargetPosition='..repru(tTargetPosition)..'; oLauncher:GetPosition()='..repru(oLauncher:GetPosition())) end
+                if tProjectilePosition[2] > oLauncher:GetPosition()[2] + 1 then
+                    --Did we hit terrain far from this target?
+
+                    --[[if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then tTargetPosition = tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()
+                    else tTargetPosition = (tLastOrder[M28Orders.subreftOrderPosition] or tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition())
+                    end--]]
+                    local iDistToTargetFromProjectile = M28Utilities.GetDistanceBetweenPositions(tProjectilePosition, tTargetPosition)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iDistToTargetFromProjectile='..iDistToTargetFromProjectile) end
+                    if iDistToTargetFromProjectile >= 30 then
+                        --Did we impact on the way to the target from the launcher?
+                        local iDistToLauncherFromProjectile = M28Utilities.GetDistanceBetweenPositions(tProjectilePosition, oLauncher:GetPosition())
+                        local iDistToLauncherFromTarget = M28Utilities.GetDistanceBetweenPositions(tTargetPosition, oLauncher:GetPosition())
+                        if bDebugMessages == true then LOG(sFunctionRef..': iDistToLauncherFromProjectile='..iDistToLauncherFromProjectile..'; iDistToLauncherFromTarget='..iDistToLauncherFromTarget..'; Is shot blocked='..tostring(M28Logic.IsShotBlocked(oLauncher, tLastOrder[M28Orders.subrefoOrderUnitTarget]) or false)) end
+                        if iDistToLauncherFromProjectile < iDistToLauncherFromTarget - 5 then
+                            --If we fired a directfire shot would it be blocked?
+                            if M28Logic.IsShotBlocked(oLauncher, tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
+                                --Shot is blocked
+                                local iTargetSegmentX, iTargetSegmentZ = M28Map.GetPathingSegmentFromPosition(tTargetPosition)
+                                if not(oLauncher[M28Building.reftbTerrainBlockedTargetsBySegment]) then oLauncher[M28Building.reftbTerrainBlockedTargetsBySegment] = {} end
+                                if not(oLauncher[M28Building.reftbTerrainBlockedTargetsBySegment][iTargetSegmentX]) then oLauncher[M28Building.reftbTerrainBlockedTargetsBySegment][iTargetSegmentX] = {} end
+                                oLauncher[M28Building.reftbTerrainBlockedTargetsBySegment][iTargetSegmentX][iTargetSegmentZ] = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Recording shots blocked for iTargetSegmentX='..iTargetSegmentX..'Z='..iTargetSegmentZ) end
+                            end
+                        end
+                    end
+                end
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        end
+    end
+end

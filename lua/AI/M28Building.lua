@@ -96,6 +96,9 @@ reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order o
 refbProtectingAllArtiAndShieldLocations = 'M28BuildShdProtAllArti' --true if a shield is covering the midpoint of all arti and shield locations (or arti units) - used os we avoid including in shield cycling shields like aeon shields that are too far away
 refiLastTargetValue = 'M28ArtiTgVal' --value of the last target the arti targeted
 
+--T2 arti specific
+reftbTerrainBlockedTargetsBySegment = 'M28BTArtBl' --against our T2 arti, [x] is segmentX, returns {y}, where [y] is segmentZ, returns true (if blocked)
+
 --Special buildings
 refbActiveOpticsManager = 'M28BuildActOptMan' --true if have active quantum optics manager
 reftScathisBuiltLocation = 'M28ScaBultLoc' --location that scathis construction was started
@@ -4465,8 +4468,8 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
 
     --oOptionalWeapon - if called from the weapon fire event then this means we can check our last target
     --iOptionalDelaySecondsAndWeaponFireCheck - if specified, then will wait this many seconds then check if we have fired since the code started, and if not then proceed (used so if we are targeting a mobile unit and it goes out of our range we arent stuck with an invalid fire order)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderManualT2ArtiTarget'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if not(oArti[M28UnitInfo.refbEasyBrain]) then
         local bProceedWithLogic = true
@@ -4532,7 +4535,8 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
                     end
                 end
             end
-
+            local iCurTargetSegmentX, iCurTargetSegmentZ
+            local bDontConsiderBlockedShots = M28Utilities.IsTableEmpty(oArti[reftbTerrainBlockedTargetsBySegment])
             function UpdateClosestUnit(tUnits)
                 for iUnit, oUnit in tUnits do
                     if not(oUnit.Dead) then
@@ -4541,8 +4545,19 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tArtiPosition)
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..repru(iCurDist)..'; iClosestTargetOfInterest='..repru(iClosestTargetOfInterest)..'; iMinRange='..repru(iMinRange)) end
                             if iCurDist < iClosestTargetOfInterest and iCurDist >= iMinRange then
-                                iClosestTargetOfInterest = iCurDist
-                                oClosestTargetOfInterest = oUnit
+                                if bDontConsiderBlockedShots then
+                                    iClosestTargetOfInterest = iCurDist
+                                    oClosestTargetOfInterest = oUnit
+                                else
+                                    --Check are shot isnt likely to be blocked
+                                    iCurTargetSegmentX, iCurTargetSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is Cur target expected to be blocked='..tostring(oArti[reftbTerrainBlockedTargetsBySegment][iCurTargetSegmentX][iCurTargetSegmentZ] or false)) end
+                                    if not(oArti[reftbTerrainBlockedTargetsBySegment][iCurTargetSegmentX][iCurTargetSegmentZ]) then
+                                        --This doesnt cover the scenario where taret is out of our range; however since we prioritise the closest unit, to stick with that target means we have no targets in our range, so am ok not covering that eventuality
+                                        iClosestTargetOfInterest = iCurDist
+                                        oClosestTargetOfInterest = oUnit
+                                    end
+                                end
                             end
                         end
                     end
@@ -4582,7 +4597,7 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
                     local oOrigUnitTarget = oClosestTargetOfInterest
                     iClosestTargetOfInterest = 100000
                     UpdateClosestUnit(oClosestTargetOfInterest[reftoShieldsProvidingCoverage])
-                    if iClosestTargetOfInterest >= 100000 then --Redundancy
+                    if iClosestTargetOfInterest >= 100000 then --Redundancy (e.g. shot might be blocked on the shield but not the unit being shielded)
                         iClosestTargetOfInterest = iOrigUnitDist
                         oClosestTargetOfInterest = oOrigUnitTarget
                     elseif bDebugMessages == true then LOG(sFunctionRef..': Original target was covered by a fixed shield so will target the shield instead, revised target='..oOrigUnitTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrigUnitTarget)..'; iOrigUnitDist='..iOrigUnitDist)
