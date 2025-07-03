@@ -4615,7 +4615,7 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
                         tGroundFireTarget = M28Utilities.MoveInDirection(tArtiPosition, M28Utilities.GetAngleFromAToB(tArtiPosition, oClosestTargetOfInterest:GetPosition()), (oArti[M28UnitInfo.refiIndirectRange] or 115) - iDistShortfall, true, false, M28Map.bIsCampaignMap)
                         --Is shot blocked for this?
                         iCurTargetSegmentX, iCurTargetSegmentZ = M28Map.GetPathingSegmentFromPosition(tGroundFireTarget)
-                        if oArti[reftbTerrainBlockedTargetsBySegment][iCurTargetSegmentX][iCurTargetSegmentZ] then bDebugMessages = true end
+
                         if bDebugMessages == true then LOG(sFunctionRef..': Is ground fire expected target expected to be blocked='..tostring(oArti[reftbTerrainBlockedTargetsBySegment][iCurTargetSegmentX][iCurTargetSegmentZ] or false)) end
                         if oArti[reftbTerrainBlockedTargetsBySegment][iCurTargetSegmentX][iCurTargetSegmentZ] then
                             tGroundFireTarget = nil

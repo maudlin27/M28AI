@@ -6044,7 +6044,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 iCurDistToClosestEnemy = M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition())
                                 iCurDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tLZTeamData[M28Map.reftClosestFriendlyBase])
                                 --Enemy unit might be say 30 to the nearest enemy, but a friendly unit attacking the nearest enemy might be less than 30 additional distance to the enemy; as a rough proxy will therefore go with 50% of this (so double the differential in dist to closest base)
-                                iCurModDistLessRange = math.min(iCurDistToClosestEnemy, math.max(1, iCurDistToClosestEnemy - oEnemy[M28UnitInfo.refiDFRange], (iClosestEnemyDistToFriendlyBase - iCurDistToFriendlyBase) * 2)) - oEnemy[M28UnitInfo.refiDFRange]
+                                iCurModDistLessRange = math.min(iCurDistToClosestEnemy, math.max(1, iCurDistToClosestEnemy - (oEnemy[M28UnitInfo.refiDFRange] or 0), (iClosestEnemyDistToFriendlyBase - iCurDistToFriendlyBase) * 2)) - oEnemy[M28UnitInfo.refiDFRange]
                                 if iCurModDistLessRange < iClosestDistLessRange then iClosestDistLessRange = iCurModDistLessRange end
                             end
                         end
@@ -6058,7 +6058,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 iCurDistToClosestEnemy = M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition())
                                 iCurDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tLZTeamData[M28Map.reftClosestFriendlyBase])
                                 --Enemy unit might be say 30 to the nearest enemy, but a friendly unit attacking the nearest enemy might be less than 30 additional distance to the enemy; as a rough proxy will therefore go with 50% of this (so double the differential in dist to closest base)
-                                iCurModDistLessRange = math.min(iCurDistToClosestEnemy, math.max(1, iCurDistToClosestEnemy - oEnemy[M28UnitInfo.refiDFRange], (iClosestEnemyDistToFriendlyBase - iCurDistToFriendlyBase) * 2)) - oEnemy[M28UnitInfo.refiCombatRange]
+                                iCurModDistLessRange = math.min(iCurDistToClosestEnemy, math.max(1, iCurDistToClosestEnemy - oEnemy[M28UnitInfo.refiCombatRange], (iClosestEnemyDistToFriendlyBase - iCurDistToFriendlyBase) * 2)) - oEnemy[M28UnitInfo.refiCombatRange]
                                 if iCurModDistLessRange < iClosestDistLessRange then iClosestDistLessRange = iCurModDistLessRange end
                             end
                         end
@@ -6069,7 +6069,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             iCurDistToClosestEnemy = M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition())
                             iCurDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tLZTeamData[M28Map.reftClosestFriendlyBase])
                             --Enemy unit might be say 30 to the nearest enemy, but a friendly unit attacking the nearest enemy might be less than 30 additional distance to the enemy; as a rough proxy will therefore go with 50% of this (so double the differential in dist to closest base)
-                            iCurModDistLessRange = math.min(iCurDistToClosestEnemy, math.max(1, iCurDistToClosestEnemy - oEnemy[M28UnitInfo.refiDFRange], (iClosestEnemyDistToFriendlyBase - iCurDistToFriendlyBase) * 2)) - oEnemy[M28UnitInfo.refiCombatRange]
+                            iCurModDistLessRange = math.min(iCurDistToClosestEnemy, math.max(1, iCurDistToClosestEnemy - (oEnemy[M28UnitInfo.refiDFRange] or 0), (iClosestEnemyDistToFriendlyBase - iCurDistToFriendlyBase) * 2)) - oEnemy[M28UnitInfo.refiCombatRange]
                             if iCurModDistLessRange < iClosestDistLessRange then iClosestDistLessRange = iCurModDistLessRange end
                         end
                     end
@@ -9217,7 +9217,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         if bDebugMessages == true then LOG(sFunctionRef..': bInRangeOfShorterRangedEnemy='..tostring(bInRangeOfShorterRangedEnemy or false)) end
                                         if not(bInRangeOfShorterRangedEnemy) then
                                             --We want to attack the nearest enemy
-                                            bDebugMessages = true
                                             bContinue = false
                                             if iDistUntilInRangeOfEnemyToConsiderAttacking <= 3 then
                                                 M28Orders.IssueTrackedAttack(oUnit, (oEnemyToConsiderOverride or oNearestEnemyToFriendlyBase), false, 'RetrAtck', false)
