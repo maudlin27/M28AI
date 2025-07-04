@@ -6279,12 +6279,24 @@ function GetACUOrder(aiBrain, oACU)
                                         end
                                         if bConsiderMexesAndReclaim then
                                             --If have DF enemies in our range or their range then dont consider reclaim
+                                            local iCurEnemyDist
                                             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
-                                                local iCurEnemyDist
                                                 for iEnemy, oEnemy in tLZOrWZTeamData[M28Map.reftoNearestDFEnemies] do
                                                     if M28UnitInfo.IsUnitValid(oEnemy) then
                                                         iCurEnemyDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition())
                                                         if iCurEnemyDist < math.max((oACU[M28UnitInfo.refiDFRange] or 0), oEnemy[M28UnitInfo.refiDFRange] or 0) then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..' is only '..iCurEnemyDist..' away from us so wont consider mex building or reclaim after all') end
+                                                            bConsiderMexesAndReclaim = false
+                                                            break
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                            if bConsiderMexesAndReclaim and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]) == false then
+                                                for iEnemy, oEnemy in tLZOrWZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] do
+                                                    if M28UnitInfo.IsUnitValid(oEnemy) then
+                                                        iCurEnemyDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition())
+                                                        if iCurEnemyDist < math.max((oACU[M28UnitInfo.refiDFRange] or 0), oEnemy[M28UnitInfo.refiDFRange] or 0) + 5 then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Enemy '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..' is only '..iCurEnemyDist..' away from us so wont consider mex building or reclaim after all') end
                                                             bConsiderMexesAndReclaim = false
                                                             break
