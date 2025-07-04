@@ -20286,6 +20286,20 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             end
                         end
                         if iT2ArtiCount > 0 then iBPWanted = 0 end
+                        --Minor LZs with T2 arti - get at least 1 t2 pd or else vulnerable to enemy t1 spam; dont worry if core base though as should have other units to protect
+                    elseif iT2ArtiCount >= 2 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (iT2ArtiCount >= 3 or tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+                        local iCurT2PDThreat = 0
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+                            for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                                if iRange >= 40 then iCurT2PDThreat = iCurT2PDThreat + iThreat end
+                            end
+                        end
+                        if iCurT2PDThreat < 200 * iT2ArtiCount then
+                            if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
+                            HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tLZData[M28Map.subrefMidpoint])
+
+                            iBPWanted = 0
+                        end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we already ahve enough T2 arti threat, iThreatWanted='..iThreatWanted..'; iT2ArtiThreat='..iT2ArtiThreat..'; iNetThreatWanted='..iNetThreatWanted..'; HaveLowMass='..tostring(bHaveLowMass)..'; iBPWanted='..iBPWanted) end
                     if iBPWanted > 0 and (iNetThreatWanted > 0 or (iT2ArtiThreat <= 3000 and not(bHaveLowMass) and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (iT2ArtiThreat <= 1500 or iNetThreatWanted >= 800))) and (iNetThreatWanted >= 500 or (iNetThreatWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
