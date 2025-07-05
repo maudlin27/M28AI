@@ -9355,7 +9355,9 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             if bDebugMessages == true then LOG(sFunctionRef..': iActionToAssign='..iActionToAssign..'; iEngiCount='..iEngiCount..'; Is category watned nil='..tostring(iCategoryWanted == nil)..'; iMinCategoryTechLevel='..(iMinCategoryTechLevel or 'nil')) end
 
             --Special logic for converting an action to a different one:
-            if iCategoryWanted == refActionManageGameEnderTemplate then iActionToAssign = refActionManageGameEnderTemplate iCategoryWanted = nil end
+            if iCategoryWanted == refActionManageGameEnderTemplate then
+                iActionToAssign = refActionManageGameEnderTemplate iCategoryWanted = nil
+            end
 
 
             if iCategoryWanted then
