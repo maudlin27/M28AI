@@ -2243,7 +2243,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
     return sUpgradeWanted, bIgnoreOtherConditions
 end
 
-function GetUpgradeForSACU(oSACU, bWantBuildPower, bForceGetNewUpgradePath)
+function GetUpgradeForSACU(oSACU, bWantBuildPower, bForceGetNewUpgradePath, bWantShieldField)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetUpgradeForSACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2261,16 +2261,19 @@ function GetUpgradeForSACU(oSACU, bWantBuildPower, bForceGetNewUpgradePath)
         local tUpgradesAvailable = oSACU:GetBlueprint().Enhancements
         local oBP = oSACU:GetBlueprint()
         if M28Utilities.IsTableEmpty(tUpgradesAvailable) == false then
-            local sRASUpgrade
-            local sBuildRateUpgrade
+            local sBuildRateUpgrade, sBestShieldSizeEnhancement
 
             --First get what slots are available
             --Check if can get RAS upgrade
             local tbSlotsInUse = {}
-            local iBestBuildPowerRate
+            local iBestBuildPowerRate, iBestShieldSize
             if bWantBuildPower then
                 iBestBuildPowerRate = (oSACU:GetBlueprint().Economy.BuildRate or 0)
             end
+            if bWantShieldField then
+                iBestShieldSize = (oSACU:GetBlueprint().Defense.Shield.ShieldSize or 0)
+            end
+
             local iBestEcoRate = 0
             local sBestEcoEnhancement, iCurEcoRate
             for sEnhancement, tEnhancement in tUpgradesAvailable do
@@ -2283,6 +2286,9 @@ function GetUpgradeForSACU(oSACU, bWantBuildPower, bForceGetNewUpgradePath)
                     if bWantBuildPower and (tEnhancement.NewBuildRate or 0) > iBestBuildPowerRate then
                         iBestBuildPowerRate = tEnhancement.NewBuildRate
                     end
+                    if bWantShieldField and (tEnhancement.ShieldSize or 0) > iBestShieldSize then
+                        iBestShieldSize = tEnhancement.ShieldSize
+                    end
                 elseif not(tEnhancement.Prerequisite) or (oSACU:HasEnhancement(tEnhancement.Prerequisite)) then
                     iCurEcoRate = (tEnhancement.ProductionPerSecondEnergy or 0) / 100 + (tEnhancement.ProductionPerSecondMass or 0)
                     if iCurEcoRate > iBestEcoRate then
@@ -2293,10 +2299,18 @@ function GetUpgradeForSACU(oSACU, bWantBuildPower, bForceGetNewUpgradePath)
                         iBestBuildPowerRate = tEnhancement.NewBuildRate
                         sBuildRateUpgrade = sEnhancement
                     end
+                    if bWantShieldField and (tEnhancement.ShieldSize or 0) > iBestShieldSize then
+                        iBestShieldSize = tEnhancement.ShieldSize
+                        sBestShieldSizeEnhancement = sEnhancement
+                    end
                 end
             end
 
-            if bDebugMessages == true then LOG(sFunctionRef..': bWantBuildPower='..tostring(bWantBuildPower)..'; sBuildRateUpgrade='..(sBuildRateUpgrade or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': bWantBuildPower='..tostring(bWantBuildPower)..'; sBuildRateUpgrade='..(sBuildRateUpgrade or 'nil')..'; sBestShieldSizeEnhancement='..(sBestShieldSizeEnhancement or 'nil')) end
+            --Shield upgrade if are defending against arti
+            if bWantShieldField and sBestShieldSizeEnhancement and M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and not(tbSlotsInUse[tUpgradesAvailable[sBuildRateUpgrade].Slot]) then
+                table.insert(oSACU[reftPreferredUpgrades], sBestShieldSizeEnhancement)
+            end
             if bWantBuildPower then
                 if sBuildRateUpgrade and (not(sBestEcoEnhancement) or bWantBuildPower or not(tUpgradesAvailable[sBuildRateUpgrade].Slot == tUpgradesAvailable[sBestEcoEnhancement].Slot)) and not(tbSlotsInUse[tUpgradesAvailable[sBuildRateUpgrade].Slot]) then
                     table.insert(oSACU[reftPreferredUpgrades], sBuildRateUpgrade)
@@ -2305,6 +2319,10 @@ function GetUpgradeForSACU(oSACU, bWantBuildPower, bForceGetNewUpgradePath)
             end
             if sBestEcoEnhancement then
                 table.insert(oSACU[reftPreferredUpgrades], sBestEcoEnhancement)
+            end
+            --Shield upgrade if not defending against arti
+            if bWantShieldField and sBestShieldSizeEnhancement and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and not(tbSlotsInUse[tUpgradesAvailable[sBuildRateUpgrade].Slot]) then
+                table.insert(oSACU[reftPreferredUpgrades], sBestShieldSizeEnhancement)
             end
 
             if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades] before refining to exclude invalid ones='..repru(oACU[reftPreferredUpgrades])) end
@@ -7973,5 +7991,19 @@ function DoesACUOnlyWantToSuicideIfInExplosionRange(oACU, tLZOrWZTeamData, iTeam
             return true
         end
 
+    end
+end
+
+function UpdateUnitUpgradeCountTrackingIfNotSet(oUnit)
+    --E.g. for SACUs that are transferred on player death
+    if not(oUnit[refiUpgradeCount]) then
+        if __blueprints[oUnit.UnitId].Enhancements then
+            for sEnhancement, tEnhancement in __blueprints[oUnit.UnitId].Enhancements do
+                if oUnit:HasEnhancement(sEnhancement) then
+                    oUnit[refiUpgradeCount] = (oUnit[refiUpgradeCount] or 0) + 1
+                    if tEnhancement.Prerequisite then oUnit[refiUpgradeCount] = oUnit[refiUpgradeCount] + 1 end
+                end
+            end
+        end
     end
 end

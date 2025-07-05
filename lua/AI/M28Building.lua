@@ -19,6 +19,7 @@ local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
+local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 
 
 --Global variables
@@ -4945,6 +4946,147 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': No longer have valid shields, so will flag that we have no active shield monitor, time='..GetGameTimeSeconds()) end
         tTableRef[M28Map.subrefGEbActiveShieldMonitor] = false
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function MonitorSACUShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
+    --Called from the gameender template logic for adding an engineer that is a shieldSACU
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MonitorSACUShieldsForCycling'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(tTableRef[M28Map.subrefbActiveShieldSACUCycling]) and bShieldsCanDischarge then
+        tTableRef[M28Map.subrefbActiveShieldSACUCycling] = true
+        local oLowestHealthActiveShield, oHighestHealthActiveShield, iCompletedShieldCount, iCurHealth, iMaxHealth, iLowestHealth, iHighestHealth, iLongestRechargeTime
+        local iSecondsBetweenShieldCycles = 1 --will change
+        local iShieldWithHealth
+
+        local tArtiMidpoint, iLowestHealthDistToArtiMidpoint, iCurDistToArtiMidpoint
+        if table.getn(tTableRef[M28Map.subrefGEArtiLocations]) == 1 then
+            tArtiMidpoint = tTableRef[M28Map.subrefGEArtiLocations][1]
+        else
+            tArtiMidpoint = {}
+            for iArtiLocation, tArtiLocation in tTableRef[M28Map.subrefGEArtiLocations] do
+                tArtiMidpoint[1] = (tArtiMidpoint[1] or 0) + tArtiLocation[1]
+                tArtiMidpoint[3] = (tArtiMidpoint[3] or 0) + tArtiLocation[3]
+            end
+            tArtiMidpoint[1] = tArtiMidpoint[1] / table.getn(tTableRef[M28Map.subrefGEArtiLocations])
+            tArtiMidpoint[3] = tArtiMidpoint[3] / table.getn(tTableRef[M28Map.subrefGEArtiLocations])
+        end
+        local iTimeOfLastDischarge
+
+        while M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subreftoGEShieldSACUs]) do
+            --Get the highest and lowest health active shields
+            iLowestHealth = 1000000
+            iHighestHealth = 0
+            oLowestHealthActiveShield = nil
+            oHighestHealthActiveShield = nil
+            iCompletedShieldCount = 0
+            iLongestRechargeTime = 10
+            iShieldWithHealth = 0
+            for iShield, oShield in tTableRef[M28Map.subreftoGEShieldSACUs] do
+                if oShield:GetFractionComplete() == 1 then --redundancy
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)) end
+                    iCompletedShieldCount = iCompletedShieldCount + 1
+                    iCurHealth, iMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' at time='..GetGameTimeSeconds()..'; iCurHealth='..iCurHealth..'; iMaxHealth='..iMaxHealth..'; Is shield enabled='..tostring(M28UnitInfo.IsUnitShieldEnabled(oShield))..'; Time since last discharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield paused='..tostring(oShield[M28UnitInfo.refbPaused] or false)..'; Dist to arti midpoint='..M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), tArtiMidpoint)) end
+                    --First check we are close enough to the midpoint
+                    iCurDistToArtiMidpoint = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), tArtiMidpoint)
+                    if iCurDistToArtiMidpoint >= 6 and not(oShield:IsUnitState('Upgrading')) and iCurDistToArtiMidpoint >= (oShield.MyShield.ShieldSize or 20) * 0.4 - 1 and (iCurHealth > 0 or iCurDistToArtiMidpoint > (oShield.MyShield.ShieldSize or 20) * 0.5) then
+                        M28Orders.IssueTrackedMove(oShield, tArtiMidpoint, 2, false, 'ShSCUMvToMd', true)
+                        M28Micro.TrackTemporaryUnitMicro(oShield, 5)
+                    end
+
+                    if iCurHealth > 0 then
+                        iShieldWithHealth = iShieldWithHealth + 1
+                        if iCurHealth < iLowestHealth then
+                            iLowestHealth = iCurHealth
+                            oLowestHealthActiveShield = oShield
+                        elseif iCurHealth == iLowestHealth then
+                            if not(oLowestHealthActiveShield) then
+                                iLowestHealth = iCurHealth
+                                oLowestHealthActiveShield = oShield
+                            else
+                                --Want to discharge the shield furthest from the midpoint if they both have equal health
+                                iLowestHealthDistToArtiMidpoint = M28Utilities.GetDistanceBetweenPositions(oHighestHealthActiveShield:GetPosition(), tArtiMidpoint)
+                                if iCurDistToArtiMidpoint > iLowestHealthDistToArtiMidpoint then
+                                    iLowestHealthDistToArtiMidpoint = iCurDistToArtiMidpoint
+                                    oLowestHealthActiveShield = oShield
+                                end
+                            end
+                        end
+                        if iCurHealth > iHighestHealth or (iCurHealth == iHighestHealth and (not(oHighestHealthActiveShield) or oLowestHealthActiveShield == oHighestHealthActiveShield)) then --want this to be >= and above to be < so that if we have 2 of the same shields at 100% health, we will have different shields recorded for lowest and highest health
+                            iHighestHealth = iCurHealth
+                            oHighestHealthActiveShield = oShield
+                        end
+                    elseif iMaxHealth > 0 then --Might not have the shield upgrade yet
+                        if bDebugMessages == true then LOG(sFunctionRef..': Time since last recharge='..GetGameTimeSeconds() - (oShield[refiTimeOfLastDischarge] or -100)..'; Is shield a transferred unit='..tostring(oShield[M28UnitInfo.refbTransferredUnit])..'; oUnit[refbShieldIsDisabled]='..repru(oShield[M28UnitInfo.refbShieldIsDisabled])) end
+                        if not(oShield[refiManuallyEnabledTime]) or GetGameTimeSeconds() - oShield[refiManuallyEnabledTime] >= 30 then --as had a case where shields were stuck not recharging, so added in case due to running enableunitshield every tick
+                            if (oShield[refiTimeOfLastDischarge] and GetGameTimeSeconds() - oShield[refiTimeOfLastDischarge] >= math.max(iLongestRechargeTime + 10, 40) and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeCreated] or 0) >= 5) then
+                                --Enable the shield incase it was somehow paused following the transfer, but only do this once every 10s
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enabling shield as it has been a long time since it was discharged, shield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Time='..GetGameTimeSeconds()) end
+                                M28UnitInfo.EnableUnitShield(oShield)
+                                oShield[refiManuallyEnabledTime] = GetGameTimeSeconds() --This is because also had a case where shield progress got stuck, which may have been due to this
+                            elseif not(oShield[refiTimeOfLastDischarge]) and oShield[M28UnitInfo.refbTransferredUnit] and oShield[M28UnitInfo.refbShieldIsDisabled] == nil and iCurHealth == 0 and oShield:GetAIBrain():GetEconomyStoredRatio('ENERGY') >= 0.1 and not(oShield[M28UnitInfo.refbPaused]) and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeCreated] or 0) >= 5 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have 0 health shield that was transferred so will try enabling shield, shield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Time='..GetGameTimeSeconds()) end
+                                M28UnitInfo.EnableUnitShield(oShield)
+                                oShield[refiManuallyEnabledTime] = GetGameTimeSeconds()
+                            end
+                        end
+                    end
+
+                    iLongestRechargeTime = math.max(iLongestRechargeTime, (oShield.MyShield.ShieldRechargeTime or 215))
+                end
+            end
+            if iCompletedShieldCount == 0 then break end
+            if bDebugMessages == true then LOG(sFunctionRef..': Deciding how long to wait and whether to discharge a shield, iShieldWithHealth='..iShieldWithHealth..'; iCompletedShieldCount='..iCompletedShieldCount) end
+            if not(oHighestHealthActiveShield) or iHighestHealth == 0 then
+                tTableRef[M28Map.subrefiHighestShieldACUHealth] = 0
+            elseif oHighestHealthActiveShield.MyShield.GetMaxHealth then
+                tTableRef[M28Map.subrefiHighestShieldACUHealth] = iHighestHealth / oHighestHealthActiveShield.MyShield:GetMaxHealth()
+            else
+                tTableRef[M28Map.subrefiHighestShieldACUHealth] = iHighestHealth / (oHighestHealthActiveShield.MyShield.ShieldMaxHealth or 52000)
+            end
+            if not(oLowestHealthActiveShield) or oLowestHealthActiveShield == oHighestHealthActiveShield or iShieldWithHealth <= 1 then
+                --We only have 1 shield active, so dont want to reset it
+                iSecondsBetweenShieldCycles = 0.1 --review position next tick
+                if bDebugMessages == true then LOG(sFunctionRef..': we either have no or 1 active shield so wont discharge but will check again in 1 tick') end
+            else
+                --If Aeon shell landed then the DOT effect could be beneath other shields; if we have 3+ shields active then seems unlikely, while if lowest health shield is <6k it wouldnt protect from the DOT effect either
+                if oLowestHealthActiveShield[refiTimeOfLastAeonT3ArtiDamageToShield] and iCompletedShieldCount <= 2 and GetGameTimeSeconds() - oLowestHealthActiveShield[refiTimeOfLastAeonT3ArtiDamageToShield] <= 1 and iLowestHealth >= 6000 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': The lowest health shield took T3 arti fire from aeon recently, so a chance the shell DOT effect could destroy things if it occurred beneath the other shield currently active') end
+                    iSecondsBetweenShieldCycles = 0.1 --review position next tick
+                else
+                    --We will presumably have waited the appropriate time before getting here, so can disable the lowest health shield; work out how long we want to wait for the next shield
+                    if iCompletedShieldCount > 1 then
+                        iSecondsBetweenShieldCycles = iLongestRechargeTime / (iCompletedShieldCount - 1)
+                    else
+                        --Redundancy - should be impossible to get here
+                        iSecondsBetweenShieldCycles = 10
+                    end
+                    if iShieldWithHealth <= 3 and iTimeOfLastDischarge and GetGameTimeSeconds() - iTimeOfLastDischarge + 0.5 < iSecondsBetweenShieldCycles then
+                        if bDebugMessages == true then LOG(sFunctionRef..': It hasnt been long enoug hsince our last discharge so will wait before discharing even if we have multiple shields active') end
+                        iSecondsBetweenShieldCycles = 0.5
+                    else
+                        M28UnitInfo.DischargeShield(oLowestHealthActiveShield)
+                        iTimeOfLastDischarge = GetGameTimeSeconds()
+                        if bDebugMessages == true then LOG(sFunctionRef..': have just discharged shield '..oLowestHealthActiveShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestHealthActiveShield)..' at time='..GetGameTimeSeconds()) end
+                        oLowestHealthActiveShield[refiTimeOfLastDischarge] = GetGameTimeSeconds()
+                        --Dont want ot update name as we want to have the name refer to engineer orders
+                        --[[if bUpdateName then
+                            M28Orders.UpdateUnitNameForOrder(oLowestHealthActiveShield, 'DischZ'..(oLowestHealthActiveShield[reftArtiTemplateRefs][2] or 'nil')..'T'..(oLowestHealthActiveShield[reftArtiTemplateRefs][3] or 'nil')..'; Tm='..math.floor(GetGameTimeSeconds()))
+                        end--]]
+                    end
+                end
+
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(iSecondsBetweenShieldCycles)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': No longer have valid shields, so will flag that we have no active shield monitor, time='..GetGameTimeSeconds()) end
+        tTableRef[M28Map.subrefbActiveShieldSACUCycling] = false
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

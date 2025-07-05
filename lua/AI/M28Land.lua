@@ -3506,181 +3506,192 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         end
     end
 
-    --If have any SACUs without RAS upgrade that could get it, then get RAS upgrade, provided no enemies in the zone (LOUD - only doe this if close to unit cap or defending against t3 arti since that will stop us building mass fabs, due to how bad ras is)
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering getting RAS if no enemies in LZ and not LOUD, tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; Enemy air to ground='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Unit cap level='..(M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 'nil')..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Team mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
-    if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) <= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
-        local tSACUsToUpgrade = {}
-        local tSACUsUpgrading = {}
-        local bWantBuildPower = false
-        if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.6 or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] <= -2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)) and (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 0)) <= 5 or not(M28Conditions.HaveLowPower(iTeam)) then
-            bWantBuildPower = true
-        end
-        local sUpgradeWanted
+    if tLZTeamData[M28Map.subrefbGEShieldSACU] then
         for iSACU = table.getn(tSACUs), 1, -1 do
-            local oSACU = tSACUs[iSACU]
-            if bDebugMessages == true then LOG(sFunctionRef..'; Considering iSACU='..iSACU..' in the table, oSACU='..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..'; Unit state='..M28UnitInfo.GetUnitState(oSACU)..'; Special micro active='..tostring(oSACU[M28UnitInfo.refbSpecialMicroActive])..'; oSACU[M28ACU.reftPreferredUpgrades]='..repru(oSACU[M28ACU.reftPreferredUpgrades])..'; bWantBuildPower='..tostring(bWantBuildPower or false)) end
-            if oSACU:IsUnitState('Upgrading') then
-                table.insert(tSACUsUpgrading, oSACU)
+            if EntityCategoryContains(categories.UEF, tSACUs[iSACU].UnitId) then
+                M28Engineer.AssignEngineerToGameEnderTemplate(tSACUs[iSACU], tLZData, tLZTeamData, iPlateau, iLandZone)
                 table.remove(tSACUs, iSACU)
-            elseif oSACU[M28UnitInfo.refbSpecialMicroActive] and oSACU:IsUnitState('Moving') then
-                --Do nothing - e.g. SACU might be rolling off of factory, or dodging a shot
-            else
-                if oSACU[M28ACU.reftPreferredUpgrades] == nil or (bWantBuildPower and not(oSACU[M28ACU.refbTriedAndFailedToGetBuildRateUpgrade])) then
-                    sUpgradeWanted = M28ACU.GetUpgradeForSACU(oSACU, bWantBuildPower, bWantBuildPower)
-                    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..(sUpgradeWanted or 'nil')) end
-                    if sUpgradeWanted then
-                        --Get upgrade wanted
-                        table.insert(tSACUsToUpgrade, oSACU)
-                        table.remove(tSACUs, iSACU)
-                        if bWantBuildPower and (oSACU[M28ACU.refiUpgradeCount] or 0) == 0  then bWantBuildPower = false end --i.e. better to just get bild power on 1 and assist with others, than try to get on all at the same time
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have added SACU to table of SACUs to upgrade, sUpgradeWanted='..sUpgradeWanted) end
-                    end
-                end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of SACUs upgrading empty='..tostring(M28Utilities.IsTableEmpty(tSACUsUpgrading))) end
-        if M28Utilities.IsTableEmpty(tSACUsUpgrading) == false then
-            local bLeaveOneSACU = false
-            if ((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= 3) then
-                bLeaveOneSACU = true
-            end
+    end
 
-            --First add any SACUsToUpgrade back to main table
-            if M28Utilities.IsTableEmpty(tSACUsToUpgrade) == false then
-                for iSACU, oSACU in tSACUsToUpgrade do
-                    table.insert(tSACUs, oSACU)
-                end
+    --If have any SACUs without RAS upgrade that could get it, then get RAS upgrade, provided no enemies in the zone (LOUD - only doe this if close to unit cap or defending against t3 arti since that will stop us building mass fabs, due to how bad ras is)
+    if M28Utilities.IsTableEmpty(tSACUs) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering getting RAS if no enemies in LZ and not LOUD, tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; Enemy air to ground='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Unit cap level='..(M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 'nil')..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Team mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
+        if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) <= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
+            local tSACUsToUpgrade = {}
+            local tSACUsUpgrading = {}
+            local bWantBuildPower = false
+            if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.6 or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] <= -2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)) and (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 0)) <= 5 or not(M28Conditions.HaveLowPower(iTeam)) then
+                bWantBuildPower = true
             end
-            --Assist with all SACUs (or all but one)
-            local oSACUToAssist = tSACUsUpgrading[1]
-            bProceed = bLeaveOneSACU
+            local sUpgradeWanted
             for iSACU = table.getn(tSACUs), 1, -1 do
                 local oSACU = tSACUs[iSACU]
-                if bLeaveOneSACU then
-                    bLeaveOneSACU = false
-                else
-                    if bDebugMessages == true then LOG(sFunctionRef..': Telling oSACU='..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' to assist oSACUToAssist='..oSACUToAssist.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACUToAssist)) end
-                    M28Orders.IssueTrackedGuard(oSACU, oSACUToAssist, false, 'SACUUpgrAs', false)
+                if bDebugMessages == true then LOG(sFunctionRef..'; Considering iSACU='..iSACU..' in the table, oSACU='..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..'; Unit state='..M28UnitInfo.GetUnitState(oSACU)..'; Special micro active='..tostring(oSACU[M28UnitInfo.refbSpecialMicroActive])..'; oSACU[M28ACU.reftPreferredUpgrades]='..repru(oSACU[M28ACU.reftPreferredUpgrades])..'; bWantBuildPower='..tostring(bWantBuildPower or false)) end
+                if oSACU:IsUnitState('Upgrading') then
+                    table.insert(tSACUsUpgrading, oSACU)
                     table.remove(tSACUs, iSACU)
-                end
-            end
-        elseif M28Utilities.IsTableEmpty(tSACUsToUpgrade) == false then
-            for iSACU, oSACU in tSACUsToUpgrade do
-                if bDebugMessages == true then LOG(sFunctionRef..': Will ugprade oSACU='..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' with upgrade '..(oSACU[M28ACU.reftPreferredUpgrades][1] or 'nil')..' unless special micro active, special micro='..tostring(oSACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
-                if not(oSACU[M28UnitInfo.refbSpecialMicroActive]) then
-                    M28Orders.IssueTrackedEnhancement(oSACU, oSACU[M28ACU.reftPreferredUpgrades][1], false, 'SACURasUpgr')
-                    break
-                end
-            end
-        end
-        if M28Utilities.IsTableEmpty(tSACUs) then bProceed = false end
-    end
-    --M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpg')
-    local bWantExperimentalAnyway = false
-    if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) <= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and not(M28Conditions.HaveLowPower(iTeam)) then
-        bWantExperimentalAnyway = true
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': About to consider if we want to get SMD or experimental due to restrictions on what can be built by engineers, bProceed='..tostring(bProceed)..'; Time since last wanted SACU for exp or engi='..(GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0))..'; bWantExperimentalAnyway='..tostring(bWantExperimentalAnyway)) end
-    if bProceed and (bWantExperimentalAnyway or  ((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= math.max(5, (iTicksPerLandCycle-1)*0.1))) then
-        local bBuildingSMD = false
-        if tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] <= math.max(5, (iTicksPerLandCycle-1)*0.1) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false) then
-            local iSMDBPWanted, bAssistSMD, oSMDToShield, oShieldToAssist = M28Engineer.GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, tLZTeamData[M28Map.subrefLZbCoreBase], M28Conditions.TeamHasLowMass(iTeam), M28Conditions.HaveLowPower(iTeam))
-            if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to use RAS SACUs to build SMD, iSMDBPWanted='..iSMDBPWanted..'; bAssistSMD='..tostring(bAssistSMD)..'; oSMDToShield='..(oSMDToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSMDToShield) or 'nil')..'; oShieldToAssist='..(oShieldToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShieldToAssist) or 'nil')) end
-            if iSMDBPWanted > 0 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategorySMD, true) == 0 and not(bAssistSMD) and not(oSMDToShield) and not(oShieldToAssist) then
-                bBuildingSMD = true
-                BuildCategoryWithSACUs(M28UnitInfo.refCategorySMD, nil, nil, M28Engineer.refActionBuildSMD)
-            end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': bBuildingSMD='..tostring(bBuildingSMD)..'; Time since last wanted SMD='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0)) end
-        if not(bBuildingSMD) and (bWantExperimentalAnyway or tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] <= math.max(5, (iTicksPerLandCycle-1)*0.1)) then
-            --First check we have no experimental level units under construction in this zone
-            if bDebugMessages == true then LOG(sFunctionRef..': Number of exp under construction in LZ='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryExperimentalLevel, true)) end
-            if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryExperimentalLevel, true) == 0 then
-                local tbEngineersOfFactionOrNilIfAlreadyAssigned = {}
-                local aiBrain
-                local toSACUByFaction = {}
-                local iCurFaction
-                for iSACU, oSACU in tSACUs do
-                    iCurFaction = M28UnitInfo.GetUnitFaction(oSACU)
-                    tbEngineersOfFactionOrNilIfAlreadyAssigned[iCurFaction] = true
-                    if not(aiBrain) then aiBrain = oSACU:GetAIBrain() end
-                    if not(toSACUByFaction[iCurFaction]) then toSACUByFaction[iCurFaction] = {} end
-                    table.insert(toSACUByFaction[iCurFaction], oSACU)
-                end
-                local iCategoryWanted, iFactionWanted = M28Engineer.DecideOnExperimentalToBuild(M28Engineer.refActionBuildExperimental, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned, tLZData, tLZTeamData, iPlateau, iLandZone)
-                if bDebugMessages == true then LOG(sFunctionRef..': is iCategoryWanted nil='..tostring(iCategoryWanted == nil)..'; is iFactionWanted nil='..tostring(iFactionWanted == nil)) end
-                if iCategoryWanted then
-                    if iCategoryWanted == M28Engineer.refActionManageGameEnderTemplate then
-                        --Need to assign unit to GETemplate
-                        bProceed = false
-                        for iSACU, oSACU in tSACUs do
-                            M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
+                elseif oSACU[M28UnitInfo.refbSpecialMicroActive] and oSACU:IsUnitState('Moving') then
+                    --Do nothing - e.g. SACU might be rolling off of factory, or dodging a shot
+                else
+                    if oSACU[M28ACU.reftPreferredUpgrades] == nil or (bWantBuildPower and not(oSACU[M28ACU.refbTriedAndFailedToGetBuildRateUpgrade])) then
+                        sUpgradeWanted = M28ACU.GetUpgradeForSACU(oSACU, bWantBuildPower, bWantBuildPower)
+                        if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..(sUpgradeWanted or 'nil')) end
+                        if sUpgradeWanted then
+                            --Get upgrade wanted
+                            table.insert(tSACUsToUpgrade, oSACU)
+                            table.remove(tSACUs, iSACU)
+                            if bWantBuildPower and (oSACU[M28ACU.refiUpgradeCount] or 0) == 0  then bWantBuildPower = false end --i.e. better to just get bild power on 1 and assist with others, than try to get on all at the same time
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have added SACU to table of SACUs to upgrade, sUpgradeWanted='..sUpgradeWanted) end
                         end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of SACUs upgrading empty='..tostring(M28Utilities.IsTableEmpty(tSACUsUpgrading))) end
+            if M28Utilities.IsTableEmpty(tSACUsUpgrading) == false then
+                local bLeaveOneSACU = false
+                if ((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= 3) then
+                    bLeaveOneSACU = true
+                end
+
+                --First add any SACUsToUpgrade back to main table
+                if M28Utilities.IsTableEmpty(tSACUsToUpgrade) == false then
+                    for iSACU, oSACU in tSACUsToUpgrade do
+                        table.insert(tSACUs, oSACU)
+                    end
+                end
+                --Assist with all SACUs (or all but one)
+                local oSACUToAssist = tSACUsUpgrading[1]
+                bProceed = bLeaveOneSACU
+                for iSACU = table.getn(tSACUs), 1, -1 do
+                    local oSACU = tSACUs[iSACU]
+                    if bLeaveOneSACU then
+                        bLeaveOneSACU = false
                     else
-                        BuildCategoryWithSACUs(iCategoryWanted, iFactionWanted, toSACUByFaction, M28Engineer.refActionBuildExperimental)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Telling oSACU='..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' to assist oSACUToAssist='..oSACUToAssist.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACUToAssist)) end
+                        M28Orders.IssueTrackedGuard(oSACU, oSACUToAssist, false, 'SACUUpgrAs', false)
+                        table.remove(tSACUs, iSACU)
+                    end
+                end
+            elseif M28Utilities.IsTableEmpty(tSACUsToUpgrade) == false then
+                for iSACU, oSACU in tSACUsToUpgrade do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will ugprade oSACU='..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' with upgrade '..(oSACU[M28ACU.reftPreferredUpgrades][1] or 'nil')..' unless special micro active, special micro='..tostring(oSACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                    if not(oSACU[M28UnitInfo.refbSpecialMicroActive]) then
+                        M28Orders.IssueTrackedEnhancement(oSACU, oSACU[M28ACU.reftPreferredUpgrades][1], false, 'SACURasUpgr')
+                        break
+                    end
+                end
+            end
+            if M28Utilities.IsTableEmpty(tSACUs) then bProceed = false end
+        end
+        --M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUpg')
+        local bWantExperimentalAnyway = false
+        if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) <= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and not(M28Conditions.HaveLowPower(iTeam)) then
+            bWantExperimentalAnyway = true
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to consider if we want to get SMD or experimental due to restrictions on what can be built by engineers, bProceed='..tostring(bProceed)..'; Time since last wanted SACU for exp or engi='..(GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0))..'; bWantExperimentalAnyway='..tostring(bWantExperimentalAnyway)) end
+        if bProceed and (bWantExperimentalAnyway or  ((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= math.max(5, (iTicksPerLandCycle-1)*0.1))) then
+            local bBuildingSMD = false
+            if tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] <= math.max(5, (iTicksPerLandCycle-1)*0.1) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false) then
+                local iSMDBPWanted, bAssistSMD, oSMDToShield, oShieldToAssist = M28Engineer.GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, tLZTeamData[M28Map.subrefLZbCoreBase], M28Conditions.TeamHasLowMass(iTeam), M28Conditions.HaveLowPower(iTeam))
+                if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to use RAS SACUs to build SMD, iSMDBPWanted='..iSMDBPWanted..'; bAssistSMD='..tostring(bAssistSMD)..'; oSMDToShield='..(oSMDToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSMDToShield) or 'nil')..'; oShieldToAssist='..(oShieldToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oShieldToAssist) or 'nil')) end
+                if iSMDBPWanted > 0 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategorySMD, true) == 0 and not(bAssistSMD) and not(oSMDToShield) and not(oShieldToAssist) then
+                    bBuildingSMD = true
+                    BuildCategoryWithSACUs(M28UnitInfo.refCategorySMD, nil, nil, M28Engineer.refActionBuildSMD)
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bBuildingSMD='..tostring(bBuildingSMD)..'; Time since last wanted SMD='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0)) end
+            if not(bBuildingSMD) and (bWantExperimentalAnyway or tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] <= math.max(5, (iTicksPerLandCycle-1)*0.1)) then
+                --First check we have no experimental level units under construction in this zone
+                if bDebugMessages == true then LOG(sFunctionRef..': Number of exp under construction in LZ='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryExperimentalLevel, true)) end
+                if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryExperimentalLevel, true) == 0 then
+                    local tbEngineersOfFactionOrNilIfAlreadyAssigned = {}
+                    local aiBrain
+                    local toSACUByFaction = {}
+                    local iCurFaction
+                    for iSACU, oSACU in tSACUs do
+                        iCurFaction = M28UnitInfo.GetUnitFaction(oSACU)
+                        tbEngineersOfFactionOrNilIfAlreadyAssigned[iCurFaction] = true
+                        if not(aiBrain) then aiBrain = oSACU:GetAIBrain() end
+                        if not(toSACUByFaction[iCurFaction]) then toSACUByFaction[iCurFaction] = {} end
+                        table.insert(toSACUByFaction[iCurFaction], oSACU)
+                    end
+                    local iCategoryWanted, iFactionWanted = M28Engineer.DecideOnExperimentalToBuild(M28Engineer.refActionBuildExperimental, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned, tLZData, tLZTeamData, iPlateau, iLandZone)
+                    if bDebugMessages == true then LOG(sFunctionRef..': is iCategoryWanted nil='..tostring(iCategoryWanted == nil)..'; is iFactionWanted nil='..tostring(iFactionWanted == nil)) end
+                    if iCategoryWanted then
+                        if iCategoryWanted == M28Engineer.refActionManageGameEnderTemplate then
+                            --Need to assign unit to GETemplate
+                            bProceed = false
+                            for iSACU, oSACU in tSACUs do
+                                M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
+                            end
+                        else
+                            BuildCategoryWithSACUs(iCategoryWanted, iFactionWanted, toSACUByFaction, M28Engineer.refActionBuildExperimental)
+                        end
                     end
                 end
             end
         end
-    end
-    --Consider sending 1 SACU to water zone if havent already sent one and this is a core base and we have multiple SACUs
-    if bProceed and M28Utilities.IsTableEmpty(tSACUs) == false then
-        local iCurSACUsAssignedToWaterZones = 0
-        local iCurSACUsInLandZone = table.getn(tSACUs)
-        local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
-        local iLandToWaterRatio = 10
-        if aiBrain[M28Overseer.refbPrioritiseNavy] then iLandToWaterRatio = 0.5
-        elseif not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then iLandToWaterRatio = 2
-        end
-        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]) == false then iCurSACUsAssignedToWaterZones = table.getn(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]) end
-        if iCurSACUsInLandZone > iCurSACUsAssignedToWaterZones * iLandToWaterRatio then
-            if aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 3 then
-                --Send SACUs if we are priorising navy, or if we need SACUs to build experimentals (i.e. QUIET or LOUD)
-                if aiBrain[M28Overseer.refbPrioritiseNavy] or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(tLZTeamData[M28Map.refbBaseInSafePosition]) and (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false))) then
-                    --Do we have more than 1 SACU here?
-                    if tLZTeamData[M28Map.subrefLZbCoreBase] and iCurSACUsInLandZone > 1 then
-                        --Are weither a naval AI, or this is our 3rd+ SACU?
-                        local bNavalOr3rdSACU = (aiBrain[M28Overseer.refbPrioritiseNavy] or iCurSACUsInLandZone >= 3)
-                        if not(bNavalOr3rdSACU) then
-                            for iSACU, oSACU in tSACUs do
-                                if M28UnitInfo.GetUnitLifetimeCount(oSACU) >= 3 then
-                                    bNavalOr3rdSACU = true
-                                    break
+        --Consider sending 1 SACU to water zone if havent already sent one and this is a core base and we have multiple SACUs
+        if bProceed and M28Utilities.IsTableEmpty(tSACUs) == false then
+            local iCurSACUsAssignedToWaterZones = 0
+            local iCurSACUsInLandZone = table.getn(tSACUs)
+            local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+            local iLandToWaterRatio = 10
+            if aiBrain[M28Overseer.refbPrioritiseNavy] then iLandToWaterRatio = 0.5
+            elseif not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then iLandToWaterRatio = 2
+            end
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]) == false then iCurSACUsAssignedToWaterZones = table.getn(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]) end
+            if iCurSACUsInLandZone > iCurSACUsAssignedToWaterZones * iLandToWaterRatio then
+                if aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 3 then
+                    --Send SACUs if we are priorising navy, or if we need SACUs to build experimentals (i.e. QUIET or LOUD)
+                    if aiBrain[M28Overseer.refbPrioritiseNavy] or ((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(tLZTeamData[M28Map.refbBaseInSafePosition]) and (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false))) then
+                        --Do we have more than 1 SACU here?
+                        if tLZTeamData[M28Map.subrefLZbCoreBase] and iCurSACUsInLandZone > 1 then
+                            --Are weither a naval AI, or this is our 3rd+ SACU?
+                            local bNavalOr3rdSACU = (aiBrain[M28Overseer.refbPrioritiseNavy] or iCurSACUsInLandZone >= 3)
+                            if not(bNavalOr3rdSACU) then
+                                for iSACU, oSACU in tSACUs do
+                                    if M28UnitInfo.GetUnitLifetimeCount(oSACU) >= 3 then
+                                        bNavalOr3rdSACU = true
+                                        break
+                                    end
                                 end
                             end
-                        end
-                        if bNavalOr3rdSACU then
-                            --Can we find a nearby high value water zone?
-                            M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
-                            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
-                                local iMaxSearchRange = 150
-                                local iCurWaterZone
-                                if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or aiBrain[M28Overseer.refbPrioritiseNavy] then iMaxSearchRange = 300 end
-                                local bAssignedSACU = false
-                                for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
-                                    if tSubtable[M28Map.subrefiDistance] > iMaxSearchRange then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Are outside the max range so wil stop searching') end
-                                        break
-                                    elseif tSubtable[M28Map.subrefbIsWaterZone] then
-                                        iCurWaterZone = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
-                                        --Is this a high value pond, or a WZ that has recently tried getting exp
-                                        local tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurWaterZone]][M28Map.subrefPondWaterZones][iCurWaterZone]
-                                        local tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                                        if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWaterZone]] or 0) >= 14 or (tAltLZOrWZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and GetGameTimeSeconds() - tAltLZOrWZTeamData[M28Map.subrefiTimeLastWantSACUForExp] <= 11) then
-                                            if M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                                                --Have a high value water zone with friendly units in it, if we have a navla factory here that has built something, then send an SACU
-                                                for iUnit, oUnit in tAltLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
-                                                    if (oUnit[M28Factory.refiTotalBuildCount] or 0) >= 1 then
-                                                        --Send 1 SACU here
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Will send SACU '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to WZ='..iCurWaterZone) end
-                                                        tSACUs[1][M28UnitInfo.refiSACUWaterZoneTarget] = iCurWaterZone
-                                                        table.remove(tSACUs, 1)
-                                                        if M28Utilities.IsTableEmpty(tSACUs) then bProceed = false end
-                                                        bAssignedSACU = true
-                                                        break
+                            if bNavalOr3rdSACU then
+                                --Can we find a nearby high value water zone?
+                                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
+                                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                                    local iMaxSearchRange = 150
+                                    local iCurWaterZone
+                                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or aiBrain[M28Overseer.refbPrioritiseNavy] then iMaxSearchRange = 300 end
+                                    local bAssignedSACU = false
+                                    for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                                        if tSubtable[M28Map.subrefiDistance] > iMaxSearchRange then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Are outside the max range so wil stop searching') end
+                                            break
+                                        elseif tSubtable[M28Map.subrefbIsWaterZone] then
+                                            iCurWaterZone = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
+                                            --Is this a high value pond, or a WZ that has recently tried getting exp
+                                            local tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurWaterZone]][M28Map.subrefPondWaterZones][iCurWaterZone]
+                                            local tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                            if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWaterZone]] or 0) >= 14 or (tAltLZOrWZTeamData[M28Map.subrefiTimeLastWantSACUForExp] and GetGameTimeSeconds() - tAltLZOrWZTeamData[M28Map.subrefiTimeLastWantSACUForExp] <= 11) then
+                                                if M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                                    --Have a high value water zone with friendly units in it, if we have a navla factory here that has built something, then send an SACU
+                                                    for iUnit, oUnit in tAltLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
+                                                        if (oUnit[M28Factory.refiTotalBuildCount] or 0) >= 1 then
+                                                            --Send 1 SACU here
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will send SACU '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to WZ='..iCurWaterZone) end
+                                                            tSACUs[1][M28UnitInfo.refiSACUWaterZoneTarget] = iCurWaterZone
+                                                            table.remove(tSACUs, 1)
+                                                            if M28Utilities.IsTableEmpty(tSACUs) then bProceed = false end
+                                                            bAssignedSACU = true
+                                                            break
+                                                        end
                                                     end
+                                                    if bAssignedSACU then break end
                                                 end
-                                                if bAssignedSACU then break end
                                             end
                                         end
                                     end
@@ -3689,33 +3700,36 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                         end
                     end
                 end
-            end
-        elseif iCurSACUsAssignedToWaterZones > 0then
-            for iCurEntry = table.getn(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]), 1, -1 do
-                local oTravelingSACU = tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere][iCurEntry]
-                if not(oTravelingSACU[M28UnitInfo.refiSACUWaterZoneTarget]) then
-                    table.remove(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere], iCurEntry)
-                end
-            end
-        end
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should proceed with considering assigning SACUs to GE template, bProceed='..tostring(bProceed)..'; Is table of active GE templates for this zone empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))) end
-    if bProceed and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
-        for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
-            if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) then
-                for iSACU, oSACU in tSACUs do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering SACU assignment to GE template, oSACU='..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..'; oSACU[M28Building.reftArtiTemplateRefs]='..repru(oSACU[M28Building.reftArtiTemplateRefs])..'; oSACU[M28UnitInfo.refbSpecialMicroActive]='..tostring(oSACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
-                    if M28Utilities.IsTableEmpty(oSACU[M28Building.reftArtiTemplateRefs]) then
-                        if not(oSACU[M28UnitInfo.refbSpecialMicroActive]) then
-                            M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
-                        end
+            elseif iCurSACUsAssignedToWaterZones > 0then
+                for iCurEntry = table.getn(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere]), 1, -1 do
+                    local oTravelingSACU = tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere][iCurEntry]
+                    if not(oTravelingSACU[M28UnitInfo.refiSACUWaterZoneTarget]) then
+                        table.remove(tLZTeamData[M28Map.subreftoSACUsTravelingToWaterZoneFromHere], iCurEntry)
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': RAS SACUs are assigned to gameender duty for iTemplate ref='..iTemplate) end
-                bProceed = false
-                break
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should proceed with considering assigning SACUs to GE template, bProceed='..tostring(bProceed)..'; Is table of active GE templates for this zone empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))) end
+        if bProceed and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
+            for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
+                if not(tSubtable[M28Map.subrefGEbDontNeedEngineers]) then
+                    for iSACU, oSACU in tSACUs do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering SACU assignment to GE template, oSACU='..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..'; oSACU[M28Building.reftArtiTemplateRefs]='..repru(oSACU[M28Building.reftArtiTemplateRefs])..'; oSACU[M28UnitInfo.refbSpecialMicroActive]='..tostring(oSACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                        if M28Utilities.IsTableEmpty(oSACU[M28Building.reftArtiTemplateRefs]) then
+                            if not(oSACU[M28UnitInfo.refbSpecialMicroActive]) then
+                                M28Engineer.AssignEngineerToGameEnderTemplate(oSACU, tLZData, tLZTeamData, iPlateau, iLandZone)
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': RAS SACUs are assigned to gameender duty for iTemplate ref='..iTemplate) end
+                    bProceed = false
+                    break
+                end
+            end
+        end
+    else
+        bProceed = false
+        --All SACUs are assigned to GE template/we have none
     end
     if bDebugMessages == true then LOG(sFunctionRef..': FInished going through if want to help active GE template, bProceed='..tostring(bProceed)) end
     if bProceed then
