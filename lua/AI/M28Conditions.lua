@@ -1213,8 +1213,8 @@ function IsUnitInRangeOfLRIndirectFireUnits(oUnit, tLZTeamData, iDistThreshold)
 end
 
 function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
-    --Returns true if our distance to any of tUnitsToCheck is <= iDistThreshold; if bIncludeEnemyDFRange is true then our distance to the units is reduced by the enemy unit's DF range (meaning it returns true if we are within iDistThreshold of the enemy unit being able to shoot at us)
-    --iAltThresholdToDFRange - if bIncludeEnemyDFRange is true and this also has a value specified, then if we are within iAltThresholdToDFRange will return true regardless of the iDistThreshold test
+    --Returns true if our distance to any of tUnitsToCheck is <= iDistThreshold; if bIncludeEnemyDFRange is true then our distance to the units is reduced by the enemy unit's DF range (meaning it returns true if we are within iDistThreshold of the enemy unit being able to shoot at us);
+    --iAltThresholdToDFRange - if bIncludeEnemyDFRange is true and this also has a value specified, then if we are within iAltThresholdToDFRange will return true regardless of the iDistThreshold test; i.e. we will both check if enemy dist-DF range is within iDistThreshold, or if enemy dist is within iAltThresholdToDFRange
     --oUnitIfConsideringAngleAndLastShot - if we have a unit that is very vulnerable at lcose range (e.g. a skirmisher unit), then including this here will mean a check is done of the enemy unit facing angle and unit state (to factor in how easily it could close in to us) to decide whether to run or not
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1234,7 +1234,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     local bAreCloseToUnit = false
     if M28UnitInfo.IsUnitValid(oUnitIfConsideringAngleAndLastShot) then
         bIncludeAngleChecks = true
-        iAngleDistMod = -3 --i.e. will decrease enemy unit range to us by this amount if they are facing a similar angle to us
+        iAngleDistMod = -3 --i.e. will decrease enemy unit range to us by this amount if they are facing a similar angle to us; we decrease it by even more than this if enemy is close to us in range
         iAngleDifferenceThreshold = 25 --if angle dif is less than this amount, will reduce enemy distance to us by iAngleDistMod
         iMiniAngleDistMod = -1.5
         iMiniAngleThreshold = iAngleDifferenceThreshold + 10
@@ -1251,7 +1251,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
         else iDistThreshold = iDistThreshold * 0.94
         end
     end
-    local iClosestEnemyDist
+    local iClosestEnemyDist, iCurSpeedX, iCurSpeedY, iCurSpeedZ, iDistanceShortly
     if oOptionalFriendlyUnitToRecordClosestEnemy then
         iClosestEnemyDist = 100000
         oOptionalFriendlyUnitToRecordClosestEnemy[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] = nil
@@ -1264,20 +1264,36 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
                 oOptionalFriendlyUnitToRecordClosestEnemy[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] = oUnit
             end
             if bIncludeAngleChecks and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
-                iCurAngleDif = M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition), M28UnitInfo.GetUnitFacingAngle(oUnit))
-                if iCurAngleDif <= iAngleDifferenceThreshold then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oUnit)..'; Angle to start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition)..'; so will adjust iCurDist '..iCurDist..' by iAngleDistMod='..iAngleDistMod..'; will adjust further if it is moving, unit state='..M28UnitInfo.GetUnitState(oUnit)) end
-                    iCurDist = iCurDist + iAngleDistMod
-                elseif iCurAngleDif <= iMiniAngleThreshold then
-                    iCurDist = iCurDist + iMiniAngleDistMod
-                    if bDebugMessages == true then LOG(sFunctionRef..': iCurAngleDif is below mini angle threshold, iCurAngleDif='..iCurAngleDif..'; iMiniAngleThreshold='..iMiniAngleThreshold..'; will adjust dist by iMiniAngleDistMod='..iMiniAngleDistMod) end
-                elseif bDebugMessages == true then LOG(sFunctionRef..': Angle dif is large enough that we wont adjust the distance, iCurAngleDif='..iCurAngleDif)
+                local tCurPosition = oUnit:GetPosition()
+                iCurSpeedX, iCurSpeedY, iCurSpeedZ = oUnit:GetVelocity()
+                iDistanceShortly = M28Utilities.GetDistanceBetweenPositions({tCurPosition[1] + iCurSpeedX, tCurPosition[2] + iCurSpeedY, tCurPosition[3] + iCurSpeedZ}, tStartPosition)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will see if enemy appears to be moving closer to us, iCurDist='..iCurDist..'; iDistanceShortly='..iDistanceShortly) end
+                if iDistanceShortly < iCurDist then
+                    if oUnit[M28UnitInfo.refiCombatRange] + 5 > oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiCombatRange] then
+                        iCurDist = iCurDist + math.min(iAngleDistMod, -(iCurDist - iDistanceShortly)*1.5)-3
+                    elseif iDistanceShortly + 2.5 < iCurDist then
+                        iCurDist = iCurDist + math.min(iAngleDistMod, -(iCurDist - iDistanceShortly))-1
+                        if bDebugMessages == true then LOG(sFunctionRef..': Applying full angle dist mod, iDistanceShortly-iCurDist='..iDistanceShortly-iCurDist) end
+                    elseif iDistanceShortly + 0.5 < iCurDist then
+                        iCurDist = iCurDist + math.min(iMiniAngleDistMod, -(iCurDist - iDistanceShortly) * 1.5) - 0.5
+                        if bDebugMessages == true then LOG(sFunctionRef..': Applying minor angle dist mod, iDistanceShortly-iCurDist='..iDistanceShortly-iCurDist) end
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': Wont apply any mod after considering direction unit is moving')
+                    end
+                elseif (oUnit[M28UnitInfo.refiCombatRange] + 3.5 > oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiCombatRange]) then
+                    iCurAngleDif = M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(tCurPosition, tStartPosition), M28UnitInfo.GetUnitFacingAngle(oUnit))
+                    if iCurAngleDif <= iAngleDifferenceThreshold then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oUnit)..'; Angle to start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition)..'; so will adjust iCurDist '..iCurDist..' by iAngleDistMod='..iAngleDistMod..'; will adjust further if it is moving, unit state='..M28UnitInfo.GetUnitState(oUnit)) end
+                        iCurDist = iCurDist + iAngleDistMod
+                    elseif iCurAngleDif <= iMiniAngleThreshold then
+                        iCurDist = iCurDist + iMiniAngleDistMod
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurAngleDif is below mini angle threshold, iCurAngleDif='..iCurAngleDif..'; iMiniAngleThreshold='..iMiniAngleThreshold..'; will adjust dist by iMiniAngleDistMod='..iMiniAngleDistMod) end
+                    end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false)..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; iCurDist='..iCurDist..'; iDistThreshold='..iDistThreshold..'; iAltThresholdToDFRange='..(iAltThresholdToDFRange or 'nil')) end
             if (bIncludeEnemyDFRange and (iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iDistThreshold or iCurDist <= (iAltThresholdToDFRange or 0) or (bIncludeEnemyAntiNavyRange and iCurDist - (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) <= iDistThreshold))) or (not(bIncludeEnemyDFRange) and iCurDist <= iDistThreshold) then
                 --Structure specific
-                if not(iOptionalDistThresholdForStructure) or iCurDist <= iOptionalDistThresholdForStructure or not(EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
+                if not(iOptionalDistThresholdForStructure) or iCurDist <= iOptionalDistThresholdForStructure or not(EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) or (bIncludeEnemyDFRange and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and iCurDist <= math.min(iDistThreshold, iOptionalDistThresholdForStructure) + (oUnit[M28UnitInfo.refiDFRange] or 0)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                     bAreCloseToUnit = true
                     --Want to keep searching to get the closest enemy unit if dont have one in range and have specified the closest unit be recorded

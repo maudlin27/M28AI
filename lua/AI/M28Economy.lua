@@ -1582,10 +1582,11 @@ function ManageMassStalls(iTeam)
                         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                             iCurEngis = iCurEngis + oBrain:GetCurrentUnits(iEngiCategoryWanted)
                         end
+                        iCurEngis = iCurEngis / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
 
                         if iCurEngis >= 10 then
                             --If are defending against arti then want a lot more engineers before start considering ctrl-king any
-                            if not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) or iCurEngis >= 70 then
+                            if (not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and (iCurEngis >= 40 or (GetGameTimeSeconds() >= 300 and iCurEngis >= 25 - GetGameTimeSeconds() / 60))) or iCurEngis >= 70 then
                                 bConsiderReclaimingEngineer = true
                             end
                         end

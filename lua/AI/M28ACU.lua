@@ -2793,6 +2793,23 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': iNearbyFriendlyACUCount='..iNearbyFriendlyACUCount..'; iNearbyEnemyACUWithGoodRangeCount='..iNearbyEnemyACUWithGoodRangeCount..'; iTotalNearbyEnemyACUCount='..iTotalNearbyEnemyACUCount..'; iACUFactor='..iACUFactor..'; iAggressiveFactor='..iAggressiveFactor..'; Adjusted enemy threat='..iEnemyNearbyThreat / iAggressiveFactor..'; Our allied threat='..iACUThreat * iACUFactor + iAllyNearbyThreat) end
                                                             end
                                                         end
+                                                        if not(bEnemyHasPDOrSignificantACUs) then
+                                                            local iNearbyEnemyLRDFThreat = 0
+                                                            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange]) == false then
+                                                                for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange] do
+                                                                    if iRange > oACU[M28UnitInfo.refiDFRange] then
+                                                                        iNearbyEnemyLRDFThreat = iNearbyEnemyLRDFThreat + iThreat
+                                                                    end
+                                                                end
+                                                            end
+                                                            if iNearbyEnemyLRDFThreat >= 3000 * iAggressiveFactor and (iACUThreat <= 5000 or iNearbyEnemyLRDFThreat >= iACUThreat * iAggressiveFactor or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) then
+                                                                bEnemyHasPDOrSignificantACUs = true
+                                                            elseif iNearbyEnemyLRDFThreat >= 700 and iTotalNearbyEnemyACUCount >= 1 then
+                                                                bEnemyHasPDOrSignificantACUs = true
+                                                            end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasPDOrSignificantACUs='..tostring(bEnemyHasPDOrSignificantACUs or false)..'; iNearbyEnemyLRDFThreat='..iNearbyEnemyLRDFThreat..'; iACUThreat='..iACUThreat) end
+                                                        end
+
                                                     elseif iPercentageToFriendlyBase > 0.3 then
                                                         --Alternative T2 check - consider running if lots of T2 PD threat (vs above which just runs if any) - Check how many T2 PD are nearby (if any), along with shields, and dont be aggressive if we are almost in their range
                                                         local iNearbyEnemyLRDFThreat = 0
@@ -2845,7 +2862,35 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                             end
                                                         end
                                                     end
-                                                    if iEnemyNearbyThreat >= 1200 and iACUThreat <= 5000 and ((oACU[refiUpgradeCount] or 0) < 3 or EntityCategoryContains(categories.UEF + categories.AEON, oACU.UnitId)) and iEnemyNearbyThreat / iAggressiveFactor > (iACUThreat * iACUFactor + iAllyNearbyThreat) then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to run after checking if enemy has PD or significnat ACUs, bEnemyHasPDOrSignificantACUs='..tostring(bEnemyHasPDOrSignificantACUs)..'; iEnemyNearbyThreat='..iEnemyNearbyThreat..'; iAggressiveFactor='..iAggressiveFactor..'; iACUFactor='..iACUFactor..'; iACUThreat='..iACUThreat..'; iAllyNearbyThreat='..iAllyNearbyThreat) end
+                                                    local iOptionalNearlyInRangeAlliedDFThreat
+                                                    if bEnemyHasPDOrSignificantACUs and iAllyNearbyThreat > 0 and tLZTeamData[M28Map.refiModDistancePercent] >= 0.25 and M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) <= 0.95 then
+                                                        --Be more cautious if enemy has ACUs or tanks - just because we have units nearby they may not be able to help, or may be other friendly ACUs who are retreating
+                                                        iOptionalNearlyInRangeAlliedDFThreat = 0
+                                                        local toNearbyFriendlyCombatUnits = {}
+                                                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) == false then
+                                                            for iUnit, oUnit in tLZTeamData[M28Map.subrefLZTAlliedCombatUnits] do
+                                                                if oUnit[M28UnitInfo.refiCombatRange] > 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange] <= 10 and (not(oUnit[refiTimeLastWantedToRun]) or GetGameTimeSeconds() - oUnit[refiTimeLastWantedToRun] >= 5) and not(oUnit == oACU) then
+                                                                    table.insert(toNearbyFriendlyCombatUnits, oUnit)
+                                                                end
+                                                            end
+                                                        end
+                                                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                                            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                                                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                                                                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) == false then
+                                                                    for iUnit, oUnit in tAdjLZTeamData[M28Map.subrefLZTAlliedCombatUnits] do
+                                                                        if oUnit[M28UnitInfo.refiCombatRange] > 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange] <= 10 and (not(oUnit[refiTimeLastWantedToRun]) or GetGameTimeSeconds() - oUnit[refiTimeLastWantedToRun] >= 5) and not(oUnit == oACU) then
+                                                                            table.insert(toNearbyFriendlyCombatUnits, oUnit)
+                                                                        end
+                                                                    end
+                                                                end
+                                                            end
+                                                        end
+                                                        iOptionalNearlyInRangeAlliedDFThreat = M28UnitInfo.GetCombatThreatRating(toNearbyFriendlyCombatUnits, false)
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': iOptionalNearlyInRangeAlliedDFThreat='..iOptionalNearlyInRangeAlliedDFThreat..'; iAllyNearbyThreat='..iAllyNearbyThreat) end
+                                                    end
+                                                    if iEnemyNearbyThreat >= 1200 and iACUThreat <= 5000 and ((oACU[refiUpgradeCount] or 0) < 3 or EntityCategoryContains(categories.UEF + categories.AEON, oACU.UnitId) or iEnemyNearbyThreat >= 4000) and iEnemyNearbyThreat / iAggressiveFactor > (iACUThreat * iACUFactor + (iOptionalNearlyInRangeAlliedDFThreat or iAllyNearbyThreat)) then
                                                         if not(bEnemyHasPDOrSignificantACUs) then
                                                             local iBestEnemyThreatRange = 0
                                                             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange]) == false then
@@ -5696,7 +5741,7 @@ function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
     end
@@ -6279,12 +6324,24 @@ function GetACUOrder(aiBrain, oACU)
                                         end
                                         if bConsiderMexesAndReclaim then
                                             --If have DF enemies in our range or their range then dont consider reclaim
+                                            local iCurEnemyDist
                                             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
-                                                local iCurEnemyDist
                                                 for iEnemy, oEnemy in tLZOrWZTeamData[M28Map.reftoNearestDFEnemies] do
                                                     if M28UnitInfo.IsUnitValid(oEnemy) then
                                                         iCurEnemyDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition())
                                                         if iCurEnemyDist < math.max((oACU[M28UnitInfo.refiDFRange] or 0), oEnemy[M28UnitInfo.refiDFRange] or 0) then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..' is only '..iCurEnemyDist..' away from us so wont consider mex building or reclaim after all') end
+                                                            bConsiderMexesAndReclaim = false
+                                                            break
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                            if bConsiderMexesAndReclaim and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]) == false then
+                                                for iEnemy, oEnemy in tLZOrWZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] do
+                                                    if M28UnitInfo.IsUnitValid(oEnemy) then
+                                                        iCurEnemyDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition())
+                                                        if iCurEnemyDist < math.max((oACU[M28UnitInfo.refiDFRange] or 0), oEnemy[M28UnitInfo.refiDFRange] or 0) + 5 then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Enemy '..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..' is only '..iCurEnemyDist..' away from us so wont consider mex building or reclaim after all') end
                                                             bConsiderMexesAndReclaim = false
                                                             break
