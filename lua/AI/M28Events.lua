@@ -660,14 +660,23 @@ function OnUnitDeath(oUnit)
                             if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiFriendlyGameEnderCount] = math.max(0, (M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiFriendlyGameEnderCount] or 0) - 1) end
 
                             --GE template shielding
-                            if oUnit[M28Building.reftArtiTemplateRefs] and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
-                                local tArtiTemplate = M28Map.tAllPlateaus[oUnit[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oUnit[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftActiveGameEnderTemplates][oUnit[M28Building.reftArtiTemplateRefs][3]]
-                                if tArtiTemplate then
-                                    tArtiTemplate[M28Map.subrefGEbDontNeedEngineers] = false
-                                    --also set to false in 5s due ot building animation
-                                    M28Utilities.DelayChangeVariable(tArtiTemplate, M28Map.subrefGEbDontNeedEngineers, false, 5)
+                            if oUnit[M28Building.reftArtiTemplateRefs] then
+                                if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
+                                    local tArtiTemplate = M28Map.tAllPlateaus[oUnit[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oUnit[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftActiveGameEnderTemplates][oUnit[M28Building.reftArtiTemplateRefs][3]]
+                                    if tArtiTemplate then
+                                        tArtiTemplate[M28Map.subrefGEbDontNeedEngineers] = false
+                                        --also set to false in 5s due ot building animation
+                                        M28Utilities.DelayChangeVariable(tArtiTemplate, M28Map.subrefGEbDontNeedEngineers, false, 5)
+                                    end
+                                    --Update shieldSACUs if this is a UEF SACU
+                                elseif EntityCategoryContains(categories.UEF * categories.SUBCOMMANDER, oUnit.UnitId) then
+                                    local tArtiTemplate = M28Map.tAllPlateaus[oUnit[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oUnit[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftActiveGameEnderTemplates][oUnit[M28Building.reftArtiTemplateRefs][3]]
+                                    if tArtiTemplate and M28Utilities.IsTableEmpty(tArtiTemplate[M28Map.subreftoGEShieldSACUs]) == false then
+                                        for iSACU, oSACU in tArtiTemplate[M28Map.subreftoGEShieldSACUs] do
+                                            if oSACU == oUnit then table.remove(tArtiTemplate[M28Map.subreftoGEShieldSACUs], iSACU) break end
+                                        end
+                                    end
                                 end
-
                             end
 
                             --Special tracking e.g. for factions and shields and game enders - update
@@ -3265,6 +3274,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         elseif GetGameTimeSeconds() <= 10 and EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) and M28UnitInfo.GetUnitLifetimeCount(oUnit) >= 8 then
                             M28Land.TrackWallSegment(oUnit, true)
                         end
+                        --Below in case capturedunits function doesnt trigger for a unit transferred toa nother player - so we can track upgrade count (mainly intended to track upgrades on SACUs, for which shield SACUs is the main logic dependent on it)
+                        local iUpgradeableUnitsCategory = categories.COMMAND + categories.SUBCOMMANDER
+                        if M28Utilities.bQuietModActive or M28Utilities.bLoudModActive then iUpgradeableUnitsCategory = iUpgradeableUnitsCategory + M28UnitInfo.refCategoryFactory * categories.TECH3 end --LOUD and quiet allow factories to upgrade
+                        if EntityCategoryContains(iUpgradeableUnitsCategory, oUnit.UnitId) then M28ACU.UpdateUnitUpgradeCountTrackingIfNotSet(oUnit) end
                     end
 
 
@@ -4299,6 +4312,16 @@ function DelayedUnpauseOfTransferredUnits(toCapturedUnits, iArmyIndex)
                             M28Team.UpdateUpgradeTrackingOfUnit(tCompletedUnits[iClosestUnitRef], false, oUnit.UnitId)
                             table.remove(tCompletedUnits, iClosestUnitRef)
                         end
+                    end
+                end
+                --Track upgrade count on SACUs and ACUs
+                local iUpgradeableUnitsCategory = categories.COMMAND + categories.SUBCOMMANDER
+                --LOUD and quiet allow factories to upgrade
+                if M28Utilities.bQuietModActive or M28Utilities.bLoudModActive then iUpgradeableUnitsCategory = iUpgradeableUnitsCategory + M28UnitInfo.refCategoryFactory * categories.TECH3 end
+                local tUpgradableUnits = EntityCategoryFilterDown(iUpgradeableUnitsCategory, toCapturedUnits)
+                if M28Utilities.IsTableEmpty(tUpgradableUnits) == false then
+                    for iUnit, oUnit in tUpgradableUnits do
+                        M28ACU.UpdateUnitUpgradeCountTrackingIfNotSet(oUnit)
                     end
                 end
             end

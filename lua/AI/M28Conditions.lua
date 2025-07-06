@@ -4370,3 +4370,38 @@ function WantAnotherT3MexUpgrade(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bWantT3Mex
 end
+
+function GetShieldSACUsWantedForGETemplate(iTeam)
+    local iT3ArtiDPS = 983
+    local iNovaxDPS = 243
+    local iEnemyDPS
+    --Experimental arti count as 2 t3 arti for pruposes of below, so if we have 2+ will check for experimental arti
+    if M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] >= 2 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+        --More precise calc needed
+        local iMavorDPS = 3334
+        local iSalvationDPS = 3000 --in a sandbox salvation did almost as much as a mavor; however it's less likely to be power assisted
+        local iScathisDPS = 1600
+        local iCurDPS
+        iEnemyDPS = (M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] or 0) * iNovaxDPS
+        for iArti, oArti in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+            if not(oArti.Dead) then
+                if oArti.UnitId == 'ueb2401' then
+                    iCurDPS = iMavorDPS
+                elseif oArti.UnitId == 'xab2307' then
+                    iCurDPS = iSalvationDPS
+                elseif oArti.UnitId == 'url0401' then
+                    iCurDPS = iScathisDPS
+                elseif EntityCategoryContains(categories.EXPERIMENTAL, oArti.UnitId) then iCurDPS = 2 * iT3ArtiDPS
+                else iCurDPS = iT3ArtiDPS
+                end
+                if oArti:GetFractionComplete() >= 0.6 then
+                    iEnemyDPS = iEnemyDPS + iCurDPS
+                else iEnemyDPS = iEnemyDPS + iCurDPS * math.min(oArti:GetFractionComplete() * 2, 1)
+                end
+            end
+        end
+    else
+        iEnemyDPS = (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] or 0) * iT3ArtiDPS + (M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] or 0) * iNovaxDPS
+    end
+    return math.max(3, iEnemyDPS / 241 + 1.5) --want 1.5 more than we think we need to give a bit of time to get more if enemy builds another t3 arti
+end

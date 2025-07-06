@@ -6887,6 +6887,25 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
         end
     end
 
+    --Shield GE template - get UEF Shield SACUs if we want more
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if tLZTeamData[M28Map.subrefbGEShieldSACU] and EntityCategoryContains(categories.UEF, oFactory.UnitId) and not(aiBrain.M28Easy) then
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false then
+            local iShieldSACUsWanted = M28Conditions.GetShieldSACUsWantedForGETemplate(iTeam)
+            for iEntry, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
+                if bDebugMessages == true then
+                    if M28Utilities.IsTableEmpty(tSubtable[M28Map.subreftoGEShieldSACUs]) then LOG(sFunctionRef..': No shield SACUs assigned to GE template='..iEntry)
+                    else LOG(sFunctionRef..': Considering GE template iEntry='..iEntry..'; iShieldSACUsWanted='..iShieldSACUsWanted..'; Number of shield SACUs='..table.getn(tSubtable[M28Map.subreftoGEShieldSACUs]))
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tSubtable[M28Map.subreftoGEShieldSACUs]) or table.getn(tSubtable[M28Map.subreftoGEShieldSACUs]) < iShieldSACUsWanted then
+                    if ConsiderBuildingCategory(categories.SUBCOMMANDER * categories.UEF, true) then return sBPIDToBuild end
+                    break
+                end
+            end
+        end
+    end
+
     --General - if close to unit cap and have lots of SACUs then dont get more (except for LOUD where apparently they give you bonus unit cap?)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and iCurSACUs >= 15 and aiBrain[M28Overseer.refbCloseToUnitCap] and (iCurSACUs >= 30 or (iCurSACUs >= math.max(20, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -2) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1) then

@@ -235,6 +235,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefbCoreBaseOverride = 'ZCreO' --true if we want to make this locatio na core zone even if it doesnt meet the normal criteria (e.g. to be used when we run out of places to build in our actual core LZ)
             subrefLZExpansionOverride = 'ZExpO' --true if want to make this location a core expansion even if doesnt meet normal criteria (e.g. if we use transport to drop somewhere on same island but far away, then building land facs there may be of use)
             subrefLZFortify = 'ZFor' --True if we want to fortify this firebase, e.g. for scenarios like M2 UEF
+            subrefbGEShieldSACU = 'ZShSCU' --true if we want to get UEF shield SACUs for a game-ender template in this zone
             subrefAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             refbACUInTrouble = 'AACTr' --true if we have acu in this zone that we are worreid might be about to die to tanks
             subreftoLZOrWZAlliedUnits = 'Allies' --USE SAME REF AS FOR WATER ZONES - table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subreftoLZOrWZAlliedUnits]
@@ -367,6 +368,9 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefGEbSACUAssigned = 21 --true if at some point we have assigned an SACU (so we will then check for SACUs wanting upgrades in mass overflow)
                 subrefiCyclesWaitingForConstructionToStart = 22 --counts how long we are waiting for construction to actually start before we last did a reassessment
                 subrefbForceRefreshOfArtiToBuild = 23 --true if want to do a GETemplate reassess
+                subreftoGEShieldSACUs = 24 --table of UEF shield SACUs
+                subrefbActiveShieldSACUCycling = 25 --true if we have shield SACU cycling monitor active
+                subrefiHighestShieldACUHealthPercent = 26 --Highest % shield health of shield SACUs
 
 
 

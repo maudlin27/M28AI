@@ -610,9 +610,41 @@ end
 
 
 function TestCustom(aiBrain)
-    --LOG('MObile SMD blueprint: '..repru(__blueprints['srl0321']))
-    M28Map.DrawSpecificLandZone(77, 14, 3)
-    M28Map.DrawSpecificWaterZone(11, 2, nil)
+    WaitSeconds(15*60)
+    local oBrain
+    for iBrain, oExistingBrain in ArmyBrains do
+        if oExistingBrain:GetArmyIndex() == 1 then
+            oBrain = oExistingBrain
+            break
+        end
+    end
+    local oArti1, oArti2, oArti3, oShieldSACU, oArti4, oArti5
+    while true do
+        while not(M28UnitInfo.IsUnitValid(oArti1) or M28UnitInfo.IsUnitValid(oArti2) or M28UnitInfo.IsUnitValid(oArti3)) do
+            oArti1 = CreateUnit('uab2302', oBrain:GetArmyIndex(), M28Map.GetPlayerStartPosition(oBrain)[1], M28Map.GetPlayerStartPosition(oBrain)[2], M28Map.GetPlayerStartPosition(oBrain)[3], 0, 0, 0, 0, 'Air')
+            oArti2 = CreateUnit('uab2302', oBrain:GetArmyIndex(), M28Map.GetPlayerStartPosition(oBrain)[1]+10, M28Map.GetPlayerStartPosition(oBrain)[2], M28Map.GetPlayerStartPosition(oBrain)[3]+10, 0, 0, 0, 0, 'Air')
+            oArti3 = CreateUnit('uab2302', oBrain:GetArmyIndex(), M28Map.GetPlayerStartPosition(oBrain)[1]+0, M28Map.GetPlayerStartPosition(oBrain)[2], M28Map.GetPlayerStartPosition(oBrain)[3]+10, 0, 0, 0, 0, 'Air')
+            if GetGameTimeSeconds() >= 17*60 then
+                if not(M28UnitInfo.IsUnitValid(oArti4)) then oArti4 = CreateUnit('uab2302', oBrain:GetArmyIndex(), M28Map.GetPlayerStartPosition(oBrain)[1]+10, M28Map.GetPlayerStartPosition(oBrain)[2], M28Map.GetPlayerStartPosition(oBrain)[3]+0, 0, 0, 0, 0, 'Air') end
+                if not(M28UnitInfo.IsUnitValid(oArti5)) then oArti5 = CreateUnit('uab2302', oBrain:GetArmyIndex(), M28Map.GetPlayerStartPosition(oBrain)[1]-10, M28Map.GetPlayerStartPosition(oBrain)[2], M28Map.GetPlayerStartPosition(oBrain)[3]+0, 0, 0, 0, 0, 'Air') end
+            end
+            oShieldSACU = CreateUnit('uel0301_BubbleShield', oBrain:GetArmyIndex(), M28Map.GetPlayerStartPosition(oBrain)[1]+5, M28Map.GetPlayerStartPosition(oBrain)[2], M28Map.GetPlayerStartPosition(oBrain)[3]+5, 0, 0, 0, 0, 'Air')
+            local tEnemyMavor = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, oArti1:GetPosition(), 1000, 'Enemy')
+            if M28Utilities.IsTableEmpty(tEnemyMavor) == false then
+                IssueAttack({oArti1}, tEnemyMavor[1])
+                IssueAttack({oArti2}, tEnemyMavor[1])
+                IssueAttack({oArti3}, tEnemyMavor[1])
+                if M28UnitInfo.IsUnitValid(oArti4) then IssueAttack({oArti4}, tEnemyMavor[1]) end
+                if M28UnitInfo.IsUnitValid(oArti5) then IssueAttack({oArti5}, tEnemyMavor[1]) end
+            end
+            WaitSeconds(1)
+        end
+        WaitSeconds(20)
+    end
+
+
+    --M28Map.DrawSpecificLandZone(77, 14, 3)
+    --M28Map.DrawSpecificWaterZone(11, 2, nil)
     --M28Map.DrawSpecificPlateauLandZones(16)
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end
