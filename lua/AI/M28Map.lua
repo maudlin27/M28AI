@@ -370,7 +370,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefbForceRefreshOfArtiToBuild = 23 --true if want to do a GETemplate reassess
                 subreftoGEShieldSACUs = 24 --table of UEF shield SACUs
                 subrefbActiveShieldSACUCycling = 25 --true if we have shield SACU cycling monitor active
-                subrefiHighestShieldACUHealth = 26 --Highest % shield health of shield SACUs
+                subrefiHighestShieldACUHealthPercent = 26 --Highest % shield health of shield SACUs
 
 
 

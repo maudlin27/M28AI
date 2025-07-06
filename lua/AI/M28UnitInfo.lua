@@ -65,6 +65,7 @@ reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is t
 refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override the mass value suggested by the blueprint
 refiAntiNavyMassThreatOverride = 'M28BNMTO' --e.g. for ACUs, so can differentiate between Cybran ACU with antinavy upgrade, and other ACUs
 refbShieldIsDisabled = 'M28UnitShieldDisabled'
+refbShieldRecentlyEnabled = 'M28UShREn' --true if we had deliberately disabled the shield for shield cycling, and have recently tried enabling it (so assume it will come online soon)
 refbShieldDown = 'M28UShDw' --LOUD specific (as FAF has .enabled against the shield itself) - true if shield starts recharging, changed to false once at 100%
 refbWaitForShieldToBeRestored = 'M28ShRsW' --true if a mobile shield should wait for its shield to almost fully recover before being assigned
 refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is blocked (M27 also used for T3 arti adjacency, when first detected enemy SMD)
@@ -1844,12 +1845,15 @@ function DisableUnitShield(oUnit)
     if bDontConsiderCombinedArmy or oUnit.M28Active then
         oUnit[refbShieldIsDisabled] = true
         oUnit:DisableShield()
+
     end
 end
 function EnableUnitShield(oUnit)
     if bDontConsiderCombinedArmy or oUnit.M28Active then
         oUnit:EnableShield()
         oUnit[refbShieldIsDisabled] = false
+        oUnit[refbShieldRecentlyEnabled] = true
+        M28Utilities.DelayChangeVariable(oUnit, refbShieldRecentlyEnabled, false, 8)
     end
 end
 

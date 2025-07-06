@@ -8280,7 +8280,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                         --Non-FAF - be far less likely to get lots of shielding
                                         or iCompletedShields + iUnderConstructionShields < math.max(3, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount]) then
 
-                                    if not(bUsingSACUShieldTemplate) or (iUnderConstructionShields == 0 and (iCompletedShields == 0 or (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (iCompletedShields < 3 or ((tTableRef[M28Map.subrefiHighestShieldACUHealth] or 0) <= 0.5 and iCompletedShields < 1 + M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 3))))) then
+                                    if not(bUsingSACUShieldTemplate) or (iUnderConstructionShields == 0 and (iCompletedShields == 0 or (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and (iCompletedShields < 3 or ((tTableRef[M28Map.subrefiHighestShieldACUHealthPercent] or 0) <= 0.5 and iCompletedShields < 1 + M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 3))))) then
                                         --Start building so have at least 4 shields built at once (want to do ahead of assisting shields, since faction used for this is important) - have 1 engi building each shield
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will try assigning 1 engi each to building a shield since iOrigAvailableEngis='..iOrigAvailableEngis) end
 
@@ -8333,7 +8333,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will assist nearest completion shield='..oNearestCompletionShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestCompletionShield)..'; iLimitOnEngisToAssistShield='..(iLimitOnEngisToAssistShield or 'nil')) end
                                             bClearAllEngineers = GETemplateAssistUnit(tAvailableEngineers, tAvailableT3EngineersByFaction, iPlateau, iLandZone, iTemplateRef, oNearestCompletionShield, iLimitOnEngisToAssistShield)
                                             if bClearAllEngineers then tAvailableEngineers = nil tAvailableT3EngineersByFaction = nil end
-                                        elseif iCompletedShields + iUnderConstructionShields < iShieldLocations and (not(bUsingSACUShieldTemplate) or (iArtiMassInvestment >= 150000 and iUnderConstructionArti == 0) or ((tTableRef[M28Map.subrefiHighestShieldACUHealth] or 0) <= 0.5 and iCompletedShields < 1 + M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 3)) and
+                                        elseif iCompletedShields + iUnderConstructionShields < iShieldLocations and (not(bUsingSACUShieldTemplate) or (iArtiMassInvestment >= 150000 and iUnderConstructionArti == 0) or ((tTableRef[M28Map.subrefiHighestShieldACUHealthPercent] or 0) <= 0.5 and iCompletedShields < 1 + M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 3)) and
                                                 ((M28Utilities.bFAFActive and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or iArtiMassInvestment >= 100000 or (iCompletedShields + iUnderConstructionShields < 4 and (iCompletedShields+iUnderConstructionShields < 3 or iCompletedArti >= 1)) or (iCompletedArti >= 1 and (iCompletedArti >= 2 or iArtiMassInvestment >= 50000))))
                                                         or iCompletedShields + iUnderConstructionShields < math.max(3, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount])) then
                                             if (iHighestCompletionArti >= 0.1 * iCompletedShields or iCompletedShields < 4 or not(M28Conditions.HaveLowPower(iTeam)) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 + 250 * iCompletedShields) then
@@ -8395,38 +8395,72 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                                 if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
                                                     --We have all our shields constructed (or dont want to devote them all to shields due to enemy not having arti yet); redundancy - check if we have under construction arti
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Still have engineers available, oNearestCompletionArti='..(oNearestCompletionArti.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestCompletionArti) or 'nil')..'; bTriedBuildingSomething='..tostring(bTriedBuildingSomething)) end
+                                                    local toShieldSACUsToKeepHome
                                                     --Assist gateway if we have one and want shield SACUs
-                                                    if tLZTeamData[M28Map.bUsingSACUShieldTemplate] then
+                                                    if bUsingSACUShieldTemplate then
                                                         local oSACUOrGatewayToAssist
+                                                        local iFullyUpgradedSACUs = 0
+                                                        local bWantMoreSACUs = true
                                                         --First check for shield SACU to assist
                                                         if M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subreftoGEShieldSACUs]) then
                                                             local oFirstUpgradingSACU
                                                             local oFirstUnupgradedSACU
+                                                            local oFirstCompletelyUnupgradedSACU
+                                                            local iSACUsWanted = M28Conditions.GetShieldSACUsWantedForGETemplate(iTeam)
                                                             for iSACU, oSACU in tTableRef[M28Map.subreftoGEShieldSACUs] do
                                                                 if oSACU:IsUnitState('Upgrading') then
                                                                     oFirstUpgradingSACU = oSACU
                                                                     break
-                                                                --Only get a non-upgrading SACU to
-                                                                elseif not(oFirstUnupgradedSACU) and (oSACU[M28ACU.refiUpgradeCount] or 0) < 2 and not(oSACU[M28UnitInfo.refbSpecialMicroActive]) and M28Utilities.GetDistanceBetweenPositions(oSACU:GetPosition(), tArtiMidpoint) <= 10 then
+                                                                    --Only get a non-upgrading SACU
+                                                                elseif (oSACU[M28ACU.refiUpgradeCount] or 0) >= 3 then
+                                                                    iFullyUpgradedSACUs = iFullyUpgradedSACUs + 1
+                                                                elseif not(oFirstUnupgradedSACU) and (oSACU[M28ACU.refiUpgradeCount] or 0) < 3 and not(oSACU[M28UnitInfo.refbSpecialMicroActive]) and M28Utilities.GetDistanceBetweenPositions(oSACU:GetPosition(), tArtiMidpoint) <= 10 then
                                                                     oFirstUnupgradedSACU = oSACU
+                                                                    if (oSACU[M28ACU.refiUpgradeCount] or 0) then oFirstCompletelyUnupgradedSACU = oFirstUnupgradedSACU end
+                                                                elseif not(oFirstCompletelyUnupgradedSACU) and (oSACU[M28ACU.refiUpgradeCount] or 0) then oFirstCompletelyUnupgradedSACU = oSACU
                                                                 end
                                                             end
                                                             if oFirstUpgradingSACU then
                                                                 oSACUOrGatewayToAssist = oFirstUpgradingSACU
                                                             elseif oFirstUnupgradedSACU then
-                                                                oSACUOrGatewayToAssist = oFirstUnupgradedSACU
-                                                                local sUpgradeWanted = M28ACU.GetUpgradeForSACU(oFirstUnupgradedSACU, false, true, true)
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..(sUpgradeWanted or 'nil')) end
-                                                                if sUpgradeWanted then
-                                                                    M28Orders.IssueTrackedEnhancement(oFirstUnupgradedSACU, sUpgradeWanted, false, 'GEShUgr')
-                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Getting the upgrade for oFirstUnupgradedSACU='..oFirstUnupgradedSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstUnupgradedSACU)) end
-                                                                    for iEngi, oEngi in tAvailableEngineers do
-                                                                        if oEngi == oFirstUnupgradedSACU then table.remove(tAvailableEngineers, iEngi) break end
+                                                                --Do we want more shield SACUs?
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': iFullyUpgradedSACUs='..iFullyUpgradedSACUs..'; iSACUsWanted Number wanted='..iSACUsWanted) end
+                                                                if iFullyUpgradedSACUs < iSACUsWanted then
+                                                                    oSACUOrGatewayToAssist = oFirstUnupgradedSACU
+                                                                    local sUpgradeWanted = M28ACU.GetUpgradeForSACU(oFirstUnupgradedSACU, false, true, true)
+                                                                    bDebugMessages = true
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..(sUpgradeWanted or 'nil')) end
+                                                                    if sUpgradeWanted then
+                                                                        M28Orders.IssueTrackedEnhancement(oFirstUnupgradedSACU, sUpgradeWanted, false, 'GEShUgr1')
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Getting the upgrade for oFirstUnupgradedSACU='..oFirstUnupgradedSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstUnupgradedSACU)) end
+                                                                        for iEngi, oEngi in tAvailableEngineers do
+                                                                            if oEngi == oFirstUnupgradedSACU then table.remove(tAvailableEngineers, iEngi) break end
+                                                                        end
+                                                                    end
+                                                                elseif oFirstCompletelyUnupgradedSACU then
+                                                                    local sUpgradeWanted = M28ACU.GetUpgradeForSACU(oFirstCompletelyUnupgradedSACU, false, true, false)
+                                                                    if sUpgradeWanted then
+                                                                        M28Orders.IssueTrackedEnhancement(oFirstCompletelyUnupgradedSACU, sUpgradeWanted, false, 'GEShUgr2')
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Getting the upgrade for oFirstUnupgradedSACU with shield no longer prioritised='..oFirstUnupgradedSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstUnupgradedSACU)) end
+                                                                        for iEngi, oEngi in tAvailableEngineers do
+                                                                            if oEngi == oFirstUnupgradedSACU then table.remove(tAvailableEngineers, iEngi) break end
+                                                                        end
+                                                                    end
+                                                                else
+                                                                    local sUpgradeWanted = M28ACU.GetUpgradeForSACU(oFirstUnupgradedSACU, false, true, true)
+                                                                    if sUpgradeWanted and (oFirstUnupgradedSACU:GetBlueprint().Enhancements[sUpgradeWanted].ProductionPerSecondMass or 0) > 0 then
+                                                                        M28Orders.IssueTrackedEnhancement(oFirstUnupgradedSACU, sUpgradeWanted, false, 'GEShUgr3')
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Getting the RAS upgrade for oFirstUnupgradedSACU='..oFirstUnupgradedSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstUnupgradedSACU)) end
+                                                                        for iEngi, oEngi in tAvailableEngineers do
+                                                                            if oEngi == oFirstUnupgradedSACU then table.remove(tAvailableEngineers, iEngi) break end
+                                                                        end
                                                                     end
                                                                 end
+                                                                bDebugMessages = false
                                                             end
+                                                            if table.getn(tTableRef[M28Map.subreftoGEShieldSACUs]) >= iSACUsWanted then bWantMoreSACUs = false end
                                                         end
-                                                        if not(oSACUOrGatewayToAssist) then
+                                                        if not(oSACUOrGatewayToAssist) and bWantMoreSACUs then
                                                             if not(M28UnitInfo.IsUnitValid(oGatewayForShieldSACUs)) then
                                                                 --Search for if there is a valid one
                                                                 local tGatewaysInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway * categories.UEF, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
@@ -8453,9 +8487,34 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                                             end
                                                         end
                                                         if M28UnitInfo.IsUnitValid(oSACUOrGatewayToAssist) then
+                                                            --If gateway is far away then temporarily remove shield SACUs and then re-add as available engineers
+                                                            if (iFullyUpgradedSACUs > 0 or M28Utilities.IsTableEmpty(tTableRef[M28Map.subreftoGEShieldSACUs]) == false) and not(oSACUOrGatewayToAssist[M28Building.reftArtiTemplateRefs]) and M28Utilities.GetDistanceBetweenPositions(oSACUOrGatewayToAssist:GetPosition(), tTableRef[M28Map.subrefGEMidpoint]) >= 15 then
+                                                                toShieldSACUsToKeepHome = {}
+                                                                for iSACU, oSACU in tTableRef[M28Map.subreftoGEShieldSACUs] do
+                                                                    if (oSACU[M28ACU.refiUpgradeCount] or 0) >= 3 and oSACU.MyShield.GetMaxHealth then
+                                                                        for iEngi, oEngi in tAvailableEngineers do
+                                                                            if oEngi == oSACU then
+                                                                                table.insert(toShieldSACUsToKeepHome, oSACU)
+                                                                                table.remove(tAvailableEngineers, iEngi)
+                                                                                break
+                                                                            end
+                                                                        end
+                                                                    end
+                                                                end
+                                                            end
                                                             bClearAllEngineers = GETemplateAssistUnit(tAvailableEngineers, tAvailableT3EngineersByFaction, iPlateau, iLandZone, iTemplateRef, oSACUOrGatewayToAssist, nil)
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Setting all available engineers to assist the oSACUOrGatewayToAssist='..oSACUOrGatewayToAssist.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACUOrGatewayToAssist)) end
                                                             if bClearAllEngineers then tAvailableEngineers = nil tAvailableT3EngineersByFaction = nil end
+                                                            if toShieldSACUsToKeepHome then
+                                                                if not(tAvailableEngineers) or not(tAvailableT3EngineersByFaction) then
+                                                                    tAvailableEngineers = toShieldSACUsToKeepHome
+                                                                    tAvailableT3EngineersByFaction = {[M28UnitInfo.refFactionUEF] = toShieldSACUsToKeepHome}
+                                                                else
+                                                                    for iSACU, oSACU in toShieldSACUsToKeepHome do
+                                                                        table.insert(tAvailableEngineers, oSACU)
+                                                                    end
+                                                                end
+                                                            end
                                                         end
                                                     end
                                                     if M28Utilities.IsTableEmpty(tAvailableEngineers) == false and oNearestCompletionArti then

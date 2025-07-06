@@ -3507,10 +3507,22 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     end
 
     if tLZTeamData[M28Map.subrefbGEShieldSACU] then
+        --Check if we need more shield SACUs
+        local iShieldSACUsWantedPerTemplate = M28Conditions.GetShieldSACUsWantedForGETemplate(iTeam)
+        local iAdditionalShieldSACUsWanted = 0
+        for iTemplate, tSubtable in tLZTeamData[M28Map.reftActiveGameEnderTemplates] do
+            if M28Utilities.IsTableEmpty(tSubtable[M28Map.subreftoGEShieldSACUs]) then
+                iAdditionalShieldSACUsWanted = iAdditionalShieldSACUsWanted + iShieldSACUsWantedPerTemplate
+            else
+                iAdditionalShieldSACUsWanted = iAdditionalShieldSACUsWanted + math.max(0, table.getn(tSubtable[M28Map.subreftoGEShieldSACUs]) - iShieldSACUsWantedPerTemplate)
+            end
+        end
         for iSACU = table.getn(tSACUs), 1, -1 do
             if EntityCategoryContains(categories.UEF, tSACUs[iSACU].UnitId) then
                 M28Engineer.AssignEngineerToGameEnderTemplate(tSACUs[iSACU], tLZData, tLZTeamData, iPlateau, iLandZone)
                 table.remove(tSACUs, iSACU)
+                iAdditionalShieldSACUsWanted = iAdditionalShieldSACUsWanted - 1
+                if iAdditionalShieldSACUsWanted <= 0 then break end
             end
         end
     end

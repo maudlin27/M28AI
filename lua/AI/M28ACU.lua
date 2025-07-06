@@ -2278,6 +2278,7 @@ function GetUpgradeForSACU(oSACU, bWantBuildPower, bForceGetNewUpgradePath, bWan
             local sBestEcoEnhancement, iCurEcoRate
             for sEnhancement, tEnhancement in tUpgradesAvailable do
                 if oSACU:HasEnhancement(sEnhancement) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We already have the enhancement '..sEnhancement..'; ProductionPerSecondMass='..(tEnhancement.ProductionPerSecondMass or 0)..'; NewBuildRate='..(tEnhancement.NewBuildRate or 0)..'; ShieldSize='..(tEnhancement.ShieldSize or 0)) end
                     tbSlotsInUse[tEnhancement.Slot] = true
                     iCurEcoRate = (tEnhancement.ProductionPerSecondEnergy or 0) / 100 + (tEnhancement.ProductionPerSecondMass or 0)
                     if iCurEcoRate > iBestEcoRate then
@@ -2285,9 +2286,11 @@ function GetUpgradeForSACU(oSACU, bWantBuildPower, bForceGetNewUpgradePath, bWan
                     end
                     if bWantBuildPower and (tEnhancement.NewBuildRate or 0) > iBestBuildPowerRate then
                         iBestBuildPowerRate = tEnhancement.NewBuildRate
+                        sBuildRateUpgrade = nil
                     end
                     if bWantShieldField and (tEnhancement.ShieldSize or 0) > iBestShieldSize then
                         iBestShieldSize = tEnhancement.ShieldSize
+                        sBestShieldSizeEnhancement = nil
                     end
                 elseif not(tEnhancement.Prerequisite) or (oSACU:HasEnhancement(tEnhancement.Prerequisite)) then
                     iCurEcoRate = (tEnhancement.ProductionPerSecondEnergy or 0) / 100 + (tEnhancement.ProductionPerSecondMass or 0)
@@ -2325,7 +2328,7 @@ function GetUpgradeForSACU(oSACU, bWantBuildPower, bForceGetNewUpgradePath, bWan
                 table.insert(oSACU[reftPreferredUpgrades], sBestShieldSizeEnhancement)
             end
 
-            if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades] before refining to exclude invalid ones='..repru(oACU[reftPreferredUpgrades])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': oSACU[reftPreferredUpgrades] before refining to exclude invalid ones='..repru(oSACU[reftPreferredUpgrades])) end
 
             --Check all of these are options (in case a mod has changed them)
             local tRestrictedEnhancements = import("/lua/enhancementcommon.lua").GetRestricted()

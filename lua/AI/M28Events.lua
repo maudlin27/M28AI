@@ -3277,7 +3277,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         --Below in case capturedunits function doesnt trigger for a unit transferred toa nother player - so we can track upgrade count (mainly intended to track upgrades on SACUs, for which shield SACUs is the main logic dependent on it)
                         local iUpgradeableUnitsCategory = categories.COMMAND + categories.SUBCOMMANDER
                         if M28Utilities.bQuietModActive or M28Utilities.bLoudModActive then iUpgradeableUnitsCategory = iUpgradeableUnitsCategory + M28UnitInfo.refCategoryFactory * categories.TECH3 end --LOUD and quiet allow factories to upgrade
-                        if EntityCategoryContains(iUpgradableUnitsCategory, oUnit.UnitId) then M28ACU.UpdateUnitUpgradeCountTrackingIfNotSet(oUnit) end
+                        if EntityCategoryContains(iUpgradeableUnitsCategory, oUnit.UnitId) then M28ACU.UpdateUnitUpgradeCountTrackingIfNotSet(oUnit) end
                     end
 
 
