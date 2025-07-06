@@ -8429,7 +8429,6 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                                                 if iFullyUpgradedSACUs < iSACUsWanted then
                                                                     oSACUOrGatewayToAssist = oFirstUnupgradedSACU
                                                                     local sUpgradeWanted = M28ACU.GetUpgradeForSACU(oFirstUnupgradedSACU, false, true, true)
-                                                                    bDebugMessages = true
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..(sUpgradeWanted or 'nil')) end
                                                                     if sUpgradeWanted then
                                                                         M28Orders.IssueTrackedEnhancement(oFirstUnupgradedSACU, sUpgradeWanted, false, 'GEShUgr1')
@@ -8457,7 +8456,6 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                                                         end
                                                                     end
                                                                 end
-                                                                bDebugMessages = false
                                                             end
                                                             if table.getn(tTableRef[M28Map.subreftoGEShieldSACUs]) >= iSACUsWanted then bWantMoreSACUs = false end
                                                         end
