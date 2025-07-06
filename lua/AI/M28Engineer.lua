@@ -8097,7 +8097,8 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
 
         local bUsingSACUShieldTemplate = false
         local oGatewayForShieldSACUs
-        if M28Utilities.bFAFActive and M28Building.bShieldsCanDischarge and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
+        --Dont do shield SACUs on a 5km map or non-FAF or poor eco
+        if M28Utilities.bFAFActive and M28Building.bShieldsCanDischarge and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 and M28Map.iMapSize >= 500 then
             --Do we have UEF T3 engineers, SACUs, or any tech factory or gateway in this zone?
             bUsingSACUShieldTemplate = not(M28Utilities.IsTableEmpty(EntityCategoryFilterDown((M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryEngineer * categories.TECH3 + categories.SUBCOMMANDER) * categories.UEF, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))
             if bUsingSACUShieldTemplate then
@@ -9361,7 +9362,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
         end
     end
 
-    if iTotalBuildPowerWanted < 0 then M28Utilities.ErrorHandler('Have negative BP wanted')
+    if iTotalBuildPowerWanted < 0 then M28Utilities.ErrorHandler('Have negative BP wanted for iActionToAssign='..iActionToAssign)
     elseif iTotalBuildPowerWanted > 0 then
         --Reduce BP for high modifiers where we have at least 50% mass stored and dont have spare engineers
         if iTotalBuildPowerWanted > 15 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] >= 1.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.35 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefSpareBPByTech][1] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][3] == 0) then
@@ -12350,6 +12351,11 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
         if iCompletedGateway < 1 then
+            if not(M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData)) then iBPWanted = 60
+            elseif bHaveLowPower then iBPWanted = 150
+            elseif bHaveLowMass then iBPWanted = 210
+            else iBPWanted = 300
+            end
             HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
         end
     end

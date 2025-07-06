@@ -4957,7 +4957,7 @@ function MonitorSACUShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MonitorSACUShieldsForCycling'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iLandZone == 2 then bDebugMessages = true end
+
     if not(tTableRef[M28Map.subrefbActiveShieldSACUCycling]) and bShieldsCanDischarge then
         tTableRef[M28Map.subrefbActiveShieldSACUCycling] = true
         local oLowestHealthActiveShield, oHighestHealthActiveShield, iCompletedShieldCount, iCurHealth, iMaxHealth, iLowestHealth, iHighestHealth, iLongestRechargeTime
@@ -4979,7 +4979,7 @@ function MonitorSACUShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
         end
         local iTimeOfLastDischarge
         local bHaveRecentlyEnabledShield = false
-        local iDisabledShieldCount, iEnabledShieldCount
+        local iDisabledShieldCount, iEnabledShieldCount, iHighestEnabledShieldHealth
 
         while M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subreftoGEShieldSACUs]) do
             --Get the highest and lowest health active shields
@@ -5025,7 +5025,7 @@ function MonitorSACUShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                                 end
                             end
                         end
-                        if iCurHealth > iHighestHealth or (iCurHealth == iHighestHealth and (not(oHighestHealthActiveShield) or oLowestHealthActiveShield == oHighestHealthActiveShield)) then --want this to be >= and above to be < so that if we have 2 of the same shields at 100% health, we will have different shields recorded for lowest and highest health
+                        if not(oShield[M28UnitInfo.refbShieldIsDisabled]) and (iCurHealth > iHighestHealth or (iCurHealth == iHighestHealth and (not(oHighestHealthActiveShield) or oLowestHealthActiveShield == oHighestHealthActiveShield))) then --want this to be >= and above to be < so that if we have 2 of the same shields at 100% health, we will have different shields recorded for lowest and highest health
                             iHighestHealth = iCurHealth
                             oHighestHealthActiveShield = oShield
                         end
@@ -5077,8 +5077,9 @@ function MonitorSACUShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                     if (not(oLowestHealthActiveShield.MyShield.GetHealth) or oLowestHealthActiveShield.MyShield:GetHealth() < iHighestHealth or (iLowestHealth == iHighestHealth and not(oLowestHealthActiveShield == oHighestHealthActiveShield))) then
                         --Disable lowest health shield
                         oShieldToDisable = oLowestHealthActiveShield
-                    elseif iEnabledShieldCount >= 3 and iShieldWithHealth >= 3 and tTableRef[M28Map.subrefiHighestShieldACUHealthPercent] >= 0.1 then
+                    elseif iEnabledShieldCount >= 2 and iShieldWithHealth >= 2 and tTableRef[M28Map.subrefiHighestShieldACUHealthPercent] >= 0.1 and (tTableRef[M28Map.subrefiHighestShieldACUHealthPercent] >= 0.25 or iShieldWithHealth >= 3) then
                         for iShield, oShield in tTableRef[M28Map.subreftoGEShieldSACUs] do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Looking for shield to disable, oShield health='..oLowestHealthActiveShield.MyShield:GetHealth()..'; iHighestHealth='..iHighestHealth) end
                             if not(oShield[M28UnitInfo.refbShieldIsDisabled]) and oShield:GetFractionComplete() == 1 and not(oShield == oHighestHealthActiveShield) and (not(oLowestHealthActiveShield.MyShield.GetHealth) or oLowestHealthActiveShield.MyShield:GetHealth() < iHighestHealth or oLowestHealthActiveShield.MyShield:GetHealth() == oLowestHealthActiveShield.MyShield:GetMaxHealth()) then
                                 oShieldToDisable = oShield
                                 break

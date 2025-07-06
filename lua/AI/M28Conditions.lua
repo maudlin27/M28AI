@@ -4403,5 +4403,5 @@ function GetShieldSACUsWantedForGETemplate(iTeam)
     else
         iEnemyDPS = (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] or 0) * iT3ArtiDPS + (M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] or 0) * iNovaxDPS
     end
-    return math.max(3, iEnemyDPS / 241 + 2) --want 2 more than we think we need to give a bit of time to get more if enemy builds another t3 arti
+    return math.max(3, iEnemyDPS / 241 + 1.5) --want 1.5 more than we think we need to give a bit of time to get more if enemy builds another t3 arti
 end
