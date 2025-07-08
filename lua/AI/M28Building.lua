@@ -6214,3 +6214,81 @@ function ConsiderUpgradingT2Radar(oRadar)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function GEMobileShieldTeleDefence(oTeleportingUnit, tTeleportDestination, iTeam)
+    if M28UnitInfo.IsUnitValid(oTeleportingUnit) then
+        --Get target zone and check for nearby shields that are part of a GE template
+
+        local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
+        if oFirstM28Brain then
+            local energyCost, time, teleDelay = import('/lua/shared/teleport.lua').TeleportCostFunction(oTeleportingUnit, tTeleportDestination)
+            --For now am assuming time is the time until teleport compeltes in seconds, not 100% sure though
+            local iTimeUntilTeleport = time
+            local iTimeForShieldRecharge = 5
+
+            if iTimeUntilTeleport > (iTimeForShieldRecharge - 0.1) then
+                WaitSeconds(iTimeUntilTeleport - iTimeForShieldRecharge - 0.1)
+            end
+            if not(oFirstM28Brain.M28IsDefeated) then
+                local tNearbyMobileShields = oFirstM28Brain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLandShield, tTeleportDestination, 30, 'Ally')
+                if M28Utilities.IsTableEmpty(tNearbyMobileShields) == false then
+                    local iMaxWaitTime = 60
+                    for iShield, oShield in tNearbyMobileShields do
+                        if oShield[M28UnitInfo.refbShieldIsDisabled] then
+                            M28UnitInfo.EnableUnitShield(oShield)
+                        end
+                        M28Micro.EnableUnitMicroUntilManuallyTurnOff(oShield)
+                    end
+                    local iCurDistToTeleport, iMinDistWanted, iCurAngleToShieldTarget
+                    local iTimeWaited = 0
+                    local tTeleportOrUnitPosition, tCurShieldTarget, tTempMovePosition
+                    while M28UnitInfo.IsUnitValid(oTeleportingUnit) and not(oFirstM28Brain.M28IsDefeated) do
+                        --Enable all mobile shields around the target that are disabled, and if they are within 8 of their destination and also shield is overlapping the teleport destination have them move away
+                        if M28Conditions.IsTableOfUnitsStillValid(tNearbyMobileShields) then
+                            if iTimeWaited > iTimeForShieldRecharge then
+                                tTeleportOrUnitPosition = oTeleportingUnit:GetPosition()
+                            else tTeleportOrUnitPosition = tTeleportDestination
+                            end
+                            local bCampaignMap = M28Map.bIsCampaignMap
+
+                            for iShield, oShield in tNearbyMobileShields do
+                                if oShield:GetAIBrain().M28AI then
+                                    iCurDistToTeleport = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), tTeleportOrUnitPosition)
+                                    iMinDistWanted = (oShield.MyShield.Size or oShield:GetBlueprint().Defense.Shield.ShieldSize or 17) * 0.5 + 1
+                                    if iCurDistToTeleport < iMinDistWanted then
+                                        iCurAngleToShieldTarget = nil
+                                        if M28UnitInfo.IsUnitValid(oShield[M28Land.refoMobileShieldTarget]) then
+                                            tCurShieldTarget = oShield[M28Land.refoMobileShieldTarget]:GetPosition()
+                                        elseif oShield[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition] then
+                                            tCurShieldTarget = {oShield[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition][1], oShield[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition][2], oShield[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition][3]}
+                                        else
+                                            tCurShieldTarget = oShield:GetPosition()
+                                            iCurAngleToShieldTarget = M28Utilities.GetAngleFromAToB(tTeleportOrUnitPosition, oShield:GetPosition())
+                                        end
+                                        if not(iCurAngleToShieldTarget) then iCurAngleToShieldTarget = M28Utilities.GetAngleFromAToB(oShield:GetPosition(), tCurShieldTarget)
+                                            tTempMovePosition = M28Utilities.MoveInDirection(oShield:GetPosition(), iCurAngleToShieldTarget, math.max(4, iMinDistWanted - iCurDistToTeleport + 2), true, false, bCampaignMap)
+                                            M28Orders.IssueTrackedMove(oShield, tTempMovePosition, 0.1, false, 'MobShTelMv', true)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        WaitSeconds(1)
+                        iTimeWaited = iTimeWaited + 1
+                        if iTimeWaited > iMaxWaitTime then break end
+                    end
+                    WaitSeconds(0.5) --just in case there's a delay on an explosion
+                    if M28Conditions.IsTableOfUnitsStillValid(tNearbyMobileShields) then
+                        for iShield, oShield in tNearbyMobileShields do
+                            --Disable shields again if part of GE template
+                            if oShield[reftArtiTemplateRefs] then
+                                M28UnitInfo.DisableUnitShield(oShield)
+                            end
+                            oShield[M28UnitInfo.refbSpecialMicroActive] = false
+                        end
+                    end
+                end
+            end
+        end
+    end
+end

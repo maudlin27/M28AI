@@ -4511,6 +4511,7 @@ function OnStartTeleport(self, teleporter, locationorbp, orientationorlocation, 
                     end
                     table.insert(M28Team.tTeamData[iCurTeam][M28Team.reftRecentEnemyTeleportDetails], {[M28Team.subrefoTeleportUnit] = self, [M28Team.subreftTeleportTarget] = {location[1], math.max(location[2], GetTerrainHeight(location[1], location[3])), location[3]}, [M28Team.subrefiTeleportTime] = GetGameTimeSeconds()})
                     M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasTeleport] = true
+                    ForkThread(M28Building.GEMobileShieldTeleDefence, self, location, iCurTeam)
                 end
             end
         end

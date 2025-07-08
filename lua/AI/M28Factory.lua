@@ -1372,7 +1372,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if still want to build mobile shields if we have some under construction already, iMobileShieldsUnderConstruction='..iMobileShieldsUnderConstruction..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)) end
     end
-    if not(bConsiderMobileShields) and iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData) then
+    if not(bConsiderMobileShields) and iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData) then
         bConsiderMobileShields = true
         if bDebugMessages == true then LOG(sFunctionRef..': Enemy has teleport so want mobile shields so we can protect GE templates') end
     end
