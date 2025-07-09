@@ -1370,9 +1370,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if bDebugMessages == true then LOG(sFunctionRef..': ILandFacsInZone of same tech level='..iLandFacsInZone) end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking if still want to build mobile shields if we have some under construction already, iMobileShieldsUnderConstruction='..iMobileShieldsUnderConstruction..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if still want to build mobile shields if we have some under construction already, iMobileShieldsUnderConstruction='..iMobileShieldsUnderConstruction..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)..'; is tPotentiallyActiveGETemplates empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]))..'; subrefbTeamIsStallingEnergy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
     end
-    if not(bConsiderMobileShields) and iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Conditions.HaveActiveGameEnderTemplateLogic(tLZTeamData) then
+    if not(bConsiderMobileShields) and iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) == false then
         bConsiderMobileShields = true
         if bDebugMessages == true then LOG(sFunctionRef..': Enemy has teleport so want mobile shields so we can protect GE templates') end
     end
@@ -1810,10 +1810,22 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Priority shields for tele defence
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want mobile shields for tele defence, M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] or false)..'; Table of active GE templates empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))..'; LZ has units wanting mobile shield is empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]))) end
-    if bConsiderMobileShields and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield])) == false then
-        if bDebugMessages == true then LOG(sFunctionRef..': Want mobile shield to help protect from enemy teleport') end
-        if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandShield) then return sBPIDToBuild end
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want mobile shields for tele defence, M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] or false)..'; Table of active GE templates empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]))..'; LZ has units wanting mobile shield is empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]))..'; is tPotentiallyActiveGETemplates empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]))) end
+    if bConsiderMobileShields and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] then
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield])) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want mobile shield to help protect from enemy teleport') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandShield) then return sBPIDToBuild end
+        elseif M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if Adj LZ has active GE template, iAdjLZ='..iAdjLZ..'; Is reftoLZUnitsWantingMobileShield empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]))..'; is reftActiveGameEnderTemplates empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftActiveGameEnderTemplates]))) end
+                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftActiveGameEnderTemplates]) == false and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tAdjLZTeamData[M28Map.reftoLZUnitsWantingMobileShield])) == false then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandShield) then return sBPIDToBuild end
+                    break
+                end
+            end
+        end
     end
 
     --Enemy has T3 air and we dont - get some MAA
@@ -2127,6 +2139,27 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
             end
         end
+    end
+
+    --Mobile shields to defend GE from teleport if GE isnt in adjacent zone (adjacent zone covered earlier)
+    if bConsiderMobileShields and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] and iFactoryTechLevel >= 2 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) == false and not(EntityCategoryContains(categories.CYBRAN, oFactory.UnitId)) then
+        local bWantMoreMobileShields = false
+        for iTableRef, tTableRef in M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates] do
+            --Is the GE template on same island as us, nearby, and has fixed shields?
+            if bDebugMessages == true then LOG(sFunctionRef..': Dist to Cur GE template ref='..iTableRef..'='..M28Utilities.GetDistanceBetweenPositions(tTableRef[M28Map.subrefGEMidpoint], oFactory:GetPosition())..'; Is table of shield units empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEShieldUnits]))) end
+            if M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEShieldUnits]) == false and M28Utilities.GetDistanceBetweenPositions(tTableRef[M28Map.subrefGEMidpoint], oFactory:GetPosition()) <= 170 and NavUtils.GetLabel(M28Map.refPathingTypeLand, tTableRef[M28Map.subrefGEMidpoint]) == tLZData[M28Map.subrefLZIslandRef] then
+                --Check if any of fixed shields lacks a mobile shield gen
+                for iShield, oShield in tTableRef[M28Map.subrefGEShieldUnits] do
+                    if not(oShield[M28Land.refoAssignedMobileShield]) and M28UnitInfo.IsUnitValid(oShield) then
+                        bWantMoreMobileShields = true
+                        break
+                    end
+                end
+                if bWantMoreMobileShields then break end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considered all active GE templates near us, bWantMoreMobileShields='..tostring(bWantMoreMobileShields)) end
+        if bWantMoreMobileShields and ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandShield) then return sBPIDToBuild end
     end
 
     --Enhancements (LOUD)

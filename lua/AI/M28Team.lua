@@ -5652,11 +5652,11 @@ function MonitorEnemyTeleportUpgrade(oACU, iTeam, sEnhancement)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local oM28Brain = GetFirstActiveM28Brain(iTeam)
-    local iProgressToWorryAboutTeleDefence = math.random(35, 75)/100
+    local iProgressToWorryAboutTeleDefence = math.random(15, 50)/100
     local bHaveSeenUpgradingOrSimilar = false
     local iPrevProgress = 0
     if M28UnitInfo.IsUnitValid(oACU) then iPrevProgress = oACU:GetWorkProgress() end
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU='..oACU.UnitId..' owned by '..oACU:GetAIBrain().Nickname..'; iTeam='..iTeam..'; oM28Brain='..oM28Brain.Nickname..'; sEnhancement='..sEnhancement..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Is ACU upgrading='..tostring(oACU:IsUnitState('Upgrading'))..'; tTeamData[iTeam][refbEnemyHasTeleport]='..tostring(tTeamData[iTeam][refbEnemyHasTeleport] or false)..'; First 2 conditions='..tostring(M28UnitInfo.IsUnitValid(oACU) and oACU:IsUnitState('Upgrading'))..'; Second two='..tostring(not(oM28Brain.M28IsDefeated) and not(tTeamData[iTeam][refbEnemyHasTeleport]))..'; oM28Brain.M28IsDefeated='..tostring(oM28Brain.M28IsDefeated or false)..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU='..oACU.UnitId..' owned by '..oACU:GetAIBrain().Nickname..'; iTeam='..iTeam..'; oM28Brain='..oM28Brain.Nickname..'; sEnhancement='..sEnhancement..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Is ACU upgrading='..tostring(oACU:IsUnitState('Upgrading'))..'; tTeamData[iTeam][refbEnemyHasTeleport]='..tostring(tTeamData[iTeam][refbEnemyHasTeleport] or false)..'; First 2 conditions='..tostring(M28UnitInfo.IsUnitValid(oACU) and oACU:IsUnitState('Upgrading'))..'; Second two='..tostring(not(oM28Brain.M28IsDefeated) and not(tTeamData[iTeam][refbEnemyHasTeleport]))..'; oM28Brain.M28IsDefeated='..tostring(oM28Brain.M28IsDefeated or false)..'; iProgressToWorryAboutTeleDefence='..iProgressToWorryAboutTeleDefence..'; Time='..GetGameTimeSeconds()) end
 
     while M28UnitInfo.IsUnitValid(oACU) and oACU:IsUnitState('Upgrading') and not(oM28Brain.M28IsDefeated) and not(tTeamData[iTeam][refbEnemyHasTeleport]) do
         --If progress has decreased cancel as enemy may have switched upgrades

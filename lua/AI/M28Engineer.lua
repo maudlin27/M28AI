@@ -8987,11 +8987,11 @@ function AssignEngineerToGameEnderTemplate(oEngineer, tLZData, tLZTeamData, iPla
                 RecordBlacklistLocation(tNewMidpoint, tBaseTable[M28Map.subrefiSize] + 1, 600)
                 --Update buildable areas around here
                 CheckIfBuildableLocationsNearPositionStillValid(oEngineer:GetAIBrain(), tNewMidpoint, true, tBaseTable[M28Map.subrefiSize])
+                table.insert(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.tPotentiallyActiveGETemplates], tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef])
                 if bDebugMessages == true then
                     local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tNewMidpoint)
-                    LOG(sFunctionRef..': Post blacklist and checking buildable locations, largest build location for the midpoint segments='..(tLZTeamData[M28Map.subrefBuildLocationSegmentCountBySize][iSegmentX][iSegmentZ] or 'nil'))
+                    LOG(sFunctionRef..': Post blacklist and checking buildable locations, largest build location for the midpoint segments='..(tLZTeamData[M28Map.subrefBuildLocationSegmentCountBySize][iSegmentX][iSegmentZ] or 'nil')..'; is tPotentiallyActiveGETemplates empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.tPotentiallyActiveGETemplates])))
                 end
-                table.insert(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.tPotentiallyActiveGETemplates], tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef])
             end
         end
 

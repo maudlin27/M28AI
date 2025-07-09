@@ -2536,7 +2536,9 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if oUnit[refoMobileShieldTarget][M28Building.reftArtiTemplateRefs] and not(oUnit[M28UnitInfo.refbEasyBrain]) then
             --Even if shield is down/low we want to remain with the shield we are covering; we also want to be disabled if enemy has teleport
             if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
-                if not(oUnit[M28UnitInfo.refbShieldIsDisabled]) and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] then M28UnitInfo.DisableUnitShield(oUnit) end
+                if not(oUnit[M28UnitInfo.refbShieldIsDisabled]) and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] then
+                    M28UnitInfo.DisableUnitShield(oUnit)
+                end
                 table.insert(tOriginallyAssignedMobileShields, oUnit)
             end
         elseif not(oUnit[M28UnitInfo.refbEasyBrain]) and (iCurShield < iMaxShield * 0.5 or (oUnit[M28UnitInfo.refbWaitForShieldToBeRestored] and iCurShield < iMaxShield * 0.9)) then
@@ -2606,11 +2608,12 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             local tiAllOtherLZWantingShields = {}
             if tLZTeamData[M28Map.subrefbLZWantsSupport] and not(tLZTeamData[M28Map.refbLZWantsMobileShield]) and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) == false or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false) then iClosestLZNotWantingShieldButWithUnits = iLandZone end
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                local bEnemyHasTeleport = M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport]
                 for iEntry, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                     local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
-                    if bDebugMessages == true then LOG(sFunctionRef..': iLandZone='..iLandZone..'; Considering other land zone '..tPathingDetails[M28Map.subrefLZNumber]..'; Other land zone DF threat='..(tTeamTargetLZData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Does this zone want mobile shields='..tostring(tTeamTargetLZData[M28Map.refbLZWantsMobileShield] or false)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iLandZone='..iLandZone..'; Considering other land zone '..tPathingDetails[M28Map.subrefLZNumber]..'; Other land zone DF threat='..(tTeamTargetLZData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Does this zone want mobile shields='..tostring(tTeamTargetLZData[M28Map.refbLZWantsMobileShield] or false)..'; Does target have active GE template='..tostring(M28Conditions.HaveActiveGameEnderTemplateLogic(tTeamTargetLZData))) end
                     if tTeamTargetLZData[M28Map.refbLZWantsMobileShield] then
-                        if tTeamTargetLZData[M28Map.refiEnemyAirToGroundThreat] > 0 or tTeamTargetLZData[M28Map.subrefTThreatEnemyCombatTotal] >= 40 then
+                        if tTeamTargetLZData[M28Map.refiEnemyAirToGroundThreat] > 0 or tTeamTargetLZData[M28Map.subrefTThreatEnemyCombatTotal] >= 40 or (bEnemyHasTeleport and M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.refbLZWantsMobileShield]) == false and M28Conditions.HaveActiveGameEnderTemplateLogic(tTeamTargetLZData)) then
                             ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign)
                             if M28Utilities.IsTableEmpty(tShieldsToAssign) then break end
                         else
@@ -10140,7 +10143,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
             if (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and not(bUseRASInCombat) then iSACUCategory = iSACUCategory + categories.SUBCOMMANDER end--]]
             for iUnit, oUnit in tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with fraction complete '..oUnit:GetFractionComplete()..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time until micro stopped='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0)..'; Unit combat range='..(oUnit[M28UnitInfo.refiCombatRange] or 'nil')..'; Is unit amphibious='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId))..'; Is unit mobile non-air amphibious='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAmphibious * categories.MOBILE - categories.AIR, oUnit.UnitId))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with fraction complete '..oUnit:GetFractionComplete()..' owned by brain '..oUnit:GetAIBrain().Nickname..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time until micro stopped='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0)..'; Unit combat range='..(oUnit[M28UnitInfo.refiCombatRange] or 'nil')..'; Is unit amphibious='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId))..'; Is unit mobile non-air amphibious='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAmphibious * categories.MOBILE - categories.AIR, oUnit.UnitId))..'; is reftArtiTemplateRefs nil='..tostring(oUnit[M28Building.reftArtiTemplateRefs] == nil)) end
                 bCurUnitWantsMobileShield = false
                 if oUnit[refbFlaggedForPriorityScout] then
                     local bRecorded = false

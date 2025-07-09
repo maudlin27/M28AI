@@ -871,6 +871,7 @@ function OnEnhancementStarted(self, work)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnEnhancementStarted'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
         if bDebugMessages == true then LOG(sFunctionRef..': start, self.UnitId=='..(self.UnitId or 'nil')..'; work='..reprs(work)..'; owner='..self:GetAIBrain().Nickname..' on team='..self:GetAIBrain().M28Team) end
         self[M28UnitInfo.refsLastEnhancementStarted] = work
         if work == 'Teleporter' and self.GetAIBrain then
