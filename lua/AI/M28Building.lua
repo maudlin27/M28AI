@@ -6214,3 +6214,96 @@ function ConsiderUpgradingT2Radar(oRadar)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function GEMobileShieldTeleDefence(oTeleportingUnit, tTeleportDestination, iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GEMobileShieldTeleDefence'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28UnitInfo.IsUnitValid(oTeleportingUnit) then
+        --Get target zone and check for nearby shields that are part of a GE template
+
+        local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
+        if oFirstM28Brain then
+            local energyCost, time, teleDelay = import('/lua/shared/teleport.lua').TeleportCostFunction(oTeleportingUnit, tTeleportDestination)
+            --For now am assuming time is the time until teleport compeltes in seconds, not 100% sure though
+            local iTimeUntilTeleport = time
+            local iTimeForShieldRecharge = 5
+            if bDebugMessages == true then LOG(sFunctionRef..': oTeleportingUnit='..oTeleportingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTeleportingUnit)..'; iTimeUntilTeleport='..iTimeUntilTeleport..'; time='..time..';teleDelay='..teleDelay..'; GameTime='..GetGameTimeSeconds()) end
+            if iTimeUntilTeleport > (iTimeForShieldRecharge - 0.1) then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(iTimeUntilTeleport - iTimeForShieldRecharge + 1) --dont want shields to actually be enabled until after enemy has teleported, as highly unlikely we kill enemy in less than a second, and also unlikely enemy is quick enough to ctrlk in under a second
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            if not(oFirstM28Brain.M28IsDefeated) then
+                local tNearbyMobileShields = oFirstM28Brain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLandShield, tTeleportDestination, 60, 'Ally')
+                if bDebugMessages == true then LOG(sFunctionRef..': is tNearbyMobileShields empty='..tostring(M28Utilities.IsTableEmpty(tNearbyMobileShields))) end
+                if M28Utilities.IsTableEmpty(tNearbyMobileShields) == false then
+                    local iMaxWaitTime = 60
+                    for iShield, oShield in tNearbyMobileShields do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will enable mobile shield if not already, oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; oShield[M28UnitInfo.refbShieldIsDisabled]='..tostring(oShield[M28UnitInfo.refbShieldIsDisabled] or false)) end
+                        if oShield[M28UnitInfo.refbShieldIsDisabled] then
+                            M28UnitInfo.EnableUnitShield(oShield)
+                        end
+                        M28Micro.EnableUnitMicroUntilManuallyTurnOff(oShield)
+                    end
+                    local iCurDistToTeleport, iMinDistWanted, iCurAngleToShieldTarget
+                    local iTimeWaited = 0
+                    local tTeleportOrUnitPosition, tCurShieldTarget, tTempMovePosition
+                    while M28UnitInfo.IsUnitValid(oTeleportingUnit) and not(oFirstM28Brain.M28IsDefeated) do
+                        --Enable all mobile shields around the target that are disabled, and if they are within 8 of their destination and also shield is overlapping the teleport destination have them move away
+                        if M28Conditions.IsTableOfUnitsStillValid(tNearbyMobileShields) then
+                            if iTimeWaited > iTimeForShieldRecharge then
+                                tTeleportOrUnitPosition = oTeleportingUnit:GetPosition()
+                            else tTeleportOrUnitPosition = tTeleportDestination
+                            end
+                            local bCampaignMap = M28Map.bIsCampaignMap
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will loop through shields and keep them away from the teleport destination, time='..GetGameTimeSeconds()..'; iTimeWaited='..iTimeWaited..'; iMaxWaitTime') end
+                            for iShield, oShield in tNearbyMobileShields do
+                                if oShield:GetAIBrain().M28AI then
+                                    iCurDistToTeleport = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), tTeleportOrUnitPosition)
+                                    iMinDistWanted = (oShield.MyShield.Size or oShield:GetBlueprint().Defense.Shield.ShieldSize or 17) * 0.5 + 3
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; CurShield health='..oShield.MyShield:GetHealth()..'; refbShieldIsDisabled='..tostring(oShield[M28UnitInfo.refbShieldIsDisabled] or false)..'; iCurDistToTeleport='..iCurDistToTeleport..'; iMinDistWanted='..iMinDistWanted..'; refbSpecialMicroActive='..tostring(oShield[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                                    if iCurDistToTeleport < iMinDistWanted then
+                                        iCurAngleToShieldTarget = nil
+                                        if M28UnitInfo.IsUnitValid(oShield[M28Land.refoMobileShieldTarget]) then
+                                            tCurShieldTarget = oShield[M28Land.refoMobileShieldTarget]:GetPosition()
+                                        elseif oShield[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition] then
+                                            tCurShieldTarget = {oShield[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition][1], oShield[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition][2], oShield[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition][3]}
+                                        else
+                                            tCurShieldTarget = oShield:GetPosition()
+                                            iCurAngleToShieldTarget = M28Utilities.GetAngleFromAToB(tTeleportOrUnitPosition, oShield:GetPosition())
+                                        end
+                                        if not(iCurAngleToShieldTarget) then iCurAngleToShieldTarget = M28Utilities.GetAngleFromAToB(oShield:GetPosition(), tCurShieldTarget)
+                                            tTempMovePosition = M28Utilities.MoveInDirection(oShield:GetPosition(), iCurAngleToShieldTarget, math.max(4, iMinDistWanted - iCurDistToTeleport + 2), true, false, bCampaignMap)
+                                            M28Orders.IssueTrackedMove(oShield, tTempMovePosition, 0.1, false, 'MobShTelMv', true)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitSeconds(1)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        iTimeWaited = iTimeWaited + 1
+                        if iTimeWaited > iMaxWaitTime then break end
+                    end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitSeconds(0.5) --just in case there's a delay on an explosion
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    if M28Conditions.IsTableOfUnitsStillValid(tNearbyMobileShields) then
+                        for iShield, oShield in tNearbyMobileShields do
+                            --Disable shields again if part of GE template
+                            if oShield[reftArtiTemplateRefs] then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Disabling shield, oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)) end
+                                M28UnitInfo.DisableUnitShield(oShield)
+                            end
+                            oShield[M28UnitInfo.refbSpecialMicroActive] = false
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

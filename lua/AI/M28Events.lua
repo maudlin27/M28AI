@@ -871,6 +871,7 @@ function OnEnhancementStarted(self, work)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnEnhancementStarted'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
         if bDebugMessages == true then LOG(sFunctionRef..': start, self.UnitId=='..(self.UnitId or 'nil')..'; work='..reprs(work)..'; owner='..self:GetAIBrain().Nickname..' on team='..self:GetAIBrain().M28Team) end
         self[M28UnitInfo.refsLastEnhancementStarted] = work
         if work == 'Teleporter' and self.GetAIBrain then
@@ -4511,6 +4512,7 @@ function OnStartTeleport(self, teleporter, locationorbp, orientationorlocation, 
                     end
                     table.insert(M28Team.tTeamData[iCurTeam][M28Team.reftRecentEnemyTeleportDetails], {[M28Team.subrefoTeleportUnit] = self, [M28Team.subreftTeleportTarget] = {location[1], math.max(location[2], GetTerrainHeight(location[1], location[3])), location[3]}, [M28Team.subrefiTeleportTime] = GetGameTimeSeconds()})
                     M28Team.tTeamData[iCurTeam][M28Team.refbEnemyHasTeleport] = true
+                    ForkThread(M28Building.GEMobileShieldTeleDefence, self, location, iCurTeam)
                 end
             end
         end
