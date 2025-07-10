@@ -17724,6 +17724,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     local aiBrain = ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
     local iHighestTechEngiAvailable
     local iExistingWaterFactory = 0
+    local oFirstWaterFactory
     local bHaveFactoryHQ = false
     local bDontCheckPlayableArea = false
     if M28Map.bIsCampaignMap then
@@ -17735,6 +17736,9 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         local tExistingWaterFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         if M28Utilities.IsTableEmpty(tExistingWaterFactory) == false then
             for iFactory, oFactory in tExistingWaterFactory do
+                if not(oFirstWaterFactory) or (M28UnitInfo.GetUnitLifetimeCount(oFactory) < M28UnitInfo.GetUnitLifetimeCount(oFirstWaterFactory) and M28UnitInfo.GetUnitTechLevel(oFactory) >= M28UnitInfo.GetUnitTechLevel(oFirstWaterFactory)) then
+                    oFirstWaterFactory = oFactory
+                end
                 if oFactory:GetFractionComplete() == 1 then
                     iExistingWaterFactory = iExistingWaterFactory + 1
                     if not(bHaveFactoryHQ) and EntityCategoryContains(M28UnitInfo.refCategoryNavalHQ, oFactory.UnitId) then
@@ -17965,16 +17969,21 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 --(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) >= 16 or not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]))
                 if tWZTeamData[M28Map.subrefWZbCoreBase] and aiBrain[M28Overseer.refbPrioritiseNavy] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then iFactoriesWanted = iFactoriesWanted + 1 end
                 if iExistingWaterFactory < iFactoriesWanted or not(bHaveFactoryHQ) then
-                    iBPWanted = 30
+                    iBPWanted = 40
                     if bHaveLowMass then
-                        if iExistingWaterFactory > 0 then iBPWanted = 20 else iBPWanted = 25 end
+                        if iExistingWaterFactory > 0 then iBPWanted = 25 else iBPWanted = 35 end
                     end
-                    if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iBPWanted = iBPWanted * 0.35 end
+                    if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iBPWanted = iBPWanted * 0.65 end
                     if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': We want to build a naval factory')
+                        LOG(sFunctionRef .. ': We want to build a naval factory, or assist if oFirstWaterFactory has low build count, oFirstWaterFactory='..(oFirstWaterFactory.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstWaterFactory) or 'nil')..'; oFirstWaterFactory[M28Factory.refiTotalBuildCount]='..(oFirstWaterFactory[M28Factory.refiTotalBuildCount] or 'nil'))
                     end
-
-                    HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
+                    if oFirstWaterFactory and iExistingWaterFactory >= 1 and (iExistingWaterFactory >= 2 or oFirstWaterFactory:GetFractionComplete() == 1) and oFirstWaterFactory[M28Factory.refiTotalBuildCount] < 3 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will assist oFirstWaterFactory') end
+                        HaveActionToAssign(refActionAssistNavalFactory, 1, iBPWanted, oFirstWaterFactory)
+                        HaveActionToAssign(refActionBuildNavalFactory, 1, 5, nil)
+                    else
+                        HaveActionToAssign(refActionBuildNavalFactory, 1, iBPWanted, nil)
+                    end
                 end
             end
         end
