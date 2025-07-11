@@ -754,7 +754,7 @@ function SafeToUpgradeUnit(oUnit)
                     end
                 end
                 --Treat as safe if are near T2 PD and have at least 40% health, and enemy lacks significant indirect fire threat nearby, and doesnt have huge DF threat nearby
-                if not(bSafeZone) and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.4 then
+                if not(bSafeZone) and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.4 and M28UnitInfo.GetUnitHealthAndShieldPercent(oUnit) >= 0.4 then
                     if M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 15, 'Ally')) == false then
                         if bDebugMessages == true then LOG(sFunctionRef..': ACU near PD so will treat as safe') end
                         bSafeZone = true
