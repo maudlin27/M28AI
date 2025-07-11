@@ -4890,15 +4890,31 @@ function EnemyBaseEarlyBomber(oBomber)
                     --Remove any existing assigned strike damage (will re-add if we retain target)
                     local tLastOrder = oBomber[M28Orders.reftiLastOrders][oBomber[M28Orders.refiOrderCount]]
                     local oExistingValidAttackTarget
+                    local iCurBomberPlateauOrZero, iCurBomberZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oBomber:GetPosition())
+                    local tBomberLastTarget
                     if tLastOrder and tLastOrder[M28Orders.subrefoOrderUnitTarget] and (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack) and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
                         oExistingValidAttackTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]
+                        if M28UnitInfo.IsUnitValid(oExistingValidAttackTarget) then tBomberLastTarget = oExistingValidAttackTarget:GetPosition() end
                         RemoveAssignedAttacker(oExistingValidAttackTarget, oBomber)
                     end
+                    if not(tBomberLastTarget) and tLastOrder then
+                        tBomberLastTarget = tLastOrder[M28Orders.subreftOrderPosition]
+                        if M28Utilities.IsTableEmpty(tBomberLastTarget) then
+                            tBomberLastTarget = tEnemyInitialDestination
+                        end
+                    end
+
                     iTicksToWait = 10
 
                     --If enemy base has MAA in it, then abort logic
                     if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tEnemyBaseLZTeamData) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy has MAA to abort logic') end
+                        oBomber[rebEarlyBomberTargetBase] = false
+                        --Return to base as temporary order (normal engi hunter logic should take over shortly)
+                        M28Orders.IssueTrackedMove(oBomber, tEnemyBaseLZTeamData[M28Map.reftClosestFriendlyBase], 5, false, '1stBombAb', true)
+                        break
+                    elseif iCurBomberPlateauOrZero and iCurBomberZone and (not(iCurBomberZone == iEnemyBaseZone) or not(iCurBomberPlateauOrZero == iEnemyBasePlateau)) and DoesEnemyHaveAAThreatAlongPath(iTeam, iCurBomberPlateauOrZero, iCurBomberZone, iEnemyBasePlateau, iEnemyBaseZone, false, 45, 50, false, iAirSubteam, true, false, oBomber:GetPosition(), false, tBomberLastTarget, true, false) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Too much AA threat along path to enemy base so will abort') end
                         oBomber[rebEarlyBomberTargetBase] = false
                         --Return to base as temporary order (normal engi hunter logic should take over shortly)
                         M28Orders.IssueTrackedMove(oBomber, tEnemyBaseLZTeamData[M28Map.reftClosestFriendlyBase], 5, false, '1stBombAb', true)
