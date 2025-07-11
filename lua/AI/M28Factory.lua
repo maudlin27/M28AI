@@ -5387,6 +5387,31 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 end
             end
 
+            --Transport for combat drops (we have done island and far away zones above)
+            iCurrentConditionToTry = iCurrentConditionToTry + 1
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportCombatPlateauLandZoneDropShortlist]) == false then
+                local iCurTransports = 0
+                --Check for whole team not just air subteam
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    iCurTransports = iCurTransports + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport)
+                end
+                if iCurTransports == 0 then
+                    local iLifetimeBrainCount = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport)
+                    if iLifetimeBrainCount <= 1 or GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or -100) >= 300 then
+                        --Check we have none under construction either
+                        if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryTransport) == 0 and M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherCoreZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryTransport) == 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and build a transport as a relatively high priority to do combat drops, iCurrentConditionToTry='..iCurrentConditionToTry) end
+                            local iCategoryWanted = M28UnitInfo.refCategoryTransport - categories.TECH3 - categories.EXPERIMENTAL
+                            if iFactoryTechLevel == 2 and ((oFactory[refiTotalBuildCount] or 0) < 10 or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) then
+                                iCategoryWanted =  M28UnitInfo.refCategoryTransport * categories.TECH1
+                            end
+                            M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
+                            if ConsiderBuildingCategory(iCategoryWanted) then return sBPIDToBuild end
+                        end
+                    end
+                end
+            end
+
 
             --General production - depends on if we have highest tech level, or if we dont have t3 air yet
             if bDebugMessages == true then
