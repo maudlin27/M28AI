@@ -1638,7 +1638,9 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local iCurPriority, iCurDistance
     local iBestLocationRef
     local oEngiBP = oEngineer:GetBlueprint()
+    if not(oEngiBP.SizeX) then oEngiBP = __blueprints[oEngiBP.UnitId] end
     local oBuildingBP = __blueprints[sBlueprintToBuild]
+
     local iNewBuildingRadius = math.min(math.max(oBuildingBP.Physics.SkirtSizeX, oBuildingBP.Physics.SkirtSizeZ) * 0.5, math.max(oBuildingBP.SizeX, oBuildingBP.SizeZ) * 0.5 + 0.5)  --M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5
 
     --= math.min(math.max(oBuildingBP.Physics.SkirtSizeX, oBuildingBP.Physics.SkirtSizeZ), math.max(oBuildingBP.SizeX, oBuildingBP.SizeZ) + 0.5)  --M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5
@@ -1794,6 +1796,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local iRectangleRadiusAdjust
     if bTryOtherLocationsIfNoneBuildableImmediately then
         local oEngiBP = oEngineer:GetBlueprint()
+        if not(oEngiBP.SizeX) then oEngiBP = __blueprints[oEngineer.UnitId] end
         iRectangleRadiusAdjust = iNewBuildingRadius + math.max((oEngiBP.SizeX or 1.2), (oEngiBP.SizeZ or 1.2)) * 0.5 + 0.1
     else
         iRectangleRadiusAdjust = iNewBuildingRadius
@@ -2300,7 +2303,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
 
         local sPathing = M28UnitInfo.GetUnitPathingType(oEngineer)
         local iNewBuildingRadius = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)[1] * 0.5
-        local iBuilderRange = oEngineer:GetBlueprint().Economy.MaxBuildDistance + math.min(oEngineer:GetBlueprint().SizeX, oEngineer:GetBlueprint().SizeZ)*0.5
+        local iBuilderRange = oEngineer:GetBlueprint().Economy.MaxBuildDistance + math.min((oEngineer:GetBlueprint().SizeX or 1), (oEngineer:GetBlueprint().SizeZ or 1))*0.5
         local iDistanceFromStart = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()])
         local bBuildNearToEnemy = false
         if iDistanceFromStart <= 80 then bBuildNearToEnemy = true end
@@ -5898,6 +5901,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         end
 
         local oEngBP = oEngineer:GetBlueprint()
+        if not(oEngBP.SizeX) then oEngBP = __blueprints[oEngBP.UnitId] end
         --if oEngBP.Economy.MaxBuildDistance >= 10 then iSegmentSearchSize = math.max(1, math.ceil((oEngBP.Economy.MaxBuildDistance + 2) / math.min(M28Map.iReclaimSegmentSizeX, M28Map.iReclaimSegmentSizeZ))) end
         --local iMoveSpeed = oEngBP.Physics.MaxSpeed
         local iMaxDistanceToEngineer = oEngBP.Economy.MaxBuildDistance + math.min(oEngBP.SizeX, oEngBP.SizeZ) * 0.5 - 0.1
@@ -6002,7 +6006,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
 
                     if oReclaim.CachePosition and not(oReclaim:BeenDestroyed()) and ((not(bWantEnergyNotMass) and ((bConsiderBelowMinValueIfCantFindAny and not(oNearestReclaim)) or (not(bWantEnergyNotMass) and oReclaim.MaxMassReclaim >= iCurMinToUse) or (bWantEnergyNotMass and oReclaim.MaxEnergyReclaim >= iCurMinToUse))))  then
                         if bDontConsiderNoRush or M28Conditions.IsLocationInNoRushArea(oReclaim.CachePosition) then
-                            iReclaimRadius = math.min(oReclaim:GetBlueprint().SizeX, oReclaim:GetBlueprint().SizeZ)*0.5
+                            iReclaimRadius = math.min((oReclaim:GetBlueprint().SizeX or 0.5), (oReclaim:GetBlueprint().SizeZ or 0.5))*0.5
                             iCurDistToTargetPos = math.max(0, M28Utilities.GetDistanceBetweenPositions(tTargetPos, oReclaim.CachePosition) - iReclaimRadius)
                             --Can we path to it?
                             if iCurDistToTargetPos < iNearestReclaim and (not(bCheckTerrain) or (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oReclaim.CachePosition) == iEngiTerrainLabel or (iCurDistToTargetPos <= 12 and M28Utilities.GetDistanceBetweenPositions(oReclaim.CachePosition, oEngineer:GetPosition()) <= iReclaimRadius + iMaxDistanceToEngineer))) then
@@ -6044,7 +6048,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                     if oNearestReclaim and bCheckTerrain then
                         if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaim.CachePosition) == iEngiPlateau or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaim.CachePosition) == iPlateauOrPond) then
                             local iDistToReclaim = M28Utilities.GetDistanceBetweenPositions(oNearestReclaim.CachePosition, oEngineer:GetPosition())
-                            local iRangeToWreck = iMaxDistanceToEngineer + math.min(oNearestReclaim:GetBlueprint().SizeX, oNearestReclaim:GetBlueprint().SizeZ)*0.5
+                            local iRangeToWreck = iMaxDistanceToEngineer + math.min((oNearestReclaim:GetBlueprint().SizeX or 0.5), (oNearestReclaim:GetBlueprint().SizeZ or 0.5))*0.5
                             if iDistToReclaim > iRangeToWreck then
                                 local tPotentialLocationToMove = M28Utilities.MoveInDirection(oNearestReclaim.CachePosition, M28Utilities.GetAngleFromAToB(oNearestReclaim.CachePosition, oEngineer:GetPosition()), iRangeToWreck, true, false, M28Map.bIsCampaignMap)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Ignoring reclaim as we cant path to it, unless the engineer can path somewhere that is within build range of here, tPotentialLocationToMove='..repru(tPotentialLocationToMove)..'; Hover label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) or 'nil')..'; iPlateauOrPond='..iPlateauOrPond..'; iDistToReclaim='..iDistToReclaim..'; iMaxDistanceToEngineer='..iMaxDistanceToEngineer..'; Angle from engi to reclaim='..M28Utilities.GetAngleFromAToB(oEngineer:GetPosition(), oNearestReclaim.CachePosition)) end

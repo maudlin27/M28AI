@@ -2475,8 +2475,11 @@ function MoveToStealthTarget(oStealth, tEnemyBase, tOptionalStealthLZTeamData, t
     end
 
     if bMoveToUnit then
+        if bDebugMessages == true then LOG(sFunctionRef..': oStealth[refoMobileStealthTarget]='..(oStealth[refoMobileStealthTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]) or 'nil')..'; SizeX='..(oStealth[refoMobileStealthTarget]:GetBlueprint().SizeX or 'nil')..'; SizeZ='..(oStealth[refoMobileStealthTarget]:GetBlueprint().SizeZ or 'nil')..'; SizeX if do __blueprints='..(__blueprints[oStealth[refoMobileStealthTarget].UnitId].SizeX or 'nil')) end
         local oBP = oStealth:GetBlueprint()
         local oTargetBP = oStealth[refoMobileStealthTarget]:GetBlueprint()
+        --Strange bug where t3 mobile arti :GetBlueprint() had no sizex; this worked as a workaround:
+        if not(oTargetBP.SizeX) then oTargetBP = __blueprints[oStealth[refoMobileStealthTarget].UnitId] end
         local iStealthDistanceWanted = math.max(8, oBP.Intel.RadarStealthFieldRadius - 1 - oBP.Physics.MaxSpeed - (oTargetBP.Physics.MaxSpeed or 0))
         local iSize = math.max(oTargetBP.SizeX, oTargetBP.SizeZ)
         if iSize >= 1 then

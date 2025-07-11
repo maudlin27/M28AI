@@ -13393,6 +13393,7 @@ function MonitorNavalFacForBomberTarget(oUnit, aiBrain)
         local iDelayBetweenCycles = 20 --How frequently to check for engineer targets
         local iRadius = 7
         local oBP = oUnit:GetBlueprint()
+        if not(oBP.SizeX) then oBP = __blueprints[oUnit.UnitId] end
         local tPosition = oUnit:GetPosition()
         local rRectAroundFactory = Rect(tPosition[1] - iRadius - oBP.SizeX, tPosition[3] - iRadius, tPosition[1] + iRadius + oBP.SizeX, tPosition[3] + iRadius + oBP.SizeZ)
         local tTargetWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
@@ -13532,6 +13533,7 @@ function EnemyNavalEngineerBomber(oBomber)
                                         if not(oFactory.Dead) then
                                             local tPosition = oFactory:GetPosition()
                                             local oBP = oFactory:GetBlueprint()
+                                            if not(oBP.SizeX) then oBP = __blueprints[oFactory.UnitId] end
 
                                             local rRectAroundFactory = Rect(tPosition[1] - iRadius - oBP.SizeX, tPosition[3] - iRadius, tPosition[1] + iRadius + oBP.SizeX, tPosition[3] + iRadius + oBP.SizeZ)
                                             local toUnitsInRect = GetUnitsInRect(rRectAroundFactory)

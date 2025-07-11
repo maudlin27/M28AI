@@ -3969,6 +3969,7 @@ function DelayedCheckIfFactoryBuildingAndRetry(oFactory)
                     --T3 naval facs - more likely to be unable ot build due to blocking buildings
                     if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory * categories.TECH3, oFactory.UnitId) then
                         local oBP = oFactory:GetBlueprint()
+                        if not(oBP.SizeX) then oBP = __blueprints[oFactory.UnitId] end
                         local iFactoryRadiusX = oBP.SizeX * 0.5
                         local iFactoryRadiusZ = oBP.SizeZ * 0.5
                         local iEstShipWidth = 3.3
