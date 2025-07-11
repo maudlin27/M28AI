@@ -10749,7 +10749,8 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
 
     ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tScouts, bLandZoneOrAdjHasUnitsWantingScout)
 
-
+    --Update ACU in trouble incase ACU moved zones
+    if tLZTeamData[M28Map.refbACUInTrouble] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) then tLZTeamData[M28Map.refbACUInTrouble] = false end
     --Update visual based on omni
     if tLZTeamData[M28Map.refiOmniCoverage] > 30 then tLZTeamData[M28Map.refiTimeLastHadVisual] = GetGameTimeSeconds() end
 
