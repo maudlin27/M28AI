@@ -6899,8 +6899,25 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                         end
                                                     end
                                                 else
-                                                    --Enemy has DF units and they are already in our range, and we can kite
-                                                    if bNearestEnemyNeedsManualAttack then
+                                                    --Enemy has DF units and they are already in our range, and we can kite;
+                                                    --Check if we are in the scenario where closest enemy to us is just in our range and isnt moving, and we havent fired recently
+                                                    local bStillAttack = false
+                                                    if oUnit[M28UnitInfo.refiDFRange] > oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] and M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+                                                        local iDistToClosestEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
+                                                        if iDistToClosestEnemy - oUnit[M28UnitInfo.refiDFRange] >= -1.5 and iDistToClosestEnemy - oUnit[M28UnitInfo.refiDFRange] <= 2 then
+                                                            --Get where enemy will move towards
+                                                            local iVelocityX, iVelocityY, iVelocityZ = oUnit:GetVelocity()
+                                                            local tCurEnemyPosition = oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': iDistToClosestEnemy='..iDistToClosestEnemy..'; Dist to position based on enemy movement='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), {tCurEnemyPosition[1]+iVelocityX, tCurEnemyPosition[2], tCurEnemyPosition[3] + iVelocityZ})) end
+                                                            if true and GetGameTimeSeconds() >= 5.5*60 and iDistToClosestEnemy <= M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), {tCurEnemyPosition[1]+iVelocityX, tCurEnemyPosition[2], tCurEnemyPosition[3] + iVelocityZ}) then
+                                                                bStillAttack = true
+                                                            end
+                                                        end
+                                                    end
+                                                    if bStillAttack then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Normally would do kiting retreat, but in this case will do manual attack as enemy on cusp of our range and not moving closer to us') end
+                                                        M28Orders.IssueTrackedAttack(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'KMnA'..iLandZone, false)
+                                                    elseif bNearestEnemyNeedsManualAttack then
                                                         if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
                                                             if M28Utilities.GetDistanceBetweenPositions(tAmphibiousRallyPoint, oUnit:GetPosition()) <= 10 then
                                                                 local oTargetToManuallyAttack, bMoveNotManualAttack = GetManualAttackTargetIfWantManualAttack(oUnit)
