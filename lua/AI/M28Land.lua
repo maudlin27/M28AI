@@ -2083,7 +2083,7 @@ function StealthUnitsInLandZone(tTeamTargetLZData, tStealthsToAssign, bAssignAll
 
     --local tTargetLandZone = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam]
     local bNoUnitsWantingStealthing = true
-    if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits]) and M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileStealth]) then
+    if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits]) and M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileStealth]) and M28Utilities.IsTableEmpty(toOptionalUnitsToStealth) then
         M28Utilities.ErrorHandler('Are trying to send mobile Stealths to support a land zone that has no allied combat units in it and no units wanting Stealthing')
     else
         local toUnitsWantingStealth
@@ -2841,12 +2841,13 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
                 local oClosestPriorityUnitWantingStealth
                 local iClosestPriorityUnitWantingStealthDist = 250
                 local iCurPriorityUnitWantingStealthDist
+                if GetGameTimeSeconds() >= 1547 then bDebugMessages = true end
                 for iUnit, oUnit in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.reftoPriorityUnitsWantingMobileStealth] do
                     if not(oUnit.Dead) and not(M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileStealth])) and NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] then
                         iCurPriorityUnitWantingStealthDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
                         if iCurPriorityUnitWantingStealthDist < iClosestPriorityUnitWantingStealthDist then
                             local tUnitLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam]
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have a priority unit wanting mobile stealth, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' tUnitLZTeamData[refiEnemyOmniCoverage]='..(tUnitLZTeamData[M28Map.refiEnemyOmniCoverage] or 'nil')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have a priority unit wanting mobile stealth, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' tUnitLZTeamData[refiEnemyOmniCoverage]='..(tUnitLZTeamData[M28Map.refiEnemyOmniCoverage] or 'nil')..'; Unit assigned to P'..oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]..'Z'..oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]..'; iPlateau='..iPlateau) end
                             if (tUnitLZTeamData[M28Map.refiEnemyOmniCoverage] or 0) < 40 then
                                 --Want to assign a mobile stealth to the closest such unit
                                 iClosestPriorityUnitWantingStealthDist = iCurPriorityUnitWantingStealthDist
