@@ -453,17 +453,25 @@ function SendForkedMessageForSpecialUseOnly(aiBrain, sMessageType, sMessage, iOp
                 WaitSeconds(1)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 iCount = iCount + 1
+                if aiBrain.M28IsDefeated or aiBrain:IsDefeated() then
+                    bAbort = true
+                    break
+                elseif GetGameTimeSeconds() >= 600 and ScenarioInfo.Options.Victory == 'decapitation' then
+                    break
+                end
                 --FA Mission 6 - end up waiting more than 6m, so changed to 400s
                 if iCount >= 400 then
                     if bDebugMessages == true then LOG(sFunctionRef..'; iCount='..iCount..'; setting bAbort to true') end
-                    M28Utilities.ErrorHandler('Waited '..iCount..' times so wont send chat message '..sMessage)
+                    M28Utilities.ErrorHandler('Waited '..iCount..' times so wont send chat message '..sMessage..' by brain '..aiBrain.Nickname)
                     bAbort = true
                     break
                 end
-
             end
-            local tFriendlyACUs = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
-            if M28Utilities.IsTableEmpty(tFriendlyACUs) then
+            if not(bAbort) and (M28Map.bIsCampaignMap or GetGameTimeSeconds() <= 500) then
+                local tFriendlyACUs = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+                if M28Utilities.IsTableEmpty(tFriendlyACUs) then
+                    bAbort = true
+                end
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bWaitUntilHaveACU='..tostring(bWaitUntilHaveACU)..'; bAbort='..tostring(bAbort)) end
