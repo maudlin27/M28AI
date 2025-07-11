@@ -220,7 +220,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiAirAAKills = 'M28AirKl' --mas value of enemy air units (i.e. all air units) that have died to friendly airaa units
 
     --subrefiOurGunshipThreat - uses same ref as air subteam
-    --subrefiOurBomberThreat - uses same ref as air subteam
+    --subrefiOurT1ToT3BomberThreat - uses same ref as air subteam
     --subrefiOurAirAAThreat - uses same ref as air subteam
 
     refiTimeOfLastTransportShortlistUpdate = 'M28TeamAirTimeTransportShortlist' --Gametimeseconds that last updated the list of potential locations to do transport engi drops to
@@ -287,7 +287,8 @@ tAirSubteamData = {}
     refiOurGunshipAAThreat = 'M28ASTGshAA' --Our available gunship AA threat
     subrefiOurGunshipThreat = 'M28ASTOurGShip' --Our gunship threat; also used as a team variable
     subrefiOurTorpBomberThreat = 'M28ASTOurTBmbT' --Our torp bomber threat
-    subrefiOurBomberThreat = 'M28ASTOurBomb' --Our bomber threat; also used as a team variable
+    subrefiOurT1ToT3BomberThreat = 'M28ASTOurBomb' --Our bomber threat; also used as a team variable
+    subrefiOurExpBomberThreat = 'M28ASTXpBmb' --our threat in experimental bombers; also used as a team variable
 
     refbTooMuchGroundNavalAAForTorpBombers = 'M28TooMuchAAForTorps' --true if have avoided targeting a water zone with torps due to groundAA threat in a water zone
     refbNoAvailableTorpsForEnemies = 'M28NoAvailTorps' --true if have enemy naval unit in a wz we want to defend, and we lack available torp bombers
@@ -4965,10 +4966,10 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                             else iHealthThreshold = 4250
                             end
                             if oUnit[M28UnitInfo.refbIsSnipeTarget] then iHealthThreshold = iHealthThreshold + 500 end
-                            if tTeamData[iTeam][subrefiOurBomberThreat] >= 500 then
-                                iHealthThreshold = iHealthThreshold + math.min(750, tTeamData[iTeam][subrefiOurBomberThreat] * 0.5)
+                            if tTeamData[iTeam][subrefiOurT1ToT3BomberThreat] >= 500 then
+                                iHealthThreshold = iHealthThreshold + math.min(750, tTeamData[iTeam][subrefiOurT1ToT3BomberThreat] * 0.5)
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering sniping if we could probably get enough bombers, iHealthThreshold='..iHealthThreshold..'; Unit health='..oUnit:GetHealth()..'; iHealthPercent='..iHealthPercent..'; Team bomber threat='..tTeamData[iTeam][subrefiOurBomberThreat]) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering sniping if we could probably get enough bombers, iHealthThreshold='..iHealthThreshold..'; Unit health='..oUnit:GetHealth()..'; iHealthPercent='..iHealthPercent..'; Team bomber threat='..tTeamData[iTeam][subrefiOurT1ToT3BomberThreat]) end
                             if oUnit:GetHealth() <= iHealthThreshold then
                                 local iShield = 0
                                 if oUnit.MyShield.GetHealth then iShield = oUnit.MyShield:GetHealth() end
@@ -5116,8 +5117,8 @@ function CheckForHidingACU(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering for iTeam='..(iTeam or 'nil')..'; iAirSubteam='..(iAirSubteam or 'nil')..'; Have air control='..tostring(tAirSubteamData[iAirSubteam][refbHaveAirControl] or false)..'; Highest friendly air fac tech='..(tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] or 'nil')..'; Gross mass='..(tTeamData[iTeam][subrefiTeamGrossMass] or 'nil')..'; Enemy air to ground='..(tTeamData[iTeam][refiEnemyAirToGroundThreat] or 'nil')..'; Our bomber threat='..(tAirSubteamData[iAirSubteam][subrefiOurBomberThreat] or 'nil')..'; Our gunship threat='..(tAirSubteamData[iAirSubteam][subrefiOurGunshipThreat] or 'nil')..'; Time='..GetGameTimeSeconds()) end
-    if tAirSubteamData[iAirSubteam][refbHaveAirControl] and tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] >= 3 and tTeamData[iTeam][subrefiTeamGrossMass] >= 20 and math.max(tTeamData[iTeam][refiEnemyAirToGroundThreat], 500) < math.max(tAirSubteamData[iAirSubteam][subrefiOurBomberThreat], tAirSubteamData[iAirSubteam][subrefiOurGunshipThreat]) * 0.1 then
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering for iTeam='..(iTeam or 'nil')..'; iAirSubteam='..(iAirSubteam or 'nil')..'; Have air control='..tostring(tAirSubteamData[iAirSubteam][refbHaveAirControl] or false)..'; Highest friendly air fac tech='..(tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] or 'nil')..'; Gross mass='..(tTeamData[iTeam][subrefiTeamGrossMass] or 'nil')..'; Enemy air to ground='..(tTeamData[iTeam][refiEnemyAirToGroundThreat] or 'nil')..'; Our bomber threat='..(tAirSubteamData[iAirSubteam][subrefiOurT1ToT3BomberThreat] or 'nil')..'; Our gunship threat='..(tAirSubteamData[iAirSubteam][subrefiOurGunshipThreat] or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if tAirSubteamData[iAirSubteam][refbHaveAirControl] and tTeamData[iTeam][subrefiHighestFriendlyAirFactoryTech] >= 3 and tTeamData[iTeam][subrefiTeamGrossMass] >= 20 and math.max(tTeamData[iTeam][refiEnemyAirToGroundThreat], 500) < math.max(tAirSubteamData[iAirSubteam][subrefiOurT1ToT3BomberThreat], tAirSubteamData[iAirSubteam][subrefiOurGunshipThreat]) * 0.1 then
         if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyACUs]) == false then
             --Check we have much more mass than all enemies
             local iEnemyMass = 0
