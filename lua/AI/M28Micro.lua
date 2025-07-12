@@ -656,6 +656,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                     --Do we think we can dodge the shot?
                                     --If we are a large unit then only dodge if will be a while for the shot to hit
                                     local oBP = oTarget:GetBlueprint()
+                                    if not(oBP.SizeX) then oBP = __blueprints[oTarget.UnitId] end
                                     local iAverageSize = (oBP.SizeX + oBP.SizeZ) * 0.5
                                     local iExpectedTimeWanted = math.min(2.5, 0.4 + iAverageSize * 1.5 / oBP.Physics.MaxSpeed)
                                     if bDebugMessages == true then LOG(sFunctionRef..': iAverageSize='..iAverageSize..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oTarget))..'; SizeY='..oBP.SizeY..'; Terrain height='..GetTerrainHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3])..'; Surface height='..GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3])..'; water height='..M28Map.iMapWaterHeight..'; aoe='..(oWeaponBP.DamageRadius or 'nil')..'; oTarget max speed='..oBP.Physics.MaxSpeed..'; iTimeUntilImpact='..iTimeUntilImpact..'; iExpectedTimeWanted='..iExpectedTimeWanted..'; speed of oTarget='..M28UnitInfo.GetUnitSpeed(oTarget)) end
@@ -691,6 +692,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                             elseif EntityCategoryContains(categories.EXPERIMENTAL, oTarget.UnitId) then
                                                 --If we are a GC, Monkey or Ythotha that has an enemy experimental nearby but not in range, then cancel dodging as want to get in range to be able to  fire
                                                 local oTargetBP = oTarget:GetBlueprint()
+                                                if not(oTargetBP.SizeX) then oTargetBP = __blueprints[oTarget.UnitId] end
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Deciding if experimental wants to dodge shot, iDistToTarget='..iDistToTarget..'; Damage='..oWeaponBP.Damage..'; Experimental size='..math.max(oTargetBP.SizeX, oTargetBP.SizeZ)..'; Time since last weapon event='..GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0)) end
                                                 --Dont dodge at all if we have fired recently and the damage isn't massive
                                                 if GetGameTimeSeconds() - (oTarget[M28UnitInfo.refiLastWeaponEvent] or 0) <= 5 and oWeaponBP.Damage <= 4000 then
@@ -794,6 +796,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     end
 
     local oBP = oTarget:GetBlueprint()
+    if not(oBP.SizeX) then oBP = __blueprints[oTarget.UnitId] end
     local iSpeed = oBP.Physics.MaxSpeed
     local iDistanceToRun = (iTimeToDodge + (M28Land.iTicksPerLandCycle - 1) / 10) * iSpeed
     local iUnitSize = oBP.SizeX + oBP.SizeZ

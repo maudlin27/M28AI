@@ -753,8 +753,8 @@ function SafeToUpgradeUnit(oUnit)
                         if bEnemyHasLongerRangedUnits then bSafeZone = false end
                     end
                 end
-                --Treat as safe if are near T2 PD and have at least 40% health, and enemy lacks significant indirect fire threat nearby
-                if not(bSafeZone) and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.4 then
+                --Treat as safe if are near T2 PD and have at least 40% health, and enemy lacks significant indirect fire threat nearby, and doesnt have huge DF threat nearby
+                if not(bSafeZone) and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.4 and M28UnitInfo.GetUnitHealthAndShieldPercent(oUnit) >= 0.4 then
                     if M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 15, 'Ally')) == false then
                         if bDebugMessages == true then LOG(sFunctionRef..': ACU near PD so will treat as safe') end
                         bSafeZone = true
@@ -776,53 +776,82 @@ function SafeToUpgradeUnit(oUnit)
                             end
                         end
                     end
-                    --Exception - enemy has MMLs or other long ranged units nearby
+                    --Exception - enemy has MMLs or other long ranged units nearby, or large DF threat
                     if bSafeZone then
                         local iTeam = oUnit:GetAIBrain().M28Team
                         local iRangeThreshold = math.max(55, oUnit[M28UnitInfo.refiCombatRange])
                         local iThreatThreshold = 400
+                        local iShortAndLongRangedThreatThreshold = 500 + M28UnitInfo.GetCombatThreatRating(oUnit, false) + tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]  --set high as good chance we are pushed back to our base if there is nearby PD, and may want combat upgrade to have a chance; but ned to balance against it being obviously wrong to get an upgrade due to how high enemy threat is
+                        if tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 500 then iShortAndLongRangedThreatThreshold = iShortAndLongRangedThreatThreshold * 1.1 end --if at our core base then more likely we will get support from gunships and building more PD
                         local iDistUntilInRangeThreshold = 40
                         local iCurThreat = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
+                        if iCurThreat > iShortAndLongRangedThreatThreshold then bSafeZone = false
+                        else
+                            local iShortAndLongRangedThreat = 0
+                            local bConsiderShortRangedThreats, iCurDistLessRange
 
-                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
-                            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                                local tAdjLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
-                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
-                                if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 150 then
-                                    for iEnemy, oEnemy in tAdjLZTeamData[M28Map.subrefTEnemyUnits] do
-                                        if oEnemy[M28UnitInfo.refiCombatRange] >= iRangeThreshold and not(oEnemy.Dead) then
-                                            if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange] <= iDistUntilInRangeThreshold then
-                                                iCurThreat = iCurThreat + M28UnitInfo.GetCombatThreatRating({ oEnemy }, true)
-                                                if iCurThreat >= iThreatThreshold then
-                                                    bSafeZone = false
-                                                    break
+                            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                    local tAdjLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                    local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                    bConsiderShortRangedThreats = false
+                                    if tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 2000 then bConsiderShortRangedThreats = true end
+
+                                    if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 150 then
+                                        for iEnemy, oEnemy in tAdjLZTeamData[M28Map.subrefTEnemyUnits] do
+                                            if not(oEnemy.Dead) then
+                                                if oEnemy[M28UnitInfo.refiCombatRange] >= iRangeThreshold then
+                                                    if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange] <= iDistUntilInRangeThreshold then
+                                                        iCurThreat = iCurThreat + M28UnitInfo.GetCombatThreatRating({ oEnemy }, true)
+                                                        if iCurThreat >= iThreatThreshold then
+                                                            bSafeZone = false
+                                                            break
+                                                        end
+                                                    end
+                                                elseif bConsiderShortRangedThreats and (oEnemy[M28UnitInfo.refiDFRange] or 0) > 0 then
+                                                    iCurDistLessRange = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oUnit[M28UnitInfo.refiDFRange]
+                                                    if iCurDistLessRange <= iDistUntilInRangeThreshold and (iCurDistLessRange <= 5 or EntityCategoryContains(categories.MOBILE, oEnemy.UnitId)) then
+                                                        iShortAndLongRangedThreat = iShortAndLongRangedThreat + M28UnitInfo.GetCombatThreatRating({ oEnemy }, true)
+                                                    end
                                                 end
                                             end
                                         end
                                     end
                                 end
                             end
-                        end
-                        if bSafeZone and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
-                            local iAdjWZ, iPond
-                            for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
-                                iAdjWZ = tSubtable[M28Map.subrefAWZRef]
-                                iPond = M28Map.tiPondByWaterZone[iAdjWZ]
-                                local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                                if (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 20 and tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] > iRangeThreshold and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                                    for iEnemy, oEnemy in tAdjWZTeamData[M28Map.subrefTEnemyUnits] do
-                                        if oEnemy[M28UnitInfo.refiCombatRange] >= iRangeThreshold and not(oEnemy.Dead) then
-                                            if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange] <= iDistUntilInRangeThreshold then
-                                                iCurThreat = iCurThreat + M28UnitInfo.GetCombatThreatRating({ oEnemy }, true)
-                                                if iCurThreat >= iThreatThreshold then
-                                                    bSafeZone = false
-                                                    break
+                            if bSafeZone and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                                local iAdjWZ, iPond
+                                for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                                    iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+                                    iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+                                    local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                    bConsiderShortRangedThreats = false
+                                    if tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 2000 then bConsiderShortRangedThreats = true end
+                                    if (bConsiderShortRangedThreats or ((tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 20 and tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] > iRangeThreshold)) and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                        for iEnemy, oEnemy in tAdjWZTeamData[M28Map.subrefTEnemyUnits] do
+                                            if not(oEnemy.Dead) then
+                                                if oEnemy[M28UnitInfo.refiCombatRange] >= iRangeThreshold then
+                                                    if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oEnemy[M28UnitInfo.refiCombatRange] <= iDistUntilInRangeThreshold then
+                                                        iCurThreat = iCurThreat + M28UnitInfo.GetCombatThreatRating({ oEnemy }, true)
+                                                        if iCurThreat >= iThreatThreshold then
+                                                            bSafeZone = false
+                                                            break
+                                                        end
+                                                    end
+                                                elseif bConsiderShortRangedThreats and (oEnemy[M28UnitInfo.refiDFRange] or 0) > 0 then
+                                                    iCurDistLessRange = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition()) - oUnit[M28UnitInfo.refiDFRange]
+                                                    if iCurDistLessRange <= math.min(10, iDistUntilInRangeThreshold) and (iCurDistLessRange <= 5 or EntityCategoryContains(categories.MOBILE, oEnemy.UnitId)) then
+                                                        iShortAndLongRangedThreat = iShortAndLongRangedThreat + M28UnitInfo.GetCombatThreatRating({ oEnemy }, true)
+                                                    end
                                                 end
                                             end
                                         end
                                     end
                                 end
                             end
+                            iShortAndLongRangedThreat = iShortAndLongRangedThreat + iCurThreat
+                            if iShortAndLongRangedThreat > iShortAndLongRangedThreatThreshold then bSafeZone = false end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iShortAndLongRangedThreatThreshold='..iShortAndLongRangedThreatThreshold..'; iShortAndLongRangedThreat='..iShortAndLongRangedThreat..'; LR threat only iCurThreat='..iCurThreat) end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': bSafeZone after checking for nearby longer ranged enemies='..tostring(bSafeZone)) end
                     end
@@ -1544,7 +1573,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                     --Dont want more factories
                     if bDebugMessages == true then LOG(sFunctionRef..': Have lots of factories in teamgame and have low mass so dont want more') end
                     --More air fac if enemy or us has large air to ground threat and we dont have air control, and have good gross eco (regardless of current eco)
-                elseif iAverageCurAirAndLandFactories <= math.max(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat], M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]) * 0.003 / M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] and M28Map.iMapSize >= 512 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.1 or iAverageCurAirAndLandFactories * 2.25 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] - 3) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or -100) >= 10 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]) and not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10 and (not(bCanBuildAirFac) or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) > 10) then
+                elseif iAverageCurAirAndLandFactories <= math.max(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat], M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurT1ToT3BomberThreat] + (M28Team.tTeamData[iTeam][M28Team.subrefiOurExpBomberThreat] or 0)) * 0.003 / M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] and M28Map.iMapSize >= 512 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.1 or iAverageCurAirAndLandFactories * 2.25 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] - 3) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or -100) >= 10 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]) and not(TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10 and (not(bCanBuildAirFac) or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) > 10) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Enemy has large air to ground threat so want more factories (on the assumption we will end up getting more air factories) to deal with it') end
                     bWantMoreFactories = true
                 elseif bCanBuildAirFac and
@@ -1994,7 +2023,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                         --Also get lots of air facs if we have high gunship/bomber threat and lack air control
-                    elseif iLandFactoriesHave >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= 15000 and not(TeamHasAirControl(iTeam)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or (aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 2 and iLandFactoriesHave >= 2 and M28Map.iMapSize >= 512 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 2)) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or iLandFactoriesHave >= 3) and (not(M28Utilities.bLoudModActive) or iLandFactoriesHave >= 4) then
+                    elseif iLandFactoriesHave >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurT1ToT3BomberThreat] + (M28Team.tTeamData[iTeam][M28Team.subrefiOurExpBomberThreat] or 0) >= 15000 and not(TeamHasAirControl(iTeam)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or (aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 2 and iLandFactoriesHave >= 2 and M28Map.iMapSize >= 512 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 2)) and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 or iLandFactoriesHave >= 3) and (not(M28Utilities.bLoudModActive) or iLandFactoriesHave >= 4) then
                         if bDebugMessages == true then LOG(sFunctionRef..': T3 air, lack air contorl, and have isgnificant gunship/bomber threat, so want more air facs') end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
@@ -2128,7 +2157,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                         if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] then
                                             --If enemy has significant AA threat then want to get land more than air, so apply more of a reduction
                                             local iEnemyNearbyAA = (M28Team.tLandSubteamData[ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] or 0)
-                                            if iEnemyNearbyAA >= 8000 or (iEnemyNearbyAA >= 3000 and iEnemyNearbyAA * 3 >= M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] +  M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]) then
+                                            if iEnemyNearbyAA >= 8000 or (iEnemyNearbyAA >= 3000 and iEnemyNearbyAA * 3 >= M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] +  M28Team.tTeamData[iTeam][M28Team.subrefiOurT1ToT3BomberThreat] + (M28Team.tTeamData[iTeam][M28Team.subrefiOurExpBomberThreat] or 0)) then
                                                 iAirFactoriesForEveryLandFactory = 0.5
                                             else
                                                 iAirFactoriesForEveryLandFactory = math.min(iAirFactoriesForEveryLandFactory, 1)
@@ -2158,7 +2187,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                             for iLandSubteam, _ in tbLandSubteams do
                                                 iNearbyEnemyGroundAAThreat = iNearbyEnemyGroundAAThreat + (M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] or 0)
                                             end
-                                            if iNearbyEnemyGroundAAThreat > math.max(4000, M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] * 0.25, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 0.08) + M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 0.1 then
+                                            if iNearbyEnemyGroundAAThreat > math.max(4000, M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] * 0.25, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 0.08) + M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurT1ToT3BomberThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 0.1 then
                                                 iAirFactoriesForEveryLandFactory = math.min(1.5, iAirFactoriesForEveryLandFactory)
                                                 if M28Map.iMapSize <= 1024 or M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) <= 800 then
                                                     iAirFactoriesForEveryLandFactory = 1

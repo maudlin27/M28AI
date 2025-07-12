@@ -909,6 +909,9 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
             local iDFRangePreUpgrade = (oUnit[M28UnitInfo.refiDFRange] or 0)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
+            if (oUnit[M28UnitInfo.refiDFRange] or 0) > iDFRangePreUpgrade and oUnit[M28UnitInfo.refiDFRange] >= 30 and not(oUnit.IsDead) and oUnit:GetAIBrain().M28AI then
+                M28Land.ConsiderPriorityLandScoutFlag(oUnit)
+            end
             --LOUD specific - manually reflect weapon ranges for the basic gun upgrades as arent recorded against the blueprint
             if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (oUnit[M28UnitInfo.refiDFRange] or 0) < 30 then
                 local tsOtherUpgradeNames = {
@@ -988,8 +991,8 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                     end
                 end
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                --Consider being more aggressive with ACU again (mainly relevant for team games)
-                oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
+                    --Consider being more aggressive with ACU again (mainly relevant for team games)
+                    oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
                 end
                 --Flag that enemy has a dangerous ACU if they have multiple combat upgrades
                 if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28UnitInfo.refiDFMassThreatOverride] or 0) - M28UnitInfo.iBaseACUThreat >= 1600 and (oUnit:GetMaxHealth() >= M28UnitInfo.iBaseACUExpectedHealth + 2000 or (oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0) or oUnit:HasEnhancement('StealthGenerator')) then
