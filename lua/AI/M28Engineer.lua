@@ -13395,7 +13395,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
                 local iHighestCompletion = -1
                 for iUpgrade, oUpgrade in tLZTeamData[M28Map.subreftoActiveUpgrades] do
-                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUpgrade.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUpgrade.UnitId) and not(oUpgrade.IsDead) then
                         if oUpgrade:GetFractionComplete() > iHighestCompletion then
                             oActiveHQUpgradeToAssist = oUpgrade
                             iHighestCompletion = oUpgrade:GetFractionComplete()
