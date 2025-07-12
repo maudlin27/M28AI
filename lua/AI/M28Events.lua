@@ -909,7 +909,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
             local iDFRangePreUpgrade = (oUnit[M28UnitInfo.refiDFRange] or 0)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
-            if (oUnit[M28UnitInfo.refiDFRange] or 0) > iDFRangePreUpgrade and oUnit[M28UnitInfo.refiDFRange] >= 30 then
+            if (oUnit[M28UnitInfo.refiDFRange] or 0) > iDFRangePreUpgrade and oUnit[M28UnitInfo.refiDFRange] >= 30 and not(oUnit.IsDead) and oUnit:GetAIBrain().M28AI then
                 M28Land.ConsiderPriorityLandScoutFlag(oUnit)
             end
             --LOUD specific - manually reflect weapon ranges for the basic gun upgrades as arent recorded against the blueprint
