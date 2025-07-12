@@ -2525,7 +2525,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                         bHighHealthWithStealth = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Are stealthed and on high health so will ignore enemy threat and be aggressive unless in assassination') end
                                     end
-                                    if not(bHighHealthWithStealth) or (true and GetGameTimeSeconds() >= 14*60+30 and not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar])) then
+                                    if not(bHighHealthWithStealth) or not(M28Team.tTeamData[iTeam][M28Team. refbAssassinationOrSimilar]) then
                                         local iEnemyNearbyThreat = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                                         local iEnemyMobileNearbyDFThreat = (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)
                                         local aiBrain = oACU:GetAIBrain()
@@ -3052,7 +3052,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
     local sFunctionRef = 'DoesACUWantToReturnToCoreBase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 14*60+47 then bDebugMessages = true end
+
 
     local iTeam = oACU:GetAIBrain().M28Team
 

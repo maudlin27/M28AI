@@ -6918,7 +6918,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             local iVelocityX, iVelocityY, iVelocityZ = oUnit:GetVelocity()
                                                             local tCurEnemyPosition = oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()
                                                             if bDebugMessages == true then LOG(sFunctionRef..': iDistToClosestEnemy='..iDistToClosestEnemy..'; Dist to position based on enemy movement='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), {tCurEnemyPosition[1]+iVelocityX, tCurEnemyPosition[2], tCurEnemyPosition[3] + iVelocityZ})) end
-                                                            if true and GetGameTimeSeconds() >= 5.5*60 and iDistToClosestEnemy <= M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), {tCurEnemyPosition[1]+iVelocityX, tCurEnemyPosition[2], tCurEnemyPosition[3] + iVelocityZ}) then
+                                                            if iDistToClosestEnemy <= M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), {tCurEnemyPosition[1]+iVelocityX, tCurEnemyPosition[2], tCurEnemyPosition[3] + iVelocityZ}) then
                                                                 bStillAttack = true
                                                             end
                                                         end
