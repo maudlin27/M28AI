@@ -1627,7 +1627,7 @@ function ResetFailedShieldBuildDistance(oUnit, iDelayInSeconds)
     end
 end
 
-function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation, bAlreadyTriedAlternatives, bTryToBuildAtTarget)
+function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation, bAlreadyTriedAlternatives, bTryToBuildAtTarget, bForceOverlappingBuildingCheck)
     --Assumes we have already checked for: Adjacency; In the same land zone; Valid location to build
     --WIll then consider: If engineer can build without moving; How far away it is from the engineer; if it will block mex adjacency, and (if we specify a maximum distance) if it is within the max distance
     --bAlreadyTriedAlternatives - set to true if we have already called this function via this function, or we dont want to try other locations
@@ -1824,7 +1824,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                 if tLastBuildLocationForUnit then LOG(sFunctionRef..': Rough dist to last build location='..M28Utilities.GetRoughDistanceBetweenPositions(tCurLocation, tLastBuildLocationForUnit)) end
                 M28Utilities.DrawLocation(tCurLocation)
             end
-            if aiBrain:CanBuildStructureAt(sBlueprintToBuild, tCurLocation) then
+            if aiBrain:CanBuildStructureAt(sBlueprintToBuild, tCurLocation) and (not(bForceOverlappingBuildingCheck) or CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurLocation, nil,       nil,                      nil,                    nil,                            nil,                      true,                           true, bResource))  then
                 if iCurDistance <= iMaxRange then
                     if iCurDistance <= iBuilderRange then
                         iCurPriority = iCurPriority + 3
@@ -1958,6 +1958,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                     iCurPriority = iCurPriority - 5 - 1 * iCurDistance / 1000
                 end
             else
+                if bDebugMessages == true then LOG(sFunctionRef..': We cant build here, will see if a basic canbuild check returns true if we adjust the build location very slightly, canbuildstructureat with tiny adjustment to location='..tostring(aiBrain:CanBuildStructureAt(sBlueprintToBuild, {tCurLocation[1] + 0.1, tCurLocation[2], tCurLocation[3] + 0.1}))) end
                 if aiBrain:CanBuildStructureAt(sBlueprintToBuild, {tCurLocation[1] + 0.1, tCurLocation[2], tCurLocation[3] + 0.1}) then
                     iCurPriority = iPartUnbuildableValue -- -500
                 else
@@ -2060,6 +2061,23 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
             end
         end
     end
+
+    --Issue where smaller units like T2 PD and mass storage return true to whether they can build at a location, and hten block the factory; overlapping building check appears to work, so if this check is failed then will re-run the logic to get the best build location
+    if iBestLocationRef and not(bForceOverlappingBuildingCheck) and M28UnitInfo.GetBuildingSize(sBlueprintToBuild) <= 2 and not(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tPotentialBuildLocations[iBestLocationRef], nil,       nil,                      nil,                    nil,                            nil,                      true,                           true, EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild))) then
+        --Is there a factory that we might be blocking?
+        local rNearbyFactoryRect = M28Utilities.GetRectAroundLocation(tPotentialBuildLocations[iBestLocationRef], 2.5)
+        local tNearbyUnits = GetUnitsInRect(rNearbyFactoryRect)
+        if bDebugMessages == true then LOG(sFunctionRef..': We are trying to build on a blacklist or overlapping building location, is table of nearby units empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits))) end
+        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': if filter to just factory units is the table empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway,tNearbyUnits)))) end
+            if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway,tNearbyUnits)) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will rerun logic but with more detailed check of whether we can build at a location') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation, bAlreadyTriedAlternatives, bTryToBuildAtTarget, true)
+            end
+        end
+    end
+
     if bDebugMessages == true then LOG(sFunctionRef..': bBestLocationBuildableImmediately='..tostring(bBestLocationBuildableImmediately)..'; bTryOtherLocationsIfNoneBuildableImmediately='..tostring(bTryOtherLocationsIfNoneBuildableImmediately or false)) end
     if not(bBestLocationBuildableImmediately) and bTryOtherLocationsIfNoneBuildableImmediately then
         --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch,                  iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
@@ -2079,7 +2097,8 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                 tBuildLocation[1] = tBuildLocation[1] + iBestTargetXAndZAdjust[1]
                 tBuildLocation[3] = tBuildLocation[3] + iBestTargetXAndZAdjust[2]
             end
-            LOG(sFunctionRef..': Can build here before adjust='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tPotentialBuildLocations[iBestLocationRef], nil, nil, nil, nil, nil, true, true, EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild)))..'; Can build here if ignoring queued and blacklist='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tPotentialBuildLocations[iBestLocationRef], nil, nil, nil, nil, nil, false, false, EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild)))..'; Can build here using the same check as used for segments, but with this blueprint and with adjust='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tBuildLocation,     iPlateau,             iLandZone,           nil,                false,                              false,                  false,                          true,                           false))..'; iBlueprintSize='..iBlueprintSize..'; Can build here using corresponding blueprint size template, with adjust '..tsBlueprintsBySize[iBlueprintSize]..'='..tostring(CanBuildAtLocation(aiBrain, tsBlueprintsBySize[iBlueprintSize], tBuildLocation,     iPlateau,             iLandZone,           nil,                false,                              false,                  false,                          true,                           false))..'; Simple brain canbuild check for sBlueprintToBuild='..tostring(aiBrain:CanBuildStructureAt(sBlueprintToBuild, tPotentialBuildLocations[iBestLocationRef]))..'; Simple brain canbuild for template blueprint='..tostring(aiBrain:CanBuildStructureAt(tsBlueprintsBySize[iBlueprintSize], tPotentialBuildLocations[iBestLocationRef])))
+            --                                                          CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation,           iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder, bConsideringResourceLocation)
+            LOG(sFunctionRef..': Can build here before adjust='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tPotentialBuildLocations[iBestLocationRef], nil,       nil,                      nil,                    nil,                            nil,                      true,                           true, EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild)))..'; Can build here if ignoring overlapping and blacklist='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tPotentialBuildLocations[iBestLocationRef], nil, nil, nil, nil, nil, false, false, EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild)))..'; Can build here using the same check as used for segments, but with this blueprint and with adjust='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tBuildLocation,     iPlateau,             iLandZone,           nil,                false,                              false,                  false,                          true,                           false))..'; iBlueprintSize='..iBlueprintSize..'; Can build here using corresponding blueprint size template, with adjust '..tsBlueprintsBySize[iBlueprintSize]..'='..tostring(CanBuildAtLocation(aiBrain, tsBlueprintsBySize[iBlueprintSize], tBuildLocation,     iPlateau,             iLandZone,           nil,                false,                              false,                  false,                          true,                           false))..'; Simple brain canbuild check for sBlueprintToBuild='..tostring(aiBrain:CanBuildStructureAt(sBlueprintToBuild, tPotentialBuildLocations[iBestLocationRef]))..'; Simple brain canbuild for template blueprint='..tostring(aiBrain:CanBuildStructureAt(tsBlueprintsBySize[iBlueprintSize], tPotentialBuildLocations[iBestLocationRef])))
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
