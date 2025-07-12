@@ -1220,6 +1220,31 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if bDebugMessages == true then LOG(sFunctionRef..': Failed to give orders to land scout on this island recently so wont get more, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; Is table of land scouts in this zone empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandScout, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) end
         end
     end
+    --Land scouts - if not yet got omni radar or built an experimental, and have an ACU that isnt in a core base and lacks a land scout and is relatively nearby, then still build a land scout
+    if bDontConsiderLandScouts and tLZTeamData[M28Map.refiSpareLandScouts] <= 1 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT2RadarSize then
+        local oClosestACUWithoutScout
+        for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
+            if not(oACU[M28Land.refoAssignedLandScout]) and oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
+                if NavUtils.GetLabel(M28Map.refPathingTypeLand, oACU:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] then
+                    if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oFactory:GetPosition()) <= 200 then
+                        --Are we either non-seraphim, or lack other factions?
+                        if EntityCategoryContains(categories.SERAPHIM, oFactory.UnitId) then
+                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                if not(oBrain:GetArmyIndex() == M28UnitInfo.refFactionSeraphim) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': We are seraphim and have non-seraphim on our team so wont apply ACU land scout override to build more from this fac') end
+                                    break
+                                end
+                            end
+                        else
+                            bDontConsiderLandScouts = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Non seraphim land fac and want more scouts for ACU') end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     if bDebugMessages == true then LOG(sFunctionRef..': bDontConsiderLandScouts='..tostring(bDontConsiderLandScouts or false)..'; M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam][tLZData[M28Map.subrefLZIslandRef]]='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam][tLZData[M28Map.subrefLZIslandRef]] or 'nil')) end
     local bDontConsiderBuildingMAA = false
     --Do we already ahve lots of MAA?

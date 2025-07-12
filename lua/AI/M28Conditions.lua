@@ -617,7 +617,7 @@ function SafeToUpgradeUnit(oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SafeToUpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oUnit:GetAIBrain():GetArmyIndex() == 5 and GetGameTimeSeconds() >= 23*60+55 and oUnit.UnitId == 'uel0001' then bDebugMessages = true end
+
     if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 120 then --have al ower 60s timer later on which just flags the zone as safe but does other checks after that
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true

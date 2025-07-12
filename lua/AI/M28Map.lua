@@ -382,6 +382,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefiTimeNavalFacHadNothingToBuild = 'TimeNNoB' --Gametimeseconds that had a naval fac with nothing to build
             --Intel related values
             refbWantLandScout = 'LandScout' --True/false, used by water and land zones
+            refiSpareLandScouts = 'SpLndSc' --number of scouts we couldnt assign to a unit so have patrolling the land zone (i.e. more than 1 means we shouldnt build more)
             refiTimeLastFailedToKiteDueToScoutIntel = 'IntlFail' --gametimeseconds that we aborted scenario 1 logic due to not seeing the enemy unit
             refiRadarCoverage = 'RadCov' --Radar coverage of the centre of the land (or water) zone midpoint
             refiOmniCoverage = 'OmnCov' --Omni coverage of the centre of the land or water zone midpoint

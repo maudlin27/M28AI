@@ -1394,16 +1394,21 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                     --subrefLZTravelDist = 3 --against subrefLZPathingToOtherLandZones subtable
                                 end
                             end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': We only have 1 available scout, so dont want to flag that we couldnt find any land scouts') end
                         end
                         if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
-                            if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam][tLZData[M28Map.subrefLZIslandRef]]) then
-                                if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam]) then
-                                    if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam]) then M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam] = {} end
-                                    M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam] = {}
+                            if table.getn(tAvailableScouts) > 1 then
+                                if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam][tLZData[M28Map.subrefLZIslandRef]]) then
+                                    if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam]) then
+                                        if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam]) then M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam] = {} end
+                                        M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam] = {}
+                                    end
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have multiple available land scouts still for P'..iPlateau..'Z'..iLandZone..' at time='..GetGameTimeSeconds()..' so will record this for the island '..tLZData[M28Map.subrefLZIslandRef]..'; is reftoPriorityUnitsWantingLandScout empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[tAvailableScouts[1]:GetAIBrain().M28LandSubteam][M28Team.reftoPriorityUnitsWantingLandScout]))) end
+                                M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam][tLZData[M28Map.subrefLZIslandRef]] = GetGameTimeSeconds()
+                                tLZTeamData[M28Map.refiSpareLandScouts] = table.getn(tAvailableScouts)
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Have available land scouts still for P'..iPlateau..'Z'..iLandZone..' at time='..GetGameTimeSeconds()..' so will record this for the island '..tLZData[M28Map.subrefLZIslandRef]) end
-                            M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam][iTeam][tLZData[M28Map.subrefLZIslandRef]] = GetGameTimeSeconds()
                             --If we are here then we still have available land scouts; if we have ap atrol path then patrol; if we have a mex then go here, if we have an adjcent zone go here, otherwise move randomly if we have no orders
                             for iScout, oScout in tAvailableScouts do
                                 if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
@@ -2858,7 +2863,7 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
                 local oClosestPriorityUnitWantingStealth
                 local iClosestPriorityUnitWantingStealthDist = 250
                 local iCurPriorityUnitWantingStealthDist
-                if GetGameTimeSeconds() >= 1547 then bDebugMessages = true end
+
                 for iUnit, oUnit in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.reftoPriorityUnitsWantingMobileStealth] do
                     if not(oUnit.Dead) and not(M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileStealth])) and NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] then
                         iCurPriorityUnitWantingStealthDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
@@ -10078,6 +10083,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth] = {}
     tLZTeamData[M28Map.refbLZWantsMobileStealth] = false --will change later
     tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts] = nil --will change later
+    tLZTeamData[M28Map.refiSpareLandScouts] = 0
 
     --Build location tracker
     tLZData[M28Map.subrefSegmentsConsideredThisTick] = 0
@@ -11564,6 +11570,13 @@ function UpdateZoneIntelForRadar(oRadar)
                     tBaseLZTeamData[M28Map.refiRadarCoverage] = iRadarThreshold
                     if bDebugMessages == true then LOG(sFunctionRef..': Setting radar range equal to 60% of the units, iRadarThreshold='..iRadarThreshold) end
                 end
+
+                --Remove priority land scout flag on any ACUs if we have just built omni
+                if iIntelRange > M28UnitInfo.iT2RadarSize and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftM28ACUs]) then
+                    for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
+                        RemoveUnitFromPriorityLandScoutFlagTable(oACU)
+                    end
+                end
             end
             UpdateRecordedAllPlayerOmni(oRadar, false)
         end
@@ -11974,6 +11987,21 @@ function GetFarAwayLandThreatOfLongRangeUnits(tStartPoint, iTeam, bMinorZoneAdju
         end
     end
     return iLongRangeFurtherAwayThreat
+end
+
+function RemoveUnitFromPriorityLandScoutFlagTable(oUnit)
+    if oUnit[refbFlaggedForPriorityScout] then
+        oUnit[refbFlaggedForPriorityScout] = nil
+        local iLandSubteam = oUnit:GetAIBrain().M28LandSubteam
+        if M28Conditions.IsTableOfUnitsStillValid(M28Team.tLandSubteamData[iLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout]) then
+            for iRecorded, oRecorded in M28Team.tLandSubteamData[iLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout] do
+                if oRecorded == oUnit then
+                    table.remove(M28Team.tLandSubteamData[iLandSubteam][M28Team.reftoPriorityUnitsWantingLandScout], iRecorded)
+                    break
+                end
+            end
+        end
+    end
 end
 
 function ConsiderPriorityLandScoutFlag(oUnit)
