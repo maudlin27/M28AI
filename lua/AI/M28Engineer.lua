@@ -20616,17 +20616,43 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         end
                         if iT2ArtiCount > 0 then iBPWanted = 0 end
                         --Minor LZs with T2 arti - get at least 1 t2 pd or else vulnerable to enemy t1 spam; dont worry if core base though as should have other units to protect
-                    elseif iT2ArtiCount >= 2 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (iT2ArtiCount >= 3 or tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+                    elseif iT2ArtiCount >= 2 and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or iT2ArtiCount >= 4) and (iT2ArtiCount >= 3 or tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
                         local iCurT2PDThreat = 0
                         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
                             for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
                                 if iRange >= 40 then iCurT2PDThreat = iCurT2PDThreat + iThreat end
                             end
                         end
-                        if iCurT2PDThreat < 200 * iT2ArtiCount then
+                        local iPDThreatPerArtiWanted = 200
+                        if tLZTeamData[M28Map.subrefLZbCoreBase] then
+                            if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) then
+                                iPDThreatPerArtiWanted = 100
+                            elseif tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                local iCumulativeShorterRangeThreat = 0
+                                for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                    local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                    local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                    if tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] > 0 then
+                                        for iRange, iThreat in tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
+                                            if iRange > 50 then break end
+                                            iCumulativeShorterRangeThreat = iCumulativeShorterRangeThreat + iThreat
+                                        end
+                                    end
+                                end
+                                if iCumulativeShorterRangeThreat < iCurT2PDThreat * 0.25 then
+                                    iPDThreatPerArtiWanted = 100
+                                elseif iCumulativeShorterRangeThreat < iCurT2PDThreat * 0.5 then
+                                    iPDThreatPerArtiWanted = 150
+                                elseif iCumulativeShorterRangeThreat > iCurT2PDThreat then
+                                    iPDThreatPerArtiWanted = 250
+                                else
+                                    --Default of 200
+                                end
+                            end
+                        end
+                        if iCurT2PDThreat < iPDThreatPerArtiWanted * iT2ArtiCount then
                             if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
                             HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tLZData[M28Map.subrefMidpoint])
-
                             iBPWanted = 0
                         end
                     end
