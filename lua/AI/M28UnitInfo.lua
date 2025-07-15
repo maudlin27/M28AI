@@ -297,7 +297,7 @@ if categories.brot1exm1 then refCategoryIndirect = refCategoryIndirect + categor
 --if categories.uel0108 then refCategoryIndirect = refCategoryIndirect + categories.uel0108 end --doesnt have indirect attack
 --if categories.brpt1exm1 then refCategoryIndirect = refCategoryIndirect + categories.brpt1exm1 end --doesnt have indirect attack
 
-refCategoryDFTank = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - categories.SCOUT - refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: Need to specify slowest (so dont pick LAB)
+refCategoryMobileDFLand = categories.LAND * categories.MOBILE * categories.DIRECTFIRE - categories.SCOUT - refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: Need to specify slowest (so dont pick LAB)
 refCategoryLandScout = categories.LAND * categories.MOBILE * categories.SCOUT
 refCategoryCombatScout = categories.SERAPHIM * categories.SCOUT * categories.DIRECTFIRE
 refCategoryAbsolver = categories.ANTISHIELD * categories.MOBILE * categories.LAND
@@ -332,7 +332,7 @@ end
 if M28Utilities.bSteamActive or M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
     refCategorySkirmisher = refCategorySkirmisher + categories.del0204 + categories.drl0204 - refCategoryMobileBomb
 else
-    refCategorySkirmisher = refCategorySkirmisher +  refCategoryDFTank * categories.UEF * categories.TECH2 * categories.BOT + refCategoryDFTank * categories.CYBRAN * categories.TECH2 * categories.BOT - refCategoryMobileBomb
+    refCategorySkirmisher = refCategorySkirmisher +  refCategoryMobileDFLand * categories.UEF * categories.TECH2 * categories.BOT + refCategoryMobileDFLand * categories.CYBRAN * categories.TECH2 * categories.BOT - refCategoryMobileBomb
 end
 refCategoryShieldDisruptor = categories.LAND * categories.MOBILE * categories.ANTISHIELD
 refCategoryAllShieldUnits = categories.SHIELD + refCategoryPersonalShield

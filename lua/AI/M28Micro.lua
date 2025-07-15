@@ -2642,12 +2642,12 @@ function ConsiderAllInLandPushOnACU(aiBrain, oACU)
         local iEnemyACUThreat = M28UnitInfo.GetCombatThreatRating({ oACU}, true)
         if bDebugMessages == true then LOG(sFunctionRef..': iEnemyACUThreat='..iEnemyACUThreat..'; ACU owner='..oACU:GetAIBrain().Nickname..'; our brain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()) end
         if iEnemyACUThreat <= 3000 then
-            local tNearbyFriendlyTanks = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank - M28UnitInfo.refCategorySkirmisher - categories.COMMAND, oACU:GetPosition(), 60, 'Ally')
+            local tNearbyFriendlyTanks = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileDFLand - M28UnitInfo.refCategorySkirmisher - categories.COMMAND, oACU:GetPosition(), 60, 'Ally')
             if M28Utilities.IsTableEmpty(tNearbyFriendlyTanks) == false then
                 local iFriendlyTankThreat = M28UnitInfo.GetCombatThreatRating(tNearbyFriendlyTanks, false)
                 if bDebugMessages == true then LOG(sFunctionRef..': iFriendlyTankThreat='..iFriendlyTankThreat) end
                 if iFriendlyTankThreat > math.max(800, iEnemyACUThreat + math.max(400, iEnemyACUThreat * 0.4)) then --Min wanted for an unupgraded enemy ACU
-                    local tEnemyThreat = oACU:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryPD  - M28UnitInfo.refCategorySkirmisher + categories.COMMAND, oACU:GetPosition(), 90, 'Ally')
+                    local tEnemyThreat = oACU:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileDFLand + M28UnitInfo.refCategoryPD  - M28UnitInfo.refCategorySkirmisher + categories.COMMAND, oACU:GetPosition(), 90, 'Ally')
                     local iEnemyTotalThreat = M28UnitInfo.GetCombatThreatRating(tEnemyThreat, true)
                     if bDebugMessages == true then LOG(sFunctionRef..': iEnemyTotalThreat='..iEnemyTotalThreat) end
                     if iFriendlyTankThreat > iEnemyTotalThreat then

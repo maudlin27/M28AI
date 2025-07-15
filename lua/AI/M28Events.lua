@@ -1274,7 +1274,7 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                         end
                     end
                     --If damaging enemy ACU consider all-in attack to kill it
-                    if not(self.Dead) and EntityCategoryContains(categories.COMMAND, self.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryDFTank, oUnitCausingDamage.UnitId) and self:GetHealth() <= 12500 then
+                    if not(self.Dead) and EntityCategoryContains(categories.COMMAND, self.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryMobileDFLand, oUnitCausingDamage.UnitId) and self:GetHealth() <= 12500 then
                         ForkThread(M28Micro.ConsiderAllInLandPushOnACU, oUnitCausingDamage:GetAIBrain(), self)
                     end
                 end
@@ -1559,9 +1559,9 @@ function OnWeaponFired(oWeapon)
                 --M28 owned unit specific logic
                 if oUnit:GetAIBrain().M28AI then
                     --Shot is blocked logic
-                    if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..((oWeapon.Blueprint or oWeapon.bp).RangeCategory or 'nil')..'; reprs of .RangeCategory='..reprs((oWeapon.Blueprint or oWeapon.bp).RangeCategory)..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer + categories.uas0401 - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))..'; repr of oWeapon.Blueproint='..reprs((oWeapon.Blueprint or oWeapon.bp))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..((oWeapon.Blueprint or oWeapon.bp).RangeCategory or 'nil')..'; reprs of .RangeCategory='..reprs((oWeapon.Blueprint or oWeapon.bp).RangeCategory)..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileDFLand + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer + categories.uas0401 - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))..'; repr of oWeapon.Blueproint='..reprs((oWeapon.Blueprint or oWeapon.bp))) end
                     local iWeaponRangeCategory = ((oWeapon.Blueprint or oWeapon.bp).RangeCategory)
-                    if (iWeaponRangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryCombatScout + M28UnitInfo.refCategoryLightAttackBot + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer + categories.uas0401 - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (iWeaponRangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
+                    if (iWeaponRangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryMobileDFLand + M28UnitInfo.refCategoryCombatScout + M28UnitInfo.refCategoryLightAttackBot + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer + categories.uas0401 - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (iWeaponRangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
                         --Get weapon target if it is a DF weapon or sub torpedo
                         local oTarget
                         if oWeapon.GetCurrentTarget and not(oWeapon:BeenDestroyed()) then oTarget = oWeapon:GetCurrentTarget() end

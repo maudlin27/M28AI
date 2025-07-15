@@ -4770,7 +4770,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                 --Below is if wanted to generalise, however concerned about riks of overkill
                 --[[
-                local iCategoryToSearch = M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryPD
+                local iCategoryToSearch = M28UnitInfo.refCategoryMobileDFLand + M28UnitInfo.refCategoryPD
                 local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
                 if iUnitTechLevel == 2 then
                     iCategoryToSearch = iCategoryToSearch - categories.TECH1
@@ -4855,7 +4855,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             iClosestAngleDif = math.max(0, M28Utilities.GetAngleDifference(iYthothaAngle, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oExistingAttackTarget:GetPosition())) - 15)
                         end
                         if iClosestAngleDif > 30 then --i.e. 45+ angle dif since we reduce it by 15 in the above step
-                            local tOtherPriorityTargets = EntityCategoryFilterDown(M28UnitInfo.refCategoryDFTank * categories.TECH3 - M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryT3PD, tLZTeamData[M28Map.reftoNearestDFEnemies])
+                            local tOtherPriorityTargets = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileDFLand * categories.TECH3 - M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryT3PD, tLZTeamData[M28Map.reftoNearestDFEnemies])
                             if bDebugMessages == true then LOG(sFunctionRef..': Is tOtherPriorityTargets empty='..tostring(M28Utilities.IsTableEmpty(  tOtherPriorityTargets))) end
                             if M28Utilities.IsTableEmpty(  tOtherPriorityTargets) == false then
                                 for iEnemy, oEnemy in tOtherPriorityTargets do

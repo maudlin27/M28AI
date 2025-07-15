@@ -10569,7 +10569,7 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
             end
             --Further check if we are almost there - no tanks or ACUs doing getunitsaroundpoint (since there might be a delay in updating units)
             if iDistToTarget <= 5 and not(oUnit[refbCombatDrop]) and not(tTargetLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tTargetLZOrWZTeamData[M28Map.subrefWZbCoreBase]) then
-                local tEnemyUnits = oUnit:GetAIBrain():GetUnitsAroundPoint(categories.COMMAND + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryDFTank, tLastOrder[M28Orders.subreftOrderPosition], 35, 'Enemy')
+                local tEnemyUnits = oUnit:GetAIBrain():GetUnitsAroundPoint(categories.COMMAND + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryMobileDFLand, tLastOrder[M28Orders.subreftOrderPosition], 35, 'Enemy')
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
                 if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
                     for iEnemy, oEnemy in tEnemyUnits do
