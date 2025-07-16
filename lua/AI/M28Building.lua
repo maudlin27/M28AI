@@ -1143,7 +1143,6 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueTo
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; size of tUnits='..table.getn(tUnits)..'; iTeam='..iTeam) end
     local iVariableDelayInSeconds = math.max(10, M28Land.iTicksPerLandCycle * 0.25)
     for iUnit, oUnit in tUnits do
-        if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'xsb23013' then bDebugMessages = true else bDebugMessages = false end
         if bCalledDueToTMLOrTMDEvent or not(oUnit[refbRecentlyCheckedTMDOrTML]) then
             oUnit[refbRecentlyCheckedTMDOrTML] = true
             M28Utilities.DelayChangeVariable(oUnit, refbRecentlyCheckedTMDOrTML, false, iVariableDelayInSeconds)
