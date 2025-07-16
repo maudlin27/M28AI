@@ -710,7 +710,11 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
                     iDistThreshold = 30
                     iDistThreshold = math.min((oUnit[M28UnitInfo.refiAARange] or 35) - 5, 50)
                     if oUnit[refoAirAACurTarget].UnitId then
-                        if EntityCategoryContains(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryTransport - categories.EXPERIMENTAL, oUnit[refoAirAACurTarget].UnitId) then
+                        if oUnit[refoAirAACurTarget].IsDead then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Our AirAA target is dead so returning false') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return false
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryTransport - categories.EXPERIMENTAL, oUnit[refoAirAACurTarget].UnitId) then
                             iDistThreshold = 55
                         elseif EntityCategoryContains(categories.EXPERIMENTAL, oUnit[refoAirAACurTarget].UnitId) then
                             iDistThreshold = 70
@@ -5746,8 +5750,33 @@ function ManageBombers(iTeam, iAirSubteam)
                                 iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat / 1.5
                                 if bDebugMessages == true then LOG(sFunctionRef..': We dont have lots of available bombers so be more cautious about searching for far away targets') end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]))) end
-                            if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                            --Check for approaching enemy air threat if we lack air control
+                            local bAbortDueToAirAAThreat = false
+                            if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+                                --Check both rally point and front bomber approaching asf threats
+                                local iBomberPlateauOrZero, iBomberLandOrWaterZone
+                                local tFrontBomberPosition
+                                if M28UnitInfo.IsUnitValid(oFrontBomber) then
+                                    iBomberPlateauOrZero, iBomberLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFrontBomber:GetPosition())
+                                    tFrontBomberPosition = oFrontBomber:GetPosition()
+                                end
+                                if not(tFrontBomberPosition) then
+                                    iBomberPlateauOrZero = iRallyPlateauOrZero
+                                    iBomberLandOrWaterZone = iRallyLZOrWZ
+                                    tFrontBomberPosition = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][3]}
+                                end
+                                local iMaxEnemyAirAA
+                                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
+                                    iMaxEnemyAirAA = math.min(200, iOurBomberThreat * 0.05)
+                                else
+                                    iMaxEnemyAirAA = math.min(600, iOurBomberThreat * 0.05)
+                                end
+                                if IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA) or IsThereNearbyAirAA(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), 200, iMaxEnemyAirAA, tFrontBomberPosition) then
+                                    bAbortDueToAirAAThreat = true
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]))..'; bAbortDueToAirAAThreat='..tostring(bAbortDueToAirAAThreat or false)) end
+                            if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false and not(bAbortDueToAirAAThreat) then
                                 local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
                                 local iCurGroundAAThreat
                                 local iMaxModDist --In addition to searchsize which limits by distance, will also avoid attacking enemy base if we lack air control
@@ -10540,7 +10569,7 @@ function ShouldTransportDropEarlyOrAlwaysDropAtTarget(oUnit, iTeam, bJustConside
             end
             --Further check if we are almost there - no tanks or ACUs doing getunitsaroundpoint (since there might be a delay in updating units)
             if iDistToTarget <= 5 and not(oUnit[refbCombatDrop]) and not(tTargetLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tTargetLZOrWZTeamData[M28Map.subrefWZbCoreBase]) then
-                local tEnemyUnits = oUnit:GetAIBrain():GetUnitsAroundPoint(categories.COMMAND + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryDFTank, tLastOrder[M28Orders.subreftOrderPosition], 35, 'Enemy')
+                local tEnemyUnits = oUnit:GetAIBrain():GetUnitsAroundPoint(categories.COMMAND + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryMobileDFLand, tLastOrder[M28Orders.subreftOrderPosition], 35, 'Enemy')
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
                 if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
                     for iEnemy, oEnemy in tEnemyUnits do

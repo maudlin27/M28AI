@@ -1468,7 +1468,7 @@ function RecordPriorityShields(iTeam, tLZTeamData)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ConsiderDelayedOnMexDeathCall(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex, iOwnerTeam)
+function ConsiderDelayedOnMexDeathCall(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex, iOwnerTeam, bMexWasConstructed)
     --Due to a replay on LOUD where a mex was destroyed (fully constructed) and it showed up as being an upgrading mex so OnMexDeath never triggered, resulting in M28 thinkning there were no locations available to build (when there were)
     WaitSeconds(3)
     local rRect = M28Utilities.GetRectAroundLocation(tUnitPosition, 0.5)
@@ -1491,12 +1491,12 @@ function ConsiderDelayedOnMexDeathCall(tUnitPosition, sUnitRef, sLifetimeCount, 
         end
         if iTeamMexes < tLZOrWZData[M28Map.subrefLZMexCount] then
             --Have a risk of an inconsistency so run OnMexDeath to be safe
-            OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
+            OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex, bMexWasConstructed, true)
         end
     end
 end
 
-function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
+function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex, bMexWasConstructed, bPotentiallyDuplicateCall)
     --Call via fork thread due to the WaitSeconds() in it; however note that as this is forked, the unit (mex) may not exist anymore, so tUnitPosition needs to be a copy of the position table, and dont want to pass the unit object
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OnMexDeath'
@@ -1639,8 +1639,27 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
         end
     end
     if iTeam then
-        local iMexTech = M28UnitInfo.GetBlueprintTechLevel(sUnitRef)
-        M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) - 1
+        if bMexWasConstructed then
+            local iMexTech = M28UnitInfo.GetBlueprintTechLevel(sUnitRef)
+            M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) - 1
+            if bPotentiallyDuplicateCall then
+                local iCurrentCountOfMexOfTech = ArmyBrains[iOwnerArmyIndex]:GetCurrentUnits(M28UnitInfo.refCategoryMex * M28UnitInfo.ConvertTechLevelToCategory(iMexTech))
+                if M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] < iCurrentCountOfMexOfTech then
+                    M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = iCurrentCountOfMexOfTech
+                end
+            end
+            if bDebugMessages == true then
+                local iUpgradingMexCount=0
+                local iDeadUpgradingMexCount = 0
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
+                    iUpgradingMexCount = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes])
+                    for iUpgradingMex, oUpgradingMex in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes] do
+                        if not(M28UnitInfo.IsUnitValid(oUpgradingMex)) then iDeadUpgradingMexCount = iDeadUpgradingMexCount + 1 end
+                    end
+                end
+                LOG(sFunctionRef..': Mex '..sUnitRef..sLifetimeCount..' has died for team '..iTeam..'; Revised mex count by tech='..(M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 'nil')..'; T2 mex count based on currentunits='..ArmyBrains[iOwnerArmyIndex]:GetCurrentUnits(M28UnitInfo.refCategoryMex * M28UnitInfo.ConvertTechLevelToCategory(iMexTech))..'; Upgrading mexes on team iUpgradingMexCount='..iUpgradingMexCount..'; iDeadUpgradingMexCount='..iDeadUpgradingMexCount)
+            end
+        end
     else
         if not(oOwnerBrain) or not(M28Conditions.IsCivilianBrain(oOwnerBrain)) then
             if GetGameTimeSeconds() - M28Overseer.iTimeLastPlayerDefeat > 5 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or GetGameTimeSeconds() - M28Overseer.iTimeLastPlayerDefeat > 40) then
@@ -1649,6 +1668,34 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
         end
     end
 
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function OnMexConstructionCompleted(oUnit)
+    local sFunctionRef = 'OnMexConstructionCompleted'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --Track mexes by team
+    local iTeam = oUnit:GetAIBrain().M28Team
+    if iTeam then
+        local iMexTech = M28UnitInfo.GetUnitTechLevel(oUnit)
+        if not(M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech]) then
+            M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech] = {}
+        end
+        M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) + 1
+        if bDebugMessages == true then
+            local iUpgradingMexCount=0
+            local iDeadUpgradingMexCount = 0
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then iUpgradingMexCount = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) end
+            for iUpgradingMex, oUpgradingMex in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes] do
+                if not(M28UnitInfo.IsUnitValid(oUpgradingMex)) then iDeadUpgradingMexCount = iDeadUpgradingMexCount + 1
+                end
+            end
+            LOG(sFunctionRef..': Mex '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just had construction started for team '..iTeam..'; Revised mex count by tech='..(M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 'nil')..'; T2 mex count based on currentunits='..oUnit:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMex * M28UnitInfo.ConvertTechLevelToCategory(iMexTech))..'; Upgrading mexes on team iUpgradingMexCount='..iUpgradingMexCount..'; iDeadUpgradingMexCount='..iDeadUpgradingMexCount)
+        end
+    elseif not(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain())) then
+        M28Utilities.ErrorHandler('No brain for mex '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' owned by brain '..(oUnit:GetAIBrain().Nickname or 'nil')..' so wont record for that brain team')
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1826,17 +1873,6 @@ function OnMexConstructionStarted(oUnit)
         end
     end
 
-    --Track mexes by team
-    local iTeam = oUnit:GetAIBrain().M28Team
-    if iTeam then
-        local iMexTech = M28UnitInfo.GetUnitTechLevel(oUnit)
-        if not(M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech]) then
-            M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech] = {}
-        end
-        M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] = (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][iMexTech] or 0) + 1
-    elseif not(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain())) then
-        M28Utilities.ErrorHandler('No brain for mex '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' owned by brain '..(oUnit:GetAIBrain().Nickname or 'nil')..' so wont record for that brain team')
-    end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -5961,7 +5997,7 @@ function ConsiderGettingPreemptiveTMD(oPD)
                             iT2PDInZone = iT2PDInZone + 1
                         end
                     end
-                    if iT2PDInZone >= 3 then
+                    if iT2PDInZone >= 3 and ((iT2PDInZone >= 6 and tLZTeamData[M28Map.refiRadarCoverage] < 160) or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileTML]) == false and (M28UnitInfo.IsUnitValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileTML][1]) or M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileTML]))) then
                         local iTMDWanted = math.min(3, iT2PDInZone - 2)
                         local toPDUpdated = {}
                         oPD[refiMinTMDWantedForUnit] = iTMDWanted --redundancy in case for some reason we havent yet recorded against the LZTeamData

@@ -2642,22 +2642,60 @@ function ConsiderAllInLandPushOnACU(aiBrain, oACU)
         local iEnemyACUThreat = M28UnitInfo.GetCombatThreatRating({ oACU}, true)
         if bDebugMessages == true then LOG(sFunctionRef..': iEnemyACUThreat='..iEnemyACUThreat..'; ACU owner='..oACU:GetAIBrain().Nickname..'; our brain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()) end
         if iEnemyACUThreat <= 3000 then
-            local tNearbyFriendlyTanks = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank - M28UnitInfo.refCategorySkirmisher - categories.COMMAND, oACU:GetPosition(), 60, 'Ally')
+            local tNearbyFriendlyTanks = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileDFLand - M28UnitInfo.refCategorySkirmisher - categories.COMMAND, oACU:GetPosition(), 60, 'Ally')
             if M28Utilities.IsTableEmpty(tNearbyFriendlyTanks) == false then
                 local iFriendlyTankThreat = M28UnitInfo.GetCombatThreatRating(tNearbyFriendlyTanks, false)
                 if bDebugMessages == true then LOG(sFunctionRef..': iFriendlyTankThreat='..iFriendlyTankThreat) end
                 if iFriendlyTankThreat > math.max(800, iEnemyACUThreat + math.max(400, iEnemyACUThreat * 0.4)) then --Min wanted for an unupgraded enemy ACU
-                    local tEnemyThreat = oACU:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryPD  - M28UnitInfo.refCategorySkirmisher + categories.COMMAND, oACU:GetPosition(), 90, 'Ally')
+                    local tEnemyThreat = oACU:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileDFLand + M28UnitInfo.refCategoryPD  - M28UnitInfo.refCategorySkirmisher + categories.COMMAND, oACU:GetPosition(), 90, 'Ally')
                     local iEnemyTotalThreat = M28UnitInfo.GetCombatThreatRating(tEnemyThreat, true)
                     if bDebugMessages == true then LOG(sFunctionRef..': iEnemyTotalThreat='..iEnemyTotalThreat) end
                     if iFriendlyTankThreat > iEnemyTotalThreat then
-                        --Suicide all the tanks into the ACU
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will suicide tanks into enemy ACU') end
-                        AssignACUAttackGridSlot(tNearbyFriendlyTanks, oACU)
-                        for iUnit, oUnit in tNearbyFriendlyTanks do
-                            if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
-                                ForkThread(MoveLandUnitNearACU, oUnit, oACU)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will send unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to suicide into enemy ACU') end
+                        --Doublecheck the threat incase we have lost intel of the units near the ACU
+                        local iTeam = aiBrain.M28Team
+                        if oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] then
+                            local iACUPlateau = oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+                            local iACULandZone = oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                            local tACULZData = M28Map.tAllPlateaus[iACUPlateau][M28Map.subrefPlateauLandZones][iACULandZone]
+                            local tACULZTeamData = tACULZData[M28Map.subrefLZTeamData][iTeam]
+                            local toNearbyEnemies = {}
+                            if M28Utilities.IsTableEmpty( tACULZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                for iEnemy, oEnemy in tACULZTeamData[M28Map.reftoNearestDFEnemies] do
+                                    if not(oEnemy.IsDead) and oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iACULandZone and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition()) - oEnemy[M28UnitInfo.refiDFRange] <= 60 then
+                                        table.insert(toNearbyEnemies, oEnemy)
+                                    end
+                                end
+                            end
+                            if M28Utilities.IsTableEmpty(tACULZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                for _, iAdjLZ in tACULZData[M28Map.subrefLZAdjacentLandZones] do
+                                    local tAdjLZData = M28Map.tAllPlateaus[iACUPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                    local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                    if M28Utilities.IsTableEmpty( tAdjLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                        for iEnemy, oEnemy in tAdjLZTeamData[M28Map.reftoNearestDFEnemies] do
+                                            if not(oEnemy.IsDead) and oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iACULandZone and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition()) - oEnemy[M28UnitInfo.refiDFRange] <= 60 then
+                                                table.insert(toNearbyEnemies, oEnemy)
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            if M28Utilities.IsTableEmpty(toNearbyEnemies) == false then
+                                local iEnemyNearbyThreat = M28UnitInfo.GetCombatThreatRating(toNearbyEnemies, true)
+                                if iEnemyNearbyThreat > iEnemyTotalThreat then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Going on our memory the enemy has a larger threat than getunitsaroundpoint would indicate, iEnemyTotalThreat before update='..iEnemyTotalThreat..'; iEnemyNearbyThreat='..iEnemyNearbyThreat) end
+                                    iEnemyTotalThreat = iEnemyNearbyThreat
+                                end
+                            end
+                            if iFriendlyTankThreat > iEnemyTotalThreat then
+                                --Suicide all the tanks into the ACU
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will suicide tanks into enemy ACU') end
+                                AssignACUAttackGridSlot(tNearbyFriendlyTanks, oACU)
+                                for iUnit, oUnit in tNearbyFriendlyTanks do
+                                    if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+                                        ForkThread(MoveLandUnitNearACU, oUnit, oACU)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will send unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to suicide into enemy ACU') end
+                                    end
+                                end
                             end
                         end
                     end
@@ -2681,7 +2719,7 @@ function MoveLandUnitNearACU(oUnit, oACU)
         if NavUtils.GetLabel(sPathingRef, oACU:GetPosition()) == iNavUtilsWanted then
             --Focus down ACU
             M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityExpSnipeACU, false)
-            local tMovePosition            
+            local tMovePosition
             local iXOffset
             local iZOffset
             if oUnit[M28UnitInfo.refiACUGridSlot] and oACU[M28UnitInfo.reftoGridXZAdjust][oUnit[M28UnitInfo.refiACUGridSlot]] then
@@ -2693,15 +2731,23 @@ function MoveLandUnitNearACU(oUnit, oACU)
                 M28Utilities.ErrorHandler('Dont have a valid ACU grid slot assigned')
             end
 
-            while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oACU) and not(oACU:IsUnitState('Attached')) and NavUtils.GetLabel(sPathingRef, oACU:GetPosition()) == iNavUtilsWanted do                 
+            local bConsiderAttackMove = false
+            if oUnit[M28UnitInfo.refiCombatRange] > (oACU[M28UnitInfo.refiDFRange] or 0) + 2 and (oUnit.UnitId == 'ual0201' or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) then bConsiderAttackMove = true end
+            local aiBrain = oUnit:GetAIBrain()
+
+            while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oACU) and not(oACU:IsUnitState('Attached')) and NavUtils.GetLabel(sPathingRef, oACU:GetPosition()) == iNavUtilsWanted do
                 tMovePosition = oACU:GetPosition()
                 tMovePosition[1] = tMovePosition[1] + iXOffset
                 tMovePosition[3] = tMovePosition[3] + iZOffset
-                tMovePosition[2] = GetSurfaceHeight(tMovePosition[1], tMovePosition[3])                     
+                tMovePosition[2] = GetSurfaceHeight(tMovePosition[1], tMovePosition[3])
                 if M28Utilities.IsTableEmpty(tMovePosition) or not(NavUtils.GetLabel(sPathingRef, tMovePosition) == iNavUtilsWanted) then
                     tMovePosition = oACU:GetPosition()
                 end
-                M28Orders.IssueTrackedMove(oUnit, tMovePosition, 3, false, 'ACUAllIn', true)                
+                if bConsiderAttackMove and M28UnitInfo.CanSeeUnit(aiBrain, oUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition()) <= oUnit[M28UnitInfo.refiDFRange] - 1 then
+                    M28Orders.IssueTrackedAggressiveMove(oUnit, tMovePosition, 3, false, 'ACUAllInAM', true)
+                else
+                    M28Orders.IssueTrackedMove(oUnit, tMovePosition, 3, false, 'ACUAllInM', true)
+                end
                 WaitSeconds(1)
             end
             if M28UnitInfo.IsUnitValid(oUnit) then

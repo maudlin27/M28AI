@@ -3696,7 +3696,8 @@ function ConsiderNormalUpgrades(iM28Team)
             if not(M28Conditions.TeamHasLowMass(iM28Team)) then bWantMassForProduction = false end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': bWantMassForProduction='..tostring(bWantMassForProduction)..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))..'; tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]) end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': bWantMassForProduction='..tostring(bWantMassForProduction)..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))..'; tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; refbFocusOnT1Spam='..tostring(tTeamData[iM28Team][refbFocusOnT1Spam])) end
     if not(bWantMassForProduction) or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs])) or tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.3 or tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] <= 1 then
         --T1 spam mode - be much less likely to get upgrades early game
         if not(tTeamData[iM28Team][refbFocusOnT1Spam]) or (M28Overseer.bLikelyGunUpgrade and (M28Map.iMapSize > 256 or GetGameTimeSeconds() >= 480)) or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, M28UnitInfo.refCategoryFactory) >= 10 or (M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFactory, iM28Team) >= 6 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.75 and (tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.95 or GetGameTimeSeconds() >= 300 / math.max(tTeamData[iM28Team][refiHighestBrainResourceMultiplier], tTeamData[iM28Team][refiHighestBrainBuildMultiplier]))) then
@@ -3751,22 +3752,35 @@ function ConsiderNormalUpgrades(iM28Team)
                 else
                     GetSafeHQUpgrade(iM28Team)
                     if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart and (not(tTeamData[iM28Team][refbFocusOnT1Spam]) or tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.8) then
-                        GetSafeMexToUpgrade(iM28Team, false, M28Conditions.WantAnotherT3MexUpgrade(iM28Team))
+                        --Further check - want to have 100% E or no upgrading mexes, or be overflowing mass
+                        if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] > 0.99 or  tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] > 0.99 or GetGameTimeSeconds() >= 600 or (iPlayersAtGameStart > 4 and M28Map.iMapSize >= 750) then
+                            GetSafeMexToUpgrade(iM28Team, false, M28Conditions.WantAnotherT3MexUpgrade(iM28Team))
+                        end
                     end
                 end
                 --If failed to find a mex or HQ upgrade from above:
                 if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart then
                     --Only consider upgrading if have lots of mass
+                    bFailedEcoToTryAlternatives = true
                     if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.5 and tTeamData[iM28Team][subrefiTeamMassStored] >= 700 and (tTeamData[iM28Team][subrefiTeamMassStored] >= 7000 or (tTeamData[iM28Team][subrefiTeamMassStored] >= 4000 and tTeamData[iM28Team][subrefiTeamNetMass] > -1) or tTeamData[iM28Team][subrefiTeamNetMass] > 0.5) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and get any mex or HQ to upgrade as failed to find something to upgrade and have lots of mass, tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; mass stored='..tTeamData[iM28Team][subrefiTeamMassStored]) end
-                        GetAnyMexOrFactoryToUpgrade(iM28Team)
+                        if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] > 0.99 or tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] > 0.99 or GetGameTimeSeconds() >= 600 or (iPlayersAtGameStart > 4 and M28Map.iMapSize >= 750) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get any mex or HQ to upgrade as failed to find something to upgrade and have lots of mass, tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; mass stored='..tTeamData[iM28Team][subrefiTeamMassStored]) end
+                            bFailedEcoToTryAlternatives = false
+                            GetAnyMexOrFactoryToUpgrade(iM28Team)
+                        end
                     end
                 end
 
                 --Keep searching for upgrades (if we have the eco to support) if we have just found something to upgrade
                 if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] > iMassUpgradesAtLoopStart then
-                    if iCycleCount >= 50 then
-                        M28Utilities.ErrorHandler('Likely infinite loop')
+                    --Check if about to overflow mass and have enough E - if we are, then consider multiple upgrades
+                    if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] > 0.8 and tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] > 0.99 and (tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] > 0.99 or tTeamData[iM28Team][subrefiTeamNetMass] > -tTeamData[iM28Team][subrefiTeamGrossMass]*0.03) then
+                        if iCycleCount >= 50 then
+                            M28Utilities.ErrorHandler('Likely infinite loop')
+                            break
+                        end
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Not about to overflow so will wait for next cycle to try and upgrade something') end
                         break
                     end
                 else
@@ -4988,7 +5002,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                                     if oUnit[M28UnitInfo.refbIsSnipeTarget] then iNearbyThreatToACUSearchDist = 45 end
                                     local toNearbyDFUnits
                                     if aiBrain and not(aiBrain:IsDefeated()) then
-                                        toNearbyDFUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryDFTank - M28UnitInfo.refCategorySkirmisher, oUnit:GetPosition(), iNearbyThreatToACUSearchDist, 'Ally')
+                                        toNearbyDFUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileDFLand - M28UnitInfo.refCategorySkirmisher, oUnit:GetPosition(), iNearbyThreatToACUSearchDist, 'Ally')
                                     end
                                     if M28Utilities.IsTableEmpty(toNearbyDFUnits) == false then
                                         local iNearbyFriendlyDFThreat = M28UnitInfo.GetCombatThreatRating(toNearbyDFUnits, false, false)

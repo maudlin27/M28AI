@@ -4770,7 +4770,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                 --Below is if wanted to generalise, however concerned about riks of overkill
                 --[[
-                local iCategoryToSearch = M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryPD
+                local iCategoryToSearch = M28UnitInfo.refCategoryMobileDFLand + M28UnitInfo.refCategoryPD
                 local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
                 if iUnitTechLevel == 2 then
                     iCategoryToSearch = iCategoryToSearch - categories.TECH1
@@ -4855,7 +4855,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             iClosestAngleDif = math.max(0, M28Utilities.GetAngleDifference(iYthothaAngle, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oExistingAttackTarget:GetPosition())) - 15)
                         end
                         if iClosestAngleDif > 30 then --i.e. 45+ angle dif since we reduce it by 15 in the above step
-                            local tOtherPriorityTargets = EntityCategoryFilterDown(M28UnitInfo.refCategoryDFTank * categories.TECH3 - M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryT3PD, tLZTeamData[M28Map.reftoNearestDFEnemies])
+                            local tOtherPriorityTargets = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileDFLand * categories.TECH3 - M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryT3PD, tLZTeamData[M28Map.reftoNearestDFEnemies])
                             if bDebugMessages == true then LOG(sFunctionRef..': Is tOtherPriorityTargets empty='..tostring(M28Utilities.IsTableEmpty(  tOtherPriorityTargets))) end
                             if M28Utilities.IsTableEmpty(  tOtherPriorityTargets) == false then
                                 for iEnemy, oEnemy in tOtherPriorityTargets do
@@ -12289,10 +12289,16 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                 --Does enemy have ACU in zone? if so then run; otherwise if enemy has combat units then stay hidden
                 if M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
                     tEnemiesToRunFrom = EntityCategoryFilterDown(categories.COMMAND, tTargetLZTeamData[M28Map.reftoNearestDFEnemies])
+                    local iDistUntilEnemyACUInRangeOfUs = 10000
                     if M28Conditions.IsTableOfUnitsStillValid(tEnemiesToRunFrom) then
+                        for iUnit, oUnit in tEnemiesToRunFrom do
+                            iDistUntilEnemyACUInRangeOfUs = math.min(iDistUntilEnemyACUInRangeOfUs, M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange])
+                        end
                         --Want to run
-                        if bDebugMessages == true then LOG(sFunctionRef..': ACU in target zone so want to run') end
-                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU in target zone or near it so want to run if we will be in range of it soon, iDistUntilEnemyACUInRangeOfUs='..iDistUntilEnemyACUInRangeOfUs) end
+                    end
+                    if iDistUntilEnemyACUInRangeOfUs > 35 then
+                        tEnemiesToRunFrom = nil
                         if tTargetLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 100 or tTargetLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] > 10 then
                             --Stay hidden if we are in cloak mode as enemy has combat units; if we arent in cloak mode then run
                             if bInCloakMode and GetGameTimeSeconds() - (oScout[M28UnitInfo.refiLastWeaponEvent] or 0) >= 2 then
