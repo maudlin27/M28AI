@@ -535,10 +535,10 @@ function OnUnitDeath(oUnit)
                                 local tMexPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to call OnMexDeath via fork, tMexPosition='..repru(tMexPosition)) end
                                 if tMexPosition[1] == 0 and tMexPosition[2] == 0 then M28Utilities.ErrorHandler('Dont have a valid mex position - mex is showing as 0,0,0') end
-                                ForkThread(M28Building.OnMexDeath, tMexPosition, (oUnit.UnitId or 'nil'), (M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'), oUnit:GetAIBrain():GetArmyIndex()) --Need to fork thread or else get an error when try to wait in the building logic
+                                ForkThread(M28Building.OnMexDeath, tMexPosition, (oUnit.UnitId or 'nil'), (M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'), oUnit:GetAIBrain():GetArmyIndex(), oUnit:GetFractionComplete() == 1) --Need to fork thread or else get an error when try to wait in the building logic
                             elseif oUnit:GetFractionComplete() == 1 then
                                 --Rare case where a constructed unit showed in LOUD with .IsUpgrade as true and .CanTakeDamage as false
-                                ForkThread(M28Building.ConsiderDelayedOnMexDeathCall, {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}, (oUnit.UnitId or 'nil'), (M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'), oUnit:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain().M28Team)
+                                ForkThread(M28Building.ConsiderDelayedOnMexDeathCall, {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}, (oUnit.UnitId or 'nil'), (M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'), oUnit:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain().M28Team, true)
                             end
                             --[[local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
                             if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then
@@ -1924,6 +1924,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 if not(M28Utilities.bFAFActive) and EntityCategoryContains(M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMex, oConstruction.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMex, oEngineer.UnitId) then
                     oConstruction.IsUpgrade = true
                 end
+
                 --Intel approximation - a human player would be able to infer that if they'd scouted a mex and now it is greyed out, that means the opponent has upgraded it; so it is reasonable for the AI to be given the same information
                 local iConstructionTeam = oConstruction:GetAIBrain().M28Team
                 for iTeam = 1, M28Team.iTotalTeamCount, 1 do
@@ -2321,6 +2322,11 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                     oJustBuilt[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - M28Building.iTimeForSMDToBeConstructed
                     if bDebugMessages == true then LOG(sFunctionRef..': Just built SMD, oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Owner='..oJustBuilt:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+                end
+
+                --Mex tracking
+                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
+                    M28Building.OnMexConstructionCompleted(oJustBuilt)
                 end
 
                 --M28 specific
@@ -3282,6 +3288,9 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         local iUpgradeableUnitsCategory = categories.COMMAND + categories.SUBCOMMANDER
                         if M28Utilities.bQuietModActive or M28Utilities.bLoudModActive then iUpgradeableUnitsCategory = iUpgradeableUnitsCategory + M28UnitInfo.refCategoryFactory * categories.TECH3 end --LOUD and quiet allow factories to upgrade
                         if EntityCategoryContains(iUpgradeableUnitsCategory, oUnit.UnitId) then M28ACU.UpdateUnitUpgradeCountTrackingIfNotSet(oUnit) end
+                        if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                            M28Building.OnMexConstructionCompleted(oUnit)
+                        end
                     end
 
 
