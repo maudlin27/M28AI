@@ -710,7 +710,7 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
                     iDistThreshold = 30
                     iDistThreshold = math.min((oUnit[M28UnitInfo.refiAARange] or 35) - 5, 50)
                     if oUnit[refoAirAACurTarget].UnitId then
-                        if oUnit[refoAirAACurTarget].IsDead then
+                        if oUnit[refoAirAACurTarget].Dead then
                             if bDebugMessages == true then LOG(sFunctionRef..': Our AirAA target is dead so returning false') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return false

@@ -13395,15 +13395,17 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
                 local iHighestCompletion = -1
                 for iUpgrade, oUpgrade in tLZTeamData[M28Map.subreftoActiveUpgrades] do
-                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUpgrade.UnitId) and not(oUpgrade.IsDead) then
-                        if oUpgrade:GetFractionComplete() > iHighestCompletion then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering active upgrade, oUpgrade='..oUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUpgrade)..'; Fraction complete='..oUpgrade:GetFractionComplete()..'; Unit last subrefsOrderBlueprint='..(oUpgrade[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] or 'nil')..'; oUpgrade.Dead='..tostring(oUpgrade.Dead or false)..'; Is this a factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUpgrade.UnitId) or false)) end
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUpgrade.UnitId) and not(oUpgrade.Dead) then
+                        if oUpgrade:GetWorkProgress() > iHighestCompletion and (iHighestCompletion <= 0 or (oUpgrade[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]) and EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUpgrade[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint].UnitId)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Updating factory to assist to be oUpgrade='..oUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUpgrade)) end
                             oActiveHQUpgradeToAssist = oUpgrade
                             iHighestCompletion = oUpgrade:GetFractionComplete()
                         end
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': bHaveActiveHQUpgrade='..tostring(bHaveActiveHQUpgrade)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': oActiveHQUpgradeToAssist='..(oActiveHQUpgradeToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oActiveHQUpgradeToAssist) or 'nil')..'; Is subreftoActiveUpgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]))) end
             if oActiveHQUpgradeToAssist then
                 iBPWanted = 20
                 if not(bHaveLowPower) and not(bHaveLowMass) then iBPWanted = 40 end
