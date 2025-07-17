@@ -624,7 +624,7 @@ function TestCustom(aiBrain)
             oArti1 = CreateUnit('uab2302', oBrain:GetArmyIndex(), M28Map.GetPlayerStartPosition(oBrain)[1], M28Map.GetPlayerStartPosition(oBrain)[2], M28Map.GetPlayerStartPosition(oBrain)[3], 0, 0, 0, 0, 'Air')
             oArti2 = CreateUnit('uab2302', oBrain:GetArmyIndex(), M28Map.GetPlayerStartPosition(oBrain)[1]+10, M28Map.GetPlayerStartPosition(oBrain)[2], M28Map.GetPlayerStartPosition(oBrain)[3]+10, 0, 0, 0, 0, 'Air')
             oArti3 = CreateUnit('uab2302', oBrain:GetArmyIndex(), M28Map.GetPlayerStartPosition(oBrain)[1]+0, M28Map.GetPlayerStartPosition(oBrain)[2], M28Map.GetPlayerStartPosition(oBrain)[3]+10, 0, 0, 0, 0, 'Air')
-            if GetGameTimeSeconds() >= 17*60 then
+            if GetGameTimeSeconds() >= 1020 then
                 if not(M28UnitInfo.IsUnitValid(oArti4)) then oArti4 = CreateUnit('uab2302', oBrain:GetArmyIndex(), M28Map.GetPlayerStartPosition(oBrain)[1]+10, M28Map.GetPlayerStartPosition(oBrain)[2], M28Map.GetPlayerStartPosition(oBrain)[3]+0, 0, 0, 0, 0, 'Air') end
                 if not(M28UnitInfo.IsUnitValid(oArti5)) then oArti5 = CreateUnit('uab2302', oBrain:GetArmyIndex(), M28Map.GetPlayerStartPosition(oBrain)[1]-10, M28Map.GetPlayerStartPosition(oBrain)[2], M28Map.GetPlayerStartPosition(oBrain)[3]+0, 0, 0, 0, 0, 'Air') end
             end
