@@ -14741,7 +14741,14 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if bDebugMessages == true then LOG(sFunctionRef..': More power builder, bHaveLowMass='..tostring(bHaveLowMass)..'; bWantMorePower='..tostring(bWantMorePower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Highest friendly factory tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')) end
     if not(bHaveLowMass) and bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 11 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 0) > 0 and not(bSaveMassForMML) and not(bPrioritiseProduction) then
         iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 5
-        if bDebugMessages == true then LOG(sFunctionRef..': Want more power, iCurPriority='..iCurPriority..'; iBPWanted='..iBPWanted) end
+        if M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.6 then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 0 then
+                iBPWanted = iBPWanted * 0.5
+            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > -3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] >= 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                iBPWanted = iBPWanted * (1 - 0.5 * (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] + 3) / 3)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want more power, iCurPriority='..iCurPriority..'; iBPWanted='..iBPWanted..'; refbFocusOnT1Spam='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])) end
         HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, iBPWanted)
     end
 
