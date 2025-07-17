@@ -7277,7 +7277,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                             end
                                                         else
                                                             if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(15, iIndirectDistanceInsideRangeThreshold), false, 'IKAMve'..iLandZone)
+                                                                M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(15, iIndirectDistanceInsideRangeThreshold), false, 'IKAMve'..iLandZone)
                                                             end
                                                         end
                                                     end
@@ -7568,6 +7568,52 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         end
                                     end
 
+                                    --Expand units to support to include friendly units in an adjacent zone if that zone has mobile DF units that outrange our SR threshold (as long ranged units and skirmishers are assigned to the zone they are in)
+                                    local iAdjacentRangeThreshold = iDFRangeOverrideForScenario1 or iEnemyBestDFRange
+                                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                        local iDistToClosestEnemyFromMidpointThreshold = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oNearestEnemyToFriendlyBase:GetPosition()) + 10
+                                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                            --Is this zone closer to the nearest enemy than our current zone?
+                                            local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                            if M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], oNearestEnemyToFriendlyBase:GetPosition()) <= iDistToClosestEnemyFromMidpointThreshold then
+                                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                                local bHaveLRUnit = false
+                                                if tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > 0 and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) == false and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) == false then
+                                                    for iRange, iThreat in tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] do
+                                                        if iRange >= iAdjacentRangeThreshold and iThreat > 0 then
+                                                            bHaveLRUnit = true
+                                                            break
+                                                        end
+                                                    end
+                                                end
+                                                if bHaveLRUnit then
+                                                    for iAdjUnit, oAdjUnit in tAdjLZTeamData[M28Map.subrefLZTAlliedCombatUnits] do
+                                                        if oAdjUnit[M28UnitInfo.refiDFRange] and oAdjUnit[M28UnitInfo.refiDFRange] > iAdjacentRangeThreshold and not(oAdjUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone) and not(oAdjUnit.IsDead) then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unit in adjacent zone to units to support, oAdjUnit='..oAdjUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAdjUnit)..' with range='..oAdjUnit[M28UnitInfo.refiDFRange]) end
+                                                            table.insert(tUnitsToSupport, oAdjUnit)
+                                                        end
+                                                    end
+                                                end
+                                                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefAlliedACU]) == false then
+                                                    for iAdjACU, oAdjACU in tAdjLZTeamData[M28Map.subrefAlliedACU] do
+                                                        --If ACU isnt the longest range it wont be included as a unit to support, but we still want to cover it
+                                                        if oAdjACU[M28UnitInfo.refiDFRange] <= iAdjacentRangeThreshold then
+                                                            table.insert(tUnitsToSupport, oAdjACU)
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false then
+                                        for iACU, oACU in tLZTeamData[M28Map.subrefAlliedACU] do
+                                            --Include if shorter range as it wouldnt be includedd as a LR unit
+                                            if oACU[M28UnitInfo.refiDFRange] <= iAdjacentRangeThreshold then
+                                                table.insert(tUnitsToSupport, oACU)
+                                            end
+                                        end
+                                    end
+
                                     for iSRUnit, oSRUnit in tOutrangedCombatUnits do
                                         --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
                                         if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oSRUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
@@ -7607,7 +7653,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 else
                                                     DoManualAttack(oSRUnit, oTargetToManuallyAttack, 'ExpSRA')
                                                 end
-
                                             elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oSRUnit.UnitId) then
                                                 if oSRUnit[M28UnitInfo.refbCanKite] then
                                                     if bDebugMessages == true then
@@ -7730,10 +7775,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have enough threat to attack, and non earby enemy firebase, so will attack with everything') end
                                 end
                                 --Extra check if enemy has ACU, to avoid feeding it mass if we only have a slight combat advantage
-                                if bAttackWithEverything and not(bConsiderAttackingACU) and M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false and iOurDFAndT1ArtiCombatThreat < math.max(iEnemyCombatThreat * 2, iEnemyCombatThreat + 2000) and iFirebaseThreatAdjust == 0 then
+                                if bAttackWithEverything and not(bConsiderAttackingACU) and M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false and iOurDFAndT1ArtiCombatThreat < math.max(iEnemyCombatThreat * 2, iEnemyCombatThreat + 600) and iFirebaseThreatAdjust == 0 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': enemy has ACU so want to be more cautious, is the closest enemy an ACU='..tostring(EntityCategoryContains(categories.COMMAND, oNearestEnemyToFriendlyBase.UnitId))) end
                                     if EntityCategoryContains(categories.COMMAND, oNearestEnemyToFriendlyBase.UnitId) then
-                                        bAttackWithEverything = false
+                                        if M28UnitInfo.GetUnitHealthPercent(oNearestEnemyToFriendlyBase) >= 0.3 and ((oNearestEnemyToFriendlyBase[M28ACU.refiUpgradeCount] or 0) >= 2 or M28UnitInfo.GetUnitHealthPercent(oNearestEnemyToFriendlyBase) >= 0.5) then
+                                            bAttackWithEverything = false
+                                        end
                                     else
                                         --Exception - enemy ACU isnt the closest enemy unit, and is far enough away from the closest enemy unit that we can potentially attack to do some damage to it
                                         local iDistThresholdForACU = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) - 30
@@ -7743,7 +7790,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             iDistToNearestEnemyThreshold = iDistToNearestEnemyThreshold - 7
                                         end
                                         for iACU, oACU in toEnemyACUsNearZone do
-                                            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= iDistThresholdForACU or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) <= iDistToNearestEnemyThreshold then
+                                            if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= iDistThresholdForACU or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) <= iDistToNearestEnemyThreshold and (M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.3 and ((oACU[M28ACU.refiUpgradeCount] or 0) >= 2 or M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.5)) then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Enemy ACU is too close to nearest enemy unit so wont have our units attack') end
                                                 bAttackWithEverything = false
                                                 break
