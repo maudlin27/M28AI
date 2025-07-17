@@ -2661,7 +2661,7 @@ function ConsiderAllInLandPushOnACU(aiBrain, oACU)
                             local toNearbyEnemies = {}
                             if M28Utilities.IsTableEmpty( tACULZTeamData[M28Map.reftoNearestDFEnemies]) == false then
                                 for iEnemy, oEnemy in tACULZTeamData[M28Map.reftoNearestDFEnemies] do
-                                    if not(oEnemy.IsDead) and oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iACULandZone and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition()) - oEnemy[M28UnitInfo.refiDFRange] <= 60 then
+                                    if not(oEnemy.Dead) and oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iACULandZone and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition()) - oEnemy[M28UnitInfo.refiDFRange] <= 60 then
                                         table.insert(toNearbyEnemies, oEnemy)
                                     end
                                 end
@@ -2672,7 +2672,7 @@ function ConsiderAllInLandPushOnACU(aiBrain, oACU)
                                     local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
                                     if M28Utilities.IsTableEmpty( tAdjLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
                                         for iEnemy, oEnemy in tAdjLZTeamData[M28Map.reftoNearestDFEnemies] do
-                                            if not(oEnemy.IsDead) and oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iACULandZone and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition()) - oEnemy[M28UnitInfo.refiDFRange] <= 60 then
+                                            if not(oEnemy.Dead) and oEnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iACULandZone and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oACU:GetPosition()) - oEnemy[M28UnitInfo.refiDFRange] <= 60 then
                                                 table.insert(toNearbyEnemies, oEnemy)
                                             end
                                         end

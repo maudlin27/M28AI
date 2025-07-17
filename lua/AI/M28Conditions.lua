@@ -1034,6 +1034,9 @@ function HaveLowPower(iTeam)
             else
                 if M28Map.bIsLowMexMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 2 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 0 then
                     --Do nothing
+                    --T1 spam where we havent stalled E with this amount, and/or we have positive net energy
+                elseif M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] >= 2000*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.1) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.05))) then
+                    --Do nothing - dont have low power
                     --Dont have much more energy than when we last stalled - sometimes treat as low power (i.e. if we have low net energy, or dont have 100% energy stored)
                 elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.05 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.99 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.1 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.1)) then
                     bHaveLowPower = true
@@ -1079,7 +1082,7 @@ function GetNumberOfConstructedUnitsInAirSubteam(iAirSubteam, iCategory)
     return iCount
 end
 
-function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory)
+function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory, bReturnMassValueInstead)
     --Returns the number of factories that are building a unit meeting iCategoryWanted
     --if bAllConstructionNotFactory then instead returns number of part-complete units of iCategoryWanted
     local iAlreadyBuilding = 0
@@ -1089,7 +1092,10 @@ function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTe
             if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
                 for iUnit, oUnit in tUnitsOfCategory do
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
-                        iAlreadyBuilding = iAlreadyBuilding + 1
+                        if bReturnMassValueInstead then iAlreadyBuilding = iAlreadyBuilding + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
+                        else
+                            iAlreadyBuilding = iAlreadyBuilding + 1
+                        end
                     end
                 end
             end
@@ -1101,7 +1107,10 @@ function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTe
                     oCurUnitBuilding = oFactory:GetFocusUnit()
                     if oCurUnitBuilding and EntityCategoryContains(iCategoryWanted, oCurUnitBuilding) then
                         --LOG('Temp to check we have a factory building the category wanted - we do, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Unit building='..oCurUnitBuilding.UnitId)
-                        iAlreadyBuilding = iAlreadyBuilding + 1
+                        if bReturnMassValueInstead then iAlreadyBuilding = iAlreadyBuilding + (oCurUnitBuilding[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oCurUnitBuilding))
+                        else
+                            iAlreadyBuilding = iAlreadyBuilding + 1
+                        end
                     end
                 end
             end
