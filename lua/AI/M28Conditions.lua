@@ -1079,7 +1079,7 @@ function GetNumberOfConstructedUnitsInAirSubteam(iAirSubteam, iCategory)
     return iCount
 end
 
-function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory)
+function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory, bReturnMassValueInstead)
     --Returns the number of factories that are building a unit meeting iCategoryWanted
     --if bAllConstructionNotFactory then instead returns number of part-complete units of iCategoryWanted
     local iAlreadyBuilding = 0
@@ -1089,7 +1089,10 @@ function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTe
             if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
                 for iUnit, oUnit in tUnitsOfCategory do
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
-                        iAlreadyBuilding = iAlreadyBuilding + 1
+                        if bReturnMassValueInstead then iAlreadyBuilding = iAlreadyBuilding + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
+                        else
+                            iAlreadyBuilding = iAlreadyBuilding + 1
+                        end
                     end
                 end
             end
@@ -1101,7 +1104,10 @@ function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTe
                     oCurUnitBuilding = oFactory:GetFocusUnit()
                     if oCurUnitBuilding and EntityCategoryContains(iCategoryWanted, oCurUnitBuilding) then
                         --LOG('Temp to check we have a factory building the category wanted - we do, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Unit building='..oCurUnitBuilding.UnitId)
-                        iAlreadyBuilding = iAlreadyBuilding + 1
+                        if bReturnMassValueInstead then iAlreadyBuilding = iAlreadyBuilding + (oCurUnitBuilding[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oCurUnitBuilding))
+                        else
+                            iAlreadyBuilding = iAlreadyBuilding + 1
+                        end
                     end
                 end
             end
