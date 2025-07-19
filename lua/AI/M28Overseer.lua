@@ -610,7 +610,7 @@ end
 
 
 function TestCustom(aiBrain)
-    WaitSeconds(15*60)
+    WaitSeconds(900)
     local oBrain
     for iBrain, oExistingBrain in ArmyBrains do
         if oExistingBrain:GetArmyIndex() == 1 then

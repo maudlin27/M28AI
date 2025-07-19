@@ -4448,3 +4448,24 @@ function GetShieldSACUsWantedForGETemplate(iTeam)
     end
     return math.max(3, iEnemyDPS / 241 + 1.5) --want 1.5 more than we think we need to give a bit of time to get more if enemy builds another t3 arti
 end
+
+function GetNetMAAWantedForZone(tLZTeamData, iOptionalGrossFactorAdjust)
+    local iMinMAARatioVsCombatWanted --i.e. even if we have lots of fixed AA in the zone we will still assign some MAA in case units are too far from the fixed AA and die for free
+    local iAirSubteam = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam
+    if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
+            iMinMAARatioVsCombatWanted = 0.3
+        else
+            iMinMAARatioVsCombatWanted = 0.2
+        end
+    end
+    local iBaseMAAWanted = tLZTeamData[M28Map.subrefLZMAAThreatWanted]
+    if iBaseMAAWanted then
+        if iOptionalGrossFactorAdjust then iBaseMAAWanted = iBaseMAAWanted * iOptionalGrossFactorAdjust end
+        if iMinMAARatioVsCombatWanted and iBaseMAAWanted > (tLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0) and iBaseMAAWanted > 200 then
+            return math.max(iBaseMAAWanted - (tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0), math.min(iBaseMAAWanted * iMinMAARatioVsCombatWanted - tLZTeamData[M28Map.subrefLZThreatAllyMAA], tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] + tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] - iBaseMAAWanted))
+        else return iBaseMAAWanted - tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]
+        end
+    end
+    return 0
+end
