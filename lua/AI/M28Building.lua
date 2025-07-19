@@ -6272,6 +6272,9 @@ function GEMobileShieldTeleDefence(oTeleportingUnit, tTeleportDestination, iTeam
                     M28Utilities.ErrorHandler('Failed to calculate teleport time in FAF, will use hardcoded value')
                     time = 15
                     teleDelay = 15
+                elseif M28Utilities.bQuietModActive or M28Utilities.bLoudModActive then
+                    time = 30 --https://github.com/Team-QUIET/QUIET/blob/547c370c538208501807bb64a15dc7e624c6f9a1/gamedata/lua/lua/sim/Unit.lua#L5391 - Az thought c.30s for 6-7km
+                    teleDelay = 30
                 else
                     time = 10
                     teleDelay = 10
