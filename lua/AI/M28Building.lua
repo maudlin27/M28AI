@@ -6262,7 +6262,21 @@ function GEMobileShieldTeleDefence(oTeleportingUnit, tTeleportDestination, iTeam
 
         local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
         if oFirstM28Brain then
-            local energyCost, time, teleDelay = import('/lua/shared/teleport.lua').TeleportCostFunction(oTeleportingUnit, tTeleportDestination)
+            local teleport = import('/lua/shared/teleport.lua')
+            local energyCost, time, teleDelay
+            if teleport and rawget(teleport, 'TeleportCostFunction') then
+                if bDebugMessages == true then LOG(sFunctionRef..': calculating precise teleport time for FAF') end
+                energyCost, time, teleDelay = import('/lua/shared/teleport.lua').TeleportCostFunction(oTeleportingUnit, tTeleportDestination)
+            else
+                if M28Utilities.bFAFActive then
+                    M28Utilities.ErrorHandler('Failed to calculate teleport time in FAF, will use hardcoded value')
+                    time = 15
+                    teleDelay = 15
+                else
+                    time = 10
+                    teleDelay = 10
+                end
+            end
             --For now am assuming time is the time until teleport compeltes in seconds, not 100% sure though
             local iTimeUntilTeleport = time
             local iTimeForShieldRecharge = 5
