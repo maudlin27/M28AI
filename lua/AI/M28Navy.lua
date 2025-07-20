@@ -1624,6 +1624,10 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at gametime='..GetGameTimeSeconds()..'; About to update threat for iPond='..iPond..'; iWaterZone='..iWaterZone..'; iTeam='..iTeam..'; Is WZData empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData))..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Is table of enemy air empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]))..'; Is this a core base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)) end
 
+    --Omni vision AIx - record we have visual of this WZ
+    if M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision] then
+        tWZTeamData[M28Map.refiTimeLastHadVisual] = GetGameTimeSeconds()
+    end
 
     --Update unit positions and if still valid
     if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
@@ -5928,7 +5932,11 @@ function UpdateSonarCoverageForDestroyedSonar(oSonar)
                     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
                     if tWZTeamData[M28Map.refoBestSonar] == oSonar then
                         tWZTeamData[M28Map.refoBestSonar] = nil
-                        tWZTeamData[M28Map.refiSonarCoverage] = 0
+                        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision] then
+                            tWZTeamData[M28Map.refiSonarCoverage] = 5000
+                        else
+                            tWZTeamData[M28Map.refiSonarCoverage] = 0
+                        end
                         local tNearbySonar = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategorySonar, tWZData[M28Map.subrefMidpoint], 600, 'Ally')
                         local iCurIntelRange
                         local iBestIntelRange = 0
@@ -5948,7 +5956,11 @@ function UpdateSonarCoverageForDestroyedSonar(oSonar)
                         end
                         if oBestSonar then
                             tWZTeamData[M28Map.refoBestSonar] = oBestSonar
-                            tWZTeamData[M28Map.refiSonarCoverage] = iBestIntelRange
+                            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision] then
+                                tWZTeamData[M28Map.refiSonarCoverage] = 5000
+                            else
+                                tWZTeamData[M28Map.refiSonarCoverage] = iBestIntelRange
+                            end
                             if not(oBestSonar[reftiSonarWaterZonesCoveredByTeam]) then oBestSonar[reftiSonarWaterZonesCoveredByTeam] = {} end
                             if not(oBestSonar[reftiSonarWaterZonesCoveredByTeam][iTeam]) then oBestSonar[reftiSonarWaterZonesCoveredByTeam][iTeam] = {} end
                             table.insert(oBestSonar[reftiSonarWaterZonesCoveredByTeam][iTeam], iWaterZone)
@@ -6000,7 +6012,11 @@ function UpdateZoneIntelForSonar(oSonar)
                                         end
                                     end
                                     --Now assign this WZ to this Sonar as providing the best coverage
-                                    tWZTeamData[M28Map.refiSonarCoverage] = iCurIntelRange
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision] then
+                                        tWZTeamData[M28Map.refiSonarCoverage] = 5000
+                                    else
+                                        tWZTeamData[M28Map.refiSonarCoverage] = iCurIntelRange
+                                    end
                                     tWZTeamData[M28Map.refoBestSonar] = oSonar
                                     if not(oSonar[reftiSonarWaterZonesCoveredByTeam]) then oSonar[reftiSonarWaterZonesCoveredByTeam] = {} end
                                     if not(oSonar[reftiSonarWaterZonesCoveredByTeam][iTeam]) then oSonar[reftiSonarWaterZonesCoveredByTeam][iTeam] = {} end

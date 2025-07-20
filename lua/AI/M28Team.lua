@@ -4044,8 +4044,13 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestMobileIndirectRange] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZIndirectThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZDFThreatWanted] = 0
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRadarCoverage] = 0
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiOmniCoverage] = 0
+            if tTeamData[iM28Team][subrefbTeamHasOmniVision] then
+                tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRadarCoverage] = 5000
+                tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiOmniCoverage] = 5000
+            else
+                tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRadarCoverage] = 0
+                tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiOmniCoverage] = 0
+            end
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyOmniCoverage] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRecentlyFailedScoutAttempts] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefQueuedBuildings] = {}
@@ -4108,9 +4113,15 @@ function SetWaterZoneDefaultTeamValues(tWZData, iTeam)
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] = false --true if is a 'core' base (i.e. has a naval factory in)
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] = false --true if contains a naval build location for a friendly M28AI
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTValue] = 0 --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
-    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
-    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiSonarCoverage] = 0
-    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 0
+    if tTeamData[iTeam][subrefbTeamHasOmniVision] then
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 5000
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 5000
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiSonarCoverage] = 5000
+    else
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiSonarCoverage] = 0
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 0
+    end
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyOmniCoverage] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRecentlyFailedScoutAttempts] = 0
     --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refoBestRadar] --nil by default
