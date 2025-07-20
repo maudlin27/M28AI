@@ -4882,16 +4882,17 @@ function EnemyBaseEarlyBomber(oBomber)
                 end
                 if not(tEnemyInitialDestination) then tEnemyInitialDestination = {tEnemyBase[1], tEnemyBase[2], tEnemyBase[3]} end
 
-                M28Micro.TrackTemporaryUnitMicro(oBomber, 0)
+                M28Micro.TrackTemporaryUnitMicro(oBomber, 0, nil, true)
 
                 local bReachedInitialLocation = false
                 local bReachedEnemyStart = false
                 local iTicksToWait
                 local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
-                if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, iEnemyBasePlateau='..iEnemyBasePlateau..'; iEnemyBaseZone='..iEnemyBaseZone..'; About to start main loop') end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, iEnemyBasePlateau='..iEnemyBasePlateau..'; iEnemyBaseZone='..iEnemyBaseZone..'; About to start main loop, refbSpecialMicroActive='..tostring(oBomber[M28UnitInfo.refbSpecialMicroActive] or false)) end
                 --Start main loop
                 while M28UnitInfo.IsUnitValid(oBomber) and oBomber[rebEarlyBomberTargetBase] do
                     --Remove any existing assigned strike damage (will re-add if we retain target)
+                    if not(oBomber[M28UnitInfo.refbSpecialMicroActive]) then M28Micro.TrackTemporaryUnitMicro(oBomber, 0, nil, true) end
                     local tLastOrder = oBomber[M28Orders.reftiLastOrders][oBomber[M28Orders.refiOrderCount]]
                     local oExistingValidAttackTarget
                     local iCurBomberPlateauOrZero, iCurBomberZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oBomber:GetPosition())
@@ -4974,6 +4975,7 @@ function EnemyBaseEarlyBomber(oBomber)
                                 end
                             end
                             if M28Utilities.IsTableEmpty(tEnemyTargets) and tEnemyPgensAndLowHealthTanks then
+                                if bDebugMessages == true then LOG(sFunctionRef..': No enemy engineers so will include pgens and low health tanks as potential targets') end
                                 tEnemyTargets = tEnemyPgensAndLowHealthTanks
                             end
                         end
@@ -5050,21 +5052,27 @@ function EnemyBaseEarlyBomber(oBomber)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Finished hoverbomb attempt') end
                                 iTicksToWait = 1 --Just to avoid infinite loop risk
                             else
-                                if bDebugMessages == true then LOG(sFunctionRef..': WIll use normal bomber attack logic') end
-                                AssignTorpOrBomberTargets({ oBomber}, tEnemyTargets, iAirSubteam, false, false, true)
+                                if M28UnitInfo.IsUnitValid(oNearestEnemy) then
+                                    M28Orders.IssueTrackedAttack(oBomber, oNearestEnemy, false, 'BaseBmAt', oBomber[M28UnitInfo.refbLowerPriorityMicroActive])
+                                else --redundancy
+                                    if bDebugMessages == true then LOG(sFunctionRef..': WIll use normal bomber attack logic') end
+                                    AssignTorpOrBomberTargets({ oBomber}, tEnemyTargets, iAirSubteam, false, false, true)
+                                end
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': End of loop, will wait '..iTicksToWait..' ticks') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': End of loop, will wait '..iTicksToWait..' ticks, refbSpecialMicroActive='..tostring(oBomber[M28UnitInfo.refbSpecialMicroActive] or false)) end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitTicks(iTicksToWait)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting iTicksToWait, refbSpecialMicroActive='..tostring(oBomber[M28UnitInfo.refbSpecialMicroActive] or false)) end
                 end
             end
         end
     end
     if oBomber[M28UnitInfo.refbSpecialMicroActive] then
         oBomber[M28UnitInfo.refbSpecialMicroActive] = false
+        oBomber[M28UnitInfo.refbLowerPriorityMicroActive] = false
         ForkThread(M28Micro.ForkedResetMicroFlag, oBomber, 0) --redundancy
     end
     oBomber[rebEarlyBomberTargetBase] = false
@@ -5075,7 +5083,8 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ApplyEngiHuntingBomberLogic'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..(oBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBomber) or 'nil')..' owned by '..oBomber:GetAIBrain().Nickname..'; AirSubteam='..iAirSubteam..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()..'; Brain owner='..oBomber:GetAIBrain().Nickname) end
+    if oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber) == 'xsa01031' then bDebugMessages = true end
+    if bDebugMessages == false then LOG(sFunctionRef..': Start of code, oBomber='..(oBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBomber) or 'nil')..' owned by '..oBomber:GetAIBrain().Nickname..'; AirSubteam='..iAirSubteam..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()..'; Brain owner='..oBomber:GetAIBrain().Nickname) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTimeOfLastEngiHunterBomberOrder] = GetGameTimeSeconds()
     if oBomber[rebEarlyBomberTargetBase] == nil and (GetGameTimeSeconds() <= 120 or oBomber:GetAIBrain()[M28Overseer.refbFirstBomber]) and M28UnitInfo.GetUnitLifetimeCount(oBomber) == 1 then
         if GetGameTimeSeconds() > 120 then
