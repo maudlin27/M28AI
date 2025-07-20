@@ -39,9 +39,10 @@ function OnPlayerDefeated(aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
         if bDebugMessages == true then LOG(sFunctionRef..': Player has been defeated, brain='..aiBrain.Nickname..'; Was this an M28AI='..tostring(aiBrain.M28AI or false)..'; ScenarioInfo.Options.Share='..(ScenarioInfo.Options.Share or 'nil')) end
+        local iTeam = aiBrain.M28Team
         aiBrain.M28IsDefeated = true
 
-        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfLastTeammateDeath] = GetGameTimeSeconds()
+        M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTeammateDeath] = GetGameTimeSeconds()
 
         --Was it an M28AI?
         if aiBrain.M28AI and (M28Orders.bDontConsiderCombinedArmy or aiBrain.BrainType == 'AI') then
@@ -49,8 +50,8 @@ function OnPlayerDefeated(aiBrain)
             local bHaveTeammates = false
             local oFirstM28Brain
             local oFirstOtherBrain
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
-                for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyHumanAndAIBrains] do
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
                     if not(oBrain == aiBrain) and not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
                         bHaveTeammates = true
                         if not(oFirstM28Brain) then
@@ -63,7 +64,7 @@ function OnPlayerDefeated(aiBrain)
             end
             if bHaveTeammates then
                 ForkThread(M28Team.GiveAllResourcesToAllies, aiBrain)
-                M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfLastM28PlayerDefeat] = GetGameTimeSeconds()
+                M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastM28PlayerDefeat] = GetGameTimeSeconds()
                 if oFirstM28Brain or oFirstOtherBrain then
                     local oBrainToTransfer = oFirstM28Brain or oFirstOtherBrain
                     local tFriendlyUnits = aiBrain:GetListOfUnits(categories.ALLUNITS - categories.UNSELECTABLE - categories.COMMAND, false, true)
@@ -73,6 +74,21 @@ function OnPlayerDefeated(aiBrain)
                 end
             else
                 --Message on death - Will cover as part of M28Chat function
+            end
+        end
+
+        --Was it a team with omni vision, that still has M28 on the team?
+        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision] and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+            local bStillHaveOmni = false
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                if not(oBrain.M28IsDefeated) and M28Conditions.DoesBrainHaveOmniVision(oBrain) then
+                    bStillHaveOmni = true
+                    break
+                end
+            end
+            if not(bStillHaveOmni) then
+                M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision] = false --So we can do forked thread without worrying about calling multiple times at once
+                ForkThread(M28Team.TeamHasLostAIxOmniVision, iTeam) --Just in case an error occurs
             end
         end
 

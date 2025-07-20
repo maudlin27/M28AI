@@ -4480,3 +4480,8 @@ function GetNetMAAWantedForZone(tLZTeamData, iOptionalGrossFactorAdjust)
     end
     return 0
 end
+function DoesBrainHaveOmniVision(aiBrain)
+    if aiBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
+        return true
+    end
+end

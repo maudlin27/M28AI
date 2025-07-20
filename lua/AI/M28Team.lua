@@ -779,7 +779,7 @@ function CreateNewTeam(aiBrain)
                         end
                         bHaveM28BrainInTeam = true
                         --Check if we have omni vision for the team
-                        if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
+                        if M28Conditions.DoesBrainHaveOmniVision(oBrain) then
                             tTeamData[iTotalTeamCount][subrefbTeamHasOmniVision] = true
                         end
                         --Record brain details in log for ease of reference
@@ -5721,6 +5721,34 @@ function ConsiderDelayedMexDetection(oMex)
                     AssignUnitToLandZoneOrPond(oBrain, oMex, false, false, true)
                 end
             end
+        end
+    end
+end
+
+function TeamHasLostAIxOmniVision(iTeam)
+    tTeamData[iTeam][subrefbTeamHasOmniVision] = false
+    --Go through every land and water zone and reset radar and omni values
+    function ResetLandOrWaterZone(tCurLZOrWZTeamData)
+        tCurLZOrWZTeamData[M28Map.refiRadarCoverage] = 0
+        tCurLZOrWZTeamData[M28Map.refiOmniCoverage] = 0
+        if tCurLZOrWZTeamData[M28Map.refiSonarCoverage] then tCurLZOrWZTeamData[M28Map.refiSonarCoverage] = 0 end
+        if tCurLZOrWZTeamData[M28Map.refoBestSonar] then
+            tCurLZOrWZTeamData[M28Map.refoBestSonar]['M28UpdatedIntel'] = nil
+            M28Map.UpdateZoneIntelForSonar(tCurLZOrWZTeamData[M28Map.refoBestSonar])
+        end
+        if tCurLZOrWZTeamData[M28Map.refoBestRadar] then
+            tCurLZOrWZTeamData[M28Map.refoBestRadar]['M28UpdatedIntel'] = nil
+            M28Map.UpdateZoneIntelForRadar(tCurLZOrWZTeamData[M28Map.refoBestRadar])
+        end
+    end
+    for iPlateau, tPlateauData in M28Map.tAllPlateaus do
+        for iLZ, tLZData in tPlateauData[M28Map.subrefPlateauLandZones] do
+            ResetLandOrWaterZone(tLZData[M28Map.subrefLZTeamData][iTeam])
+        end
+    end
+    for iPond, tPondSubtable in M28Map.tPondDetails do
+        for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
+            ResetLandOrWaterZone(tWZData[M28Map.subrefWZTeamData][iTeam])
         end
     end
 end
