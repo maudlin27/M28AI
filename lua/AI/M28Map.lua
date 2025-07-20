@@ -4356,10 +4356,9 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
 
                 tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
                 tWZTeamData[reftiClosestFriendlyM28BrainIndex] = iClosestBrainRef
-                if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
                 tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
                 tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false) / math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZTeamData[reftClosestEnemyBase]))
-
+                if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond..'; Mod dist to midpoint from our start='..GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false)..'; Mod dist to nearest enemy base (to this WZ) from our friendly base='..GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZTeamData[reftClosestEnemyBase])..'; tWZTeamData[refiModDistancePercent]='..tWZTeamData[refiModDistancePercent]) end
             end
         end
         if not(bDontInitializeWZLogic) then ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam) end
@@ -8046,7 +8045,7 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Start of code, GameTime=' .. GetGameTimeSeconds() .. '; aiBrain army index=' .. aiBrain:GetArmyIndex() .. '; tTarget=' .. repru(tTarget) .. '; bUseEnemyStartInstead=' .. tostring((bUseEnemyStartInstead or false)) .. '; will draw the location in white')
+        LOG(sFunctionRef .. ': Start of code, GameTime=' .. GetGameTimeSeconds() .. '; aiBrain army index=' .. aiBrain:GetArmyIndex() .. '; Nickname='..aiBrain.Nickname..'; tTarget=' .. repru(tTarget) .. '; bUseEnemyStartInstead=' .. tostring((bUseEnemyStartInstead or false)) .. '; will draw the location in white')
         M28Utilities.DrawLocation(tTarget, false, 7, 20, nil)
     end
     local iEmergencyRangeToUse = 50
@@ -8062,7 +8061,7 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
     end
 
     local iDistStartToTarget = M28Utilities.GetDistanceBetweenPositions(tStartPos, tTarget)
-    if bDebugMessages == true then LOG(sFunctionRef .. ': tStartPos=' .. repru(tStartPos) .. '; iDistStartToTarget=' .. iDistStartToTarget .. '; iEmergencyRangeToUse=' .. iEmergencyRangeToUse) end
+    if bDebugMessages == true then LOG(sFunctionRef .. ': tStartPos=' .. repru(tStartPos) .. '; iDistStartToTarget=' .. iDistStartToTarget .. '; iEmergencyRangeToUse=' .. iEmergencyRangeToUse..'; Dist from tEnemyBase to tTarget='..M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tTarget)) end
 
     if iDistStartToTarget <= iEmergencyRangeToUse then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

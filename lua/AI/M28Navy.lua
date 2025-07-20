@@ -3310,7 +3310,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     local tUnassignedLandUnits
     if bDebugMessages == true then LOG(sFunctionRef..': start of code for time '..GetGameTimeSeconds()..', iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Are there enemy units in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; Is table of missile ships empty='..tostring(M28Utilities.IsTableEmpty(tMissileShips))..'; subrefWZiSuicideIntoEnemyCombatThreat='..(tWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] or 'nil')) end
@@ -3473,20 +3473,20 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     end
 
     --Retreat if enemy air threat too great to risk our navy
-    if bDebugMessages == true then LOG(sFunctionRef..': Even if enemy has no nearby air to ground threat still consider retreating from air if we lack sufficient AA force, bHaveRunFromAir='..tostring(bHaveRunFromAir)..'; Mod dist%='..tWZTeamData[M28Map.refiModDistancePercent]..'; Core base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase])..'; Enemy total torp bomber threat='.. M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]..'; iFriendlyAdjacentUnweightedAAThreat='..iFriendlyAdjacentUnweightedAAThreat) end
-    if not(bHaveRunFromAir) and tWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and not(tWZTeamData[M28Map.subrefWZbCoreBase]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > iFriendlyAdjacentUnweightedAAThreat then
+    if bDebugMessages == true then LOG(sFunctionRef..': Even if enemy has no nearby air to ground threat still consider retreating from air if we lack sufficient AA force, bHaveRunFromAir='..tostring(bHaveRunFromAir)..'; Mod dist%='..tWZTeamData[M28Map.refiModDistancePercent]..'; Core base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase])..'; Enemy total torp bomber threat='.. M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]..'; iFriendlyAdjacentUnweightedAAThreat='..iFriendlyAdjacentUnweightedAAThreat..'; Dist to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestFriendlyBase])..'; subrefWZbContainsNavalBuildLocation='..tostring(tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] or false)..'; Enemy refiEnemyAirToGroundThreat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) end
+    if not(bHaveRunFromAir) and tWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and not(tWZTeamData[M28Map.subrefWZbCoreBase]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > iFriendlyAdjacentUnweightedAAThreat or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 500) then
         local aiBrain = ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
         local iAirSubteam = aiBrain.M28AirSubteam
         local iAAFactorWanted = 0.45
         if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iAAFactorWanted = 0.25
         elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then iAAFactorWanted = 0.55
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to run due to enemy total torp bomber threat, M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]..'; iAAFactorWanted='..iAAFactorWanted..'; iFriendlyAdjacentUnweightedAAThreat='..iFriendlyAdjacentUnweightedAAThreat) end
-        if M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] * iAAFactorWanted > iFriendlyAdjacentUnweightedAAThreat then
+        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to run due to enemy total torp bomber threat, M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]..'; iAAFactorWanted='..iAAFactorWanted..'; iFriendlyAdjacentUnweightedAAThreat='..iFriendlyAdjacentUnweightedAAThreat..'; refiEnemyAirToGroundThreat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) end
+        if (math.min(20000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) + M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]) * iAAFactorWanted > iFriendlyAdjacentUnweightedAAThreat then
             --Ignore if torp bomber threat not large relative to our naval force
             local iAvailableCombatMass = M28UnitInfo.GetMassCostOfUnits(tAvailableCombatUnits)
             if bDebugMessages == true then LOG(sFunctionRef..': Will run back to base unless enemy torpedo bomber force is a small fraction of our naval force, iAvailableCombatMass='..iAvailableCombatMass) end
-            if M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > iAvailableCombatMass * 0.04 then
+            if  (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) > iAvailableCombatMass * 0.04 then
                 local iTimeForRetreat = iCurTime - iRetreatFromAirDuration * 0.8 --i.e. as soon as we get enough AA force we should be open to advancing
                 tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] = math.max(iTimeForRetreat, (tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] or 0))
                 bHaveRunFromAir = true
@@ -4981,6 +4981,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         return false
     end
     local tNearbyEnemyLandToAvoid = {}
+
     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
         local iClosestDistLessRange
         local iCurDistLessRange
@@ -5053,7 +5054,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                 end
                 --                                              CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                             iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
                 if (bHaveNearbyWaterEnemies and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], iRunThreshold, iTeam, true                    ,nil                        ,nil                            ,oUnit                                        ,nil                                    ,true))
-                    or (bHaveNearbyLandUnits and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyLandToAvoid, iRunThreshold, iTeam, true                    ,nil                        ,nil                            ,oUnit                                        ,nil                                    ,true)) then
+                        or (bHaveNearbyLandUnits and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyLandToAvoid, iRunThreshold, iTeam, true                    ,nil                        ,nil                            ,oUnit                                        ,nil                                    ,true)) then
                     RetreatUnitTowardsNavalOrAmphibiousRally(oUnit, 'RunDF')
                 else
                     --Check not in range of T2 arti
@@ -5071,10 +5072,12 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         --Retreat individual MAA units if in range of enemy air and enemy has high air to ground threat
         local iEnemyAirToGroundThreat = tWZTeamData[M28Map.refiEnemyAirToGroundThreat]
         local iOurAAThreat = tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]
+        local iOurNearbyMAAThreat = 0
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
             for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do --include half of the 'excess' enemy air to ground threat in adjacent zones
                 local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
                 iEnemyAirToGroundThreat = iEnemyAirToGroundThreat + math.max(0, ((tAdjWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) -  (tAdjWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 3))*0.5
+                iOurNearbyMAAThreat = iOurNearbyMAAThreat + (tAdjWZTeamData[M28Map.subrefWZThreatAlliedMAA] or 0)
             end
         end
 
@@ -5084,10 +5087,18 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                 iEnemyAirToGroundThreat = iEnemyAirToGroundThreat + (tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) + (tAdjLZTeamData[M28Map.refiEnemyAirOtherThreat] or 0)
             end
         end
+        --We may lose if our AA goes up against their air threat, so want to retreat any AA units that are reasonably in-range, or just retreat all AA if dont have large combat threat in this zone to protect
+        local bRetreatAllMAA = false
+        if iEnemyAirToGroundThreat > iOurAAThreat + iOurNearbyMAAThreat and iEnemyAirToGroundThreat > (iOurAAThreat + iOurNearbyMAAThreat) * 0.5 and iEnemyAirToGroundThreat >= 300 and iOurAAThreat < 14000 and not(M28Conditions.TeamHasAirControl(iTeam)) and (not(tWZTeamData[M28Map.refiTimeLastBuiltAtFactory]) or (GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastBuiltAtFactory] >= 300 and M28Utilities.IsTableEmpty(EntityCategoryContains(M28UnitInfo.refCategoryFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to just run even if not in range yet as enemy has a large nearby air to ground threat') end
+            bRetreatAllMAA = true
+        elseif tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] and (iOurAAThreat + iOurNearbyMAAThreat < 16000 or (iOurAAThreat < 6000 and iOurNearbyMAAThreat < 20000 and iEnemyAirToGroundThreat > iOurAAThreat)) and (GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir]) <= 60 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > (iOurAAThreat + iOurNearbyMAAThreat) * 0.25 and not(M28Conditions.TeamHasAirControl(iTeam)) then
+            bRetreatAllMAA = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Enemy global air to ground threat so large and we dont have very large AA threat, so we want to retreat') end
+        end
         local tEnemyAirToRunFrom
-        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyAirToGroundThreat='..iEnemyAirToGroundThreat..'; iOurAAThreat='..iOurAAThreat) end
-        if iEnemyAirToGroundThreat > iOurAAThreat then
-            --We may lose if our AA goes up against their air threat, so want to retreat any AA units that are reasonably in-range
+        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyAirToGroundThreat='..iEnemyAirToGroundThreat..'; iOurAAThreat='..iOurAAThreat..'; iOurNearbyMAAThreat='..iOurNearbyMAAThreat..'; bRetreatAllMAA='..tostring(bRetreatAllMAA)) end
+        if iEnemyAirToGroundThreat > iOurAAThreat and not(bRetreatAllMAA) then
             local iCategoriesToAvoid = M28UnitInfo.refCategoryAirToGround - M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL -M28UnitInfo.refCategoryBomber * categories.TECH3 --dont want to avoid t3 or exp bombers since they struggle to turn around
             if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
                 tEnemyAirToRunFrom = EntityCategoryFilterDown(iCategoriesToAvoid, tWZTeamData[M28Map.reftWZEnemyAirUnits])
@@ -5121,7 +5132,18 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyAirToRunFrom empty='..tostring(M28Utilities.IsTableEmpty(tEnemyAirToRunFrom))) end
-        if M28Utilities.IsTableEmpty(tEnemyAirToRunFrom) then
+        if bRetreatAllMAA then
+            for iMAA, oMAA in tAvailableSubjectToAA do
+                if oMAA[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
+                    oMAA[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
+                    RetreatUnitTowardsNavalOrAmphibiousRally(oMAA, 'WSMAARetFrA'..iWaterZone)
+                    if bDebugMessages == true then LOG(sFunctionRef..': retreating MAA unit '..oMAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMAA)..' to rally point or amphibious rally point') end
+                else
+                    oMAA[refiCurrentWZAssignmentValue] = 0
+                end
+            end
+            tAvailableSubjectToAA = nil
+        elseif M28Utilities.IsTableEmpty(tEnemyAirToRunFrom) then
             tMAAToAdvance = tAvailableSubjectToAA
         else
             local iAttackMoveDistWithinRangeWanted = 4
