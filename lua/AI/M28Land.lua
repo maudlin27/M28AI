@@ -7602,7 +7602,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                     end
                                                 end
                                                 if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefAlliedACU]) == false then
-                                                    if not(tAdjLZTeamData[M28Map.subrefLZbCoreBase]) or not(tLZTeamData[M28Map.refbDangerousForACUs]) then --no point supporting an ACU hiding in our base
+                                                    if not(tAdjLZTeamData[M28Map.subrefLZbCoreBase]) or not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) then --no point supporting an ACU hiding in our base
                                                         for iAdjACU, oAdjACU in tAdjLZTeamData[M28Map.subrefAlliedACU] do
                                                             --If ACU isnt the longest range it wont be included as a unit to support, but we still want to cover it
                                                             if not(oAdjACU[M28ACU.refiTimeLastWantedToRun]) or GetGameTimeSeconds() - oAdjACU[M28ACU.refiTimeLastWantedToRun] >= 10 or (oAdjACU[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oAdjACU[M28UnitInfo.refiLastWeaponEvent] <= 10) or tAdjLZTeamData[M28Map.refbACUInTrouble] then
@@ -7615,7 +7615,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         end
                                     end
                                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false then
-                                        if not(tLZTeamData[M28Map.subrefLZbCoreBase]) or tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 or not(tLZTeamData[M28Map.refbDangerousForACUs]) then --no point supporting an ACU hiding in our base
+                                        if not(tLZTeamData[M28Map.subrefLZbCoreBase]) or tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 or not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) then --no point supporting an ACU hiding in our base
                                             for iACU, oACU in tLZTeamData[M28Map.subrefAlliedACU] do
                                                 --If ACU isnt the longest range it wont be included as a unit to support, but we still want to cover it
                                                 if not(oACU[M28ACU.refiTimeLastWantedToRun]) or GetGameTimeSeconds() - oACU[M28ACU.refiTimeLastWantedToRun] >= 10 or (oACU[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oACU[M28UnitInfo.refiLastWeaponEvent] <= 10) or tLZTeamData[M28Map.refbACUInTrouble] then
