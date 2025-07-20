@@ -2459,8 +2459,8 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
                 --Do we want to abort  micro?
                 if bAbortForGroundAA then
                     local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oTarget:GetPosition(), true, iTeam)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to abort due to enemy groundAA='..tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; Does the zone have too much AA for base bomber='..tostring(M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData) or false)) end
-                    if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to abort due to enemy groundAA='..tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; Does the zone have too much AA for base bomber='..tostring(M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData, tTargetLZData, oBomber) or false)) end
+                    if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData, tTargetLZData, oBomber) then
                         --Return to nearest base
                         if oBomber[M28Air.rebEarlyBomberTargetBase] then oBomber[M28Air.rebEarlyBomberTargetBase] = false end
                         M28Orders.IssueTrackedMove(oBomber, tTargetLZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'AbortHBM', true)

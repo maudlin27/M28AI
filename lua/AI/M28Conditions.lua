@@ -4088,13 +4088,13 @@ function BuildingWasBeingBuiltButCanBeReclaimedNow(oUnit)
     return true
 end
 
-function EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData)
+function EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData, tTargetLZData, oBomber)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'EnemyZoneHasTooMuchAAForBaseBomber'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': enemy groundAA threat='..(tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefTEnemyUnits]))) end
-    if tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] >= 15 then
+    if tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] >= 400 then --set quite high as building under construction can have relatively high threat
         if bDebugMessages == true then LOG(sFunctionRef..': Too much groundAA threat') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
@@ -4102,10 +4102,21 @@ function EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData)
         local tEnemyGroundAA = EntityCategoryFilterDown(M28UnitInfo.refCategoryGroundAA, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
         if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyGroundAA empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundAA))) end
         if M28Utilities.IsTableEmpty(tEnemyGroundAA) == false then
+            local iFractionCompleteThreshold
+            local iDistToZone = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tTargetLZData[M28Map.subrefMidpoint])
+            if iDistToZone >= 250 then
+                iFractionCompleteThreshold = 0.1
+            elseif iDistToZone <= 80 then
+                iFractionCompleteThreshold = 0.75
+            else
+                iFractionCompleteThreshold = 0.3 + (0.75-0.1) * (iDistToZone - 80) / 175
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iDistToZone='..iDistToZone..'; iFractionCompleteThreshold='..iFractionCompleteThreshold) end
             for iAA, oAA in tEnemyGroundAA do
                 if M28UnitInfo.IsUnitValid(oAA) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': oAA='..oAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAA)..'; Fraction complete='..oAA:GetFractionComplete()) end
-                    if oAA:GetFractionComplete() >= 0.75 or (oAA:GetFractionComplete() >= 0.6 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oAA.UnitId)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': oAA='..oAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAA)..'; Fraction complete='..oAA:GetFractionComplete()..'; iFractionCompleteThreshold='..iFractionCompleteThreshold) end
+                    --Buildigns can do damage faster and with a better range, so want to abort sooner when they are close to completion
+                    if oAA:GetFractionComplete() >= iFractionCompleteThreshold or (oAA:GetFractionComplete() >= math.max(0.1, iFractionCompleteThreshold - 0.15) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oAA.UnitId)) then
                         if bDebugMessages == true then LOG(sFunctionRef..': AA almost complete so too much AA') end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true

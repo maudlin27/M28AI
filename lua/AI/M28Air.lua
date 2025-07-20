@@ -4911,7 +4911,7 @@ function EnemyBaseEarlyBomber(oBomber)
                     iTicksToWait = 10
 
                     --If enemy base has MAA in it, then abort logic
-                    if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tEnemyBaseLZTeamData) then
+                    if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tEnemyBaseLZTeamData, tEnemyBaseLZData, oBomber) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy has MAA to abort logic') end
                         oBomber[rebEarlyBomberTargetBase] = false
                         --Return to base as temporary order (normal engi hunter logic should take over shortly)
@@ -5150,7 +5150,7 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
             local tLastOrder = oBomber[M28Orders.reftiLastOrders][oBomber[M28Orders.refiOrderCount]]
             if not(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryRadar, tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId)) then
                 --Arent targeting an engineer currently, so abort if there is AA in the same zone as the bomber (e.g. this might be relevant if have switched from base hunter logic)
-                if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tStartLZOrWZTeamData) then
+                if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tStartLZOrWZTeamData, tStartLZOrWZData, oBomber) then
                     --Return to base
                     M28Orders.IssueTrackedMove(oBomber, tStartLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'AbortEHb', true)
                     bAbort = true
