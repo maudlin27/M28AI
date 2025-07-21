@@ -1489,7 +1489,7 @@ function ConsiderDelayedOnMexDeathCall(tUnitPosition, sUnitRef, sLifetimeCount, 
                 iTeamMexes = iTeamMexes + iMexes
             end
         end
-        if iTeamMexes < tLZOrWZData[M28Map.subrefLZMexCount] then
+        if iTeamMexes < tLZOrWZData[M28Map.subrefLZOrWZMexCount] then
             --Have a risk of an inconsistency so run OnMexDeath to be safe
             OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex, bMexWasConstructed, true)
         end
@@ -1519,15 +1519,15 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex, bM
         if iWaterZone then
             iPond = M28Map.tiPondByWaterZone[iWaterZone]
             tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
-            tMexLocations = tLZOrWZData[M28Map.subrefWZMexLocations]
+            tMexLocations = tLZOrWZData[M28Map.subrefLZOrWZMexLocations]
         end
     else
         tLZOrWZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-        tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations]
+        tMexLocations = tLZOrWZData[M28Map.subrefLZOrWZMexLocations]
     end
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tUnitPosition='..repru(tUnitPosition)..'; is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; iWaterZone='..(iWaterZone or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZOrWZMexLocations]))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tUnitPosition='..repru(tUnitPosition)..'; is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; iWaterZone='..(iWaterZone or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if M28Utilities.IsTableEmpty(tMexLocations) == false then
         --Record time of last mex death against LZ data to help with error messages
         tLZOrWZData[M28Map.refiTimeOfLastMexDeath] = GetGameTimeSeconds()
@@ -1539,7 +1539,7 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex, bM
         local tClosestMexLocation
         local iClosestMexLocation = 2.1 --no point considering mexes further away
         local iCurAbsDif
-        for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
+        for iEntry, tMex in tLZOrWZData[M28Map.subrefLZOrWZMexLocations] do --(WZ uses same ref ID definition)
             iCurAbsDif = math.abs(tMex[1] - tUnitPosition[1]) + math.abs(tMex[3] - tUnitPosition[3])
             if iCurAbsDif < iClosestMexLocation then
                 iClosestMexLocation = iCurAbsDif
@@ -1573,7 +1573,7 @@ function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex, bM
                             --Get closest mex to this, in case there's another mex that's closer
                             local iCurMexClosestLocation = 2.1
                             local tCurMexClosestLocation
-                            for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
+                            for iEntry, tMex in tLZOrWZData[M28Map.subrefLZOrWZMexLocations] do --(WZ uses same ref ID definition)
                                 iCurAbsDif = math.abs(tMex[1] - tMexPosition[1]) + math.abs(tMex[3] - tMexPosition[3])
                                 if iCurAbsDif < iCurMexClosestLocation then
                                     iCurMexClosestLocation = iCurAbsDif
@@ -1736,11 +1736,11 @@ function OnMexConstructionStarted(oUnit)
         if iWaterZone then
             iPond = M28Map.tiPondByWaterZone[iWaterZone]
             tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
-            tMexLocations = tLZOrWZData[M28Map.subrefWZMexLocations]
+            tMexLocations = tLZOrWZData[M28Map.subrefLZOrWZMexLocations]
         end
     else
         tLZOrWZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-        tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations]
+        tMexLocations = tLZOrWZData[M28Map.subrefLZOrWZMexLocations]
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': The time is '..GetGameTimeSeconds()..'; Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; on team '..(oUnit:GetAIBrain().M28Team or 'nil')..'; % complete='..oUnit:GetFractionComplete()) end
@@ -1751,7 +1751,7 @@ function OnMexConstructionStarted(oUnit)
         local iClosestMexLocation = 2.1 --no point considering mexes further away
         local iCurAbsDif
         local tUnitPosition = oUnit:GetPosition()
-        for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
+        for iEntry, tMex in tLZOrWZData[M28Map.subrefLZOrWZMexLocations] do --(WZ uses same ref ID definition)
             iCurAbsDif = math.abs(tMex[1] - tUnitPosition[1]) + math.abs(tMex[3] - tUnitPosition[3])
             if iCurAbsDif < iClosestMexLocation then
                 iClosestMexLocation = iCurAbsDif
@@ -6183,12 +6183,12 @@ function ConsiderUpgradingT2Radar(oRadar)
         local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oRadar:GetPosition(), true, iTeam)
         if bDebugMessages == true then
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftClosestFriendlyBase]) == false then
-                LOG(sFunctionRef..': Considering for oRadar='..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..aiBrain.Nickname..' at time='..GetGameTimeSeconds()..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Dist to friendly base='..M28Utilities.GetDistanceBetweenPositions(oRadar:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])..'; LZMexCount='..(tLZData[M28Map.subrefLZMexCount] or 'nil'))
+                LOG(sFunctionRef..': Considering for oRadar='..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..aiBrain.Nickname..' at time='..GetGameTimeSeconds()..'; Mod dist%='..tLZTeamData[M28Map.refiModDistancePercent]..'; Dist to friendly base='..M28Utilities.GetDistanceBetweenPositions(oRadar:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])..'; LZMexCount='..(tLZData[M28Map.subrefLZOrWZMexCount] or 'nil'))
             else
                 LOG(sFunctionRef..': Dont have a valid closest friendly base')
             end
         end
-        if tLZTeamData[M28Map.refiModDistancePercent] >= 0.15 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and tLZTeamData[M28Map.refiModDistancePercent] <= 0.45 and M28Utilities.GetDistanceBetweenPositions(oRadar:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) >= 200 and (tLZData[M28Map.subrefLZMexCount] or 0) > 0 then
+        if tLZTeamData[M28Map.refiModDistancePercent] >= 0.15 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and tLZTeamData[M28Map.refiModDistancePercent] <= 0.45 and M28Utilities.GetDistanceBetweenPositions(oRadar:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) >= 200 and (tLZData[M28Map.subrefLZOrWZMexCount] or 0) > 0 then
             --Are we close to map edge?
             local iX = oRadar:GetPosition()[1]
             local iZ = oRadar:GetPosition()[3]

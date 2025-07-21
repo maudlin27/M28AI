@@ -557,8 +557,8 @@ function OnUnitDeath(oUnit)
                                 ForkThread(M28Building.ConsiderDelayedOnMexDeathCall, {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}, (oUnit.UnitId or 'nil'), (M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'), oUnit:GetAIBrain():GetArmyIndex(), oUnit:GetAIBrain().M28Team, true)
                             end
                             --[[local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then
-                                for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations] do
+                            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZOrWZMexLocations]) == false then
+                                for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZOrWZMexLocations] do
                                     --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
                                     --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 0.9 then
                                     --Revised line:
@@ -2482,7 +2482,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     local iMexPlateau, iMexZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oJustBuilt:GetPosition())
                                     local iTeam = oJustBuilt:GetAIBrain().M28Team
                                     local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
-                                    if GetGameTimeSeconds() >= 100 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) > 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] <= math.max(3, (tLZData[M28Map.subrefLZMexCount] or 0) * 0.5) then
+                                    if GetGameTimeSeconds() >= 100 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) > 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] <= math.max(3, (tLZData[M28Map.subrefLZOrWZMexCount] or 0) * 0.5) then
                                         local iClosestNonM28BrainDistBase = 100000
                                         local oClosestNonM28Brain
                                         local iClosestM28BrainDistBase = 100000

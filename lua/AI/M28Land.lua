@@ -957,7 +957,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         end
     end
 
-    if (bLandZoneContainsNonScouts or tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 2 or (GetGameTimeSeconds() <= 420 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 3000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3)) and (tLZData[M28Map.subrefLZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] > 30) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]) then
+    if (bLandZoneContainsNonScouts or tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 2 or (GetGameTimeSeconds() <= 420 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 3000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3)) and (tLZData[M28Map.subrefLZOrWZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] > 30) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]) then
         --Want a land scout for htis land zone, unless we already have one traveling here; if we have available land scouts then will change this flag back to false
         if not(tLZData[M28Map.subrefbPacifistArea]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) then
             if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
@@ -1428,7 +1428,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                         M28Orders.UpdateRecordedOrders(oScout)
                                         if (oScout[M28Orders.refiOrderCount] or 0) == 0 then
                                             --Want ot get somewhere to move to as a backup
-                                            if tLZData[M28Map.subrefLZMexCount] > 0 then
+                                            if tLZData[M28Map.subrefLZOrWZMexCount] > 0 then
                                                 M28Orders.IssueTrackedMove(oScout, tLZData[M28Map.subrefMidpoint], 5, false, 'BackupMid')
                                             else
                                                 --Do we have an adjacent LZ? If so move here
@@ -1954,7 +1954,7 @@ function RefreshLandRallyPoints(iTeam, iPlateau)
             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
                 if bDebugMessages == true then LOG(sFunctionRef..': considering if we want zone '..iLandZone..' in iPlateau='..iPlateau..' to be a rally point, is core base='..tostring(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or false)..'; is core expansion='..tostring(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] or false)..'; iMaxZoneCount='..iMaxZoneCount) end
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                if tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZSValue] >= 200 and (tLZTeamData[M28Map.subrefLZCoreExpansion] or (not(iLZWithHighestSValue) and tLZTeamData[M28Map.subrefLZSValue] >= 1000)) or (iMaxZoneCount <= 2 and (tLZTeamData[M28Map.subrefLZCoreExpansion] or (tLZData[M28Map.subrefLZMexCount] or 0) > 0))) then
+                if tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZSValue] >= 200 and (tLZTeamData[M28Map.subrefLZCoreExpansion] or (not(iLZWithHighestSValue) and tLZTeamData[M28Map.subrefLZSValue] >= 1000)) or (iMaxZoneCount <= 2 and (tLZTeamData[M28Map.subrefLZCoreExpansion] or (tLZData[M28Map.subrefLZOrWZMexCount] or 0) > 0))) then
                     if tLZTeamData[M28Map.subrefLZSValue] >= iHighestSValue then
                         iHighestSValue = tLZTeamData[M28Map.subrefLZSValue]
                         iLZWithHighestSValue = iLandZone
@@ -7992,7 +7992,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             if bDebugMessages == true then LOG(sFunctionRef..': Island beachhead Nearby combat threat='..iNearbyCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.subrefThreatEnemyDFStructures]='..tLZTeamData[M28Map.subrefThreatEnemyDFStructures]..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; bAttackWithEverythign='..tostring(bAttackWithEverything)..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])) end
                         end
                         --Dont have a massive army - consider staying if enemy has mexes in this zone and we have more threat than enemy threat that is just in this zone
-                        if not(bAttackWithEverything) and iOurDFAndT1ArtiCombatThreat < 10000 and iOurDFAndT1ArtiCombatThreat > (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) and tLZData[M28Map.subrefLZMexCount] > 0 and tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] > 10 then
+                        if not(bAttackWithEverything) and iOurDFAndT1ArtiCombatThreat < 10000 and iOurDFAndT1ArtiCombatThreat > (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) and tLZData[M28Map.subrefLZOrWZMexCount] > 0 and tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] > 10 then
                             local bCouldDoSomeDamage = false
                             local tEnemyBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD - M28UnitInfo.refCategoryStructureAA - M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subrefTEnemyUnits])
                             if M28Utilities.IsTableEmpty(tEnemyBuildings) == false then
@@ -8050,7 +8050,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local bSuicideUnitsNearAMex = false
                     local tNearbyMexes
                     if not(bAttackWithEverything) and oNearestEnemyToFriendlyBase then
-                        if tLZTeamData[M28Map.subrefLZSValue] > 10 and (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or iOurDFAndT1ArtiCombatThreat > iEnemyCombatThreat * 0.9 or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] > math.max(1, tLZData[M28Map.subrefLZMexCount] or 0))))) then
+                        if tLZTeamData[M28Map.subrefLZSValue] > 10 and (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or iOurDFAndT1ArtiCombatThreat > iEnemyCombatThreat * 0.9 or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] > math.max(1, tLZData[M28Map.subrefLZOrWZMexCount] or 0))))) then
                             --Is enemy almost in range of the midpoint for this zone such that we want to attack even though we will probably lose?
                             if M28Utilities.GetDistanceBetweenPositions(       tLZData[M28Map.subrefMidpoint], oNearestEnemyToFriendlyBase:GetPosition()) <= 15 + math.max((oNearestEnemyToFriendlyBase[M28UnitInfo.refiIndirectRange] or 0), (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0)) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Nearest enemy unit is almost in range of our midpoint and this is a high value location to defend') end
@@ -8062,9 +8062,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                         --Suicide into mex logic
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to suicide mex, iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; EnemyMobileDFTotal='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Ally mobile DF total='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; Ally mobile IF total='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; Enemy best structure DF range='..(tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0)..'; Mex count='..tLZData[M28Map.subrefLZMexCount]..'; Enemy structure mass='..(tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)..'; Is table of enemy mexes empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefTEnemyUnits])))) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to suicide mex, iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; EnemyMobileDFTotal='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Ally mobile DF total='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; Ally mobile IF total='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; Enemy best structure DF range='..(tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0)..'; Mex count='..tLZData[M28Map.subrefLZOrWZMexCount]..'; Enemy structure mass='..(tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)..'; Is table of enemy mexes empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefTEnemyUnits])))) end
                         if not(bAttackWithEverything) then
-                            if tLZData[M28Map.subrefLZMexCount] > 0 and iAvailableCombatUnitThreat >= math.min(100, (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)) and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                            if tLZData[M28Map.subrefLZOrWZMexCount] > 0 and iAvailableCombatUnitThreat >= math.min(100, (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)) and (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                 tNearbyMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefTEnemyUnits])
                                 if M28Utilities.IsTableEmpty(tNearbyMexes) == false then
                                     if iAvailableCombatUnitThreat >= (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] + tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] > (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 then
@@ -10903,7 +10903,7 @@ function AssignValuesToLandZones(iTeam)
                         if bDebugMessages == true then LOG(sFunctionRef..': About to refresh value of iPlateau='..iPlateau..'; iLandZone='..iLandZone..' for team '..iTeam) end
                         --Decide on value of the land zone ignoring distance:
                         --Treat each mex position as being worth 250 mass, value reclaim at 25% of the total value, and reflect the value of all non-PD in the area
-                        iCurValue = tLandZoneData[M28Map.subrefLZMexCount] * 250 + (tLandZoneData[M28Map.subrefTotalMassReclaim] or 0) * 0.25
+                        iCurValue = tLandZoneData[M28Map.subrefLZOrWZMexCount] * 250 + (tLandZoneData[M28Map.subrefTotalMassReclaim] or 0) * 0.25
                         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                             tFriendlyNonPDBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                             iFriendlyBuildingValue = M28UnitInfo.GetMassCostOfUnits(tFriendlyNonPDBuildings)
@@ -10913,7 +10913,7 @@ function AssignValuesToLandZones(iTeam)
                         end
 
                         --Increase for value of enemy mexes if moddist >=25%
-                        if tLandZoneData[M28Map.refiModDistancePercent] >= 0.25 and tLandZoneData[M28Map.subrefLZMexCount] > 0 then
+                        if tLandZoneData[M28Map.refiModDistancePercent] >= 0.25 and tLandZoneData[M28Map.subrefLZOrWZMexCount] > 0 then
                             iCurValue = iCurValue + math.min(0, (tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) - (tLZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0) * 3)
                         end
 
@@ -10937,7 +10937,7 @@ function AssignValuesToLandZones(iTeam)
                             end
                             M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iPlateau][iLandZone] = true
                             --adjacent zones iwth lots of mexes in them and high mex count - consider treating as a core base
-                        elseif tLandZoneData[M28Map.subrefLZMexCount] >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                        elseif tLandZoneData[M28Map.subrefLZOrWZMexCount] >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                             --Are we adjacent to a core zone and we contain a factory or high value unit? If so then treat us as a core LZ
                             bAdjacentToCoreFactory = false
                             if M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -12526,7 +12526,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                             local bReassign = false
                             for _, iAdjLZ in tTargetLZData[M28Map.subrefLZAdjacentLandZones] do
                                 local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
-                                if (tAdjLZData[M28Map.subrefLZMexCount] or 0) > 0 then
+                                if (tAdjLZData[M28Map.subrefLZOrWZMexCount] or 0) > 0 then
                                     local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
                                     if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 30 then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Have adjacent zone iAdjLZ='..iAdjLZ..' with insufficient combat threat and it has a mex, so will send this scout for reassignment') end
@@ -12652,10 +12652,10 @@ function GetMexesInThisOrAdjacentLandZone(tLZData, tLZTeamData, iTeam, iPlateau,
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
             local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
-            if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy has mexes in adjacent LZ, iAdjLZ='..iAdjLZ..'; tAdjLZData[M28Map.subrefLZMexCount]='..(tAdjLZData[M28Map.subrefLZMexCount] or 'nil')..'; Is tAdjLZData[M28Map.subrefMexUnbuiltLocations] empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefMexUnbuiltLocations]))) end
-            if (tAdjLZData[M28Map.subrefLZMexCount] or 0) > 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy has mexes in adjacent LZ, iAdjLZ='..iAdjLZ..'; tAdjLZData[M28Map.subrefLZOrWZMexCount]='..(tAdjLZData[M28Map.subrefLZOrWZMexCount] or 'nil')..'; Is tAdjLZData[M28Map.subrefMexUnbuiltLocations] empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefMexUnbuiltLocations]))) end
+            if (tAdjLZData[M28Map.subrefLZOrWZMexCount] or 0) > 0 then
                 if bDebugMessages == true and M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefMexUnbuiltLocations]) == false then LOG(sFunctionRef..': Size of table of unbuilt locations='..table.getn(tAdjLZData[M28Map.subrefMexUnbuiltLocations])) end
-                if M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefMexUnbuiltLocations]) or table.getn(tAdjLZData[M28Map.subrefMexUnbuiltLocations]) < tAdjLZData[M28Map.subrefLZMexCount] then
+                if M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefMexUnbuiltLocations]) or table.getn(tAdjLZData[M28Map.subrefMexUnbuiltLocations]) < tAdjLZData[M28Map.subrefLZOrWZMexCount] then
                     local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
                     if bDebugMessages == true then LOG(sFunctionRef..': subrefThreatEnemyStructureTotalMass='..(tAdjLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))) end
                     if tAdjLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] > 0 and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
@@ -12676,7 +12676,7 @@ function GetMexesInThisOrAdjacentLandZone(tLZData, tLZTeamData, iTeam, iPlateau,
             end
         end
     end
-    if tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] > 0 and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) or table.getn(tLZData[M28Map.subrefMexUnbuiltLocations]) < tLZData[M28Map.subrefLZMexCount] then
+    if tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] > 0 and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) or table.getn(tLZData[M28Map.subrefMexUnbuiltLocations]) < tLZData[M28Map.subrefLZOrWZMexCount] then
         local tEnemyMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefTEnemyUnits])
         if M28Utilities.IsTableEmpty(tEnemyMexes) == false then
             for iMex, oMex in tEnemyMexes do

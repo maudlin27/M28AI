@@ -345,7 +345,7 @@ function AssignScoutingIntervalPriorities(iTeam)
         for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
             local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
             if not(tLZTeamData[M28Map.refiScoutingPriority]) then
-                if tLZData[M28Map.subrefLZMexCount] > 0 then
+                if tLZData[M28Map.subrefLZOrWZMexCount] > 0 then
                     tLZTeamData[M28Map.refiScoutingPriority] = M28Map.subrefiScoutingMediumPriority
                 else
                     tLZTeamData[M28Map.refiScoutingPriority] = M28Map.subrefiScoutingLowPriority
@@ -359,7 +359,7 @@ function AssignScoutingIntervalPriorities(iTeam)
         for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
             local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
             if not(tWZTeamData[M28Map.refiScoutingPriority]) then
-                if tWZData[M28Map.subrefWZMexCount] > 0 then
+                if tWZData[M28Map.subrefLZOrWZMexCount] > 0 then
                     tWZTeamData[M28Map.refiScoutingPriority] = M28Map.subrefiScoutingMediumPriority
                 else
                     tWZTeamData[M28Map.refiScoutingPriority] = M28Map.subrefiScoutingLowPriority
@@ -5338,11 +5338,11 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                                                 end
                                             end
                                             if table.getn(tScoutingLZData[M28Map.subrefMexUnbuiltLocations]) >= 2 then
-                                                if table.getn(tScoutingLZData[M28Map.subrefMexUnbuiltLocations]) >= 4 or table.getn(tScoutingLZData[M28Map.subrefMexUnbuiltLocations]) < (tScoutingLZData[M28Map.subrefLZMexCount] or 0) then
+                                                if table.getn(tScoutingLZData[M28Map.subrefMexUnbuiltLocations]) >= 4 or table.getn(tScoutingLZData[M28Map.subrefMexUnbuiltLocations]) < (tScoutingLZData[M28Map.subrefLZOrWZMexCount] or 0) then
                                                     iModDist = iModDist * 0.75
                                                 end
                                             end
-                                            if bDebugMessages == true then LOG(sFunctionRef..': iModDist='..iModDist..'; iCurGroundAAThreat='..iCurGroundAAThreat..'; Total unbuilt locations='..table.getn(tScoutingLZData[M28Map.subrefMexUnbuiltLocations])..'; Mex count='.. (tScoutingLZData[M28Map.subrefLZMexCount] or 'nil')) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iModDist='..iModDist..'; iCurGroundAAThreat='..iCurGroundAAThreat..'; Total unbuilt locations='..table.getn(tScoutingLZData[M28Map.subrefMexUnbuiltLocations])..'; Mex count='.. (tScoutingLZData[M28Map.subrefLZOrWZMexCount] or 'nil')) end
                                             if iModDist < iClosestDist then
                                                 iClosestDist = iModDist
                                                 iClosestPlateauOrZero = tPlateauAndZoneRef[1]
@@ -8295,7 +8295,7 @@ function UpdateScoutingShortlist(iTeam)
         if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each plateau and land zone, M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget]='..M28Team.tTeamData[iTeam][M28Team.subrefiLongestOverdueScoutingTarget]..'; iLongestOverdueRequirement='..iLongestOverdueRequirement) end
         for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
             for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
-                if tLZData[M28Map.subrefLZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] >= iMinSegmentsWantedForMexFreeZones then
+                if tLZData[M28Map.subrefLZOrWZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] >= iMinSegmentsWantedForMexFreeZones then
                     local tLZOrWZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                     iIntervalWanted =  tiTimeByPriority[tLZOrWZTeamData[M28Map.refiScoutingPriority]] + tLZOrWZTeamData[M28Map.refiRecentlyFailedScoutAttempts] ^ 3
                     if tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 40 then iIntervalWanted = iIntervalWanted * iRadarFactor end
@@ -8627,14 +8627,14 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
             local tbPlateauAndZoneDropLocations = {}
             function ConsiderAddingZoneInIsland(iPlateau, iIsland, iLandZone, bCheckDistFromExistingDropLocations, iMexThresholdOverride, bIncludeAdjacentZoneMexCount)
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-                local iMexesAvailable = (tLZData[M28Map.subrefLZMexCount] or 0)
+                local iMexesAvailable = (tLZData[M28Map.subrefLZOrWZMexCount] or 0)
                 if bIncludeAdjacentZoneMexCount and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                         local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
-                        iMexesAvailable = iMexesAvailable + (tAdjLZData[M28Map.subrefLZMexCount] or 0)
+                        iMexesAvailable = iMexesAvailable + (tAdjLZData[M28Map.subrefLZOrWZMexCount] or 0)
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; with mexcount='..(tLZData[M28Map.subrefLZMexCount] or 0)..'; iMexesAvailable='..iMexesAvailable..'; bIncludeAdjacentZoneMexCount='..tostring(bIncludeAdjacentZoneMexCount or false)..'; iMexThresholdOverride='..(iMexThresholdOverride or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; with mexcount='..(tLZData[M28Map.subrefLZOrWZMexCount] or 0)..'; iMexesAvailable='..iMexesAvailable..'; bIncludeAdjacentZoneMexCount='..tostring(bIncludeAdjacentZoneMexCount or false)..'; iMexThresholdOverride='..(iMexThresholdOverride or 'nil')) end
                 if iMexesAvailable >= (iMexThresholdOverride or 3) then
                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                     --Is it on our side of the map (or almost on our side of the map)?
@@ -8713,7 +8713,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
             for iEntry, iLandZone in tLandZones do
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering the land zone '..iLandZone..' in iPlateau='..iPlateau..'; tLZTeamData[M28Map.subrefLZSValue]='..tLZTeamData[M28Map.subrefLZSValue]..'; subrefLZMexCount='..(tLZData[M28Map.subrefLZMexCount] or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering the land zone '..iLandZone..' in iPlateau='..iPlateau..'; tLZTeamData[M28Map.subrefLZSValue]='..tLZTeamData[M28Map.subrefLZSValue]..'; subrefLZOrWZMexCount='..(tLZData[M28Map.subrefLZOrWZMexCount] or 'nil')) end
                 if tLZTeamData[M28Map.subrefLZSValue] <= 200 and (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) < 3 then --i.e. dont have a land factory or better in the zone, or if we have dropped at least twice recently here
                     --Check we havent already got mexes on any of the positions
                     if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
@@ -8898,7 +8898,7 @@ function RecordPotentialCombatDropShortlist(iTeam)
         if table.getn(M28Map.tMassPoints) / M28Team.iPlayersAtGameStart <= 15 then iTotalMexThreshold = 1 end
         if (tPlateauSubtable[M28Map.subrefPlateauTotalMexCount] or 0) >= iTotalMexThreshold then
             for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
-                if (tLZData[M28Map.subrefLZMexCount] or 0) >= iTotalMexThreshold then
+                if (tLZData[M28Map.subrefLZOrWZMexCount] or 0) >= iTotalMexThreshold then
                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                     --Ignore zones that can path to with land from a friendly base, or which are in a friendly or enemy base
                     if (tbFriendlyPlateaus[iPlateau] and tLZTeamData[M28Map.refiModDistancePercent] <= 0.2) or tbPlayerStartByPlateauAndZone[iPlateau][iLandZone] then
@@ -9181,9 +9181,9 @@ function UpdateTransportPlateauDropLocationShortlist(iTeam, bUpdateCombatDropSho
                                     end
                                 end
                             end
-                            if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) == 0 and ((tLZData[M28Map.subrefLZMexCount] or 0) > 0 or iSignificantReclaimValue >= iReclaimWantedForTransportDrop) then iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis + 1 end
+                            if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) == 0 and ((tLZData[M28Map.subrefLZOrWZMexCount] or 0) > 0 or iSignificantReclaimValue >= iReclaimWantedForTransportDrop) then iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis + 1 end
                         else
-                            if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) == 0 and ((tLZData[M28Map.subrefLZMexCount] or 0) > 0 or iSignificantReclaimValue >= iReclaimWantedForTransportDrop) then iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis + 1 end
+                            if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) == 0 and ((tLZData[M28Map.subrefLZOrWZMexCount] or 0) > 0 or iSignificantReclaimValue >= iReclaimWantedForTransportDrop) then iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis = iZonesWithMexesAndNoEnemyThreatOrFriendlyEngis + 1 end
                         end
                         if bTooMuchThreatOrEngisTraveling then break end
                     end
@@ -9277,7 +9277,7 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
                                 iMexMassInvestment = iMexMassInvestment + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iMexMassInvestment='..iMexMassInvestment..'; LZ mex count='..(tLZData[M28Map.subrefLZMexCount] or 'nil')..'; Count of enemy mex ignoring % complete='..table.getn(toEnemyMexCount)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iMexMassInvestment='..iMexMassInvestment..'; LZ mex count='..(tLZData[M28Map.subrefLZOrWZMexCount] or 'nil')..'; Count of enemy mex ignoring % complete='..table.getn(toEnemyMexCount)) end
                         if iMexMassInvestment >= 550 or (iMexMassInvestment >= 50 and not(tbPlayerBaseOnPlateau[iPlateau])) then
                             --Check whether its safe to travel here for each individual transport
                             --Ignore if 1 mex unless enemy has significant building mass value invested here and not dangerous
@@ -9341,8 +9341,8 @@ function UpdateActiveShortlistForCombatDrops(iTeam)
             if iCurPlateau and iCurLZ and iCurPlateau > 0 then
                 local tLZData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ]
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering the start for enemy '..oBrain.Nickname..' at P'..iCurPlateau..'Z'..iCurLZ..'; Transport unload count='..(tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 'nil')..'; tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; Best structure range='..tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Best mobile DF range='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Mex count='..tLZData[M28Map.subrefLZMexCount]..'; Time since last had visual='..(GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastHadVisual] or 0))..'; Air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
-                if (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) <= 1 and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0) <= 10 and tLZData[M28Map.subrefLZMexCount] >= 3 and GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastHadVisual] or 0) <= 300 and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering the start for enemy '..oBrain.Nickname..' at P'..iCurPlateau..'Z'..iCurLZ..'; Transport unload count='..(tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 'nil')..'; tLZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; Best structure range='..tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Best mobile DF range='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Mex count='..tLZData[M28Map.subrefLZOrWZMexCount]..'; Time since last had visual='..(GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastHadVisual] or 0))..'; Air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
+                if (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) <= 1 and tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iGroundAAThreshold and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0) <= 10 and tLZData[M28Map.subrefLZOrWZMexCount] >= 3 and GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastHadVisual] or 0) <= 300 and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 then
                     local iEnemyLandFactories = 0
                     local tEnemyLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefTEnemyUnits])
                     if M28Utilities.IsTableEmpty(tEnemyLandFactories) == false then
@@ -9414,10 +9414,10 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
                 if bDebugMessages == true then LOG(sFunctionRef..': About to consider all zones in plateau '..(tiPlateauAndIsland[1] or 'nil')..' to get the closest land zone adjusted for mexes, repru='..repru(M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauIslandLandZones][tiPlateauAndIsland[2]])) end
                 for iLZEntry, iLandZone in M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauIslandLandZones][tiPlateauAndIsland[2]] do
                     local tLZData = M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauLandZones][iLandZone]
-                    iCurAdjustedIslandMexValue = iCurAdjustedIslandMexValue + (tLZData[M28Map.subrefLZMexCount] or 0)
+                    iCurAdjustedIslandMexValue = iCurAdjustedIslandMexValue + (tLZData[M28Map.subrefLZOrWZMexCount] or 0)
                     --Only consider LZs with mexes so we land close to where we likely want to be
                     iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
-                    if tLZData[M28Map.subrefLZMexCount] > 0 then
+                    if tLZData[M28Map.subrefLZOrWZMexCount] > 0 then
                         if iCurDist < iClosestDist then
                             iClosestDist = iCurDist
                             iClosestLZ = iLandZone
@@ -9610,10 +9610,10 @@ function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
                 if not(bDontHaveLocationInPlayableArea) then
                     iCurModDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
                     if iCurModDist < 100 then iCurModDist = 100 - (100 - iCurModDist) * 0.1 end
-                    iCurModDist = iCurModDist / math.max(0.5, tLZData[M28Map.subrefLZMexCount])
+                    iCurModDist = iCurModDist / math.max(0.5, tLZData[M28Map.subrefLZOrWZMexCount])
                     --If we have already picked a location be more likely to stick with it
                     if tiPlateauAndZone[2] == oUnit[refiTargetZoneForDrop] and tiPlateauAndZone[1] == oUnit[refiTargetPlateauForDrop] then iCurModDist = iCurModDist - math.max(25, iCurModDist * 0.1) end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..tiPlateauAndZone[1]..'Z'..tiPlateauAndZone[2]..' with mod distance of '..iCurModDist..'; Actual dist='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; Mex count='..tLZData[M28Map.subrefLZMexCount]..'; iClosestModDist so far='..iClosestModDist) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..tiPlateauAndZone[1]..'Z'..tiPlateauAndZone[2]..' with mod distance of '..iCurModDist..'; Actual dist='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; Mex count='..tLZData[M28Map.subrefLZOrWZMexCount]..'; iClosestModDist so far='..iClosestModDist) end
                     if iCurModDist < iClosestModDist then
                         --Is it safe to travel here?
                         if bDebugMessages == true then LOG(sFunctionRef..': Time since last failed drop='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][tLZData[M28Map.subrefLZIslandRef]][tiPlateauAndZone[2]] or -300)) end
@@ -9672,7 +9672,7 @@ function GetCombatDropPlateauAndLandZoneEntryRefForTransport(iTeam, oUnit)
             local tCurLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]]
             iModDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tCurLZData[M28Map.subrefMidpoint])
             if tCurLZData[M28Map.refiTransportRecentUnloadCount] then iModDist = iModDist + 100 * (tCurLZData[M28Map.refiTransportRecentUnloadCount] - 1) end
-            if tCurLZData[M28Map.subrefLZMexCount] >= 4 then
+            if tCurLZData[M28Map.subrefLZOrWZMexCount] >= 4 then
                 iModDist = iModDist - 50
                 if tEnemyStartZonesByPlateau and tEnemyStartZonesByPlateau[tiPlateauAndZone[1]][tiPlateauAndZone[2]] and (tCurLZData[M28Map.refiTransportRecentUnloadCount] or 0) <= 1 then
                     iModDist = iModDist - 200
@@ -9736,8 +9736,8 @@ function GetWaterZoneForTransportToTravelTo(iTeam, oUnit)
                     if bDontHaveLocationInPlayableArea then bDontHaveLocationInPlayableArea = not(M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint])) end
                     if not(bDontHaveLocationInPlayableArea) then
                         --If there are mexes in this WZ, then only drop if there are unbuilt mexes in this zone (we might be dropping 0 mex WZ to build naval fac though)
-                        if bDebugMessages == true then LOG(sFunctionRef..': is table of unbuilt locations empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]))..'; subrefWZMexCount='..(tWZData[M28Map.subrefWZMexCount] or 0)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits]))) end
-                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false or ((tWZData[M28Map.subrefWZMexCount] or 0) == 0 and (M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits])))) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': is table of unbuilt locations empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]))..'; subrefLZOrWZMexCount='..(tWZData[M28Map.subrefLZOrWZMexCount] or 0)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits]))) end
+                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false or ((tWZData[M28Map.subrefLZOrWZMexCount] or 0) == 0 and (M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits])))) then
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZData[M28Map.subrefMidpoint])
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering water zone '..iWaterZone..' with distance of '..iCurDist) end
                             if iCurDist < iClosestDist then
@@ -10129,8 +10129,8 @@ function ManageTransports(iTeam, iAirSubteam)
                         if iPlateauToTravelTo and iLandZoneToTravelTo then
                             local tFarAwayLZData = M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
                             local tFarAwayLZTeamData = tFarAwayLZData[M28Map.subrefLZTeamData][iTeam]
-                            if bDebugMessages == true then LOG(sFunctionRef..': Far away zone mod dist='..tFarAwayLZTeamData[M28Map.refiModDistancePercent]..'; Mex count='..tFarAwayLZData[M28Map.subrefLZMexCount]) end
-                            if tFarAwayLZData[M28Map.subrefLZMexCount] >= 3 and  tFarAwayLZTeamData[M28Map.refiModDistancePercent] <= 0.55 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Far away zone mod dist='..tFarAwayLZTeamData[M28Map.refiModDistancePercent]..'; Mex count='..tFarAwayLZData[M28Map.subrefLZOrWZMexCount]) end
+                            if tFarAwayLZData[M28Map.subrefLZOrWZMexCount] >= 3 and  tFarAwayLZTeamData[M28Map.refiModDistancePercent] <= 0.55 then
                                 bUseFarAwayZoneInstead = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will use far away zone instead, P'..iPlateauToTravelTo..'Z'..iLandZoneToTravelTo) end
                             end
@@ -10354,18 +10354,18 @@ function ManageTransports(iTeam, iAirSubteam)
                         local tTargetLZData =  M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
                         local tLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
                         if bTravelToSameIsland and tLZTeamData then
-                            if not(tLZTeamData[M28Map.subrefLZCoreExpansion]) and (tLZOrWZData[M28Map.subrefLZMexCount] >= 3 or (M28Map.bIsCampaignMap and (M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) == false or M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false))) then
+                            if not(tLZTeamData[M28Map.subrefLZCoreExpansion]) and (tLZOrWZData[M28Map.subrefLZOrWZMexCount] >= 3 or (M28Map.bIsCampaignMap and (M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) == false or M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false))) then
                                 tLZTeamData[M28Map.subrefLZExpansionOverride] = true
                             end
                         end
 
                         --Also set expansion flag for 1-2 mex land zone locations where we are dropping engineers if not many mexes on map and it's not too close to enemy (so not just throwing away mass by trying to fortify more)
-                        if tLZTeamData and not(tLZTeamData[M28Map.subrefLZExpansionOverride]) and (tLZOrWZData[M28Map.subrefLZMexCount] or 0) >= 1 and tLZOrWZData[M28Map.refiModDistancePercent] <= 0.6 then
+                        if tLZTeamData and not(tLZTeamData[M28Map.subrefLZExpansionOverride]) and (tLZOrWZData[M28Map.subrefLZOrWZMexCount] or 0) >= 1 and tLZOrWZData[M28Map.refiModDistancePercent] <= 0.6 then
                             --Decide if we want to treat a low mex location as still valuable - consider for lowish mex maps
                             local iMapMexCount = table.getn(M28Map.tMassPoints)
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to also set expansion override for P'..iPlateauToTravelTo..'; iIslandToTravelTo='..iIslandToTravelTo..'; iLandZoneToTravelTo='..(iLandZoneToTravelTo or 'nil')..'; iMapMexCount='..iMapMexCount..'; Players at game tsart='..M28Team.iPlayersAtGameStart..'; Island mex count='..(M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 0)) end
                             if iMapMexCount / M28Team.iPlayersAtGameStart <= 13 then --13 or less mexes per player, so 2 mex islands will be of more value
-                                if (tLZOrWZData[M28Map.subrefLZMexCount] >= 2 or M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 0) >= 2 then
+                                if (tLZOrWZData[M28Map.subrefLZOrWZMexCount] >= 2 or M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 0) >= 2 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Setting expansion override flag to true') end
                                     tLZTeamData[M28Map.subrefLZExpansionOverride] = true
                                 end
