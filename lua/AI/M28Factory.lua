@@ -1253,11 +1253,24 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         LOG(sFunctionRef .. ': Considering if we want to ignore getting any MAA, tLZTeamData[M28Map.refiEnemyAirToGroundThreat]=' .. tLZTeamData[M28Map.refiEnemyAirToGroundThreat] .. '; Time since last had no MAA targets for this island=' .. GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoMAATargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] or -10) .. '; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]=' .. tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))
     end
     local iMinMAARatioFactor = 10
-    if iFactoryTechLevel == 1 then iMinMAARatioFactor = 20 end
+    if iFactoryTechLevel == 1 then
+        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] <= 200 and M28Map.iMapSize <= 500 then
+            iMinMAARatioFactor = 16
+        else
+            iMinMAARatioFactor = 12
+        end
+    end
+    if not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) and not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) then
+        if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] then
+            iMinMAARatioFactor = iMinMAARatioFactor * 0.5
+        else
+            iMinMAARatioFactor = iMinMAARatioFactor * 0.75
+        end
+    end
 
     if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] * iMinMAARatioFactor > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] then
-        if not(M28Team.tTeamData[iTeam][M28Team.refbEnemyEarlyT3AirSpottedRecently]) and (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 and (iFactoryTechLevel == 1 or (bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat])) and ((GetGameTimeSeconds() <= 600 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) or M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] * 0.7 > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]))) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Have enemies here or adjacent LZ or have enough MAA for enemy air ot ground threat, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; ') end
+        if not(M28Team.tTeamData[iTeam][M28Team.refbEnemyEarlyT3AirSpottedRecently]) and (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 and (iFactoryTechLevel == 1 and (iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] or M28Map.iMapSize <= 256 or (bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]))) and ((GetGameTimeSeconds() <= 480 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) or M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] * 0.5 > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]))) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have enemies here or adjacent LZ or have enough MAA for enemy air ot ground threat, iMinMAARatioFactor='..iMinMAARatioFactor..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; ') end
             bDontConsiderBuildingMAA = true
         elseif not(M28Team.tTeamData[iTeam][M28Team.refbEnemyEarlyT3AirSpottedRecently]) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoMAATargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] or -100) < 10 then
             if not (tLZTeamData[M28Map.subrefLZCoreExpansion]) then
