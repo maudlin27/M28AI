@@ -5322,8 +5322,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         local iBestValue = 0
                         for iEnemy, oEnemy in tBuildingsOfInterestInZone do
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oUnit:GetPosition())
-                            if iCurDist <= oUnit[M28UnitInfo.refiCombatRange] + 6 then
-                                iValueFactor = 1
+                            if iCurDist <= oUnit[M28UnitInfo.refiCombatRange] + 16 then
+                                if iCurDist <= oUnit[M28UnitInfo.refiCombatRange] + 6 then
+                                    iValueFactor = 1
+                                else
+                                    iValueFactor = iValueFactor * 0.2
+                                end
                                 --Adjust value based on category
                                 if EntityCategoryContains(categories.VOLATILE - M28UnitInfo.refCategoryT1Power, oEnemy.UnitId) then
                                     iValueFactor = 4
@@ -5350,6 +5354,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 if M28Utilities.IsTableEmpty(oEnemy[M28Building.reftoShieldsProvidingCoverage]) == false then
                                     iValueFactor = iValueFactor * 0.05
                                 end
+                                --Reduce value if owned by civilian
+                                if M28Conditions.IsCivilianBrain(oEnemy:GetAIBrain()) then iValueFactor = iValueFactor * 0.05 end
 
                                 iCurValue = iValueFactor * oEnemy:GetFractionComplete() * (oEnemy[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oEnemy))
                                 --Now figure out how quickly we can kill the unit, and adjust the value by that
