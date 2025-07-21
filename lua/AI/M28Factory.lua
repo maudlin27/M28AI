@@ -4563,10 +4563,11 @@ function SetPriorityPreferredUnitsByCategory(aiBrain)
             aiBrain[reftBlueprintPriorityOverride]['xss0303'] = -1
 
             --Prioritise penetration fighters in QUIET (v200 - disabled on understanding pen fighters have same physics as asfs such that M28 should be ok to build both interchangeably)
-            --[[aiBrain[reftBlueprintPriorityOverride]['sra0313'] = 1 --Cybran pen fighter
-            aiBrain[reftBlueprintPriorityOverride]['saa0313'] = 1 --Aeon pen fighter
-            aiBrain[reftBlueprintPriorityOverride]['sea0313'] = 1 --UEF pen fighter
-            aiBrain[reftBlueprintPriorityOverride]['ssa0313'] = 1 --Seraphim pen fighter--]]
+            --v249 - switched to deprioritise, as mass for mass penetration fighters are terrible and easily outclassed by asfs
+            aiBrain[reftBlueprintPriorityOverride]['sra0313'] = -1 --Cybran pen fighter
+            aiBrain[reftBlueprintPriorityOverride]['saa0313'] = -1 --Aeon pen fighter
+            aiBrain[reftBlueprintPriorityOverride]['sea0313'] = -1 --UEF pen fighter
+            aiBrain[reftBlueprintPriorityOverride]['ssa0313'] = -1 --Seraphim pen fighter
 
             --Prioritise normal bombers over pen bombers (we prioritise pen bombers once getting near unit cap); normal bombers likely better since dont have a salvo (which messes with M28 micro and causes bombers to overshoot target and die)
             if categories.saa0314 then
