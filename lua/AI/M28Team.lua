@@ -474,7 +474,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeTableRef='..sUpgradeTableRef..'; Is table of upgrading units empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[oUnitDoingUpgrade:GetAIBrain().M28Team][sUpgradeTableRef]))..'; iTableRefOfUnit if already in table='..(iTableRefOfUnit or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeTableRef='..sUpgradeTableRef..'; Is table of upgrading units empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[oUnitDoingUpgrade:GetAIBrain().M28Team][sUpgradeTableRef]))..'; iTableRefOfUnit if already in table='..(iTableRefOfUnit or 'nil')..'; oUnitDoingUpgrade='..oUnitDoingUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade)) end
     if iTableRefOfUnit then
         if bUnitDeadOrCompletedUpgrade then
             local iTeam = oUnitDoingUpgrade:GetAIBrain().M28Team
@@ -517,9 +517,12 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                 end
             end
             local iActiveMexUpgrades = 0
-            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+            if M28Conditions.IsTableOfUnitsStillValid(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) then
                 for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
-                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iActiveMexUpgrades = iActiveMexUpgrades + 1 end
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording we have an active mex upgrade, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Work progress='..oUnit:GetWorkProgress()..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
+                        iActiveMexUpgrades = iActiveMexUpgrades + 1
+                    end
                 end
             end
             if tLZOrWZTeamData then
@@ -546,7 +549,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
             table.insert(tTeamData[iTeam][sUpgradeTableRef], oUnitDoingUpgrade)
             if sUnitUpgradingRef then
                 local oNewUnitBP = __blueprints[sUnitUpgradingRef]
-                if bDebugMessages == true then LOG(sFunctionRef..': About to update the energy and mass upgrades started this cycle for the unti energy and amss costs. Mass upgrade before this='..tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to update the energy and mass upgrades started this cycle for the unti energy and amss costs. Mass upgrade before this='..(tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] or 'nil')) end
                 if oNewUnitBP then
                     local iOurBuildPower = oUnitDoingUpgrade:GetBlueprint().Economy.BuildRate
                     local iBuildCost = oNewUnitBP.Economy.BuildTime
@@ -556,7 +559,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                         tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] = (tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] or 0) + (oNewUnitBP.Economy.BuildCostMass or 0) * iResourceFactor
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Updated this cycle check, tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Updated this cycle check, tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]='..(tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] or 'nil')) end
             end
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitDoingUpgrade:GetPosition(), true, oUnitDoingUpgrade)
             local iWaterZone, iPond
@@ -591,7 +594,10 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                 table.insert(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades], oUnitDoingUpgrade)
                 local iActiveMexUpgrades = 0
                 for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
-                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iActiveMexUpgrades = iActiveMexUpgrades + 1 end
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                        iActiveMexUpgrades = iActiveMexUpgrades + 1
+                        if bDebugMessages == true then LOG(sFunctionRef..': Updating iActiveMexUpgrades for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Work progress='..oUnit:GetWorkProgress()..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
+                    end
                 end
                 tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] = iActiveMexUpgrades
                 if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to the upgrade table for the team '..iTeam..'; Plateau '..iPlateau..'; LZ='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]))..'; Reprs of tLZOrWZTeamData[activeupgrades]='..reprs(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades])) end

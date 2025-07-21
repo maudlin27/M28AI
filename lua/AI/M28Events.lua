@@ -2143,13 +2143,32 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                     end
                                 end
                             end
+                        elseif EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                             --ACU building t1 power far from base - flag that we dont want it assisted
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryT1Power, oConstruction.UnitId) and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
-                            local oEngineerBrain = oEngineer:GetAIBrain()
-                            if oEngineerBrain[M28Economy.refiGrossMassBaseIncome] >= 1.5 then
-                                local tEngineerLZData = M28Map.GetLandOrWaterZoneData(oConstruction:GetPosition())
-                                if M28Utilities.GetDistanceBetweenPositions(tEngineerLZData[M28Map.subrefMidpoint], oEngineer:GetPosition()) >= 25 then
-                                    oConstruction[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction] = true
+                            if EntityCategoryContains(M28UnitInfo.refCategoryT1Power, oConstruction.UnitId) then
+                                local oEngineerBrain = oEngineer:GetAIBrain()
+                                if oEngineerBrain[M28Economy.refiGrossMassBaseIncome] >= 1.5 then
+                                    local tEngineerLZData = M28Map.GetLandOrWaterZoneData(oConstruction:GetPosition())
+                                    if M28Utilities.GetDistanceBetweenPositions(tEngineerLZData[M28Map.subrefMidpoint], oEngineer:GetPosition()) >= 25 then
+                                        oConstruction[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction] = true
+                                    end
+                                end
+                                --ACU building factory - if we have an engineer queued to build a factory in the same zone that hasnt started yet, and it is relatively early on, then clear that engineer's orders
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oConstruction.UnitId) and oConstruction:GetAIBrain():GetEconomyStoredRatio('MASS') <= 0.9 then
+                                local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oConstruction:GetPosition(), true, oEngineer:GetAIBrain().M28Team)
+                                if tLZOrWZTeamData and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                    local toEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                    if M28Utilities.IsTableEmpty(toEngineersInZone) == false then
+                                        for iEngi, oEngi in toEngineersInZone do
+                                            if not(oEngi.Dead) and (oEngi[M28Engineer.refiAssignedAction] == M28Engineer.refActionBuildLandFactory or oEngi[M28Engineer.refiAssignedAction] == M28Engineer.refActionBuildAirFactory or oEngi[M28Engineer.refiAssignedAction] == M28Engineer.refActionBuildNavalFactory) then
+                                                --Clear queued engineers
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Will clear engineers trying to build factory that havent started construction yet, oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; Work progress='..oEngi:GetWorkProgress()) end
+                                                if oEngi:GetWorkProgress() == 0 and not(oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subrefoOrderUnitTarget] == oConstruction) and not(oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subrefoOrderUnitTarget] == oEngineer) then
+                                                    M28Orders.IssueTrackedClearCommands(oEngi)
+                                                end
+                                            end
+                                        end
+                                    end
                                 end
                             end
                         end

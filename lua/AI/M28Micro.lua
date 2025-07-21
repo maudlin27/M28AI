@@ -2414,7 +2414,7 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'T1OrT3HoverBombTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber) == 'xsa01031' then bDebugMessages = true end
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; bDontAdjustMicroFlag='..tostring(bDontAdjustMicroFlag or false)..'; bContinueAttackingUntilTargetDead='..tostring(bContinueAttackingUntilTargetDead or false)..'; bAbortForGroundAAUnlessTargetIsEngineer='..tostring(bAbortForGroundAAUnlessTargetIsEngineer or false)..'; refbSpecialMicroActive='..tostring((oBomber[M28UnitInfo.refbSpecialMicroActive] or false))..'; GameTime='..GetGameTimeSeconds()) end
     if M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) and (not(oBomber[M28UnitInfo.refbSpecialMicroActive]) or oBomber[M28UnitInfo.refbLowerPriorityMicroActive]) then
         local iStartTime = GetGameTimeSeconds()

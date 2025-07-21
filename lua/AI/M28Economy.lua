@@ -3317,12 +3317,13 @@ end
 
 function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
     --Idea - if we have just completed a mex upgrade in a zone, then look to immediately start upgrading another mex (since the one we just built should be able to help fund it); this is separate to logic considering future upgrade which is intended for the mex that has just been built to then upgrade to a higher tier after a period of time
+    --oOptionalEngineer - if specified then will wait 1 tick to allow active upgrades to refresh
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderUpgradingMexDueToCompletion'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28UnitInfo.IsUnitValid(oJustBuilt) then --needed as might call this via a delay now
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Owner='..oJustBuilt:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+    if M28UnitInfo.IsUnitValid(oJustBuilt) then --needed as might call this via a delay now
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Owner='..oJustBuilt:GetAIBrain().Nickname..'; oOptionalEngineer='..(oOptionalEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalEngineer) or 'nil')..'; Time='..GetGameTimeSeconds()) end
         if not(EntityCategoryContains(categories.TECH1, oJustBuilt.UnitId)) then
             local aiBrain = oJustBuilt:GetAIBrain()
             local iTeam = aiBrain.M28Team
@@ -3331,6 +3332,37 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
             if bDebugMessages == true then LOG(sFunctionRef..': Is team stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Prioritise production for land team='..tostring(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refbPrioritiseProduction] or false)..'; Team low on mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))) end
             if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) or (iMexTechLevel >= 3 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95) then
                 local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
+                --Wait 1 tick if oOptionalEngineer is set and we might be on last upgrade in zone, to make sure our tracking of active upgrades is updated
+                if oOptionalEngineer and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] == 1 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTechLevel] < tLZOrWZData[M28Map.subrefLZMexCount] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Waiting 1 sec so our upgrade count can update, tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]='..tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]..'; will first try updating upgrade tracking') end
+                    local oMexUpgradingToThis
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oOptionalEngineer.UnitId) then
+                        oMexUpgradingToThis = oOptionalEngineer
+                    elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
+                        for iMex, oMex in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes] do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if upgrading team mex is owned by this brain and couldve upgraded to this unit, oMex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; Assigned zone='..oMex[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]..'; Unit state='..M28UnitInfo.GetUnitState(oMex)..'; .Dead='..tostring(oMex.Dead or false)..'; Work progress='..oMex:GetWorkProgress()) end
+                            if oMex:GetAIBrain() == aiBrain and M28UnitInfo.GetUnitTechLevel(oMex) == iMexTechLevel - 1 and oMex:GetBlueprint().General.UpgradesTo == oJustBuilt.UnitId and oMex.GetFocusUnit then
+                                local oFocusUnit = oMex:GetFocusUnit()
+                                if bDebugMessages == true then LOG(sFunctionRef..': Satisfies most conditions, oFocusUnit='..(oFocusUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocusUnit) or 'nil')) end
+                                if oFocusUnit == oJustBuilt then
+                                    oMexUpgradingToThis = oMex
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': oMexUpgradingToThis='..(oMexUpgradingToThis.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oMexUpgradingToThis) or 'nil')) end
+                    if oMexUpgradingToThis then
+                        M28Team.UpdateUpgradeTrackingOfUnit(oMexUpgradingToThis, true, oJustBuilt.UnitId)
+                        if bDebugMessages == true then LOG(sFunctionRef..': subrefiActiveMexUpgrades after update='..tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]) end
+                    end
+                    if tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] == 1 then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(10)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting 1 sec, tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]='..tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]) end
+                    end
+                end
                 if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refbPrioritiseProduction] and M28Conditions.TeamHasLowMass(iTeam) and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or ((tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTechLevel - 1] or 0) == 0) and not(M28Utilities.bQuietModActive)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Will call this function again in a while as we want to prioritise production at the moment') end
                     ForkThread(M28Utilities.DelayedFunction, 60, ConsiderUpgradingMexDueToCompletion, {oJustBuilt})
@@ -3358,7 +3390,9 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                                     if M28Utilities.bQuietModActive then
                                         if iMexTechLevel <= 2 then
                                             iMexCategory = M28UnitInfo.refCategoryT1Mex
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will look for T1 mexes') end
                                             if tbQuietT25MexUnitIds[oJustBuilt.UnitId] then
+                                                if bDebugMessages == true then LOG(sFUnctionRef..': This is a T2.5 mex so including T2 mexes in mexes to consider upgrading') end
                                                 iMexCategory = iMexCategory + M28UnitInfo.refCategoryT2Mex
                                                 for sTech25, _ in tbQuietT25MexUnitIds do
                                                     iMexCategory = iMexCategory - categories[sTech25]
@@ -3376,13 +3410,26 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                                             end
                                         end
                                     else
-                                        if iMexTechLevel <= 2 then iMexCategory = M28UnitInfo.refCategoryT1Mex --i.e. if we have just upgraded a t1 mex to t2, then we want to look for other t1 mexes in the zone to upgrade
+                                        if iMexTechLevel <= 2 then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will look for T1 mexes') end
+                                            iMexCategory = M28UnitInfo.refCategoryT1Mex --i.e. if we have just upgraded a t1 mex to t2, then we want to look for other t1 mexes in the zone to upgrade
                                         else iMexCategory = M28UnitInfo.refCategoryMex
                                         end
                                     end
 
                                     local tMexOfCategory = EntityCategoryFilterDown(iMexCategory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     local bAlreadyUpgraded = false
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have other mexes that could upgrade to same tech level, is tMexOfCategory empty='..tostring(M28Utilities.IsTableEmpty(tMexOfCategory))..'; subrefiActiveMexUpgrades='..(tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0)) end
+                                    --If we have mexes of category check none are upgrading
+                                    if M28Utilities.IsTableEmpty(tMexOfCategory) == false then
+                                        for iCurMex = table.getn(tMexOfCategory), 1, -1 do
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering mex='..tMexOfCategory[iCurMex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tMexOfCategory[iCurMex])..'; Work progress='..tMexOfCategory[iCurMex]:GetWorkProgress()..'; Fraction complete='..tMexOfCategory[iCurMex]:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(tMexOfCategory[iCurMex])) end
+                                            if tMexOfCategory[iCurMex]:GetWorkProgress() >= 0.05 or tMexOfCategory[iCurMex] == oOptionalEngineer then
+                                                table.remove(tMexOfCategory, iCurMex)
+                                            end
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is tMexOfCategory empty after removing near-complete ones='..tostring(M28Utilities.IsTableEmpty(tMexOfCategory))) end
                                     if M28Utilities.IsTableEmpty(tMexOfCategory) then
                                         --if have no active upgrades in this zone, then consider searching adjacent land/water zones if they are <35% mod dist; if no mexes after this, and we are at T1-T2, then consider going to T3
                                         if (tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) == 0 then
