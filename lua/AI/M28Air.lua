@@ -74,6 +74,7 @@ iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to conside
     refiExpBomberShotCount = 'M28ExpBCn' --If using our aoe to ground fire mobile AA targets, then we should track the exp bomber target, and then increase this count by 1 so we dont continue to try if the unit survived the first attempt
     refbExpBomberRecentlyTriedFiringAtRange = 'M28ExpBFnR' --true if bomber has tried to fire at range instead of turning around
     refiProjectileHealthOverridePercent = 'M28PjHRn' --% health to run on - if want to override the global value (e.g. for t1-t2 gunships)
+    refbDisableAirAAAttackMicro = 'M28DsAAM' --Disables airaa 'move and hover-move to attack' logic and instead just attack moves - e.g. for penetration fighters
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -3115,6 +3116,9 @@ function TargetUnitWithAirAA(oAirAA, oEnemyUnit, iOptionalClosestDist)
         elseif oEnemyUnit:GetCurrentLayer() == 'Land' or oEnemyUnit:GetPosition()[2] - GetSurfaceHeight(oEnemyUnit:GetPosition()[1], oEnemyUnit:GetPosition()[3]) <= 5 then
             M28Orders.IssueTrackedAttack(oAirAA, oEnemyUnit, false, 'AAGrnd', false)
             if bDebugMessages == true then LOG(sFunctionRef..': issued attack on grounded unit') end
+            --Penetration fighters
+        elseif oAirAA[refbDisableAirAAAttackMicro] then
+            M28Orders.IssueTrackedAggressiveMove(oAirAA, oEnemyUnit:GetPosition(), 5, false, 'AAAtM', false)
         else
             local bInterceptingDestination = false
             local iOurSpeed = (oAirAA:GetBlueprint().Air.MaxAirspeed or 0)

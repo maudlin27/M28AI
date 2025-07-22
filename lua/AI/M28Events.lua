@@ -3398,6 +3398,11 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             end
                         end
 
+                        --Penetration fighters - disable airaa micro
+                        if oUnit.UnitId == 'uea0303' or oUnit.UnitId == 'ura0303' or oUnit.UnitId == 'uaa0303' or oUnit.UnitId == 'xsa0303' then
+                            oUnit[M28Air.refbDisableAirAAAttackMicro] = true
+                        end
+
                         --Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
                         --First handle units that are important enough we have logic for while they are part-constructed
                         if oUnit:GetFractionComplete() >= 0.1 and not(oUnit[M28UnitInfo.refbConstructionStart]) and EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
