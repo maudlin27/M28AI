@@ -7601,7 +7601,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 end
                                                 if bHaveLRUnit then
                                                     for iAdjUnit, oAdjUnit in tAdjLZTeamData[M28Map.subrefLZTAlliedCombatUnits] do
-                                                        if oAdjUnit[M28UnitInfo.refiDFRange] and oAdjUnit[M28UnitInfo.refiDFRange] > iAdjacentRangeThreshold and not(oAdjUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone) and not(oAdjUnit.IsDead) then
+                                                        if oAdjUnit[M28UnitInfo.refiDFRange] and oAdjUnit[M28UnitInfo.refiDFRange] > iAdjacentRangeThreshold and not(oAdjUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone) and not(oAdjUnit.Dead) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Adding unit in adjacent zone to units to support, oAdjUnit='..oAdjUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAdjUnit)..' with range='..oAdjUnit[M28UnitInfo.refiDFRange]) end
                                                             table.insert(tUnitsToSupport, oAdjUnit)
                                                         end
