@@ -3636,20 +3636,20 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             if bDebugMessages == true then LOG(sFunctionRef..': Is this an external factory='..tostring(EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oUnit.UnitId))..'; Is this an aircraft factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oUnit.UnitId))..'; Is it a special factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySpecialFactory, oUnit.UnitId))) end
                         if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory + categories.EXTERNALFACTORYUNIT, oUnit.UnitId) then
                         --If have been gifted factory or created via cheat then want to start building something
-                        oUnit[M28Factory.refiTotalBuildCount] = 0
-                        if oUnit:GetFractionComplete() >= 1 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Calling logic to try and build something from this factory') end
-                        ForkThread(M28Factory.DecideAndBuildUnitForFactory, oUnit:GetAIBrain(), oUnit)
-                        end
+                            oUnit[M28Factory.refiTotalBuildCount] = 0
+                            if oUnit:GetFractionComplete() >= 1 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Calling logic to try and build something from this factory') end
+                                ForkThread(M28Factory.DecideAndBuildUnitForFactory, oUnit:GetAIBrain(), oUnit)
+                            end
                         end
                         --Check unit cap
                         if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have too many units, expected remaining cap='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 0)) end
                         if (aiBrain[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will check the unit cap') end
-                        M28Overseer.CheckUnitCap(aiBrain)
-                            else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will check the unit cap') end
+                            M28Overseer.CheckUnitCap(aiBrain)
+                        else
                             aiBrain[M28Overseer.refiExpectedRemainingCap] = aiBrain[M28Overseer.refiExpectedRemainingCap] - 1
-                            end
+                        end
                     elseif M28Orders.bDontConsiderCombinedArmy and ScenarioInfo.Options.M28CombinedArmy == 2 then --Non-M28AI brain, but combined armies is disabled with UI button still to be shown (so people aware of hte option), so flag so the button gets shown
                         oUnit:UpdateStat('M28CombinedArmiesShowUI', 1)
                     end
