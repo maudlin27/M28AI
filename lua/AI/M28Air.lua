@@ -3118,7 +3118,7 @@ function TargetUnitWithAirAA(oAirAA, oEnemyUnit, iOptionalClosestDist)
             if bDebugMessages == true then LOG(sFunctionRef..': issued attack on grounded unit') end
             --Penetration fighters
         elseif oAirAA[refbDisableAirAAAttackMicro] then
-            M28Orders.IssueTrackedAggressiveMove(oAirAA, oEnemyUnit:GetPosition(), 5, false, 'AAAtM', false)
+            M28Orders.IssueTrackedAggressiveMove(oAirAA, oEnemyUnit:GetPosition(), 10, false, 'AAAtM', false)
         else
             local bInterceptingDestination = false
             local iOurSpeed = (oAirAA:GetBlueprint().Air.MaxAirspeed or 0)
