@@ -6875,7 +6875,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             iBSWantedAdjust = math.min(4, iBSWantedAdjust - 1)
         end
         if aiBrain[M28Economy.refiGrossMassBaseIncome] <= 200 then --Limit battleships based on pond value
-            iBSWantedAdjust = math.min(iBSWantedAdjust, math.max(-1, M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] * 0.25 - 3))
+            iBSWantedAdjust = math.min(iBSWantedAdjust, math.max(-1, (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) * 0.25 - 3))
         end
         if 4 + iBSWantedAdjust < aiBrain[M28Economy.refiGrossMassBaseIncome] then  iBSWantedAdjust = iBSWantedAdjust + 1 end
         if bDebugMessages == true then LOG(sFunctionRef..': bAboutToOverflowMass='..tostring(bAboutToOverflowMass)..'; iPondSize='..iPondSize..'; iCurBattleships='..iCurBattleships..'; iBSWantedAdjust='..iBSWantedAdjust..'; bHaveLowMass='..tostring(bHaveLowMass)..'; M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]]='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')) end
