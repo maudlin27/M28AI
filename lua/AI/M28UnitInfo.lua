@@ -1220,7 +1220,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         if bIncludeAirTorpedo == true and EntityCategoryContains(refCategoryAntiNavy, sCurUnitBP) == true then iMassMod = 1 end
                         if bDebugMessages == true then LOG(sFunctionRef..': bIncludeAirTorpedo='..tostring(bIncludeAirTorpedo)..'; iMassMod='..iMassMod) end
 
-                        if bIncludeAirToAir == true and iMassMod < 1 then
+                        if bIncludeAirToAir == true and iMassMod < 1 then --iMassMod is only set for certain specified units above, i.e. if <1 then we havent considered it yet
                             if bDebugMessages == true then LOG(sFunctionRef..': bIncludeAirToAir='..tostring(bIncludeAirToAir)..'; iMassMod='..iMassMod..'; does BP contain airaa category='..tostring(EntityCategoryContains(categories.ANTIAIR * categories.AIR, sCurUnitBP))) end
                             if EntityCategoryContains(categories.ANTIAIR * categories.AIR, sCurUnitBP) == true then
                                 iMassMod = 1
@@ -1236,6 +1236,9 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     --LOUD (and QUIET) - asfs are much worse mass for mass than inties (need 2:1 mass advantage to roughly break even) and t2 fighters (need 1.5:1 mass advantage to roughly break even)
                                     if EntityCategoryContains(categories.TECH1, sCurUnitBP) then iMassMod = 2
                                     elseif EntityCategoryContains(categories.TECH2, sCurUnitBP) then iMassMod = 1.5
+                                    --QUIET - pen fighters - when tried 1/3 more mass in asfs vs pen fighters the asfs comfortably won in sandbox; wont reduce further though as players might be better at microing them
+                                    elseif EntityCategoryContains(categories.TECH3, sCurUnitBP) and (sCurUnitBP == 'saa0313' or sCurUnitBP == 'sea0313' or sCurUnitBP == 'sra0313' or sCurUnitBP == 'ssa0313') then
+                                        iMassMod = 0.7
                                     end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': sCurUnitBP='..sCurUnitBP..': Mass mod after checking AirAA value='..iMassMod) end
