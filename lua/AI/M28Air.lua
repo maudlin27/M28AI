@@ -972,7 +972,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                 M28Orders.UpdateRecordedOrders(oUnit)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have bomber or torp bomber with valid last attack target that is relatively nearby, dist to target='..M28Utilities.GetDistanceBetweenPositions( tLastOrder[M28Orders.subreftOrderPosition], oUnit:GetPosition())..'; angle to target='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(),  tLastOrder[M28Orders.subreftOrderPosition])..'; Unit facing direction='..M28UnitInfo.GetUnitFacingAngle(oUnit)..'; Speed='..M28UnitInfo.GetUnitSpeed(oUnit)..'; Time since last fired bomb='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastBombFired] or 0)..'; refiTimeBetweenBombs='..(oUnit[M28UnitInfo.refiTimeBetweenBombs] or 'nil')) end
                                 --Ahwassa - had a rare issue where given a target that is outside its range, it flies straight towards it and never drops its bomb; based on logs of the distance it is when at full speed and the typical speed per the (unreliable) getunitspeed function, the below should hopefully catch cases where it isn't firing early enough that it is of some benefit, without badly affecting too many normal cases and causing the bomb to not fire due to the redndancy
-                                if oUnit.UnitId == 'xsa0402' and oUnit[M28UnitInfo.refiBomberRange] >= 80 and M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition]) <= 64 and M28UnitInfo.GetUnitSpeed(oUnit) >= 17.5 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastBombFired] or 0) > oUnit[M28UnitInfo.refiTimeBetweenBombs] + 2 then
+                                if oUnit.UnitId == 'xsa0402' and (oUnit[M28UnitInfo.refiBomberRange] or 0) >= 80 and M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition]) <= 64 and M28UnitInfo.GetUnitSpeed(oUnit) >= 17.5 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastBombFired] or 0) > oUnit[M28UnitInfo.refiTimeBetweenBombs] + 2 then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Doesnt look like ahwassa is going to drop its bomb so will treat sa available again') end
                                     table.insert(tAvailableUnits, oUnit)
                                     --Strats - if are close to the enemy target and havent fired then assume terrain prevented us
@@ -4929,7 +4929,7 @@ function EnemyBaseEarlyBomber(oBomber)
                         local bAttackExistingTarget = false
                         if M28UnitInfo.IsUnitValid(oExistingValidAttackTarget) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Dist to existing target='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oExistingValidAttackTarget)..'; Bomber range='..(oBomber[M28UnitInfo.refiBomberRange] or 'nil')..'; Bomb missed count='..(oExistingValidAttackTarget[M28UnitInfo.refiBombMissedCount] or 'nil')) end
-                            if M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oExistingValidAttackTarget) <= 20 + oBomber[M28UnitInfo.refiBomberRange] and (oExistingValidAttackTarget[M28UnitInfo.refiBombMissedCount] or 0) <= 1 then
+                            if M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oExistingValidAttackTarget) <= 20 + (oBomber[M28UnitInfo.refiBomberRange] or 30) and (oExistingValidAttackTarget[M28UnitInfo.refiBombMissedCount] or 0) <= 1 then
                                 bAttackExistingTarget = true
                                 AssignTorpOrBomberTargets({ oBomber}, { oExistingValidAttackTarget }, iAirSubteam, false, false, true)
                                 if bDebugMessages == true then LOG(sFunctionRef..': will keep attacking existing target') end
@@ -5259,7 +5259,7 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                             if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())..'; Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oBomber)..'; Angle to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())..'; oBomber[refiTimeBetweenBombs]='..(oBomber[M28UnitInfo.refiTimeBetweenBombs] or 'nil')..'; Bomber range='..oBomber[M28UnitInfo.refiBomberRange]..'; Bomber speed='..M28UnitInfo.GetUnitSpeed(oBomber)..'; iTimeUntilReadyToFire='..iTimeUntilReadyToFire) end
 
                             --If we have recently fired and enemy is close then hover-bomb
-                            if iDistToTarget <= oBomber[M28UnitInfo.refiBomberRange] + 10 and iTimeUntilReadyToFire >= 2 and oBestEnemyTarget:GetHealth() <= 250 and not(oBomber[M28UnitInfo.refbEasyBrain]) then
+                            if iDistToTarget <= (oBomber[M28UnitInfo.refiBomberRange] or 30) + 10 and iTimeUntilReadyToFire >= 2 and oBestEnemyTarget:GetHealth() <= 250 and not(oBomber[M28UnitInfo.refbEasyBrain]) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Bomber recently fired and isnt able to fire again for a few seconds so will hoverbomb to attack '..oBestEnemyTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestEnemyTarget)) end
                                 ForkThread(M28Micro.T1OrT3HoverBombTarget, oBomber, oBestEnemyTarget, false, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) or oBestEnemyTarget:GetFractionComplete() < 1), false)
                                 tEnemyTargets = nil
@@ -11702,7 +11702,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         if bDebugMessages == true then LOG(sFunctionRef..': iBomberAngle='..iBomberAngle..'; iAngleToRally='..iAngleToRally..'; AngleDif='..M28Utilities.GetAngleDifference(iBomberAngle, iAngleToRally)..'; Bomber range='..oBomber[M28UnitInfo.refiBomberRange]..'; Bomber speed='..M28UnitInfo.GetUnitSpeed(oBomber)) end
                         if M28Utilities.GetAngleDifference(iBomberAngle, iAngleToRally) >= 90 then
                             --NOTE: Doing some basic logging of distance of bomb target vs bomber speed, out of 16 bombs dropped by an ahwassa with speed ranging from 8-24, in 1 case the distance was more than the bomber range; hence will try just doing at bomber range
-                            local tPotentialTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iBomberAngle, oBomber[M28UnitInfo.refiBomberRange] - 1, true, false, M28Map.bIsCampaignMap)
+                            local tPotentialTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iBomberAngle, (oBomber[M28UnitInfo.refiBomberRange] or 30) - 1, true, false, M28Map.bIsCampaignMap)
                             if tPotentialTarget then
                                 local iTargetDamage = M28Logic.GetDamageFromBomb(aiBrain, tPotentialTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true,                   4,                          M28UnitInfo.refCategoryGroundAA,        nil,                nil,                0.5)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering firing our bomb at our range, iTargetDamage='..iTargetDamage) end
@@ -11798,7 +11798,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                             if iCurDist <= oBomber[M28UnitInfo.refiBomberRange] then
                                                 tEstFiringPosition = oBomber:GetPosition()
                                             else
-                                                tEstFiringPosition = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oUnit:GetPosition()), iCurDist - oBomber[M28UnitInfo.refiBomberRange])
+                                                tEstFiringPosition = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oUnit:GetPosition()), iCurDist - (oBomber[M28UnitInfo.refiBomberRange] or 30))
                                                 tEstFiringPosition[2] = oBomber:GetPosition()[2]
                                             end
                                             if M28Logic.IsLineBlocked(aiBrain, tEstFiringPosition, oUnit:GetPosition(), iAOE) then
@@ -11894,7 +11894,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             end
                             if not(bGivenOrderAlready) then
                                 --Just fire the bomb if it will do some damage; otherwise abort
-                                local tFiringAtBomberRange = M28Utilities.MoveInDirection(oBomber:GetPosition(), iBomberFacingAngle, oBomber[M28UnitInfo.refiBomberRange] - 0.5, true)
+                                local tFiringAtBomberRange = M28Utilities.MoveInDirection(oBomber:GetPosition(), iBomberFacingAngle, (oBomber[M28UnitInfo.refiBomberRange] or 30) - 0.5, true)
                                 if tFiringAtBomberRange then
                                     --Get damage, assuming we ignore any shields (by treating damage as 100k)
                                     --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor, bCheckIfUnderwater)
@@ -11987,7 +11987,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                             if iDistToTarget <= oBomber[M28UnitInfo.refiBomberRange] then
                                                 tEstFiringPosition = oBomber:GetPosition()
                                             else
-                                                tEstFiringPosition = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tTarget), iDistToTarget - oBomber[M28UnitInfo.refiBomberRange])
+                                                tEstFiringPosition = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tTarget), iDistToTarget - (oBomber[M28UnitInfo.refiBomberRange] or 30))
                                                 tEstFiringPosition[2] = oBomber:GetPosition()[2]
                                             end
                                             if M28Logic.IsLineBlocked(aiBrain, tEstFiringPosition, tTarget, iAOE) then
@@ -13097,7 +13097,7 @@ function ApplyMexHuntingLogicToBomber(oBomber)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and hoverbomb') end
                                 ForkThread(M28Micro.T1OrT3HoverBombTarget, oBomber, oBomber[refoStrikeDamageAssigned], false, true, false, true)
                                 --Not recently fired, and want to turn:
-                            elseif (((iAngleDif >= 45 and iDistToTarget <= 200) or (iDistToTarget <= oBomber[M28UnitInfo.refiBomberRange] * 0.4)) and GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) >= 1)
+                            elseif (((iAngleDif >= 45 and iDistToTarget <= 200) or (iDistToTarget <= (oBomber[M28UnitInfo.refiBomberRange] or 30) * 0.4)) and GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) >= 1)
                                     --However, if we are facing almost the opposite direction we dont want to turn until there is enough distance that we will be able to fire a bomb when we turn
                                     and (iAngleDif <= 60 or iDistToTarget >= 20)
                             then
