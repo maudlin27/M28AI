@@ -99,6 +99,12 @@ function AddReprCommands()
     end
 end
 
+function DelayedArmyChangeForPings()
+    WaitSeconds(0.5) --just in case some LOUD stuff hasnt loaded yet
+    local SimPing = import('/lua/SimPing.lua')
+    SimPing.OnArmyChange()
+end
+
 function UpdateOtherLOUDInformation()
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateOtherLOUDInformation'
@@ -134,6 +140,25 @@ function UpdateOtherLOUDInformation()
         end
 
         if not(ScenarioInfo.Options.Share) then ScenarioInfo.Options.Share = 'None' end
+
+        if not(ScenarioInfo.MaxMapDimension) then ScenarioInfo.MaxMapDimension = math.max(ScenarioInfo.size[1],ScenarioInfo.size[2]) end
+        if not(ScenarioInfo.IMAPSize) then
+            if ScenarioInfo.MaxMapDimension <= 512 then
+                ScenarioInfo.IntelResolution = 22.5
+                ScenarioInfo.IMAPSize = 32
+            elseif ScenarioInfo.MaxMapDimension == 1024 then
+                ScenarioInfo.IntelResolution = 45.0
+                ScenarioInfo.IMAPSize = 64
+            elseif ScenarioInfo.MaxMapDimension == 2048 then
+                ScenarioInfo.IntelResolution = 89.5
+                ScenarioInfo.IMAPSize = 128
+            else
+                ScenarioInfo.IntelResolution = 180.0
+                ScenarioInfo.IMAPSize = 256
+            end
+        end
+        ForkThread(DelayedArmyChangeForPings)
+
         if bDebugMessages == true then LOG(sFunctionRef..': M28CombinedArmy='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')) end
     end
 
