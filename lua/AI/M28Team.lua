@@ -474,7 +474,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeTableRef='..sUpgradeTableRef..'; Is table of upgrading units empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[oUnitDoingUpgrade:GetAIBrain().M28Team][sUpgradeTableRef]))..'; iTableRefOfUnit if already in table='..(iTableRefOfUnit or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeTableRef='..sUpgradeTableRef..'; Is table of upgrading units empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[oUnitDoingUpgrade:GetAIBrain().M28Team][sUpgradeTableRef]))..'; iTableRefOfUnit if already in table='..(iTableRefOfUnit or 'nil')..'; oUnitDoingUpgrade='..oUnitDoingUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade)) end
     if iTableRefOfUnit then
         if bUnitDeadOrCompletedUpgrade then
             local iTeam = oUnitDoingUpgrade:GetAIBrain().M28Team
@@ -517,9 +517,12 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                 end
             end
             local iActiveMexUpgrades = 0
-            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+            if M28Conditions.IsTableOfUnitsStillValid(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) then
                 for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
-                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iActiveMexUpgrades = iActiveMexUpgrades + 1 end
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording we have an active mex upgrade, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Work progress='..oUnit:GetWorkProgress()..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
+                        iActiveMexUpgrades = iActiveMexUpgrades + 1
+                    end
                 end
             end
             if tLZOrWZTeamData then
@@ -546,7 +549,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
             table.insert(tTeamData[iTeam][sUpgradeTableRef], oUnitDoingUpgrade)
             if sUnitUpgradingRef then
                 local oNewUnitBP = __blueprints[sUnitUpgradingRef]
-                if bDebugMessages == true then LOG(sFunctionRef..': About to update the energy and mass upgrades started this cycle for the unti energy and amss costs. Mass upgrade before this='..tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to update the energy and mass upgrades started this cycle for the unti energy and amss costs. Mass upgrade before this='..(tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] or 'nil')) end
                 if oNewUnitBP then
                     local iOurBuildPower = oUnitDoingUpgrade:GetBlueprint().Economy.BuildRate
                     local iBuildCost = oNewUnitBP.Economy.BuildTime
@@ -556,7 +559,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                         tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] = (tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] or 0) + (oNewUnitBP.Economy.BuildCostMass or 0) * iResourceFactor
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Updated this cycle check, tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Updated this cycle check, tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]='..(tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] or 'nil')) end
             end
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitDoingUpgrade:GetPosition(), true, oUnitDoingUpgrade)
             local iWaterZone, iPond
@@ -591,7 +594,10 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                 table.insert(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades], oUnitDoingUpgrade)
                 local iActiveMexUpgrades = 0
                 for iUnit, oUnit in tLZOrWZTeamData[M28Map.subreftoActiveUpgrades] do
-                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iActiveMexUpgrades = iActiveMexUpgrades + 1 end
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                        iActiveMexUpgrades = iActiveMexUpgrades + 1
+                        if bDebugMessages == true then LOG(sFunctionRef..': Updating iActiveMexUpgrades for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Work progress='..oUnit:GetWorkProgress()..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
+                    end
                 end
                 tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] = iActiveMexUpgrades
                 if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to the upgrade table for the team '..iTeam..'; Plateau '..iPlateau..'; LZ='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]))..'; Reprs of tLZOrWZTeamData[activeupgrades]='..reprs(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades])) end
@@ -779,7 +785,7 @@ function CreateNewTeam(aiBrain)
                         end
                         bHaveM28BrainInTeam = true
                         --Check if we have omni vision for the team
-                        if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
+                        if M28Conditions.DoesBrainHaveOmniVision(oBrain) then
                             tTeamData[iTotalTeamCount][subrefbTeamHasOmniVision] = true
                         end
                         --Record brain details in log for ease of reference
@@ -2860,7 +2866,7 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                                 if tBrainStartZoneTeamData then
                                     local bHaveActiveAirUpgrade = DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to ignore this brain, tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition]='..tostring(tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition])..'; bHaveActiveAirUpgrade='..tostring(bHaveActiveAirUpgrade)..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]..'; oBrain[M28Economy.refiOurHighestAirFactoryTech]='..oBrain[M28Economy.refiOurHighestAirFactoryTech]..'; tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3]='..tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3]..'; Brain mass%='..oBrain:GetEconomyStoredRatio('MASS')) end
-                                    if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and (bHaveActiveAirUpgrade or (GetGameTimeSeconds() <= 1200 and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= oBrain[M28Economy.refiOurHighestAirFactoryTech]) or (oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, tBrainStartZoneData[M28Map.subrefLZMexCount]))) then
+                                    if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and (bHaveActiveAirUpgrade or (GetGameTimeSeconds() <= 1200 and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= oBrain[M28Economy.refiOurHighestAirFactoryTech]) or (oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, tBrainStartZoneData[M28Map.subrefLZOrWZMexCount]))) then
                                         bWantUpgrade = false
                                         if bDebugMessages == true then LOG(sFunctionRef..': Dont want land fac upgrade yet for air slot') end
                                     elseif bHaveActiveAirUpgrade and oBrain:GetEconomyStoredRatio('MASS') <= 0.3 and (oBrain:GetEconomyStoredRatio('MASS') <= 0.05 or oBrain[M28Economy.refiOurHighestLandFactoryTech] <= oBrain[M28Economy.refiOurHighestAirFactoryTech] or oBrain[M28Overseer.refbPrioritiseAir]) then
@@ -4044,8 +4050,13 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestMobileIndirectRange] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZIndirectThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZDFThreatWanted] = 0
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRadarCoverage] = 0
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiOmniCoverage] = 0
+            if tTeamData[iM28Team][subrefbTeamHasOmniVision] then
+                tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRadarCoverage] = 5000
+                tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiOmniCoverage] = 5000
+            else
+                tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRadarCoverage] = 0
+                tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiOmniCoverage] = 0
+            end
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyOmniCoverage] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRecentlyFailedScoutAttempts] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefQueuedBuildings] = {}
@@ -4108,9 +4119,15 @@ function SetWaterZoneDefaultTeamValues(tWZData, iTeam)
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] = false --true if is a 'core' base (i.e. has a naval factory in)
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] = false --true if contains a naval build location for a friendly M28AI
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTValue] = 0 --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
-    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
-    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiSonarCoverage] = 0
-    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 0
+    if tTeamData[iTeam][subrefbTeamHasOmniVision] then
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 5000
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 5000
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiSonarCoverage] = 5000
+    else
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiSonarCoverage] = 0
+        tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 0
+    end
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyOmniCoverage] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRecentlyFailedScoutAttempts] = 0
     --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refoBestRadar] --nil by default
@@ -5710,6 +5727,34 @@ function ConsiderDelayedMexDetection(oMex)
                     AssignUnitToLandZoneOrPond(oBrain, oMex, false, false, true)
                 end
             end
+        end
+    end
+end
+
+function TeamHasLostAIxOmniVision(iTeam)
+    tTeamData[iTeam][subrefbTeamHasOmniVision] = false
+    --Go through every land and water zone and reset radar and omni values
+    function ResetLandOrWaterZone(tCurLZOrWZTeamData)
+        tCurLZOrWZTeamData[M28Map.refiRadarCoverage] = 0
+        tCurLZOrWZTeamData[M28Map.refiOmniCoverage] = 0
+        if tCurLZOrWZTeamData[M28Map.refiSonarCoverage] then tCurLZOrWZTeamData[M28Map.refiSonarCoverage] = 0 end
+        if tCurLZOrWZTeamData[M28Map.refoBestSonar] then
+            tCurLZOrWZTeamData[M28Map.refoBestSonar]['M28UpdatedIntel'] = nil
+            M28Map.UpdateZoneIntelForSonar(tCurLZOrWZTeamData[M28Map.refoBestSonar])
+        end
+        if tCurLZOrWZTeamData[M28Map.refoBestRadar] then
+            tCurLZOrWZTeamData[M28Map.refoBestRadar]['M28UpdatedIntel'] = nil
+            M28Map.UpdateZoneIntelForRadar(tCurLZOrWZTeamData[M28Map.refoBestRadar])
+        end
+    end
+    for iPlateau, tPlateauData in M28Map.tAllPlateaus do
+        for iLZ, tLZData in tPlateauData[M28Map.subrefPlateauLandZones] do
+            ResetLandOrWaterZone(tLZData[M28Map.subrefLZTeamData][iTeam])
+        end
+    end
+    for iPond, tPondSubtable in M28Map.tPondDetails do
+        for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
+            ResetLandOrWaterZone(tWZData[M28Map.subrefWZTeamData][iTeam])
         end
     end
 end

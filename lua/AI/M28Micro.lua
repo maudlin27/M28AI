@@ -2416,14 +2416,11 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; bDontAdjustMicroFlag='..tostring(bDontAdjustMicroFlag or false)..'; bContinueAttackingUntilTargetDead='..tostring(bContinueAttackingUntilTargetDead or false)..'; bAbortForGroundAAUnlessTargetIsEngineer='..tostring(bAbortForGroundAAUnlessTargetIsEngineer or false)..'; refbSpecialMicroActive='..tostring((oBomber[M28UnitInfo.refbSpecialMicroActive] or false))..'; GameTime='..GetGameTimeSeconds()) end
-    if M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) and not(oBomber[M28UnitInfo.refbSpecialMicroActive]) then
+    if M28UnitInfo.IsUnitValid(oBomber) and M28UnitInfo.IsUnitValid(oTarget) and (not(oBomber[M28UnitInfo.refbSpecialMicroActive]) or oBomber[M28UnitInfo.refbLowerPriorityMicroActive]) then
         local iStartTime = GetGameTimeSeconds()
         local iCurAngleDif
-        local iMaxMicroTime = 5 --will micro for up to 5 seconds
-        if EntityCategoryContains(categories.EXPERIMENTAL, oBomber.UnitId) then
-            iMaxMicroTime = 10
-        elseif bContinueAttackingUntilTargetDead then iMaxMicroTime = 60
-        end
+        local iMaxMicroTime = 10 --v249 - t1 bomber hover-bombing didnt have enough time to attack the target with 5s so switched to 10s (prev was 5s for non-experimental and 10s for experiemntal)
+        if bContinueAttackingUntilTargetDead then iMaxMicroTime = 60 end
 
         if not(bDontAdjustMicroFlag) then
             TrackTemporaryUnitMicro(oBomber, iMaxMicroTime)
@@ -2459,8 +2456,8 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
                 --Do we want to abort  micro?
                 if bAbortForGroundAA then
                     local tTargetLZData, tTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oTarget:GetPosition(), true, iTeam)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to abort due to enemy groundAA='..tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; Does the zone have too much AA for base bomber='..tostring(M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData) or false)) end
-                    if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to abort due to enemy groundAA='..tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; Does the zone have too much AA for base bomber='..tostring(M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData, tTargetLZData, oBomber) or false)) end
+                    if M28Conditions.EnemyZoneHasTooMuchAAForBaseBomber(tTargetLZTeamData, tTargetLZData, oBomber) then
                         --Return to nearest base
                         if oBomber[M28Air.rebEarlyBomberTargetBase] then oBomber[M28Air.rebEarlyBomberTargetBase] = false end
                         M28Orders.IssueTrackedMove(oBomber, tTargetLZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'AbortHBM', true)

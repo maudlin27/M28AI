@@ -128,9 +128,9 @@ reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing grou
 
 iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one side of the square that is the lowest resolution land zones go to; each segment that is land pathable gets assigned to a land zone
     --Land zone subrefs (against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]):
-        subrefLZMexCount = 'MexCount' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns number of mexes in the LZ
-        subrefLZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
-        subrefMexUnbuiltLocations = 'MexAvailLoc' --used by water and land zones; e.g. for LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
+        subrefLZOrWZMexCount = 'MexCount' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns number of mexes in the LZ
+        subrefLZOrWZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZOrWZMexLocations]
+        subrefMexUnbuiltLocations = 'MexAvailLoc' --used by water and land zones; e.g. for LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZOrWZMexLocations]
         refiTimeOfLastMexDeath = 'MexLstDth' --Gametimeseconds that a mex died in this land zone - used to avoid sending an error message if it is rebuilt immediately (due to the mex deaht logic having a delay)
         subrefMidpoint = 'Midpoint' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefMidpoint]
         subrefLZMinSegX = 'LZMinSegX'
@@ -468,8 +468,8 @@ tPondDetails = {}
     --Water zones (against tPondDetails)
     subrefPondWZCount = 'PWZCount' --Total number of water zones in a pond (cant use table.getn on below as theyre not ordered from 1-x)
     subrefPondWaterZones = 'PondWZ' --e.g. access the water zone data tables via M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone], where iWaterZone is the NavUtils refPathingTypeNavy pathing result
-        subrefWZMexCount = 'MexCount' --(same ref as for land zones; reason for repating is to avoid confusion with the pond variables which track different information)
-        subrefWZMexLocations = 'MexLoc' --(same ref as for land zones)
+        --subrefLZOrWZMexCount = 'MexCount' --(same ref as for land zones)
+        --subrefLZOrWZMexLocations = 'MexLoc' --(same ref as for land zones)
         --subrefMexUnbuiltLocations Uses same ref as LZ
 
         --subrefMidpoint = 'Midpoint' --Uses same ref as land zone
@@ -1448,8 +1448,8 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefLandZoneCount] = (tAllPlateaus[iPlateau][subrefLandZoneCount] or 0) + 1
     local iLandZone = tAllPlateaus[iPlateau][subrefLandZoneCount]
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone] = {}
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = 0
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZOrWZMexCount] = 0
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZOrWZMexLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefMexUnbuiltLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroUnbuiltLocations] = {}
@@ -1629,13 +1629,13 @@ local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTe
     --Add the mex to this land zone
     local bAlreadyRecorded = false
     local tThisMexLocation = {tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef][1], tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef][2], tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef][3]}
-    if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount]) then
+    if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZOrWZMexCount]) then
         M28Utilities.ErrorHandler('No mex count for iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
-        tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = 0
+        tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZOrWZMexCount] = 0
     else
         --Have we already recorded this mex (redundancy for strange issue where getting same mex recorded twice sometimes)
 
-        for iMex, tMex in tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations] do
+        for iMex, tMex in tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZOrWZMexLocations] do
             if tMex[1] == tThisMexLocation[1] and tMex[3] == tThisMexLocation[3] then
                 M28Utilities.ErrorHandler('Already recorded mex, will ignore', true)
                 if bDebugMessages == true then
@@ -1647,10 +1647,10 @@ local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTe
         end
     end
     if not(bAlreadyRecorded) then
-        tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] + 1
-        table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations], tThisMexLocation)
+        tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZOrWZMexCount] = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZOrWZMexCount] + 1
+        table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZOrWZMexLocations], tThisMexLocation)
         if tTempPlateauLandZoneByMexRef[iPlateau] then tTempPlateauLandZoneByMexRef[iPlateau][iPlateauMexRef] = iLandZone end
-        if bDebugMessages == true then LOG(sFunctionRef..': iPlateauMexRef='..(iPlateauMexRef or 'nil')..'; tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef] repru='..repru(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])..'; table.getn of mexes for LZ='..table.getn(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations])..'; Recorded mex count='..tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount]) end
+        if bDebugMessages == true then LOG(sFunctionRef..': iPlateauMexRef='..(iPlateauMexRef or 'nil')..'; tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef] repru='..repru(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])..'; table.getn of mexes for LZ='..table.getn(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZOrWZMexLocations])..'; Recorded mex count='..tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZOrWZMexCount]) end
         local iCurSegmentX, iCurSegmentZ = GetPathingSegmentFromPosition(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])
         if not(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] == iLandZone) then
             RecordSegmentLandZone(iCurSegmentX, iCurSegmentZ, iPlateau, iLandZone)
@@ -1669,12 +1669,12 @@ local function AddMexToWaterZone(iPond, iWaterZone, tMex)
     --Add the mex to this water zone
     local bAlreadyRecorded = false --(expect to be the case every time, but were getting issues with the same location appearing multiple itmes in unbuilt locations so adding as redundancy)
     local tWZData = tPondDetails[iPond][subrefPondWaterZones][iWaterZone]
-    if not(tWZData[subrefWZMexLocations]) then
-        tWZData[subrefWZMexLocations] = {}
-        tWZData[subrefWZMexCount] = 0
+    if not(tWZData[subrefLZOrWZMexLocations]) then
+        tWZData[subrefLZOrWZMexLocations] = {}
+        tWZData[subrefLZOrWZMexCount] = 0
     else
         --Check not already recorded
-        for iEntry, tLocation in tWZData[subrefWZMexLocations] do
+        for iEntry, tLocation in tWZData[subrefLZOrWZMexLocations] do
             if math.abs(tLocation[1] - tMex[1]) <= 0.9 and math.abs(tLocation[3] - tMex[3]) <= 0.9 then
                 bAlreadyRecorded = true
                 break
@@ -1683,8 +1683,8 @@ local function AddMexToWaterZone(iPond, iWaterZone, tMex)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering recording mex at position '..repru(tMex)..' for iWaterZone'..iWaterZone..'; bAlreadyRecorded='..tostring(bAlreadyRecorded)..'; Can build on mex='..tostring(M28Conditions.CanBuildOnMexLocation(tMex))) end
     if not(bAlreadyRecorded) then
-        tWZData[subrefWZMexCount] = tWZData[subrefWZMexCount] + 1
-        table.insert(tWZData[subrefWZMexLocations], tMex)
+        tWZData[subrefLZOrWZMexCount] = tWZData[subrefLZOrWZMexCount] + 1
+        table.insert(tWZData[subrefLZOrWZMexLocations], tMex)
 
         if M28Conditions.CanBuildOnMexLocation(tMex) then
             if not(tWZData[subrefMexUnbuiltLocations]) then tWZData[subrefMexUnbuiltLocations] = {} end
@@ -2915,7 +2915,7 @@ local function AssignMexesALandZone()
                     local iMinZ = 100000
                     local iMaxZ = 0
 
-                    for iMex, tMex in tZone[subrefLZMexLocations] do
+                    for iMex, tMex in tZone[subrefLZOrWZMexLocations] do
                         iMinX = math.min(tMex[1], iMinX)
                         iMaxX = math.max(tMex[1], iMaxX)
                         iMinZ = math.min(tMex[3], iMinZ)
@@ -2956,7 +2956,7 @@ local function AssignMexesALandZone()
                     local iMinZ = 100000
                     local iMaxZ = 0
 
-                    for iMex, tMex in tZone[subrefLZMexLocations] do
+                    for iMex, tMex in tZone[subrefLZOrWZMexLocations] do
                         iMinX = math.min(tMex[1], iMinX)
                         iMaxX = math.max(tMex[1], iMaxX)
                         iMinZ = math.min(tMex[3], iMinZ)
@@ -3123,7 +3123,7 @@ local function AssignMexesALandZone()
                 local iMinZ = 100000
                 local iMaxZ = 0
 
-                for iMex, tMex in tZone[subrefLZMexLocations] do
+                for iMex, tMex in tZone[subrefLZOrWZMexLocations] do
                     iMinX = math.min(tMex[1], iMinX)
                     iMaxX = math.max(tMex[1], iMaxX)
                     iMinZ = math.min(tMex[3], iMinZ)
@@ -3246,7 +3246,7 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData, tOptionalSt
 
     local tAverage, iAveragePlateau, iAverageLandZone
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering iPlateau='..iPlateau..'; iZone='..iZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering iPlateau='..iPlateau..'; iZone='..iZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZOrWZMexLocations]))) end
     local iMinX = 100000
     local iMaxX = 0
     local iMinZ = 100000
@@ -3271,8 +3271,8 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData, tOptionalSt
     if bDebugMessages == true then LOG(sFunctionRef..': Finished recording min and max segments for Plateau '..iPlateau..' with LZ='..iZone..'; tLZData[subrefLZMinSegX]='..(tLZData[subrefLZMinSegX] or 'nil')..'; tLZData[subrefLZMinSegZ]='..(tLZData[subrefLZMinSegZ] or 'nil')..'; tLZData[subrefLZMaxSegX]='..(tLZData[subrefLZMaxSegX] or 'nil')..'; tLZData[subrefLZMaxSegZ]='..(tLZData[subrefLZMaxSegZ] or 'nil')) end
 
 
-    if M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]) == false then
-        for iMex, tMex in tLZData[subrefLZMexLocations] do
+    if M28Utilities.IsTableEmpty(tLZData[subrefLZOrWZMexLocations]) == false then
+        for iMex, tMex in tLZData[subrefLZOrWZMexLocations] do
             --Get min and max values for midpoint:
             iMinX = math.min(tMex[1], iMinX)
             iMaxX = math.max(tMex[1], iMaxX)
@@ -3300,7 +3300,7 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData, tOptionalSt
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Size of mex locations for LZ='..table.getn(tLZData[subrefLZMexLocations])..'; Size of unbuilt locations='..table.getn(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefMexUnbuiltLocations])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Size of mex locations for LZ='..table.getn(tLZData[subrefLZOrWZMexLocations])..'; Size of unbuilt locations='..table.getn(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefMexUnbuiltLocations])) end
     else
         --No mexes for the plateau, so cycle through every zone and record the lowest and largest X and Z values
 
@@ -3406,13 +3406,13 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData, tOptionalSt
     if not(iAveragePlateau == iPlateau and iAverageLandZone == iZone) then
         iAveragePlateau, iAverageLandZone = GetPlateauAndLandZoneReferenceFromPosition(tAverage, false)
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': iAveragePlateau='..iAveragePlateau..'; iAverageLandZone='..iAverageLandZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]))) end
-    if (iAveragePlateau == iPlateau and iAverageLandZone == iZone) or M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]) then
+    if bDebugMessages == true then LOG(sFunctionRef..': iAveragePlateau='..iAveragePlateau..'; iAverageLandZone='..iAverageLandZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZOrWZMexLocations]))) end
+    if (iAveragePlateau == iPlateau and iAverageLandZone == iZone) or M28Utilities.IsTableEmpty(tLZData[subrefLZOrWZMexLocations]) then
         --Either we have a valid location (in which case fine), or we have no mexes to use as a backup so will just use the midpoint (will cause some issues down the line though e.g. with the LZ not registering as being pathable to other land zones)
         tLZData[subrefMidpoint] = {tAverage[1], GetSurfaceHeight(tAverage[1], tAverage[3]), tAverage[3]}
     else
         --We have mexes so will just use one of these as the midpoint as a basic backup
-        tLZData[subrefMidpoint] = {tLZData[subrefLZMexLocations][1][1], tLZData[subrefLZMexLocations][1][2], tLZData[subrefLZMexLocations][1][3]}
+        tLZData[subrefMidpoint] = {tLZData[subrefLZOrWZMexLocations][1][1], tLZData[subrefLZOrWZMexLocations][1][2], tLZData[subrefLZOrWZMexLocations][1][3]}
     end
     tLZData[refiMidpointAmphibiousLabel] = (NavUtils.GetTerrainLabel(refPathingTypeAmphibious, tLZData[subrefMidpoint]) or 0)
     if bDebugMessages == true then LOG(sFunctionRef..': Checking the midpoint is pathable by amphibious, tLZData[refiMidpointAmphibiousLabel]='..(tLZData[refiMidpointAmphibiousLabel] or 'nil')..'; Midpoint='..repru(tLZData[subrefMidpoint])) end
@@ -4028,7 +4028,7 @@ function DelayedConsiderationOfWhetherToIgnoreEnemyBase(tLZData, tLZTeamData, iT
         tLZTeamData['DelayedConsiderNearestEnemyCheck'] = false
         if bDebugMessages == true then LOG(sFunctionRef..'; Time='..GetGameTimeSeconds()..'; iDelayInSeconds='..iDelayInSeconds..'; Mod dist%='..tLZTeamData[refiModDistancePercent]..'; Enemy mass='..(tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0)..'; SValue='..tLZTeamData[subrefLZSValue]..'; Ally combat='..tLZTeamData[subrefLZTThreatAllyCombatTotal]..'; Enemy combat='..tLZTeamData[subrefTThreatEnemyCombatTotal]..'; Time since last update='..GetGameTimeSeconds() - (tLZTeamData[subrefiTimeOfLastEnemyUnitPosUpdate] or 0)) end
         if tLZTeamData[refiModDistancePercent] == 1 then
-            if tLZTeamData[subrefLZSValue] > 0 and tLZTeamData[subrefLZTThreatAllyCombatTotal] >= tLZTeamData[subrefTThreatEnemyCombatTotal] and ((tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0) == 0 or (tLZTeamData[subrefLZSValue] >= 1000 and tLZTeamData[subrefMexCountByTech][1] + tLZTeamData[subrefMexCountByTech][2] + tLZTeamData[subrefMexCountByTech][3] >= tLZData[subrefLZMexCount]))  then
+            if tLZTeamData[subrefLZSValue] > 0 and tLZTeamData[subrefLZTThreatAllyCombatTotal] >= tLZTeamData[subrefTThreatEnemyCombatTotal] and ((tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0) == 0 or (tLZTeamData[subrefLZSValue] >= 1000 and tLZTeamData[subrefMexCountByTech][1] + tLZTeamData[subrefMexCountByTech][2] + tLZTeamData[subrefMexCountByTech][3] >= tLZData[subrefLZOrWZMexCount]))  then
                 RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, true)
             end
             if tLZTeamData[subrefLZSValue] >= (tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0) and (tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0) <= 1000 and tLZTeamData[subrefLZTThreatAllyCombatTotal] >= 500 and tLZTeamData[subrefTThreatEnemyCombatTotal] < math.min(200, tLZTeamData[subrefLZTThreatAllyCombatTotal] * 0.1) then
@@ -4052,7 +4052,7 @@ function DelayedConsiderationOfWhetherToIgnoreFriendlyBase(tLZData, tLZTeamData,
         if bDebugMessages == true then LOG(sFunctionRef..'; Time='..GetGameTimeSeconds()..'; iDelayInSeconds='..iDelayInSeconds..'; Mod dist%='..tLZTeamData[refiModDistancePercent]..'; S Value='..(tLZTeamData[subrefLZSValue] or 0)..'; Ally combat='..tLZTeamData[subrefLZTThreatAllyCombatTotal]..'; Enemy combat='..tLZTeamData[subrefTThreatEnemyCombatTotal]..'; Factories in zone='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryFactory)..'; Time since last update of enemy positions='..GetGameTimeSeconds() - (tLZTeamData[subrefiTimeOfLastEnemyUnitPosUpdate] or 0)) end
         local iConstructedFactories = M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryFactory)
         if iConstructedFactories == 0 and GetGameTimeSeconds() >= 180 then
-            if tLZTeamData[subrefLZTThreatAllyCombatTotal] <= tLZTeamData[subrefTThreatEnemyCombatTotal] or (tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0) > 30 and tLZTeamData[subrefMexCountByTech][1] + tLZTeamData[subrefMexCountByTech][2] + tLZTeamData[subrefMexCountByTech][3] < math.min(tLZData[subrefLZMexCount], 2)  then
+            if tLZTeamData[subrefLZTThreatAllyCombatTotal] <= tLZTeamData[subrefTThreatEnemyCombatTotal] or (tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0) > 30 and tLZTeamData[subrefMexCountByTech][1] + tLZTeamData[subrefMexCountByTech][2] + tLZTeamData[subrefMexCountByTech][3] < math.min(tLZData[subrefLZOrWZMexCount], 2)  then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will update closest ally and enemy and closest friendlybase in particular') end
                 RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, false, true)
             else
@@ -4096,7 +4096,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBa
                 if bOnlyCheckIfEnemyBaseToIgnore then
                     local tLZOrWZData, tLZOrWZTeamData = GetLandOrWaterZoneData(GetPlayerStartPosition(oBrain), true, iTeam)
                     if (tLZOrWZTeamData[subrefThreatEnemyStructureTotalMass] == 0 and (tLZOrWZTeamData[subrefMexCountByTech][1] > 0 or tLZOrWZTeamData[subrefMexCountByTech][2] > 0 or tLZOrWZTeamData[subrefMexCountByTech][3] > 0 or (tLZOrWZTeamData[subrefLZSValue] or 0) >= 80))
-                            or (tLZOrWZTeamData[subrefLZSValue] > 0 and tLZOrWZTeamData[subrefLZTThreatAllyCombatTotal] >= tLZOrWZTeamData[subrefTThreatEnemyCombatTotal] and ((tLZOrWZTeamData[subrefThreatEnemyStructureTotalMass] or 0) == 0 or (tLZOrWZTeamData[subrefLZSValue] >= 1000 and tLZOrWZTeamData[subrefMexCountByTech][1] + tLZOrWZTeamData[subrefMexCountByTech][2] + tLZOrWZTeamData[subrefMexCountByTech][3] >= tLZOrWZTeamData[subrefLZMexCount]))) then
+                            or (tLZOrWZTeamData[subrefLZSValue] > 0 and tLZOrWZTeamData[subrefLZTThreatAllyCombatTotal] >= tLZOrWZTeamData[subrefTThreatEnemyCombatTotal] and ((tLZOrWZTeamData[subrefThreatEnemyStructureTotalMass] or 0) == 0 or (tLZOrWZTeamData[subrefLZSValue] >= 1000 and tLZOrWZTeamData[subrefMexCountByTech][1] + tLZOrWZTeamData[subrefMexCountByTech][2] + tLZOrWZTeamData[subrefMexCountByTech][3] >= tLZOrWZTeamData[subrefLZOrWZMexCount]))) then
                         bIgnoreThisBase = true
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to ignore enemy brain '..oBrain.Nickname..'; tLZOrWZTeamData[subrefThreatEnemyStructureTotalMass]='..(tLZOrWZTeamData[subrefThreatEnemyStructureTotalMass] or 'nil')..'; Our t1 mex count='..(tLZOrWZTeamData[subrefMexCountByTech][1])..'; T2='..(tLZOrWZTeamData[subrefMexCountByTech][2])..'; S Value='..(tLZOrWZTeamData[subrefLZSValue] or 'nil')..'; bIgnoreThisBase='..tostring(bIgnoreThisBase or false)) end
@@ -4356,10 +4356,9 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
 
                 tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
                 tWZTeamData[reftiClosestFriendlyM28BrainIndex] = iClosestBrainRef
-                if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
                 tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
                 tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false) / math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZTeamData[reftClosestEnemyBase]))
-
+                if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond..'; Mod dist to midpoint from our start='..GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false)..'; Mod dist to nearest enemy base (to this WZ) from our friendly base='..GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZTeamData[reftClosestEnemyBase])..'; tWZTeamData[refiModDistancePercent]='..tWZTeamData[refiModDistancePercent]) end
             end
         end
         if not(bDontInitializeWZLogic) then ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam) end
@@ -4557,8 +4556,8 @@ function RecordLandZonePatrolPaths()
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iLandZone, tLZSubtable in tPlateauSubtable[subrefPlateauLandZones] do
             --Are we interested in patrolling this land zone? Want to ignore very small land zones
-            if bDebugMessages == true then LOG(sFunctionRef..': Start of loop, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tLZSubtable[subrefLZMexCount]='..(tLZSubtable[subrefLZMexCount] or 'nil')..'; tLZSubtable[subrefLZTotalSegmentCount]='..(tLZSubtable[subrefLZTotalSegmentCount] or 'nil')) end
-            if tLZSubtable[subrefLZMexCount] > 0 or tLZSubtable[subrefLZTotalSegmentCount] >= 40 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Start of loop, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tLZSubtable[subrefLZOrWZMexCount]='..(tLZSubtable[subrefLZOrWZMexCount] or 'nil')..'; tLZSubtable[subrefLZTotalSegmentCount]='..(tLZSubtable[subrefLZTotalSegmentCount] or 'nil')) end
+            if tLZSubtable[subrefLZOrWZMexCount] > 0 or tLZSubtable[subrefLZTotalSegmentCount] >= 40 then
 
                 --First travel towards adjacent locations an add these
                 local tUnorderedPatrolPaths = {}
@@ -4928,7 +4927,7 @@ function AddLandZoneToIsland(iPlateau, iLandZone, iIsland, tLZData)
     end
 
     table.insert(tAllPlateaus[iPlateau][subrefPlateauIslandLandZones][iIsland], iLandZone)
-    tAllPlateaus[iPlateau][subrefPlateauIslandMexCount][iIsland] = (tAllPlateaus[iPlateau][subrefPlateauIslandMexCount][iIsland] or 0) + (tLZData[subrefLZMexCount] or 0)
+    tAllPlateaus[iPlateau][subrefPlateauIslandMexCount][iIsland] = (tAllPlateaus[iPlateau][subrefPlateauIslandMexCount][iIsland] or 0) + (tLZData[subrefLZOrWZMexCount] or 0)
     if not(tLZData[subrefLZIslandRef]) then tLZData[subrefLZIslandRef] = iIsland end --redundancy
 end
 
@@ -5038,7 +5037,7 @@ function RecordIslands()
                 M28Profiler.FunctionProfiler(sFunctionRef..': Pathing', M28Profiler.refProfilerStart)
                 for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
                     --For performance reasons only record pathing for zones with mexes
-                    if tLZData[subrefLZMexCount] > 0 then
+                    if tLZData[subrefLZOrWZMexCount] > 0 then
 
                         --Cycle through each island in this plateau and consider pathing for it
                         if bDebugMessages == true then LOG(sFunctionRef..': Will record the pathing to every island from iLandZone='..iLandZone..'; ') end
@@ -8046,7 +8045,7 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Start of code, GameTime=' .. GetGameTimeSeconds() .. '; aiBrain army index=' .. aiBrain:GetArmyIndex() .. '; tTarget=' .. repru(tTarget) .. '; bUseEnemyStartInstead=' .. tostring((bUseEnemyStartInstead or false)) .. '; will draw the location in white')
+        LOG(sFunctionRef .. ': Start of code, GameTime=' .. GetGameTimeSeconds() .. '; aiBrain army index=' .. aiBrain:GetArmyIndex() .. '; Nickname='..aiBrain.Nickname..'; tTarget=' .. repru(tTarget) .. '; bUseEnemyStartInstead=' .. tostring((bUseEnemyStartInstead or false)) .. '; will draw the location in white')
         M28Utilities.DrawLocation(tTarget, false, 7, 20, nil)
     end
     local iEmergencyRangeToUse = 50
@@ -8062,7 +8061,7 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
     end
 
     local iDistStartToTarget = M28Utilities.GetDistanceBetweenPositions(tStartPos, tTarget)
-    if bDebugMessages == true then LOG(sFunctionRef .. ': tStartPos=' .. repru(tStartPos) .. '; iDistStartToTarget=' .. iDistStartToTarget .. '; iEmergencyRangeToUse=' .. iEmergencyRangeToUse) end
+    if bDebugMessages == true then LOG(sFunctionRef .. ': tStartPos=' .. repru(tStartPos) .. '; iDistStartToTarget=' .. iDistStartToTarget .. '; iEmergencyRangeToUse=' .. iEmergencyRangeToUse..'; Dist from tEnemyBase to tTarget='..M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tTarget)) end
 
     if iDistStartToTarget <= iEmergencyRangeToUse then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -8156,11 +8155,11 @@ function RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
 
     local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
     tLZData[subrefLZOrWZMassStorageLocationsAvailable] = {}
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, P'..iPlateau..'Z'..iLandZone..'; is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]))..'; Time='..GetGameTimeSeconds()) end
-    if M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]) == false then
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, P'..iPlateau..'Z'..iLandZone..'; is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZOrWZMexLocations]))..'; Time='..GetGameTimeSeconds()) end
+    if M28Utilities.IsTableEmpty(tLZData[subrefLZOrWZMexLocations]) == false then
         local tiXZOffset = {{-2,0}, {0, -2}, {0, 2}, {2, 0}}
         local tCurPos
-        for iMex, tMex in tLZData[subrefLZMexLocations] do
+        for iMex, tMex in tLZData[subrefLZOrWZMexLocations] do
             for iOffset, tXZOffset in tiXZOffset do
                 tCurPos = {tMex[1] + tXZOffset[1], 0, tMex[3] + tXZOffset[2]}
                 tCurPos[2] = GetSurfaceHeight(tCurPos[1], tCurPos[3])
@@ -8183,10 +8182,10 @@ function RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
 end
 
 function RecordAvailableMassStorageLocationsForWaterZone(iWaterZone, tWZData)
-    if M28Utilities.IsTableEmpty(tWZData[subrefWZMexLocations]) == false then
+    if M28Utilities.IsTableEmpty(tWZData[subrefLZOrWZMexLocations]) == false then
         local tiXZOffset = {{-2,0}, {0, -2}, {0, 2}, {2, 0}}
         local tCurPos
-        for iMex, tMex in tWZData[subrefWZMexLocations] do
+        for iMex, tMex in tWZData[subrefLZOrWZMexLocations] do
             for iOffset, tXZOffset in tiXZOffset do
                 tCurPos = {tMex[1] + tXZOffset[1], 0, tMex[3] + tXZOffset[2]}
                 tCurPos[2] = GetSurfaceHeight(tCurPos[1], tCurPos[3])
@@ -9607,8 +9606,8 @@ function RecordBackupGameEnderLocation()
 
         for iPlateau, tPlateauSubtable in tAllPlateaus do
             for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iPlateau..'Z'..iLandZone..'; MexCount='..(tLZData[subrefLZMexCount] or 'nil')..'; Segment count='..(tLZData[subrefLZTotalSegmentCount] or 'nil')..'; Segment size='..(iLandZoneSegmentSize or 'nil')..'; subrefiLastSegmentEntryConsideredForBuilding='..(tLZData[subrefiLastSegmentEntryConsideredForBuilding] or 'nil')..'; subrefiCumulativeSegmentsConsideredForBuilding='..(tLZData[subrefiCumulativeSegmentsConsideredForBuilding] or 'nil')..'; Time='..GetGameTimeSeconds()) end
-                if tLZData[subrefLZMexCount] >= 1 and tLZData[subrefLZTotalSegmentCount] >= 250 / iLandZoneSegmentSize  then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iPlateau..'Z'..iLandZone..'; MexCount='..(tLZData[subrefLZOrWZMexCount] or 'nil')..'; Segment count='..(tLZData[subrefLZTotalSegmentCount] or 'nil')..'; Segment size='..(iLandZoneSegmentSize or 'nil')..'; subrefiLastSegmentEntryConsideredForBuilding='..(tLZData[subrefiLastSegmentEntryConsideredForBuilding] or 'nil')..'; subrefiCumulativeSegmentsConsideredForBuilding='..(tLZData[subrefiCumulativeSegmentsConsideredForBuilding] or 'nil')..'; Time='..GetGameTimeSeconds()) end
+                if tLZData[subrefLZOrWZMexCount] >= 1 and tLZData[subrefLZTotalSegmentCount] >= 250 / iLandZoneSegmentSize  then
                     iCurCount = iCurCount + 1
                     if iCurCount >= 25 then
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -9815,8 +9814,8 @@ function RecordLurkerZonesForIsland(iPlateau, iIsland, iTeam)
     if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauIslandLandZones]) == false then
         for iEntry, iLandZone in tPlateauSubtable[subrefPlateauIslandLandZones][iIsland] do
             local tLZData = tPlateauSubtable[subrefPlateauLandZones][iLandZone]
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iPlateau..'Z'..iLandZone..'; is tLZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))..'; Mex count='..(tLZData[subrefLZMexCount] or 'nil')) end
-            if (tLZData[subrefLZMexCount] or 0) > 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iPlateau..'Z'..iLandZone..'; is tLZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))..'; Mex count='..(tLZData[subrefLZOrWZMexCount] or 'nil')) end
+            if (tLZData[subrefLZOrWZMexCount] or 0) > 0 then
                 local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add P'..iPlateau..'Z'..iLandZone..' for iIsland '..iIsland..' to lurker zone, mod dist='..tLZTeamData[refiModDistancePercent]) end
                 if tLZTeamData[refiModDistancePercent] >= 0.5 and tLZTeamData[refiModDistancePercent] <= 0.95 then --dont want a core base
