@@ -777,7 +777,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     end
 
     --If we have no friendly combat units and enemy has combat threat, then request less MAA, or none if we have no non-MAA/scout units
-    if bDebugMessages == true then LOG(sFunctionRef..': Setting the MAA level wanted for iLandZone='..iLandZone..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.refiEnemyAirOtherThreat]='..tLZTeamData[M28Map.refiEnemyAirOtherThreat]..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; subrefLZSValue='..tLZTeamData[M28Map.subrefLZSValue]..'; subrefLZTThreatAllyCombatTotal='..subrefLZTThreatAllyCombatTotal) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Setting the MAA level wanted for iLandZone='..iLandZone..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.refiEnemyAirOtherThreat]='..tLZTeamData[M28Map.refiEnemyAirOtherThreat]..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; subrefLZSValue='..tLZTeamData[M28Map.subrefLZSValue]..'; subrefLZTThreatAllyCombatTotal='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]) end
     if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 11 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= math.min(1500, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 0.9) or tLZTeamData[M28Map.subrefLZbCoreBase] then
         tLZTeamData[M28Map.subrefLZMAAThreatWanted] = math.max(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] * 0.65 + tLZTeamData[M28Map.refiEnemyAirAAThreat] * 0.15 + tLZTeamData[M28Map.refiEnemyAirOtherThreat] * 0.15, tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.1)
         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 and tLZTeamData[M28Map.subrefLZMAAThreatWanted] < 600 then
@@ -6146,8 +6146,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     elseif bAreInScenario1 and iFriendlyBestMobileDFRange > iEnemyBestDFRange + 2 then
                         iDFRangeOverrideForScenario1 = math.min(iFriendlyDFRangeThresholdBasedOnAbove, iEnemyBestDFRange + 2)
                         if bDebugMessages == true then LOG(sFunctionRef..': Are in scenario 1 so making lower of enemy range and the other values, iDFRangeOverrideForScenario1='..(iDFRangeOverrideForScenario1 or 'nil')..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iEnemyBestDFRange='..iEnemyBestDFRange) end
+                    elseif bAreInScenario1 and iFriendlyBestMobileIndirectRange > iEnemyBestDFRange + 3 then
+                        iDFRangeOverrideForScenario1 = math.min(iFriendlyDFRangeThresholdBasedOnAbove, iFriendlyBestMobileIndirectRange)
                     else
                         iDFRangeOverrideForScenario1 = iFriendlyDFRangeThresholdBasedOnAbove
+                        --Disable scenario1 flag as althoguh we outrange the enemy it isnt by much and so we could end up in scenario where we have no units better than this
+                        if iDFRangeOverrideForScenario1 > iFriendlyBestMobileIndirectRange and iDFRangeOverrideForScenario1 > iFriendlyBestMobileDFRange then
+                            bAreInScenario1 = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Disabling the scenario 1 flag given we dont outrange enemy by much and not by enough for the desired override') end
+                        end
                     end
                     if not(bAreInScenario1) then
                         --If enemy has nearby DF or IF units that are within range of the closest enemy unit, then check that we still have units that significantly outrange these to switch to scenario 1
@@ -7151,7 +7158,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         table.insert(tOutrangedCombatUnits, oUnit)
                                     end
                                 elseif oUnit[M28UnitInfo.refiIndirectRange] > 0 then
-                                    if (iDFRangeOverrideForScenario1 and oUnit[M28UnitInfo.refiIndirectRange] > iDFRangeOverrideForScenario1) or (not(iDFRangeOverrideForScenario1) and oUnit[M28UnitInfo.refiIndirectRange] > iEnemyBestDFRange) then
+                                    if (iDFRangeOverrideForScenario1 and oUnit[M28UnitInfo.refiIndirectRange] >= iDFRangeOverrideForScenario1) or (not(iDFRangeOverrideForScenario1) and oUnit[M28UnitInfo.refiIndirectRange] > iEnemyBestDFRange) then
                                         table.insert(tUnitsToSupport, oUnit)
                                         if oUnit[M28UnitInfo.refbEasyBrain] then
                                             --Attackmove to nearest enemy
@@ -7601,7 +7608,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 end
                                                 if bHaveLRUnit then
                                                     for iAdjUnit, oAdjUnit in tAdjLZTeamData[M28Map.subrefLZTAlliedCombatUnits] do
-                                                        if oAdjUnit[M28UnitInfo.refiDFRange] and oAdjUnit[M28UnitInfo.refiDFRange] > iAdjacentRangeThreshold and not(oAdjUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone) and not(oAdjUnit.IsDead) then
+                                                        if oAdjUnit[M28UnitInfo.refiDFRange] and oAdjUnit[M28UnitInfo.refiDFRange] > iAdjacentRangeThreshold and not(oAdjUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone) and not(oAdjUnit.Dead) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Adding unit in adjacent zone to units to support, oAdjUnit='..oAdjUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAdjUnit)..' with range='..oAdjUnit[M28UnitInfo.refiDFRange]) end
                                                             table.insert(tUnitsToSupport, oAdjUnit)
                                                         end
