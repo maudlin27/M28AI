@@ -11028,18 +11028,20 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
             local tBaseLZDataIfRelevant
             if iOptionalSearchRange then tBaseLZDataIfRelevant = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
             end
-            for iAssignedPlateau, tEngineersByLZ in tiPlateauAndLZBuildingExperimental do
-                for iAssignedLZ, iEngineersAssigned in tEngineersByLZ do
-                    if iPlateau == iAssignedPlateau and iLandZone == iAssignedLZ then
-                        bHaveExperimentalForThisLandZone = true
-                    else
-                        if not(iOptionalSearchRange) then
-                            iOtherLandZonesWithExperimental = iOtherLandZonesWithExperimental + 1
-                        elseif iOptionalSearchRange > 0 then
-
-                            local tExpLZData = M28Map.tAllPlateaus[iAssignedPlateau][M28Map.subrefPlateauLandZones][iAssignedLZ]
-                            if M28Utilities.GetDistanceBetweenPositions(tExpLZData[M28Map.subrefMidpoint], tBaseLZDataIfRelevant[M28Map.subrefMidpoint]) <= iOptionalSearchRange then
+            if tBaseLZDataIfRelevant then
+                for iAssignedPlateau, tEngineersByLZ in tiPlateauAndLZBuildingExperimental do
+                    for iAssignedLZ, iEngineersAssigned in tEngineersByLZ do
+                        if iPlateau == iAssignedPlateau and iLandZone == iAssignedLZ then
+                            bHaveExperimentalForThisLandZone = true
+                        else
+                            if not(iOptionalSearchRange) then
                                 iOtherLandZonesWithExperimental = iOtherLandZonesWithExperimental + 1
+                            elseif iOptionalSearchRange > 0 then
+
+                                local tExpLZData = M28Map.tAllPlateaus[iAssignedPlateau][M28Map.subrefPlateauLandZones][iAssignedLZ]
+                                if tExpLZData[M28Map.subrefMidpoint] and M28Utilities.GetDistanceBetweenPositions(tExpLZData[M28Map.subrefMidpoint], tBaseLZDataIfRelevant[M28Map.subrefMidpoint]) <= iOptionalSearchRange then
+                                    iOtherLandZonesWithExperimental = iOtherLandZonesWithExperimental + 1
+                                end
                             end
                         end
                     end
@@ -11048,9 +11050,11 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
         end
         if bOptionalReturnMassToCompleteOtherZoneUnderConstruction and M28Utilities.IsTableEmpty(toUnderConstructionExperimentalsInOtherZonesByUnitRef) == false then
             local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-            for iUnit, oUnit in toUnderConstructionExperimentalsInOtherZonesByUnitRef do
-                if not(iOptionalSearchRange) or ((iOptionalSearchRange > 0 or (iOptionalTableRefToIgnoreForThisZone and not(iOptionalTableRefToIgnoreForThisZone == oUnit[M28Building.reftArtiTemplateRefs][3]))) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iOptionalSearchRange) then
-                    iMassToComplete = iMassToComplete + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * (1 - oUnit:GetFractionComplete())
+            if tLZData then
+                for iUnit, oUnit in toUnderConstructionExperimentalsInOtherZonesByUnitRef do
+                    if not(iOptionalSearchRange) or ((iOptionalSearchRange > 0 or (iOptionalTableRefToIgnoreForThisZone and not(iOptionalTableRefToIgnoreForThisZone == oUnit[M28Building.reftArtiTemplateRefs][3]))) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= iOptionalSearchRange) then
+                        iMassToComplete = iMassToComplete + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * (1 - oUnit:GetFractionComplete())
+                    end
                 end
             end
         end
