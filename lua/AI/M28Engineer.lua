@@ -9913,11 +9913,11 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                             M28Utilities.DelayChangeVariable(vOptionalVariable, refiFailedShieldConstructionCount, -1, 180, nil, nil, nil, nil, true)
                                         end
                                     end
-                                elseif vOptionalVariable and (iActionToAssign == refActionBuildEmergencyPD or iActionToAssign == refActionBuildSecondPD or iActionToAssign == refActionBuildEmergencyArti) then
+                                elseif vOptionalVariable and (iActionToAssign == refActionBuildEmergencyPD or iActionToAssign == refActionBuildSecondPD or iActionToAssign == refActionBuildEmergencyArti or iActionToAssign == refActionBuildT1TorpLauncher or iActionToAssign == refActionBuildTorpLauncher) then
                                     --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,                tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
                                     sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable,       false,                              nil,             nil,                                   bGetCheapest,                   tLZOrWZData, tLZOrWZTeamData)
                                     if bDebugMessages == true then
-                                        LOG(sFunctionRef..': Have just tried to get location for PD, vOptionalVariable='..repru(vOptionalVariable)..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation))
+                                        LOG(sFunctionRef..': Have just tried to get location for PD or torp launcher, vOptionalVariable='..repru(vOptionalVariable)..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation))
                                         if M28Utilities.IsTableEmpty(tBuildLocation) == false then
                                             M28Utilities.DrawLocation(tBuildLocation)
                                         end
@@ -17923,10 +17923,12 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': iExistingTorpThreat='..iExistingTorpThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat) end
                     if iExistingTorpThreat <= math.min(7500, math.max(3500,  iEnemyCombatThreat * 1.5)) then --redundancy
+                        --If we have a naval factory, aim to build the torp launcher near to here
+                        local tTargetTorpLauncherPosition = GetStartSearchPositionForTorpLauncherOrNilForDefault(tWZTeamData, tWZData, iWaterZone, iPond)
                         if iMinTechWanted >= 2 then
-                            HaveActionToAssign(refActionBuildTorpLauncher, iMinTechWanted, iBPWanted)
+                            HaveActionToAssign(refActionBuildTorpLauncher, iMinTechWanted, iBPWanted, tTargetTorpLauncherPosition)
                         else
-                            HaveActionToAssign(refActionBuildT1TorpLauncher, iMinTechWanted, iBPWanted)
+                            HaveActionToAssign(refActionBuildT1TorpLauncher, iMinTechWanted, iBPWanted, tTargetTorpLauncherPosition)
                         end
                     end
                 end
@@ -21070,4 +21072,67 @@ function HighValueReclaimOrder(iTeam, oWreck, tPosition)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetStartSearchPositionForTorpLauncherOrNilForDefault(tWZTeamData, tWZData, iWaterZone, iPond)
+    --Returns nil if want to go with default logic
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetStartSearchPositionForTorpLauncherOrNilForDefault'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local tPreferredLocation
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start for iWaterZone='..iWaterZone..'; in iPond='..iPond..'; Is subreftoLZOrWZAlliedUnits empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; at time='..GetGameTimeSeconds()) end
+    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+        local tFriendlyFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        if M28Utilities.IsTableEmpty(tFriendlyFactories) == false then
+            local oFactoryToBuildNear
+            local iBestFactoryHealth = -1
+            local iCurHealthPercent
+            for iFactory, oFactory in tFriendlyFactories do
+                if oFactory:GetFractionComplete() == 1 then
+                    iCurHealthPercent = M28UnitInfo.GetUnitHealthPercent(oFactory)
+                    if iCurHealthPercent > iBestFactoryHealth or (iCurHealthPercent == iBestFactoryHealth and not(oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond]) and (oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond] or (M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase]) < M28Utilities.GetDistanceBetweenPositions(oFactoryToBuildNear:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase]))))  then
+                        iBestFactoryHealth = iCurHealthPercent
+                        oFactoryToBuildNear = oFactory
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': oFactoryToBuildNear='..(oFactoryToBuildNear.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryToBuildNear) or 'nil')..'; subrefWZTThreatAllyCombatTotal='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]) end
+            if oFactoryToBuildNear then
+                tPreferredLocation = oFactoryToBuildNear:GetPosition()
+                --If lack significant threat in this WZ then build behind naval fac
+                if tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] <= 1600 then
+                    --Move away from nearest enemy base, provided still in same zone
+                    local iAngleFromEnemyBase = M28Utilities.GetAngleFromAToB(tWZTeamData[M28Map.reftClosestEnemyBase], oFactoryToBuildNear:GetPosition())
+                    local bCampaignMap = M28Map.bIsCampaignMap
+                    for iAngleAdjust = 0, 90, 30 do
+                        for iAngleMod = -1, 1, 2 do
+                            if iAngleAdjust == 0 and iAngleMod == 1 then break end
+                            local tPotentialAltPosition = M28Utilities.MoveInDirection(oFactoryToBuildNear:GetPosition(), iAngleFromEnemyBase + iAngleAdjust * iAngleMod, 8, true, false, bCampaignMap)
+                            if tPotentialAltPosition and NavUtils.GetLabel(M28Map.refPathingTypeNavy, tPotentialAltPosition) == iPond then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to build away from enemy base so a bit behind our naval factory') end
+                                tPreferredLocation = {tPotentialAltPosition[1], tPotentialAltPosition[2], tPotentialAltPosition[3]}
+                                break
+                            end
+                        end
+                    end
+                end
+                --If this would be in firing range of an enemy then abort and go with default logic (that builds torp launcher by the engineers)
+                if tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 30 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                    local iCurEnemyRange
+                    for iEnemy, oEnemy in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
+                        iCurEnemyRange = math.max(oEnemy[M28UnitInfo.refiCombatRange], (oEnemy[M28UnitInfo.refiAntiNavyRange] or 0))
+                        if iCurEnemyRange > 0 and not(oEnemy.Dead) and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), tPreferredLocation) <= iCurEnemyRange + 2 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Building here puts us in range of oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..' so will clear preferred location') end
+                            tPreferredLocation = nil
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tPreferredLocation if any='..repru(tPreferredLocation)) end
+    return tPreferredLocation
 end
