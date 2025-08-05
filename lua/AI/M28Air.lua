@@ -3363,7 +3363,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     local tBasePathingTable = tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone]
     if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..', iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; iEndPlateauOrZero='..iEndPlateauOrZero..'; iEndLandOrWaterZone='..iEndLandOrWaterZone..'; bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; iGroundAAThreatThreshold='..(iGroundAAThreatThreshold or 'nil')..'; Is table of land azones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) or false)..'; Is table of water zones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) or false)..'; iAirAAThreatThreshold='..(iAirAAThreatThreshold or 'nil')..'; tOptionalStartMidpointAdjustForDetailedCheck='..repru(tOptionalStartMidpointAdjustForDetailedCheck)) end
     local iAngleToDestination, iDistanceToDestination, iAngleToInterim, iDistanceToInterim, iInterimBestRange, tStartZoneMidpoint
-    local tDestinationMidpoint, iDistanceFromInterimToDestination
+    local tDestinationMidpoint, iDistanceFromInterimToDestination, iAngleDifToInterimVsToDestination
 
     if tOptionalEndMidpointAdjustForDetailedCheck then
         tDestinationMidpoint = tOptionalEndMidpointAdjustForDetailedCheck
@@ -3391,8 +3391,9 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
         iAngleToInterim = M28Utilities.GetAngleFromAToB(tStartZoneMidpoint, tLZOrWZData[M28Map.subrefMidpoint])
         iDistanceToInterim = M28Utilities.GetDistanceBetweenPositions(tStartZoneMidpoint, tLZOrWZData[M28Map.subrefMidpoint])
         iDistanceFromInterimToDestination = M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tDestinationMidpoint)
-        if bDebugMessages == true then LOG(sFunctionRef..': iAngleToInterim='..iAngleToInterim..'; iDistanceToInterim='..iDistanceToInterim..'; iDistanceFromInterimToDestination='..iDistanceFromInterimToDestination..'; AngleDif='..M28Utilities.GetAngleDifference(iAngleToInterim, iAngleToDestination)) end
-        if (iDistanceToInterim + 70 <= iDistanceToDestination and (M28Utilities.GetAngleDifference(iAngleToInterim, iAngleToDestination) <= 15 or iDistanceToInterim *0.5 + 30 <= iDistanceToDestination)) or iDistanceFromInterimToDestination <= 110 then
+        iAngleDifToInterimVsToDestination = M28Utilities.GetAngleDifference(iAngleToInterim, iAngleToDestination)
+        if bDebugMessages == true then LOG(sFunctionRef..': iAngleToInterim='..iAngleToInterim..'; iDistanceToInterim='..iDistanceToInterim..'; iDistanceFromInterimToDestination='..iDistanceFromInterimToDestination..'; AngleDif='..M28Utilities.GetAngleDifference(iAngleToInterim, iAngleToDestination)..'; iDistanceToDestination='..iDistanceToDestination) end
+        if (iDistanceToInterim + 70 <= iDistanceToDestination and (iAngleDifToInterimVsToDestination <= 15 or iDistanceToInterim *0.5 + 30 <= iDistanceToDestination)) or iDistanceFromInterimToDestination <= 110 then
             return true
         end
         return false
@@ -3651,14 +3652,28 @@ function AddEnemyAirUnitsAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWater
     CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone)
     local tBasePathingTable = tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone]
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..', iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; iEndPlateauOrZero='..iEndPlateauOrZero..'; iEndLandOrWaterZone='..iEndLandOrWaterZone..'; Is table of land azones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) or false)..'; Is table of water zones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) or false)) end
-    local iAngleToDestination, iDistanceToDestination, iAngleToInterim, iDistanceToInterim, iInterimBestRange, tStartZoneMidpoint
-    local tDestinationMidpoint
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..', iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; iEndPlateauOrZero='..iEndPlateauOrZero..'; iEndLandOrWaterZone='..iEndLandOrWaterZone..'; iAirAAThreshold='..(iAirAAThreshold or 'nil')..'; iGroundAAThreshold='..(iGroundAAThreshold or 'nil')..'; Is table of land azones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) or false)..'; Is table of water zones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) or false)) end
+    local tDestinationMidpoint, bCurUnitInRangeOfAdjacentAA
+    local iMaxDestinationZoneSize
     if iEndPlateauOrZero == 0 then
-        tDestinationMidpoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iEndLandOrWaterZone]][M28Map.subrefPondWaterZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
+        local tDestinationLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iEndLandOrWaterZone]][M28Map.subrefPondWaterZones][iEndLandOrWaterZone]
+        tDestinationMidpoint = tDestinationLZOrWZData[M28Map.subrefMidpoint]
+        iMaxDestinationZoneSize = math.max(tDestinationLZOrWZData[M28Map.subrefWZMaxSegX] - tDestinationLZOrWZData[M28Map.subrefWZMinSegX], tDestinationLZOrWZData[M28Map.subrefWZMaxSegZ] - tDestinationLZOrWZData[M28Map.subrefWZMinSegZ]) * M28Map.iLandZoneSegmentSize
     else
-        tDestinationMidpoint = M28Map.tAllPlateaus[iEndPlateauOrZero][M28Map.subrefPlateauLandZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
+        local tDestinationLZOrWZData = M28Map.tAllPlateaus[iEndPlateauOrZero][M28Map.subrefPlateauLandZones][iEndLandOrWaterZone]
+        tDestinationMidpoint = tDestinationLZOrWZData[M28Map.subrefMidpoint]
+        iMaxDestinationZoneSize = math.max(tDestinationLZOrWZData[M28Map.subrefLZMaxSegX] - tDestinationLZOrWZData[M28Map.subrefLZMinSegX], tDestinationLZOrWZData[M28Map.subrefLZMaxSegZ] - tDestinationLZOrWZData[M28Map.subrefLZMinSegZ]) * M28Map.iLandZoneSegmentSize
     end
+
+    local tStartMidpoint
+    local tStartLZOrWZData
+    if iStartPlateauOrZero == 0 then
+        tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLandOrWaterZone]][M28Map.subrefPondWaterZones][iStartLandOrWaterZone]
+    else
+        tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone]
+    end
+    tStartMidpoint = tStartLZOrWZData[M28Map.subrefMidpoint]
+    local iMaxDistFromStartToConsider = M28Utilities.GetDistanceBetweenPositions(tStartMidpoint, tDestinationMidpoint) + 40 + iMaxDestinationZoneSize * 0.5
 
     local iCurPlateau, iCurZone
     if M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) == false then
@@ -3674,14 +3689,63 @@ function AddEnemyAirUnitsAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWater
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; iCurPlateau='..iCurPlateau..'; iCurZone='..iCurZone..'; tLZTeamData mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; enemy groundAA='..(tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; AirAA threat='..(tLZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil')..'; iGroundAAThreshold='..iGroundAAThreshold..'; iAirAAThreshold='..iAirAAThreshold..'; LZData midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; iMaxModDistPercent='..iMaxModDistPercent) end
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false and (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= iGroundAAThreshold and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= iAirAAThreshold and tLZTeamData[M28Map.refiModDistancePercent] <= iMaxModDistPercent then
+                    local toGroundAAInOtherZones = {}
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                            if (tAdjLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) >= iGroundAAThreshold and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                local tAdjacentAAUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryGroundAA, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                                if M28Utilities.IsTableEmpty(tAdjacentAAUnits) == false then
+                                    for iAA, oAA in tAdjacentAAUnits do
+                                        if (oAA[M28UnitInfo.refiAARange] or 0) >= 45 and not(oAA.Dead) then
+                                            table.insert(toGroundAAInOtherZones, oAA)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                        for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                            local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tSubtable[M28Map.subrefAWZRef]]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefAWZRef]][M28Map.subrefWZTeamData][iTeam]
+                            if (tAdjWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) >= iGroundAAThreshold and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                local tAdjacentAAUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryGroundAA, tAdjWZTeamData[M28Map.subrefTEnemyUnits])
+                                if M28Utilities.IsTableEmpty(tAdjacentAAUnits) == false then
+                                    for iAA, oAA in tAdjacentAAUnits do
+                                        if (oAA[M28UnitInfo.refiAARange] or 0) >= 45 and not(oAA.Dead) then
+                                            table.insert(toGroundAAInOtherZones, oAA)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    if M28Utilities.IsTableEmpty(toGroundAAInOtherZones) then toGroundAAInOtherZones = nil end
+
                     local bIncludeEvenIfOnGround = true
                     --If in LOUD and unit on ground dont add as a target unless enemy has no groundAA here as airaa cant target landed air units in LOUD
                     if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (tLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) > 0 then bIncludeEvenIfOnGround = false end
                     for iUnit, oUnit in tLZTeamData[M28Map.reftLZEnemyAirUnits] do
                         if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and (bIncludeEvenIfOnGround or oUnit:IsUnitState('Moving') or oUnit:IsUnitState('Attacking') or oUnit:GetPosition()[2] - GetSurfaceHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]) > 1) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as an enemy air target, dist to LZMidpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit:GetPosition())..'; Unit position='..repru(oUnit:GetPosition())..'; iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])) end
-                            if not(iMinDistToEnemyBase) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) >= iMinDistToEnemyBase then
-                                table.insert(tEnemyAirTargets, oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as an enemy air target, dist to LZMidpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit:GetPosition())..'; Unit position='..repru(oUnit:GetPosition())..'; iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])..'; Dist to tStartMidpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartMidpoint)..'; iMaxDistFromStartToConsider='..iMaxDistFromStartToConsider) end
+                            if (not(iMinDistToEnemyBase) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) >= iMinDistToEnemyBase)
+                            and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartMidpoint) <= iMaxDistFromStartToConsider then
+                                if not(toGroundAAInOtherZones) then
+                                    table.insert(tEnemyAirTargets, oUnit)
+                                else
+                                    bCurUnitInRangeOfAdjacentAA = false
+                                    for iAA, oAA in toGroundAAInOtherZones do
+                                        if M28Utilities.GetDistanceBetweenPositions(oAA:GetPosition(), oUnit:GetPosition()) - 30 <= oAA[M28UnitInfo.refiAARange] then
+                                            bCurUnitInRangeOfAdjacentAA = true
+                                            break
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': LZ bCurUnitInRangeOfAdjacentAA='..tostring(bCurUnitInRangeOfAdjacentAA)) end
+                                    if not(bCurUnitInRangeOfAdjacentAA) then
+                                        table.insert(tEnemyAirTargets, oUnit)
+                                    end
+                                end
                             end
                         end
                     end
@@ -3698,16 +3762,66 @@ function AddEnemyAirUnitsAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWater
                 local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
                 local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; iWaterZone='..iWaterZone) end
-                if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; iWaterZone='..iWaterZone..'; subrefiThreatEnemyGroundAA='..(tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)) end
+                if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftLZEnemyAirUnits]) == false and (tWZTeamData[M28Map.refiEnemyAirAAThreat] >= 20 and (tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) <= iGroundAAThreshold) then
+                    --Get nearby enemy groundAA units in adjacent land and water zones with a high AA threshold
+                    local toGroundAAInOtherZones = {}
+                    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                        for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                            local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if iAdjWZ='..iAdjWZ..' has enough groundAA that we should check how close its units are, subrefiThreatEnemyGroundAA='..(tAdjWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; iGroundAAThreshold='..iGroundAAThreshold) end
+                            if (tAdjWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) >= iGroundAAThreshold and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                local tAdjacentAAUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryGroundAA, tAdjWZTeamData[M28Map.subrefTEnemyUnits])
+                                if M28Utilities.IsTableEmpty(tAdjacentAAUnits) == false then
+                                    for iAA, oAA in tAdjacentAAUnits do
+                                        if (oAA[M28UnitInfo.refiAARange] or 0) >= 45 and not(oAA.Dead) then
+                                            table.insert(toGroundAAInOtherZones, oAA)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
+                        for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
+                            local tAdjLZTeamData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]][M28Map.subrefLZTeamData][iTeam]
+                            if (tAdjLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) >= iGroundAAThreshold and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                local tAdjacentAAUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryGroundAA, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                                if M28Utilities.IsTableEmpty(tAdjacentAAUnits) == false then
+                                    for iAA, oAA in tAdjacentAAUnits do
+                                        if (oAA[M28UnitInfo.refiAARange] or 0) >= 45 and not(oAA.Dead) then
+                                            table.insert(toGroundAAInOtherZones, oAA)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    if M28Utilities.IsTableEmpty(toGroundAAInOtherZones) then toGroundAAInOtherZones = nil end
                     local bIncludeEvenIfOnGround = true
                     --If in LOUD and unit on ground dont add as a target unless enemy has no groundAA here as airaa cant target landed air units in LOUD
                     if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) > 0 then bIncludeEvenIfOnGround = false end
                     for iUnit, oUnit in tWZTeamData[M28Map.reftLZEnemyAirUnits] do
-                        if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and (bIncludeEvenIfOnGround or oUnit:IsUnitState('Moving') or oUnit:IsUnitState('Attacking') or oUnit:GetPosition()[2] - GetSurfaceHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]) > 1) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as an enemy air target, iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')..'; Dist to enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase])) end
-                            if not(iMinDistToEnemyBase) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase]) >= iMinDistToEnemyBase then
-                                table.insert(tEnemyAirTargets, oUnit)
+                        if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Attached')) and oUnit[M28UnitInfo.refiAARange] and (bIncludeEvenIfOnGround or oUnit:IsUnitState('Moving') or oUnit:IsUnitState('Attacking') or oUnit:GetPosition()[2] - GetSurfaceHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]) > 1) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as an enemy air target, iMinDistToEnemyBase='..(iMinDistToEnemyBase or 'nil')..'; Dist to enemy base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase])..'; Dist to tStartMidpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartMidpoint)..'; iMaxDistFromStartToConsider='..iMaxDistFromStartToConsider) end
+                            if (not(iMinDistToEnemyBase) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZTeamData[M28Map.reftClosestEnemyBase]) >= iMinDistToEnemyBase)
+                                    and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartMidpoint) <= iMaxDistFromStartToConsider then
+                                if not(toGroundAAInOtherZones) then
+                                    table.insert(tEnemyAirTargets, oUnit)
+                                else
+                                    bCurUnitInRangeOfAdjacentAA = false
+                                    for iAA, oAA in toGroundAAInOtherZones do
+                                        if M28Utilities.GetDistanceBetweenPositions(oAA:GetPosition(), oUnit:GetPosition()) - 30 <= oAA[M28UnitInfo.refiAARange] then
+                                            bCurUnitInRangeOfAdjacentAA = true
+                                            break
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': bCurUnitInRangeOfAdjacentAA='..tostring(bCurUnitInRangeOfAdjacentAA)) end
+                                    if not(bCurUnitInRangeOfAdjacentAA) then
+                                        table.insert(tEnemyAirTargets, oUnit)
+                                    end
+                                end
                             end
                         end
                     end
@@ -3723,7 +3837,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
@@ -6216,9 +6330,16 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                         if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) then iAAThreatThreshold = iAAThreatThreshold * 0.6 end
                         --Be much more cautious of enemy AA if they ahve torp defence in the zone
                         if (tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 0) > 0 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Reducing AA Threat threshold due to enemy torpedo defence, iAAThreatThreshold before reduction='..iAAThreatThreshold) end
-                            iAAThreatThreshold = iAAThreatThreshold * iAAThreatThreshold / (iAAThreatThreshold + math.min(iAAThreatThreshold * 4, math.min(30, tWZTeamData[M28Map.refiEnemyTorpDefenceCount]) * 500))
-                            if bDebugMessages == true then LOG(sFunctionRef..': iAAThreatThreshold after reduction='..iAAThreatThreshold) end
+                            if iAAThreatThreshold <= 1000 then --i.e. up against frigates or similar
+                                if bDebugMessages == true then LOG(sFunctionRef..': Reducing AA Threat threshold due to enemy torpedo defence but only slightly as a low threshold, iAAThreatThreshold before reduction='..iAAThreatThreshold) end
+                                iAAThreatThreshold = math.max(100, iAAThreatThreshold * iAAThreatThreshold / (iAAThreatThreshold + math.min(iAAThreatThreshold * 1.75, math.min(30, tWZTeamData[M28Map.refiEnemyTorpDefenceCount]) * 100)))
+                                if bDebugMessages == true then LOG(sFunctionRef..': iAAThreatThreshold after low value reduction='..iAAThreatThreshold) end
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Reducing AA Threat threshold due to enemy torpedo defence, iAAThreatThreshold before reduction='..iAAThreatThreshold) end
+                                iAAThreatThreshold = iAAThreatThreshold * iAAThreatThreshold / (iAAThreatThreshold + math.min(iAAThreatThreshold * 4, math.min(30, tWZTeamData[M28Map.refiEnemyTorpDefenceCount]) * 500))
+                                if iAAThreatThreshold < 1000 then iAAThreatThreshold = math.max(800, (1000 - iAAThreatThreshold)*0.5+iAAThreatThreshold) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iAAThreatThreshold after reduction='..iAAThreatThreshold) end
+                            end
                         end
 
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..';  iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; iTorpBomberThreat='..iTorpBomberThreat..'; tWZTeamData[M28Map.refiModDistancePercent]='..tWZTeamData[M28Map.refiModDistancePercent]..'; iMassValueOfEnemyUnits='..iMassValueOfEnemyUnits..'; tWZTeamData[M28Map.refiEnemyTorpDefenceCount]='..(tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 'nil')..'; Enemy groundAA just in this water zone='..tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]) end
