@@ -4485,3 +4485,23 @@ function DoesBrainHaveOmniVision(aiBrain)
         return true
     end
 end
+
+function DoesACUWantToConsiderGettingNavalFactoryInCurWaterZone(oACU, aiBrain, iTeam, tCurLZOrWZData, tCurLZOrWZTeamData, iCurLZorWZ, bOnlyConsiderAdjacentAndNonZoneSpecificConditions, bOnlyConsiderZoneSpecificConditions, bJustConsideringTorpLauncher)
+    --Consider zone specific checks:
+    if bOnlyConsiderAdjacentAndNonZoneSpecificConditions or (tCurLZOrWZTeamData[M28Map.subrefWZFactoryDestroyedCount] < 2 and (tCurLZOrWZTeamData[M28Map.subrefWZbCoreBase] or tCurLZOrWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation]) and M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurLZorWZ]] >= 6 and ((not(bJustConsideringTorpLauncher) and (tCurLZOrWZTeamData[M28Map.subreftiBPWantedByAction][M28Engineer.refActionBuildNavalFactory] or 0) > 0 or (tCurLZOrWZTeamData[M28Map.subreftiBPWantedByAction][M28Engineer.refActionBuildTorpLauncher] or 0) > 0) or (bJustConsideringTorpLauncher and tCurLZOrWZTeamData[M28Map.subrefWZTThreatAllyLauncherDefenceTotal] == 0))) then
+        --Consider non-zone specific checks:
+        if bOnlyConsiderZoneSpecificConditions then return true
+        else
+            --Non-zone specific includes hecks on the base zone we are calling from, i.e. for if we are considering moving to an adjacent WZ
+            if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and GetGameTimeSeconds() <= 540 and (oACU[M28UnitInfo.refiAntiNavyRange] or 0) < 10 and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+                if not(bOnlyConsiderAdjacentAndNonZoneSpecificConditions) or (not(tCurLZOrWZTeamData[M28Map.subrefLZTeamData][iTeam][M28Map.refbBaseInSafePosition]) and (M28Utilities.IsTableEmpty(tCurLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false or M28Utilities.IsTableEmpty(tCurLZOrWZData[M28Map.subrefWZAdjacentWaterZones]) == false)) then
+                    if aiBrain[M28Economy.refiOurHighestNavalFactoryTech] < 2 and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 and (M28Team.tTeamData[iTeam][M28Team.refiEnemySubCount] or 0) < 4 and ((M28Team.tTeamData[iTeam][M28Team.refiEnemySubCount] or 0) <= 2 or M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.99) then
+                        if bJustConsideringTorpLauncher or (aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalFactory) <= 1 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) <= 3) then
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+    end
+end

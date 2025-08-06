@@ -4210,7 +4210,7 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
     local iRecentLandZoneRef
     local iSecondsToIgnoreZonesRecentlyRunFrom = 30
     if bDebugMessages == true then LOG(sFunctionRef..': Time ACU last had order to move to zone='..(oACU[refiTimeLastToldToMoveToZone] or 'nil')..'; oACU[refiLastPlateauAndZoneToMoveTo]='..repru(oACU[refiLastPlateauAndZoneToMoveTo])..'; iLowerPriorityDistanceThreshold berfore last zone adjust='..iLowerPriorityDistanceThreshold) end
-    if GetGameTimeSeconds() - (oACU[refiTimeLastToldToMoveToZone] or -100) <= 10 then
+    if GetGameTimeSeconds() - (oACU[refiTimeLastToldToMoveToZone] or -100) <= 10 and not(oACU[refiLastPlateauAndZoneToMoveTo][1] == 0) then
         iRecentLandZoneRef = oACU[refiLastPlateauAndZoneToMoveTo][2]
         iLastPathedZoneTravelDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iRecentLandZoneRef)
 
@@ -4219,6 +4219,30 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
         if bDebugMessages == true then LOG(sFunctionRef..': Recently tried to travel to land zone '..(iRecentLandZoneRef or 'nil')..'; iHighValueDistanceThreshold='..iHighValueDistanceThreshold..'; iLowerPriorityDistanceThreshold='..iLowerPriorityDistanceThreshold..'; iLastPathedZoneTravelDist='..(iLastPathedZoneTravelDist or 'nil')) end
     end
     local tbIslandsAlreadyConsidered = {}
+    local iWaterZoneToConsiderBuildingNavalFactoryInFirst
+    local aiBrain = oACU:GetAIBrain()
+    --ACUs without torpedo upgrade early game where not had too many failed naval fac attempts and on a naval map - have ACU build naval fac (will consider later on if we find such a wz we want to help)
+        --First consider global and cur LZ specific checks for if we want acu to build naval fac:
+    if M28Conditions.DoesACUWantToConsiderGettingNavalFactoryInCurWaterZone(oACU, aiBrain, iTeam, tLZData, tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team], iLandZone, true, false) then
+        --Consider if we have a nearby naval zone that wants more engineers and send ACU there to help construction, unless have a higher priority target
+        local iAdjWZ, iPond, iCurWZDist
+        local iClosestWZConsideringDist = 10000
+        for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+            iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+            iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+            local tAdjWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ]
+            local tAdjWZTeamData = tAdjWZData[M28Map.subrefWZTeamData][iTeam]
+            --next consider zone specific checks for if ACU wants to get naval fac in this zone
+            if M28Conditions.DoesACUWantToConsiderGettingNavalFactoryInCurWaterZone(oACU, aiBrain, iTeam, tAdjWZData, tAdjWZTeamData, iAdjWZ, false, true) then
+                iCurWZDist = M28Utilities.GetDistanceBetweenPositions(tAdjWZData[M28Map.subrefMidpoint], oACU:GetPosition())
+                if not(iRecentLandZoneRef) and oACU[refiLastPlateauAndZoneToMoveTo][2] == iAdjWZ and oACU[refiLastPlateauAndZoneToMoveTo][1] == 0 then iCurWZDist = iCurWZDist - 50 end
+                if iCurWZDist < iClosestWZConsideringDist then
+                    iWaterZoneToConsiderBuildingNavalFactoryInFirst = iAdjWZ
+                    iClosestWZConsideringDist = iCurWZDist
+                end
+            end
+        end
+    end
     --First consider adjacent zones wanting combat support
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
         local iHighestValueAmount = 0
@@ -4280,7 +4304,7 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
                 if (tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false) and tAdjLZTeamData[M28Map.subrefbLZWantsDFSupport] then
                     iCurValue = iCurValue + 250 + math.min(2000, (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 2)
                     if bDebugMessages == true then LOG(sFunctionRef..': Enemy units so increasing  value to iCurValue='..iCurValue) end
-                --Have ACU be more aggressive if has good combat upgrades (e.g. one scenario is enemy only has PD in the zone so doesnt flag as wanting DF support)
+                    --Have ACU be more aggressive if has good combat upgrades (e.g. one scenario is enemy only has PD in the zone so doesnt flag as wanting DF support)
                 elseif (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 500 and (oACU[M28UnitInfo.refiDFMassThreatOverride] or 0) >= math.max(2000, 2 * (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)) then
                     iCurValue = iCurValue + math.min(1000, (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0))
                 end
@@ -4355,7 +4379,7 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
             if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau]) then M28Air.UpdateTransportPlateauDropLocationShortlist(iTeam, false) end
             local iBackupLZToMoveTo = iLZToMoveTo
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have high value islands to consider, iBackupLZToMoveTo='..(iBackupLZToMoveTo or 'nil')..'; Is table of drop islands by plateau empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau]))..'; Is table of pathing to other islands empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]))..'; bBestZoneHasNearbyEnemies='..tostring(bBestZoneHasNearbyEnemies)..'; iBestZoneValue='..iBestZoneValue..'; Can path to enemy with land='..tostring(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithLand] or false)) end
-            if (not(iLZToMoveTo) or (not(bBestZoneHasNearbyEnemies) and (iBestZoneValue <= 300 or not(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithLand])))) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau]) == false and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
+            if not(iWaterZoneToConsiderBuildingNavalFactoryInFirst) and (not(iLZToMoveTo) or (not(bBestZoneHasNearbyEnemies) and (iBestZoneValue <= 300 or not(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithLand])))) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau]) == false and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
                 local iClosestLZRef, iCurTravelDist
                 local iClosestLZTravelDist = 1000
 
@@ -4438,9 +4462,9 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering whether to move to a land zone on the same island, iLZToMoveTo='..(iLZToMoveTo or 'nil')..'; Does enemy have sub? count='..(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refiEnemySubCount] or 0)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering whether to move to a land zone on the same island, iLZToMoveTo='..(iLZToMoveTo or 'nil')..'; Does enemy have sub? count='..(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refiEnemySubCount] or 0)..'; iWaterZoneToConsiderBuildingNavalFactoryInFirst='..(iWaterZoneToConsiderBuildingNavalFactoryInFirst or 'nil')) end
 
-    if not(iLZToMoveTo) and not(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithLand]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false
+    if not(iLZToMoveTo) and not(iWaterZoneToConsiderBuildingNavalFactoryInFirst) and not(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithLand]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false
             and (M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refiEnemySubCount] or 0) <= 1 then
         local bIslandHasUnclaimedMexesOrEnemies
         local iSearchRange = 300
@@ -4487,10 +4511,20 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
             oACU[refiLastPlateauAndZoneToMoveTo] = {iPlateau, iLZToMoveTo}
             if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to move to zone '..iLZToMoveTo..' at time='..GetGameTimeSeconds()) end
         end
+    elseif iWaterZoneToConsiderBuildingNavalFactoryInFirst then
+        if M28Overseer.bNoRushActive then
+            iWaterZoneToConsiderBuildingNavalFactoryInFirst = nil
+        else
+            local tTargetWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZoneToConsiderBuildingNavalFactoryInFirst]][M28Map.subrefPondWaterZones][iWaterZoneToConsiderBuildingNavalFactoryInFirst]
+            M28Orders.IssueTrackedMove(oACU, tTargetWZData[M28Map.subrefMidpoint], 6, false, 'ACMWZ'..iWaterZoneToConsiderBuildingNavalFactoryInFirst, false)
+            oACU[refiTimeLastToldToMoveToZone] = GetGameTimeSeconds()
+            oACU[refiLastPlateauAndZoneToMoveTo] = {0, iWaterZoneToConsiderBuildingNavalFactoryInFirst}
+            if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to move to WZ='..iWaterZoneToConsiderBuildingNavalFactoryInFirst..' at time='..GetGameTimeSeconds()) end
+        end
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    if iLZToMoveTo then return true else return false end
+    if iLZToMoveTo or iWaterZoneToConsiderBuildingNavalFactoryInFirst then return true else return false end
 end
 
 function UpdateACULandOrWaterZoneAssignment(oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZTeamData)
@@ -6859,6 +6893,44 @@ function GetACUOrder(aiBrain, oACU)
                                                                     end
                                                                 end
                                                             end
+                                                            --Consider building naval fac or torp launcher in this zone if in water zone and lack torpedo upgrade and it is early game
+                                                            if iPlateauOrZero == 0 and not(bBuildingOrAssistingPowerOrFactory) and (oACU[M28UnitInfo.refiAntiNavyRange] or 0) < 10 then
+                                                                --Consider torp launcher if this zone wants one and not campaign map
+                                                                local bWantTorpLauncher = M28Conditions.DoesACUWantToConsiderGettingNavalFactoryInCurWaterZone(oACU, aiBrain, iTeam, tLZOrWZData, tLZOrWZTeamData, iLandOrWaterZone, false, false, true)
+                                                                --Further check due to delay between ACU completing torp launcher and it being updated in the LZ
+                                                                if bWantTorpLauncher and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                                                    local tFriendlyTorpLauncher = EntityCategoryFilterDown(M28UnitInfo.refCategoryTorpedoLauncher, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                                                    if M28Utilities.IsTableEmpty(tFriendlyTorpLauncher) == false then
+                                                                        for iTorp, oTorp in tFriendlyTorpLauncher do
+                                                                            if not(oTorp.Dead) and oTorp:GetFractionComplete() == 1 then
+                                                                                if bDebugMessages == true then LOG(sFunctionRef..': We already have torp launcher and presumably just not updated threat yet so wont get another') end
+                                                                                bWantTorpLauncher = false
+                                                                                break
+                                                                            end
+                                                                        end
+                                                                    end
+                                                                end
+                                                                if bWantTorpLauncher and (tLZOrWZTeamData[M28Map.subreftiBPWantedByAction][M28Engineer.refActionBuildTorpLauncher] or 0) > 0 and (tLZOrWZTeamData[M28Map.subrefWZTThreatAllyLauncherDefenceTotal] or 0) == 0 and ((M28Team.tTeamData[iTeam][M28Team.refiEnemySubCount] or 0) > 0 or tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) and not(M28Map.bIsCampaignMap) then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to build torp launcher with ACU to protect naval fac') end
+                                                                    bBuildingOrAssistingPowerOrFactory = true
+                                                                    ACUBuildUnit(aiBrain, oACU, M28Engineer.tiActionCategory[M28Engineer.refActionBuildT1TorpLauncher], 30, 30, nil, nil, nil)
+                                                                end
+
+
+                                                                if not(bBuildingOrAssistingPowerOrFactory) and M28Conditions.DoesACUWantToConsiderGettingNavalFactoryInCurWaterZone(oACU, aiBrain, iTeam, tLZOrWZData, tLZOrWZTeamData, iLandOrWaterZone, false, false) then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build naval fac in this zone') end
+                                                                    ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refActionBuildNavalFactory)
+                                                                    bBuildingOrAssistingPowerOrFactory = true
+                                                                end
+
+                                                                --If already in water zone and have naval fac on naval map then get preemptive torp launcher
+                                                                if bWantTorpLauncher and not(bBuildingOrAssistingPowerOrFactory) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to build pre-emptive torp launcher with ACU to protect naval fac, subrefWZTThreatAllyLauncherDefenceTotal='..tLZOrWZTeamData[M28Map.subrefWZTThreatAllyLauncherDefenceTotal]..'; iLandOrWaterZone='..iLandOrWaterZone) end
+                                                                    bBuildingOrAssistingPowerOrFactory = true
+                                                                    ACUBuildUnit(aiBrain, oACU, M28Engineer.tiActionCategory[M28Engineer.refActionBuildT1TorpLauncher], 30, 30, nil, nil, nil)
+                                                                end
+                                                            end
+
 
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we want ACU to build power, bBuildingOrAssistingPowerOrFactory='..tostring(bBuildingOrAssistingPowerOrFactory)) end
 
