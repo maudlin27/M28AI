@@ -4420,6 +4420,47 @@ function WantAnotherT3MexUpgrade(iTeam)
             end
         end
     end
+    --If we want torp bombers to deal with navy and it is a naval map and we dont have t3 navy then delay getting t3 mex
+    if bWantT3Mex and iEnemyT3Mex <= iOurT3Mex and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.7 then
+        local bNavalMap = true
+        local bAirOnlyMap = true
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            if oBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                bNavalMap = false
+                bAirOnlyMap = false
+                break
+            elseif bAirOnlyMap and oBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+                bAirOnlyMap = false
+            end
+        end
+        if bAirOnlyMap then bNavalMap = false end
+        if bNavalMap then
+            local tiAirSubteamsConsidered = {}
+            local bLackTorpsForAllAirSubteams = true
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if not(tiAirSubteamsConsidered[oBrain.M28AirSubteam]) then
+                    tiAirSubteamsConsidered[oBrain.M28AirSubteam] = true
+                    if not(M28Team.tAirSubteamData[oBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) then
+                        bLackTorpsForAllAirSubteams = false
+                        break
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bLackTorpsForAllAirSubteams='..tostring(bLackTorpsForAllAirSubteams)) end
+            if  bLackTorpsForAllAirSubteams then
+                local iTorpLC = GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryTorpBomber + M28UnitInfo.refCategoryGunship * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.TECH3)
+                if bDebugMessages == true then LOG(sFunctionRef..': If our team hasnt built many torp bombers relative to T2+T3 mexes we own then delay getting t3 mexes, iTorpLC incl T3 air combat='..iTorpLC) end
+                if iTorpLC < 100 then
+                    local iMexCurCount = GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryMex - categories.TECH1, iTeam)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iMexCurCount='..iMexCurCount) end
+                    if iTorpLC < math.max(2, iMexCurCount) * 5 and (iTorpLC < 50 or iTorpLC < iMexCurCount * 2.5) then
+                        bWantT3Mex = false
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': We have as many t3 mex as enemy, we initially wanted more t3 mex, but have finished considering if we want to delay t3 mex due to enemy naval threat, bNavalMap='..tostring(bNavalMap)) end
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to get another t3 mex at this stage, bWantT3Mex='..tostring(bWantT3Mex or false)..'; iEnemyT3Mex='..iEnemyT3Mex..'; iOurT3Mex='..iOurT3Mex..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bWantT3Mex
