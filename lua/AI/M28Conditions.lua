@@ -4420,6 +4420,47 @@ function WantAnotherT3MexUpgrade(iTeam)
             end
         end
     end
+    --If we want torp bombers to deal with navy and it is a naval map and we dont have t3 navy then delay getting t3 mex
+    if bWantT3Mex and iEnemyT3Mex <= iOurT3Mex and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.7 then
+        local bNavalMap = true
+        local bAirOnlyMap = true
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            if oBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                bNavalMap = false
+                bAirOnlyMap = false
+                break
+            elseif bAirOnlyMap and oBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+                bAirOnlyMap = false
+            end
+        end
+        if bAirOnlyMap then bNavalMap = false end
+        if bNavalMap then
+            local tiAirSubteamsConsidered = {}
+            local bLackTorpsForAllAirSubteams = true
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if not(tiAirSubteamsConsidered[oBrain.M28AirSubteam]) then
+                    tiAirSubteamsConsidered[oBrain.M28AirSubteam] = true
+                    if not(M28Team.tAirSubteamData[oBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) then
+                        bLackTorpsForAllAirSubteams = false
+                        break
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bLackTorpsForAllAirSubteams='..tostring(bLackTorpsForAllAirSubteams)) end
+            if  bLackTorpsForAllAirSubteams then
+                local iTorpLC = GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryTorpBomber + M28UnitInfo.refCategoryGunship * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.TECH3)
+                if bDebugMessages == true then LOG(sFunctionRef..': If our team hasnt built many torp bombers relative to T2+T3 mexes we own then delay getting t3 mexes, iTorpLC incl T3 air combat='..iTorpLC) end
+                if iTorpLC < 100 then
+                    local iMexCurCount = GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryMex - categories.TECH1, iTeam)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iMexCurCount='..iMexCurCount) end
+                    if iTorpLC < math.max(2, iMexCurCount) * 5 and (iTorpLC < 50 or iTorpLC < iMexCurCount * 2.5) then
+                        bWantT3Mex = false
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': We have as many t3 mex as enemy, we initially wanted more t3 mex, but have finished considering if we want to delay t3 mex due to enemy naval threat, bNavalMap='..tostring(bNavalMap)) end
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to get another t3 mex at this stage, bWantT3Mex='..tostring(bWantT3Mex or false)..'; iEnemyT3Mex='..iEnemyT3Mex..'; iOurT3Mex='..iOurT3Mex..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bWantT3Mex
@@ -4483,5 +4524,25 @@ end
 function DoesBrainHaveOmniVision(aiBrain)
     if aiBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
         return true
+    end
+end
+
+function DoesACUWantToConsiderGettingNavalFactoryInCurWaterZone(oACU, aiBrain, iTeam, tCurLZOrWZData, tCurLZOrWZTeamData, iCurLZorWZ, bOnlyConsiderAdjacentAndNonZoneSpecificConditions, bOnlyConsiderZoneSpecificConditions, bJustConsideringTorpLauncher)
+    --Consider zone specific checks:
+    if bOnlyConsiderAdjacentAndNonZoneSpecificConditions or (tCurLZOrWZTeamData[M28Map.subrefWZFactoryDestroyedCount] < 2 and (tCurLZOrWZTeamData[M28Map.subrefWZbCoreBase] or tCurLZOrWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation]) and M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurLZorWZ]] >= 6 and ((not(bJustConsideringTorpLauncher) and (tCurLZOrWZTeamData[M28Map.subreftiBPWantedByAction][M28Engineer.refActionBuildNavalFactory] or 0) > 0 or (tCurLZOrWZTeamData[M28Map.subreftiBPWantedByAction][M28Engineer.refActionBuildTorpLauncher] or 0) > 0) or (bJustConsideringTorpLauncher and tCurLZOrWZTeamData[M28Map.subrefWZTThreatAllyLauncherDefenceTotal] == 0))) then
+        --Consider non-zone specific checks:
+        if bOnlyConsiderZoneSpecificConditions then return true
+        else
+            --Non-zone specific includes hecks on the base zone we are calling from, i.e. for if we are considering moving to an adjacent WZ
+            if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and GetGameTimeSeconds() <= 540 and (oACU[M28UnitInfo.refiAntiNavyRange] or 0) < 10 and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] then
+                if not(bOnlyConsiderAdjacentAndNonZoneSpecificConditions) or (not(tCurLZOrWZTeamData[M28Map.subrefLZTeamData][iTeam][M28Map.refbBaseInSafePosition]) and (M28Utilities.IsTableEmpty(tCurLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false or M28Utilities.IsTableEmpty(tCurLZOrWZData[M28Map.subrefWZAdjacentWaterZones]) == false)) then
+                    if aiBrain[M28Economy.refiOurHighestNavalFactoryTech] < 2 and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 and (M28Team.tTeamData[iTeam][M28Team.refiEnemySubCount] or 0) < 4 and ((M28Team.tTeamData[iTeam][M28Team.refiEnemySubCount] or 0) <= 2 or M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.99) then
+                        if bJustConsideringTorpLauncher or (aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalFactory) <= 1 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) <= 3) then
+                            return true
+                        end
+                    end
+                end
+            end
+        end
     end
 end

@@ -17905,7 +17905,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build torp launchers, bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat) end
-            if not(bEnemyHasLongRangeOrHover) and iEnemyCombatThreat >= 100 then
+            if not(bEnemyHasLongRangeOrHover) and iEnemyCombatThreat >= 100 and (tWZTeamData[M28Map.subrefWZTThreatAllyLauncherDefenceTotal] < 7500 or (tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 0) < (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0)) then
                 --Do we not have significantly more threat than enemy?
                 if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat..'; tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]='..(tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 'nil')..'; tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..(tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 'nil')) end
                 if iEnemyCombatThreat * 3 > iOurCombatThreat or (tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 0) < 3 * (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0)  then

@@ -755,7 +755,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bNearbyEnemies='..tostring(bNearbyEnemies)..'; Allied combat='..(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil')..'; tWZTeamData[M28Map.subrefWZMAAThreatWanted]='..tWZTeamData[M28Map.subrefWZMAAThreatWanted]..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tWZTeamData[M28Map.refiEnemyAirOtherThreat]='..tWZTeamData[M28Map.refiEnemyAirOtherThreat]..'; tWZTeamData[M28Map.refiEnemyTorpDefenceCount]='..(tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bNearbyEnemies='..tostring(bNearbyEnemies)..'; Allied combat='..(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil')..'; tWZTeamData[M28Map.subrefWZMAAThreatWanted]='..tWZTeamData[M28Map.subrefWZMAAThreatWanted]..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tWZTeamData[M28Map.refiEnemyAirOtherThreat]='..tWZTeamData[M28Map.refiEnemyAirOtherThreat]..'; tWZTeamData[M28Map.refiEnemyTorpDefenceCount]='..(tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 'nil')..'; subrefWZTThreatAllyLauncherDefenceTotal='..tWZTeamData[M28Map.subrefWZTThreatAllyLauncherDefenceTotal]) end
     tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] = bNearbyEnemies
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
