@@ -3971,7 +3971,12 @@ function IsFactoryReadyToBuild(oFactory)
         local iPlateauOrZero, iLandOrWaterZone
         if oFactory:GetPosition()[1] == 0 and oFactory:GetPosition()[3] == 0 then
             --Had strange scenario where a t1 land factory returned a position of 0,0,0 on a map where this was outside the playable area; assuming this might happen on death or a unit being transferred for a split second
-            M28Utilities.ErrorHandler('Factory position is 0, likely error if this triggers multiple times', false, true)
+            --Confirmed it can happen if one M28 builds a paragon and gets factories and/or mobile factories such as aircraft carriers transferred to it
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltParagon] and not(aiBrain[M28Economy.refbBuiltParagon]) then
+                --dont show error - like we xferred units when paragon was built
+            else
+                M28Utilities.ErrorHandler('Factory position is 0, likely error if this triggers multiple times over multiple seconds, factory='..(oFactory.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactory) or 'nil')..'; .Dead='..tostring(oFactory.Dead), true, true)
+            end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
         else
