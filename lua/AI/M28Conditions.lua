@@ -438,7 +438,15 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                             --If engi is in close to the target then reclaim it
                             if oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition and (oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].MaxMassReclaim or 0) > 0 and M28Utilities.GetDistanceBetweenPositions(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].CachePosition, oEngineer:GetPosition()) <= (oEngineer:GetBlueprint().Economy.MaxBuildDistance or 5) then
                                 --Reissue reclaim order (but treat as unavailable)
-                                M28Orders.IssueTrackedReclaim(oEngineer, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget], false, 'RecInRng', false)
+                                if IsDestroyed(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) then
+                                    --Abort reclaim target
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Reclaim target is dead so trat engi as available now') end
+                                    oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] = nil
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    return true
+                                else
+                                    M28Orders.IssueTrackedReclaim(oEngineer, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget], false, 'RecInRng', false)
+                                end
                             end
 
                             --Note - have a rare issue where given reclaim order far away in QUIET; however it doesnt show up on the navigator currenttargetpos
