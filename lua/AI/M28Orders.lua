@@ -650,9 +650,8 @@ end
 
 
 function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
-    if IsDestroyed(oOrderTarget) then
-        M28Utilities.ErrorHandler('Tried giving reclaim order to a destroyed target', true)
-    elseif bDontConsiderCombinedArmy or (oUnit.M28Active and (oOrderTarget.M28Active or not(oOrderTarget.GetAIBrain) or not(oOrderTarget:GetAIBrain() == oUnit:GetAIBrain()))) then
+
+    if bDontConsiderCombinedArmy or (oUnit.M28Active and (oOrderTarget.M28Active or not(oOrderTarget:GetAIBrain() == oUnit:GetAIBrain()))) then
         UpdateRecordedOrders(oUnit)
         --Issue order if we arent already trying to attack them
         local tLastOrder
