@@ -2261,7 +2261,6 @@ function GetUpgradeForSACU(oSACU, bWantBuildPower, bForceGetNewUpgradePath, bWan
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --E.g. used when overflowing resources and want engineer upgrade for the SACU
-
     local sUpgradeWanted
     local aiBrain = oSACU:GetAIBrain()
     local iTeam = aiBrain.M28Team
