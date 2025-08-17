@@ -8358,7 +8358,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                         if tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] and M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
                             tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] = false
                             local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true,                                                      nil,            M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, false, iTemplateRef)
-                            GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTemplateRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, false, iOtherLandZonesWithExperimental >= 80000)
+                            GETemplateReassessGameEnderCategory(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, iTemplateRef, tTableRef, oFirstAeon, oFirstSeraphim, oFirstUEF, oFirstCybran, oFirstEngineer, false, iMassToComplete >= 80000)
                         end
 
                         --If we dont have a T3 arti even started construction, then build one with the closest engineer able to build the desired category
@@ -9534,7 +9534,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         end
                     end
                     local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateauOrPond, iLandOrWaterZone, true, iSearchRange, iSearchCategory)
-                    if iMassToComplete >= math.max(15000, M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] * 1.25) and not(bHaveExperimentalForThisLandZone) then
+                    if iMassToComplete >= math.max(15000, M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] * 1.25) and not(bHaveExperimentalForThisLandZone) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 900 then
                         --Estimate how long it will take to complete if we manage to spend 40% of gross mass on existing experimentals
                         if (iMassToComplete - M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) / M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.4 > 40 then
                             iTotalBuildPowerWanted = 0
@@ -11396,7 +11396,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
         LOG(sFunctionRef..': Start of code, iPlateau='..(iPlateau or 'nil')..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam..'; iActionToAssign='..(iActionToAssign or 'nil')..'; iMinTechLevelWanted='..(iMinTechLevelWanted or 'nil')..'; iBuildPowerWanted='..(iBuildPowerWanted or 'nil')..'; Is table of T3 navy and exp empty for our team (i.e. for nonM28 units)='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]))..'; Is table of enemy air exp empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyAirExperimentals]))..'; Team airaa threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]..'; Enemy air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Have low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Do we have exp under construction in this zone='..tostring(GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandOrWaterZone, false, 0, nil, false) or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(iTeam))..'; Time since last E stall='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or 0) ..'; E when stalled='..M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled]..'; Cur gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy])
         local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandOrWaterZone, true, 500, M28UnitInfo.refCategoryExperimentalLevel, nil, nil, nil)
         LOG(sFunctionRef..': bHaveExperimentalForThisLandZone='..tostring(bHaveExperimentalForThisLandZone)..'; iOtherLandZonesWithExperimental='..iOtherLandZonesWithExperimental..'; iMassToComplete='..iMassToComplete..'; Team mass stored actual='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Team mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored])
-        if iMassToComplete >= 100000 then M28Utilities.ErrorHandler('Audit trail 100k plus mass to complete', true, true) end
+        if iMassToComplete >= 100000 and not(M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon]) then M28Utilities.ErrorHandler('Audit trail 100k plus mass to complete', true, true) end
     end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoNonM28ConstructingExpAndT3Navy]) == false then
         --Update the table
@@ -11416,7 +11416,9 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
         else
             iCategoryToSearch = M28UnitInfo.refCategoryExperimentalLevel
         end
-
+        if M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] and (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or ArmyBrains[tLZOrWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Economy.refbBuiltParagon]) then
+            iClosestDist = 60
+        end
 
         for iCurEntry = table.getn(tUnits), 1, -1 do
             local oUnit = tUnits[iCurEntry]
@@ -11474,7 +11476,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
     if (iBuildPowerWanted or 5) > 0 then
         local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandOrWaterZone, true, 500, M28UnitInfo.refCategoryExperimentalLevel, nil, nil, nil)
         if bDebugMessages == true then LOG(sFunctionRef..': Deciding if should overwrite decision to build another experimental, bHaveExperimentalForThisLandZone='..tostring(bHaveExperimentalForThisLandZone)..'; iOtherLandZonesWithExperimental='..iOtherLandZonesWithExperimental..'; iMassToComplete='..iMassToComplete..'; subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; subrefiTeamMassStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Time since last E stall='..(GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or 0))..'; Base condition='..tostring(not(bHaveExperimentalForThisLandZone) and iOtherLandZonesWithExperimental > 0 and iMassToComplete >= 20000 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 or iMassToComplete >= 40000))..'; mass based condition Pt1='..tostring((iOtherLandZonesWithExperimental > 0.1 + M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] * 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 2 * iMassToComplete))..'; Pt2='..tostring((iOtherLandZonesWithExperimental > 1 or (iMassToComplete >= 100000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] <= 20)))) end
-        if not(bHaveExperimentalForThisLandZone) and iOtherLandZonesWithExperimental > 0 and iMassToComplete >= 20000 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 or iMassToComplete >= 40000) and
+        if not(bHaveExperimentalForThisLandZone) and iOtherLandZonesWithExperimental > 0 and iMassToComplete >= 20000 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 or iMassToComplete >= 40000) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 900 and
                 ((M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] <= 20) or
                 (iOtherLandZonesWithExperimental > 0.1 + M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] * 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 2 * iMassToComplete and (iOtherLandZonesWithExperimental > 1 or (iMassToComplete >= 100000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] <= 20)))) then
             if bDebugMessages == true then LOG(sFunctionRef..': Will delay getting experimental due to having significant mass to complete other experimentals, iActionToAssign='..iActionToAssign..'; iLandOrWaterZone='..iLandOrWaterZone) end

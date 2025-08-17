@@ -1060,6 +1060,21 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 end
             end
 
+            --Paragon - xfer SACU (disabled as we lose upgrades on transfer as at Aug 25
+            --[[if sEnhancement == 'ResourceAllocation' and EntityCategoryContains(categories.SUBCOMMANDER, oUnit.UnitId) and oUnit:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active) and oUnit:GetAIBrain()[M28Economy.refbBuiltParagon] then
+                local oLeastMassNonParagonBrain
+                local iLeastNetMass = 500
+                for iBrain, oBrain in M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoFriendlyActiveM28Brains] do
+                    if not(oBrain[M28Economy.refbBuiltParagon]) and oBrain[M28Economy.refiNetMassBaseIncome] < iLeastNetMass then
+                        iLeastNetMass = oBrain[M28Economy.refiNetMassBaseIncome]
+                        oLeastMassNonParagonBrain = oBrain
+                    end
+                end
+                if oLeastMassNonParagonBrain then
+                    ForkThread(M28Team.TransferUnitsToPlayer, { oUnit }, oLeastMassNonParagonBrain:GetArmyIndex(), false)
+                end
+            end--]]
+
             if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
         end
         --if not(oUnit.Dead) and oUnit.SetAutoOvercharge and oUnit:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active) then oUnit:SetAutoOvercharge(false) end
@@ -2853,15 +2868,28 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --Logic based on the type of unit built
                     if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory + M28UnitInfo.refCategoryMobileAircraftFactory + categories.EXTERNALFACTORYUNIT, oJustBuilt.UnitId) then
                         if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
-                        ForkThread(M28Factory.DecideAndBuildUnitForFactory, aiBrain, oJustBuilt)
-                        if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
-                            aiBrain[M28Economy.refiOurHighestFactoryTechLevel] = math.max(M28UnitInfo.GetUnitTechLevel(oJustBuilt), aiBrain[M28Economy.refiOurHighestFactoryTechLevel])
+                        --If our team has a paragon then add a 66% chance we xfer the factory to the paragon owner
+                        local oParagonBrainToTransferTo
+                        if (M28Orders.bDontConsiderCombinedArmy or oJustBuilt.M28Active) and M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] and not(aiBrain[M28Economy.refbBuiltParagon]) and math.random(1,3) < 3 and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway - M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
+                            local oParagonBrain
+                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                if oBrain[M28Economy.refbBuiltParagon] then oParagonBrainToTransferTo = oBrain break end
+                            end
+                        end
+                        if oParagonBrainToTransferTo then
+                            ForkThread(M28Team.TransferUnitsToPlayer, { oJustBuilt }, oParagonBrainToTransferTo:GetArmyIndex(), false)
+                        else
+                            ForkThread(M28Factory.DecideAndBuildUnitForFactory, aiBrain, oJustBuilt)
+
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
+                                aiBrain[M28Economy.refiOurHighestFactoryTechLevel] = math.max(M28UnitInfo.GetUnitTechLevel(oJustBuilt), aiBrain[M28Economy.refiOurHighestFactoryTechLevel])
+                            end
                         end
                     elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) or (oJustBuilt:GetBlueprint().Intel.RadarStealth and oJustBuilt:GetBlueprint().General.OrderOverrides.RULEUTC_StealthToggle) then
                         --Make sure stealth is enabled
                         M28UnitInfo.EnableUnitStealth(oJustBuilt)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
-                        --Consider gifting power and mexes to a teammate
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryT3Mex, oJustBuilt.UnitId) then
+                        --Consider gifting power and t3 mexes to a teammate if we have a paragon
                         local aiBrain = oJustBuilt:GetAIBrain()
                         if bDebugMessages == true then LOG(sFunctionRef..': Just built mex or pgen for brain '..aiBrain.Nickname..'; considering if we have paragon and (if so) will gift the unit, builtparagon='..tostring(aiBrain[M28Economy.refbBuiltParagon])..'; Brain type='..(aiBrain.BrainType or 'nil')..'; Brain gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Gross E='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
                         if aiBrain[M28Economy.refbBuiltParagon] and not(aiBrain.BrainType == 'Human') and aiBrain[M28Economy.refiGrossMassBaseIncome] >= math.min(1000, 900 * aiBrain[M28Economy.refiBrainResourceMultiplier]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >=  math.min(100000, 90000 * aiBrain[M28Economy.refiBrainResourceMultiplier]) then
@@ -2869,7 +2897,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
                                 for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                                     if not(oBrain == oParagonBrain) and not(oBrain.M28IsDefeated) and oBrain[M28Economy.refiGrossMassBaseIncome] < 1000 then
-                                        M28Team.TransferUnitsToPlayer({ oJustBuilt }, oBrain:GetArmyIndex(), false)
+                                        ForkThread(M28Team.TransferUnitsToPlayer, { oJustBuilt }, oParagonBrain:GetArmyIndex(), false)
                                         break
                                     end
                                 end
@@ -2883,6 +2911,51 @@ function OnConstructed(oEngineer, oJustBuilt)
                                         end
                                     end
                                 end
+                            end
+                        end
+                    --Remaining categories where have a paragon on team:
+                    elseif M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] and (M28Orders.bDontConsiderCombinedArmy or oJustBuilt.M28Active) then
+                        --Gift 66% of T3 engineers and SACUs built to paragon owner and all t1-t2 mexes
+                        if not(aiBrain[M28Economy.refbBuiltParagon]) then
+                            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.SUBCOMMANDER, oJustBuilt.UnitId) then
+                                if math.random(1, 3) < 3 then
+                                    local oParagonBrain = oJustBuilt:GetAIBrain()
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                                        for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                            if not(oBrain == oParagonBrain) and not(oBrain.M28IsDefeated) and oBrain[M28Economy.refiGrossMassBaseIncome] < 1000 then
+                                                ForkThread(M28Team.TransferUnitsToPlayer, { oJustBuilt }, oParagonBrain:GetArmyIndex(), false)
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryT2Mex, oJustBuilt.UnitId) then
+                                local oParagonBrain = oJustBuilt:GetAIBrain()
+                                if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                        if not(oBrain == oParagonBrain) and not(oBrain.M28IsDefeated) and oBrain[M28Economy.refiGrossMassBaseIncome] < 1000 then
+                                            ForkThread(M28Team.TransferUnitsToPlayer, { oJustBuilt }, oParagonBrain:GetArmyIndex(), false)
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        else
+                            --gift t3 mexes to non-paragon owner
+                            if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex, oJustBuilt.UnitId) then
+                                local oLeastMassNonParagonBrain
+                                local iLeastNetMass = 500
+                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                    if not(oBrain[M28Economy.refbBuiltParagon]) and oBrain[M28Economy.refiNetMassBaseIncome] < iLeastNetMass then
+                                        iLeastNetMass = oBrain[M28Economy.refiNetMassBaseIncome]
+                                        oLeastMassNonParagonBrain = oBrain
+                                    end
+                                end
+                                if oLeastMassNonParagonBrain then
+                                    ForkThread(M28Team.TransferUnitsToPlayer, { oJustBuilt }, oLeastMassNonParagonBrain:GetArmyIndex(), false)
+                                end
+                            elseif oJustBuilt:GetBlueprint().General.UpgradesTo then
+                                ForkThread(M28Economy.UpgradeUnit, oJustBuilt, true)
                             end
                         end
                     end
@@ -3552,9 +3625,16 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             --Consider unpausing this unit regardless of whether it's an SML
                             ForkThread(M28Overseer.DelayedUnpauseOfUnits, {oUnit}, 1)
                             if EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
-                            if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oUnit)) end
-                            ForkThread(M28Air.DetachSatellite,oUnit, 1)
+                                if bDebugMessages == true then LOG(sFunctionRef..'Novax created, reprs='..reprs(oUnit)) end
+                                ForkThread(M28Air.DetachSatellite,oUnit, 1)
+                            end
+
+                            --If we have paragon and unit can upgrade (e.g. we have just had units xfer to us from teammate) then start upgrade
+                            if oUnit:GetAIBrain()[M28Economy.refbBuiltParagon] then
+                                if oUnit:GetBlueprint().General.UpgradesTo then
+                                    ForkThread(M28Economy.UpgradeUnit, oUnit, true)
                                 end
+                            end
                         end
                         --General logic that want to make sure runs on M28 units even if theyre not constructed yet or to ensure we cover scenarios where we are gifted units
                         local aiBrain = oUnit:GetAIBrain()

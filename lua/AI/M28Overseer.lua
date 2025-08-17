@@ -895,40 +895,72 @@ function CheckUnitCap(aiBrain)
                                     if (aiBrain[M28Factory.reftBlueprintPriorityOverride]['xsa0303'] or 0) > 0 then aiBrain[M28Factory.reftBlueprintPriorityOverride]['xsa0303'] = nil end
                                 end
                             end
-                            local bKillUnit
-                            for iUnit, oUnit in tUnitsToDestroy do
-                                if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
-                                    --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
-                                    bKillUnit = true
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
-                                        if  oUnit:IsUnitState('Reclaiming') or oUnit:IsUnitState('Capturing') then
-                                            bKillUnit = false
-                                        elseif oUnit[M28Engineer.refbPrimaryBuilder] and (oUnit:IsUnitState('Building') or oUnit:IsUnitState('Repairing')) then
-                                            bKillUnit = false
-                                        elseif M28Utilities.IsTableEmpty(oUnit[M28Building.reftArtiTemplateRefs]) == false and not(M28Map.tAllPlateaus[oUnit[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oUnit[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftActiveGameEnderTemplates][oUnit[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEbDontNeedEngineers]) then
-                                            bKillUnit = false
-                                        end
-                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
-                                        if oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or (oUnit[M28ACU.refiUpgradeCount] or 0) > 0 then bKillUnit = false end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering destroying a factory, is this a primary factory='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false)..'; Number of factories on team='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, aiBrain.M28Team)..'; bKillUnit='..tostring(bKillUnit)) end
+                            --If we have a paragon, then consider transferring units to a teammate that hasnt suffered any issues under unit cap
+                            if aiBrain[M28Economy.refbBuiltParagon] and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] > 1 and iAdjustmentLevel <= 1 then
+                                local toBrainsWithBetterUnitCap = {}
+                                local iBrainsToTransfer = 0
+                                for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains] do
+                                    if not(oBrain[refiTimeOfLastUnitCapDeath]) then
+                                        table.insert(toBrainsWithBetterUnitCap, oBrain)
+                                        iBrainsToTransfer = iBrainsToTransfer + 1
                                     end
-                                    if bKillUnit then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' to avoid going over unit cap'..'; Have we already tried to kill this unit? oUnit[M28UnitInfo.refbTriedToKill]='..tostring(oUnit[M28UnitInfo.refbTriedToKill] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                                        if not(oUnit[M28UnitInfo.refbTriedToKill]) then
-                                            if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
-                                                iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
-                                            else
-                                                iCurUnitsDestroyed = iCurUnitsDestroyed + 1
-                                            end
+                                end
+                                if iBrainsToTransfer > 0 then
+                                    local toUnitsToTransferByBrainRef = {}
+                                    local iCurBrainRef = 1
+                                    for iUnit, oUnit in tUnitsToDestroy do
+                                        if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
+                                            if not(toUnitsToTransferByBrainRef[iCurBrainRef]) then toUnitsToTransferByBrainRef[iCurBrainRef] = {} end
+                                            table.insert(toUnitsToTransferByBrainRef[iCurBrainRef], oUnit)
+                                            iCurBrainRef = iCurBrainRef + 1
+                                            if iCurBrainRef > iBrainsToTransfer then iCurBrainRef = 1 end
                                         end
-                                        M28Orders.IssueTrackedKillUnit(oUnit)
-                                        bKilledUnit = true
-
-                                        if iCurUnitsDestroyed >= iMaxToDestroy then
-                                            if iAdjustmentLevel <= 3 and not(M28Map.bIsCampaignMap) and aiBrain.BrainType == 'AI' then
-                                                M28Chat.SendUnitCapMessage(aiBrain)
+                                    end
+                                    if M28Utilities.IsTableEmpty( toUnitsToTransferByBrainRef) == false then
+                                        for iBrainRef, tUnitsToTransfer in toUnitsToTransferByBrainRef do
+                                            M28Team.TransferUnitsToPlayer(tUnitsToTransfer, toBrainsWithBetterUnitCap[iBrainRef]:GetArmyIndex(), false)
+                                        end
+                                    end
+                                    tUnitsToDestroy = {}
+                                    aiBrain[refiTimeOfLastUnitCapDeath] = GetGameTimeSeconds() --Still record this to be safe so we dont transfer back for some reason and get in a cycle
+                                end
+                            end
+                            if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
+                                local bKillUnit
+                                for iUnit, oUnit in tUnitsToDestroy do
+                                    if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
+                                        --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
+                                        bKillUnit = true
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                                            if  oUnit:IsUnitState('Reclaiming') or oUnit:IsUnitState('Capturing') then
+                                                bKillUnit = false
+                                            elseif oUnit[M28Engineer.refbPrimaryBuilder] and (oUnit:IsUnitState('Building') or oUnit:IsUnitState('Repairing')) then
+                                                bKillUnit = false
+                                            elseif M28Utilities.IsTableEmpty(oUnit[M28Building.reftArtiTemplateRefs]) == false and not(M28Map.tAllPlateaus[oUnit[M28Building.reftArtiTemplateRefs][1]][M28Map.subrefPlateauLandZones][oUnit[M28Building.reftArtiTemplateRefs][2]][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftActiveGameEnderTemplates][oUnit[M28Building.reftArtiTemplateRefs][3]][M28Map.subrefGEbDontNeedEngineers]) then
+                                                bKillUnit = false
                                             end
-                                            break
+                                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
+                                            if oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or (oUnit[M28ACU.refiUpgradeCount] or 0) > 0 then bKillUnit = false end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering destroying a factory, is this a primary factory='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false)..'; Number of factories on team='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, aiBrain.M28Team)..'; bKillUnit='..tostring(bKillUnit)) end
+                                        end
+                                        if bKillUnit then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' to avoid going over unit cap'..'; Have we already tried to kill this unit? oUnit[M28UnitInfo.refbTriedToKill]='..tostring(oUnit[M28UnitInfo.refbTriedToKill] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                                            if not(oUnit[M28UnitInfo.refbTriedToKill]) then
+                                                if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
+                                                    iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
+                                                else
+                                                    iCurUnitsDestroyed = iCurUnitsDestroyed + 1
+                                                end
+                                            end
+                                            M28Orders.IssueTrackedKillUnit(oUnit)
+                                            bKilledUnit = true
+
+                                            if iCurUnitsDestroyed >= iMaxToDestroy then
+                                                if iAdjustmentLevel <= 3 and not(M28Map.bIsCampaignMap) and aiBrain.BrainType == 'AI' then
+                                                    M28Chat.SendUnitCapMessage(aiBrain)
+                                                end
+                                                break
+                                            end
                                         end
                                     end
                                 end

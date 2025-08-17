@@ -4406,27 +4406,61 @@ function JustBuiltParagon(oParagon)
                     end
                 end
                 if not(bGiftedParagonToOtherBrain) then
-
-
-                    --Gift mexes, mass storage, RAS SACUs, and half of our pgens to another teammate
-                    local iMaxEngineersToGift = math.min(aiBrain[M28Overseer.refiExpectedRemainingCap] * 0.5, 30)
+                    --Gift mexes, mass storage, and half of our pgens to another teammate; meanwhile have teammates gift mass using units (factories engineers, SACUs) to us
+                    --SACUs lose upgrades on transfer!
+                    local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+                    local iMaxEngineersToGift = math.max(aiBrain[M28Overseer.refiExpectedRemainingCap] * 0.5, 30)
+                    if iMaxEngineersToGift < 80 and GetArmyUnitCap(aiBrain) >= 700 and M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] >= 1 then iMaxEngineersToGift = math.min(80, math.max(iMaxEngineersToGift, 30 + 20 * M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel])) end
                     local iEngineersGifted = 0
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                         if not(oBrain == aiBrain) and not(oBrain.M28IsDefeated) then
                             if oBrain[M28Economy.refiGrossMassBaseIncome] <= 500 then
                                 oOtherBrain = oBrain
                                 --Gift all non-land factories (retain land so we still build some units), fatboys, nukes, SMD, aircraft carriers
-                                local tFactoriesToGift = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryCarrier + M28UnitInfo.refCategoryHive, false, true)
+                                local tFactoriesToGift = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryCarrier + M28UnitInfo.refCategoryHive + M28UnitInfo.refCategoryRadar, false, true)
+                                local tUnitsToGift = {}
                                 if M28Utilities.IsTableEmpty(tFactoriesToGift) == false then
-                                    local tUnitsToGift = {}
                                     for iUnit, oUnit in tFactoriesToGift do
                                         if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
                                             table.insert(tUnitsToGift, oUnit)
                                         end
                                     end
-                                    if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
-                                        M28Team.TransferUnitsToPlayer(tUnitsToGift, aiBrain:GetArmyIndex(), false)
+                                end
+                                local tMexesToGift
+                                if (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) > 0 then --Check we have a t3 mex (as proxy to make sure dont have unit restrictions)
+                                    tMexesToGift = oBrain:GetListOfUnits(M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryT2Mex, false, true)
+                                end
+                                if M28Utilities.IsTableEmpty(tMexesToGift) == false then
+                                    for iMex, oMex in tMexesToGift do
+                                        if not(oMex:IsUnitState('Upgrading')) or oMex:GetWorkProgres() <= 0.2 then
+                                            table.insert(tUnitsToGift, oMex)
+                                        end
                                     end
+                                end
+                                --FAF and staem - xfer SACUs that lack RAS upgrade and arent upgrading
+                                if M28Utilities.bFAFActive or M28Utilities.bSteamActive then
+                                    local tNonRASSACUs = oBrain:GetListOfUnits(categories.SUBCOMMANDER, false, true)
+                                    if M28Utilities.IsTableEmpty(tNonRASSACUs) == false then
+                                        for iSACU, oSACU in tNonRASSACUs do
+                                            --Dont transfer shield SACUs being used for GE template, or RAS SACUs
+                                                --Dont transfer if have any upgrades as theyre lost on transfer
+                                            if not(oSACU:IsUnitState('Upgrading')) and oSACU[M28ACU.refiUpgradeCount] == 0 then
+                                                table.insert(tUnitsToGift, oSACU)
+                                            end
+                                        end
+                                    end
+                                end
+                                --Fixed shields - xfer if not part of GE template
+                                local tFixedShields = oBrain:GetListOfUnits(M28UnitInfo.refCategoryFixedShield)
+                                if M28Utilities.IsTableEmpty(tFixedShields) == false then
+                                    for iShield, oShield in tFixedShields do
+                                        if (not(oShield:IsUnitState('Upgrading')) or oShield:GetWorkProgress() <= 0.1) and not(oShield[reftArtiTemplateRefs]) then
+                                            table.insert(tUnitsToGift, oShield)
+                                        end
+                                    end
+                                end
+                                if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+                                    M28Team.TransferUnitsToPlayer(tUnitsToGift, aiBrain:GetArmyIndex(), false)
                                 end
                                 if iEngineersGifted < iMaxEngineersToGift then
                                     local tEngineersAvailable = oBrain:GetListOfUnits(M28UnitInfo.refCategoryEngineer, false, true)
@@ -4434,18 +4468,18 @@ function JustBuiltParagon(oParagon)
                                         local tEngineersToGift = {}
                                         local iCurCount = 0
 
-
                                         for iUnit, oUnit in tEngineersAvailable do
-                                            iCurCount = iCurCount + 1
-                                            if iCurCount >= 2 then
+                                            if iCurCount > 0 then
                                                 if not(oUnit:IsUnitState('Attached')) and not(oUnit[M28Engineer.refbPrimaryBuilder]) then
                                                     table.insert(tEngineersToGift, oUnit)
                                                     iEngineersGifted = iEngineersGifted + 1
                                                     if iEngineersGifted >= iMaxEngineersToGift then break end
                                                 end
+                                            end
+                                            iCurCount = iCurCount + 1
+                                            if iCurCount >= 3 then --i.e. transfer 75% of engineers
                                                 iCurCount = 0
                                             end
-
                                         end
                                         if M28Utilities.IsTableEmpty(tEngineersToGift) == false then
                                             M28Team.TransferUnitsToPlayer(tEngineersToGift, aiBrain:GetArmyIndex(), false)
