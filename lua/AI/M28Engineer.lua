@@ -8352,7 +8352,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                         --Check shields for cycling once we have a certain number
                         if iCompletedShields >= 3 and (iCompletedM28EasyShields == 0 or iCompletedShields - iCompletedM28EasyShields >= 2) then
                             if bDebugMessages == true then LOG(sFunctionRef..': we have at least 3 shields so will check if we are shield cycling, tTableRef[M28Map.subrefGEbActiveShieldMonitor]='..tostring(tTableRef[M28Map.subrefGEbActiveShieldMonitor] or false)) end
-                            ForkThread(M28Building.MonitorShieldsForCycling, tTableRef, iTeam, iLandZone, iTemplateRef)
+                            ForkThread(M28Building.MonitorShieldsForCycling, tTableRef, iTeam, iLandZone, iTemplateRef, tLZTeamData)
                         end
 
                         if tTableRef[M28Map.subrefbForceRefreshOfArtiToBuild] and M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
