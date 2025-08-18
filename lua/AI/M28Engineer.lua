@@ -11939,7 +11939,22 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-
+    --TMD if we have recently lost a building to enemy TML - have 1 engineer assigned as top priority (will assign more later on)
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': highest priority TMD builder, is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; Enemy combat total='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Time since subrefiTimeOfLastBuildingDeathToTML='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] or 0)) end
+    if tLZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] <= 90 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] < tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] then
+        local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is oUnitWantingTMD valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnitWantingTMD))) end
+        if oUnitWantingTMD then
+            iBPWanted = tiBPByTech[2]
+            if not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 >= 2 then iBPWanted = tiBPByTech[2] * 2 end
+            if bSaveMassForMML then
+                iBPWanted = iBPWanted * 0.5
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to build TMD as top priority, iBPWanted='..iBPWanted..'; Unit wanting TMD='..oUnitWantingTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitWantingTMD)) end
+            HaveActionToAssign(refActionBuildTMD, 2, iBPWanted, oUnitWantingTMD)
+        end
+    end
 
     --First T2 PD emergency builder if we have no T2 PD and nearby enemy threat (unless are on a t1 land spam map)
     --Approaching enemy guncom - prioritise upgrades if dont have T2, if do have T2 then get T2 PD; also get T2 PD if enemies are in this LZ and we have T2 tech
@@ -16035,6 +16050,23 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if iFactoriesWanted > 1 and bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
         if bDebugMessages == true then LOG(sFunctionRef..': Stalling energy so reducing factories wanted to 1') end
         iFactoriesWanted = 1
+    end
+
+    --TMD if we have recently lost a building to enemy TML - have 1 engineer assigned as top priority (will assign more later on)
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': highest priority TMD builder, is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; Enemy combat total='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Time since subrefiTimeOfLastBuildingDeathToTML='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] or 0)) end
+    if tLZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] <= 90 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] < tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] * 0.5 then
+        local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is oUnitWantingTMD valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnitWantingTMD))) end
+        if oUnitWantingTMD then
+            iBPWanted = tiBPByTech[2]
+            if not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 then iBPWanted = tiBPByTech[2] * 2 end
+            if bSaveMassForMML then
+                iBPWanted = iBPWanted * 0.5
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to build TMD as top priority, iBPWanted='..iBPWanted..'; Unit wanting TMD='..oUnitWantingTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitWantingTMD)) end
+            HaveActionToAssign(refActionBuildTMD, 2, iBPWanted, oUnitWantingTMD)
+        end
     end
 
 

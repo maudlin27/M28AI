@@ -279,6 +279,10 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                     if tWZTeamData then tWZTeamData[M28Map.subrefWZFactoryDestroyedCount] = (tWZTeamData[M28Map.subrefWZFactoryDestroyedCount] or 0) + 1 end
                                 end
                             end
+                            if EntityCategoryContains(M28UnitInfo.refCategoryTML, oKillerUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnitKilled.UnitId) then
+                                local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, iTeam)
+                                if tLZOrWZTeamData then tLZOrWZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] = GetGameTimeSeconds() end
+                            end
                         end
 
                         --M28 specific killer logic
