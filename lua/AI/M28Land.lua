@@ -4639,9 +4639,50 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if M28Utilities.IsTableEmpty(tT3PlusDF) == false then
                     local oClosestFriendlyDFUnitToFatboy = M28Utilities.GetNearestUnit(tT3PlusDF, oClosestFatboyOrACUInIslandToSuicideInto:GetPosition())
                     if bDebugMessages == true then LOG(sFunctionRef..': oClosestFriendlyDFUnitToFatboy='..(oClosestFriendlyDFUnitToFatboy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestFriendlyDFUnitToFatboy) or 'nil')..'; oClosestFatboyOrACUInIslandToSuicideInto='..oClosestFatboyOrACUInIslandToSuicideInto.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestFatboyOrACUInIslandToSuicideInto)..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyDFUnitToFatboy:GetPosition(), oClosestFatboyOrACUInIslandToSuicideInto:GetPosition())..'; oClosestFriendlyDFUnitToFatboy='..(oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiDFRange] or 'nil')) end
-                    if oClosestFriendlyDFUnitToFatboy and M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyDFUnitToFatboy:GetPosition(), oClosestFatboyOrACUInIslandToSuicideInto:GetPosition()) <= math.max(25 + iFriendlyBestMobileDFRange, 35 + (oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiDFRange] or 0)) then
-                        bSuicideIntoFatboyOrACU = true
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have a friendly T3 DF unit in range or almost in range of enemy fatboy so will suicide into it') end
+                    if oClosestFriendlyDFUnitToFatboy then
+                        local iDistUntilDFReachesFatboy = M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyDFUnitToFatboy:GetPosition(), oClosestFatboyOrACUInIslandToSuicideInto:GetPosition())
+                        if iDistUntilDFReachesFatboy <= math.max(25 + iFriendlyBestMobileDFRange, 35 + (oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiDFRange] or 0)) then
+                            --Much lower threshold if enemy has multiple fatboys or we dont have a big combat threat
+                            if iDistUntilDFReachesFatboy <= 5 +  (oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiDFRange] or 0) or (iDistUntilDFReachesFatboy <= 60 and (oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oClosestFriendlyDFUnitToFatboy)) >= 10000) then
+                                bSuicideIntoFatboyOrACU = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have a friendly T3 DF unit in range or almost in range of enemy fatboy so will suicide into it') end
+                            elseif iAvailableCombatUnitThreat < 10000 or tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] >= 30000 then
+                                --More refined check as either enemy has multiple fatboys or we have only a small level of threat so might struggle to chase down the fatboy
+                                if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]..'; oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiUnitMassCost]='..(oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiUnitMassCost] or 'nil')) end
+                                if tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] >= 30000 then
+                                    --If enemy has multiple fatboys then require T2 arti to be in range to consider suiciding into it
+                                    if tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] <= 20 then
+                                        --We have fired T2 arti recently, so is the fatboy in range of friendly T2 arti to the point of being able to shoot them? if so, then attack
+                                        local tFixedT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                        if M28Utilities.IsTableEmpty(tFixedT2Arti) == false then
+                                            for iArti, oArti in tFixedT2Arti do
+                                                if oArti:GetFractionComplete() == 1 and M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oClosestFatboyOrACUInIslandToSuicideInto:GetPosition()) <= oClosestFatboyOrACUInIslandToSuicideInto[M28UnitInfo.refiCombatRange] then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Fatboy is in combat range of friendly t2 arti so will attack') end
+                                                    bSuicideIntoFatboyOrACU = true
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                elseif (oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oClosestFriendlyDFUnitToFatboy)) >= 5000 and iDistUntilDFReachesFatboy - (oClosestFriendlyDFUnitToFatboy[M28UnitInfo.refiDFRange] or 0) <= 35 then
+                                    bSuicideIntoFatboyOrACU = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Nearest unit close to being in range and is high value so will continue with suicide approach') end
+                                else
+                                    --Likely only 1 fatboy but our threat is low - only consider suiciding in if we have at least 5k in mass of units close to being in range of the fatboy
+                                    local toUnitsCloseToBeingAbleToShootFatboy = {}
+                                    for iUnit, oUnit in tT3PlusDF do
+                                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestFatboyOrACUInIslandToSuicideInto:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0) <= 35 then
+                                            table.insert(toUnitsCloseToBeingAbleToShootFatboy, oUnit)
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Mass cost of DF units almost able to shoot fatboy='.. M28UnitInfo.GetMassCostOfUnits(toUnitsCloseToBeingAbleToShootFatboy, false)) end
+                                    if M28UnitInfo.GetMassCostOfUnits(toUnitsCloseToBeingAbleToShootFatboy, false) then
+                                        bSuicideIntoFatboyOrACU = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': We have enough combat units in range to be able to target the fatboy') end
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
             end

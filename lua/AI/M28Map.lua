@@ -303,6 +303,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subreftoEnemyTMD = 'LZEnemyTMD' --TMD owned by the enemy in the LZ
             subreftoEnemyPotentialTMLTargets = 'LZPotentialTMLTargets' --potential targets for TML in the LZ (ignoring TMD)
             subrefiTMLLifetimeBuildCount = 'LZLCTml' --lifetime count of TML construction for htis zone
+            subrefiTimeOfLastBuildingDeathToTML = 'LZTmlTi' --gametimeseconds that an enemy tml (not a MML) killed a building
 
             --Engineer related values
             subreftoPartBuiltMexes = 'PBMex' --If we are building a mex and the builder gets its orders cleared or dies, and it was building a mex, then the mex should be recorded in a table so it can be rebuilt

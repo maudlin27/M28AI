@@ -4071,9 +4071,8 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     end
                     if not(bEnemyHasTooMuchAA) and bAddAdjacentZones then
                         local iAdjacentAASearchType = iOptionalAdjacentZoneSearchType or refiAASearchType
-
                         if not(iAdjacentAASearchType == refiAvoidAllAA) and tLZTeamData[M28Map.refiEnemyAirAAThreat] <= 50 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
-                            iAdjacentAASearchType = refiIgnoreAllAA
+                            iAdjacentAASearchType = refiAvoidAllAA
                         elseif iAdjacentAASearchType == refiIgnoreAllAA then
                             iAdjacentAASearchType = refiAvoidOnlyGroundAA
                         end
@@ -4194,8 +4193,9 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     end
                     if not(bEnemyHasTooMuchAA) and bAddAdjacentZones then
                         local iAdjacentAASearchType = iOptionalAdjacentZoneSearchType or refiAASearchType
+
                         if not(iAdjacentAASearchType == refiAvoidAllAA) and tWZTeamData[M28Map.refiEnemyAirAAThreat] <= 50 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
-                            iAdjacentAASearchType = refiIgnoreAllAA
+                            iAdjacentAASearchType = refiAvoidAllAA
                         elseif iAdjacentAASearchType == refiIgnoreAllAA then
                             iAdjacentAASearchType = refiAvoidOnlyGroundAA
                         end
@@ -4242,7 +4242,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 
             --First search for air near priority defence targets - look for enemies near priority defensive targets and core bases
             local iAASearchType
-            if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] or (iAvailableAndInCombatAirAAThreat < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] and (iAvailableAndInCombatAirAAThreat <= 700 or iAvailableAndInCombatAirAAThreat < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.9))) then
+            if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then --and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] or (iAvailableAndInCombatAirAAThreat < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] and (iAvailableAndInCombatAirAAThreat <= 700 or iAvailableAndInCombatAirAAThreat < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.9))) then
                 iAASearchType = refiAvoidOnlyGroundAA
             else
                 iAASearchType = refiIgnoreAllAA
@@ -4316,6 +4316,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         bAvoidGroundAA = true
                     end
                 end
+                if not(bAvoidGroundAA) and tUnitLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] >= 8000 and (tUnitLZOrWZTeamData[M28Map.refiModDistancePercent] or 0) >= 0.4 then bAvoidGroundAA = true end
                 if not(bAvoidGroundAA) and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
                     if EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId) then
                         if tUnitLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] <= 200 then bAvoidGroundAA = true end

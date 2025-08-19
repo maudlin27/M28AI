@@ -4840,7 +4840,7 @@ function GetBestAOETargetForSpecifiedBuildings(aiBrain, iTeam, tLauncherPosition
     return tTarget
 end
 
-function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
+function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef, tLZTeamData)
     --Called from the gameender template logic
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MonitorShieldsForCycling'
@@ -4990,6 +4990,10 @@ function MonitorShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                 if oLowestHealthActiveShield[refiTimeOfLastAeonT3ArtiDamageToShield] and iCompletedShieldCount <= 2 and GetGameTimeSeconds() - oLowestHealthActiveShield[refiTimeOfLastAeonT3ArtiDamageToShield] <= 1 and iLowestHealth >= 6000 then
                     if bDebugMessages == true then LOG(sFunctionRef..': The lowest health shield took T3 arti fire from aeon recently, so a chance the shell DOT effect could destroy things if it occurred beneath the other shield currently active') end
                     iSecondsBetweenShieldCycles = 0.1 --review position next tick
+                    --If enemy has lots of novaxes then consider keeping up at least 2 shields instead of 1
+                elseif iCompletedShieldCount <= 2 and M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] <= 1 and tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] <= 60 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want to cycle 2 shields due to enemy having lots of novaxes at least one of which is nearby') end
+                    iSecondsBetweenShieldCycles = 0.1
                 else
                     --We will presumably have waited the appropriate time before getting here, so can disable the lowest health shield; work out how long we want to wait for the next shield
                     if iCompletedShieldCount > 1 then
