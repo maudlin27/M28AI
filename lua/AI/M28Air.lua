@@ -11489,10 +11489,28 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
         local iOptionalShieldReductionFactor = 0.15
         local bAvoidRecentLowHealthBomberTargets
 
-        if M28Utilities.IsTableEmpty(tBombersForRetreating) == false then iTotalExpBombers = iTotalExpBombers + table.getn(tBombersForRetreating) end
-        if M28Utilities.IsTableEmpty(tUnavailableUnits) == false then iTotalExpBombers = iTotalExpBombers + table.getn(tUnavailableUnits) end
+        local iHighestLC = 0
+        for iExpBomb, oExpBomb in tAvailableBombers do
+            iHighestLC = math.max(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iHighestLC)
+        end
+        if M28Utilities.IsTableEmpty(tBombersForRetreating) == false then
+            iTotalExpBombers = iTotalExpBombers + table.getn(tBombersForRetreating)
+            for iExpBomb, oExpBomb in tBombersForRetreating do
+                iHighestLC = math.max(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iHighestLC)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tUnavailableUnits) == false then
+            iTotalExpBombers = iTotalExpBombers + table.getn(tUnavailableUnits)
+            for iExpBomb, oExpBomb in tUnavailableUnits do
+                if oExpBomb:GetFractionComplete() == 1 then
+                    iHighestLC = math.max(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iHighestLC)
+                end
+            end
+        end
+        
 
         for iBomber, oBomber in tAvailableBombers do
+            if oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber) == 'xsa04024' and GetGameTimeSeconds() >= 28*60+20 then bDebugMessages = true else bDebugMessages = false end
             if bDebugMessages == true and not(oBomber.Dead) then LOG(sFunctionRef..': Considering oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; Special micro active='..tostring(oBomber[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()) end
             if M28UnitInfo.IsUnitValid(oBomber) and not(oBomber[M28UnitInfo.refbSpecialMicroActive]) then --needed as will spread out logic over a number of ticks
                 if iTotalExpBombers >= 2 and M28Utilities.IsTableEmpty(tiRecentExpBomberTargets) == false and (iTotalExpBombers >= 4 or M28UnitInfo.GetUnitHealthPercent(oBomber) >= 0.4 or (iTotalExpBombers >= 3 and M28UnitInfo.GetUnitHealthPercent(oBomber) >= 0.2)) then bAvoidRecentLowHealthBomberTargets = true end
@@ -11544,10 +11562,17 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                 end
                 if iTotalExpBombers > 1 then
                     iMaxEnemyAirAA = iMaxEnemyAirAA * (1 + (iTotalExpBombers-1) * 0.5)
+                    --If we have 4+ exp bombers then be more aggressive with the bomber with the highest LC
+                    if iTotalExpBombers >= 4 and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) or iTotalExpBombers >= 5) and table.getn(tAvailableBombers) >= 4 then
+                        if iHighestLC == M28UnitInfo.GetUnitLifetimeCount(oBomber) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Increasing iMaxEnemyAirAA as we have lots of exp bombers so want to be aggressive with one of them, iMaxEnemyAirAA before increase='..iMaxEnemyAirAA) end
+                            iMaxEnemyAirAA = math.max(M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat], iMaxEnemyAirAA * 1.5, 8000)
+                        end
+                    end
                 end
                 if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then iMaxEnemyAirAA = 100000 end
 
-                if bDebugMessages == true then LOG(sFunctionRef..': About to look for targets for experimental bomber, iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iDistToSupport='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; HaveAirControl='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; Far behind on air='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])..'; Enemy total AirAA='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to look for targets for experimental bomber, iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iDistToSupport='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; HaveAirControl='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; Far behind on air='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])..'; Enemy total AirAA='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]..'; OurAirAA='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]) end
                 local bHaveTargetWhereShotIsntBlocked = false
                 local bHaveTargetWhereShotIsBlocked = false
                 function AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, bCheckForAirAA)
