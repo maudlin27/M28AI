@@ -4017,17 +4017,18 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if we want to use aoe to ground fire subs, bConsiderUsingAOE='..tostring(bConsiderUsingAOE)..'; oNearestEnemyNonHoverToFriendlyBase='..(oNearestEnemyNonHoverToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase) or 'nil')..'; oNearestEnemySurfaceToFriendlyBase='..(oNearestEnemySurfaceToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemySurfaceToFriendlyBase) or 'nil'))
                 if oNearestEnemyNonHoverToFriendlyBase then
-                    LOG(sFunctionRef..': Is nearest enemy submersible='..tostring(EntityCategoryContains(categories.SUBMERSIBLE, oNearestEnemyNonHoverToFriendlyBase.UnitId))..'; Is nearest unit underwater='..tostring(not(M28Map.IsUnderwater({oNearestEnemyNonHoverToFriendlyBase:GetPosition()[1], oNearestEnemyNonHoverToFriendlyBase:GetPosition()[2] + 1.2 + (oNearestEnemyNonHoverToFriendlyBase:GetBlueprint().SizeY or 0) + 1.3, oNearestEnemyNonHoverToFriendlyBase:GetPosition()[3]}, false)))..'; Nearest enemy position='..repru(oNearestEnemyNonHoverToFriendlyBase:GetPosition())..'; Unit sizeY='..(oNearestEnemyNonHoverToFriendlyBase:GetBlueprint().SizeY or 'nil')..'; Water height='..M28Map.iMapWaterHeight)
+                    LOG(sFunctionRef..': Is nearest enemy submersible='..tostring(EntityCategoryContains(categories.SUBMERSIBLE, oNearestEnemyNonHoverToFriendlyBase.UnitId))..'; Is nearest enemy submarine='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oNearestEnemyNonHoverToFriendlyBase.UnitId))..'; Is nearest unit underwater='..tostring(not(M28Map.IsUnderwater({oNearestEnemyNonHoverToFriendlyBase:GetPosition()[1], oNearestEnemyNonHoverToFriendlyBase:GetPosition()[2] + 1.2 + (oNearestEnemyNonHoverToFriendlyBase:GetBlueprint().SizeY or 0) + 1.3, oNearestEnemyNonHoverToFriendlyBase:GetPosition()[3]}, false)))..'; Nearest enemy position='..repru(oNearestEnemyNonHoverToFriendlyBase:GetPosition())..'; Unit sizeY='..(oNearestEnemyNonHoverToFriendlyBase:GetBlueprint().SizeY or 'nil')..'; Water height='..M28Map.iMapWaterHeight)
                 end
             end
 
 
 
 
-            if bConsiderUsingAOE and (EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oNearestEnemyNonHoverToFriendlyBase.UnitId) or not(oNearestEnemySurfaceToFriendlyBase)) then
+            if bConsiderUsingAOE and ((EntityCategoryContains(M28UnitInfo.refCategorySubmarine + categories.SUBMERSIBLE, oNearestEnemyNonHoverToFriendlyBase.UnitId) and (EntityCategoryContains(M28UnitInfo.refCategorySubmarine,oNearestEnemyNonHoverToFriendlyBase.UnitId) or M28UnitInfo.IsUnitUnderwater(oNearestEnemyNonHoverToFriendlyBase)))  or not(oNearestEnemySurfaceToFriendlyBase)) then
                 tCombatUnitsOfUse = {}
                 tCombatUnitsWithNoTarget = {}
                 tCombatUnitsNeedingAOEForSubs = {}
+                if bDebugMessages == true then LOG(sFunctionRef..': Nearest unit is a sub/underwater so will consider if we have units capable of groundfiring it') end
                 for iUnit, oUnit in tAvailableCombatUnits do
                     if bConsiderUsingAOE and (oUnit[M28UnitInfo.refiDFAOE] or 0) >= 1.4 and oNearestEnemyNonHoverToFriendlyBase and ((oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId)) then --Doing testing in sandbox, Aeon T2 destroyer aoe of 1.4 can kill subs, as can battleships, but other destroyers with aoe of 1 cant hit subs via ground fire
                         if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with no antinavy range but aoe of '..(oUnit[M28UnitInfo.refiDFAOE] or 0)..' to tCombatUnitsNeedingAOEForSubs') end
@@ -4793,6 +4794,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                         end
                                     else
                                         --If close to rally point then attackmove
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Non-amphibious unit retreating='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bAttackMoveIfRallyPointIsClose='..tostring(bAttackMoveIfRallyPointIsClose)..'; Dist to rally='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tSubRallyPoint)) end
                                         if bAttackMoveIfRallyPointIsClose and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tSubRallyPoint) <= 10 then
                                             M28Orders.IssueTrackedAttackMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, sMessage..'AM'..iWaterZone)
                                         else

@@ -378,6 +378,7 @@ refCategoryNavyThatCanBeTorpedoed = categories.NAVAL + categories.AMPHIBIOUS + c
 refCategoryTorpedoLandAndNavy = refCategoryAntiNavy * categories.LAND + refCategoryAntiNavy * categories.NAVAL + categories.OVERLAYANTINAVY * categories.LAND + refCategoryAntiNavy * categories.STRUCTURE --If removing overlayantinavy then think up better solution for fatboy/experimentals so they dont run when in water
 refCategoryMissileShip = categories.NAVAL * categories.SILO + categories.BATTLESHIP * categories.INDIRECTFIRE - categories.BATTLESHIP * categories.SERAPHIM + categories.SERAPHIM * categories.CRUISER * categories.INDIRECTFIRE + categories.SERAPHIM * categories.CARRIER * categories.OVERLAYINDIRECTFIRE * categories.TECH3  --i.e. UEF+Sera cruisers, and nukesubs
 refCategorySubmarine = categories.NAVAL * categories.SUBMERSIBLE * refCategoryAntiNavy
+if categories.brs0305 then refCategorySubmarine = refCategorySubmarine + categories.brs0305 end
 refCategoryCooper = categories.NAVAL * refCategoryAntiNavy * categories.TECH2 - categories.SUBMERSIBLE - categories.DESTROYER
 refCategoryShieldBoat = categories.NAVAL * categories.SHIELD + categories.HOVER * categories.SHIELD --Includes mobile land shields that can hover
 refCategoryBattlecruiser = categories.BATTLESHIP * categories.PRODUCTFA * categories.UEF
