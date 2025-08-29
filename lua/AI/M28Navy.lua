@@ -4374,72 +4374,78 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': About to decide what to do with outranged combat units, oEnemyToFocusOn='..(oEnemyToFocusOn.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemyToFocusOn) or 'nil')) end
                         end --end of redundancy
-
-                        local iOurRelevantRange
-                        local iEnemyRelevantRange
-                        local bEnemyToFocusOnIsUnderwater = M28UnitInfo.IsUnitUnderwater(oEnemyToFocusOn)
-                        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                        local bCanSeeEnemy = M28UnitInfo.CanSeeUnit(aiBrain, oEnemyToFocusOn)
-                        local bRetreatFromEnemy
-                        local tTempRetreatLocation
-                        local bCampaignMap = M28Map.bIsCampaignMap
-
-                        if bEnemyToFocusOnIsUnderwater then
-                            iEnemyRelevantRange = (oEnemyToFocusOn[M28UnitInfo.refiAntiNavyRange] or 0)
+                        if not(M28UnitInfo.IsUnitValid(oEnemyToFocusOn)) then
+                            bAttackWithOutrangedUnits = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find valid unit so will revert to normal shadowing LR unit behaviour') end
                         else
-                            iEnemyRelevantRange = oEnemyToFocusOn[M28UnitInfo.refiCombatRange]
-                        end
-                        local iDistUntilEnemyOutOfRange = 0
-                        for iUnit, oUnit in tOutrangedCombatUnits do
-                            --Retreat if we have fired recently and only want to attack if we havent fired recently
-                            if EntityCategoryContains(categories.HOVER, oUnit.UnitId) then iOrderReissueDistToUse = iResisueOrderDistanceHover
-                            else iOrderReissueDistToUse = iReissueOrderDistanceStandard
-                            end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering order for outranged combat unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bOnlyAttackWithOutrangedIfFiredRecently='..tostring(bOnlyAttackWithOutrangedIfFiredRecently)..'; oUnit[M28UnitInfo.refiLastWeaponEvent]='..(oUnit[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; bEnemyToFocusOnIsUnderwater='..tostring(bEnemyToFocusOnIsUnderwater)..'; Dist to nearest enemy to friendly base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())..'; Antinavy range='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
-                            if bOnlyAttackWithOutrangedIfFiredRecently and oUnit[M28UnitInfo.refiLastWeaponEvent] and
-                                    ((oUnit[M28UnitInfo.refiTimeBetweenDFShots] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] < oUnit[M28UnitInfo.refiTimeBetweenDFShots]) or
-                                            (bEnemyToFocusOnIsUnderwater and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 and (M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) < oUnit[M28UnitInfo.refiAntiNavyRange] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] <= 6))) then
 
-                                if bDebugMessages == true then LOG(sFunctionRef..': we have fired our weapon recently and enemy is in our range, so will retreat with SR unit despite generally wanting to attack with SR units') end
-                                KitingRetreatOfUnit(oUnit)
-                            elseif bMoveBlockedNotAttackMove and oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 then
-                                M28Orders.IssueTrackedMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], iOrderReissueDistToUse, false, 'WOBlckM'..iWaterZone)
-                                --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
-                                if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
+                            local iOurRelevantRange
+                            local iEnemyRelevantRange
+                            local bEnemyToFocusOnIsUnderwater = M28UnitInfo.IsUnitUnderwater(oEnemyToFocusOn)
+                            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                            local bCanSeeEnemy = M28UnitInfo.CanSeeUnit(aiBrain, oEnemyToFocusOn)
+                            local bRetreatFromEnemy
+                            local tTempRetreatLocation
+                            local bCampaignMap = M28Map.bIsCampaignMap
+
+                            if bEnemyToFocusOnIsUnderwater then
+                                iEnemyRelevantRange = (oEnemyToFocusOn[M28UnitInfo.refiAntiNavyRange] or 0)
                             else
-                                bRetreatFromEnemy = false
-                                if not(oUnit[M28UnitInfo.refbEasyBrain]) then
-                                    if bCanSeeEnemy then
-                                        --Are we already in range of the enemy to focus on and do we outrange it? if so then retreat slightly even if overall the enemy outranges us
-                                        if bEnemyToFocusOnIsUnderwater then
-                                            iOurRelevantRange = (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)
-                                        else
-                                            iOurRelevantRange = oUnit[M28UnitInfo.refiCombatRange]
-                                        end
-                                        if bCanSeeEnemy and iOurRelevantRange >= iEnemyRelevantRange then
-                                            iDistUntilEnemyOutOfRange = iOurRelevantRange - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemyToFocusOn:GetPosition())
-                                            if iDistUntilEnemyOutOfRange >= 3 then
-                                                tTempRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oEnemyToFocusOn:GetPosition(), oUnit:GetPosition()), math.min(6, iDistUntilEnemyOutOfRange - 1.5), true, false, bCampaignMap)
-                                                if NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, tTempRetreatLocation) == iPond then
-                                                    bRetreatFromEnemy = true
+                                iEnemyRelevantRange = oEnemyToFocusOn[M28UnitInfo.refiCombatRange]
+                            end
+                            local iDistUntilEnemyOutOfRange = 0
+                            for iUnit, oUnit in tOutrangedCombatUnits do
+                                --Retreat if we have fired recently and only want to attack if we havent fired recently
+                                if EntityCategoryContains(categories.HOVER, oUnit.UnitId) then iOrderReissueDistToUse = iResisueOrderDistanceHover
+                                else iOrderReissueDistToUse = iReissueOrderDistanceStandard
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering order for outranged combat unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bOnlyAttackWithOutrangedIfFiredRecently='..tostring(bOnlyAttackWithOutrangedIfFiredRecently)..'; oUnit[M28UnitInfo.refiLastWeaponEvent]='..(oUnit[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; bEnemyToFocusOnIsUnderwater='..tostring(bEnemyToFocusOnIsUnderwater)..'; Dist to nearest enemy to friendly base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())..'; Antinavy range='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
+                                if bOnlyAttackWithOutrangedIfFiredRecently and oUnit[M28UnitInfo.refiLastWeaponEvent] and
+                                        ((oUnit[M28UnitInfo.refiTimeBetweenDFShots] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] < oUnit[M28UnitInfo.refiTimeBetweenDFShots]) or
+                                                (bEnemyToFocusOnIsUnderwater and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 and (M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) < oUnit[M28UnitInfo.refiAntiNavyRange] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] <= 6))) then
+
+                                    if bDebugMessages == true then LOG(sFunctionRef..': we have fired our weapon recently and enemy is in our range, so will retreat with SR unit despite generally wanting to attack with SR units') end
+                                    KitingRetreatOfUnit(oUnit)
+                                elseif bMoveBlockedNotAttackMove and oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 then
+                                    M28Orders.IssueTrackedMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], iOrderReissueDistToUse, false, 'WOBlckM'..iWaterZone)
+                                    --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
+                                    if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
+                                else
+                                    bRetreatFromEnemy = false
+                                    if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                                        if bCanSeeEnemy then
+                                            --Are we already in range of the enemy to focus on and do we outrange it? if so then retreat slightly even if overall the enemy outranges us
+                                            if bEnemyToFocusOnIsUnderwater then
+                                                iOurRelevantRange = (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)
+                                            else
+                                                iOurRelevantRange = oUnit[M28UnitInfo.refiCombatRange]
+                                            end
+                                            if bCanSeeEnemy and iOurRelevantRange >= iEnemyRelevantRange then
+                                                iDistUntilEnemyOutOfRange = iOurRelevantRange - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemyToFocusOn:GetPosition())
+                                                if iDistUntilEnemyOutOfRange >= 3 then
+                                                    tTempRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oEnemyToFocusOn:GetPosition(), oUnit:GetPosition()), math.min(6, iDistUntilEnemyOutOfRange - 1.5), true, false, bCampaignMap)
+                                                    if NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, tTempRetreatLocation) == iPond then
+                                                        bRetreatFromEnemy = true
+                                                    end
                                                 end
                                             end
                                         end
                                     end
-                                end
-                                if bDebugMessages == true then LOG(sFunctionRef..': bCanSeeEnemy='..tostring(bCanSeeEnemy)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iOurRelevantRange='..(iOurRelevantRange or 'nil')..'; iEnemyRelevantRange='..(iEnemyRelevantRange or 'nil')..'; Dist until out of range='..(iDistUntilEnemyOutOfRange or 'nil')..'; bRetreatFromEnemy='..tostring(bRetreatFromEnemy)) end
-                                if bRetreatFromEnemy then
-                                    oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                    ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tTempRetreatLocation, iPond, 'WSRKitR'..iWaterZone, false, nil, nil, true)
-                                    --M28Orders.IssueTrackedMove(oUnit, tTempRetreatLocation, 1.5, false, 'WSRKitR'..iWaterZone, false)
-                                else
-                                    if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(iOrderReissueDistToUse, (oUnit[M28UnitInfo.refiAntiNavyRange] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0))* 0.5, false, 'WSRDFA'..iWaterZone)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': bCanSeeEnemy='..tostring(bCanSeeEnemy)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iOurRelevantRange='..(iOurRelevantRange or 'nil')..'; iEnemyRelevantRange='..(iEnemyRelevantRange or 'nil')..'; Dist until out of range='..(iDistUntilEnemyOutOfRange or 'nil')..'; bRetreatFromEnemy='..tostring(bRetreatFromEnemy)) end
+                                    if bRetreatFromEnemy then
+                                        oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
+                                        ForkThread(M28Land.BackupUnitTowardsRallyIfAvailable, oUnit, tTempRetreatLocation, iPond, 'WSRKitR'..iWaterZone, false, nil, nil, true)
+                                        --M28Orders.IssueTrackedMove(oUnit, tTempRetreatLocation, 1.5, false, 'WSRKitR'..iWaterZone, false)
+                                    else
+                                        if not(IgnoreOrderDueToStuckUnit(oUnit)) then
+                                            M28Orders.IssueTrackedAggressiveMove(oUnit, oEnemyToFocusOn[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], math.max(iOrderReissueDistToUse, (oUnit[M28UnitInfo.refiAntiNavyRange] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0))* 0.5, false, 'WSRDFA'..iWaterZone)
+                                        end
                                     end
                                 end
                             end
                         end
-                    else
+                    end
+                    if not(bAttackWithOutrangedUnits) then
                         if M28Utilities.IsTableEmpty(tUnitsToSupport) == false then
                             --Short range units can stay back and provide support - stay inbetween our long range units and the rally point
                             local iCurDist
