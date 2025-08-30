@@ -12383,7 +12383,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Adding to table of enemies to run from') end
                                     if not(tEnemiesToRunFrom) then tEnemiesToRunFrom = {} end
                                     table.insert(tEnemiesToRunFrom, oEnemy)
-                                elseif iCurDist <= iRadarRange + (oEnemy[M28UnitInfo.refiDFRange] or 0) + 10 then
+                                elseif iCurDist <= iRadarRange + oEnemy[M28UnitInfo.refiDFRange] + 10 then
                                     table.insert(tPotentiallyNearbyDFEnemies, oEnemy)
                                 end
                             end
