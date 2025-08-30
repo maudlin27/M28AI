@@ -6731,8 +6731,21 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                     if iClosestTorpRef then
                         table.remove(tAvailableBombers, iClosestTorpRef)
                     else
-                        M28Utilities.ErrorHandler('Failed to get a valid friendly unit despite table not being empty')
-                        break
+                        if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+                            M28Utilities.ErrorHandler('Failed to get a valid friendly unit despite table not being empty')
+                            if bDebugMessages == true then
+                                for iTorp, oTorp in tAvailableBombers do
+                                    iCurDist = GetRoughDistanceBetweenPositions(tBasePosition, oTorp:GetPosition())
+                                    LOG(sFunctionRef..': oTorp='..oTorp.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTorp)..'; iCurDist='..iCurDist..'; iClosestUnitDist='..iClosestUnitDist)
+                                    if iCurDist < iClosestUnitDist then
+                                        iClosestUnitDist = iCurDist
+                                        oClosestUnit = oTorp
+                                        iClosestTorpRef = iTorp
+                                    end
+                                end
+                            end
+                            break
+                        end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Is tAvailableBombers empty after removal of the last entry='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
                     if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
