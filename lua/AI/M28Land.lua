@@ -5320,6 +5320,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         oClosestACUToAttack = oACU
                     end
                 end
+                if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then RecordAttackingExperimental(tLZTeamData, oUnit) end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' should do attack order on ACU or move to it, iClosestACU='..iClosestACU..'; oUnit[M28UnitInfo.refiDFRange]='..oUnit[M28UnitInfo.refiDFRange]..'; oUnit[M28UnitInfo.refbLastShotBlocked]='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Do we expect shot to be blocked='..tostring(M28Logic.IsShotBlocked(oUnit, oClosestACUToAttack))) end
                 if (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] <= 64 and (oUnit[M28UnitInfo.refiDFRange] <= 50 or oUnit.UnitId == 'url0402') then --IF CHANGING HERE THEN CHANGE ABOVE AS WELL
                     ForkThread(M28Micro.SuicideExperimentalIntoEnemyACU, oUnit, oClosestACUToAttack)
@@ -8130,6 +8131,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         if bDebugMessages == true then LOG(sFunctionRef..': when retreating we will consider still attacking with units that are near a mex') end
                                     end
                                 end
+                            end
+                        end
+                        --Support attacking experimental
+                        if not(bAttackWithEverything) then
+                            if HaveAttackingExperimentalToSupport(tLZTeamData) then
+                                bAttackWithEverything = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to support a friendly attacking experimental') end
                             end
                         end
                     end
@@ -12744,4 +12752,35 @@ function GetMexesInThisOrAdjacentLandZone(tLZData, tLZTeamData, iTeam, iPlateau,
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return toAdjacentEnemyMexes
+end
+
+function RecordAttackingExperimental(tLZTeamData, oExperimental)
+    local bNotRecorded = true
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoAttackingFriendlyExperimentals]) == false then
+        for iExistingExp, oExistingExp in tLZTeamData[M28Map.reftoAttackingFriendlyExperimentals] do
+            if oExistingExp == oExperimental then
+                bNotRecorded = false
+                break
+            end
+        end
+    end
+    if bNotRecorded then
+        if not(tLZTeamData[M28Map.reftoAttackingFriendlyExperimentals]) then tLZTeamData[M28Map.reftoAttackingFriendlyExperimentals] = {} end
+        table.insert(tLZTeamData[M28Map.reftoAttackingFriendlyExperimentals], oExperimental)
+    end
+    oExperimental[M28UnitInfo.refiAttackingExperimentalTime] = GetGameTimeSeconds()
+end
+
+function HaveAttackingExperimentalToSupport(tLZTeamData)
+    if M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.reftoAttackingFriendlyExperimentals]) and M28Utilities.IsTableEmpty( tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+        for iExp, oExp in tLZTeamData[M28Map.reftoAttackingFriendlyExperimentals] do
+            if oExp[M28UnitInfo.refiAttackingExperimentalTime] and GetGameTimeSeconds() - oExp[M28UnitInfo.refiAttackingExperimentalTime] <= 30 and (oExp[M28UnitInfo.refbSpecialMicroActive] or GetGameTimeSeconds() - oExp[M28UnitInfo.refiAttackingExperimentalTime] <= 10) then
+                --Is this experimental close to a DF enemy?
+                local iDistanceThreshold = math.max(30, math.min((oExp[M28UnitInfo.refiDFRange] or 0) + 5, 50))
+                for iEnemy, oEnemy in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                    if M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oExp:GetPosition()) <= iDistanceThreshold then return true end
+                end
+            end
+        end
+    end
 end
