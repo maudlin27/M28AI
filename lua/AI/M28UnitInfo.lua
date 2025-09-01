@@ -2264,13 +2264,53 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                 oUnit[refiDFRange] = oUnit[refiDFRange] * 1.25
             end
         end
-        if not(bWeaponUnpacks or (bWeaponIsFixed and EntityCategoryContains(categories.EXPERIMENTAL - refCategoryFatboy, oUnit.UnitId))) then
+        if EntityCategoryContains(categories.EXPERIMENTAL - refCategoryFatboy, oUnit.UnitId) then
             --Manual overrides
             if oUnit.UnitId == 'brmt3ava' or oUnit.UnitId == 'wel0405' or oUnit.UnitId == 'urs0201' then
                 --Cant kite well so flag it cant kite
             else
-                oUnit[refbCanKite] = true
+                local bRecordedManualOverride = false
+                local tsKitingExperimentals =
+                {
+                    'bel0402',
+                    'brmt3vul',
+                    'brl0401',
+                    'brmt3ava',
+                    'brmt3mcm2',
+                    'brnt3blasp',
+                    'brntshbm',
+                    'brot3hades',
+                    'brot3ncm',
+                    'brot3shbm',
+                    'brpexbot',
+                    'brpexbtbot',
+                    'brpexhvbot',
+                    'brpextank',
+                    'bsl0406',
+                    'wal4404',
+                    'wel0416',
+                    'wel4404',
+                    'wrl0404',
+                    'wrl1466',
+                    'wsl0404',
+                }
+                for _, sKitingID in tsKitingExperimentals do
+                    if sKitingID == oUnit.UnitId then
+                        oUnit[refbCanKite] = true
+                        bRecordedManualOverride = true
+                        break
+                    end
+                end
+                if not(bRecordedManualOverride) then
+                    if bWeaponUnpacks or bWeaponIsFixed then
+                        --Dont set flag as no manual override
+                    else
+                        oUnit[refbCanKite] = true
+                    end
+                end
             end
+        elseif not(bWeaponUnpacks) and not(bWeaponIsFixed) then
+            oUnit[refbCanKite] = true
         end
 
         --Special unit adjustments:
