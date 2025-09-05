@@ -6588,8 +6588,9 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 and not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) then
                     iGrossMassThreshold = iGrossMassThreshold * 0.5
                 end
+                if M28Conditions.DelayNavyWhereLessImportant(aiBrain, tWZData, tWZTeamData, iTeam, true) then iGrossMassThreshold = iGrossMassThreshold * 3 end
                 if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Considering whether to upgrade, Gross mass income=' .. aiBrain[M28Economy.refiGrossMassBaseIncome] .. '; iGrossMassThreshold=' .. iGrossMassThreshold..'; Is this core base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; bHaveLowMass='..tostring(bHaveLowMass or false))
+                    LOG(sFunctionRef .. ': Considering whether to upgrade, Gross mass income=' .. aiBrain[M28Economy.refiGrossMassBaseIncome] .. '; iGrossMassThreshold=' .. iGrossMassThreshold..'; Is this core base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; bHaveLowMass='..tostring(bHaveLowMass or false)..'; DelayNavyWhereLessImportant='..tostring(M28Conditions.DelayNavyWhereLessImportant(aiBrain, tWZData, tWZTeamData, iTeam, true) or false))
                 end
                 if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold and (tWZTeamData[M28Map.subrefWZbCoreBase] or not(bHaveLowMass) or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold * 3 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Mass income high enough so will try and upgrade naval fac') end
@@ -6951,7 +6952,9 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         elseif not(bHaveLowPower) and (GetGameTimeSeconds() >= math.max(230, 600 / aiBrain[M28Economy.refiBrainResourceMultiplier]) or not(bHaveLowMass)) and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) then
             if (tWZTeamData[M28Map.subrefWZbCoreBase] or not(bHaveLowMass)) then
                 if not(aiBrain[M28Overseer.refbPrioritiseLand] or aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseLowTech]) or (not(bHaveLowPower) and aiBrain:GetEconomyStoredRatio('MASS') <= 0.3 or oFactory[refiTotalBuildCount] >= 15) then
-                    if ConsiderUpgrading() then return sBPIDToBuild end
+                    if not(M28Conditions.DelayNavyWhereLessImportant(aiBrain, tWZData, tWZTeamData, iTeam, true)) or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.8 and not(bHaveLowPower)) then
+                        if ConsiderUpgrading() then return sBPIDToBuild end
+                    end
                 end
             end
         end

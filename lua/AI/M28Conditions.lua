@@ -4554,3 +4554,16 @@ function DoesACUWantToConsiderGettingNavalFactoryInCurWaterZone(oACU, aiBrain, i
         end
     end
 end
+
+function DelayNavyWhereLessImportant(aiBrain, tWZData, tWZTeamData, iTeam, bConsideringUpgrade)
+    --E.g. if fighting 1v1 on a 10km or less, and navy is further to enemy base than our core base, likely navy is 'around the outside' of the map and risk investing too much mass for too little payoff
+    if M28Team.iPlayersAtGameStart <= 4 and M28Map.iMapSize <= 512 and (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) == 0 and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 and not(M28Map.bIsCampaignMap) and (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] < 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or bConsideringUpgrade) and not(aiBrain[M28Overseer.refbPrioritiseNavy]) then
+        if aiBrain[M28Economy.refiGrossMassBaseIncome] <= 12 and (aiBrain[M28Economy.refiGrossMassBaseIncome] <= 9 or bConsideringUpgrade) and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 2 or bConsideringUpgrade) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] or 0) == 0 then
+            local iDistToEnemyBaseFromNavy = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase])
+            local iDistToEnemyBaseFromOurBase = M28Utilities.GetDistanceBetweenPositions(tWZTeamData[M28Map.reftClosestFriendlyBase], tWZTeamData[M28Map.reftClosestEnemyBase])
+            if iDistToEnemyBaseFromNavy > iDistToEnemyBaseFromOurBase then
+                return true
+            end
+        end
+    end
+end
