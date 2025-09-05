@@ -3707,11 +3707,12 @@ function ConsiderNormalUpgrades(iM28Team)
     if not(bWantMassForProduction) or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs])) or tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.3 or tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] <= 1 then
         --T1 spam mode - be much less likely to get upgrades early game
         if not(tTeamData[iM28Team][refbFocusOnT1Spam]) or (M28Overseer.bLikelyGunUpgrade and (M28Map.iMapSize > 256 or GetGameTimeSeconds() >= 480)) or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, M28UnitInfo.refCategoryFactory) >= 10 or (M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFactory, iM28Team) >= 6 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.75 and (tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.95 or GetGameTimeSeconds() >= 300 / math.max(tTeamData[iM28Team][refiHighestBrainResourceMultiplier], tTeamData[iM28Team][refiHighestBrainBuildMultiplier]))) then
-
+            local bPreferLandToAirHQ = false
+            if iPlayersAtGameStart <= 4 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 2 and (tTeamData[iM28Team][subrefiHighestEnemyNavyTech] or 0) == 0 then bPreferLandToAirHQ = true end
             while HaveEcoToSupportUpgrades(iM28Team) do
                 iCycleCount = iCycleCount + 1
                 iMassUpgradesAtLoopStart = tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] --so we can check we actually upgraded something
-                if bDebugMessages == true then LOG(sFunctionRef..': We think we have enough eco to support another upgrade, will decide if we want a mex or a factoroy, iCycleCOunt='..iCycleCount) end
+                if bDebugMessages == true then LOG(sFunctionRef..': We think we have enough eco to support another upgrade, will decide if we want a mex or a factoroy, iCycleCOunt='..iCycleCount..'; bPreferLandToAirHQ='..tostring(bPreferLandToAirHQ)) end
 
                 bLookForMexNotHQ = not(tTeamData[iM28Team][refbFocusOnT1Spam])
 
@@ -3752,11 +3753,11 @@ function ConsiderNormalUpgrades(iM28Team)
                     if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart then
                         if tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Trying backup HQ upgrade as no mexes could be found') end
-                            GetSafeHQUpgrade(iM28Team)
+                            GetSafeHQUpgrade(iM28Team, bPreferLandToAirHQ)
                         end
                     end
                 else
-                    GetSafeHQUpgrade(iM28Team)
+                    GetSafeHQUpgrade(iM28Team, bPreferLandToAirHQ)
                     if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart and (not(tTeamData[iM28Team][refbFocusOnT1Spam]) or tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] >= 0.8) then
                         --Further check - want to have 100% E or no upgrading mexes, or be overflowing mass
                         if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] > 0.99 or  tTeamData[iM28Team][subrefiTeamAverageEnergyPercentStored] > 0.99 or GetGameTimeSeconds() >= 600 or (iPlayersAtGameStart > 4 and M28Map.iMapSize >= 750) then
