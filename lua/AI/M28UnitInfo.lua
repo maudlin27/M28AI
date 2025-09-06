@@ -2391,7 +2391,7 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
     local sFunctionRef = 'GetUnitUpgradeBlueprint'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bGetSupportFactory == nil or bGetSupportFactory then bGetSupportFactory = (M28Utilities.bFAFActive and categories.SUPPORTFACTORY and EntityCategoryContains(refCategoryFactory * categories.TECH1 + categories.SUPPORTFACTORY, oUnitToUpgrade.UnitId)) end
+    if bGetSupportFactory == nil or bGetSupportFactory then bGetSupportFactory = (categories.SUPPORTFACTORY and EntityCategoryContains(refCategoryFactory * categories.TECH1 + categories.SUPPORTFACTORY, oUnitToUpgrade.UnitId)) end
     --Gets the support factory blueprint, and checks if it can be built; if not then returns the normal UpgradesTo blueprint
     local sUpgradeBP
     if not(oUnitToUpgrade.Dead) and oUnitToUpgrade.CanBuild then
