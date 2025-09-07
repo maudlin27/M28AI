@@ -8603,6 +8603,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             local bUnitIsSuicidingIntoMex = false
                             local bConsiderAttackMoveIfClose = false
                             local bMonkeylordSpecialMicro
+                            local iCurDistToRally
                             if M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tLZData[M28Map.subrefMidpoint]) <= 20 then bConsiderAttackMoveIfClose = true end
 
                             if bDebugMessages == true then LOG(sFunctionRef..': We are outranged by enemy and dont have enough threat to press the attack, will either retreat to prev LZ, or this LZ midpoint; bConsolidateAtMidpoint='..tostring(bConsolidateAtMidpoint)..'; bConsiderAttackingExperimental='..tostring(bConsiderAttackingExperimental)..'; tRallyPoint='..repru(tRallyPoint)..'; bSuicideUnitsNearAMex='..tostring(bSuicideUnitsNearAMex)..'; Is table of nearby mexes empty='..tostring(M28Utilities.IsTableEmpty(tNearbyMexes))) end
@@ -8785,8 +8786,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                                                 if bEnemyAlmostInRangeOfUs or not(bWantToKiteTowardsEnemy) then
                                                     bMonkeylordSpecialMicro = M28Micro.MonkeylordRetreatMicro(oUnit, tAmphibiousRallyPoint, tLZTeamData[M28Map.reftClosestFriendlyBase], oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will do monkeylord retreat micro') end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will do monkeylord retreat micro, bMonkeylordSpecialMicro='..tostring(bMonkeylordSpecialMicro or false)) end
                                                 end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Finished considering whether to do monkeylord retreat micro, bEnemyAlmostInRangeOfUs='..tostring(bEnemyAlmostInRangeOfUs or false)..'; bWantToKiteTowardsEnemy='..tostring(bWantToKiteTowardsEnemy or false)..'; bMonkeylordSpecialMicro='..tostring(bMonkeylordSpecialMicro or false)) end
                                             end
                                             if bMonkeylordSpecialMicro then
                                                 --Reset for next unit
@@ -8832,13 +8834,45 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                                 end
                                                             end
                                                         else
+                                                            local bAttackMove = false
                                                             if (oUnit[M28UnitInfo.refbWeaponUnpacks] or not(oUnit[M28UnitInfo.refbCanKite])) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tAmphibiousRallyPoint) <= 13 then
-                                                                M28Orders.IssueTrackedAggressiveMove(oUnit, tAmphibiousRallyPoint, 6, false, 'A'..sRetreatMessage..iLandZone)
+                                                                bAttackMove = true
                                                             else
                                                                 if bConsiderAttackMoveIfClose and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tAmphibiousRallyPoint) <= 20 then
+                                                                    bAttackMove = true
+                                                                end
+                                                            end
+                                                            iCurDistToRally = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tAmphibiousRallyPoint)
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will go to amphibious rally point, bAttackMove='..tostring(bAttackMove)..'; bConsiderAttackMoveIfClose='..tostring(bConsiderAttackMoveIfClose)..'; iCurDistToRally='..iCurDistToRally..'; Angle to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)) end
+                                                            if iCurDistToRally >= 200 then
+                                                                --Had issue where monkeylord got stuck when 251 dist from rally point
+                                                                local iAngleToRallyPoint = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)
+                                                                local tMoveTowardsBaseRetreatPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToRallyPoint, 200, true, true, M28Map.bIsCampaignMap)
+                                                                if M28Utilities.IsTableEmpty(tMoveTowardsBaseRetreatPoint) == false then
+                                                                    if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tMoveTowardsBaseRetreatPoint) == tLZData[M28Map.subrefLZIslandRef]) then
+                                                                        tMoveTowardsBaseRetreatPoint = nil
+
+                                                                    end
+                                                                end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': tMoveTowardsBaseRetreatPoint='..repru(tMoveTowardsBaseRetreatPoint)..'; bAttackMove='..tostring(bAttackMove or false)) end
+                                                                if tMoveTowardsBaseRetreatPoint then
+                                                                    if bAttackMove then
+                                                                        M28Orders.IssueTrackedAggressiveMove(oUnit, tMoveTowardsBaseRetreatPoint, 6, false, 'RAInt'..sRetreatMessage..iLandZone)
+                                                                    else
+                                                                        M28Orders.IssueTrackedMove(oUnit, tMoveTowardsBaseRetreatPoint, 6, false, 'MInt'..sRetreatMessage..iLandZone)
+                                                                    end
+                                                                else
+                                                                    if bAttackMove then
+                                                                        M28Orders.IssueTrackedAggressiveMove(oUnit, tAmphibiousRallyPoint, 6, false, 'RAXInt'..sRetreatMessage..iLandZone)
+                                                                    else
+                                                                        M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'MXInt'..sRetreatMessage..iLandZone)
+                                                                    end
+                                                                end
+                                                            else
+                                                                if bAttackMove then
                                                                     M28Orders.IssueTrackedAggressiveMove(oUnit, tAmphibiousRallyPoint, 6, false, 'RA'..sRetreatMessage..iLandZone)
                                                                 else
-                                                                    M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'A'..sRetreatMessage..iLandZone)
+                                                                    M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'M'..sRetreatMessage..iLandZone)
                                                                 end
                                                             end
                                                         end
