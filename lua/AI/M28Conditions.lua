@@ -2271,7 +2271,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                         local iAirFactoriesWanted = math.ceil(iLandFactoriesHave * iAirFactoriesForEveryLandFactory)
                                         if iAirFactoriesWanted < 2 and M28Map.iMapSize >= 512 and iLandFactoriesHave >= 3 and not(aiBrain[M28Overseer.refbPrioritiseLand]) then iAirFactoriesWanted = 2 end
                                         if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesWanted='..iAirFactoriesWanted..'; iAirFactoriesHave='..iAirFactoriesHave..'; In t1 spam mode='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])) end
-                                        if iAirFactoriesHave >= 1 and ZoneWantsT1Spam(tLZTeamData, iTeam) and (iAirFactoriesHave >= 2 or iAirFactoriesWanted < 2 or M28Map.iMapSize < 512 or iLandFactoriesHave < 3 or aiBrain[M28Overseer.refbPrioritiseLand]) then
+                                        if iAirFactoriesHave >= 1 and ZoneWantsT1Spam(tLZTeamData, iTeam) and (iAirFactoriesHave >= 2 or iAirFactoriesWanted < 2 or (M28Map.iMapSize < 512 and (aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 1 or iLandFactoriesHave < 4) and (iLandFactoriesHave < 5 or not(aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran))) or iLandFactoriesHave < 3 or aiBrain[M28Overseer.refbPrioritiseLand]) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Want to focus on t1 spam so want more land facs') end
                                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                             return false
