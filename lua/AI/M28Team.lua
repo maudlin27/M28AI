@@ -5480,6 +5480,10 @@ function ConsiderSpecialStrategyAssignment(iTeam)
         else
             iBomberChance = math.max(0.1, (0.5 * math.min(10, iPlayersAtGameStart) / 10))
         end
+        if ScenarioInfo.Options.Score == 'yes' then --Reduce bomber chance as score can indicate if M28 is going first bomber
+            iBomberChance = math.max(math.min(0.1, iBomberChance * 0.6), iBomberChance * 0.35)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iBomberChance='..iBomberChance..'; ScenarioInfo.Options.Score='..ScenarioInfo.Options.Score) end
         if iBomberChance * 100 >= math.random(1, 100) then
             --Consider early bomber strategy for brain with closest enemy (unless in LOUD since bombers suck in LOUD)
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to go first bomber, M28Utilities.bQuietModActive='..tostring(M28Utilities.bQuietModActive or false)..'; Time='..GetGameTimeSeconds()) end
