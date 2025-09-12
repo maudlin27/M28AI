@@ -4488,7 +4488,9 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of wall segments empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]))) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false then
             local iTotalWallSegments = table.getn(tLZData[M28Map.subrefLZPlayerWallSegments])
-            if iTotalWallSegments >= 5 or (iTotalWallSegments >= 2 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0) then --sometimes walls can get spread over several land zones in a line, meaning the previous threshold of 10 doesnt pick it up; also if we have just reclaimed a wall then there might only be a few segments, but htey could restrict land units to a very narrow path
+            if M28Utilities.bCPUPerformanceMode then
+                if iTotalWallSegments >= 9 then bCheckForWallsToReclaim = true end
+            elseif iTotalWallSegments >= 5 or (iTotalWallSegments >= 2 and (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) == 0) then --sometimes walls can get spread over several land zones in a line, meaning the previous threshold of 10 doesnt pick it up; also if we have just reclaimed a wall then there might only be a few segments, but htey could restrict land units to a very narrow path
                 bCheckForWallsToReclaim = true
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Size of wall segment table='..table.getn(tLZData[M28Map.subrefLZPlayerWallSegments])..'; bCheckForWallsToReclaim='..tostring(bCheckForWallsToReclaim or false)) end
