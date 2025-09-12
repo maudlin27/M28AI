@@ -114,6 +114,7 @@ refbTriedUpgrading = 'M28TrUpgr' --used for buildings like pgens, true if have t
 refbIssuedUpgrade = 'M28IssUpg' --true if the IssueUpgrade order is called; done to help with campaign compatibility
 refiTimeLastCanceledUpgrade = 'M28CancUpT' --time of last cancelling upgrade
 refiDistToEnemyBaseWhenLastCanceledUpgrade = 'M28CancUpD' --Dist to closest enemy base when last canceled upgrade
+reftiWallAdjacentLandZonesRecorded = 'M28UWlAZ' --if a wall is near anotherl and zone it records that other land zone here
 
     --Unit micro related
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI

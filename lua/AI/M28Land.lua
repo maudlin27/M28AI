@@ -11797,39 +11797,68 @@ function TrackWallSegment(oWall, bJustBuilt)
             if bDebugMessages == true then LOG(sFunctionRef..': Finished considering whether to add wall, bAlreadyRecorded='..tostring(bAlreadyRecorded)) end
             if not(bAlreadyRecorded) then
                 table.insert(tLZData[M28Map.subrefLZPlayerWallSegments], oWall)
-            end
-        else
-            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false then
-                --Remove any old entries
-                local iRevisedIndex = 1
-                local iTableSize = table.getn(tLZData[M28Map.subrefLZPlayerWallSegments])
-                if bDebugMessages == true then LOG(sFunctionRef..': Will remove wall from table, iTableSize='..iTableSize) end
-                for iOrigIndex=1, iTableSize do
-                    if tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] then
-                        if not(tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] == oWall) and M28UnitInfo.IsUnitValid(tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex]) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
-                            --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
-                            if (iOrigIndex ~= iRevisedIndex) then
-                                tLZData[M28Map.subrefLZPlayerWallSegments][iRevisedIndex] = tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex];
-                                tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] = nil;
-                            end
-                            iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
-                        else
-                            tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] = nil;
+                --Consider adding to nearby zones incase wall is built inbetween two zones
+                local iAltPlateau, iAltLandZone
+                local tbZonesConsidered = {}
+                tbZonesConsidered[iLandZone] = true
+                for iCurAngle = 0, 315, 45 do
+                    local tAltPosition = M28Utilities.MoveInDirection(oWall:GetPosition(), iCurAngle, 8, true, false, false)
+                    if tAltPosition then
+                        iAltPlateau, iAltLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tAltPosition)
+                        if iAltLandZone and not(tbZonesConsidered[iAltLandZone]) and iAltPlateau == iPlateau then
+                            tbZonesConsidered[iAltLandZone] = true
+                            local tAltLZData = M28Map.tAllPlateaus[iAltPlateau][M28Map.subrefPlateauLandZones][iAltLandZone]
+                            if not(tAltLZData[M28Map.subrefLZPlayerWallSegments]) then tAltLZData[M28Map.subrefLZPlayerWallSegments] = {} end
+                            table.insert(tAltLZData[M28Map.subrefLZPlayerWallSegments], oWall)
+                            if not(oWall[M28UnitInfo.reftiWallAdjacentLandZonesRecorded]) then oWall[M28UnitInfo.reftiWallAdjacentLandZonesRecorded] = {} end
+                            table.insert(oWall[M28UnitInfo.reftiWallAdjacentLandZonesRecorded], iAltLandZone)
                         end
                     end
                 end
-                if iRevisedIndex < iTableSize then
-                    --table.setn(tLZData[M28Map.subrefLZPlayerWallSegments], iRevisedIndex - 1)
-                    for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
-                        table.remove(tLZData[M28Map.subrefLZPlayerWallSegments], iRemovalEntry)
+            end
+        else
+            function RemoveWallFromLandZone(tCurLZData)
+                if M28Utilities.IsTableEmpty(tCurLZData[M28Map.subrefLZPlayerWallSegments]) == false then
+                    --Remove any old entries
+                    local iRevisedIndex = 1
+                    local iTableSize = table.getn(tCurLZData[M28Map.subrefLZPlayerWallSegments])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will remove wall from table, iTableSize='..iTableSize) end
+                    for iOrigIndex=1, iTableSize do
+                        if tCurLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] then
+                            if not(tCurLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] == oWall) and M28UnitInfo.IsUnitValid(tCurLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex]) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+                                --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                                if (iOrigIndex ~= iRevisedIndex) then
+                                    tCurLZData[M28Map.subrefLZPlayerWallSegments][iRevisedIndex] = tCurLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex];
+                                    tCurLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] = nil;
+                                end
+                                iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+                            else
+                                tCurLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] = nil;
+                            end
+                        end
+                    end
+                    if iRevisedIndex < iTableSize then
+                        --table.setn(tCurLZData[M28Map.subrefLZPlayerWallSegments], iRevisedIndex - 1)
+                        for iRemovalEntry = iTableSize, iRevisedIndex, -1 do
+                            table.remove(tCurLZData[M28Map.subrefLZPlayerWallSegments], iRemovalEntry)
+                        end
+                    end
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Finished removing, is table empty='..tostring(M28Utilities.IsTableEmpty(tCurLZData[M28Map.subrefLZPlayerWallSegments])))
+                        if M28Utilities.IsTableEmpty(tCurLZData[M28Map.subrefLZPlayerWallSegments]) == false then
+                            LOG(sFunctionRef..': Table size after removing='..table.getn(tCurLZData[M28Map.subrefLZPlayerWallSegments]))
+                        end
                     end
                 end
-                if bDebugMessages == true then
-                    LOG(sFunctionRef..': Finished removing, is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments])))
-                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false then
-                        LOG(sFunctionRef..': Table size after removing='..table.getn(tLZData[M28Map.subrefLZPlayerWallSegments]))
-                    end
+            end
+            RemoveWallFromLandZone(tLZData)
+
+            if M28Utilities.IsTableEmpty(oWall[M28UnitInfo.reftiWallAdjacentLandZonesRecorded]) == false then
+                for _, iAdjLZ in oWall[M28UnitInfo.reftiWallAdjacentLandZonesRecorded] do
+                    local tAltLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                    RemoveWallFromLandZone(tAltLZData)
                 end
+                oWall[M28UnitInfo.reftiWallAdjacentLandZonesRecorded] = nil
             end
         end
     end
