@@ -906,7 +906,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                     if oUnit[refiAntiNavyMassThreatOverride] and (bAntiNavyOnly or bAddAntiNavy or bSubmersibleOnly) then
                         iBaseThreat = oUnit[refiAntiNavyMassThreatOverride]
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')..'; bJustGetMassValue='..tostring(bJustGetMassValue)) end
                     if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) and not(bBlueprintThreat) then
                         iBaseThreat = GetCombatThreatRating({ { ['UnitId'] = oUnit.UnitId } }, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, true)
                         if not(tUnitThreatByIDAndType[oUnit.UnitId]) then tUnitThreatByIDAndType[oUnit.UnitId] = {} end
@@ -917,16 +917,18 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                     if iBaseThreat == 0 and bSubmersibleOnly and bEnemyUnits and EntityCategoryContains(refCategoryAmphibious, oUnit.UnitId) and IsUnitUnderwater(oUnit) then
                         iBaseThreat = oUnit[refiUnitMassCost] * 0.35
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iBaseThreat='..iBaseThreat..'; bJustGetMassValue='..tostring(bJustGetMassValue)..'; bCPUPerformanceMode='..tostring(M28Utilities.bCPUPerformanceMode)) end
                     if iBaseThreat > 0 then
                         if bJustGetMassValue then iCurThreat = iBaseThreat
                         elseif M28Utilities.bCPUPerformanceMode then
-                            if iBaseThreat <= 2000 then iCurThreat = iBaseThreat
+                            if iBaseThreat < 900 then iCurThreat = iBaseThreat
                             else iCurThreat = iBaseThreat * oUnit:GetHealth() / oUnit:GetMaxHealth()
                             end
                         else
                             --Have got the base threat for this type of unit, now adjust threat for unit health if want to calculate actual threat
                             iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit)
                             iMaxHealth = oUnit:GetMaxHealth() + iMaxShield
+                            if bDebugMessages == true then LOG(sFunctionRef..': iMaxHealth='..(iMaxHealth or 'nil')) end
                             if iMaxHealth and iMaxHealth > 0 then
                                 --Increase threat for veterancy level
                                 if oUnit.Sync.VeteranLevel > 0 then iBaseThreat = iBaseThreat * (1 + oUnit.Sync.VeteranLevel * 0.1) end
@@ -945,6 +947,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                         if iHealthPercentage < 0.5 then iHealthFactor = iHealthPercentage * iHealthPercentage
                                         elseif iHealthPercentage < 0.9 then iHealthFactor = iHealthPercentage * (iHealthPercentage + 0.1) end
                                     end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': ACU iBaseThreat='..iBaseThreat..'; iHeatlhFactor='..iHealthFactor..'; iOtherAdjustFactor='..iOtherAdjustFactor..'; iHealthPercentage='..iHealthPercentage) end
                                 else
                                     if bEnemyUnits then
                                         --For enemy damaged units treat them as still ahving high threat, since enemy likely could use them effectively still
