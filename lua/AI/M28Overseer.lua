@@ -451,7 +451,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     if ScenarioInfo.Options.M28PrioritiseBPs == 2 then table.insert(tsNonStandardSettings, 'Unit prioritisation disabled') end
     if not((ScenarioInfo.Options.M28DodgeMicro or 1) == 1) then table.insert(tsNonStandardSettings, 'Dodge micro limit='..tonumber(ScenarioInfo.Options.M28DodgeMicro)-2) end
     if not((ScenarioInfo.Options.M28HoverMicro or 1) == 1) then table.insert(tsNonStandardSettings, 'Hover micro limit='..tonumber(ScenarioInfo.Options.M28HoverMicro)-2) end
-    if not(ScenarioInfo.Options.M28CombinedArmy == 2) then table.insert(tsNonStandardSettings, 'Combined army setting='..ScenarioInfo.Options.M28CombinedArmy..'; Inherit setting='..ScenarioInfo.Options.M28CAInherit) end
+    if not(ScenarioInfo.Options.M28CombinedArmy == 2) then table.insert(tsNonStandardSettings, 'Combined army setting='..(ScenarioInfo.Options.M28CombinedArmy or 'Nil')..'; Inherit setting='..(ScenarioInfo.Options.M28CAInherit or 'Nil')) end
     if ScenarioInfo.Options.M28HoverMicro == 2 then table.insert(tsNonStandardSettings, 'Helpful teammate disabled') end
     if M28Utilities.IsTableEmpty(tsNonStandardSettings) == false then M28Utilities.ErrorHandler('Non standard settings='..reprs(tsNonStandardSettings), true) end
 
