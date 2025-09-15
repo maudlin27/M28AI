@@ -16065,6 +16065,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if oUnitWantingTMD then
             iBPWanted = tiBPByTech[2]
             if not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 then iBPWanted = tiBPByTech[2] * 2 end
+            local bSaveMassForMML, bWantT3LandForRavagers = M28Conditions.SaveMassForMMLOrMobileT3ArtiForFirebase(tLZData, tLZTeamData, iPlateau, iTeam, bHaveLowMass)
             if bSaveMassForMML then
                 iBPWanted = iBPWanted * 0.5
             end
