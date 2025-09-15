@@ -5621,7 +5621,6 @@ function ManageBombers(iTeam, iAirSubteam)
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
         local iStartPlateauToUse, iStartZoneToUse
         if M28UnitInfo.IsUnitValid(oFrontBomber) then
-            bDebugMessages = true
             local iDistFromBomberToRally = M28Utilities.GetDistanceBetweenPositions(oFrontBomber:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
             if bDebugMessages == true then LOG(sFunctionRef..': FrontBomber iDistFromBomberToRally='..iDistFromBomberToRally) end
             if iDistFromBomberToRally > 60 and (M28UnitInfo.IsUnitValid(oFrontBomber[refoStrikeDamageAssigned]) or (oFrontBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oFrontBomber[M28UnitInfo.refiLastBombFired] <= 30)) then
