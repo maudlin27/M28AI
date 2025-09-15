@@ -1943,7 +1943,7 @@ function MonkeylordRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClose
                 iAngleToRallyOrBase = iAngleToClosestBase
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': iAngleToRallyOrBase='..(iAngleToRallyOrBase or 'nil')..'; iAngleDifToRallyOrBase='..(iAngleDifToRallyOrBase or 'nil')..'; iAngleIfMoving='..iAngleIfMoving..'; tRallyOrBaseToGoTo='..repru(tRallyOrBaseToGoTo)..'; oUnit:GetPosition()='..repru(oUnit:GetPosition())) end
+        if bDebugMessages == true then LOG(sFunctionRef..': iAngleToRallyOrBase='..(iAngleToRallyOrBase or 'nil')..'; iAngleDifToRallyOrBase='..(iAngleDifToRallyOrBase or 'nil')..'; iAngleIfMoving='..iAngleIfMoving..'; tRallyOrBaseToGoTo='..repru(tRallyOrBaseToGoTo)..'; oUnit:GetPosition()='..repru(oUnit:GetPosition())..'; Time='..GetGameTimeSeconds()) end
         if tRallyOrBaseToGoTo then
             --Do we have an enemy in our range that we are near facing?
             local iMaxAngleDif
@@ -1988,6 +1988,7 @@ function MonkeylordRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClose
                     if M28Utilities.IsTableEmpty(t60thpoint) == false then
                         --If there are buildings around here then megalith wont go backwards but instead will turn around; so a good chance monkeylord will also suffer problems
                         local tUnitsAroundDestination = GetUnitsInRect(M28Utilities.GetRectAroundLocation(t60thpoint, 5))
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tUnitsAroundDestination empty='..tostring(M28Utilities.IsTableEmpty(tUnitsAroundDestination))) end
                         if M28Utilities.IsTableEmpty(tUnitsAroundDestination) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tUnitsAroundDestination)) then
 
 
@@ -1997,7 +1998,7 @@ function MonkeylordRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClose
                             if tCurOrder then
                                 if tCurOrder[M28Orders.refiOrderIssueMove] == M28Orders.refiOrderIssueMove and M28Utilities.IsTableEmpty(tCurOrder[M28Orders.subreftOrderPosition]) == false then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Monkeylord last order was a move order, dist from cur position to order position='..M28Utilities.GetDistanceBetweenPositions(tMoveDirection, tCurOrder[M28Orders.subreftOrderPosition])..'; Monkeylord speed='..M28UnitInfo.GetUnitSpeed(oUnit)) end
-                                    if M28Utilities.GetDistanceBetweenPositions(tMoveDirection, tCurOrder[M28Orders.subreftOrderPosition]) > iDistanceToMove then
+                                    if M28Utilities.GetDistanceBetweenPositions(tMoveDirection, tCurOrder[M28Orders.subreftOrderPosition]) > iDistanceToMove and M28UnitInfo.GetUnitSpeed(oUnit) > 0  then
                                         bClearAndWait = true
                                     end
                                 else
@@ -2046,6 +2047,7 @@ function MonkeylordRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClose
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will clear orders then do delayed move') end
                                 M28Orders.IssueTrackedClearCommands(oUnit)
                                 ForkThread(DelayedUnitMove, oUnit, tMoveDirection, iDistanceToMove * 0.45, false, 'MonkDelM', false, 0.75) --tried with 0.25s delay and led to megalith turning around; 0.75 worked in the replay where megalith moved in a circle before; if find it doesnt work in other caess though the nincrease to 1s and add unit micro tracking
+                                bGivenOrder = true
                             else
 
 

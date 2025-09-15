@@ -59,6 +59,7 @@ reftRecentPlateauAndZoneByTeam = 'M28UnitPrvPlatZ' --[x] is the preceding entry,
 refiPatrolStuckCount = 'M28UStCn' --number of times unit has been stuck patrolling
 refbUnitStuckAlternating = 'M28UnitStckAlt' --true if the unit appears to be moving between the same two zones again and again
 refiTimeLastTriedRetreating = 'M28UnitTimeLstRetr' --Gametimeseconds that unit last tried retreating
+refiAttackingExperimentalTime = 'M28UTmLstAt' --Gametimeseconds that an experimental was last recorded in reftoAttackingFriendlyExperimentals
 reftAssignedWaterZoneByTeam = 'M28UnitWaterZone' --[x] is the M28 team ref, returns the water zone assigned to the unit, if there is one
 refiSACUWaterZoneTarget = 'M28SACUWZ' --returns the water zone the unit (e.g. SACU) wants to travel to, or nil otherwise
 reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is the M28 team ref, returns true if have sent at least once to be assigned to a plateau/land zone/air logic/navy logic
@@ -113,6 +114,7 @@ refbTriedUpgrading = 'M28TrUpgr' --used for buildings like pgens, true if have t
 refbIssuedUpgrade = 'M28IssUpg' --true if the IssueUpgrade order is called; done to help with campaign compatibility
 refiTimeLastCanceledUpgrade = 'M28CancUpT' --time of last cancelling upgrade
 refiDistToEnemyBaseWhenLastCanceledUpgrade = 'M28CancUpD' --Dist to closest enemy base when last canceled upgrade
+reftiWallAdjacentLandZonesRecorded = 'M28UWlAZ' --if a wall is near anotherl and zone it records that other land zone here
 
     --Unit micro related
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI
@@ -378,6 +380,7 @@ refCategoryNavyThatCanBeTorpedoed = categories.NAVAL + categories.AMPHIBIOUS + c
 refCategoryTorpedoLandAndNavy = refCategoryAntiNavy * categories.LAND + refCategoryAntiNavy * categories.NAVAL + categories.OVERLAYANTINAVY * categories.LAND + refCategoryAntiNavy * categories.STRUCTURE --If removing overlayantinavy then think up better solution for fatboy/experimentals so they dont run when in water
 refCategoryMissileShip = categories.NAVAL * categories.SILO + categories.BATTLESHIP * categories.INDIRECTFIRE - categories.BATTLESHIP * categories.SERAPHIM + categories.SERAPHIM * categories.CRUISER * categories.INDIRECTFIRE + categories.SERAPHIM * categories.CARRIER * categories.OVERLAYINDIRECTFIRE * categories.TECH3  --i.e. UEF+Sera cruisers, and nukesubs
 refCategorySubmarine = categories.NAVAL * categories.SUBMERSIBLE * refCategoryAntiNavy
+if categories.brs0305 then refCategorySubmarine = refCategorySubmarine + categories.brs0305 end
 refCategoryCooper = categories.NAVAL * refCategoryAntiNavy * categories.TECH2 - categories.SUBMERSIBLE - categories.DESTROYER
 refCategoryShieldBoat = categories.NAVAL * categories.SHIELD + categories.HOVER * categories.SHIELD --Includes mobile land shields that can hover
 refCategoryBattlecruiser = categories.BATTLESHIP * categories.PRODUCTFA * categories.UEF
@@ -903,7 +906,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                     if oUnit[refiAntiNavyMassThreatOverride] and (bAntiNavyOnly or bAddAntiNavy or bSubmersibleOnly) then
                         iBaseThreat = oUnit[refiAntiNavyMassThreatOverride]
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')..'; bJustGetMassValue='..tostring(bJustGetMassValue)) end
                     if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) and not(bBlueprintThreat) then
                         iBaseThreat = GetCombatThreatRating({ { ['UnitId'] = oUnit.UnitId } }, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, true)
                         if not(tUnitThreatByIDAndType[oUnit.UnitId]) then tUnitThreatByIDAndType[oUnit.UnitId] = {} end
@@ -914,16 +917,18 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                     if iBaseThreat == 0 and bSubmersibleOnly and bEnemyUnits and EntityCategoryContains(refCategoryAmphibious, oUnit.UnitId) and IsUnitUnderwater(oUnit) then
                         iBaseThreat = oUnit[refiUnitMassCost] * 0.35
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iBaseThreat='..iBaseThreat..'; bJustGetMassValue='..tostring(bJustGetMassValue)..'; bCPUPerformanceMode='..tostring(M28Utilities.bCPUPerformanceMode)) end
                     if iBaseThreat > 0 then
                         if bJustGetMassValue then iCurThreat = iBaseThreat
                         elseif M28Utilities.bCPUPerformanceMode then
-                            if iBaseThreat <= 2000 then iCurThreat = iBaseThreat
+                            if iBaseThreat < 900 then iCurThreat = iBaseThreat
                             else iCurThreat = iBaseThreat * oUnit:GetHealth() / oUnit:GetMaxHealth()
                             end
                         else
                             --Have got the base threat for this type of unit, now adjust threat for unit health if want to calculate actual threat
                             iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit)
                             iMaxHealth = oUnit:GetMaxHealth() + iMaxShield
+                            if bDebugMessages == true then LOG(sFunctionRef..': iMaxHealth='..(iMaxHealth or 'nil')) end
                             if iMaxHealth and iMaxHealth > 0 then
                                 --Increase threat for veterancy level
                                 if oUnit.Sync.VeteranLevel > 0 then iBaseThreat = iBaseThreat * (1 + oUnit.Sync.VeteranLevel * 0.1) end
@@ -942,6 +947,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                         if iHealthPercentage < 0.5 then iHealthFactor = iHealthPercentage * iHealthPercentage
                                         elseif iHealthPercentage < 0.9 then iHealthFactor = iHealthPercentage * (iHealthPercentage + 0.1) end
                                     end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': ACU iBaseThreat='..iBaseThreat..'; iHeatlhFactor='..iHealthFactor..'; iOtherAdjustFactor='..iOtherAdjustFactor..'; iHealthPercentage='..iHealthPercentage) end
                                 else
                                     if bEnemyUnits then
                                         --For enemy damaged units treat them as still ahving high threat, since enemy likely could use them effectively still
@@ -2263,13 +2269,53 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                 oUnit[refiDFRange] = oUnit[refiDFRange] * 1.25
             end
         end
-        if not(bWeaponUnpacks or (bWeaponIsFixed and EntityCategoryContains(categories.EXPERIMENTAL - refCategoryFatboy, oUnit.UnitId))) then
+        if EntityCategoryContains(categories.EXPERIMENTAL - refCategoryFatboy, oUnit.UnitId) then
             --Manual overrides
             if oUnit.UnitId == 'brmt3ava' or oUnit.UnitId == 'wel0405' or oUnit.UnitId == 'urs0201' then
                 --Cant kite well so flag it cant kite
             else
-                oUnit[refbCanKite] = true
+                local bRecordedManualOverride = false
+                local tsKitingExperimentals =
+                {
+                    'bel0402',
+                    'brmt3vul',
+                    'brl0401',
+                    'brmt3ava',
+                    'brmt3mcm2',
+                    'brnt3blasp',
+                    'brntshbm',
+                    'brot3hades',
+                    'brot3ncm',
+                    'brot3shbm',
+                    'brpexbot',
+                    'brpexbtbot',
+                    'brpexhvbot',
+                    'brpextank',
+                    'bsl0406',
+                    'wal4404',
+                    'wel0416',
+                    'wel4404',
+                    'wrl0404',
+                    'wrl1466',
+                    'wsl0404',
+                }
+                for _, sKitingID in tsKitingExperimentals do
+                    if sKitingID == oUnit.UnitId then
+                        oUnit[refbCanKite] = true
+                        bRecordedManualOverride = true
+                        break
+                    end
+                end
+                if not(bRecordedManualOverride) then
+                    if bWeaponUnpacks or bWeaponIsFixed then
+                        --Dont set flag as no manual override
+                    else
+                        oUnit[refbCanKite] = true
+                    end
+                end
             end
+        elseif not(bWeaponUnpacks) and not(bWeaponIsFixed) then
+            oUnit[refbCanKite] = true
         end
 
         --Special unit adjustments:
@@ -2349,7 +2395,7 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
     local sFunctionRef = 'GetUnitUpgradeBlueprint'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bGetSupportFactory == nil or bGetSupportFactory then bGetSupportFactory = (M28Utilities.bFAFActive and categories.SUPPORTFACTORY and EntityCategoryContains(refCategoryFactory * categories.TECH1 + categories.SUPPORTFACTORY, oUnitToUpgrade.UnitId)) end
+    if bGetSupportFactory == nil or bGetSupportFactory then bGetSupportFactory = (categories.SUPPORTFACTORY and EntityCategoryContains(refCategoryFactory * categories.TECH1 + categories.SUPPORTFACTORY, oUnitToUpgrade.UnitId)) end
     --Gets the support factory blueprint, and checks if it can be built; if not then returns the normal UpgradesTo blueprint
     local sUpgradeBP
     if not(oUnitToUpgrade.Dead) and oUnitToUpgrade.CanBuild then
