@@ -1136,6 +1136,10 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                         M28Land.ConsiderIfHaveEnemyFirebase(aiBrain.M28Team, oUnit)
                     end
                 end
+                --Update desc for mobile units owned by player (so easier to debug)
+                if M28Config.M28ShowEnemyUnitNames and not(oUnit:GetAIBrain().M28AI) then
+                    oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'P'..(iPlateauRef or 0)..'Z'..(iLandZoneRef or 0))
+                end
             elseif bIsAlly then
                 --Dont add allied air units, or units from a different (allied) team
                 if oUnit:GetAIBrain().M28Team == aiBrain.M28Team and (not(EntityCategoryContains(M28UnitInfo.refCategoryAllAir - M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) or oUnit:GetFractionComplete() < 1) then
@@ -1262,6 +1266,9 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
             --Record if enemy has sub
             if EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId) then
                 tTeamData[aiBrain.M28Team][refiEnemySubCount] = (tTeamData[aiBrain.M28Team][refiEnemySubCount] or 0) + M28UnitInfo.GetUnitTechLevel(oUnit)
+            end
+            if M28Config.M28ShowEnemyUnitNames and not(oUnit:GetAIBrain().M28AI) then
+                oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'P0Z'..(iWaterZone or 0))
             end
         elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --dont want to retain orders in case it was from an adjacent zone
