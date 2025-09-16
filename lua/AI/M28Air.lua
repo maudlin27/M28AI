@@ -7974,13 +7974,22 @@ function ManageGunships(iTeam, iAirSubteam)
                                     local iPostTargetMaxZoneCheck = 4
                                     local iLowValueZoneThreshold = math.min(4000, 0.1 * iOurGunshipThreat)
                                     local iHighestEnemyValueZone = 0
+                                    local iDistFromFrontGunshipToMidpoint = M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), tGunshipLandOrWaterZoneData[M28Map.subrefMidpoint])
+                                    local iGunshipZoneRadius
+
+                                    if iGunshipPlateauOrZero == 0 then
+                                        iGunshipZoneRadius = ((tGunshipLandOrWaterZoneData[M28Map.subrefWZMaxSegX] - tGunshipLandOrWaterZoneData[M28Map.subrefWZMinSegX]) + (tGunshipLandOrWaterZoneData[M28Map.subrefWZMaxSegZ] - tGunshipLandOrWaterZoneData[M28Map.subrefWZMinSegZ])) * M28Map.iLandZoneSegmentSize * 0.5
+                                    else
+                                        iGunshipZoneRadius = ((tGunshipLandOrWaterZoneData[M28Map.subrefLZMaxSegX] - tGunshipLandOrWaterZoneData[M28Map.subrefLZMinSegX]) + (tGunshipLandOrWaterZoneData[M28Map.subrefLZMaxSegZ] - tGunshipLandOrWaterZoneData[M28Map.subrefLZMinSegZ])) * M28Map.iLandZoneSegmentSize * 0.5
+                                    end
 
                                     local iMinThreatFactor = iGunshipThreatFactorForSameZone * 1.15
-
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iDistFromFrontGunshipToMidpoint='..iDistFromFrontGunshipToMidpoint..'; iPostTargetMaxDistance='..iPostTargetMaxDistance..'; iGunshipZoneRadius='..iGunshipZoneRadius) end
                                     for iEntry, tSubtable in tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                         --Once found a zone with targets, use that unless we have another zone where mex is under threat that we want to consider instaed
                                         if bUseDefensively and tSubtable[M28Map.subrefiDistance] > iMaxDefensiveRange then break end
-                                        if iPostFirstTargetCount == 0 or (tSubtable[M28Map.subrefiDistance] <= iDistanceOfFirstTarget + iPostTargetMaxDistance) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if P'..tSubtable[M28Map.subrefiPlateauOrPond]..'Z'..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..' is in range, subrefiDistance='..tSubtable[M28Map.subrefiDistance]..'; iDistanceOfFirstTarget='..(iDistanceOfFirstTarget or 'nil')..'; Dist from front gunship to midpoint of target zone='..M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefMidpoint])) end
+                                        if iPostFirstTargetCount == 0 or (tSubtable[M28Map.subrefiDistance] <= iDistanceOfFirstTarget + iPostTargetMaxDistance) or (not(tSubtable[M28Map.subrefbIsWaterZone]) and tSubtable[M28Map.subrefiDistance] <= iDistanceOfFirstTarget + iPostTargetMaxDistance + iDistFromFrontGunshipToMidpoint and M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefMidpoint]) <= tSubtable[M28Map.subrefiDistance]) then
                                             if bMidpointPlayableOverride and tSubtable[M28Map.subrefiDistance] >= 120 then bMidpointPlayableOverride = false end
                                             if not(bCheckForAirAA) and tSubtable[M28Map.subrefiDistance] > iDistToStartCheckingForAirAA then bCheckForAirAA = true end
                                             if tSubtable[M28Map.subrefiDistance] <= 110 or M28Map.bIsCampaignMap then
@@ -8033,11 +8042,11 @@ function ManageGunships(iTeam, iAirSubteam)
                                             if iGunshipThreatFactorWanted < iMinThreatFactor then iGunshipThreatFactorWanted = iMinThreatFactor end
                                             if tSubtable[M28Map.subrefbIsWaterZone] then
                                                 --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust, bIgnoreMidpointPlayableCheck)
-                                                AddEnemyGroundUnitsToTargetsSubjectToAA(0, tSubtable[M28Map.subrefiLandOrWaterZoneRef], iGunshipThreatFactorWanted, bCheckForAirAA, iPostFirstTargetCount > 0, nil, bMidpointPlayableOverride)
+                                                AddEnemyGroundUnitsToTargetsSubjectToAA(0, tSubtable[M28Map.subrefiLandOrWaterZoneRef], iGunshipThreatFactorWanted, bCheckForAirAA, (iPostFirstTargetCount > 0 and (tSubtable[M28Map.subrefiDistance] <= 100)), nil, bMidpointPlayableOverride)
                                             else
-                                                AddEnemyGroundUnitsToTargetsSubjectToAA(tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef], iGunshipThreatFactorWanted, bCheckForAirAA, iPostFirstTargetCount > 0, nil, bMidpointPlayableOverride)
+                                                AddEnemyGroundUnitsToTargetsSubjectToAA(tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef], iGunshipThreatFactorWanted, bCheckForAirAA, (iPostFirstTargetCount > 0 and (tSubtable[M28Map.subrefiDistance] <= 100)), nil, bMidpointPlayableOverride)
                                             end
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Have just finished calling AddEnemyGroundUnitsToTargetsSubjectToAA for zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..', PlateauOrPond='..tSubtable[M28Map.subrefiPlateauOrPond]..'; Is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets))..'; Is tNewlyAddedEnemies empty='..tostring(M28Utilities.IsTableEmpty(tNewlyAddedEnemies))..'; tSubtable='..repru(tSubtable)..'; iGunshipThreatFactorWanted='..iGunshipThreatFactorWanted..'; iMinThreatFactor (i.e. gunship threat factor cant be below this, which is a % of the same zone threat factor)='..iMinThreatFactor..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle] or false)) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Have just finished calling AddEnemyGroundUnitsToTargetsSubjectToAA for zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..', PlateauOrPond='..tSubtable[M28Map.subrefiPlateauOrPond]..'; Is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets))..'; Is tNewlyAddedEnemies empty='..tostring(M28Utilities.IsTableEmpty(tNewlyAddedEnemies))..'; tSubtable='..repru(tSubtable)..'; iGunshipThreatFactorWanted='..iGunshipThreatFactorWanted..'; iMinThreatFactor (i.e. gunship threat factor cant be below this, which is a % of the same zone threat factor)='..iMinThreatFactor..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle] or false)..'; subrefiDistance='..tSubtable[M28Map.subrefiDistance]) end
                                             if M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets) == false then
                                                 --We have enemies to potentially target - however if tthey are of very low value relative to gunships want to search for other more high value zones that wea re interested in targeting
                                                 local iCurEnemyPlateauOrZero
@@ -8072,6 +8081,9 @@ function ManageGunships(iTeam, iAirSubteam)
                                                         iPostTargetMaxDistance = 80
                                                         iPostTargetMaxZoneCheck = 4
                                                     end
+                                                    --If we are close to gunship zone then increase maxzonecheck to reduce issues where e.g. gunship is near edge of this zone in other direction to the first zone we have picked
+                                                    if tSubtable[M28Map.subrefiDistance] <= 80 and ( tSubtable[M28Map.subrefiDistance] <= 40 or iDistFromFrontGunshipToMidpoint >= 30) then iPostTargetMaxZoneCheck = iPostTargetMaxZoneCheck + 2 end
+
                                                     if bDebugMessages == true then LOG(sFunctionRef..': iMassValueOfTargets='..iMassValueOfTargets..'; iOurGunshipThreat='..iOurGunshipThreat..'; iPostTargetMaxDistance='..iPostTargetMaxDistance..'; iPostTargetMaxZoneCheck='..iPostTargetMaxZoneCheck..'; SValue='..(tCurEnemyTeamData[M28Map.subrefLZSValue] or 'nil')) end
                                                 end
                                                 iPostFirstTargetCount = iPostFirstTargetCount + 1
@@ -8085,21 +8097,25 @@ function ManageGunships(iTeam, iAirSubteam)
                                                 iHighestEnemyValueZone = math.max(iHighestEnemyValueZone, iMassValueOfTargets)
                                                 if bDebugMessages == true then LOG(sFunctionRef..': ihighestEnemyValueZone='..iHighestEnemyValueZone..'; iMassValueOfTargets (for the most recently considered zone)='..iMassValueOfTargets) end
                                                 if iPostFirstTargetCount >= iPostTargetMaxZoneCheck or bDontLookForMoreTargets then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Been through the maximum number of zones to check, will abort, bDontLookForMoreTargets='..tostring(bDontLookForMoreTargets)..'; iPostTargetMaxZoneCheck='..iPostTargetMaxZoneCheck) end
                                                     break
                                                 elseif iPostTargetMaxZoneCheck > 4 then
                                                     local iMassValueOfTargets = M28UnitInfo.GetMassCostOfUnits(tEnemyGroundOrGunshipTargets, true)
                                                     if iMassValueOfTargets > iLowValueZoneThreshold or ((tCurEnemyTeamData[M28Map.subrefLZSValue] or 0) > 100 and iMassValueOfTargets * 5 > (tCurEnemyTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)) then
-                                                        iPostTargetMaxZoneCheck = 4
+                                                        iPostTargetMaxZoneCheck = math.min(6, iPostTargetMaxZoneCheck) --Incase we increased from 4 to 6 above due to first zone being very close to gunship
                                                         iPostTargetMaxDistance = 80
                                                         if iPostFirstTargetCount < iPostTargetMaxZoneCheck then
                                                             bConsiderIgnoringEnemiesInLowValueZones = false
                                                         else
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Ending loop as have passed iPostTargetMaxZoneCheck, iMassValueOfTargets='..iMassValueOfTargets) end
                                                             break
                                                         end
                                                     end
                                                 end
                                             end
-                                        elseif iPostFirstTargetCount > 0 or bDontLookForMoreTargets then break
+                                        elseif bDontLookForMoreTargets or (iPostFirstTargetCount > 0 and tSubtable[M28Map.subrefiDistance] > iDistanceOfFirstTarget + iPostTargetMaxDistance + iGunshipZoneRadius) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Ending loop, bDontLookForMoreTargets='..tostring(bDontLookForMoreTargets)..'; iPostFirstTargetCount='..iPostFirstTargetCount) end
+                                            break
                                         end
                                     end
                                 end
