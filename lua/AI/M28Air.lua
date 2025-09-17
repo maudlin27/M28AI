@@ -10040,7 +10040,6 @@ function GetTransportEngiCargoAndRemainingCapacity(oUnit, iEngiTechLevel)
     local iCurLevelCapacity = 0
     for iClampType, iClampsAvailable in tiClampsByType do
         if iClampsAvailable > 0 then
-
             iCurLevelCapacity = iCurLevelCapacity + tiTechLevelCountByClamp[iClampType][iEngiTechLevel] * iClampsAvailable
         end
     end
@@ -10492,7 +10491,7 @@ function ManageTransports(iTeam, iAirSubteam)
                                     if oUnit[refbCombatDrop] then iCategoryWanted = M28UnitInfo.refCategoryIndirect * categories.TECH1 else iCategoryWanted = M28UnitInfo.refCategoryEngineer end
                                     local tEngineersInZone = EntityCategoryFilterDown(iCategoryWanted, tCurLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     for iEngineer, oEngineer in tEngineersInZone do
-                                        if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport and not(oEngineer:IsUnitState('Attached')) and (not(iMinUnitTechLevel) or M28UnitInfo.GetUnitTechLevel(oEngineer) >= iMinUnitTechLevel) then
+                                        if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport and not(oEngineer:IsUnitState('Attached')) and (not(iMinUnitTechLevel) or M28UnitInfo.GetUnitTechLevel(oEngineer) >= iMinUnitTechLevel) and oEngineer:GetFractionComplete() == 1 then
                                             local tEngineerLastOrder = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]]
                                             if not(M28UnitInfo.IsUnitValid(tEngineerLastOrder[M28Orders.subrefoOrderUnitTarget])) or tEngineerLastOrder[M28Orders.subrefoOrderUnitTarget] == oUnit or not(EntityCategoryContains(M28UnitInfo.refCategoryTransport, oUnit)) then
                                                 iCurEngiDist = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oUnit:GetPosition())
@@ -10510,13 +10509,36 @@ function ManageTransports(iTeam, iAirSubteam)
 
                                         if iClosestLoadingEngineerDist <= 12 then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will try and get closest loading engineer to load onto transport, unit state='..M28UnitInfo.GetUnitState(oClosestLoadingEngineer)..'; Time='..GetGameTimeSeconds()) end
-                                            M28Orders.IssueTrackedTransportLoad(oClosestLoadingEngineer, oUnit, false, 'TrLEng', false)
+                                            M28Orders.IssueTrackedTransportLoad(oClosestLoadingEngineer, oUnit, false, 'TrLNrEng', false)
                                         else
-                                            M28Orders.IssueTrackedMove(oUnit, tHoldingLocation, 5,                   false,              'TRlWtE',            false)
+                                            M28Orders.IssueTrackedMove(oUnit, tHoldingLocation, 5,                   false,              'TrLFarE',            false)
                                         end
                                     else
                                         tHoldingLocation = {tCurLZOrWZData[M28Map.subrefMidpoint][1], tCurLZOrWZData[M28Map.subrefMidpoint][2], tCurLZOrWZData[M28Map.subrefMidpoint][3]}
-                                        M28Orders.IssueTrackedMove(oUnit, tHoldingLocation, 5,                   false,              'TRlWtE',            false)
+                                        M28Orders.IssueTrackedMove(oUnit, tHoldingLocation, 5,                   false,              'TrWtForE',            false)
+                                        --Early game - Get the closest engineer in the zone that isn't loaded and isnt building a mex or building something that is nearly done, and clear its orders so it can be used
+                                        if M28Utilities.IsTableEmpty(tEngineersInZone) == false and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 and GetGameTimeSeconds() <= 600 then
+                                            local oClosestEngineerInZone
+                                            local iClosestEngineerInZoneDist = 10000
+                                            local iCurDist
+                                            for iEngineer, oEngineer in tEngineersInZone do
+                                                if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) and not(oEngineer:IsUnitState('Capturing')) and not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) and (not(iMinUnitTechLevel) or M28UnitInfo.GetUnitTechLevel(oEngineer) >= iMinUnitTechLevel) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionBuildMex) and (not(oEngineer[M28Engineer.refbPrimaryBuilder]) or not(oEngineer:GetWorkProgress() >= 0.8)) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport) then
+                                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oUnit:GetPosition())
+                                                    if iCurDist < iClosestEngineerInZoneDist then
+                                                        iClosestEngineerInZoneDist = iCurDist
+                                                        oClosestEngineerInZone = oEngineer
+                                                    end
+                                                end
+                                            end
+                                            if bDebugMessages == true then
+                                                LOG(sFunctionRef..': Will clear an engineer in the zone so it can be made available for the transport, oClosestEngineerInZone='..(oClosestEngineerInZone.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEngineerInZone) or 'nil')..'; iClosestEngineerInZoneDist='..iClosestEngineerInZoneDist..'; Time='..GetGameTimeSeconds())
+                                                if oClosestEngineerInZone then LOG(sFunctionRef..': oClosestEngineerInZone unit state='..M28UnitInfo.GetUnitState(oClosestEngineerInZone)..'; refbSpecialMicroActive='..tostring(oClosestEngineerInZone[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                                            end
+                                            if oClosestEngineerInZone then
+                                                M28Orders.IssueTrackedClearCommands(oClosestEngineerInZone)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Is this engineer considered available post-clearing='..tostring(M28Conditions.IsEngineerAvailable(oClosestEngineerInZone, true))) end
+                                            end
+                                        end
                                     end
                                 end
 
