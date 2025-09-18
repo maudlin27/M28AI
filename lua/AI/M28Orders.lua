@@ -1174,11 +1174,11 @@ function IssueTrackedTransportUnload(oUnit, tOrderPosition, iDistanceToReissueOr
                         tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                     end
                     tLZOrWZTeamData[M28Map.refiTransportRecentUnloadCount] = (tLZOrWZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) + 1
-                    if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone][iPlateauOrZero]) then
-                        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone] = {} end
-                        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone][iPlateauOrZero] = {}
+                    if not(M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone][iPlateauOrZero]) then
+                        if not(M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone]) then M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone] = {} end
+                        M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone][iPlateauOrZero] = {}
                     end
-                    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone][iPlateauOrZero][iLandOrWaterZone] = GetGameTimeSeconds()
+                    M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone][iPlateauOrZero][iLandOrWaterZone] = GetGameTimeSeconds()
                     --LOG('Just recorded a drop order for iAirSubteam='..iAirSubteam..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds())
                     M28Utilities.DelayChangeVariable(tLZOrWZTeamData, M28Map.refiTransportRecentUnloadCount, -1, 600, nil, nil, nil, nil, true)
                 end

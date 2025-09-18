@@ -18348,8 +18348,8 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
 
     --Lower priority mass reclaim where will request engineers to reclaim
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want minor reclaim for zone, team % mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Total mass reclaim='..tWZData[M28Map.subrefTotalMassReclaim]) end
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35 and tWZData[M28Map.subrefTotalMassReclaim] >= 5 then
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want minor reclaim for zone, team % mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Total mass reclaim='..(tWZData[M28Map.subrefTotalMassReclaim] or 'nil')) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35 and (tWZData[M28Map.subrefTotalMassReclaim] or 0) >= 5 then
         local iReclaimFactor
         if GetGameTimeSeconds() <= 540 then
             iReclaimFactor = 125
@@ -18438,7 +18438,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Do we have a last naval fac assisted? iCurPriority='..iCurPriority..'; refoLastNavalFacAssisted='..(tWZTeamData[M28Map.refoLastNavalFacAssisted].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tWZTeamData[M28Map.refoLastNavalFacAssisted]) or 'nil')..'; Pond value='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')..'; Fac build count='..(tWZTeamData[M28Map.refoLastNavalFacAssisted][M28Factory.refiTotalBuildCount] or 'nil')) end
     if tWZTeamData[M28Map.refoLastNavalFacAssisted] and M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] >= 14 and ((tWZTeamData[M28Map.refoLastNavalFacAssisted][M28Factory.refiTotalBuildCount] or 0) < 5 or not(bHaveLowMass))
-    and M28UnitInfo.IsUnitValid(tWZTeamData[M28Map.refoLastNavalFacAssisted]) and (not(tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild]) or GetGameTimeSeconds() - tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] > 60 or (tWZTeamData[M28Map.refoLastNavalFacAssisted]:GetWorkProgress()>0 and (not(M28UnitInfo.IsUnitRestricted('ues0103', tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex])) or GetGameTimeSeconds() - tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] > 20))) then
+            and M28UnitInfo.IsUnitValid(tWZTeamData[M28Map.refoLastNavalFacAssisted]) and (not(tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild]) or GetGameTimeSeconds() - tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] > 60 or (tWZTeamData[M28Map.refoLastNavalFacAssisted]:GetWorkProgress()>0 and (not(M28UnitInfo.IsUnitRestricted('ues0103', tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex])) or GetGameTimeSeconds() - tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] > 20))) then
         local iFacTechLevel = M28UnitInfo.GetUnitTechLevel(tWZTeamData[M28Map.refoLastNavalFacAssisted])
         if (tWZTeamData[M28Map.refoLastNavalFacAssisted][M28Factory.refiTotalBuildCount] or 0) < 3 or iFacTechLevel <= 2 or not(bHaveLowMass) then
             local iBPWanted = math.min(8 * tiBPByTech[iFacTechLevel], (tWZTeamData[M28Map.refiHighestNavalFacAssistBP] or 50))
@@ -18753,7 +18753,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to assist naval fac, core base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase])..'; iExistingWaterFactory='..iExistingWaterFactory..'; Is table of naval factories empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) end
     if tWZTeamData[M28Map.subrefWZbCoreBase] and iExistingWaterFactory > 0 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false
-        and (not(tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild]) or GetGameTimeSeconds() - tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] > 60 or (GetGameTimeSeconds() - tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] <= 20 and not(M28UnitInfo.IsUnitRestricted('ues0103', tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex])))) then
+            and (not(tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild]) or GetGameTimeSeconds() - tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] > 60 or (GetGameTimeSeconds() - tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] <= 20 and not(M28UnitInfo.IsUnitRestricted('ues0103', tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex])))) then
         --e.g. 1 BP building a frigate uses 0.2 mass per second, or 0.02 mass per tick; if want 40% of team mass income spent on navy, then want to assign 20 BP per 1 mass per tick (i.e. 20 BP per 10 mass per sec)
         iBPWanted = math.min(1000, (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) * 20)
         --Adjust BP for number of naval facs (as might be spread out over a number of zones)

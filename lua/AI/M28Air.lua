@@ -4582,9 +4582,9 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 end
 
                 --Early game - protect expansions we have recently dropped from air to ground attack similarly to if it was a core base (stop checking for htis once we have reached T3 or 10m into the game)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to defend recently dropped locations, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone])..'; Highest friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
-                if GetGameTimeSeconds() <= 600 and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone]) == false and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then
-                    for iDropPlateauOrZero, tSubtable in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiLastTransportDropByPlateauAndZone] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to defend recently dropped locations, M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone]='..repru(M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone])..'; Highest friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
+                if GetGameTimeSeconds() <= 600 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone]) == false and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then
+                    for iDropPlateauOrZero, tSubtable in M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone] do
                         --Only consider land zones
                         if iDropPlateauOrZero > 0 then
                             --Have we dropped here in the last 3 minutes?
@@ -9933,12 +9933,13 @@ function GetWaterZoneForTransportToTravelTo(iTeam, oUnit)
 
             local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
             local bDontHaveLocationInPlayableArea
-
+            local iCurPond
             for iEntry, iWaterZone in tShortlist do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; iWaterZone='..iWaterZone..'; Time last failed to drop here='..(M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime][iWaterZone] or 'nil')) end
-                if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime][iWaterZone] or -300) >= 300 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; iWaterZone='..iWaterZone..'; Time last failed to drop here='..(M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime][iWaterZone] or 'nil')..'; Time last dropped='..(M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone][0][iWaterZone] or 'nil')) end
+                if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime][iWaterZone] or -300) >= 300 and (not(M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone][0][iWaterZone]) or GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.reftiLastTransportDropByPlateauAndZone][0][iWaterZone] >= 200) then --we also check the time of last engi drop against the specific zone below
                     bDontHaveLocationInPlayableArea = not(bDontCheckPlayableArea)
-                    local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
+                    iCurPond =   M28Map.tiPondByWaterZone[iWaterZone]
+                    local tWZData = M28Map.tPondDetails[iCurPond][M28Map.subrefPondWaterZones][iWaterZone]
                     if bDontHaveLocationInPlayableArea then bDontHaveLocationInPlayableArea = not(M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint])) end
                     if not(bDontHaveLocationInPlayableArea) then
                         --If there are mexes in this WZ, then only drop if there are unbuilt mexes in this zone (we might be dropping 0 mex WZ to build naval fac though)
@@ -10444,7 +10445,7 @@ function ManageTransports(iTeam, iAirSubteam)
                         end
                     end
                     local bGetMoreUnits = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': iExtraEngisWanted='..iExtraEngisWanted..'; iEngisHave='..iEngisHave..'; iTechLevel='..iTechLevel..'; Mex count of target island='..M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo]..'; iEngiRemainingCapacity='..iEngiRemainingCapacity) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iExtraEngisWanted='..(iExtraEngisWanted or 'nil')..'; iEngisHave='..(iEngisHave or 'nil')..'; iTechLevel='..(iTechLevel or 'nil')..'; Mex count of target island='..(M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 'nil')..'; iEngiRemainingCapacity='..(iEngiRemainingCapacity or 'nil')) end
                     if iExtraEngisWanted == 0 and iEngisHave == 0 then
                         M28Utilities.ErrorHandler('Dont have any engis but dont want any, something has gone wrong')
                         oUnit[refiEngisWanted] = iExtraEngisWanted
