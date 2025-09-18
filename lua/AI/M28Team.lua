@@ -271,6 +271,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbTMLBatteryMissedLots = 'M28TMBatMis' --true if TML battey has fired a lot of times and missed targets
     refiGeneralPingsInLast30Seconds = 'M28TmPngs' --number of unrecognised pings created in the last 30s
     reftiWaterZonesForBomberToKillEngis = 'M28NvBmb' --[x] is the water zone, = 0 if considering water zone for a fac but dont want a bomber, positivei f want bomber (in theory could make more than 1); if enemy builds a naval fac we should monitor it for if it has multiple engis assisting, and if so consider sending a bomber to the water zone to kill the engis
+    reftiLastTransportDropByPlateauAndZone = 'M28TeamTrLstDpPZ' --[x] is the plateau (0 if water), [y] is the land/water zone; returns gametimeseconds that we last issued an unload order for that zone
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -310,7 +311,6 @@ tAirSubteamData = {}
     reftWaterZonesHasFriendlyTorps = 'M28WZWiTor' --[x] is the water zone, returns true if we have torpedo bombers in it
     refiTimeLastConsideredGiftingASFToAlly = 'M28ATimLstGift' --Gametimeseconds that we last considered gifting asfs for this subteam
     refoLastHumanGiftedASFs = 'M28ALstHumGifASF' --last human brain we gave asfs to
-    reftiLastTransportDropByPlateauAndZone = 'M28TeamTrLstDpPZ' --[x] is the plateau (0 if water), [y] is the land/water zone; returns gametimeseconds that we last issued an unload order for that zone
     reftiTimeOfLastEngiHunterBomberOrder = 'M28ASTEHn' --Gametimeseconds that last sent a bomber for engi hunter assignment
     refbDontBuildEngiHunterEngineers = 'M28ASTEbBr' --true if one of the air subteam has gone first bomber; also true if we dont want to get engi hunters at all
     reftoPriorityTorpedoUnitTargets = 'M28ATrpT' --table of units to consider targeting with torpedo bombers if underwater - e.g. to use for ACUs hiding underwater
@@ -1136,6 +1136,10 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                         M28Land.ConsiderIfHaveEnemyFirebase(aiBrain.M28Team, oUnit)
                     end
                 end
+                --Update desc for mobile units owned by player (so easier to debug)
+                if M28Config.M28ShowEnemyUnitNames and not(oUnit:GetAIBrain().M28AI) then
+                    oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'P'..(iPlateauRef or 0)..'Z'..(iLandZoneRef or 0))
+                end
             elseif bIsAlly then
                 --Dont add allied air units, or units from a different (allied) team
                 if oUnit:GetAIBrain().M28Team == aiBrain.M28Team and (not(EntityCategoryContains(M28UnitInfo.refCategoryAllAir - M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) or oUnit:GetFractionComplete() < 1) then
@@ -1262,6 +1266,9 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
             --Record if enemy has sub
             if EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId) then
                 tTeamData[aiBrain.M28Team][refiEnemySubCount] = (tTeamData[aiBrain.M28Team][refiEnemySubCount] or 0) + M28UnitInfo.GetUnitTechLevel(oUnit)
+            end
+            if M28Config.M28ShowEnemyUnitNames and not(oUnit:GetAIBrain().M28AI) then
+                oUnit:SetCustomName((oUnit.UnitId or oUnit:GetBlueprint().BlueprintId)..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'P0Z'..(iWaterZone or 0))
             end
         elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --dont want to retain orders in case it was from an adjacent zone
