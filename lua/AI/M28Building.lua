@@ -4410,9 +4410,11 @@ function JustBuiltParagon(oParagon)
                     --SACUs lose upgrades on transfer!
                     local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
                     local iMaxEngineersToGift = math.max(aiBrain[M28Overseer.refiExpectedRemainingCap] * 0.5, 30)
-                    if iMaxEngineersToGift < 80 and GetArmyUnitCap(aiBrain) >= 700 and M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] >= 1 then iMaxEngineersToGift = math.min(80, math.max(iMaxEngineersToGift, 30 + 20 * M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel])) end
+                    if iMaxEngineersToGift < 80 and GetArmyUnitCap(aiBrain:GetArmyIndex()) >= 700 and M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] >= 1 then iMaxEngineersToGift = math.min(80, math.max(iMaxEngineersToGift, 30 + 20 * M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel])) end
                     local iEngineersGifted = 0
+                    if bDebugMessages == true then LOG(sFunctionRef..': Getting details of engineers and factories and T1-T2 mexes to gift from paragon owner to teammates, iMaxEngineersToGift='..iMaxEngineersToGift) end
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; oBrain[M28Economy.refiGrossMassBaseIncome]='..oBrain[M28Economy.refiGrossMassBaseIncome]) end
                         if not(oBrain == aiBrain) and not(oBrain.M28IsDefeated) then
                             if oBrain[M28Economy.refiGrossMassBaseIncome] <= 500 then
                                 oOtherBrain = oBrain
@@ -4426,15 +4428,29 @@ function JustBuiltParagon(oParagon)
                                         end
                                     end
                                 end
+                                if bDebugMessages == true then
+                                    if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+                                        LOG(sFunctionRef..': Finished considering factories, nukes, smd etc, size of tUnitsToGift='..table.getn(tUnitsToGift))
+                                    else
+                                        LOG(sFunctionRef..': Finished considering factories, none to gift')
+                                    end
+                                end
                                 local tMexesToGift
                                 if (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) > 0 then --Check we have a t3 mex (as proxy to make sure dont have unit restrictions)
                                     tMexesToGift = oBrain:GetListOfUnits(M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryT2Mex, false, true)
                                 end
                                 if M28Utilities.IsTableEmpty(tMexesToGift) == false then
                                     for iMex, oMex in tMexesToGift do
-                                        if not(oMex:IsUnitState('Upgrading')) or oMex:GetWorkProgres() <= 0.2 then
+                                        if not(oMex:IsUnitState('Upgrading')) or oMex:GetWorkProgress() <= 0.2 then
                                             table.insert(tUnitsToGift, oMex)
                                         end
+                                    end
+                                end
+                                if bDebugMessages == true then
+                                    if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+                                        LOG(sFunctionRef..': Finished considering mexes, size of tUnitsToGift='..table.getn(tUnitsToGift))
+                                    else
+                                        LOG(sFunctionRef..': Finished considering mexes, none to gift')
                                     end
                                 end
                                 --FAF and staem - xfer SACUs that lack RAS upgrade and arent upgrading
@@ -4443,11 +4459,18 @@ function JustBuiltParagon(oParagon)
                                     if M28Utilities.IsTableEmpty(tNonRASSACUs) == false then
                                         for iSACU, oSACU in tNonRASSACUs do
                                             --Dont transfer shield SACUs being used for GE template, or RAS SACUs
-                                                --Dont transfer if have any upgrades as theyre lost on transfer
+                                            --Dont transfer if have any upgrades as theyre lost on transfer
                                             if not(oSACU:IsUnitState('Upgrading')) and oSACU[M28ACU.refiUpgradeCount] == 0 then
                                                 table.insert(tUnitsToGift, oSACU)
                                             end
                                         end
+                                    end
+                                end
+                                if bDebugMessages == true then
+                                    if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+                                        LOG(sFunctionRef..': Finished considering SACUs, size of tUnitsToGift='..table.getn(tUnitsToGift))
+                                    else
+                                        LOG(sFunctionRef..': Finished considering SACUs, none to gift')
                                     end
                                 end
                                 --Fixed shields - xfer if not part of GE template
@@ -4460,6 +4483,7 @@ function JustBuiltParagon(oParagon)
                                     end
                                 end
                                 if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering shields, Size of tUnitsToGift to gift='..table.getn(tUnitsToGift)) end
                                     M28Team.TransferUnitsToPlayer(tUnitsToGift, aiBrain:GetArmyIndex(), false)
                                 end
                                 if iEngineersGifted < iMaxEngineersToGift then
@@ -4481,6 +4505,7 @@ function JustBuiltParagon(oParagon)
                                                 iCurCount = 0
                                             end
                                         end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering engineers, is tEngineersToGift empty='..tostring(M28Utilities.IsTableEmpty(tEngineersToGift))..'; iEngineersGifted='..iEngineersGifted) end
                                         if M28Utilities.IsTableEmpty(tEngineersToGift) == false then
                                             M28Team.TransferUnitsToPlayer(tEngineersToGift, aiBrain:GetArmyIndex(), false)
                                         end
@@ -4507,9 +4532,31 @@ function JustBuiltParagon(oParagon)
                 if oFirstHumanBrain then oOtherBrain = oFirstHumanBrain else oOtherBrain = oFirstTeammateBrain end
             end
             if oOtherBrain and not(bGiftedParagonToOtherBrain) then
-                local tUnitsToGift = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryRASSACU, false, true)
+                local tUnitsToGift = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryRASSACU + M28UnitInfo.refCategoryMassFab, false, true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering gifting t3 mexes an any storage by such mexes to teammates') end
                 if M28Utilities.IsTableEmpty(tUnitsToGift) then
                     tUnitsToGift = {}
+                end
+                local tMassStorage = aiBrain:GetListOfUnits( M28UnitInfo.refCategoryMassStorage, false, true)
+                if M28Utilities.IsTableEmpty(tMassStorage) == false then
+                    for iUnit, oUnit in tMassStorage do
+                        --Is it near T3 mex?
+                        local rSearchRectangle = M28Utilities.GetRectAroundLocation(oUnit:GetPosition(), 2.749)
+                        local tNearbyUnits = GetUnitsInRect(rSearchRectangle) --at 1.5 end up with storage thats not adjacent being gifted in some cases but not in others; at 1 none of it gets gifted; the mass storage should be exactly 2 from the mex; however even at 2.1, 2.25 and 2.499 had cases where the mex wasnt identified so will try 2.75 since distances can vary/be snapped to the nearest 0.5 I think
+                        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                            local tNearbyT3Mex = EntityCategoryFilterDown(M28UnitInfo.refCategoryT3Mex, tNearbyUnits)
+                            if M28Utilities.IsTableEmpty(tNearbyT3Mex) == false then
+                                table.insert(tUnitsToGift, oUnit)
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then
+                    if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+                        LOG(sFunctionRef..': Finished checking for mass storage, tUnitsToGift size='..table.getn(tUnitsToGift))
+                    else
+                        LOG(sFunctionRef..': tUnitsToGift is empty after checking for mass storage')
+                    end
                 end
                 local tT3Power = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryT3Power, false, true)
                 if M28Utilities.IsTableEmpty(tT3Power) == false then
@@ -4522,6 +4569,14 @@ function JustBuiltParagon(oParagon)
                             table.insert(tUnitsToGift, oUnit)
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Size of tT3Power='..table.getn(tT3Power)) end
+                end
+                if bDebugMessages == true then
+                    if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+                        LOG(sFunctionRef..': Finished checking for power, tUnitsToGift size='..table.getn(tUnitsToGift))
+                    else
+                        LOG(sFunctionRef..': tUnitsToGift is empty after checking for mass storage')
+                    end
                 end
                 if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
                     M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
@@ -4530,10 +4585,20 @@ function JustBuiltParagon(oParagon)
                     end
                 end
             end
+            --Unpause every unit (can repause in a moment)
+            WaitTicks(1)
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority]) == false then
+                for iPriority, tPausedUnits in M28Team.tTeamData[iTeam][M28Team.subreftoPausedUnitsByPriority] do
+                    for iUnit, oUnit in tPausedUnits do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false, iTeam)
+                        end
+                    end
+                end
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-
 end
 
 function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecondsAndWeaponFireCheck)
