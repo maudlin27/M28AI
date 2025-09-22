@@ -1978,6 +1978,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
         if oEngineer:GetAIBrain().M28AI then
             --Stuff to update every time construction starts
             if oEngineer[M28Building.reftArtiTemplateRefs] then oEngineer[M28Conditions.refiEngineerStuckCheckCount] = 0 end
+            if oEngineer[M28Orders.refiMoveAndBuildStuckCount] then oEngineer[M28Orders.refiMoveAndBuildStuckCount] = 0 end
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
                 --Enable M28Active status if the engineer is active and we have set to inherit
@@ -3113,7 +3114,7 @@ function OnReclaimStarted(oEngineer, oReclaim)
         local sFunctionRef = 'OnReclaimStarted'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+        if oEngineer[M28Orders.refiMoveAndBuildStuckCount] then oEngineer[M28Orders.refiMoveAndBuildStuckCount] = 0 end
         if M28UnitInfo.IsUnitValid(oReclaim) and oReclaim:GetFractionComplete() == 1 and oReclaim:GetAIBrain().M28AI and not(oEngineer:GetAIBrain().M28AI) and IsAlly(oReclaim:GetAIBrain():GetArmyIndex(), oEngineer:GetAIBrain():GetArmyIndex()) then
             if M28Orders.bDontConsiderCombinedArmy or oReclaim.M28Active then
                 M28Chat.SendUnitReclaimedMessage(oEngineer, oReclaim)
