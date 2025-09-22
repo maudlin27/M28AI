@@ -589,9 +589,8 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
                     M28Utilities.ErrorHandler('Attempted to build something with no blueprint')
                 end
                 if (oUnit[refiMoveAndBuildStuckCount] or 0) >= 5 and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
-                    oUnit[refiMoveAndBuildStuckCount] = 0
                     local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
-                    M28Micro.TrackTemporaryUnitMicro(oUnit, 30)
+                    M28Micro.TrackTemporaryUnitMicro(oUnit, 30 + (oUnit[refiMoveAndBuildStuckCount] - 5)*10)
                 end
                 --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual02087' and oUnit:GetAIBrain():GetArmyIndex() == 3 then
                     LOG('Just sent a move and then build order to unit ual02087 at time '..GetGameTimeSeconds())
