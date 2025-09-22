@@ -7195,13 +7195,10 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                 M28Orders.IssueTrackedMoveAndBuild(oEngineerToBuild, tLocationToBuild, sArtiToBuild, tMoveLocation, 1, false, 'GEMBArtT'..iTableRef)
                 bTriedBuildingSomething = true
                 if M28Utilities.GetDistanceBetweenPositions(oEngineerToBuild:GetPosition(), tMoveLocation) <= 2 then oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] = (oEngineerToBuild[M28Conditions.refiEngineerStuckCheckCount] or 0) + 1 end
-                bDebugMessages = false
             else
-                if GetGameTimeSeconds() >= 35*60 then bDebugMessages = true end
                 if bDebugMessages == true then LOG(sFunctionRef..': GE Telling engineer '..(oEngineerToBuild.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild) or 'nil')..' to build '..sArtiToBuild..' at build location '..repru(tLocationToBuild)..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTableRef='..iTableRef..'; refbSpecialMicroActive='..tostring(oEngineerToBuild[M28UnitInfo.refbSpecialMicroActive] or false)..'; refiMoveAndBuildStuckCount='..(oEngineerToBuild[M28Orders.refiMoveAndBuildStuckCount] or 'nil')) end
                 ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild, tLocationToBuild, sArtiToBuild)
                 M28Orders.IssueTrackedBuild(oEngineerToBuild, tLocationToBuild, sArtiToBuild, false, 'GEBArt')
-                bDebugMessages = false
                 bTriedBuildingSomething = true
                 tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] = ( tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] or 0) + 1
                 if tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] >= 60 and math.round(tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] / 10) * 10 == tTableRef[M28Map.subrefiCyclesWaitingForConstructionToStart] then
@@ -7364,7 +7361,7 @@ function ConsiderResettingGEEngineerJustBeforeGivingNewOrder(oEngineerToBuild, t
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderResettingGEEngineerJustBeforeGivingNewOrder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 35*60 then bDebugMessages = true end
+
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to reset refiGETemplateTimeTryingToBuild to 0 for engineer '..oEngineerToBuild.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineerToBuild)) end
     oEngineerToBuild[refiGETemplateTimeTryingToBuild] = (oEngineerToBuild[refiGETemplateTimeTryingToBuild] or 0) + 1
     if oEngineerToBuild[refiGETemplateTimeTryingToBuild] >= 15 and (not(oEngineerToBuild[M28UnitInfo.refbSpecialMicroActive]) or oEngineerToBuild[refiGETemplateTimeTryingToBuild] >= 50) then

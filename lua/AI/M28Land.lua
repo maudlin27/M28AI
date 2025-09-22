@@ -4951,9 +4951,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 oManualAttackTarget = oEnemy
                                 if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Setting manual attack target to this enemy') end
                             elseif iCurDistOfCategory <= (oEnemy[M28UnitInfo.refiDFRange] or 0) and iCurDistOfCategory < iClosestEnemyWeAreInRangeOf and (oEnemy[M28UnitInfo.refiUnitMassCost] or GetUnitMassCost(oEnemy)) > 2000 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy unit can attack us and has a notable mass cost so will move towards it, time since last weapon event='..(GetGameTimeSeconds() - (oEnemy[M28UnitInfo.refiLastWeaponEvent] or 0))) end
                                 oEnemyWeAreInRangeOf = oEnemy
                                 iClosestEnemyWeAreInRangeOf = iCurDistOfCategory
-                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy unit can attack us and has a notable mass cost so will move towards it') end
                             end
                             --elseif bDebugMessages == true then LOG(sFunctionRef..': Enemy is too high health or we cant see it')
                             --end
@@ -8684,7 +8684,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         --Also exceptio nif we have an experimental unit that cant kite, in which case it will attack-move to the rally point
                         local tNearbyEnemyExperimentals
                         local bConsiderAttackingExperimental = false
-                        local iThresholdDistUntilInRangeToAttackExp = 200
+                        local iThresholdDistUntilInRangeToAttackExp = 10 --If dist to enemy exp less our range is less than this value, then will attack instead of retreating
                         local oClosestEnemyExpToBase
                         if oNearestEnemyToFriendlyBase then
                             tNearbyEnemyExperimentals = EntityCategoryFilterDown(categories.EXPERIMENTAL, tLZTeamData[M28Map.reftoNearestDFEnemies])
@@ -8741,6 +8741,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 if bNearbyFriendlyFirebaseVsFatboy then
                                     --Wnat to retreat as we have nearby t2 arti that could support us, so only engage if are almost in range
                                     iThresholdDistUntilInRangeToAttackExp = 10 --i.e. attack if withi n10 of being in range
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have firebase so will rely on firebase to help us and retreat unless almost in range') end
                                 else
                                     --Pre-v235 this was  iThresholdDistUntilInRangeToAttackExp =  iBestEnemyExpRange + 15, presumably to stop experimentals idling while taking fatboy fire; however it'd also result in them suiciding into enemy fatboy, so have changed in v235 to below, may need to adjust further though
                                     if tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] <= 20 then
@@ -8748,6 +8749,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     else
                                         iThresholdDistUntilInRangeToAttackExp = math.min(iBestEnemyExpRange + 15, 40)
                                     end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Time since t2 arti last fired='..GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 0)..'; iThresholdDistUntilInRangeToAttackExp='..iThresholdDistUntilInRangeToAttackExp..'; iBestEnemyExpRange='..iBestEnemyExpRange) end
                                 end
                             end
                         end
@@ -8813,7 +8815,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         if bDebugMessages == true then LOG(sFunctionRef..': Experimental - attack nearest ACU') end
                                         GetUnitToAttackNearestACUOrOverrideUnit(oUnit)
                                         --CloseToEnemyUnit(tStartPosition,       tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
-                                    elseif bConsiderAttackingExperimental and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oClosestEnemyExpToBase.UnitId))) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestEnemyExpToBase:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange] <= iThresholdDistUntilInRangeToAttackExp and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyExperimentals, 5, iTeam, true,                    nil,                    oUnit,                              oUnit) and (not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect, oUnit.UnitId)) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestEnemyExpToBase:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange] <= 10 or (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] <= 10)) then
+                                    elseif bConsiderAttackingExperimental and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oClosestEnemyExpToBase.UnitId))) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestEnemyExpToBase:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange] <= iThresholdDistUntilInRangeToAttackExp and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyExperimentals, 5, iTeam, true,                    nil,                    oUnit,                              oUnit) and (not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect, oUnit.UnitId)) or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 and (oUnit[M28UnitInfo.refiIndirectRange] < oClosestEnemyExpToBase[M28UnitInfo.refiCombatRange] or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestEnemyExpToBase:GetPosition()) - oUnit[M28UnitInfo.refiCombatRange] >= 10)) or (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] <= 10 and oClosestEnemyExpToBase[M28UnitInfo.refiCombatRange] >= math.max(60, oUnit[M28UnitInfo.refiCombatRange]))) then
                                         --move to nearest enemy experimental if we arent in range of it yet but a friendly unit is, and we are an experimental level unit or it is a fatboy
                                         local bMoveTowardsExperimental = false
                                         --Want to move instead of attackmove if we are an experimental (or up against a fatboy) and aren't already in range (by a reasonable margin if against a fatboy)
