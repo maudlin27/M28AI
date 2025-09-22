@@ -1560,6 +1560,12 @@ function ManageMassStalls(iTeam)
                 local iEngineerSubtableCount = 0
                 local tEngineerActionSubtable
                 local oUnit
+                local oBrainWithParagon
+                if M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] and bPauseNotUnpause then
+                    for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        if oBrain[refbBuiltParagon] and not(oBrain[M28Overseer.refbCloseToUnitCap]) then oBrainWithParagon = oBrain break end
+                    end
+                end
 
                 local bAbort = false
                 local iTotalUnits = 0
@@ -1636,9 +1642,12 @@ function ManageMassStalls(iTeam)
                         else iBuildRateMod = 1
                         end
 
+                        if bDebugMessages == true then LOG(sFunctionRef..': bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; oBrain='..oBrain.Nickname..'; refbBuiltParagon='..tostring(oBrain[refbBuiltParagon] or false)) end
+
                         if bPauseNotUnpause then
                             if oBrain[refbBuiltParagon] then
                                 if bDebugMessages == true then LOG(sFunctionRef..': This brain has built a paragon so wont search for units to pause') end
+                                tRelevantUnits = nil
                             elseif iCategoryRef == iSpecialSurplusUpgradeCategory then
                                 --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades.  Dont pause the last mex upgrade. also dont pause anything that is >=85% complete
                                 tRelevantUnits = {}
@@ -1698,8 +1707,8 @@ function ManageMassStalls(iTeam)
                                         local oLowestProgress
                                         local bAlreadyIncluded
                                         for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes] do
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for the lowest mex to pause, iMexesToPause='..iMexesToPause..'; Considering mex '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Work progress='..oUnit:GetWorkProgress()..'; iLowestProgress='..iLowestProgress) end
-                                            if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetWorkProgress() < iLowestProgress then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for the lowest mex to pause, iMexesToPause='..iMexesToPause..'; Considering mex '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Work progress='..oUnit:GetWorkProgress()..'; iLowestProgress='..iLowestProgress..'; Mex owner='..oUnit:GetAIBrain().Nickname) end
+                                            if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetWorkProgress() < iLowestProgress and not(oUnit:GetAIBrain()[refbBuiltParagon]) then
                                                 bAlreadyIncluded = false
                                                 --Is the unit already in the table of relevant units?
                                                 if M28Utilities.IsTableEmpty(tRelevantUnits) == false then
@@ -1714,7 +1723,7 @@ function ManageMassStalls(iTeam)
                                             end
                                         end
                                         if oLowestProgress then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Adding oLowestProgress='..oLowestProgress.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestProgress)..' to table of units to pause') end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Adding oLowestProgress='..oLowestProgress.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestProgress)..' owned by '..oLowestProgress:GetAIBrain().Nickname..' to table of units to pause') end
                                             table.insert(tRelevantUnits, oLowestProgress)
                                         else
                                             break
@@ -1733,7 +1742,9 @@ function ManageMassStalls(iTeam)
                                 end
                                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingOther]) == false then
                                     for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingOther] do
-                                        table.insert(tRelevantUnits, oUnit)
+                                        if not(oUnit.Dead) and not(oUnit:GetAIBrain()[refbBuiltParagon]) then
+                                            table.insert(tRelevantUnits, oUnit)
+                                        end
                                     end
                                 end
                             else
@@ -1876,6 +1887,10 @@ function ManageMassStalls(iTeam)
                                                                 end
                                                             end
                                                         end
+                                                        if oBrainWithParagon and bApplyActionToUnit and not(oUnit[M28Engineer.refbPrimaryBuilder]) then
+                                                            bApplyActionToUnit = false
+                                                            M28Team.TransferUnitsToPlayer({ oUnit }, oBrainWithParagon:GetArmyIndex(), false)
+                                                        end
                                                         if bApplyActionToUnit and bConsiderReclaimingEngineer and not(oUnit[M28Engineer.refbPrimaryBuilder]) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) <= 90 then
                                                             --Is there reclaim near the engineer? If so clear its orders and have it reclaim, otherwise kill it
                                                             local oBP = oUnit:GetBlueprint()
@@ -1998,7 +2013,7 @@ function ManageMassStalls(iTeam)
                                     --We're working in ticks so adjust mass usage accordingly
                                     iCurUnitMassUsage = iCurUnitMassUsage * 0.1
                                     if bDebugMessages == true then
-                                        LOG(sFunctionRef .. ': Estimated mass usage=' .. iCurUnitMassUsage..'; About to call the function PauseOrUnpauseMassUsage on unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; iUnitsAdjusted before counting this unit='..iUnitsAdjusted)
+                                        LOG(sFunctionRef .. ': Estimated mass usage=' .. iCurUnitMassUsage..'; About to call the function PauseOrUnpauseMassUsage on unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; iUnitsAdjusted before counting this unit='..iUnitsAdjusted..'; Unit brain owner='..oUnit:GetAIBrain().Nickname)
                                     end
 
                                     if not((iCurUnitMassUsage or 0) == 0) then iUnitsAdjusted = iUnitsAdjusted + 1 end
@@ -2327,7 +2342,10 @@ function ManageEnergyStalls(iTeam)
                             else iBuildRateMod = 1
                             end
                             if bPauseNotUnpause then
-                                if iCategoryRef == iSpecialSurplusUpgradeCategory then
+                                if oBrain[refbBuiltParagon] and (oBrain:GetEconomyStoredRatio('ENERGY') >= 0.1 or (oBrain:GetEconomyStoredRatio('ENERGY') >= 0.01 and oBrain:GetEconomyTrend('ENERGY') > 0)) then
+                                    tRelevantUnits = nil
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have built paragon for brain '..oBrain.Nickname..' so wont pause units unless really low on energy for this brain') end
+                                elseif iCategoryRef == iSpecialSurplusUpgradeCategory then
                                     --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades
                                     tRelevantUnits = {}
                                     if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) then
@@ -2345,7 +2363,7 @@ function ManageEnergyStalls(iTeam)
                                             local oLowestProgress
                                             local bAlreadyIncluded
                                             for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes] do
-                                                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetWorkProgress() < iLowestProgress then
+                                                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetWorkProgress() < iLowestProgress and not(oUnit:GetAIBrain()[refbBuiltParagon]) then
                                                     bAlreadyIncluded = false
                                                     --Is the unit already in the table of relevant units?
                                                     if M28Utilities.IsTableEmpty(tRelevantUnits) == false then
@@ -2369,7 +2387,9 @@ function ManageEnergyStalls(iTeam)
                                     end
                                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingOther]) == false then
                                         for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingOther] do
-                                            table.insert(tRelevantUnits, oUnit)
+                                            if not(oUnit.Dead) and not(oUnit:GetAIBrain()[refbBuiltParagon]) then
+                                                table.insert(tRelevantUnits, oUnit)
+                                            end
                                         end
                                     end
                                 else

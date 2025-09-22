@@ -1978,6 +1978,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
         if oEngineer:GetAIBrain().M28AI then
             --Stuff to update every time construction starts
             if oEngineer[M28Building.reftArtiTemplateRefs] then oEngineer[M28Conditions.refiEngineerStuckCheckCount] = 0 end
+            if oEngineer[M28Orders.refiMoveAndBuildStuckCount] then oEngineer[M28Orders.refiMoveAndBuildStuckCount] = 0 end
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
                 --Enable M28Active status if the engineer is active and we have set to inherit
@@ -2430,6 +2431,25 @@ function OnConstructed(oEngineer, oJustBuilt)
                         if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oJustBuilt.UnitId) and oJustBuilt:GetAIBrain()[M28Chat.refiAssignedPersonality] == M28Chat.refiQAI and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] < 8000 and M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) == 1 then
                             ForkThread(M28Chat.ConsiderQAIAboutToAttackMessage, oJustBuilt)
                         end
+
+                        --Engineer owns a paragon and just built a mobile exp - have it keep building in same location
+                        if aiBrain[M28Economy.refbBuiltParagon] and EntityCategoryContains(categories.MOBILE, oJustBuilt.UnitId) and oEngineer:CanBuild(oJustBuilt.UnitId) then
+                            local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
+                            if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftActiveGameEnderTemplates][1]) == false then
+                                --Try and rebuild the same unit
+                                M28Orders.IssueTrackedClearCommands(oEngineer)
+                                local iAction
+                                if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oJustBuilt.UnitId) then
+                                    iAction = M28Engineer.refActionBuildLandExperimental
+                                else
+                                    iAction = M28Engineer.refActionBuildExperimental
+                                end
+                                M28Engineer.TrackEngineerAction(oEngineer, iAction, true, 1, nil, nil, false)
+                                M28Orders.IssueTrackedBuild(oEngineer, oJustBuilt:GetPosition(), oJustBuilt.UnitId, false, 'ParaRebldExp')
+                                M28Micro.TrackTemporaryUnitMicro(oEngineer, 30)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try and rebuild the experimental we just built, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; iAction='..iAction) end
+                            end
+                        end
                         --Loud T2 sniperbots - consider enhancement
                     elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
                         ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
@@ -2488,12 +2508,35 @@ function OnConstructed(oEngineer, oJustBuilt)
                             M28Team.tTeamData[iTeam][M28Team.refiUpgradedMexCount] = (M28Team.tTeamData[iTeam][M28Team.refiUpgradedMexCount] or 0) + 1
                             oJustBuilt[M28UnitInfo.refiTimeMexConstructed] = GetGameTimeSeconds()
                             ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oJustBuilt, false, 10)
-                            --If have storage owned by M28 on same team by this mex, gift it over
-                            --All mexes - on construction check if we have allied M28 mass storage nearby (e.g. we have rebuilt on a mex that they used to have) and if so then have that M28 gift over their mass storage
-                            M28Team.GiftAdjacentStorageToMexOwner(oJustBuilt)
+                            --If this is a t3 mex and we have a paragon, then gift the mex to teammate, otherwise gift the storage from teammates to us
+                            local bGiftingToTeammate = false
+                            if oJustBuilt:GetAIBrain()[M28Economy.refbBuiltParagon] and not((oJustBuilt:GetBlueprint().General.UpgradesTo or '') == '') then
+                                local oM28BrainToGiftTo
+                                local oOtherBrainToGiftTo
+                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                                    if not(oBrain == oJustBuilt:GetAIBrain()) then
+                                        if oBrain.M28AI then
+                                            if not(oM28BrainToGiftTo) then
+                                                oM28BrainToGiftTo = oBrain
+                                                break
+                                            end
+                                        else
+                                            if not(oOtherBrainToGiftTo) then oOtherBrainToGiftTo = oBrain end
+                                        end
+                                    end
+                                end
+                                if oOtherBrainToGiftTo or  oM28BrainToGiftTo then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will gift T3 mex we have just built to teammate as we have a paragon, oM28BrainToGiftTo='..(oM28BrainToGiftTo.Nickname or 'nil')..'; oOtherBrainToGiftTo='..(oOtherBrainToGiftTo.Nickname or 'nil')..'; Time='..GetGameTimeSeconds()) end
+                                    bGiftingToTeammate = true
+                                    ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, (oM28BrainToGiftTo or oOtherBrainToGiftTo):GetArmyIndex(), 0.2)
+                                end
+                            else
+                                --If have storage owned by M28 on same team by this mex, gift it over
+                                --All mexes - on construction check if we have allied M28 mass storage nearby (e.g. we have rebuilt on a mex that they used to have) and if so then have that M28 gift over their mass storage
+                                M28Team.GiftAdjacentStorageToMexOwner(oJustBuilt)
+                            end
 
                             --Update part built t1 mex tracking
-                            local bGiftingToTeammate = false
                             if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oJustBuilt.UnitId) then
                                 M28Engineer.UpdatePartBuiltListForCompletedMex(oJustBuilt)
                                 --Check if teammate has enough factories that we should give this to them - require mex to be closer to their base and for them to have factories in the zone, and for us to have no T2+ mexes
@@ -2545,7 +2588,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                                                         [6] = 'My master says I must help my team more, so have a mex '..oClosestNonM28Brain.Nickname
                                                     }
                                                     local sMessage = sPotentialMessages[math.random(1, table.getn(sPotentialMessages))] or sPotentialMessages[1]
-                                                            --SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank, oOptionalOnlyBrainToSendTo)
+                                                    --SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank, oOptionalOnlyBrainToSendTo)
                                                     M28Chat.SendMessage(oJustBuilt:GetAIBrain(), 'MexGiftF'..oJustBuilt:GetAIBrain().M28Team..'T'..oClosestNonM28Brain:GetArmyIndex(), sMessage, 1, 90, true, true)
                                                 end
                                             end
@@ -2698,10 +2741,28 @@ function OnConstructed(oEngineer, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH2, oJustBuilt.UnitId) then
                             ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oJustBuilt.UnitId) then
-                            --If enemy has nuke then flag we need resources for missile
-                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
-                                M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
+                            --If we have a paragon on the team then gift this to a paragon owner
+                            local oBrainToTransferTo
+                            if M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] and not(oJustBuilt:GetAIBrain()[M28Economy.refbBuiltParagon]) then
+                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                                    if not(oBrain == oJustBuilt:GetAIBrain()) then
+                                        if oBrain.M28AI and oBrain[M28Economy.refbBuiltParagon] then
+                                            oBrainToTransferTo = oBrain
+                                            break
+                                        end
+                                    end
+                                end
                             end
+                            if oBrainToTransferTo then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will gift SMD we have just built to teammate as they have a paragon, oBrainToTransferTo='..(oBrainToTransferTo.Nickname or 'nil')..'; Cur owner='..oJustBuilt:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+                                ForkThread(M28Team.DelayedUnitTransferToPlayer, { oJustBuilt }, oBrainToTransferTo:GetArmyIndex(), 0.2)
+                            else
+                                --If enemy has nuke then flag we need resources for missile
+                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
+                                    M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] = true
+                                end
+                            end
+
                             ForkThread(M28Economy.JustBuiltT2PlusPowerOrExperimentalInZone, oJustBuilt)
                             --T2 arti - consider manual shot targets
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oJustBuilt.UnitId) then
@@ -2917,7 +2978,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 end
                             end
                         end
-                    --Remaining categories where have a paragon on team:
+                        --Remaining categories where have a paragon on team:
                     elseif M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] and (M28Orders.bDontConsiderCombinedArmy or oJustBuilt.M28Active) then
                         --Gift 66% of T3 engineers and SACUs built to paragon owner and all t1-t2 mexes
                         if not(aiBrain[M28Economy.refbBuiltParagon]) then
@@ -3053,7 +3114,7 @@ function OnReclaimStarted(oEngineer, oReclaim)
         local sFunctionRef = 'OnReclaimStarted'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+        if oEngineer[M28Orders.refiMoveAndBuildStuckCount] then oEngineer[M28Orders.refiMoveAndBuildStuckCount] = 0 end
         if M28UnitInfo.IsUnitValid(oReclaim) and oReclaim:GetFractionComplete() == 1 and oReclaim:GetAIBrain().M28AI and not(oEngineer:GetAIBrain().M28AI) and IsAlly(oReclaim:GetAIBrain():GetArmyIndex(), oEngineer:GetAIBrain():GetArmyIndex()) then
             if M28Orders.bDontConsiderCombinedArmy or oReclaim.M28Active then
                 M28Chat.SendUnitReclaimedMessage(oEngineer, oReclaim)

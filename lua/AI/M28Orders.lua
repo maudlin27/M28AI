@@ -52,6 +52,7 @@ refiEstimatedLastPathPoint = 'M28OrderLastPathRef' --If a unit is being given an
 refiTimeOfLastRemovalUpgrade = 'M28OrdUpgRem' --if ACU given an upgrade that removes upgrades, then this will record the time, to help workaround an issue where the tracking for the new upgrade (post removal) goes through before tracking for the completion of the old (removal) upgrade
 refiLastUnloadAttemptTime = 'M28OrdUnlAtmp' --gametimeseconds we tried to unload (so can keep trying to unload)
 reftMoveDestinationIgnoredDueToMicro = 'M28OUnDIg' --{x,y,z} position that the unit was given a move order to go to, but ignored due to active micro
+refiMoveAndBuildStuckCount = 'M28OUMvB' --whenever give a move+build order, this increases by 1; it resets when unit starts building or reclaiming; used to identify stuck engineers; see also M28Conditions.refiEngineerStuckCheckCount
 
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
@@ -549,77 +550,86 @@ function IssueTrackedOvercharge(oUnit, oOrderTarget, bAddToExistingQueue, sOptio
     end
 end
 
-function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveTarget, iDistanceToReorderMoveTarget, bAddToExistingQueue, sOptionalOrderDesc)
+function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveTarget, iDistanceToReorderMoveTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     if bDontConsiderCombinedArmy or oUnit.M28Active then
-        UpdateRecordedOrders(oUnit)
-        local bDontAlreadyHaveOrder = true
-        local iLastOrderCount = 0
-        if oUnit[reftiLastOrders] then
-            iLastOrderCount = oUnit[refiOrderCount]
-            if iLastOrderCount >= 2 then
-                local tLastOrder = oUnit[reftiLastOrders][iLastOrderCount]
-                if tLastOrder[subrefiOrderType] == refiOrderIssueBuild and sOrderBlueprint == tLastOrder[subrefsOrderBlueprint] and M28Utilities.GetDistanceBetweenPositions(tBuildLocation, tLastOrder[subreftOrderPosition]) <= 0.5 then
-                    local tSecondLastOrder = oUnit[reftiLastOrders][iLastOrderCount - 1]
-                    if tSecondLastOrder[subrefiOrderType] == refiOrderIssueMove and M28Utilities.GetDistanceBetweenPositions(tMoveTarget, tSecondLastOrder[subreftOrderPosition]) < (iDistanceToReorderMoveTarget or 0.01) then
-                        bDontAlreadyHaveOrder = false
+        if bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+            UpdateRecordedOrders(oUnit)
+            local bDontAlreadyHaveOrder = true
+            local iLastOrderCount = 0
+            if oUnit[reftiLastOrders] then
+                iLastOrderCount = oUnit[refiOrderCount]
+                if iLastOrderCount >= 2 then
+                    local tLastOrder = oUnit[reftiLastOrders][iLastOrderCount]
+                    if tLastOrder[subrefiOrderType] == refiOrderIssueBuild and sOrderBlueprint == tLastOrder[subrefsOrderBlueprint] and M28Utilities.GetDistanceBetweenPositions(tBuildLocation, tLastOrder[subreftOrderPosition]) <= 0.5 then
+                        local tSecondLastOrder = oUnit[reftiLastOrders][iLastOrderCount - 1]
+                        if tSecondLastOrder[subrefiOrderType] == refiOrderIssueMove and M28Utilities.GetDistanceBetweenPositions(tMoveTarget, tSecondLastOrder[subreftOrderPosition]) < (iDistanceToReorderMoveTarget or 0.01) then
+                            bDontAlreadyHaveOrder = false
+                        end
                     end
                 end
             end
-        end
-        --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel01013' then LOG('IssueTrackedMoveAndBuild: oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDontAlreadyHaveOrder='..tostring(bDontAlreadyHaveOrder or false)) end
-        if bDontAlreadyHaveOrder then
-            if not(bAddToExistingQueue) then
-                --LOG('IssueTrackedMoveAndBuild: Will clear commands of the unit')
-                IssueTrackedClearCommands(oUnit)
-            end
-            if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
-            oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-            table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = {tMoveTarget[1], tMoveTarget[2], tMoveTarget[3]}})
-            IssueMove({oUnit}, tMoveTarget)
+            --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel01013' then LOG('IssueTrackedMoveAndBuild: oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDontAlreadyHaveOrder='..tostring(bDontAlreadyHaveOrder or false)) end
+            if bDontAlreadyHaveOrder then
+                if not(bAddToExistingQueue) then
+                    --LOG('IssueTrackedMoveAndBuild: Will clear commands of the unit')
+                    oUnit[refiMoveAndBuildStuckCount] = (oUnit[refiMoveAndBuildStuckCount] or 0) + 1 --See also M28Conditions.refiEngineerStuckCheckCount
+                    IssueTrackedClearCommands(oUnit)
+                end
+                if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+                oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+                table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = {tMoveTarget[1], tMoveTarget[2], tMoveTarget[3]}})
+                IssueMove({oUnit}, tMoveTarget)
 
-            oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-            table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = {tBuildLocation[1], tBuildLocation[2], tBuildLocation[3]}})
-            IssueBuildMobile({ oUnit }, tBuildLocation, sOrderBlueprint, {})
-            if sOrderBlueprint then
-                M28Engineer.TrackQueuedBuilding(oUnit, sOrderBlueprint, tBuildLocation) --Cant do via fork thread or if are giving orders to 2 engineers at once they wont realise the location is queued
-            else
-                M28Utilities.ErrorHandler('Attempted to build something with no blueprint')
+                oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+                table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = {tBuildLocation[1], tBuildLocation[2], tBuildLocation[3]}})
+                IssueBuildMobile({ oUnit }, tBuildLocation, sOrderBlueprint, {})
+                if sOrderBlueprint then
+                    M28Engineer.TrackQueuedBuilding(oUnit, sOrderBlueprint, tBuildLocation) --Cant do via fork thread or if are giving orders to 2 engineers at once they wont realise the location is queued
+                else
+                    M28Utilities.ErrorHandler('Attempted to build something with no blueprint')
+                end
+                if (oUnit[refiMoveAndBuildStuckCount] or 0) >= 5 and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+                    local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
+                    M28Micro.TrackTemporaryUnitMicro(oUnit, 30 + (oUnit[refiMoveAndBuildStuckCount] - 5)*10)
+                end
+                --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual02087' and oUnit:GetAIBrain():GetArmyIndex() == 3 then
+                    LOG('Just sent a move and then build order to unit ual02087 at time '..GetGameTimeSeconds())
+                end--]]
             end
-            --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual02087' and oUnit:GetAIBrain():GetArmyIndex() == 3 then
-                LOG('Just sent a move and then build order to unit ual02087 at time '..GetGameTimeSeconds())
-            end--]]
+            if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
         end
-        if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     end
 end
 
-function IssueTrackedBuild(oUnit, tOrderPosition, sOrderBlueprint, bAddToExistingQueue, sOptionalOrderDesc)
+function IssueTrackedBuild(oUnit, tOrderPosition, sOrderBlueprint, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     if bDontConsiderCombinedArmy or oUnit.M28Active then
-        UpdateRecordedOrders(oUnit)
-        local tLastOrder
+        if bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+            UpdateRecordedOrders(oUnit)
+            local tLastOrder
 
-        if oUnit[reftiLastOrders] then
-            if bAddToExistingQueue then
-                tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
-            else tLastOrder = oUnit[reftiLastOrders][1]
+            if oUnit[reftiLastOrders] then
+                if bAddToExistingQueue then
+                    tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
+                else tLastOrder = oUnit[reftiLastOrders][1]
+                end
             end
-        end
-        if not(tLastOrder[subrefiOrderType] == refiOrderIssueBuild and sOrderBlueprint == tLastOrder[subrefsOrderBlueprint] and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) <= 0.5) then
-            if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
-            if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
-            oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-            table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
-            IssueBuildMobile({ oUnit }, tOrderPosition, sOrderBlueprint, {})
-            if sOrderBlueprint then
-                M28Engineer.TrackQueuedBuilding(oUnit, sOrderBlueprint, tOrderPosition) --Cnat do via fork thread or else engineers given orders in same cycle wont realise it's queued
-            else
-                M28Utilities.ErrorHandler('Attempted to give a construction order to unit with no order blueprint')
+            if not(tLastOrder[subrefiOrderType] == refiOrderIssueBuild and sOrderBlueprint == tLastOrder[subrefsOrderBlueprint] and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) <= 0.5) then
+                if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+                if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+                oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+                table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
+                IssueBuildMobile({ oUnit }, tOrderPosition, sOrderBlueprint, {})
+                if sOrderBlueprint then
+                    M28Engineer.TrackQueuedBuilding(oUnit, sOrderBlueprint, tOrderPosition) --Cnat do via fork thread or else engineers given orders in same cycle wont realise it's queued
+                else
+                    M28Utilities.ErrorHandler('Attempted to give a construction order to unit with no order blueprint')
+                end
+                --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual02087' and oUnit:GetAIBrain():GetArmyIndex() == 3 then
+                    LOG('Just sent a build order to unit ual02087 at time '..GetGameTimeSeconds())
+                end--]]
             end
-            --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual02087' and oUnit:GetAIBrain():GetArmyIndex() == 3 then
-                LOG('Just sent a build order to unit ual02087 at time '..GetGameTimeSeconds())
-            end--]]
+            if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
         end
-        if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     end
 end
 
