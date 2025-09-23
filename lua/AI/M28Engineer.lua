@@ -16543,6 +16543,17 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             if oUnitWantingTMD then
                 HaveActionToAssign(refActionBuildTMD, 2, iBPWanted,  oUnitWantingTMD)
                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and build TMD') end
+
+                --Consider another TMD if we have multiple T2+ mexes and have a mex that wants TMD - get the unit closest to our base
+                if table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD]) >= 2 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2) then
+                    --GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bReturnTMLCountAsWell, iOptionalCategoryWanted, bGetClosestUnitToOurBase)
+                    local oSecondUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone,     false,                      M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPD, true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': oSecondUnitWantingTMD='..(oSecondUnitWantingTMD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSecondUnitWantingTMD) or 'nil')) end
+                    if oSecondUnitWantingTMD then
+                        iCurPriority = iCurPriority + 1
+                        HaveActionToAssign(refActionBuildSecondTMD, 2, tiBPByTech[2],  oSecondUnitWantingTMD)
+                    end
+                end
             end
         end
     end
