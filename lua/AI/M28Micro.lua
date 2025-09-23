@@ -490,7 +490,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
         if bDebugMessages == true then
             LOG(sFunctionRef..': Just fired, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit combat range='..(oUnit[M28UnitInfo.refiCombatRange] or 'nil')..'; oWeaponBP.RangeCategory='..(oWeaponBP.RangeCategory or 'nil'))
             if oWeapon.GetCurrentTarget then
-                LOG(sFunctionRef..': Is current target valid='..tostring(M28UnitInfo.IsUnitValid(oWeapon:GetCurrentTarget()))..'; Weapon category='..(oWeaponBP.WeaponCategory or 'nil'))
+                LOG(sFunctionRef..': Is current target valid='..tostring(M28UnitInfo.IsUnitValid(oWeapon:GetCurrentTarget()))..'; Weapon category='..(oWeaponBP.WeaponCategory or 'nil')..'; ManualFire='..tostring(oWeaponBP.ManualFire or false))
                 if not(M28UnitInfo.IsUnitValid(oWeapon:GetCurrentTarget())) then
                     LOG(sFunctionRef..': Invalid target, will do reprs of it:'..reprs(oWeapon:GetCurrentTarget())..' will also draw black square around the weapon target position which is '..repru(oWeapon:GetCurrentTargetPos()))
                     local tCurTargetPos = oWeapon:GetCurrentTargetPos()
@@ -504,8 +504,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                 LOG(sFunctionRef..': Dont have a current target for this weapon')
             end
         end
-        --Direct fire, t1 mobile arti, t2 mobile missile launchers, and experimental land
-        if oWeapon.GetCurrentTarget and (oWeaponBP.WeaponCategory == 'Direct Fire' or oWeaponBP.WeaponCategory == 'Direct Fire Naval' or oWeaponBP.WeaponCategory == 'Direct Fire Experimental' or (oWeaponBP.WeaponCategory == 'Artillery' and EntityCategoryContains(categories.TECH1, oUnit.UnitId)) or (oWeaponBP.WeaponCategory == 'Missile' and oWeaponBP.MaxRadius <= 80) or (not(M28Utilities.bFAFActive) and (oUnit[M28UnitInfo.refiCombatRange] or 0) > 0 and (oWeaponBP.RangeCategory == 'UWRC_IndirectFire' or oWeaponBP.RangeCategory == 'UWRC_DirectFire'))) or (oWeaponBP.WeaponCategory == 'Indirect Fire' and oWeaponBP.MuzzleVelocity <= 25) then
+        --Direct fire, t1 mobile arti, t2 mobile missile launchers, Cruiser missiles, and experimental land
+        if oWeapon.GetCurrentTarget and (oWeaponBP.WeaponCategory == 'Direct Fire' or oWeaponBP.WeaponCategory == 'Direct Fire Naval' or oWeaponBP.WeaponCategory == 'Direct Fire Experimental' or (oWeaponBP.WeaponCategory == 'Artillery' and EntityCategoryContains(categories.TECH1, oUnit.UnitId)) or (oWeaponBP.WeaponCategory == 'Missile' and oWeaponBP.MaxRadius <= 80) or (not(M28Utilities.bFAFActive) and (oUnit[M28UnitInfo.refiCombatRange] or 0) > 0 and (oWeaponBP.RangeCategory == 'UWRC_IndirectFire' or oWeaponBP.RangeCategory == 'UWRC_DirectFire'))) or (oWeaponBP.WeaponCategory == 'Indirect Fire' and oWeaponBP.MuzzleVelocity <= 25) or (oWeaponBP.WeaponCategory == 'Missile' and not(oWeaponBP.ManualFire) and true and GetGameTimeSeconds() >= 18.5*60) then
             if bDebugMessages == true then LOG(sFunctionRef..': Have a valid weapon category, will see if have targets to consider dodging') end
             local oWeaponTarget
             local iRadiusSize = math.min(5, 1 + math.max(oWeaponBP.DamageRadius + 0.5 + 7 * (oWeaponBP.FiringRandomness or 0), 1))
