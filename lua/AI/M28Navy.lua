@@ -208,7 +208,6 @@ function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZ
     local sFunctionRef = 'UpdateUnitPositionsAndWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     local iRevisedIndex = 1
     local iTableSize = table.getn(tUnits)
     local iActualWaterZone
@@ -516,7 +515,6 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subreftEnemyLongRangeUnits] = nil
         tWZTeamData[M28Map.refiEnemyTorpDefenceCount] = 0
     else
-        if iWaterZone == 10 and GetGameTimeSeconds() >= 31*60 then bDebugMessages = true end
         local iTorpDefenceSurfaceCount = 0
         tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits],  true,       false,              false,                      true,       false)
         tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits], true,     false,              false,                      false,      false,          true)
@@ -1946,7 +1944,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         end
 
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tMissileShips) == false then
-            if bDebugMessages == true then LOG(sFunctionRef..': About to manage combat units in the WZ') end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to manage combat units in the WZ, time='..GetGameTimeSeconds()) end
             if tWZData[M28Map.subrefbPacifistArea] then
                 if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
                     RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits)
@@ -2332,7 +2330,7 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
     local sFunctionRef = 'ConsiderOrdersForUnitsWithNoTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()) end
 
     --Handles logic for deciding where to send units to support other water zones (or returns units that could be used to support land zones), and also to handle bombardment logic
     local tUnassignedLandUnits
@@ -2352,13 +2350,15 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
     local tPotentialBombardmentUnits
     if M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false then
         for iUnit, oUnit in tCombatUnitsWithNoTarget do
-            if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 then
-                table.insert(tUnitsWithNoAntiNavy, oUnit)
-            else
-                if (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 then
-                    table.insert(tUnitsWithOnlyAntiNavy, oUnit)
+            if not(oUnit.Dead) then --wierd bug where can have a dead unit remain in this table, despite logs confirming it was removed from the table of units for the WZ - not figured out cause so just adding in redundnacy here
+                if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 then
+                    table.insert(tUnitsWithNoAntiNavy, oUnit)
                 else
-                    table.insert(tUnitsWithAntiNavyAndSurface, oUnit)
+                    if (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 then
+                        table.insert(tUnitsWithOnlyAntiNavy, oUnit)
+                    else
+                        table.insert(tUnitsWithAntiNavyAndSurface, oUnit)
+                    end
                 end
             end
         end
@@ -2419,7 +2419,7 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
             if bDebugMessages == true then LOG(sFunctionRef..': Have no WZ to support so no orders to give subs') end
         end
     end
-    local tRallyPoint = GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
+
     --Units with surface attack but no antinavy attack - switch to bombardment mode if nowhere to support; also use attack-move if have decent range and not blocked shot
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of units with no anti navy empty='..tostring(M28Utilities.IsTableEmpty(tUnitsWithNoAntiNavy))..'; iNoAntiNavyWZToSupport='..(iNoAntiNavyWZToSupport or 'nil')) end
     if M28Utilities.IsTableEmpty(tUnitsWithNoAntiNavy) == false then
@@ -2430,7 +2430,7 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
             local tSupportWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iNoAntiNavyWZToSupport]
             if bDebugMessages == true then LOG(sFunctionRef..': Combat threat wanted by zone='..(tSupportWZData[M28Map.subrefWZCombatThreatWanted] or 'nil')) end
             for iUnit, oUnit in tUnitsWithNoAntiNavy do
-                if bDebugMessages == true then LOG(sFunctionRef..': Getting unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to move to the support WZ='..iNoAntiNavyWZToSupport..' unless it is assigned to a dif zone to this, iWaterZone='..iWaterZone..'; oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]='..oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Getting unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to move to the support WZ='..iNoAntiNavyWZToSupport..' unless it is assigned to a dif zone to this, iWaterZone='..iWaterZone..'; oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]='..oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]..'; .Dead='..tostring(oUnit.Dead or false)) end
                 if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone) then
                     --Unit is from a different zone - need to change the value of its assignment so it is considered for orders by the zone that it is part of
                     oUnit[refiCurrentWZAssignmentValue] = 0
@@ -3330,7 +3330,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iWaterZone == 10 and GetGameTimeSeconds() >= 31*60 then bDebugMessages = true end
+
 
     local tUnassignedLandUnits
     if bDebugMessages == true then LOG(sFunctionRef..': start of code for time '..GetGameTimeSeconds()..', iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Are there enemy units in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; Is table of missile ships empty='..tostring(M28Utilities.IsTableEmpty(tMissileShips))..'; subrefWZiSuicideIntoEnemyCombatThreat='..(tWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] or 'nil')) end
@@ -4049,18 +4049,20 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 tCombatUnitsNeedingAOEForSubs = {}
                 if bDebugMessages == true then LOG(sFunctionRef..': Nearest unit is a sub/underwater so will consider if we have units capable of groundfiring it') end
                 for iUnit, oUnit in tAvailableCombatUnits do
-                    if bConsiderUsingAOE and (oUnit[M28UnitInfo.refiDFAOE] or 0) >= 1.4 and oNearestEnemyNonHoverToFriendlyBase and ((oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId)) then --Doing testing in sandbox, Aeon T2 destroyer aoe of 1.4 can kill subs, as can battleships, but other destroyers with aoe of 1 cant hit subs via ground fire
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with no antinavy range but aoe of '..(oUnit[M28UnitInfo.refiDFAOE] or 0)..' to tCombatUnitsNeedingAOEForSubs') end
-                        table.insert(tCombatUnitsNeedingAOEForSubs, oUnit)
-                    elseif (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with antinavy range '..oUnit[M28UnitInfo.refiAntiNavyRange]..' to combat units of use') end
-                        table.insert(tCombatUnitsOfUse, oUnit)
-                    elseif oNearestEnemySurfaceToFriendlyBase and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': since enemy has surface unit and we ahve DF attack we are still of use in combat, adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to combat units of use') end
-                        table.insert(tCombatUnitsOfUse, oUnit)
-                    else
-                        table.insert(tCombatUnitsWithNoTarget, oUnit)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with no antinavy range and aoe of '..(oUnit[M28UnitInfo.refiDFAOE] or 0)..' to tCombatUnitsWithNoTarget') end
+                    if not(oUnit.Dead) then --wierd bug where can have a dead unit remain in this table, despite logs confirming it was removed from the table of units for the WZ - not figured out cause so just adding in redundnacy here
+                        if bConsiderUsingAOE and (oUnit[M28UnitInfo.refiDFAOE] or 0) >= 1.4 and oNearestEnemyNonHoverToFriendlyBase and ((oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId)) then --Doing testing in sandbox, Aeon T2 destroyer aoe of 1.4 can kill subs, as can battleships, but other destroyers with aoe of 1 cant hit subs via ground fire
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with no antinavy range but aoe of '..(oUnit[M28UnitInfo.refiDFAOE] or 0)..' to tCombatUnitsNeedingAOEForSubs') end
+                            table.insert(tCombatUnitsNeedingAOEForSubs, oUnit)
+                        elseif (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with antinavy range '..oUnit[M28UnitInfo.refiAntiNavyRange]..' to combat units of use') end
+                            table.insert(tCombatUnitsOfUse, oUnit)
+                        elseif oNearestEnemySurfaceToFriendlyBase and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': since enemy has surface unit and we ahve DF attack we are still of use in combat, adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to combat units of use') end
+                            table.insert(tCombatUnitsOfUse, oUnit)
+                        else
+                            table.insert(tCombatUnitsWithNoTarget, oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with no antinavy range and aoe of '..(oUnit[M28UnitInfo.refiDFAOE] or 0)..' to tCombatUnitsWithNoTarget') end
+                        end
                     end
                 end
             else
@@ -4069,10 +4071,12 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     tCombatUnitsOfUse = {}
                     tCombatUnitsWithNoTarget = {}
                     for iUnit, oUnit in tAvailableCombatUnits do
-                        if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then
-                            table.insert(tCombatUnitsOfUse, oUnit)
-                        else
-                            table.insert(tCombatUnitsWithNoTarget, oUnit)
+                        if not(oUnit.Dead) then --wierd bug where can have a dead unit remain in this table, despite logs confirming it was removed from the table of units for the WZ - not figured out cause so just adding in redundnacy here
+                            if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then
+                                table.insert(tCombatUnitsOfUse, oUnit)
+                            else
+                                table.insert(tCombatUnitsWithNoTarget, oUnit)
+                            end
                         end
                     end
                 end
