@@ -6259,7 +6259,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     if not(bAreInScenario1) and iClosestDistLessRange > 0 and M28Utilities.IsTableEmpty(tNearestEnemyLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                         for iEnemy, oEnemy in tNearestEnemyLZTeamData[M28Map.subrefTEnemyUnits] do
                             --Only consider enemies that outrange the nearest enemy (since if they're the same or less range then we can kite them with the same units that can kite the nearest enemy)
-                            if bDebugMessages == true then LOG(sFunctionRef..': considering how close nearby IF units are to closest enemy, factoring in their range, oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF range='..oEnemy[M28UnitInfo.refiDFRange]..'; iEnemyRangeThreshold='..iEnemyRangeThreshold..'; Dist between positions='..M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition())..'; iClosestDistLessRange before update='..iClosestDistLessRange) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': considering how close nearby IF units are to closest enemy, factoring in their range, oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF range='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; iEnemyRangeThreshold='..(iEnemyRangeThreshold or 'nil')..'; Dist between positions='..M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition())..'; iClosestDistLessRange before update='..(iClosestDistLessRange or 'nil')) end
                             if oEnemy[M28UnitInfo.refiIndirectRange] and oEnemy[M28UnitInfo.refiIndirectRange] > iEnemyRangeThreshold and oEnemy[M28UnitInfo.refiIndirectRange] > (oEnemy[M28UnitInfo.refiDFRange] or 0) then
                                 iCurDistToClosestEnemy = M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition())
                                 iCurDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tLZTeamData[M28Map.reftClosestFriendlyBase])
@@ -8046,7 +8046,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             --Extra check - if take threat of skirmisher enemies, is it higher than our available combat threat? (but ignore if we are attacking ACU)
                             if bAttackWithEverything and not(bConsiderAttackingACU and oNearestEnemyToFriendlyBase.UnitId and EntityCategoryContains(categories.COMMAND, oNearestEnemyToFriendlyBase.UnitId) and M28UnitInfo.GetUnitHealthPercent(oNearestEnemyToFriendlyBase) <= 0.75) then
                                 local iEnemyThreatBasedOnSkirmisherEnemies = M28UnitInfo.GetCombatThreatRating(tSkirmisherEnemies, true, false)
-                                if iEnemyThreatBasedOnSkirmisherEnemies * 1.1 > iAvailableCombatUnitThreat then
+                                if iEnemyThreatBasedOnSkirmisherEnemies * 1.5 > iAvailableCombatUnitThreat then
                                     --Do a detailed check based on skirmisher enemies that are close to being in range of the closest enemy unit
                                     local iMassOfNearbySkirmisherEnemies = 0
                                     for iEnemy, oEnemy in tSkirmisherEnemies do
@@ -8054,10 +8054,52 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             iMassOfNearbySkirmisherEnemies = iMassOfNearbySkirmisherEnemies + (oEnemy[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oEnemy))
                                         end
                                     end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Inconsistent enemy threat values so will play it safe and not attack if mass of enemy DF units near the nearest enemy is high enough, iMassOfNearbySkirmisherEnemies='..iMassOfNearbySkirmisherEnemies..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat) end
-                                    if iMassOfNearbySkirmisherEnemies >= iAvailableCombatUnitThreat then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Inconsistent enemy threat values so will play it safe and not attack if mass of enemy DF units near the nearest enemy is high enough, iMassOfNearbySkirmisherEnemies='..iMassOfNearbySkirmisherEnemies..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; iEnemyThreatBasedOnSkirmisherEnemies='..iEnemyThreatBasedOnSkirmisherEnemies) end
+                                    if iMassOfNearbySkirmisherEnemies * 1.3 >= iAvailableCombatUnitThreat then
                                         bAttackWithEverything = false
                                         if bDebugMessages == true then LOG(sFunctionRef..': Wont attack with everything afterall') end
+                                    elseif iMassOfNearbySkirmisherEnemies * 2 >= iAvailableCombatUnitThreat then
+                                        --Calculate our threat more precisely, based on the short ranged directfire units we have
+                                        local toTempSRDFUnits = {}
+                                        for iUnit, oUnit in tAvailableCombatUnits do
+                                            if (oUnit[M28UnitInfo.refiDFRange] or 0) < iEnemyBestDFRange or (oUnit[M28UnitInfo.refiDFRange] == iEnemyBestDFRange and not(bAttackWithSameRange)) then
+                                                table.insert(toTempSRDFUnits, oUnit)
+                                            end
+                                        end
+                                        local iOurDFThreatWithWorseRange = 0
+                                        if M28Utilities.IsTableEmpty(toTempSRDFUnits) == false then
+                                            iOurDFThreatWithWorseRange = M28UnitInfo.GetCombatThreatRating(toTempSRDFUnits, false)
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iOurDFThreatWithWorseRange='..iOurDFThreatWithWorseRange..'; iMassOfNearbySkirmisherEnemies='..iMassOfNearbySkirmisherEnemies) end
+                                        if iMassOfNearbySkirmisherEnemies * 1.2 > iOurDFThreatWithWorseRange then
+                                            bAttackWithEverything = false
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Wont attack with everything as our units that outrange enemy arent strong enough yet') end
+                                        elseif iEnemyThreatBasedOnSkirmisherEnemies > iOurDFThreatWithWorseRange and iOurDFThreatWithWorseRange > 50 then
+                                            --Check how much nearby DF threat we have - get oru closest SR unit to the nearest enemy unit, and then get units within 30 of that
+                                            local oClosestSRFriendlyToEnemy
+                                            local iClosestSRFriendlyDistLessRange = 10000
+                                            local iCurDist
+                                            for iUnit, oUnit in toTempSRDFUnits do
+                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
+                                                if iCurDist < iClosestSRFriendlyDistLessRange then
+                                                    iClosestSRFriendlyDistLessRange = iCurDist
+                                                    oClosestSRFriendlyToEnemy = oUnit
+                                                end
+                                            end
+                                            local toNearbySRDFUnits = {}
+                                            for iUnit, oUnit in toTempSRDFUnits do
+                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestSRFriendlyToEnemy:GetPosition())
+                                                if iCurDist < 30 then
+                                                    table.insert(toNearbySRDFUnits, oUnit)
+                                                end
+                                            end
+                                            local iThreatOfNearbyFriendlySR = M28UnitInfo.GetCombatThreatRating(toNearbySRDFUnits, false)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iThreatOfNearbyFriendlySR='..iThreatOfNearbyFriendlySR..'; oClosestSRFriendlyToEnemy='..(oClosestSRFriendlyToEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestSRFriendlyToEnemy) or 'nil')..'; iClosestSRFriendlyDistLessRange='..iClosestSRFriendlyDistLessRange) end
+                                            if iMassOfNearbySkirmisherEnemies * 1.2 > iThreatOfNearbyFriendlySR and (iClosestSRFriendlyDistLessRange >= 5 or iMassOfNearbySkirmisherEnemies > iThreatOfNearbyFriendlySR) then
+                                                bAttackWithEverything = false
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Wont attack with everything as our shorter ranged units are spread out too much') end
+                                            end
+                                        end
                                     end
                                 end
                             end
