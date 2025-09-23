@@ -2654,8 +2654,8 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                             for _, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
                                                 iAdjWZ = tSubtable[M28Map.subrefAWZRef]
                                                 local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; Enemy surface threat in this zone='..(tAdjWZTeamData[M28Map.subrefWZThreatEnemySurface] or 'nil')) end
-                                                if (tAdjWZTeamData[M28Map.subrefWZThreatEnemySurface] or 0) > 100 then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; Enemy surface threat in this zone='..(tAdjWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 'nil')) end
+                                                if (tAdjWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 0) > 100 then
                                                     local tEnemiesInWZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryAmphibiousCombat, tAdjWZTeamData[M28Map.subrefTEnemyUnits])
                                                     if M28Utilities.IsTableEmpty(tEnemiesInWZ) == false then
                                                         for iEnemy, oEnemy in tEnemiesInWZ do
@@ -4659,7 +4659,7 @@ function ConsiderAttackingNearbyNavalUnits(tLZData, tLZTeamData, oACU, iRangeThr
                 end
             end
             --If we are a water zone then check this zone and adjacent zone
-        elseif tLZData[M28Map.subrefWZAdjacentWaterZones] or tLZTeamData[M28Map.subrefWZThreatEnemySurface] or tLZTeamData[M28Map.subrefWZThreatEnemySubmersible] then
+        elseif tLZData[M28Map.subrefWZAdjacentWaterZones] or tLZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or tLZTeamData[M28Map.subrefWZThreatEnemySubmersible] then
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false and not(tLZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
                 for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
                     ConsiderUnitForTorpedoAttack(oUnit)
@@ -4793,8 +4793,8 @@ function ConsiderAttackingNearbyNavalUnits(tLZData, tLZTeamData, oACU, iRangeThr
             local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
             local iPond = M28Map.tiPondByWaterZone[iAdjWZ]
             local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; Enemy surface threat='.. tWZTeamData[M28Map.subrefWZThreatEnemySurface]..'; tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]) end
-            if (tWZTeamData[M28Map.subrefWZThreatEnemySurface] + tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]) > 0 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; Enemy surface threat='.. tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface]..'; tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]) end
+            if (tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] + tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]) > 0 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                 for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
                     if bDebugMessages == true then if M28UnitInfo.IsUnitValid(oUnit) then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit undetwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))) end end
                     ConsiderPotentialUnitTarget(oUnit)

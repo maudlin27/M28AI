@@ -4450,7 +4450,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1200 then iFriendlyThreatRatioWanted = 1.1 end
 
         if bIsWaterZone then
-            if tLZTeamData[M28Map.subrefWZThreatEnemySubmersible] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] and tLZTeamData[M28Map.subrefWZThreatEnemySurface] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedSurface] then
+            if tLZTeamData[M28Map.subrefWZThreatEnemySubmersible] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] and tLZTeamData[M28Map.subrefWZThreatEnemyVsSurface] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedSurface] then
                 iThresholdToRunFromMobileEnemies = 20
             end
         else
@@ -14108,7 +14108,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
                     --How far away is the WZ to us?
                     if M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) <= 170 then
-                        iTotalNearbyWaterThreat = iTotalNearbyWaterThreat + math.max(0, (tWZTeamData[M28Map.subrefWZThreatEnemySurface] or 0) - (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0))
+                        iTotalNearbyWaterThreat = iTotalNearbyWaterThreat + math.max(0, (tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 0) - (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0))
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking threat in iWaterZone='..iWaterZone..'; is table of enemy units mpety='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; does this WZ have only hover enemies='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])..'; iTotalNearbyWaterThreat='..iTotalNearbyWaterThreat) end
@@ -18931,7 +18931,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
 
             if bObjectiveToReclaim or (bHaveLowMass and not(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])) then
                 HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.min(1.5 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]], math.max(5, 5 * table.getn(tWZTeamData[M28Map.subreftoUnitsToReclaim]))), nil, false)
-            elseif bHaveLowMass and tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 200 and tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] == 0 and tWZTeamData[M28Map.subrefWZThreatEnemySurface] == 0 then
+            elseif bHaveLowMass and tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 200 and tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] == 0 and tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] == 0 then
                 HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.min(tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]], math.max(5, math.min(30, 5 * table.getn(tWZTeamData[M28Map.subreftoUnitsToReclaim])))), nil, false)
             elseif not(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.5 then
                 HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.min(tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]], math.max(5, math.min(30, 5 * table.getn(tWZTeamData[M28Map.subreftoUnitsToReclaim])))), nil, false)

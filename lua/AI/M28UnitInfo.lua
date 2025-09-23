@@ -1496,6 +1496,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     iBaseThreat = iBaseThreat * 0.65
                                 end
                             end
+                            if bIncludeGroundToAir and EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) and IsUnitUnderwater(oUnit) then iBaseThreat = iBaseThreat * 0.5 end
                             iCurThreat = iBaseThreat * iHealthThreatFactor + iGhettoGunshipAdjust
                             if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit health%='..GetUnitHealthPercent(oUnit)) end
                         end
