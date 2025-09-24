@@ -3498,7 +3498,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                         if bWantNovaxInsteadOfArti then
                                             iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will get novax2') end
-                                        else iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti
+                                        else iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor1') end
                                         end
                                     elseif iCurNovaxCount == 0 and bWantNovaxInsteadOfArti then
@@ -3527,7 +3527,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get novax4') end
                                                 else
                                                     if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or aiBrain[M28Overseer.refbCanBuildExperimentalShields] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 999 or iEnemyBasesWithinArtiThreshold == 0 or (iFurthestEnemyBaseDist >= iArtiThreshold and (iEnemyBasesWithinArtiThreshold < 1 + 2 * iEnemyBasesOutsideArtiThreshold)) then
-                                                        iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti
+                                                        iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor2') end
                                                     else
                                                         iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
@@ -3539,7 +3539,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get novax5') end
                                             else
                                                 if iCurT3ArtiCount >= 5 or tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 999 or iEnemyBasesWithinArtiThreshold == 0 or (iFurthestEnemyBaseDist >= iArtiThreshold and iEnemyBasesWithinArtiThreshold < 1 + 2 * iEnemyBasesOutsideArtiThreshold) then
-                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor3') end
                                                 else
                                                     iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
@@ -3556,7 +3556,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                     iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Fixed T3 arti 3UEF') end
                                                 else
-                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor4') end
                                                 end
                                             end
@@ -3580,14 +3580,14 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                     iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get novax7') end
                                                 else
-                                                    iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti
+                                                    iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor5') end
                                                 end
                                             elseif bCanBuildNovax and iCurNovaxCount < math.max(2, iCurT3ArtiCount) and (not(bEnemyHasExperimentalShields) or iCurNovaxCount == 0) then
                                                 iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get novax8') end
                                             else
-                                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor6') end
                                             end
                                         else
@@ -3600,7 +3600,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                     iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Fixed T3 arti 4') end
                                                 else
-                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor7') end
                                                 end
                                             end
@@ -10792,6 +10792,7 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then
                             if oUnit:GetFractionComplete() >= 0.75 then
                                 iEnemyT3ArtiValue = iEnemyT3ArtiValue + 1
+                                if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then iEnemyT3ArtiValue = iEnemyT3ArtiValue + 1 end
                             else
                                 if oUnit:GetFractionComplete() >= 0.25 then
                                     iEnemyT3ArtiValue = iEnemyT3ArtiValue + 0.5

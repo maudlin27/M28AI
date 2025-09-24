@@ -1380,9 +1380,10 @@ function RecordPriorityShields(iTeam, tLZTeamData)
         tLZTeamData[M28Map.refiTimeOfLastShieldPriorityRefresh] = GetGameTimeSeconds()
         local tShieldsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         --First clear any engineers assigned to shields that arent listed as a priority shield from the last update
-        if bDebugMessages == true then LOG(sFunctionRef..': WIll refresh list of shields. Is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssist))..'; do we already have any priority shields when when last ran this? is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': WIll refresh list of shields. Is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssist))..'; do we already have any priority shields when when last ran this? is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))..'; Time='..GetGameTimeSeconds()) end
         if M28Utilities.IsTableEmpty(tShieldsToAssist) == false then
             local tTemporaryPriorityShields = {}
+            if bDebugMessages == true then LOG(sFunctionRef..': Is reftPriorityShieldsToAssist empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))) end
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
                 for iShield, oShield in tShieldsToAssist do
                     if M28Utilities.IsTableEmpty(oShield[M28UnitInfo.reftoUnitsAssistingThis]) == false and not(oShield[refbPriorityShield]) then
@@ -1427,12 +1428,12 @@ function RecordPriorityShields(iTeam, tLZTeamData)
             for iShield, oShield in tShieldsToAssist do
                 iTotalUnitMassCoverage = 0
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; size of table of units nearby='..table.getn(oShield[reftoUnitsCoveredByShield])) end
-                if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false and not(oShield[reftArtiTemplateRefs]) and not(oShield[refbRemoveShieldFromPriorityTableWhenFullHealth]) then
-                    --Only flag a shield for assistance if its health is <80%
+                if M28Conditions.IsTableOfUnitsStillValid(oShield[reftoUnitsCoveredByShield]) and not(oShield[reftArtiTemplateRefs]) and not(oShield[refbRemoveShieldFromPriorityTableWhenFullHealth]) then
+                    --Only flag a shield for assistance if its health is <80%, unless it is covering a game-ender
                     local iCurShieldHealth, iMaxShieldHealth = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                    local bCoveringGameEnder = false
                     if bDebugMessages == true then LOG(sFunctionRef..': Shield health='..iCurShieldHealth..'; Max health='..iMaxShieldHealth) end
-                    if iCurShieldHealth > 0 and (iCurShieldHealth / iMaxShieldHealth <= 0.8 or (bConsiderRecentlyDamagedShields and oShield[M28UnitInfo.refiTimeLastDamaged] and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeLastDamaged] or -100) <= 30)) then
-
+                    if iCurShieldHealth > 0 and (iMaxShieldHealth >= 13000 or (iCurShieldHealth / iMaxShieldHealth <= 0.8 or (bConsiderRecentlyDamagedShields and oShield[M28UnitInfo.refiTimeLastDamaged] and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeLastDamaged] or -100) <= 30))) then
                         for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
                             if not(oUnit == oShield) then
                                 if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
@@ -1446,12 +1447,15 @@ function RecordPriorityShields(iTeam, tLZTeamData)
                                     iCurMassValue = iCurMassValue * 0.1
                                     if bDebugMessages == true then LOG(sFunctionRef..': Already have a priority shield providing coverage='..oUnit[refoPriorityShieldProvidingCoverage].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoPriorityShieldProvidingCoverage])..' so will reduce mass value') end
                                 end
+                                if iCurMassValue >= 100000 and oUnit:GetFractionComplete() >= 0.2 then
+                                    bCoveringGameEnder = true
+                                end
                                 iTotalUnitMassCoverage = iTotalUnitMassCoverage + iCurMassValue
                                 if bDebugMessages == true then LOG(sFunctionRef..': Getting shield protection mass value of oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurMassValue='..iCurMassValue..'; iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; Is there already a valid shield protecting it='..tostring(M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]))) end
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; refiAssignedFirebase='..(oShield[refiAssignedFirebase] or 'nil')) end
-                        if iTotalUnitMassCoverage >= 25000 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; bCoveringGameEnder='..tostring(bCoveringGameEnder)) end
+                        if iTotalUnitMassCoverage >= 25000 and (bCoveringGameEnder or (iCurShieldHealth / iMaxShieldHealth <= 0.8 or (bConsiderRecentlyDamagedShields and oShield[M28UnitInfo.refiTimeLastDamaged] and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeLastDamaged] or -100) <= 30))) then
                             --Add as a priority shield
                             table.insert(tLZTeamData[M28Map.reftPriorityShieldsToAssist], oShield)
                             oShield[refbPriorityShield] = true

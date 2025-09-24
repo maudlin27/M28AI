@@ -2127,11 +2127,13 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         end
 
                         --Game ender and T3 arti specific - reserve locations for shields
+                        if bDebugMessages == true then LOG(sFunctionRef..': is oConstruction[M28Building.reftArtiTemplateRefs] nil='..tostring(oConstruction[M28Building.reftArtiTemplateRefs] == nil)) end
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) and not(oConstruction[M28Building.reftArtiTemplateRefs]) then
-                            M28Building.ReserveLocationsForGameEnder(oConstruction)
                             --Record shields against the gameender/T3 arti if they are in the reserved location
+                            M28Building.ReserveLocationsForGameEnder(oConstruction)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will reserve location for gameender and alternative shielding') end
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with a shield, if part of special shield defence then will assign to GE template') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with a shield '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..', if part of special shield defence then will assign to GE template') end
                             if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence then
                                 M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
                             else
@@ -2145,8 +2147,10 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
 
                                         if M28Utilities.IsTableEmpty(tShieldLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
                                             for iGameEnder, oGameEnder in tShieldLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if oGameEnder as priorit yshield locations, is reftLocationsForPriorityShield empty='..tostring(M28Utilities.IsTableEmpty(oGameEnder[M28Building.reftLocationsForPriorityShield]))) end
                                                 if M28Utilities.IsTableEmpty(oGameEnder[M28Building.reftLocationsForPriorityShield]) == false then
                                                     for iLocation, tLocation in oGameEnder[M28Building.reftLocationsForPriorityShield] do
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Dist between GE priority shield location and this shield='..M28Utilities.GetRoughDistanceBetweenPositions(tLocation, oConstruction:GetPosition())) end
                                                         if M28Utilities.GetRoughDistanceBetweenPositions(tLocation, oConstruction:GetPosition()) <= 3 then
                                                             if M28Utilities.GetDistanceBetweenPositions(oConstruction:GetPosition(), oGameEnder:GetPosition()) <= iShieldRadius * 0.9 then
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Fixed shield construction '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' built by engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; will be assigned to a game ender shield as it is close to oGameEnder '..oGameEnder.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGameEnder)) end
@@ -2155,6 +2159,12 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                                                 break
                                                             end
                                                         end
+                                                    end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': bHaveMatch before basic dist check='..tostring(bHaveMatch)..'; is reftoSpecialAssignedShields empty='..tostring(M28Utilities.IsTableEmpty(oGameEnder[M28Building.reftoSpecialAssignedShields]))..'; Dist between shield and GE='..M28Utilities.GetDistanceBetweenPositions(oConstruction:GetPosition(), oGameEnder:GetPosition())..'; Shield radius='..((oConstruction:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5)) end
+                                                    if not(bHaveMatch) and M28Utilities.GetDistanceBetweenPositions(oConstruction:GetPosition(), oGameEnder:GetPosition()) <= (oConstruction:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5 - 4 then
+                                                        bHaveMatch = true
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Will assign this shield as one of the template shields for the GE template') end
+                                                        M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
                                                     end
                                                     if bHaveMatch then break end
                                                 end
