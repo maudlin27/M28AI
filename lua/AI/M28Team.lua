@@ -4154,7 +4154,7 @@ function SetWaterZoneDefaultTeamValues(tWZData, iTeam)
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemyAntiNavy] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemySubmersible] = 0
-    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemySurface] = 0
+    tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemyVsSurface] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefiThreatEnemyGroundAA] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestEnemyDFRange] = 0
     tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestEnemyAntiNavyRange] = 0

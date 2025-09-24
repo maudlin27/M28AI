@@ -243,7 +243,7 @@ refCategoryFixedT2Arti = categories.STRUCTURE * categories.INDIRECTFIRE * catego
 refCategoryFixedT3Arti = categories.STRUCTURE * categories.INDIRECTFIRE * categories.ARTILLERY * categories.TECH3 - categories.SIZE8 --done to support mods (like in LOUD) that add a t3 arti unit like the t2 arti unit (rather than like a duke)
 
 
-refCategoryExperimentalArti = categories.EXPERIMENTAL * categories.ARTILLERY - categories.MOBILE * categories.UEF - categories.MOBILE * categories.CYBRAN - categories.MOBILE * categories.AEON --e.g. one of the LOUD standard mods adds an aeon mobile experimental arti that has a short range
+refCategoryExperimentalArti = categories.EXPERIMENTAL * categories.ARTILLERY - categories.MOBILE * categories.UEF - categories.MOBILE * categories.AEON --e.g. one of the LOUD standard mods adds an aeon mobile experimental arti that has a short range
 refCategorySML = categories.NUKE * categories.SILO
 refCategorySMD = categories.ANTIMISSILE * categories.SILO * categories.TECH3 * categories.STRUCTURE
 refCategoryTML = categories.SILO * categories.STRUCTURE * categories.TECH2 - categories.ANTIMISSILE
@@ -1496,6 +1496,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     iBaseThreat = iBaseThreat * 0.65
                                 end
                             end
+                            if bIncludeGroundToAir and EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) and IsUnitUnderwater(oUnit) then iBaseThreat = iBaseThreat * 0.5 end
                             iCurThreat = iBaseThreat * iHealthThreatFactor + iGhettoGunshipAdjust
                             if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Unit health%='..GetUnitHealthPercent(oUnit)) end
                         end

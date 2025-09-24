@@ -3498,7 +3498,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                         if bWantNovaxInsteadOfArti then
                                             iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will get novax2') end
-                                        else iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti
+                                        else iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor1') end
                                         end
                                     elseif iCurNovaxCount == 0 and bWantNovaxInsteadOfArti then
@@ -3527,7 +3527,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get novax4') end
                                                 else
                                                     if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or aiBrain[M28Overseer.refbCanBuildExperimentalShields] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 999 or iEnemyBasesWithinArtiThreshold == 0 or (iFurthestEnemyBaseDist >= iArtiThreshold and (iEnemyBasesWithinArtiThreshold < 1 + 2 * iEnemyBasesOutsideArtiThreshold)) then
-                                                        iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti
+                                                        iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor2') end
                                                     else
                                                         iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
@@ -3539,7 +3539,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get novax5') end
                                             else
                                                 if iCurT3ArtiCount >= 5 or tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 999 or iEnemyBasesWithinArtiThreshold == 0 or (iFurthestEnemyBaseDist >= iArtiThreshold and iEnemyBasesWithinArtiThreshold < 1 + 2 * iEnemyBasesOutsideArtiThreshold) then
-                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor3') end
                                                 else
                                                     iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
@@ -3556,7 +3556,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                     iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Fixed T3 arti 3UEF') end
                                                 else
-                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor4') end
                                                 end
                                             end
@@ -3580,14 +3580,14 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                     iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get novax7') end
                                                 else
-                                                    iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti
+                                                    iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor5') end
                                                 end
                                             elseif bCanBuildNovax and iCurNovaxCount < math.max(2, iCurT3ArtiCount) and (not(bEnemyHasExperimentalShields) or iCurNovaxCount == 0) then
                                                 iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get novax8') end
                                             else
-                                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor6') end
                                             end
                                         else
@@ -3600,7 +3600,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                                     iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Fixed T3 arti 4') end
                                                 else
-                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get mavor7') end
                                                 end
                                             end
@@ -4450,7 +4450,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1200 then iFriendlyThreatRatioWanted = 1.1 end
 
         if bIsWaterZone then
-            if tLZTeamData[M28Map.subrefWZThreatEnemySubmersible] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] and tLZTeamData[M28Map.subrefWZThreatEnemySurface] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedSurface] then
+            if tLZTeamData[M28Map.subrefWZThreatEnemySubmersible] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] and tLZTeamData[M28Map.subrefWZThreatEnemyVsSurface] * iFriendlyThreatRatioWanted < tLZTeamData[M28Map.subrefWZThreatAlliedSurface] then
                 iThresholdToRunFromMobileEnemies = 20
             end
         else
@@ -10792,6 +10792,7 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then
                             if oUnit:GetFractionComplete() >= 0.75 then
                                 iEnemyT3ArtiValue = iEnemyT3ArtiValue + 1
+                                if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then iEnemyT3ArtiValue = iEnemyT3ArtiValue + 1 end
                             else
                                 if oUnit:GetFractionComplete() >= 0.25 then
                                     iEnemyT3ArtiValue = iEnemyT3ArtiValue + 0.5
@@ -14108,7 +14109,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
                     --How far away is the WZ to us?
                     if M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) <= 170 then
-                        iTotalNearbyWaterThreat = iTotalNearbyWaterThreat + math.max(0, (tWZTeamData[M28Map.subrefWZThreatEnemySurface] or 0) - (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0))
+                        iTotalNearbyWaterThreat = iTotalNearbyWaterThreat + math.max(0, (tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 0) - (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0))
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking threat in iWaterZone='..iWaterZone..'; is table of enemy units mpety='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; does this WZ have only hover enemies='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])..'; iTotalNearbyWaterThreat='..iTotalNearbyWaterThreat) end
@@ -16543,6 +16544,17 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             if oUnitWantingTMD then
                 HaveActionToAssign(refActionBuildTMD, 2, iBPWanted,  oUnitWantingTMD)
                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and build TMD') end
+
+                --Consider another TMD if we have multiple T2+ mexes and have a mex that wants TMD - get the unit closest to our base
+                if table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD]) >= 2 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2) then
+                    --GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bReturnTMLCountAsWell, iOptionalCategoryWanted, bGetClosestUnitToOurBase)
+                    local oSecondUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone,     false,                      M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPD, true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': oSecondUnitWantingTMD='..(oSecondUnitWantingTMD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSecondUnitWantingTMD) or 'nil')) end
+                    if oSecondUnitWantingTMD then
+                        iCurPriority = iCurPriority + 1
+                        HaveActionToAssign(refActionBuildSecondTMD, 2, tiBPByTech[2],  oSecondUnitWantingTMD)
+                    end
+                end
             end
         end
     end
@@ -18931,7 +18943,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
 
             if bObjectiveToReclaim or (bHaveLowMass and not(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])) then
                 HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.min(1.5 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]], math.max(5, 5 * table.getn(tWZTeamData[M28Map.subreftoUnitsToReclaim]))), nil, false)
-            elseif bHaveLowMass and tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 200 and tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] == 0 and tWZTeamData[M28Map.subrefWZThreatEnemySurface] == 0 then
+            elseif bHaveLowMass and tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 200 and tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] == 0 and tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] == 0 then
                 HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.min(tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]], math.max(5, math.min(30, 5 * table.getn(tWZTeamData[M28Map.subreftoUnitsToReclaim])))), nil, false)
             elseif not(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.5 then
                 HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.min(tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]], math.max(5, math.min(30, 5 * table.getn(tWZTeamData[M28Map.subreftoUnitsToReclaim])))), nil, false)

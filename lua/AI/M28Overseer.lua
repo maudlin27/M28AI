@@ -2776,8 +2776,11 @@ function DecideOnGeneralMapStrategy(aiBrain)
                     for iBrain, oBrain in tAllAIBrainsByArmyIndex do
                         if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to include brain start posiiton, oBrain='..oBrain.Nickname..'; Is civilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))) end
                         if not(M28Conditions.IsCivilianBrain(oBrain)) then
-                            local iPlateau, iZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.GetPlayerStartPosition(aiBrain))
-                            if iPlateau == iStartPlateau then tiStartZones[iZone] = true end
+                            local iPlateau, iZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.GetPlayerStartPosition(oBrain))
+                            if iPlateau == iStartPlateau then
+                                tiStartZones[iZone] = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will include the start position, iPlateau='..iPlateau..'; iZone='..iZone) end
+                            end
                         end
                     end
                     if M28Utilities.IsTableEmpty(tiStartZones) == false then
