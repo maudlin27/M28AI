@@ -6608,7 +6608,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                 end
 
                 --Decide whether to ctrlK shield so can start building another
-                if iConstructedShields >= math.max(iTotalAvailableLocations, 2) or (iConstructedShields > 1 and iConstructedShields + iPartConstructedShields >= iTotalAvailableLocations and iActiveShields < iConstructedShields) and (not(oLowestConstructedShieldHealth[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                if iConstructedShields >= math.max(iTotalAvailableLocations, 2) or (iConstructedShields > 1 and iConstructedShields + iPartConstructedShields >= iTotalAvailableLocations and iActiveShields < iConstructedShields) and (not(oLowestConstructedShieldHealth[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oLowestConstructedShieldHealth:GetAIBrain().M28Easy) then
                     --CtrlK a completed shield with the lowest shield value
                     if bDebugMessages == true then LOG(sFunctionRef..': iConstructedShields='..iConstructedShields..'; iTotalAvailableLocations='..iTotalAvailableLocations..'; iConstructedShields='..iConstructedShields..'; iPartConstructedShields='..iPartConstructedShields..'; iActiveShields='..iActiveShields..'; iLowestConstructedShieldHealth='..(iLowestConstructedShieldHealth or 'nil')) end
                     M28Orders.IssueTrackedKillUnit(oLowestConstructedShieldHealth)
@@ -12358,7 +12358,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
         if bContinue then
             --Check not an easy AI
-            if not(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28Easy) then
+            --if not(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28Easy) then --have instead disabled the 'ctrlk existing shield to build new shield' logic if M28Easy is enabled
 
                 if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
                     iBPWanted = math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 300 + M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] * 75)
@@ -12372,7 +12372,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 --Only use T3 engineers (even if we already have t3 engineers assigned) as want to make sure we can quickly get good concentrated build power
                 --function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist)
                 HaveActionToAssign(refActionSpecialShieldDefence, 3, iBPWanted,         nil,                nil,                    nil,                        nil,                            true)
-            end
+            --end
         end
     end
 
@@ -16448,7 +16448,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
         if bContinue then
-            if not(aiBrain.M28Easy) then
+            --if not(aiBrain.M28Easy) then --have instead disabled the 'ctrlk existing shield to build new shield' logic if M28Easy is enabled
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to assign units to active shield protection, will list out each unit for this zone that wants active protection')
                     for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
                         LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Mass cost='..oUnit[M28UnitInfo.refiUnitMassCost])
@@ -16466,7 +16466,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 --Only use T3 engineers (even if we already have t3 engineers assigned) as want to make sure we can quickly get good concentrated build power
                 --function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist)
                 HaveActionToAssign(refActionSpecialShieldDefence, 3, iBPWanted,         nil,                nil,                    nil,                        nil,                            true)
-            end
+            --end
         end
     end
 
