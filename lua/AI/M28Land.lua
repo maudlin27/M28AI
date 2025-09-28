@@ -42,8 +42,8 @@ refiTimeOfSREnemyTarget = 'M28LndSRTTim' --Gametimeseconds
 reftoUnitsToKillOnCompletion = 'M28RadCtrlK' --Table of units to ctrlk when this unit finishes construction
 reftoAssignedMAAGuards = 'M28LAMAAGrd' --Table of MAA assigned to cover a unit (e.g. a fatboy)
 refoAssignedUnitToGuard = 'M28LAMAAToG' --Unit that is being guarded/assisted (e.g. MAA assisting a fatboy)
-iFatboyBaseMAACount = 5 --Number of MAA wanted as guards normally
-iFatboySafeMAACount = 10 --Number of MAA wanted as guards if worried about restorer deathball/equivalent
+iFatboyBaseMAACount = 6 --Number of MAA wanted as guards normally
+iFatboySafeMAACount = 12 --Number of MAA wanted as guards if worried about restorer deathball/equivalent
 refbFlaggedForPriorityScout = 'M28LndPrScFg' --true if we have flagged this unit wants a priority land scout
 refiTimeLastBuiltLandScoutForUnit = 'M28LndTmLstBultLS' --Gametimeseconds that we last built a high priority land scout because of this unit
 iIntelThresholdForPriorityScout = 50 --I.e. if have less than this radar coverage in a zone, then a skirmisher will consider flagging to ask for a priority scout
@@ -10591,6 +10591,8 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                     end
                 end
             end
+            local bConsiderPreemptiveMAADefence --nil if not considered yet, false if dont want to, true if want MAA to go infront of ACU/fatboy that they are covering instead of behind
+            local oClosestEnemyT1ToT3Bomber, tPreferredPositionToProtectFromBomber     --Used for preemptiveMAADefence
             local bCurUnitWantsMobileShield
             local iSACUCategory = categories.SUBCOMMANDER --[[M28UnitInfo.refCategoryRASSACU
             if (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and not(bUseRASInCombat) then iSACUCategory = iSACUCategory + categories.SUBCOMMANDER end--]]
@@ -10680,13 +10682,101 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                             if oUnit:GetFractionComplete() == 1 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Does unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' have a valid guard? Guard='..(oUnit[refoAssignedUnitToGuard].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit[refoAssignedUnitToGuard]) or 'nil')) end
                                 if oUnit[refoAssignedUnitToGuard] and M28UnitInfo.IsUnitValid(oUnit[refoAssignedUnitToGuard]) and (EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) or not(M28UnitInfo.IsUnitUnderwater(oUnit[refoAssignedUnitToGuard]))) then
+
                                     --Guard actually causes MAA to move a bit too far away so will just move towards the unit; currently are just using this for MAA covering a fatboy so moving directly to the unit means it works out well since they wont block the fatboy and will rotate instead to be to the fatboy's rear at all times
                                     --Temporarily run if we are in range of enemy units in the zone
-                                    if (oUnit[M28UnitInfo.refiAARange] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 4, iTeam, true, nil, nil, nil, nil, false) then
+                                                                                                                                                                                    --CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                       iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
+                                    if (oUnit[M28UnitInfo.refiAARange] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 4,    iTeam, true,                    nil,                    nil,                                oUnit,                                  nil,                                false) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Have MAA assigned to guard a unit but enemy DF are close so want to retreat to rally point') end
                                         table.insert(tOtherUnitsToRetreat, oUnit)
                                     else
-                                        M28Orders.IssueTrackedMove(oUnit, oUnit[refoAssignedUnitToGuard]:GetPosition(), 3, false, 'SpecG', false)
+                                        --Consider having MAA go infront of our unit if worried about enemy bomber snipe threat (if dealing with fatboy or ACU outside of core base), provided not close to being in range
+                                        if bConsiderPreemptiveMAADefence == nil then
+                                            bConsiderPreemptiveMAADefence = false
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to preemptively move to defend against air snipe, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)) end
+                                            if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 4000 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                                                --Does enemy ahve any nearby bombers to us and we lack fixed AA in this zone?
+                                                local tEnemyBombers = EntityCategoryFilterDown(M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL, M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir])
+                                                local iMaxDistance = 300
+                                                local iClosestBomberDist = iMaxDistance --Ignore if bomber further than this
+                                                local iCurDist
+                                                local iMaxCount = 80
+                                                if M28Utilities.bCPUPerformanceMode then iMaxCount = 40 end
+                                                local tComparisonPosition
+                                                if (oUnit[refoAssignedUnitToGuard][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone and oUnit[refoAssignedUnitToGuard][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau) or M28Utilities.GetDistanceBetweenPositions(oUnit[refoAssignedUnitToGuard]:GetPosition(), oUnit:GetPosition()) <= 20 then
+                                                    tComparisonPosition = oUnit[refoAssignedUnitToGuard]:GetPosition()
+                                                else
+                                                    tComparisonPosition = tLZData[M28Map.subrefMidpoint]
+                                                end
+                                                if M28Utilities.IsTableEmpty(tEnemyBombers) == false then
+                                                    local iEnemyBomberMassNearby = 0
+                                                    local bEnemyDoesntHaveBigEnoughBomberThreat = true
+                                                    local bCustomThreat = M28UnitInfo.bCustomThreatFactor
+                                                    for iBomber, oBomber in tEnemyBombers do
+                                                        if not(oBomber.Dead) then
+                                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(),tComparisonPosition)
+                                                            if iCurDist < iClosestBomberDist then
+                                                                iClosestBomberDist = iCurDist
+                                                                oClosestEnemyT1ToT3Bomber = oBomber
+                                                            end
+                                                            if bEnemyDoesntHaveBigEnoughBomberThreat and iCurDist < iMaxDistance then
+                                                                if bCustomThreat then
+                                                                    iEnemyBomberMassNearby = iEnemyBomberMassNearby + (oBomber[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * M28Utilities.iThreatFactor
+                                                                else
+                                                                    iEnemyBomberMassNearby = iEnemyBomberMassNearby + (oBomber[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
+                                                                end
+                                                                if iEnemyBomberMassNearby >= 1500 and (iEnemyBomberMassNearby >= 4000 or (iCurDist < 200 and (iCurDist < 120 or iEnemyBomberMassNearby >= 2500))) then
+                                                                    bEnemyDoesntHaveBigEnoughBomberThreat = false
+                                                                end
+                                                            end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; iCurDist='..iCurDist..'; iClosestBomberDist='..iClosestBomberDist..'; iEnemyBomberMassNearby='..iEnemyBomberMassNearby..'; iBomber='..iBomber) end
+                                                            if iBomber > iMaxCount and ((bEnemyDoesntHaveBigEnoughBomberThreat and not(oClosestEnemyT1ToT3Bomber)) or iBomber > iMaxCount + 50) then break end
+                                                        end
+                                                    end
+                                                    if bEnemyDoesntHaveBigEnoughBomberThreat then oClosestEnemyT1ToT3Bomber = nil end
+                                                end
+                                                if oClosestEnemyT1ToT3Bomber and iClosestBomberDist >= 35 then bConsiderPreemptiveMAADefence = true end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': bConsiderPreemptiveMAADefence='..tostring(bConsiderPreemptiveMAADefence)) end
+                                            end
+
+                                        end
+                                        if bConsiderPreemptiveMAADefence then
+                                            --Check covering fatboy or ACU and dont have enemy threat that can target our MAA
+                                            if bDebugMessages == true then
+                                                if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+                                                    LOG(sFunctionRef..': refoClosestEnemyFromLastCloseToEnemyUnitCheck is valid='..oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])..'; Dist to it='..M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition())..'; refiCombatRange of it='..oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange]..'; oUnit[refoAssignedUnitToGuard]='..oUnit[refoAssignedUnitToGuard].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoAssignedUnitToGuard])..'; Is this a fatboy or acu='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFatboy + categories.COMMAND, oUnit[refoAssignedUnitToGuard].UnitId)))
+                                                else
+                                                    LOG(sFunctionRef..': refoClosestEnemyFromLastCloseToEnemyUnitCheck is not valid, oUnit[refoAssignedUnitToGuard]='..oUnit[refoAssignedUnitToGuard].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoAssignedUnitToGuard]))
+                                                end
+                                            end
+                                            if (not(M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) or M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) - oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] >= 15) and EntityCategoryContains(M28UnitInfo.refCategoryFatboy + categories.COMMAND, oUnit[refoAssignedUnitToGuard].UnitId) then
+                                                if not(tPreferredPositionToProtectFromBomber) then
+                                                    --Move between fatboy/ACU and closest bomber
+                                                    local iAngleToBomber = M28Utilities.GetAngleFromAToB(oUnit[refoAssignedUnitToGuard]:GetPosition(), oClosestEnemyT1ToT3Bomber:GetPosition())
+                                                    local iStartingDistToMove
+                                                    if M28Utilities.GetDistanceBetweenPositions( oClosestEnemyT1ToT3Bomber:GetPosition(), oUnit[refoAssignedUnitToGuard]:GetPosition()) <= 120 then
+                                                        iStartingDistToMove = 40
+                                                    else
+                                                        iStartingDistToMove = 30
+                                                    endthen b
+                                                    for iDistToMove = iStartingDistToMove, 10, -10 do
+                                                        tPreferredPositionToProtectFromBomber = M28Utilities.MoveInDirection(oUnit[refoAssignedUnitToGuard]:GetPosition(), iAngleToBomber, iDistToMove, true, false, M28Map.bIsCampaignMap)
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iDistToMove='..iDistToMove..'; iAngleToBomber='..iAngleToBomber..'; tPreferredPositionToProtectFromBomber='..repru(tPreferredPositionToProtectFromBomber)..'; Land label='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tPreferredPositionToProtectFromBomber) or 'nil')..'; tLZData[M28Map.subrefLZIslandRef]='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')) end
+                                                        if M28Utilities.IsTableEmpty(tPreferredPositionToProtectFromBomber) == false and NavUtils.GetLabel(M28Map.refPathingTypeLand, tPreferredPositionToProtectFromBomber) == tLZData[M28Map.subrefLZIslandRef] then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Have valid intercept location so will use this') end
+                                                            break
+                                                        else tPreferredPositionToProtectFromBomber = nil
+                                                        end
+                                                    end
+                                                    if not(tPreferredPositionToProtectFromBomber) then tPreferredPositionToProtectFromBomber = oUnit[refoAssignedUnitToGuard]:GetPosition() end --redundancy
+                                                end
+                                                M28Orders.IssueTrackedMove(oUnit, tPreferredPositionToProtectFromBomber, 3, false, 'SpecPreAA', false)
+                                            else
+                                                M28Orders.IssueTrackedMove(oUnit, oUnit[refoAssignedUnitToGuard]:GetPosition(), 3, false, 'SpecH', false)
+                                            end
+                                        else
+                                            M28Orders.IssueTrackedMove(oUnit, oUnit[refoAssignedUnitToGuard]:GetPosition(), 3, false, 'SpecG', false)
+                                        end
                                     end
                                 elseif oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport or oUnit:IsUnitState('Attached') then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Unit is either attached or abut to load into a transport so will ignore') end
@@ -12317,13 +12407,15 @@ function ConsiderIfAnyEnemyTeamsStillHaveFirebaseOnT2ArtiDeath(oT2Arti)
     end
 end
 
-function ConsiderAssigningMAABodyguardToFatboy(oMAA, oFatboy)
+function ConsiderAssigningMAABodyguardToFatboy(oMAA, oFatboy, bJustReturnIfWantMoreMAAOrNot)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderAssigningMAABodyguardToFatboy'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local aiBrain = oMAA:GetAIBrain()
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oMAA='..oMAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMAA)..'; oFatboy='..oFatboy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFatboy)..'; Brain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()) end
+    local aiBrain
+    if bJustReturnIfWantMoreMAAOrNot then aiBrain = oFatboy:GetAIBrain() else aiBrain = oMAA:GetAIBrain() end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oMAA='..(oMAA.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oMAA) or 'nil')..'; oFatboy='..oFatboy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFatboy)..'; Brain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()) end
+    local bWantToAssign = false
     if aiBrain.M28AI then
         local iExistingMAA = 0
         if not(M28Conditions.IsTableOfUnitsStillValid(oFatboy[reftoAssignedMAAGuards])) then
@@ -12332,13 +12424,28 @@ function ConsiderAssigningMAABodyguardToFatboy(oMAA, oFatboy)
             iExistingMAA = table.getn(oFatboy[reftoAssignedMAAGuards])
         end
         if bDebugMessages == true then LOG(sFunctionRef..': iExistingMAA='..iExistingMAA) end
-        if iExistingMAA < iFatboySafeMAACount and (iExistingMAA < iFatboyBaseMAACount or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] >= 10000 and not(M28Conditions.TeamHasAirControl(aiBrain.M28Team)))) then
+        if iExistingMAA < iFatboySafeMAACount then
+            if iExistingMAA < iFatboyBaseMAACount then bWantToAssign = true
+            elseif M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] >= 7000 then
+                if not(M28Conditions.TeamHasAirControl(aiBrain.M28Team)) or M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] >= 30000 then
+                    bWantToAssign = true
+                else
+                    local tEnemyBombers = EntityCategoryFilterDown(M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL, M28Team.tTeamData[aiBrain.M28Team][M28Team.reftoAllEnemyAir])
+                    if M28Utilities.IsTableEmpty(tEnemyBombers) == false then
+                        local iBomberThreat = M28UnitInfo.GetMassCostOfUnits(tEnemyBombers, true)
+                        if iBomberThreat >= 6000 then bWantToAssign = true end
+                    end
+                end
+            end
+        end
+        if bWantToAssign and not(bJustReturnIfWantMoreMAAOrNot) then
             table.insert(oFatboy[reftoAssignedMAAGuards], oMAA)
             oMAA[refoAssignedUnitToGuard] = oFatboy
             if bDebugMessages == true then LOG(sFunctionRef..': Assigned MAA to guard the fatboy') end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if bJustReturnIfWantMoreMAAOrNot then return bWantToAssign end
 end
 
 function ConsiderAssigningMAABodyguardToACU(oMAA)
