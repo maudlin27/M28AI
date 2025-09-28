@@ -1472,53 +1472,57 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
             TrackTemporaryUnitMicro(oBomber, 60) --60s is redundancy
 
 
+            if not(oBomber[M28UnitInfo.refbEasyBrain]) then
+                while GetGameTimeSeconds() - iStartTime < iMaxMicroTime do
+                    iCurTick = iCurTick + 1
 
-            while GetGameTimeSeconds() - iStartTime < iMaxMicroTime do
-                iCurTick = iCurTick + 1
-
-                iFacingDirection = M28UnitInfo.GetUnitFacingAngle(oBomber)
-                iAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)
-                iCurAngleDif = iFacingDirection - iAngleToTarget
-                iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tDirectionToMoveTo)
-                --e.g. if bomber is facing 350 degrees, and the target is at 10 degrees, then it means there's only a dif of 20 degrees, but we want the bomber to go 350+50, rather than 350-50.  Facing - Angle would result in a positive value
-                --if instead bomber was facing 10 degrees, and the target was 30 degrees, then would get -20 as the result, and so want to also increase
-                --the effect of the below is that when bomber is facing 350 degrees and target 10 degrees, it will treat the difference as being 350 - 10 - 360 = -20, and want the bomber to go 350+50; if insteadbomber 10 and target 30, then dif = -20 and no adjustment made
-                if math.abs(iCurAngleDif) > 180 then
-                    if iCurAngleDif > 180 then
-                        --iFacingDirection is too high so decrease the angle difference
-                        iCurAngleDif = iCurAngleDif - 360
-                    else --Curangledif must be < -180, so angletotarget is too high
-                        iCurAngleDif = iCurAngleDif + 360
-                    end
-                end
-
-
-                if iCurAngleDif < 0 then
-                    iAngleAdjustToUse = iAngleAdjust
-                else iAngleAdjustToUse = -iAngleAdjust
-                end
-
-                --Are we close enough to the direction wanted?
-                iCurAngleDif = math.abs(iCurAngleDif)
-                if iCurAngleDif <= (iMaxAcceptableAngleDif or 15) then
-                    --Are close enough in angle so can stop the micro
-                    break
-                else
-                    if iCurTick == 1 then
-                        iActualAngleToUse = iFacingDirection + iAngleAdjustToUse
-                        tTempTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iActualAngleToUse, iDistanceAwayToMove, true, false, true)
-                        M28Orders.IssueTrackedMove(oBomber, tTempTarget, 0, false, 'BMicrM1', true)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order, iFacingDirection='..iFacingDirection..'; iCurAngleDif='..iCurAngleDif..'; iAngleAdjustToUse='..iAngleAdjustToUse..'; iActualAngleToUse='..iActualAngleToUse..'; angle from bomber to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)) end
-                    elseif iCurTick >= iTicksBetweenOrders then iCurTick = 0
+                    iFacingDirection = M28UnitInfo.GetUnitFacingAngle(oBomber)
+                    iAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)
+                    iCurAngleDif = iFacingDirection - iAngleToTarget
+                    iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tDirectionToMoveTo)
+                    --e.g. if bomber is facing 350 degrees, and the target is at 10 degrees, then it means there's only a dif of 20 degrees, but we want the bomber to go 350+50, rather than 350-50.  Facing - Angle would result in a positive value
+                    --if instead bomber was facing 10 degrees, and the target was 30 degrees, then would get -20 as the result, and so want to also increase
+                    --the effect of the below is that when bomber is facing 350 degrees and target 10 degrees, it will treat the difference as being 350 - 10 - 360 = -20, and want the bomber to go 350+50; if insteadbomber 10 and target 30, then dif = -20 and no adjustment made
+                    if math.abs(iCurAngleDif) > 180 then
+                        if iCurAngleDif > 180 then
+                            --iFacingDirection is too high so decrease the angle difference
+                            iCurAngleDif = iCurAngleDif - 360
+                        else --Curangledif must be < -180, so angletotarget is too high
+                            iCurAngleDif = iCurAngleDif + 360
+                        end
                     end
 
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    WaitTicks(1)
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                    if not(M28UnitInfo.IsUnitValid(oBomber)) then
+
+                    if iCurAngleDif < 0 then
+                        iAngleAdjustToUse = iAngleAdjust
+                    else iAngleAdjustToUse = -iAngleAdjust
+                    end
+
+                    --Are we close enough to the direction wanted?
+                    iCurAngleDif = math.abs(iCurAngleDif)
+                    if iCurAngleDif <= (iMaxAcceptableAngleDif or 15) then
+                        --Are close enough in angle so can stop the micro
                         break
+                    else
+                        if iCurTick == 1 then
+                            iActualAngleToUse = iFacingDirection + iAngleAdjustToUse
+                            tTempTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iActualAngleToUse, iDistanceAwayToMove, true, false, true)
+                            M28Orders.IssueTrackedMove(oBomber, tTempTarget, 0, false, 'BMicrM1', true)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order, iFacingDirection='..iFacingDirection..'; iCurAngleDif='..iCurAngleDif..'; iAngleAdjustToUse='..iAngleAdjustToUse..'; iActualAngleToUse='..iActualAngleToUse..'; angle from bomber to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)) end
+                        elseif iCurTick >= iTicksBetweenOrders then iCurTick = 0
+                        end
+
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        if not(M28UnitInfo.IsUnitValid(oBomber)) then
+                            break
+                        end
                     end
                 end
+            else
+                --Wait a few ticks so definitely cant be as good as normal
+                WaitTicks(5)
             end
 
             if bAdjustHoverMicroCount then aiBrain[refiCurUnitsHoverMicroing] = aiBrain[refiCurUnitsHoverMicroing] - 1 end

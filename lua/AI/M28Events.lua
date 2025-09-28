@@ -1434,7 +1434,7 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
                             end
                             if oUnit[M28Air.refbBomberUsingMexHunterLogic] then
                                 ForkThread(M28Air.AttackTargetForMexHuntingBomber, oUnit, true)
-                            elseif not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                            elseif not(oUnit[M28UnitInfo.refbEasyBrain]) or oUnit.UnitId == 'xsa0402' then
                                 --T1 early bomber - disable run away logic
                                 if oUnit[M28Air.rebEarlyBomberTargetBase] then
                                     if not(M28UnitInfo.DoesBomberFireSalvo(oUnit)) then
