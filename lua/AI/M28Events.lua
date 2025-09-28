@@ -1434,7 +1434,7 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
                             end
                             if oUnit[M28Air.refbBomberUsingMexHunterLogic] then
                                 ForkThread(M28Air.AttackTargetForMexHuntingBomber, oUnit, true)
-                            elseif not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                            elseif not(oUnit[M28UnitInfo.refbEasyBrain]) or oUnit.UnitId == 'xsa0402' then
                                 --T1 early bomber - disable run away logic
                                 if oUnit[M28Air.rebEarlyBomberTargetBase] then
                                     if not(M28UnitInfo.DoesBomberFireSalvo(oUnit)) then
@@ -2886,11 +2886,16 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 M28Orders.IssueTrackedMove(oJustBuilt, oEngineer[M28Factory.reftFactoryRallyPoint], 0.1, true, 'RollOff', false)
 
                                 M28Micro.TrackTemporaryUnitMicro(oJustBuilt, 1.5) --i.e. want to increase likelihood that a unit has exited the land factory before it starts being given orders
+
                                 if bDebugMessages == true then LOG(sFunctionRef..': Engineer parent='..reprs(oEngineer.Parent)..'; Unit ID = or parent'..(oEngineer.Parent.UnitId or 'nil')) end
-                                if oEngineer.UnitId == 'uel0401ef' or (oEngineer.Parent.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oEngineer.Parent.UnitId)) then
+                                if oEngineer.UnitId == 'uel0401ef' or (oEngineer.Parent.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oEngineer.Parent.UnitId)) or EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oEngineer.UnitId) then
                                     --Want some MAA to stick by fatboy so theyre protected by its shield
                                     if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oJustBuilt.UnitId) then
-                                        ForkThread(M28Land.ConsiderAssigningMAABodyguardToFatboy,oJustBuilt, oEngineer)
+                                        local oUnitToAssignTo
+                                        if oEngineer.Parent.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oEngineer.Parent.UnitId) then oUnitToAssignTo = oEngineer.Parent
+                                        else oUnitToAssignTo = oEngineer
+                                        end
+                                        ForkThread(M28Land.ConsiderAssigningMAABodyguardToFatboy,oJustBuilt, oUnitToAssignTo)
                                     end
                                 elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.MOBILE, oEngineer.UnitId) then
                                     --Consider assigning T2 MAA to ACU

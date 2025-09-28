@@ -7364,7 +7364,32 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
         end
 
         local iMAACategoryWanted = M28UnitInfo.refCategoryMAA - categories.TECH1
-        if (oFactory[refiTotalBuildCount] or 0) <= 5 and not(aiBrain[M28Overseer.refbCloseToUnitCap]) and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryMAA - categories.TECH3, false) < 2 then iMAACategoryWanted = M28UnitInfo.refCategoryMAA * categories.TECH2 end
+        local tFactoryGuards
+        if oFactory.Parent.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oFactory.Parent.UnitId) then
+            tFactoryGuards = oFactory.Parent[M28Land.reftoAssignedMAAGuards]
+        else
+            tFactoryGuards = oFactory[M28Land.reftoAssignedMAAGuards]
+        end
+        if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
+            if M28Utilities.IsTableEmpty(tFactoryGuards) then
+                if bDebugMessages == true then LOG(sFunctionRef..': We have no MAA guards so want some asap will get t2 maa only') end
+                iMAACategoryWanted = M28UnitInfo.refCategoryMAA * categories.TECH2
+                --Do we want more MAA for fatboys personal escort?
+            elseif M28Land.ConsiderAssigningMAABodyguardToFatboy(nil, oFactory, true) then
+                --Want our first couple of MAA units to be flak as well
+                local iExistingT2MAA = 0
+                local iExistingT3MAA = 0
+                for iMAA, oMAA in tFactoryGuards do
+                    if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, oMAA.UnitId) then  iExistingT3MAA = iExistingT3MAA + 1
+                    else iExistingT2MAA = iExistingT2MAA + 1
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iExistingT2MAA='..iExistingT2MAA..'; iExistingT3MAA='..iExistingT3MAA..'; iFatboySafeMAACount='..M28Land.iFatboySafeMAACount..'; T2 MAA factory LC='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryMAA - categories.TECH3, false)) end
+                if iExistingT2MAA < 4 and iExistingT3MAA + iExistingT2MAA < M28Land.iFatboySafeMAACount and (iExistingT3MAA >= iExistingT2MAA or (iExistingT2MAA < 2 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryMAA - categories.TECH3, false) < 2)) then
+                    iMAACategoryWanted = M28UnitInfo.refCategoryMAA * categories.TECH2
+                end
+            end
+        end
 
         --Build T2 MAA if enemy has air units in this zone
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -7384,14 +7409,14 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
 
         --Build MAA if fatboy lacks sufficient escort
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 3000 then
-            local iExistingMAA = 0
-            if M28Utilities.IsTableEmpty(oFactory[M28Land.reftoAssignedMAAGuards]) == false then
-                iExistingMAA = table.getn(oFactory[M28Land.reftoAssignedMAAGuards])
+        if M28Land.ConsiderAssigningMAABodyguardToFatboy(nil, oFactory, true) then --M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 3000 then
+            --[[local iExistingMAA = 0
+            if M28Utilities.IsTableEmpty(tFactoryGuards) == false then
+                iExistingMAA = table.getn(tFactoryGuards)
             end
-            if iExistingMAA < M28Land.iFatboySafeMAACount and (iExistingMAA < M28Land.iFatboyBaseMAACount or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 and not(M28Conditions.TeamHasAirControl(iTeam)))) then
-                if ConsiderBuildingCategory(iMAACategoryWanted) then return sBPIDToBuild end
-            end
+            if iExistingMAA < M28Land.iFatboySafeMAACount and (iExistingMAA < M28Land.iFatboyBaseMAACount or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 and not(M28Conditions.TeamHasAirControl(iTeam)))) then--]]
+            if ConsiderBuildingCategory(iMAACategoryWanted) then return sBPIDToBuild end
+            --end
         end
 
         --Build df units or t1 arti if have nearby DF enemies in this zone or nearby
