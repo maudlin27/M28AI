@@ -10758,7 +10758,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                                         iStartingDistToMove = 40
                                                     else
                                                         iStartingDistToMove = 30
-                                                    endthen b
+                                                    end
                                                     for iDistToMove = iStartingDistToMove, 10, -10 do
                                                         tPreferredPositionToProtectFromBomber = M28Utilities.MoveInDirection(oUnit[refoAssignedUnitToGuard]:GetPosition(), iAngleToBomber, iDistToMove, true, false, M28Map.bIsCampaignMap)
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iDistToMove='..iDistToMove..'; iAngleToBomber='..iAngleToBomber..'; tPreferredPositionToProtectFromBomber='..repru(tPreferredPositionToProtectFromBomber)..'; Land label='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tPreferredPositionToProtectFromBomber) or 'nil')..'; tLZData[M28Map.subrefLZIslandRef]='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')) end
