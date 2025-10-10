@@ -191,6 +191,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftoUnitsWithDisabledWeapons = 'M28TeamUnitsDisabledWeap' --[x] = 1,2,...; returns unit with disabled weapon
     --Water related
     subrefiRallyPointWaterZonesByPond = 'M28TeamWZRallyPoint' --[x] is the pond ref, then returns a table orderd 1, 2... of water zones that are rally points
+    refiStuckMassByPondByTech = 'M28TStMsPn' --[x] is pond ref, [y] is stuck naval unit tech level, returns total mass value, whenever a unit gets stuck it gets recorded in here, when it fires a weapon and isnt in a zone with a high refiNavalPathingStuckCountByZone for its current zone it gets removed
     refiTimeLastNoSurfaceCombatTargetByPond = 'M28TeamLastTimeNoSurfTarget' --[x] is the pond ref, returns gametimeseconds that had surface bomat units with no target
     refiTimeLastNoSubCombatTargetByPond = 'M28TeamLastTimeNoSubTarget' --[x] is the pond ref, returns gametimeseconds that had submersible combat units with no target
     refiTimeLastHadBombardmentModeByPond = 'M28TeamLastTimeBombardment' --[x] is the pond ref, returns gametimeseconds that had a bombardment target activate (that wasnt for raiders)
@@ -1295,6 +1296,13 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
                     if bDebugMessages == true then LOG(sFunctionRef..': Units assigned water zone isnt adjacent to its current zone, so will reset its assignment value, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                     oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --reset so unit should get new orders from the current zone or an adjacent zone
                 end
+            end
+            if oUnit[M28UnitInfo.refbUnitInStuckPondMass] and (oUnit[M28UnitInfo.refiNavalPathingStuckCountByZone][iWaterZone] or 0) == 0 then
+                --Remove unit from stuck count
+                oUnit[M28UnitInfo.refbUnitInStuckPondMass] = false
+                local iPond = M28Map.tiPondByWaterZone[iWaterZone]
+                local iUnitTech = M28UnitInfo.GetUnitTechLevel(oUnit)
+                tTeamData[aiBrain.M28Team][refiStuckMassByPondByTech][iPond][iUnitTech] = math.max(0, (tTeamData[aiBrain.M28Team][refiStuckMassByPondByTech][iPond][iUnitTech] or 0) - (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)))
             end
             UpdateUnitPreviousZones(oUnit, 0, iWaterZone)
 

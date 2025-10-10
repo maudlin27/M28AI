@@ -18651,6 +18651,15 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.99 and not(bHaveLowPower)) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40) then
                 iExperimentalsWanted = iExperimentalsWanted * 1.5
             end
+            if M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][3] > 0 then
+                if M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][3] > 10000 then
+                    iExperimentalsWanted = 0
+                elseif aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                    iExperimentalsWanted = 0
+                else
+                    iExperimentalsWanted = 1
+                end
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': iExperimentalsWanted='..iExperimentalsWanted..'; iCurNavalExperimentalsOrSubstitutes='..iCurNavalExperimentalsOrSubstitutes) end
             if iCurNavalExperimentalsOrSubstitutes < iExperimentalsWanted then
                 iBPWanted = 45

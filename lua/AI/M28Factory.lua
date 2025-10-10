@@ -6384,6 +6384,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         else
             iCombatCategory = M28UnitInfo.refCategoryBattleship
         end
+
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Finished getting combat category, iCurDestroyerAndBattlecruiser=' .. iCurDestroyerAndBattlecruiser .. '; iCurFrigates=' .. iCurFrigates .. '; iCurBattleships=' .. iCurBattleships..'; Lifetime battlecruiser count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBattlecruiser)..'; iOtherT2T3Surface='..iOtherT2T3Surface)
         end
@@ -6653,6 +6654,25 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local sEnhancementWanted = ConsiderFactoryEnhancement(oFactory, tWZTeamData)
     if sEnhancementWanted then return sEnhancementWanted, true end
 
+
+    --Stuck logic - dont build anything, or modify combat category to be lower tech
+    local bReduceBuildingDueToStuckNavalUnits = false
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking for stuck naval units, (M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][iFactoryTechLevel]='..(M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][iFactoryTechLevel] or 'nil')) end
+    if (M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][iFactoryTechLevel] or 0) > 0 then
+        if bDebugMessages == true then LOG(sFunctionRef..': We have stuck naval units in this pond, will ignore further actions if we dont have high mass and already have some naval units and no nearby enemy naval threat, tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or false)..'; subrefTThreatEnemyCombatTotal='..tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Mass%='..aiBrain:GetEconomyStoredRatio('MASS')) end
+        if (not(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) or (bHaveLowMass and aiBrain:GetEconomyStoredRatio('MASS') <= 0.05 and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0)) and (bHaveLowPower or bHaveLowMass or aiBrain:GetEconomyStoredRatio('MASS') <= 0.3) then
+            bReduceBuildingDueToStuckNavalUnits = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Will modify combat category and set bReduceBuildingDueToStuckNavalUnits to be true') end
+            if iFactoryTechLevel <= 1 or (M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][1] or 0) > 0 then
+                iCombatCategory = M28UnitInfo.refCategorySubmarine
+            elseif iFactoryTechLevel == 2 or (M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][2] or 0) > 0 then
+                iCombatCategory = M28UnitInfo.refCategorySubmarine + M28UnitInfo.refCategoryFrigate
+            else
+                iCombatCategory = M28UnitInfo.refCategoryDestroyer
+            end
+        end
+    end
+
     --Cycle through each adjacent water zone
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
@@ -6865,12 +6885,20 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         bAboutToOverflowMass = true
     end
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Consdering building bombardment category unit, bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Do we have UEF or seraphim factory=' .. tostring(EntityCategoryContains(categories.UEF + categories.SERAPHIM, oFactory.UnitId)))
+        LOG(sFunctionRef .. ': Consdering building bombardment category unit, bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Do we have UEF or seraphim factory=' .. tostring(EntityCategoryContains(categories.UEF + categories.SERAPHIM, oFactory.UnitId))..'; bReduceBuildingDueToStuckNavalUnits='..tostring(bReduceBuildingDueToStuckNavalUnits))
     end
 
     --Add special bombardment ship categories
     --Seraphim T2 - get bombardment ships
-    if iFactoryTechLevel >= 2 and categories.bss0206 and oFactory:CanBuild('bss0206') and ConsiderBuildingCategory(categories.bss0206) then
+    if bReduceBuildingDueToStuckNavalUnits then
+        if bDebugMessages == true then LOG(sFunctionRef..': have stuck naval units so will modify normal bombardment category') end
+        local iCurCombatCategory = aiBrain:GetCurrentUnits(iCombatCategory)
+        if iCurCombatCategory <= 4 and ConsiderBuildingCategory(iCombatCategory) then
+            return sBPIDToBuild
+        elseif iFactoryTechLevel >= 3 and iCurCombatCategory <= 15 and M28UnitInfo.DoesCategoryContainCategory(M28UnitInfo.refCategoryDestroyer, iCombatCategory, false) then
+            if ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild end
+        end
+    elseif iFactoryTechLevel >= 2 and categories.bss0206 and oFactory:CanBuild('bss0206') and ConsiderBuildingCategory(categories.bss0206) then
         if bDebugMessages == true then LOG(sFunctionRef..': Seraphim T2 navy - get bombardment ships unless ahve loads and low mass, sBPIDToBuild='..sBPIDToBuild..'; bAboutToOverflowMass='..tostring(bAboutToOverflowMass)) end
         if bAboutToOverflowMass then
             if bDebugMessages == true then LOG(sFunctionRef..': will get bombardment to avoid overflow') end
@@ -6940,7 +6968,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryMissileShip * categories.TECH3 - categories.SUBMERSIBLE) then return sBPIDToBuild end
             end
         end
-    elseif iFactoryTechLevel == 2 then
+    elseif iFactoryTechLevel == 2 and not(bReduceBuildingDueToStuckNavalUnits) then
 
         if EntityCategoryContains(categories.UEF + categories.SERAPHIM, oFactory.UnitId) then
             local iCurCruisers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryCruiser)

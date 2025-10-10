@@ -57,6 +57,8 @@ reftRecentUnitPositions = 'M28RcUnP' --[x] = 1, 2, 3; based on previous recorded
 reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateau, iLandZoneRef}
 reftRecentPlateauAndZoneByTeam = 'M28UnitPrvPlatZ' --[x] is the preceding entry, returns {iPlateauOrZero, iLandOrWaterZoneRef}; will keep track of the last 8 changes (used to realise if a unit is stuck alternating between the same 2 zones)
 refiPatrolStuckCount = 'M28UStCn' --number of times unit has been stuck patrolling
+refiNavalPathingStuckCountByZone = 'M28UStNvC' --[x] is starting water zone, number of times we have run the 'unit is stuck' logic
+refbUnitInStuckPondMass = 'M28UStPnM' --true if unit has been recorded against refiStuckMassByPond
 refbUnitStuckAlternating = 'M28UnitStckAlt' --true if the unit appears to be moving between the same two zones again and again
 refiTimeLastTriedRetreating = 'M28UnitTimeLstRetr' --Gametimeseconds that unit last tried retreating
 refiAttackingExperimentalTime = 'M28UTmLstAt' --Gametimeseconds that an experimental was last recorded in reftoAttackingFriendlyExperimentals
