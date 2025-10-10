@@ -5287,11 +5287,12 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         local iClosestZoneWithStructuresDist = 10000
         local tClosestEnemyBuildingsOfInterest
         local oClosestEnemyStructureOfInterest
-        local oEnemyStructureToTarget
+        local oEnemyStructureToTarget, oEnemyStructureForMissilesToTarget
         local toEnemyStructuresAndModDist = {}
         local oClosestModDistEnemyStructure -- will favour higher priority enemy targets that may not be the closest unit
         local iApproxDistUntilEnemyInRangeOfZone = 10000
         local iSurfaceRange
+        local bHaveMissileToGroundAA = false
 
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
             for iUnit, oUnit in tMAAToAdvance do
@@ -5306,6 +5307,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                             if oUnit[M28UnitInfo.refiCombatRange] >= iBestRange then iBestRange = oUnit[M28UnitInfo.refiCombatRange] end
                         end
                         iLowestBestRange = math.min(iLowestBestRange, iSurfaceRange)
+                        if not(bHaveMissileToGroundAA) and EntityCategoryContains(categories.SILO, oUnit.UnitId) then bHaveMissileToGroundAA = true end
                     end
                 end
             end
@@ -5400,6 +5402,18 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                 else
                     oEnemyStructureToTarget = oClosestEnemyStructureOfInterest
                 end
+                --Consider attacking further afield building if this one has TMD coverage
+                if bHaveMissileToGroundAA and oEnemyStructureToTarget and M28Utilities.IsTableEmpty(oEnemyStructureToTarget[M28Building.reftTMDCoveringThisUnit]) == false and M28Utilities.IsTableEmpty(toEnemyStructuresAndModDist) == false then
+                    local iClosestBuildingWithoutTMDDist = math.max(M28Utilities.GetDistanceBetweenPositions(oEnemyStructureToTarget:GetPosition(), tWZData[M28Map.subrefMidpoint]) + 30, 160)
+                    for _, toUnitAndDist in toEnemyStructuresAndModDist do
+                        if toUnitAndDist[2] < iClosestBuildingWithoutTMDDist and M28Utilities.IsTableEmpty(toUnitAndDist[1][M28Building.reftTMDCoveringThisUnit]) then
+                            iClosestBuildingWithoutTMDDist = toUnitAndDist[2]
+                            oEnemyStructureForMissilesToTarget = toUnitAndDist[1]
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering switching to target without TMD, oEnemyStructureForMissilesToTarget='..(oEnemyStructureForMissilesToTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemyStructureForMissilesToTarget) or 'nil')) end
+                end
+                if not(oEnemyStructureForMissilesToTarget) then oEnemyStructureForMissilesToTarget = oEnemyStructureToTarget end
 
                 --Filter the combat MAA further to only include those who are either in range of oEnemyStructureToTarget, or would be in the same pond if they moved in range
                 local iCurDist
@@ -5457,24 +5471,30 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
 
             --Now assign the combat MAA to attack the enemy structure
             local iAssignedUnitCount = 0
+
             for iUnit, oUnit in tCombatAAByOrigRef do
                 --Get the closest enemy structure to this unit and attack it, unless we may be in range of a unit that can hurt us and are more than 6 in range of this
-
-                if iApproxDistUntilEnemyInRangeOfZone <= 5 and oUnit[M28UnitInfo.refiCombatRange] - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemyStructureToTarget:GetPosition()) >= 6 then
+                local oCurTarget
+                if bHaveMissileToGroundAA and oEnemyStructureForMissilesToTarget and EntityCategoryContains(categories.SILO, oUnit.UnitId) then
+                    oCurTarget = oEnemyStructureForMissilesToTarget
+                else
+                    oCurTarget = oEnemyStructureToTarget
+                end
+                if iApproxDistUntilEnemyInRangeOfZone <= 5 and oUnit[M28UnitInfo.refiCombatRange] - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oCurTarget:GetPosition()) >= 6 then
                     --move away if same pond
-                    local tTempRetreat = M28Utilities.MoveInDirection(oEnemyStructureToTarget:GetPosition(), M28Utilities.GetAngleFromAToB(oEnemyStructureToTarget:GetPosition(), oUnit:GetPosition()), oUnit[M28UnitInfo.refiCombatRange], true, false, M28Map.bIsCampaignMap)
+                    local tTempRetreat = M28Utilities.MoveInDirection(oCurTarget:GetPosition(), M28Utilities.GetAngleFromAToB(oCurTarget:GetPosition(), oUnit:GetPosition()), oUnit[M28UnitInfo.refiCombatRange], true, false, M28Map.bIsCampaignMap)
                     if NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, tTempRetreat) == iPond then
                         M28Orders.IssueTrackedMove(oUnit, tTempRetreat, 2, false, 'MAAReta', false)
                     else
                         iAssignedUnitCount = iAssignedUnitCount + 1
-                        M28Orders.IssueTrackedAttack(oUnit, oEnemyStructureToTarget, false, 'CrNRAtc', false)
+                        M28Orders.IssueTrackedAttack(oUnit, oCurTarget, false, 'CrNRAtc', false)
                     end
                 else
                     iAssignedUnitCount = iAssignedUnitCount + 1
-                    M28Orders.IssueTrackedAttack(oUnit, oEnemyStructureToTarget, false, 'CrSAtc', false)
+                    M28Orders.IssueTrackedAttack(oUnit, oCurTarget, false, 'CrSAtc', false)
                 end
                 if iAssignedUnitCount >= 5 then
-                    if (iAssignedUnitCount >= 10 or not(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryExperimentalLevel, oEnemyStructureToTarget.UnitId))) and M28Utilities.IsTableEmpty(toEnemyStructuresAndModDist) == false then
+                    if (iAssignedUnitCount >= 10 or not(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryExperimentalLevel, oCurTarget.UnitId))) and M28Utilities.IsTableEmpty(toEnemyStructuresAndModDist) == false then
                         iAssignedUnitCount = 0
                         local iClosestModDist = 100000
                         local oNewTarget
@@ -5483,7 +5503,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                         local iOldModDist
                         for iEntry, tUnitAndModDist in toEnemyStructuresAndModDist do
                             if tUnitAndModDist[2] < iClosestModDist then
-                                if tUnitAndModDist[1] == oEnemyStructureToTarget then
+                                if tUnitAndModDist[1] == oCurTarget then
                                     iOldEntryRef = iEntry
                                     iOldModDist = tUnitAndModDist[2]
                                 else
