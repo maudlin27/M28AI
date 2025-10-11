@@ -20732,6 +20732,11 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     end
 
                     if iT2ArtiThreat >= math.max(11000, math.min(iLongRangeFurtherAwayThreat * 1.25, 30000)) then iThreatWanted = iThreatWanted * 0.8 end
+                    if iT2ArtiThreat >= 2800 and tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] <= 20 and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] >= 3000 then
+                        iThreatWanted = iThreatWanted + math.min(iThreatWanted, 4000)
+                        bDebugMessages = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Increasing t2 arti threat wanted due to firing t2 arti recently and enemy having LR arti threat, iLandZone='..iLandZone..'; iT2ArtiThreat='..iT2ArtiThreat..'; subrefiNearbyEnemyLongRangeDFThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]) end
+                    end
                     if tLZTeamData[M28Map.refbBaseInSafePosition] then iThreatWanted = iThreatWanted * 0.75
                     elseif iT2ArtiThreat >= 6000 and iThreatWanted >= 6000 and GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 0) >= 40 then
                         iThreatWanted = 6000 + (iThreatWanted - 6000)*0.5
@@ -20917,10 +20922,14 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             --adjust location to build if we already have 3 t2 arti so we build towards enemy
                             local tLocationToBuild
                             if iT2ArtiCount >= 3 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
-                                tLocationToBuild = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 20, true, false)
-                                if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocationToBuild) == iPlateau) then
-                                    tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1]. tLZData[M28Map.subrefMidpoint][2]. tLZData[M28Map.subrefMidpoint][3]}
+                                for iDistanceToTry = 20, 40, 10 do
+                                    tLocationToBuild = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), iDistanceToTry, true, false)
+                                    if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocationToBuild) == iPlateau) and GetSurfaceHeight(tLocationToBuild[1], tLocationToBuild[3]) <= GetTerrainHeight(  tLocationToBuild[1], tLocationToBuild[3]) then
+                                        tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1]. tLZData[M28Map.subrefMidpoint][2]. tLZData[M28Map.subrefMidpoint][3]}
+                                        break
+                                    end
                                 end
+                                if not(tLocationToBuild) then tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]} end
                             else
                                 tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
                             end
