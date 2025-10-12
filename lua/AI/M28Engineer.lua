@@ -12255,7 +12255,11 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.03) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.25 then
                     iBPWanted = tiBPByTech[iMinTechLevelForPower]
                 else
-                    iBPWanted = 2 * tiBPByTech[iMinTechLevelForPower]
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.02 then
+                        iBPWanted = 3 * tiBPByTech[iMinTechLevelForPower]
+                    else
+                        iBPWanted = 2 * tiBPByTech[iMinTechLevelForPower]
+                    end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Start of game Want more power, iBPWanted='..iBPWanted..'; Nearby enemy air to ground threat='..iNearbyEnemyAirToGroundThreat..'; Enemy combat total='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; Enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
@@ -12394,8 +12398,14 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) then
         iBPWanted = math.max(5, table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) * 2.5)
-        if bHaveLowPower and not(bHaveLowMass) and iBPWanted > 10 then
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.25 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 then
+        if bHaveLowPower and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.1) and iBPWanted > 5 then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 then
+                if tLZData[M28Map.subrefLZOrWZMexCount] >= 6 and tLZTeamData[M28Map.subrefMexCountByTech][1] >= 2 then
+                    iBPWanted = 5
+                else
+                    iBPWanted = 10
+                end
+            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.1 and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80 then
                 iBPWanted = 10
             elseif iBPWanted > 20 and iBPWanted >= tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2 then
                 iBPWanted = 20
@@ -15598,6 +15608,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         iCurPriority = iCurPriority + 1
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
             iBPWanted = 5 + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]] * table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])
+            if iBPWanted > 10 and bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.1 and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80 then
+                iBPWanted = 10
+            end
             HaveActionToAssign(refActionBuildMex, 1, iBPWanted)
         end
 
@@ -16366,11 +16379,22 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         iCurPriority = iCurPriority + 1
     end
 
+    --Low power - if at T1, and have lots of mass income but poor E, and lots of mexes in zone (6+), then build t1 pgen as very high priority instead of more t1 mexes
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Priority t1 power builder for minor LZ check, subrefiHighestFriendlyFactoryTech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; subrefLZOrWZMexCount='..tLZData[M28Map.subrefLZOrWZMexCount]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; subrefMexCountByTech][1]='..tLZTeamData[M28Map.subrefMexCountByTech][1]..'; subrefiTeamGrossMass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; subrefiTeamGrossEnergy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
+    if bHaveLowPower and tLZData[M28Map.subrefLZOrWZMexCount] > 5 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 200 and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryPower - categories.TECH1, iTeam) == 0)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and (tLZTeamData[M28Map.subrefMexCountByTech][1] >= 4 or (tLZTeamData[M28Map.subrefMexCountByTech][1] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8)) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 30 > M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.95 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.7)) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 then
+        if not(M28Utilities.bFAFActive) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 15 > M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] then
+            if bDebugMessages == true then LOG(sFunctionRef..': High mex zone will build pgen as we have low power and lots of mass') end
+            HaveActionToAssign(refActionBuildPower, 1, 10)
+        end
+    end
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is table of unbuilt mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]))..'; Is table of part complete mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]))) end
     iCurPriority = iCurPriority + 1
     --Unclaimed mex high priority
     if not(bTeammateHasBuiltHere) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) then
-        if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, locations='..repru(tLZData[M28Map.subrefMexUnbuiltLocations])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, locations='..repru(tLZData[M28Map.subrefMexUnbuiltLocations])..'; will assign a mex to build') end
         HaveActionToAssign(refActionBuildMex, 1, 5)
         if (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionBuildMex] or 0) > 0 then
             tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true
@@ -16385,6 +16409,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
     end
+
     --Reclaim enemy building if have available engineers, and enemy has buildings but no combat threat
     iCurPriority = iCurPriority + 1
     if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
@@ -16453,23 +16478,23 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
         if bContinue then
             --if not(aiBrain.M28Easy) then --have instead disabled the 'ctrlk existing shield to build new shield' logic if M28Easy is enabled
-                if bDebugMessages == true then LOG(sFunctionRef..': Want to assign units to active shield protection, will list out each unit for this zone that wants active protection')
-                    for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
-                        LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Mass cost='..oUnit[M28UnitInfo.refiUnitMassCost])
-                    end
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to assign units to active shield protection, will list out each unit for this zone that wants active protection')
+                for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
+                    LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Mass cost='..oUnit[M28UnitInfo.refiUnitMassCost])
                 end
-                if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
-                    iBPWanted = math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 300 + M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] * 75)
-                else
-                    iBPWanted = 100
-                end
+            end
+            if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+                iBPWanted = math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 300 + M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] * 75)
+            else
+                iBPWanted = 100
+            end
 
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Special shield defence action iBPWanted='..iBPWanted) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Special shield defence action iBPWanted='..iBPWanted) end
 
-                --Only use T3 engineers (even if we already have t3 engineers assigned) as want to make sure we can quickly get good concentrated build power
-                --function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist)
-                HaveActionToAssign(refActionSpecialShieldDefence, 3, iBPWanted,         nil,                nil,                    nil,                        nil,                            true)
+            --Only use T3 engineers (even if we already have t3 engineers assigned) as want to make sure we can quickly get good concentrated build power
+            --function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist)
+            HaveActionToAssign(refActionSpecialShieldDefence, 3, iBPWanted,         nil,                nil,                    nil,                        nil,                            true)
             --end
         end
     end
@@ -16586,6 +16611,11 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) then
         iBPWanted = math.max(5, table.getn(tLZData[M28Map.subrefMexUnbuiltLocations]) * 2.5)
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, iBPWanted='..iBPWanted..', locations='..repru(tLZData[M28Map.subrefMexUnbuiltLocations])) end
+        if bHaveLowPower and not(bHaveLowMass) and iBPWanted > 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 then
+            iBPWanted = 5
+        elseif bHaveLowPower and iBPWanted > 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80  then
+            iBPWanted = 10
+        end
         HaveActionToAssign(refActionBuildMex, 1, iBPWanted)
         if (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionBuildMex] or 0) > 0 and not(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex]) then
             tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true
@@ -18134,7 +18164,13 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': We want to build a mex asap as we have unbuilt locations and have started in water')
         end
-        HaveActionToAssign(refActionBuildMex, 1, math.max(5, table.getn(tWZData[M28Map.subrefMexUnbuiltLocations]) * 2.5))
+        iBPWanted = math.max(5, table.getn(tWZData[M28Map.subrefMexUnbuiltLocations]) * 2.5)
+        if bHaveLowPower and not(bHaveLowMass) and iBPWanted > 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 then
+            iBPWanted = 5
+        elseif bHaveLowPower and iBPWanted > 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80  then
+            iBPWanted = 10
+        end
+        HaveActionToAssign(refActionBuildMex, 1, iBPWanted)
     end
 
     --High priority reclaim with 1 engi if low mass and have reclaim
@@ -18360,7 +18396,13 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': We want to build a mex as we have unbuilt locations')
         end
-        HaveActionToAssign(refActionBuildMex, 1, math.max(5, table.getn(tWZData[M28Map.subrefMexUnbuiltLocations]) * 2.5))
+        iBPWanted = math.max(5, table.getn(tWZData[M28Map.subrefMexUnbuiltLocations]) * 2.5)
+        if bHaveLowPower and not(bHaveLowMass) and iBPWanted > 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 then
+            iBPWanted = 5
+        elseif bHaveLowPower and iBPWanted > 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80  then
+            iBPWanted = 10
+        end
+        HaveActionToAssign(refActionBuildMex, 1, iBPWanted)
     elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoPartBuiltMexes]) == false then
         --Do we have no engineers assigned to building a mex?
         local bHaveEngisBuilding = false
@@ -18650,6 +18692,15 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.99 and not(bHaveLowPower)) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40) then
                 iExperimentalsWanted = iExperimentalsWanted * 1.5
+            end
+            if M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][3] > 0 then
+                if M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][3] > 10000 then
+                    iExperimentalsWanted = 0
+                elseif aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                    iExperimentalsWanted = 0
+                else
+                    iExperimentalsWanted = 1
+                end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iExperimentalsWanted='..iExperimentalsWanted..'; iCurNavalExperimentalsOrSubstitutes='..iCurNavalExperimentalsOrSubstitutes) end
             if iCurNavalExperimentalsOrSubstitutes < iExperimentalsWanted then
@@ -20723,6 +20774,10 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     end
 
                     if iT2ArtiThreat >= math.max(11000, math.min(iLongRangeFurtherAwayThreat * 1.25, 30000)) then iThreatWanted = iThreatWanted * 0.8 end
+                    if iT2ArtiThreat >= 2800 and tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] <= 20 and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] >= 3000 then
+                        iThreatWanted = iThreatWanted + math.min(iThreatWanted, 4000)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Increasing t2 arti threat wanted due to firing t2 arti recently and enemy having LR arti threat, iLandZone='..iLandZone..'; iT2ArtiThreat='..iT2ArtiThreat..'; subrefiNearbyEnemyLongRangeDFThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]) end
+                    end
                     if tLZTeamData[M28Map.refbBaseInSafePosition] then iThreatWanted = iThreatWanted * 0.75
                     elseif iT2ArtiThreat >= 6000 and iThreatWanted >= 6000 and GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 0) >= 40 then
                         iThreatWanted = 6000 + (iThreatWanted - 6000)*0.5
@@ -20908,10 +20963,14 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             --adjust location to build if we already have 3 t2 arti so we build towards enemy
                             local tLocationToBuild
                             if iT2ArtiCount >= 3 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
-                                tLocationToBuild = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 20, true, false)
-                                if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocationToBuild) == iPlateau) then
-                                    tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1]. tLZData[M28Map.subrefMidpoint][2]. tLZData[M28Map.subrefMidpoint][3]}
+                                for iDistanceToTry = 20, 40, 10 do
+                                    tLocationToBuild = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), iDistanceToTry, true, false)
+                                    if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocationToBuild) == iPlateau) and GetSurfaceHeight(tLocationToBuild[1], tLocationToBuild[3]) <= GetTerrainHeight(  tLocationToBuild[1], tLocationToBuild[3]) then
+                                        tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1]. tLZData[M28Map.subrefMidpoint][2]. tLZData[M28Map.subrefMidpoint][3]}
+                                        break
+                                    end
                                 end
+                                if not(tLocationToBuild) then tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]} end
                             else
                                 tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
                             end

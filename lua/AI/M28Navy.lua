@@ -2366,21 +2366,31 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
     local bHaveSubs = not(M28Utilities.IsTableEmpty(tUnitsWithOnlyAntiNavy))
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Dont have any enemy units in this WZ or adjacent WZ, so will consider supporting other water zones, is table of other zones empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]))) end
+    local iMinCombatWanted
     local bSupportLowValueRequests = true
     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-    if tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] + tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] <= 400 then
+    if tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] + tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] > 400 then
+        iMinCombatWanted = 40
+        if tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= 6000 then iMinCombatWanted = 100 end
         bSupportLowValueRequests = false
     end
+    if tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= 2000 and M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] <= 30 then
+        if (iMinCombatWanted or 0) < 500 then
+            iMinCombatWanted = math.max(200, math.min(500, tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.1))
+        end
+        bSupportLowValueRequests = false
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Dont have any enemy units in this WZ or adjacent WZ, so will consider supporting other water zones, is table of other zones empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]))..'; iMinCombatWanted='..(iMinCombatWanted or 'nil')..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]..'; subrefWZThreatAlliedSubmersible='..tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible]..'; bSupportLowValueRequests='..tostring(bSupportLowValueRequests or false)) end
     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if want min combat support to support another WZ, iMinCombatWanted='..(iMinCombatWanted or 'nil')..'; Time since pond last had bombardment='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or 0)) end
         for iEntry, tWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
             local tAltWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][tWZSubtable[M28Map.subrefWZAWZRef]]
             if bDebugMessages == true then LOG(sFunctionRef..': Considering WZ '..tWZSubtable[M28Map.subrefWZAWZRef]..'; Is the midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAltWZData[M28Map.subrefMidpoint]))) end
             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAltWZData[M28Map.subrefMidpoint]) then
                 local tAltWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][tWZSubtable[M28Map.subrefWZAWZRef]][M28Map.subrefWZTeamData][iTeam]
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering water zone '..tWZSubtable[M28Map.subrefWZAWZRef]..'; Does this want support='..tostring(tAltWZTeamData[M28Map.subrefbWZWantsSupport])..'; Combat threat wanted='..(tAltWZTeamData[M28Map.subrefWZCombatThreatWanted] or 'nil')) end
-                if tAltWZTeamData[M28Map.subrefbWZWantsSupport] and (bSupportLowValueRequests or (tAltWZTeamData[M28Map.subrefWZCombatThreatWanted] or 0) >= 40) then
+                if tAltWZTeamData[M28Map.subrefbWZWantsSupport] and (bSupportLowValueRequests or (tAltWZTeamData[M28Map.subrefWZCombatThreatWanted] or 0) >= iMinCombatWanted) then
                     if not(iWZToSupport) then iWZToSupport = tWZSubtable[M28Map.subrefWZAWZRef] end
                     if bHaveSubs and not(iSubmersibleWZToSupport) then
                         if not(tAltWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
@@ -2389,6 +2399,7 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
                     end
                     if not(iNoAntiNavyWZToSupport) and not(tAltWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies]) then
                         iNoAntiNavyWZToSupport = tWZSubtable[M28Map.subrefWZAWZRef]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Updating iNoAntiNavyWZToSupport to be WZ '..tWZSubtable[M28Map.subrefWZAWZRef]) end
                     end
                     if iNoAntiNavyWZToSupport and iWZToSupport and (iSubmersibleWZToSupport or not(bHaveSubs)) then
                         break
@@ -2518,9 +2529,10 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, iWaterZone='..iWaterZone..'; Deciding whether to flag are in bombardment mode, is tPotentialBombardmentUnits empty='..tostring(M28Utilities.IsTableEmpty(tPotentialBombardmentUnits))..'; tbOptionalPlateauAndLandZonesToConsider='..tostring(tbOptionalPlateauAndLandZonesToConsider or false)..'; iOptionalRaidBaseWZ='..(iOptionalRaidBaseWZ or 'nil')..'; bOptionalDontTreatAsBombardment='..tostring(bOptionalDontTreatAsBombardment or false)) end
     if M28Utilities.IsTableEmpty(tPotentialBombardmentUnits) == false and not(tbOptionalPlateauAndLandZonesToConsider) and not(iOptionalRaidBaseWZ) and not(bOptionalDontTreatAsBombardment) then
         M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond] = GetGameTimeSeconds()
+        if bDebugMessages == true then LOG(sFunctionRef..': Updating bombardment flag') end
     end
 
     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
@@ -5275,11 +5287,12 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         local iClosestZoneWithStructuresDist = 10000
         local tClosestEnemyBuildingsOfInterest
         local oClosestEnemyStructureOfInterest
-        local oEnemyStructureToTarget
+        local oEnemyStructureToTarget, oEnemyStructureForMissilesToTarget
         local toEnemyStructuresAndModDist = {}
         local oClosestModDistEnemyStructure -- will favour higher priority enemy targets that may not be the closest unit
         local iApproxDistUntilEnemyInRangeOfZone = 10000
         local iSurfaceRange
+        local bHaveMissileToGroundAA = false
 
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
             for iUnit, oUnit in tMAAToAdvance do
@@ -5294,6 +5307,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                             if oUnit[M28UnitInfo.refiCombatRange] >= iBestRange then iBestRange = oUnit[M28UnitInfo.refiCombatRange] end
                         end
                         iLowestBestRange = math.min(iLowestBestRange, iSurfaceRange)
+                        if not(bHaveMissileToGroundAA) and EntityCategoryContains(categories.SILO, oUnit.UnitId) then bHaveMissileToGroundAA = true end
                     end
                 end
             end
@@ -5388,6 +5402,18 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                 else
                     oEnemyStructureToTarget = oClosestEnemyStructureOfInterest
                 end
+                --Consider attacking further afield building if this one has TMD coverage
+                if bHaveMissileToGroundAA and oEnemyStructureToTarget and M28Utilities.IsTableEmpty(oEnemyStructureToTarget[M28Building.reftTMDCoveringThisUnit]) == false and M28Utilities.IsTableEmpty(toEnemyStructuresAndModDist) == false then
+                    local iClosestBuildingWithoutTMDDist = math.max(M28Utilities.GetDistanceBetweenPositions(oEnemyStructureToTarget:GetPosition(), tWZData[M28Map.subrefMidpoint]) + 30, 160)
+                    for _, toUnitAndDist in toEnemyStructuresAndModDist do
+                        if toUnitAndDist[2] < iClosestBuildingWithoutTMDDist and M28Utilities.IsTableEmpty(toUnitAndDist[1][M28Building.reftTMDCoveringThisUnit]) then
+                            iClosestBuildingWithoutTMDDist = toUnitAndDist[2]
+                            oEnemyStructureForMissilesToTarget = toUnitAndDist[1]
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering switching to target without TMD, oEnemyStructureForMissilesToTarget='..(oEnemyStructureForMissilesToTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemyStructureForMissilesToTarget) or 'nil')) end
+                end
+                if not(oEnemyStructureForMissilesToTarget) then oEnemyStructureForMissilesToTarget = oEnemyStructureToTarget end
 
                 --Filter the combat MAA further to only include those who are either in range of oEnemyStructureToTarget, or would be in the same pond if they moved in range
                 local iCurDist
@@ -5445,24 +5471,30 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
 
             --Now assign the combat MAA to attack the enemy structure
             local iAssignedUnitCount = 0
+
             for iUnit, oUnit in tCombatAAByOrigRef do
                 --Get the closest enemy structure to this unit and attack it, unless we may be in range of a unit that can hurt us and are more than 6 in range of this
-
-                if iApproxDistUntilEnemyInRangeOfZone <= 5 and oUnit[M28UnitInfo.refiCombatRange] - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemyStructureToTarget:GetPosition()) >= 6 then
+                local oCurTarget
+                if bHaveMissileToGroundAA and oEnemyStructureForMissilesToTarget and EntityCategoryContains(categories.SILO, oUnit.UnitId) then
+                    oCurTarget = oEnemyStructureForMissilesToTarget
+                else
+                    oCurTarget = oEnemyStructureToTarget
+                end
+                if iApproxDistUntilEnemyInRangeOfZone <= 5 and oUnit[M28UnitInfo.refiCombatRange] - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oCurTarget:GetPosition()) >= 6 then
                     --move away if same pond
-                    local tTempRetreat = M28Utilities.MoveInDirection(oEnemyStructureToTarget:GetPosition(), M28Utilities.GetAngleFromAToB(oEnemyStructureToTarget:GetPosition(), oUnit:GetPosition()), oUnit[M28UnitInfo.refiCombatRange], true, false, M28Map.bIsCampaignMap)
+                    local tTempRetreat = M28Utilities.MoveInDirection(oCurTarget:GetPosition(), M28Utilities.GetAngleFromAToB(oCurTarget:GetPosition(), oUnit:GetPosition()), oUnit[M28UnitInfo.refiCombatRange], true, false, M28Map.bIsCampaignMap)
                     if NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, tTempRetreat) == iPond then
                         M28Orders.IssueTrackedMove(oUnit, tTempRetreat, 2, false, 'MAAReta', false)
                     else
                         iAssignedUnitCount = iAssignedUnitCount + 1
-                        M28Orders.IssueTrackedAttack(oUnit, oEnemyStructureToTarget, false, 'CrNRAtc', false)
+                        M28Orders.IssueTrackedAttack(oUnit, oCurTarget, false, 'CrNRAtc', false)
                     end
                 else
                     iAssignedUnitCount = iAssignedUnitCount + 1
-                    M28Orders.IssueTrackedAttack(oUnit, oEnemyStructureToTarget, false, 'CrSAtc', false)
+                    M28Orders.IssueTrackedAttack(oUnit, oCurTarget, false, 'CrSAtc', false)
                 end
                 if iAssignedUnitCount >= 5 then
-                    if (iAssignedUnitCount >= 10 or not(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryExperimentalLevel, oEnemyStructureToTarget.UnitId))) and M28Utilities.IsTableEmpty(toEnemyStructuresAndModDist) == false then
+                    if (iAssignedUnitCount >= 10 or not(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryExperimentalLevel, oCurTarget.UnitId))) and M28Utilities.IsTableEmpty(toEnemyStructuresAndModDist) == false then
                         iAssignedUnitCount = 0
                         local iClosestModDist = 100000
                         local oNewTarget
@@ -5471,7 +5503,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                         local iOldModDist
                         for iEntry, tUnitAndModDist in toEnemyStructuresAndModDist do
                             if tUnitAndModDist[2] < iClosestModDist then
-                                if tUnitAndModDist[1] == oEnemyStructureToTarget then
+                                if tUnitAndModDist[1] == oCurTarget then
                                     iOldEntryRef = iEntry
                                     iOldModDist = tUnitAndModDist[2]
                                 else
@@ -7027,8 +7059,28 @@ function MoveStuckNavalUnitToNearbyZone(oUnit, iStartWaterZone)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if not(oUnit.Dead) then
-        M28Micro.TrackTemporaryUnitMicro(oUnit, 0, nil, true)
         local iTeam = oUnit:GetAIBrain().M28Team
+
+        if not(oUnit[M28UnitInfo.refiNavalPathingStuckCountByZone]) then oUnit[M28UnitInfo.refiNavalPathingStuckCountByZone] = {} end
+        oUnit[M28UnitInfo.refiNavalPathingStuckCountByZone][iStartWaterZone] = (oUnit[M28UnitInfo.refiNavalPathingStuckCountByZone][iStartWaterZone] or 0) + 1
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to record unit as stuck in pond, refbUnitInStuckPondMass='..tostring(oUnit[M28UnitInfo.refbUnitInStuckPondMass] or false)..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iStartWaterZone='..iStartWaterZone..'; oUnit[M28UnitInfo.refiNavalPathingStuckCountByZone][iStartWaterZone]='..(oUnit[M28UnitInfo.refiNavalPathingStuckCountByZone][iStartWaterZone] or 'nil')) end
+        function RecordStuckMassInPond()
+            oUnit[M28UnitInfo.refbUnitInStuckPondMass] = true
+            local iPond = M28Map.tiPondByWaterZone[iStartWaterZone]
+            if not(M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond]) then
+                if not(M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech]) then M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech] = {} end
+                M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond] = {}
+            end
+            local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
+            if not(M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][iUnitTechLevel]) then M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][iUnitTechLevel] = 0 end
+            M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][iUnitTechLevel] = M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][iUnitTechLevel] + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
+            if bDebugMessages == true then LOG(sFunctionRef..': iPond='..iPond..'; iUnitTechLevel='..iUnitTechLevel..'; Mass cost='..oUnit[M28UnitInfo.refiUnitMassCost]..'; M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][iUnitTechLevel]='..(M28Team.tTeamData[iTeam][M28Team.refiStuckMassByPondByTech][iPond][iUnitTechLevel] or 'nil')..'; Time='..GetGameTimeSeconds()) end
+        end
+        if (oUnit[M28UnitInfo.refiNavalPathingStuckCountByZone][iStartWaterZone] or 0) >= 3 and not(oUnit[M28UnitInfo.refbUnitInStuckPondMass]) then
+            RecordStuckMassInPond()
+        end
+        M28Micro.TrackTemporaryUnitMicro(oUnit, 0, nil, true)
         local iPond = M28Map.tiPondByWaterZone[iStartWaterZone]
         local tStartWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iStartWaterZone]
         local tStartWZTeamData = tStartWZData[M28Map.subrefWZTeamData][iTeam]
@@ -7057,24 +7109,43 @@ function MoveStuckNavalUnitToNearbyZone(oUnit, iStartWaterZone)
                     iLastPathEntry = iLastPathEntry + 1
                 end
                 local iViaPathCountBeforeCtrlKCheck = 0
+                local iCurViaPathAttemptCount = 0
                 local iDistToCurPath, iAngleToPath
                 local tViaPathPosition = {}
+                local iShortDistThreshold = 5
+                local iMediumDistThreshold = 10
+                local iLongerDistThreshold = 15
+                local iFurtherDistMod
+                local bMightHaveBlockingBuildings = true
+                local bHaveJumpMovedLastCycle = false
+                if oUnit[M28UnitInfo.refiNavalPathingStuckCountByZone][iStartWaterZone] >= 4 then iShortDistThreshold = 15 iMediumDistThreshold = 20 iLongerDistThreshold = 30 end
                 while M28UnitInfo.IsUnitValid(oUnit) and iCurPathProgress <= iLastPathEntry do
                     --Get dist to current path point
+                    if iCurViaPathAttemptCount >= 8 and not(bMightHaveBlockingBuildings) and iCurPathProgress < iLastPathEntry then
+                        --If not had blocking buildings, and not waiting to ctrlk a building, then increase threshold at which we attempt going to the next path
+                        iFurtherDistMod = math.min(60, iCurViaPathAttemptCount)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurViaPathAttemptCount='..iCurViaPathAttemptCount..'; iFurtherDistMod='..iFurtherDistMod) end
+                    else
+                        iFurtherDistMod = 0
+                    end
                     iDistToCurPath = M28Utilities.GetDistanceBetweenPositions(tFullPath[iCurPathProgress], oUnit:GetPosition())
-                    if iDistToCurPath <= 5 or (iDistToCurPath <= 15 and iCurPathProgress == iLastPathEntry) then
+                    if iDistToCurPath <= iShortDistThreshold + iFurtherDistMod or (iCurPathProgress == iLastPathEntry and iDistToCurPath <= iLongerDistThreshold) then
                         iCurPathProgress = iCurPathProgress + 1
                         if iCurPathProgress > iLastPathEntry then break
-                        --Decided to remove below commented lines as had scenario where both the core WZ and adj WZ had blockage issues
-                        --[[elseif iCurPathProgress == iLastPathEntry and oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iClosestWZ then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Are in the target WZ so aborting loop') end
-                            break--]]
+                            --Decided to remove below commented lines as had scenario where both the core WZ and adj WZ had blockage issues
+                            --[[elseif iCurPathProgress == iLastPathEntry and oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iClosestWZ then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Are in the target WZ so aborting loop') end
+                                break--]]
                         end
                         M28Orders.IssueTrackedMove(oUnit, tFullPath[iCurPathProgress], 0, false, 'StuckPth'..iCurPathProgress, true)
                         iViaPathCountBeforeCtrlKCheck = 0
-                    elseif iDistToCurPath <= 10 then
-                        M28Orders.IssueTrackedMove(oUnit, tFullPath[iCurPathProgress], 0, false, 'StuckPth'..iCurPathProgress, true)
+                        iCurViaPathAttemptCount = 0
+                        bMightHaveBlockingBuildings = false
+                    elseif iDistToCurPath <= iMediumDistThreshold + iFurtherDistMod then
+                        M28Orders.IssueTrackedMove(oUnit, tFullPath[iCurPathProgress], 0, false, 'StuckMPth'..iCurPathProgress, true)
                         iViaPathCountBeforeCtrlKCheck = 0
+                        iCurViaPathAttemptCount = 0
+                        bMightHaveBlockingBuildings = false
                     else
                         --Move towards cur path
                         iAngleToPath = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tFullPath[iCurPathProgress])
@@ -7083,11 +7154,14 @@ function MoveStuckNavalUnitToNearbyZone(oUnit, iStartWaterZone)
                             tViaPointToPath[2] = GetSurfaceHeight(tViaPointToPath[1], tViaPointToPath[3])
                             --Consider ctrlking blocking factories/units
                             iViaPathCountBeforeCtrlKCheck = iViaPathCountBeforeCtrlKCheck + 1
+                            iCurViaPathAttemptCount = iCurViaPathAttemptCount + 1
                             M28Orders.IssueTrackedMove(oUnit, tViaPointToPath, 3, false, 'StuckPthVia'..iCurPathProgress, true)
                             tViaPathPosition[iViaPathCountBeforeCtrlKCheck] = oUnit:GetPosition()
                             if bDebugMessages == true then LOG(sFunctionRef..': iViaPathCountBeforeCtrlKCheck='..iViaPathCountBeforeCtrlKCheck) end
                             if iViaPathCountBeforeCtrlKCheck >= 6 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tViaPathPosition[iViaPathCountBeforeCtrlKCheck - 1]) <= 0.5 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tViaPathPosition[iViaPathCountBeforeCtrlKCheck - 4]) <= 0.5 then
+                                local bIssuedKillOrder = false
                                 local tMidpointForViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToPath, 5, false, false, false)
+                                bMightHaveBlockingBuildings = false
                                 if M28Utilities.IsTableEmpty(tMidpointForViaPoint) == false then
                                     if not(tStartWZTeamData[M28Map.subrefWZTimeLastDestroyedForStuckNavy]) and iViaPathCountBeforeCtrlKCheck >= 30 then tStartWZTeamData[M28Map.subrefWZTimeLastDestroyedForStuckNavy] = GetGameTimeSeconds() end --if stuck a while then set the flag even if not ctrlkd anything
                                     --Tried below with range of 5 but wasnt triggering consistently enough
@@ -7095,14 +7169,16 @@ function MoveStuckNavalUnitToNearbyZone(oUnit, iStartWaterZone)
 
                                     if bDebugMessages == true then LOG(sFunctionRef..': Is tBlockingUnits empty='..tostring(M28Utilities.IsTableEmpty(tBlockingUnits))) end
                                     if M28Utilities.IsTableEmpty(tBlockingUnits) == false then
+                                        bMightHaveBlockingBuildings = true
                                         tStartWZTeamData[M28Map.subrefWZTimeLastDestroyedForStuckNavy] = GetGameTimeSeconds()
                                         for iBlocker, oBlocker in tBlockingUnits do
                                             if oBlocker:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active) then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Considerinb oBlocker='..oBlocker.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBlocker)..'; work progress='..oBlocker:GetWorkProgress()) end
-                                                if not(oBlocker.GetWorkProgress) or oBlocker:GetWorkProgress() <= 0.1 then
+                                                if not(oBlocker.GetWorkProgress) or oBlocker:GetWorkProgress() <= 0.15 or oBlocker:IsUnitState('Upgrading') then
                                                     iViaPathCountBeforeCtrlKCheck = 0 --i.e. dont reset if progress is higher, so we can ctrl-k sooner
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Potentially blocking building, oBlocker='..oBlocker.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBlocker)..'; will try and kill') end
                                                     M28Orders.IssueTrackedKillUnit(oBlocker)
+                                                    bIssuedKillOrder = true
                                                 end
                                             end
                                         end
@@ -7110,12 +7186,34 @@ function MoveStuckNavalUnitToNearbyZone(oUnit, iStartWaterZone)
                                         iViaPathCountBeforeCtrlKCheck = 0
                                     end
                                 end
+                                if not(oUnit[M28UnitInfo.refbUnitInStuckPondMass]) and not(bIssuedKillOrder) then
+                                    RecordStuckMassInPond()
+                                end
                             end
                         else
                             M28Orders.IssueTrackedMove(oUnit, tFullPath[iCurPathProgress], 0, false, 'StuckPth'..iCurPathProgress, true)
                         end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering path progress for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPathProgress='..iCurPathProgress..'; Dist to path position='..M28Utilities.GetDistanceBetweenPositions(tFullPath[iCurPathProgress], oUnit:GetPosition())..'; iLastPathEntry='..iLastPathEntry..'; time='..GetGameTimeSeconds()) end
+                    if iCurViaPathAttemptCount >= 15 and oUnit[M28UnitInfo.refbUnitInStuckPondMass] and not(bMightHaveBlockingBuildings) and not(oUnit[M28UnitInfo.refbEasyBrain]) then
+                        if bHaveJumpMovedLastCycle then
+                            bHaveJumpMovedLastCycle = false
+                        else
+                            --Edge towards target
+                            local iMaxSpeed = math.min(4, math.max(1, math.floor(oUnit:GetBlueprint().Physics.MaxSpeed)))
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider manually moving the unit forward to get over obstacle') end
+                            for iDistToMove = 1,iMaxSpeed, 1 do
+                                local tJumpPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tFullPath[iCurPathProgress]), iDistToMove, true, false, M28Map.bIsCampaignMap)
+                                if M28Utilities.IsTableEmpty(tJumpPoint) == false and GetTerrainHeight(tJumpPoint[1], tJumpPoint[3]) < GetSurfaceHeight(tJumpPoint[1], tJumpPoint[3]) and NavUtils.GetLabel(M28Map.refPathingTypeNavy, tJumpPoint) == NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition()) then
+                                    --Jump forwards
+                                    if bDebugMessages == true then LOG(sFunctionRef..': WIll jump unit forward, iDistToMove='..iDistToMove..'; iMaxSpeed='..iMaxSpeed) end
+                                    Warp(oUnit, tJumpPoint, oUnit:GetOrientation())
+                                    bHaveJumpMovedLastCycle = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering path progress for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPathProgress='..iCurPathProgress..'; Dist to path position='..M28Utilities.GetDistanceBetweenPositions(tFullPath[iCurPathProgress], oUnit:GetPosition())..'; iLastPathEntry='..iLastPathEntry..'; time='..GetGameTimeSeconds()..'; bMightHaveBlockingBuildings='..tostring(bMightHaveBlockingBuildings)..'; iCurViaPathAttemptCount='..iCurViaPathAttemptCount) end
                     WaitSeconds(1)
                 end
             end

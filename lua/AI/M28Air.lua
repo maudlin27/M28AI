@@ -13436,7 +13436,7 @@ function AttackTargetForMexHuntingBomber(oBomber, bCalledFromOnBombFired, oOptio
     --Searches for a target for the bomber, and gives an order to attack the target, considering microing to turn where relevant
     --returns true if found a target
     --bCalledFromOnBombFired - e.g. if this is called from the bomber on-bomb fired event, this should be true (so if we expect the bomb to kill the target we can ignore this and pick a new one)
-    --bIsThisTheSecondCycle - if true then we called this once and failed to find a target, so are callign again with looser conditions
+    --bIsThisTheSecondCycle - if this is true then we called this once and failed to find a target, so are callign again with looser conditions
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AttackTargetForMexHuntingBomber'

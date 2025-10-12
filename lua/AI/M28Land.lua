@@ -4898,7 +4898,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack - Considering if want oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to pick a target for a manual attack, unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Is table of nearby enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; Can we see nearest enemy to midpoint='..tostring(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oNearestEnemyToFriendlyBase))..'; Dist to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition())..'; Is unit shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; refiTimeOfLastUnblockedShot='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')..'; bConsiderAttackingACU='..tostring(bConsiderAttackingACU)) end
 
         --Monkeylord, GC and Ythotha - prioritise enemy ACUs that we are clsoe to being in range of, unless the ACU is very powerful
-        if (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] <= 64 and (oUnit[M28UnitInfo.refiDFRange] <= 50 or oUnit.UnitId == 'url0402') then --IF CHANGING HERE THEN CHANGE BELOW AS WELL
+        if (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiCombatRange] <= 64 and (oUnit[M28UnitInfo.refiDFRange] <= 50 or oUnit.UnitId == 'url0402') and oUnit:GetMaxHealth() >= 40000 then --IF CHANGING HERE THEN CHANGE BELOW AS WELL
             if not(oClosestFatboyOrACUInIslandToSuicideInto) and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
                 --Consider suiciding into enemy ACU with experimentals only
                 local iClosestACU
@@ -4927,7 +4927,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                 end
                 if oClosestACUNearUnit then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will launch micro logic to suicide into enemy ACU') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack Will launch micro logic to suicide into enemy ACU') end
                     --Suicide into this ACU as special micro logic (so dont get given new orders)
                     ForkThread(M28Micro.SuicideExperimentalIntoEnemyACU, oUnit, oClosestACUNearUnit)
                     return oClosestACUNearUnit, true
@@ -4938,7 +4938,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         --ACU snipe target that are in range of
         if bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or ((oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat, oUnit.UnitId))) then
             --Are we almost 5 within range of the ACU/fatboy target, and it is an ACU (as for a fatboy t might be good to get close so we are under the shield)? if so then have as manual attack target
-            if bDebugMessages == true then LOG(sFunctionRef..': Dist to oClosestFatboyOrACUInIslandToSuicideInto='..M28Utilities.GetDistanceBetweenPositions(oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), oUnit:GetPosition())..'; Combat range='..oUnit[M28UnitInfo.refiCombatRange]) end
+            if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack Dist to oClosestFatboyOrACUInIslandToSuicideInto='..M28Utilities.GetDistanceBetweenPositions(oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), oUnit:GetPosition())..'; Combat range='..oUnit[M28UnitInfo.refiCombatRange]) end
             if M28Utilities.GetDistanceBetweenPositions(oClosestFatboyOrACUInIslandToSuicideInto:GetPosition(), oUnit:GetPosition()) < (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) - 5 then
                 return oClosestFatboyOrACUInIslandToSuicideInto, false
             end
@@ -5141,6 +5141,26 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if iClosestDist > oUnit[M28UnitInfo.refiDFRange] or not(M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit, false)) then
                     bMoveTowardsTarget = true
                 end
+            end
+        end
+        --Blocked longer ranged non-exp but still valuable DF units (since exp already run more detailed logic above I think) - consider manual target on dangerous enemy in range of us; example that prompted this was salems ignoring enemy SACUs (nearst non-combat unit had cliff blockign shots, salems wanted to advance to enemy nearby exp that wasnt yet in range, allowing sacus to get free kill)
+        if not(oManualAttackTarget) and (oUnit[M28UnitInfo.refiDFRange] or 0) > 35 and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) < 15000 and oUnit[M28UnitInfo.refiUnitMassCost] >= 400 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Longer ranged non-Exp DF unit - considering if it is in range of an enemy unit, in which case consider manually attacking that enemy unit') end
+            local iDistToEnemy
+            if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+                iDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering refoClosestEnemyFromLastCloseToEnemyUnitCheck, iDistToEnemy='..iDistToEnemy) end
+                if ((iDistToEnemy < oUnit[M28UnitInfo.refiCombatRange] - 10) or (iDistToEnemy < oUnit[M28UnitInfo.refiCombatRange] and iDistToEnemy <= 2 + (oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] or 0))) and oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] > 0 and not(M28Logic.IsShotBlocked(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, nil)) then
+                    oManualAttackTarget = oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]
+                end
+            end
+            if not(oManualAttackTarget) and oNearestEnemyToFriendlyBase and not(oNearestEnemyToFriendlyBase == oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+                iDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase:GetPosition(), oUnit:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering oNearestEnemyToFriendlyBase, iDistToEnemy='..iDistToEnemy) end
+                if ((iDistToEnemy < oUnit[M28UnitInfo.refiCombatRange] - 10) or (iDistToEnemy < oUnit[M28UnitInfo.refiCombatRange] and iDistToEnemy <= 2 + (oNearestEnemyToFriendlyBase[M28UnitInfo.refiCombatRange] or 0))) and oNearestEnemyToFriendlyBase[M28UnitInfo.refiCombatRange] > 0 and not(M28Logic.IsShotBlocked(oUnit, oNearestEnemyToFriendlyBase, false, nil)) then
+                    oManualAttackTarget = oNearestEnemyToFriendlyBase
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': oManualAttackTarget after check='..(oManualAttackTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oManualAttackTarget) or 'nil')) end
             end
         end
         return oManualAttackTarget, bMoveTowardsTarget
@@ -5466,7 +5486,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then RecordAttackingExperimental(tLZTeamData, oUnit) end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' should do attack order on ACU or move to it, iClosestACU='..iClosestACU..'; oUnit[M28UnitInfo.refiDFRange]='..oUnit[M28UnitInfo.refiDFRange]..'; oUnit[M28UnitInfo.refbLastShotBlocked]='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Do we expect shot to be blocked='..tostring(M28Logic.IsShotBlocked(oUnit, oClosestACUToAttack))..'; iDistToBeInRange='..iDistToBeInRange) end
 
-                if (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiDFRange] <= 64 and (oUnit[M28UnitInfo.refiDFRange] <= 50 or oUnit.UnitId == 'url0402') then --IF CHANGING HERE THEN CHANGE ABOVE AS WELL
+                if (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiCombatRange] <= 64 and (oUnit[M28UnitInfo.refiDFRange] <= 50 or oUnit.UnitId == 'url0402') and oUnit:GetMaxHealth() >= 40000 then --IF CHANGING HERE THEN CHANGE ABOVE AS WELL
                     ForkThread(M28Micro.SuicideExperimentalIntoEnemyACU, oUnit, oClosestACUToAttack)
                 end
                 if (oUnit[M28UnitInfo.refiCombatRange] or 0) - iClosestACU >= iDistToBeInRange and (not(oUnit[M28UnitInfo.refbLastShotBlocked]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId)) or (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 or not(M28Logic.IsShotBlocked(oUnit, oClosestACUToAttack)))) then --ACU more than 5 inside our range - attack it unless our shot is blocked
@@ -8934,8 +8954,16 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will advance towards closest experimental='..(oNearestEnemyExp.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyExp) or 'nil')..'; iClosestEnemyExpDist='..iClosestEnemyExpDist..'; tTargetToMoveTowards='..repru(tTargetToMoveTowards)) end
                                             end
                                             if not(tTargetToMoveTowards) then tTargetToMoveTowards = {oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam][1], oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam][2], oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam][3]} end
-
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to advance to enemy experimental, bMoveTowardsExperimental='..tostring(bMoveTowardsExperimental)) end
+                                            --If shot is blocked then move instad of attack move
+                                            if oUnit[M28UnitInfo.refbLastShotBlocked] and not(bMoveTowardsExperimental) then
+                                                if not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitId)) or (iFriendlyBestMobileIndirectRange == 0 or tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] < tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.2 or iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 3) and (iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 1.75 or tLZTeamData[M28Map.refbIslandBeachhead] or (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) and iAvailableCombatUnitThreat > GetEnemyCombatThreatInAdjacentZones() * 0.9)) then
+                                                    bMoveTowardsExperimental = true
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Shot is blocked so will mov towards the experimental') end
+                                                else
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Shot is blocked but not sure we want to move closer') end
+                                                end
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to advance to enemy experimental, bMoveTowardsExperimental='..tostring(bMoveTowardsExperimental)..'; oUnit[M28UnitInfo.refbLastShotBlocked]='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked])) end
                                             if bMoveTowardsExperimental then
                                                 M28Orders.IssueTrackedMove(oUnit, tTargetToMoveTowards, 6, false, 'ExpM'..iLandZone)
                                             else
