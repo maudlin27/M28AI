@@ -729,6 +729,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     if bDebugMessages == true then LOG(sFunctionRef..': Going second air due to map size or travel distance, unless have lots of mass stored and wnat a land fac quickly to spend the mass') end
                     if aiBrain:GetEconomyStoredRatio('MASS') >= 0.4 and M28Map.iMapSize <= 800 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and iLandTravelDistanceToEnemyBase <= 600 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) < 2 then
                         --Dont go second air
+                    elseif tLZOrWZData[M28Map.subrefLZOrWZMexCount] > 12 then
+                        --Dont go second air as lots of mexes
                     else
                         bGoSecondAir = true
                     end
@@ -5570,7 +5572,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
         if bDebugMessages == true then LOG(sFunctionRef..': Targeting mobile unit, bHaveAltTarget='..tostring(bHaveAltTarget)..'; tBestTarget='..repru(tBestTarget)) end
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bJustCheckIfLocationWithLowPDThreat='..tostring(bJustCheckIfLocationWithLowPDThreat or false)..'; if true then will return false; tBestTarget='..repru(tBestTarget)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bJustCheckIfLocationWithLowPDThreat='..tostring(bJustCheckIfLocationWithLowPDThreat or false)..'; if this is true then will return false; tBestTarget='..repru(tBestTarget)) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     if bJustCheckIfLocationWithLowPDThreat then return false
@@ -6639,7 +6641,7 @@ function GetACUOrder(aiBrain, oACU)
                             if not(bHaveNearbyExperimentalOrder) and (not(bConsiderMexesAndReclaim) or (not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 15)) and not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, M28UnitInfo.GetUnitHealthPercent(oACU) < 0.75, 20)))) then
 
                                 --Consider using old rally point if new one is further from base and <60s since we have retreated
-                                if true and GetGameTimeSeconds() >= 9*60+40 and oACU[reftLastRallyPointRanTo] and oACU[refiTimeLastWantedToRun] and GetGameTimeSeconds() - oACU[refiTimeLastWantedToRun] <= 60 then
+                                if oACU[reftLastRallyPointRanTo] and oACU[refiTimeLastWantedToRun] and GetGameTimeSeconds() - oACU[refiTimeLastWantedToRun] <= 60 then
                                     local iCurDistToBase = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
                                     local iPreviousDistToBase = M28Utilities.GetDistanceBetweenPositions(oACU[reftLastRallyPointRanTo], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering using old rally point if its closer to our base than current rally point, iCurDistToBase='..iCurDistToBase..'; iPreviousDistToBase='..iPreviousDistToBase) end

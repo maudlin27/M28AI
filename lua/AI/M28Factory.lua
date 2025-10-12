@@ -1910,12 +1910,16 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --T1 factory that has built loads of units or is in a location for fortifying (with access to T2 tech already) - consider upgrading
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to upgrade T1 factory to T2 due to having built lots of units, enemies in this zone empty='..tostring( M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Tech level='..iFactoryTechLevel..'; M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]))..'; Lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true)) end
-    if iFactoryTechLevel == 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and not(M28Conditions.HaveLowPower(iTeam)) then
+    if iFactoryTechLevel == 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and
+            --Either dont want low power, or want enough gross E that we shoud really be thinking of getting T2 for t2 pgen even if we have low power (to avoid being stuck at t1 for ages building t1 pgens)
+            (not(M28Conditions.HaveLowPower(iTeam)) or
+                (aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 100 * aiBrain[M28Economy.refiBrainResourceMultiplier] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and oFactory[refiTotalBuildCount] >= 15 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) then
         local iLifetimeCountWanted = 35
         if not(bHaveLowMass) then
             iLifetimeCountWanted = iLifetimeCountWanted - 8
             if aiBrain[M28Economy.refiGrossMassBaseIncome] >= 7 then iLifetimeCountWanted = iLifetimeCountWanted - 7 end
         end
+        if bHaveLowPower then iLifetimeCountWanted = iLifetimeCountWanted + 8 end
         if M28Map.bIsCampaignMap then iLifetimeCountWanted = iLifetimeCountWanted - 16
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 3 then iLifetimeCountWanted = iLifetimeCountWanted - 9
         end

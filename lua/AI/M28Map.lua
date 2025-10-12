@@ -1070,7 +1070,7 @@ function GetSegmentGroupOfLocation(sPathing, tLocation)
     return NavUtils.GetLabel(sPathing, tLocation)
 end
 
-local function RecordMexForPathingGroup()
+local function RecordMexForPathingGroup(bCallingAgainForMexFreeMap)
     --Cycles through every mex on the map, and includes it in a table of mexes that is grouped by pathing type, so in future we can easily cycle through mexes for a particular pathing type
     --e.g. after running this, can use tMexByPathingAndGrouping[sPathing][iPathingGroup] where sPathing is the refPathingType variable, and ipathingGroup is the NavUtils.GetLabel(sPathing, tLocation) reference
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1129,7 +1129,56 @@ local function RecordMexForPathingGroup()
                 if bDebugMessages == true then LOG(sFunctionRef..': iValidCount='..iValidCount..'; sPathing='..sPathing..'; iCurResourceGroup='..iCurResourceGroup..'; just added tMexLocation='..repru(tMexLocation)..' to this group') end
             end
         end
-        if sPathing == refPathingTypeLand and iValidCount == 0 then M28Utilities.ErrorHandler('Dont have any mexes recording for land pathing type', true) end
+        if sPathing == refPathingTypeLand and iValidCount == 0 then
+            --Metal world mod - removes mexes and allows them to be built anywhere
+            if not(bCallingAgainForMexFreeMap) then
+                --Is metal world mod active?
+                local bMetalModActive = false
+                local tSimMods = __active_mods or {}
+                for iMod, tModData in tSimMods do
+                    if tModData.enabled and not (tModData.ui_only) and tModData.name == 'Metal World' then
+                        bMetalModActive = true
+                        break
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for if metal world is an active sim mod, bMetalModActive='..tostring(bMetalModActive)) end
+                if not(bMetalModActive) then
+                    --Can we build a mex somewhere?
+                    local oM28Brain
+                    for iBrain, oBrain in ArmyBrains do
+                        if oBrain.M28AI then
+                            oM28Brain = oBrain
+                            break
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we can build mexes at various random points on map, oM28Brain='..(oM28Brain.Nickname or 'nil')) end
+                    if oM28Brain then
+                        local bCanBuildEverywhere = true
+                        for iMapPositionX = 50, math.min(250, iMapSize), 50 do
+                            for iMapPositionZ = 50, math.min(250, iMapSize), 50 do
+                                if not(oM28Brain:CanBuildStructureAt('ueb1103', {iMapPositionX, GetTerrainHeight(iMapPositionX, iMapPositionZ), iMapPositionZ})) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Unable to build at position X='..iMapPositionX..'Z='..iMapPositionZ) end
+                                    bCanBuildEverywhere = false
+                                    break
+                                elseif bDebugMessages == true then LOG(sFunctionRef..': can build at position X='..iMapPositionX..'Z='..iMapPositionZ..'; will keep searching')
+                                end
+                            end
+                            if not(bCanBuildEverywhere) then break end
+                        end
+                        bMetalModActive = bCanBuildEverywhere
+                    end
+                end
+                if not(bMetalModActive) then
+                    M28Utilities.ErrorHandler('Dont have any mexes recording for land pathing type and no metal world type mod', true)
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Metal world or similar mod active so will rerecord mexes') end
+                    CreateMexPositionsInLandZones()
+                    RecordMexForPathingGroup(true)
+                end
+            else
+                M28Utilities.ErrorHandler('Dont have any mexes recording for land pathing type even after rerunning', true)
+            end
+        end
     end
     if bHadInvalidMex then
         local iBaseSegmentX, iBaseSegmentZ, iDistAdjust, iPossiblePlateau, iPossibleIsland, iPossiblePond, bFoundAlternative
@@ -9874,4 +9923,114 @@ function ReassessCivilianAIStartPositions()
             end
         end
     end
+end
+
+function CreateMexPositionsInLandZones()
+    --Intended for mods like metal world which make mexes buildable anywhere
+    local sFunctionRef = 'CreateMexPositionsInLandZones'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    tbIslandHasStartPositionInIt = {}
+    ttPlayerStartPositions = {}
+    local iCurIsland
+    local iStartPositionAdjust = 24
+    local iMexDistFromOtherMex = 4
+    tiBaseMexGroupings = {}
+    local iCurTerrainHeight
+    function CreateMexGroupingAroundPosition(iIsland, iBaseX, iBaseZ, bBasePosition)
+        table.insert(tiBaseMexGroupings, {iBaseX, iBaseZ})
+        local iMaxAdjust
+        if bBasePosition then iMaxAdjust = iMexDistFromOtherMex * 2 else iMaxAdjust = iMexDistFromOtherMex end
+        for iCurX = iBaseX -iMaxAdjust, iBaseX + iMexDistFromOtherMex, iMexDistFromOtherMex do
+            for iCurZ = iBaseZ -iMaxAdjust, iBaseZ + iMexDistFromOtherMex, iMexDistFromOtherMex do
+                iCurTerrainHeight = GetTerrainHeight(iCurX, iCurZ)
+                if NavUtils.GetTerrainLabel(refPathingTypeLand, {iCurX, iCurTerrainHeight, iCurZ}) == iIsland then
+                    if bDebugMessages == true then M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation({iCurX, iCurTerrainHeight, iCurZ}, 1), nil, 200) end
+                    RecordResourcePoint('Mass',iCurX,iCurTerrainHeight,iCurZ,2)
+                end
+            end
+        end
+    end
+
+    for iBrain, oBrain in ArmyBrains do
+        if not(M28Conditions.IsCivilianBrain(oBrain)) then
+            local tStartPosition = GetPlayerStartPosition(oBrain)
+            table.insert(ttPlayerStartPositions, tStartPosition)
+            iCurIsland = NavUtils.GetTerrainLabel(refPathingTypeLand, tStartPosition)
+            if iCurIsland then tbIslandHasStartPositionInIt[iCurIsland] = true end
+            --Record mexes near this if in the same island, in 4 diagonal corners
+            for iBaseX = tStartPosition[1] - iStartPositionAdjust, tStartPosition[1] + iStartPositionAdjust, iStartPositionAdjust * 2 do
+                for iBaseZ = tStartPosition[3] - iStartPositionAdjust, tStartPosition[3] + iStartPositionAdjust, iStartPositionAdjust * 2 do
+                    if NavUtils.GetTerrainLabel(refPathingTypeLand, {iBaseX, GetTerrainHeight(iBaseX, iBaseZ), iBaseZ}) == iCurIsland then
+                        CreateMexGroupingAroundPosition(iCurIsland, iBaseX, iBaseZ, true)
+                    end
+                end
+            end
+        end
+    end
+    local iUnitSize = 60
+    local iAdjustIntervalSize = 10
+    local iMinDistanceFromStartPosition = 40
+    if iMapSize > 900 then iUnitSize = math.floor((iMapSize / 15)/10)*10 end
+    --Increase unit size if we have low unit cap
+    local iUnitCap
+    if ScenarioInfo.Options.UnitCap then iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
+    else iUnitCap = 1000
+    end
+    if iUnitCap <= 1100 and iMapSize / iUnitSize >= 10 then
+        iMinDistanceFromStartPosition = iMinDistanceFromStartPosition * 2
+        iUnitSize = math.floor((iMapSize / 10)/10)*10
+    elseif iMapSize > 900 then iMinDistanceFromStartPosition = iMinDistanceFromStartPosition * 1.5
+    end
+
+    local iXIntervalSize = math.floor((rMapPotentialPlayableArea[3] - rMapPotentialPlayableArea[1]) / iUnitSize) - 1
+    local iZIntervalSize = math.floor((rMapPotentialPlayableArea[4] - rMapPotentialPlayableArea[2]) / iUnitSize) - 1
+    local bNearPlayerStart
+    for iCurXInterval = 1, iXIntervalSize do
+        local iBaseX = iCurXInterval * iUnitSize + 0.5
+        for iCurZInterval = 1, iZIntervalSize do
+            local iBaseZ = iCurZInterval * iUnitSize + 0.5
+            --Check we arent near a start position grouping
+
+
+
+            --Check we can path, if not then try adjusting
+            iCurIsland = NavUtils.GetTerrainLabel(refPathingTypeLand, {iBaseX, GetTerrainHeight(iBaseX, iBaseZ), iBaseZ})
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurXInterval='..iCurXInterval..'; iCurZInterval='..iCurZInterval..'; iBaseX='..iBaseX..'; iBaseZ='..iBaseZ..'; iCurIsland='..(iCurIsland or 'nil')) end
+            if not(tbIslandHasStartPositionInIt[iCurIsland]) then
+                for iAdjustX = -iAdjustIntervalSize, iAdjustIntervalSize, iAdjustIntervalSize do
+                    for iAdjustZ = -iAdjustIntervalSize, iAdjustIntervalSize, iAdjustIntervalSize do
+                        if not(iAdjustX == 0 and iAdjustZ == 0) then
+                            iCurIsland = NavUtils.GetTerrainLabel(refPathingTypeLand, {iBaseX + iAdjustX, GetTerrainHeight(iBaseX + iAdjustX, iBaseZ + iAdjustZ), iBaseZ + iAdjustZ})
+                            if tbIslandHasStartPositionInIt[iCurIsland] then
+                                iBaseX = iBaseX + iAdjustX
+                                iBaseZ = iBaseZ + iAdjustZ
+                                break
+                            end
+                        end
+                    end
+                    if tbIslandHasStartPositionInIt[iCurIsland] then
+                        break
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': tbIslandHasStartPositionInIt[iCurIsland]='..tostring(tbIslandHasStartPositionInIt[iCurIsland] or false)..'; iBaseX='..iBaseX..'; iBaseZ='..iBaseZ) end
+            if tbIslandHasStartPositionInIt[iCurIsland] then
+                --CHeck not near a start position
+                bNearPlayerStart = false
+                for iEntry, tStartPosition in ttPlayerStartPositions do
+                    if M28Utilities.GetRoughDistanceBetweenPositions(tStartPosition, {iBaseX, 0, iBaseZ}) < iMinDistanceFromStartPosition then
+                        bNearPlayerStart = true
+                        break
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will record unless near player start, bNearPlayerStart='..tostring(bNearPlayerStart)) end
+                if not(bNearPlayerStart) then
+                    CreateMexGroupingAroundPosition(iCurIsland, iBaseX, iBaseZ)
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
