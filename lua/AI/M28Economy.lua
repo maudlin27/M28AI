@@ -1419,7 +1419,6 @@ function GetCategoryAndActionsToPauseWhenStalling(iTeam, bStallingMass, bPauseNo
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 100 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 + 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                 table.insert(tCategoryAndEngineerTables[1], M28UnitInfo.refCategoryT1Mex)
                 table.insert(tCategoryAndEngineerTables[2][3], M28Engineer.refActionBuildMex)
-                LOG('TEMPCODE including t1 mexes in untis to consider pausing')
             end
         end
         if not(bPauseNotUnpause) then
