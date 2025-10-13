@@ -4691,7 +4691,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         bSaveMassDueToEnemyFirebaseOrOurExperimental = M28Conditions.WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
     end
 
-
+    if iFactoryTechLevel >= 3 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false) .. '; Time since a factory in this LZ last built something=' .. GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastBuiltAtFactory] or -100) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; bHaveLowPower=' .. tostring(bHaveLowPower)..'; brain='..oFactory:GetAIBrain().Nickname..'; Net E (brain)='..aiBrain[M28Economy.refiNetEnergyBaseIncome]..'; GrossE='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; E % stored='..aiBrain:GetEconomyStoredRatio('ENERGY'))
@@ -5122,7 +5122,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     end
                 else
                     if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': enemy has approaching exp so will go and get gunship or bomber') end
+                        --If we have land exp of our own and dist is >=350 and we need torp bombers to deal with enemy navy then dont get gunships afterall once we have a baisc threat level
+                        if bDebugMessages == true then LOG(sFunctionRef..': enemy has approaching exp so will go and get gunship or bomber unless want torps instead') end
+                        if iClosestLandExp >= 250 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] > math.min(20000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * 0.25) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will get torp bombers as land exp could be closer and we have some gunship threat') end
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
+                        end
                         if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then return sBPIDToBuild end
                         if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
@@ -5689,6 +5694,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                             end
                         else
                             if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
+                                if iClosestLandExp >= 250 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] > math.min(20000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * 0.25) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will get torp bombers as the land exp could be closer and we have some gunship threat') end
+                                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
+                                end
                                 if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
                                 if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
                                 if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end
@@ -6029,7 +6038,11 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                             end
                         else
                             if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Approaching land exp so will get gunships or bombers') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Approaching land exp so will get gunships or bombers unless need torps for enemy navy') end
+                                if iClosestLandExp >= 250 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] > math.min(20000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * 0.25) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will get torp bombers as land exp could be closer and we have some gunship threat') end
+                                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
+                                end
                                 if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
                                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then return sBPIDToBuild end
                                 if ConsiderBuildingCategory(iBackupAirToGroundCategory) then return sBPIDToBuild end

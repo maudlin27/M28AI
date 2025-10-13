@@ -3350,7 +3350,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     local sFunctionRef = 'DoesEnemyHaveAAThreatAlongPath'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iEndLandOrWaterZone == 9 and GetGameTimeSeconds() >= 47*60+40 and M28Team.GetFirstActiveM28Brain(iTeam).M28Easy then bDebugMessages = true end
 
     --Calculate air travel path
     CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone)
@@ -6096,7 +6096,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageTorpedoBombers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if GetGameTimeSeconds() >= 47*60+40 and M28Team.GetFirstActiveM28Brain(iTeam).M28Easy then bDebugMessages = true end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftWaterZonesHasFriendlyTorps] = {}
     local tAvailableBombers, tBombersForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryTorpBomber - M28UnitInfo.refCategoryGunship, true)
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, false, false, true) + M28UnitInfo.GetAirThreatLevel(tBombersForRefueling, false, false, false, false, false, true) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, false, false, true)
@@ -6392,10 +6392,10 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                                 if bDebugMessages == true then LOG(sFunctionRef..': iAAThreatThreshold after reduction='..iAAThreatThreshold) end
                             end
                         end
-                        --Increase the threshold for high numbers of torpedo bombers (50+) where mod dist relatively low and distance also relatively low
-                        if iTorpBomberThreat >= 12000 and tWZTeamData[M28Map.refiModDistancePercent] <= 0.35 and (iDistance <= 200 or tWZTeamData[M28Map.refiModDistancePercent] <= 0.2) and iAAThreatThreshold < iTorpBomberThreat * 0.8 then
+                        --Increase the threshold for high numbers of torpedo bombers (30+) where mod dist relatively low and distance also relatively low
+                        if iTorpBomberThreat >= 8000 and tWZTeamData[M28Map.refiModDistancePercent] <= 0.35 and (iDistance <= 200 or tWZTeamData[M28Map.refiModDistancePercent] <= 0.25) and iAAThreatThreshold < iTorpBomberThreat * 0.9 then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have very large torpedo bomber threat so will increase AA threshold a bit, iAAThreatThreshold before increase='..iAAThreatThreshold..'; iTorpBomberThreat='..iTorpBomberThreat..'; iMassValueOfEnemyUnits='..iMassValueOfEnemyUnits) end
-                            iAAThreatThreshold = math.min(iTorpBomberThreat * 0.9, iAAThreatThreshold + (0.5 * math.max(0, iTorpBomberThreat - 24000)) + 0.3 * (math.min(24000, iTorpBomberThreat) - 12000), math.max(iMassValueOfEnemyUnits * 0.6, iAAThreatThreshold * 1.2))
+                            iAAThreatThreshold = math.min(iTorpBomberThreat * 0.9, iAAThreatThreshold + (0.5 * math.max(0, iTorpBomberThreat - 15000)) + 0.3 * (math.min(15000, iTorpBomberThreat) - 8000), math.max(iMassValueOfEnemyUnits * 0.6, iAAThreatThreshold * 1.2))
                         end
 
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..';  iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; iTorpBomberThreat='..iTorpBomberThreat..'; tWZTeamData[M28Map.refiModDistancePercent]='..tWZTeamData[M28Map.refiModDistancePercent]..'; iMassValueOfEnemyUnits='..iMassValueOfEnemyUnits..'; tWZTeamData[M28Map.refiEnemyTorpDefenceCount]='..(tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 'nil')..'; Enemy groundAA just in this water zone='..tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]) end
