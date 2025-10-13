@@ -5124,7 +5124,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
                         --If we have land exp of our own and dist is >=350 and we need torp bombers to deal with enemy navy then dont get gunships afterall once we have a baisc threat level
                         if bDebugMessages == true then LOG(sFunctionRef..': enemy has approaching exp so will go and get gunship or bomber unless want torps instead') end
-                        if iClosestLandExp >= 250 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] > math.min(20000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * 0.25) then
+                        if iClosestLandExp >= 250 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] > math.min(20000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * 0.25) and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] < M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will get torp bombers as land exp could be closer and we have some gunship threat') end
                             if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
                         end
@@ -5694,7 +5694,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                             end
                         else
                             if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
-                                if iClosestLandExp >= 250 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] > math.min(20000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * 0.25) then
+                                if iClosestLandExp >= 250 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] > math.min(20000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * 0.25) and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] < M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get torp bombers as the land exp could be closer and we have some gunship threat') end
                                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
                                 end
@@ -6039,7 +6039,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         else
                             if iClosestLandExp <= 500 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Approaching land exp so will get gunships or bombers unless need torps for enemy navy') end
-                                if iClosestLandExp >= 250 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] > math.min(20000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * 0.25) then
+                                if iClosestLandExp >= 250 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] > math.min(20000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] * 0.25) and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] < M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will get torp bombers as land exp could be closer and we have some gunship threat') end
                                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
                                 end
