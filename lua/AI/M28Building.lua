@@ -1888,7 +1888,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then bDebugMessages = true end
     if M28UnitInfo.IsUnitValid(oLauncher) and not(oLauncher[refbActiveMissileChecker]) then
         local aiBrain = oLauncher:GetAIBrain()
         local iSecondsToWaitIfNoTarget = 10
@@ -2385,10 +2385,13 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 --GetBestAOETarget(aiBrain, tBaseLocation,                              iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor, iOptionalReclaimFactor)
                                 tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, M28Map.GetPrimaryEnemyBaseLocation(aiBrain), iAOE, iDamage, bCheckForSMD,        oLauncher:GetPosition(),    nil,                                    nil,                2,                                  2.5,                    nil,                            nil,                                        nil,                            iReclaimFactor)
                                 RecordHaveConsideredNukeLocation(M28Map.GetPrimaryEnemyBaseLocation(aiBrain), true)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Not recently nuked primary enemy base, IsSMDBlockingTarget='..tostring(IsSMDBlockingTarget(aiBrain, tTarget, oLauncher:GetPosition(), iTimeSMDNeedsToHaveBeenBuiltFor))..'; bCheckForSMD='..tostring(bCheckForSMD)..'; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
                             end
 
                             --Cycle through other start positions to see if can get a better target, but reduce value of target if we havent scouted it in the last 5 minutes
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering best target for nuke.  If target enemy base then iBestTargetValue='..iBestTargetValue) end
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Considering best target for nuke.  If target enemy base then iBestTargetValue='..iBestTargetValue..'; bCheckForSMD='..tostring(bCheckForSMD))
+                            end
                             local iPlateauOrZero, iLandOrWaterZone
                             local bAbortLoop = false
                             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
