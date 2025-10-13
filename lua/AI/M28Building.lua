@@ -1171,7 +1171,10 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueTo
                             iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 4
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip * categories.AEON, oRecordedTML.UnitId) then
                             --Aeon missile ship
-                            iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 3
+                            iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 6
+                            --Cruisers
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oRecordedTML.UnitId) then
+                            iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 1.3
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryMML * categories.TECH2, oRecordedTML.UnitId) then
                             iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 0.75
                         elseif EntityCategoryContains(categories.EXPERIMENTAL, oRecordedTML.UnitId) then

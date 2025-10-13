@@ -166,6 +166,7 @@ refActionAttackMoveToLandZone = 78 --works similar to movetolandzone but with an
 refActionAssistQuantumGateway = 79
 refActionBuildSecondPD = 80
 refActionGiveEngineerToTeammate = 81 --Transfers engineer to subrefoBrainWantingEngi
+refActionBuildThirdTMD = 82 --used for T2 arti builder
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOntoTransport, refActionAssistShield}
 
@@ -221,6 +222,7 @@ tiActionCategory = {
     [refActionManageGameEnderTemplate] = refActionManageGameEnderTemplate, --Special case where if a category is equal to this variable then will apply this logic; done this way so we can convert a 'build experimental' action into this action
     [refActionBuildAirExperimental] = categories.AIR * categories.EXPERIMENTAL - M28UnitInfo.refCategoryTransport,
     [refActionAssistQuantumGateway] = M28UnitInfo.refCategoryQuantumGateway,
+    [refActionBuildThirdTMD] = M28UnitInfo.refCategoryTMD,
 }
 
 tiActionOrder = {
@@ -287,6 +289,7 @@ tiActionOrder = {
     [refActionRepairAllyUnit] = M28Orders.refiOrderIssueRepair,
     [refActionAttackMoveToLandZone] = M28Orders.refiOrderIssueAggressiveMove,
     [refActionAssistQuantumGateway] = M28Orders.refiOrderIssueGuard,
+    [refActionBuildThirdTMD] = M28Orders.refiOrderIssueBuild,
 }
 
 --Adjacent categories to search for for a particular action
@@ -336,7 +339,8 @@ tiIgnoreUnderConstructionThreshold = { --specify the number of under constructio
     [refActionBuildSecondExperimental] = 1, --have a manual override for this where we are building t3 arti or g ameender
     [refActionBuildSecondShield] = 1,
     [refActionManageGameEnderTemplate] = 100, --Dont want to try and search for buildings to assist with this action as will handle via special logic
-    [refActionBuildSecondTMD] = 1,
+    [refActionBuildSecondTMD] = 2, --Increased from 1 to make it more likely we build multiple tmd at once
+    [refActionBuildThirdTMD] = 3, --set to 3 as would rather have 2 engineers each trying to build a tmd than 1, due to risk of normal and second tmd builders ending up assisting this
 }
 
 tbIgnoreEngineerAssistance = { --Any actions where we dont want to assist an engineer already constructiong the building should go here; main purpose is building a mex
@@ -10016,7 +10020,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                             M28Utilities.DrawLocation(tBuildLocation)
                                         end
                                     end
-                                elseif vOptionalVariable and (iActionToAssign == refActionBuildTMD or iActionToAssign == refActionBuildSecondTMD) then
+                                elseif vOptionalVariable and (iActionToAssign == refActionBuildTMD or iActionToAssign == refActionBuildSecondTMD or iActionToAssign == refActionBuildThirdTMD) then
                                     --Build near the unit we want to protect (get blueprint will also factor in maxsearchrange based on the TMD range)
                                     if vOptionalVariable.UnitId then
                                         --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,                tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
@@ -20520,7 +20524,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
     local sFunctionRef = 'GiveOrderForEmergencyT2Arti'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Only want to get for core base or minor zones iwth lots of mexes that have a positive mod distance
-
+    if GetGameTimeSeconds() >= 25*60 and tLZTeamData[M28Map.subrefLZbCoreBase] and iLandZone == 5 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Is team stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Is team stalling power='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; refbBaseInSafePosition='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition] or false)..'; Time='..GetGameTimeSeconds()..'; Time of last T2 arti shot='..(tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 'nil')) end
     if tLZTeamData[M28Map.subrefLZbCoreBase] or
             ((tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and (tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4))) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiModDistancePercent] > 0.05) then
@@ -20899,6 +20903,20 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                             if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
                             HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tLZData[M28Map.subrefMidpoint])
                             iBPWanted = 0
+                        end
+                    end
+                    --TMD secnd builder
+                    if iBPWanted > 0 then
+                        --Consider TMD if enemy has significant cruiser threat nearby
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is reftUnitsWantingTMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))) end
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false then
+                            local oArtiWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone, false, M28UnitInfo.refCategoryFixedT2Arti, true)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want TMD for T2 arti, in which case prioritise over building more t2 arti, oArtiWantingTMD='..(oArtiWantingTMD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oArtiWantingTMD) or 'nil')) end
+                            if oArtiWantingTMD then
+                                HaveActionToAssign(refActionBuildThirdTMD, 2, iBPWanted, oArtiWantingTMD)
+                                iBPWanted = 0
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will get third TMD, so can get tmd for our T2 arti') end
+                            end
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we already ahve enough T2 arti threat, iThreatWanted='..iThreatWanted..'; iT2ArtiThreat='..iT2ArtiThreat..'; iNetThreatWanted='..iNetThreatWanted..'; HaveLowMass='..tostring(bHaveLowMass)..'; iBPWanted='..iBPWanted) end
