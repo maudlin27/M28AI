@@ -2595,7 +2595,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                                                         [3] = 'Transferred t1 mex to '..oClosestNonM28Brain.Nickname,
                                                         [4] = 'I\'ve just given you a mex '..oClosestNonM28Brain.Nickname,
                                                         [5] = 'Have this mex '..oClosestNonM28Brain.Nickname..', I hope this means we can be friends',
-                                                        [6] = 'My master says I must help my team more, so have a mex '..oClosestNonM28Brain.Nickname
+                                                        [6] = 'My master says I must help my team more, so have a mex '..oClosestNonM28Brain.Nickname,
+                                                        [7] = 'Given you a mex '..oClosestNonM28Brain.Nickname,
+                                                        [8] = 'Have this mex I\'ve just built '..oClosestNonM28Brain.Nickname
                                                     }
                                                     local sMessage = sPotentialMessages[math.random(1, table.getn(sPotentialMessages))] or sPotentialMessages[1]
                                                     --SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank, oOptionalOnlyBrainToSendTo)
