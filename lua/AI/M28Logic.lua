@@ -886,6 +886,7 @@ function GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckF
     local iMaxTargetDamage
     if aiBrain.M28Easy then
         iMaxTargetDamage = GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, nil, nil, iOptionalReclaimFactor)
+        if bOptionalCheckForSMD and M28Building.IsSMDBlockingTarget(aiBrain, tBaseLocation, tSMLLocationForSMDCheck, (iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 200), iSMDRangeAdjust) then iMaxTargetDamage = math.min(4000, iMaxTargetDamage) end
     else
         --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage)
         --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor)
@@ -896,7 +897,10 @@ function GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckF
         local iDistanceFromBase = 0
         local tPossibleTarget
         if bOptionalCheckForSMD and M28Building.IsSMDBlockingTarget(aiBrain, tBaseLocation, tSMLLocationForSMDCheck, (iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 200), iSMDRangeAdjust) then iMaxTargetDamage = math.min(4000, iMaxTargetDamage) end
-        if bDebugMessages == true then LOG(sFunctionRef..': Base damage with no adjustment='..iCurTargetDamage) end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Base damage with no adjustment='..iCurTargetDamage)
+            if bOptionalCheckForSMD then LOG(sFunctionRef..': Checking for SMD, is SMD covering tBaseLocation='..tostring(M28Building.IsSMDBlockingTarget(aiBrain, tBaseLocation, tSMLLocationForSMDCheck, (iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 200), iSMDRangeAdjust))) end
+        end
         for iCurDistanceCheck = iMaxDistanceChecks, 1, -1 do
             iDistanceFromBase = iAOE / iCurDistanceCheck
             for iAngle = 0, 360, 45 do
