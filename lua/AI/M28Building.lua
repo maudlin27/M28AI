@@ -1891,7 +1891,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then bDebugMessages = true end
+
     if M28UnitInfo.IsUnitValid(oLauncher) and not(oLauncher[refbActiveMissileChecker]) then
         local aiBrain = oLauncher:GetAIBrain()
         local iSecondsToWaitIfNoTarget = 10
