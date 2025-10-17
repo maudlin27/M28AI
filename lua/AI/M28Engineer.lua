@@ -13755,6 +13755,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                             if bDebugMessages == true then LOG(sFunctionRef..': Want to save mass for MMLs instead of trying to get PD') end
                             bWantToGetPD = false
                         end
+                        --Already have significant PD threat (e.g. approx 5 T2 PD) and our PD threat exceeds nearby enemey, and we have some mobile threat, and have low mass - reduce PD to get
+                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to not get after all, iClosestDist='..iClosestDist..'; bHaveLowMass='..tostring(bHaveLowMass)..'; subrefLZThreatAllyMobileDFTotal='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; subrefTThreatEnemyCombatTotal='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; GetHighestOtherTeamT3MexCount='..M28Conditions.GetHighestOtherTeamT3MexCount(iTeam)..'; Our team t3 count='..M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3]) end
+                        if bWantToGetPD and iCurPDThreat >= 5000 and iClosestDist > 60 and bHaveLowMass and iCurPDThreat > iEnemyThreat and not(aiBrain[M28Overseer.refbPrioritiseDefence]) and iCurPDThreat + tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > iEnemyThreat * 1.5 and iCurPDThreat > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 4 then
+                            --If are ahead on eco, or we have twice the enemy threat in PD, then dont build more pd
+                            if iCurPDThreat >= 2 * iEnemyThreat or (tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and iCurPDThreat >= 1.5 * iEnemyThreat)
+                                    or M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) > M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] then
+                                if bDebugMessages == true then LOG(sFunctionRef..': We probably have enough T2 PD and have low mass so will hold off getting more PD') end
+                                bWantToGetPD = false
+                            end
+                        end
                         if bDebugMessages == true then LOG(sFunctionRef..': bWantToGetPD='..tostring(bWantToGetPD)..'; iEnemyThreat='..iEnemyThreat..'; Highest tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
                         if bWantToGetPD then
                             iBPWanted = 40
@@ -13986,34 +13996,54 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
             local iEnemyThreatThatDoesntOutrangeUs = 0
             local iEnemyThreatThatDoesOutrangeUs = 0
+            local iCurZoneThreatThatOutrangesUs
+            local iCurZoneThreatThatWeOutrange
+            local iCurZoneThreatCap
             function UpdateEnemyThreatsByRange(tCurLZTeamData)
-                if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]) == false then
-                    for iRange, iThreat in tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] do
-                        if iRange > iOurBestPDRange then
-                            iEnemyThreatThatDoesOutrangeUs = iEnemyThreatThatDoesOutrangeUs + iThreat
-                        else
-                            iEnemyThreatThatDoesntOutrangeUs = iEnemyThreatThatDoesntOutrangeUs + iThreat
+                iCurZoneThreatCap = (tCurLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) + (tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)
+                if iCurZoneThreatCap > 0 then
+                    iCurZoneThreatThatOutrangesUs = 0
+                    iCurZoneThreatThatWeOutrange = 0
+                    if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]) == false then
+                        for iRange, iThreat in tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] do
+                            if iRange > iOurBestPDRange then
+                                iCurZoneThreatThatOutrangesUs = iCurZoneThreatThatOutrangesUs + iThreat
+                            else
+                                iCurZoneThreatThatWeOutrange = iCurZoneThreatThatWeOutrange + iThreat
+                            end
                         end
                     end
-                end
-                if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
-                    for iRange, iThreat in tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
-                        if iRange > iOurBestPDRange then
-                            iEnemyThreatThatDoesOutrangeUs = iEnemyThreatThatDoesOutrangeUs + iThreat
-                        else
-                            iEnemyThreatThatDoesntOutrangeUs = iEnemyThreatThatDoesntOutrangeUs + iThreat
+                    if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
+                        for iRange, iThreat in tCurLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
+                            if iRange > iOurBestPDRange then
+                                iCurZoneThreatThatOutrangesUs = iCurZoneThreatThatOutrangesUs + iThreat
+                            else
+                                iCurZoneThreatThatWeOutrange = iCurZoneThreatThatWeOutrange + iThreat
+                            end
                         end
                     end
+                    if iCurZoneThreatThatOutrangesUs > iCurZoneThreatCap then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Capping total threat for this zone, before cap iCurZoneThreatThatOutrangesUs='..iCurZoneThreatThatOutrangesUs..'; iCurZoneThreatCap='..iCurZoneThreatCap) end
+                        iCurZoneThreatThatOutrangesUs = iCurZoneThreatCap
+                    end
+                    if iCurZoneThreatThatWeOutrange > iCurZoneThreatCap then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Capping total threat for this zone, before cap iCurZoneThreatThatWeOutrange='..iCurZoneThreatThatWeOutrange..'; iCurZoneThreatCap='..iCurZoneThreatCap) end
+                        iCurZoneThreatThatWeOutrange = iCurZoneThreatCap
+                    end
+                    iEnemyThreatThatDoesntOutrangeUs = iEnemyThreatThatDoesntOutrangeUs + iCurZoneThreatThatWeOutrange
+                    iEnemyThreatThatDoesOutrangeUs = iEnemyThreatThatDoesOutrangeUs + iCurZoneThreatThatOutrangesUs
                 end
             end
             UpdateEnemyThreatsByRange(tLZTeamData)
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy threat in iAdjLZ='..iAdjLZ..'; subrefLZThreatEnemyMobileDFByRange='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatEnemyMobileDFByRange])..'; subrefLZThreatEnemyMobileIndirectByRange='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatEnemyMobileIndirectByRange])..'; subrefTThreatEnemyCombatTotal='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]..'; subrefLZThreatAllyMobileDFTotal='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatAllyMobileDFTotal]) end
                     UpdateEnemyThreatsByRange(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam])
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyThreatThatDoesOutrangeUs='..(iEnemyThreatThatDoesOutrangeUs or 'nil')..'; iEnemyThreatThatDoesntOutrangeUs='..iEnemyThreatThatDoesntOutrangeUs..'; iCurPDThreat='..iCurPDThreat) end
-            if (iEnemyThreatThatDoesntOutrangeUs >= 200 or tLZTeamData[M28Map.subrefbLZWantsDFSupport] or (not(bHaveLowMass) and not(bHaveLowPower)) or (iEnemyThreatThatDoesntOutrangeUs >= 100 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 600) or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0)) and (iEnemyThreatThatDoesOutrangeUs == 0 or (iEnemyThreatThatDoesOutrangeUs < 8000 and iCurPDThreat < iEnemyThreatThatDoesntOutrangeUs * 2 and (aiBrain[M28Overseer.refbPrioritiseDefence] or iCurPDThreat < iEnemyThreatThatDoesntOutrangeUs * 1.5))) then
+            if (iEnemyThreatThatDoesntOutrangeUs >= 200 or tLZTeamData[M28Map.subrefbLZWantsDFSupport] or (not(bHaveLowMass) and not(bHaveLowPower)) or (iEnemyThreatThatDoesntOutrangeUs >= 100 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 600) or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))
+                and (iEnemyThreatThatDoesOutrangeUs == 0 or (iEnemyThreatThatDoesOutrangeUs < 8000 and iCurPDThreat < iEnemyThreatThatDoesntOutrangeUs * 2 and (aiBrain[M28Overseer.refbPrioritiseDefence] or iCurPDThreat < iEnemyThreatThatDoesntOutrangeUs * 1.5))) then
                 iBPWanted = 60
                 if not(bHaveLowPower) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then iBPWanted = 100 end
                 local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oClosestUnit:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone, tLZData, tLZTeamData, 2)
@@ -14035,6 +14065,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Preemptive PD on larger maps if we have T3 mex and enemy has large threat, and has enemies in a zone adjacent to an adjacent zone
     iCurPriority = iCurPriority + 1
     --iCurPDThreat - if nil then means not enough of a concern to have calculated it above
+
     if bDebugMessages == true then LOG(sFunctionRef..': Preemptive PD builder, iCurPDThreat='..(iCurPDThreat or 'nil')..'; Map size='..M28Map.iMapSize..'; Enemy mobile DF threat near our side='..M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Our team total T3 mex count='..M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3]..'; Enemy T3 mex count='..M28Conditions.GetHighestOtherTeamT3MexCount(iTeam)..'; Cond 1 part 1='..tostring(iCurPDThreat and M28Map.iMapSize >= 700 and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= math.max(4000, iCurPDThreat * 2))..'; Cond 1 part 2='..tostring(not(bHaveLowPower) and (not(bHaveLowMass) or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10)..'; Cond 2='..tostring((iCurPDThreat < 4000 or (iCurPDThreat < 3000 + 1000 * tLZTeamData[M28Map.subrefMexCountByTech][3] and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or (not(tLZTeamData[M28Map.refbBaseInSafePosition]) and tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] > 2 + M28Conditions.GetHighestOtherTeamT3MexCount(iTeam))))) end
     --Cond 1 part 1
     if iCurPDThreat and (M28Map.iMapSize >= 700 or (M28Map.iMapSize >= 500 and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 8000)) and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= math.max(4000, iCurPDThreat * 2)
