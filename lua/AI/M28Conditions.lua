@@ -3312,7 +3312,11 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': For larger maps on LOUD/QUIET will consider override to delay upgrade, bWantMoreEngineers='..tostring(bWantMoreEngineers)..'; LOUD active='..tostring(M28Utilities.bLoudModActive)..'; Map size='..M28Map.iMapSize) end
-            if not(bWantMoreEngineers) and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(aiBrain[M28Overseer.refbPrioritiseHighTech]) then
+            --Redundancy for if we lost our HQ - if we have rebuilt with t3 mexes then want to be upgrading factories asap
+            if tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (oFactory[M28Factory.refiTotalBuildCount] or 0) >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false or M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT3] or M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] >= 2) then
+                bWantMoreEngineers = false
+                if bDebugMessages == true then LOG(sFunctionRef..': Have t3 mex and either we or opponent has experimental, and factory has built a few units') end
+            elseif not(bWantMoreEngineers) and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(aiBrain[M28Overseer.refbPrioritiseHighTech]) then
                 --LOUD favours slightly slower upgrades in favour of getting more mexes, so aim to have at least 3 mexes of a higher tech level first
                 local bWantMoreMexes = true
                 local iLifetimeCount = math.min(4, M28UnitInfo.GetUnitLifetimeCount(oFactory))
@@ -3353,6 +3357,7 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 end
             end
         end
+
         if not(bWantMoreEngineers) then
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.toActiveSnipeTargets]) == false and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then
                 local oACUToSnipe = GetNearbyACUForAirFacBomberSnipe(oFactory, aiBrain.M28Team)
