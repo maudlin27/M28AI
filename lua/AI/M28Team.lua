@@ -2894,8 +2894,32 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                             end
 
                             if bWantUpgrade and (iExistingBrainsWithHQUpgrades < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 0.5 or tTeamData[iM28Team][subrefiTeamMassStored] >= 450 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade a land factory HQ subject to how many units the factory has built') end
-                                M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestLandFactoryTech]), 7)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade a land factory HQ subject to how many units the factory has built, unless we are upgrading a land fac to t3 and still have t1 mexes, refiOurHighestLandFactoryTech='..oBrain[M28Economy.refiOurHighestLandFactoryTech]..'; refiMexCountByTech[3]='..tTeamData[iM28Team][refiMexCountByTech][3]..'; is reftEnemyLandExperimentals empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][reftEnemyLandExperimentals]))..'; refiGrossMassBaseIncome='..oBrain[M28Economy.refiGrossMassBaseIncome]..'; HaveLowMass='..tostring(M28Conditions.HaveLowMass(oBrain))..'; subrefiHighestEnemyAirTech='..tTeamData[iM28Team][subrefiHighestEnemyAirTech]..'; TeamHasLowMass='..tostring(M28Conditions.TeamHasLowMass(iM28Team))) end
+                                local bWantMoreMexesInBaseFirst = false
+                                if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and tTeamData[iM28Team][subrefiHighestEnemyAirTech] < 3 and tTeamData[iM28Team][refiMexCountByTech][3] < 2 and M28Utilities.IsTableEmpty(tTeamData[iM28Team][reftEnemyLandExperimentals]) and oBrain[M28Economy.refiGrossMassBaseIncome] < 15 and (M28Conditions.HaveLowMass(oBrain) or M28Conditions.TeamHasLowMass(iM28Team)) and GetGameTimeSeconds() <= 960 then
+                                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(oBrain), true, iM28Team)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': subrefMexCountByTech=T3:'..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; 2:'..tLZTeamData[M28Map.subrefMexCountByTech][2]..'; 1:'..tLZTeamData[M28Map.subrefMexCountByTech][1]..'; Is table of subrefLZOrWZMassStorageLocationsAvailable empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]))) end
+                                    if tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) == false and table.getn(tLZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) > 4 then
+                                        bWantMoreMexesInBaseFirst = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': We have mass storage available and have t1 mexes in our core base, and have low mass, so want to delay getting T3 land HQ for this brain unless enemy has built a number of t3 land units, bWantMoreMexesInBaseFirst='..tostring(bWantMoreMexesInBaseFirst)) end
+                                        for iEnemyTeam = 1, iTotalTeamCount do
+                                            if not(iEnemyTeam == iM28Team) then
+                                                if M28Conditions.GetTeamLifetimeBuildCount(iEnemyTeam, categories.DIRECTFIRE * categories.TECH3 + categories.INDIRECTFIRE * categories.TECH3) >= 2 then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy has built several T3 units so will get upgrade afterall') end
+                                                    bWantMoreMexesInBaseFirst = false
+                                                    break
+                                                end
+                                            end
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking enemy team T3 lifetime count, bWantMoreMexesInBaseFirst='..tostring(bWantMoreMexesInBaseFirst)) end
+                                    end
+                                end
+                                if bWantMoreMexesInBaseFirst then
+                                    --Do nothing
+                                else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and find land fac HQ to upgrade, bWantMoreMexesInBaseFirst='..tostring(bWantMoreMexesInBaseFirst)) end
+                                    M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestLandFactoryTech]), 7)
+                                end
                             elseif not(bWantUpgrade) then
                                 iExistingBrainsWithHQUpgrades = iExistingBrainsWithHQUpgrades + 1
                             end

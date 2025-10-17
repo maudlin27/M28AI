@@ -525,6 +525,20 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                         end
                         if oUnit[M28UnitInfo.refiIndirectRange] > 0 then
                             if not(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]) then tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] = {} end
+                            --Units that have both DF and indirect fire range, and significant threat, unless the IF range is significantly higiher than DF, reduce the threat given (one example being ACU with mod that gives it indirectfire attack)
+                            if iCurThreat > 100 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                                if oUnit[M28UnitInfo.refiDFRange] + 5 > oUnit[M28UnitInfo.refiIndirectRange] then
+                                    if iCurThreat > 1000 and oUnit[M28UnitInfo.refiDFRange] < 50 then
+                                        iCurThreat = iCurThreat * 0.2
+                                    else
+                                        iCurThreat = iCurThreat * 0.3
+                                    end
+                                elseif oUnit[M28UnitInfo.refiIndirectRange] < 50 then
+                                    iCurThreat = iCurThreat * 0.4
+                                else
+                                    iCurThreat = iCurThreat * 0.6
+                                end
+                            end
                             tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange][oUnit[M28UnitInfo.refiIndirectRange]] = (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange][oUnit[M28UnitInfo.refiIndirectRange]] or 0) + iCurThreat
                             tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] + iCurThreat
                         end

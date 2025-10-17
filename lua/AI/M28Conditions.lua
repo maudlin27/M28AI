@@ -1432,12 +1432,30 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
         else
             tiGrossMassWantedPerFactoryByTech[1] = 0.6
         end
-    elseif M28Map.iMapSize >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] < tLZData[M28Map.subrefLZOrWZMexCount] then
+    elseif M28Map.iMapSize >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and tLZTeamData[M28Map.refiModDistancePercent] <= 0.2 then
         for iTech, iValue in tiGrossMassWantedPerFactoryByTech do
             if not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.02) or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseHighTech] then
-                iValue = iValue * 2
+                tiGrossMassWantedPerFactoryByTech[iTech] = iValue * 2
             else
-                iValue = iValue * 1.5
+                tiGrossMassWantedPerFactoryByTech[iTech] = iValue * 1.5
+            end
+        end
+        --10km+ maps with lots of mexes in core base and not many in this zone - reduce factories wanted if we have reached t2 already but arent at t3
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': High mex in base astro style map check, subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; subrefLZOrWZMexCount='..tLZData[M28Map.subrefLZOrWZMexCount]..'; subrefMexCountByTech[3]='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; subrefiHighestFriendlyFactoryTech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]..'; refiEnemyMobileDFThreatNearOurSide='..M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]..'; refiAllyMobileDFThreatNearOurSide='..M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide]..'; refbFocusOnT1Spam='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])..'; subrefLZbCoreBase='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])) end
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.2 and tLZTeamData[M28Map.refiModDistancePercent] <= 0.35 and (tLZTeamData[M28Map.refiModDistancePercent] <= 0.25 or M28Map.iMapSize < 1000) and (tLZData[M28Map.subrefLZOrWZMexCount] <= 3 or tLZTeamData[M28Map.subrefLZbCoreBase]) and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and M28Map.iMapSize >= 512 and M28Map.iMapSize <= 1024 and iCurIsland == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] * 1.25 < M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] and not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) then
+            --Are we a 'high mex in safe position' map like astro? If so then want to prioritise eco over land units
+            local tBaseLZData, tBaseLZTeamData = M28Map.GetLandOrWaterZoneData(tLZTeamData[M28Map.reftClosestFriendlyBase], true, iTeam)
+            if bDebugMessages == true then LOG(sFunctionRef..': If majority of mexes are in our nearest base then reduce factories wanted, tBaseLZData[M28Map.subrefLZOrWZMexCount]='..tBaseLZData[M28Map.subrefLZOrWZMexCount]..'; subrefPlateauTotalMexCount='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauTotalMexCount]..'; subrefMexCountByTech][3]='..tBaseLZTeamData[M28Map.subrefMexCountByTech][3]) end
+            if tBaseLZTeamData and tBaseLZData[M28Map.subrefLZOrWZMexCount] >= 6 and tBaseLZData[M28Map.subrefLZOrWZMexCount] > M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauTotalMexCount] * (0.3 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and tBaseLZTeamData[M28Map.subrefMexCountByTech][3] < 2 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will reduce the number of factories wanted') end
+                for iTech, iValue in tiGrossMassWantedPerFactoryByTech do
+                    if not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.02) or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseHighTech] then
+                        tiGrossMassWantedPerFactoryByTech[iTech] = iValue * 2
+                    else
+                        tiGrossMassWantedPerFactoryByTech[iTech] = iValue * 1.5
+                    end
+                end
             end
         end
     end
@@ -1515,6 +1533,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
             end
         end
     end
+
     if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if close to unit cap, bDontWantDueToUnitCap='..tostring(bDontWantDueToUnitCap)..'; M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap]='..(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 'nil')..'; iAverageCurAirAndLandFactories='..iAverageCurAirAndLandFactories..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
 
     --Norush or eco slot at T2 and lower when arent overflowing mass
@@ -1745,7 +1764,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                     end
                 end
             end
-            --If only 1 air fac in zone and lack torp bombers, then get a second air fac
+            --If only 1 air fac in core zone and lack torp bombers, then get a second air fac
             local bDecided = false
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want 2 air facs due to enemy torp bombers despite personality, iAirFacsInZone='..iAirFacsInZone..'; No avialable torps='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies])..'; Do we want air instead of land='..tostring(DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))) end
             if iAirFacsInZone <= 1 and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)  then
@@ -1989,6 +2008,10 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
     --First check in case of unit restrictions
     if M28Overseer.bAirFactoriesCantBeBuilt then
         if bDebugMessages == true then LOG(sFunctionRef..': Air factories seem to be disabled so wont try to build') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return false
+    elseif not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Not a core base so dont want air fac') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     else
@@ -3289,7 +3312,11 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': For larger maps on LOUD/QUIET will consider override to delay upgrade, bWantMoreEngineers='..tostring(bWantMoreEngineers)..'; LOUD active='..tostring(M28Utilities.bLoudModActive)..'; Map size='..M28Map.iMapSize) end
-            if not(bWantMoreEngineers) and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(aiBrain[M28Overseer.refbPrioritiseHighTech]) then
+            --Redundancy for if we lost our HQ - if we have rebuilt with t3 mexes then want to be upgrading factories asap
+            if tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (oFactory[M28Factory.refiTotalBuildCount] or 0) >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false or M28Team.tTeamData[iTeam][M28Team.refbEnemyHasHeavyLandT3] or M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] >= 2) then
+                bWantMoreEngineers = false
+                if bDebugMessages == true then LOG(sFunctionRef..': Have t3 mex and either we or opponent has experimental, and factory has built a few units') end
+            elseif not(bWantMoreEngineers) and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(aiBrain[M28Overseer.refbPrioritiseHighTech]) then
                 --LOUD favours slightly slower upgrades in favour of getting more mexes, so aim to have at least 3 mexes of a higher tech level first
                 local bWantMoreMexes = true
                 local iLifetimeCount = math.min(4, M28UnitInfo.GetUnitLifetimeCount(oFactory))
@@ -3330,6 +3357,7 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 end
             end
         end
+
         if not(bWantMoreEngineers) then
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.toActiveSnipeTargets]) == false and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then
                 local oACUToSnipe = GetNearbyACUForAirFacBomberSnipe(oFactory, aiBrain.M28Team)
