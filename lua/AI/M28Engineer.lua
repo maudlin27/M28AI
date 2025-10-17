@@ -11707,7 +11707,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
                 end
                 --Assist air fac if we lack air control, have <100 asf equivalent, enemy has an experimental air unit or retorer deathball, and we dont have lots of mass; if we are building an experimental in this zone and arent stalling mass then wont trigger
             elseif (not(M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory]) or GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] >= 10) and
-             ((M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) > 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.3 and M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] > 1)) and not(aiBrain[M28Overseer.refbPrioritiseLand]) and (not(aiBrain[M28Overseer.refbPrioritiseNavy]) or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0) and (((M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyAirExperimentals]) == false or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 25000) and not(M28Conditions.TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] < math.min(40000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) and (M28Conditions.TeamHasLowMass(iTeam) or (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 0) <= 30 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4))
+                    ((M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) > 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.3 and M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] > 1)) and not(aiBrain[M28Overseer.refbPrioritiseLand]) and (not(aiBrain[M28Overseer.refbPrioritiseNavy]) or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0) and (((M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyAirExperimentals]) == false or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 25000) and not(M28Conditions.TeamHasAirControl(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] < math.min(40000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) and (M28Conditions.TeamHasLowMass(iTeam) or (GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 0) <= 30 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4))
                     --Additional condition - Either are stalling mass/no mass stored, or we aren't building an experimental in this zone
                     and (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.01 or not(GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandOrWaterZone, false, 0, nil, false, nil, aiBrain.M28AirSubteam))))
                     --Alt - assist air fac if its the first 20m of Cybran M6 and czar not yet built
@@ -11762,6 +11762,7 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
                     elseif oFactoryToAssist then
                         fnHaveActionToAssign(refActionAssistNavalFactory, (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), oFactoryToAssist, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will build a naval fac') end
                         fnHaveActionToAssign(refActionBuildNavalFactory, (iMinTechLevelWanted or 3), (iBuildPowerWanted or 5), vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
                     end
                 else
@@ -18265,6 +18266,23 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                         if bHaveLowMass then
                             iExtraFactoriesValue = iExtraFactoriesValue * 0.5
                             if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iExtraFactoriesValue = math.min(1, iExtraFactoriesValue * 0.5) end
+                            --Take into account adjacent zone factories
+                            local iAdjacentZoneFacs = 0
+                            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                                for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                                    local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                    if tAdjWZTeamData[M28Map.refiTimeLastBuiltAtFactory] then
+                                        local tAdjFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tAdjWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                        if M28Utilities.IsTableEmpty(tAdjFactories) == false then
+                                            iAdjacentZoneFacs = iAdjacentZoneFacs + table.getn(tAdjFactories)
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iAdjacentZoneFacs='..iAdjacentZoneFacs..'; iExtraFactoriesValue before adj for this='..iExtraFactoriesValue) end
+                            if iAdjacentZoneFacs > 0 then
+                                iExtraFactoriesValue = math.max(iExtraFactoriesValue * 0.1, iExtraFactoriesValue - iAdjacentZoneFacs * 0.5)
+                            end
                         end
                         if bPrioritiseNonNavy then iExtraFactoriesValue = iExtraFactoriesValue * 0.5 end
                         iFactoriesWanted = math.min(5, iFactoriesWanted + iExtraFactoriesValue)
@@ -18293,6 +18311,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
     end
+
     --Other scenarios where we want factories
     if not(iFactoriesWanted) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) >= 1 then --i.e. we havent triggered the high priority builder - still work out if we want facs in this zone
         if M28Conditions.DelayNavyWhereLessImportant(aiBrain, tWZData, tWZTeamData, iTeam) then
@@ -18873,7 +18892,6 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     --Naval fac if this is a core WZ and we dont have any, but have engineers available, or we have lots of mass stored
     iCurPriority = iCurPriority + 1
     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-
     if bDebugMessages == true then LOG(sFunctionRef..': More naval fac if available engineers, iHighestTechEngiAvailable='..(iHighestTechEngiAvailable or 'nil')..'; iExistingWaterFactory='..iExistingWaterFactory..'; iFactoriesWanted='..iFactoriesWanted) end
     if iHighestTechEngiAvailable > 0 and iExistingWaterFactory < iFactoriesWanted and tWZTeamData[M28Map.subrefWZbCoreBase] then
         if bDebugMessages == true then
