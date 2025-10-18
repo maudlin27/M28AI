@@ -20516,6 +20516,7 @@ function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
                         end
                     --sometimes an area might appear to be on a cliff but could still fit a wall piece
                     elseif aiBrain:CanBuildStructureAt(sWallBP, tTargetLocation) then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return tTargetLocation
                     end
                 end
