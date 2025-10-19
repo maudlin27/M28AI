@@ -1021,7 +1021,28 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
             elseif bDebugMessages == true then LOG(sFunctionRef..': Dont want any support category for this LZ')
             end
             if not(iBaseCategoryWanted) and tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] then
-                iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
+                --can we reach the WZ with our units? (removed as only time had need of it the reason was map marker generation incorrectly thinking adjacent WZs were pathable on astro craters, but left commented out in case we arent doing this check when determining adjwz and want to reintroduce it)
+                --local bCanPathWithAmphibious = false
+                --if M28Utilities.IsTableEmpty(tTargetLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                    --for _, tAdjWZDetails in tTargetLZData[M28Map.subrefAdjacentWaterZones] do
+                        --if bDebugMessages == true then LOG(sFunctionRef..': Considering if we can reach adjWZ '..tAdjWZDetails[M28Map. subrefAWZRef]..' with Plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover,  M28Map.tPondDetails[M28Map.tiPondByWaterZone[tAdjWZDetails[M28Map. subrefAWZRef]]][M28Map.subrefPondWaterZones][tAdjWZDetails[M28Map. subrefAWZRef]][M28Map.subrefMidpoint]) or 'nil')..'; iPlateau='..iPlateau..'; and if enemy has combat units here') end
+                        --if tAdjWZDetails[M28Map. subrefAWZRef] then
+                            --local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tAdjWZDetails[M28Map. subrefAWZRef]]][M28Map.subrefPondWaterZones][tAdjWZDetails[M28Map. subrefAWZRef]]
+                            --[[local tAdjWZTeamData = tAdjWZData[M28Map.subrefWZTeamData][iTeam]
+                            if bDebugMessages == true then LOG(sFunctionRef..': subrefTThreatEnemyCombatTotal='..tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; subrefbWZOnlySubmersibleEnemies='..tostring(tAdjWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies] or false)) end
+                            if tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 and not(tAdjWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies]) then
+                                if NavUtils.GetLabel(M28Map.refPathingTypeHover, tAdjWZData[M28Map.subrefMidpoint]) == iPlateau then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Can path to naval enemies so will get combat units') end
+                                    bCanPathWithAmphibious = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+                if bCanPathWithAmphibious then--]]
+                    iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
+                --end
             end
         end
     end
@@ -1913,7 +1934,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if iFactoryTechLevel == 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and
             --Either dont want low power, or want enough gross E that we shoud really be thinking of getting T2 for t2 pgen even if we have low power (to avoid being stuck at t1 for ages building t1 pgens)
             (not(M28Conditions.HaveLowPower(iTeam)) or
-                (aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 100 * aiBrain[M28Economy.refiBrainResourceMultiplier] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and oFactory[refiTotalBuildCount] >= 15 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) then
+                    (aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 100 * aiBrain[M28Economy.refiBrainResourceMultiplier] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and oFactory[refiTotalBuildCount] >= 15 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) then
         local iLifetimeCountWanted = 35
         if not(bHaveLowMass) then
             iLifetimeCountWanted = iLifetimeCountWanted - 8
