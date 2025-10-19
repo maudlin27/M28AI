@@ -4755,6 +4755,10 @@ function OnGameStart()
         end
         --[aiBrain.Name].AIPersonality
     end
+
+    if M28Config.M28RunGamePerformanceCheck then
+        ForkThread(M28Profiler.LogGamePerformanceData)
+    end
 end
 
 function ShieldRechargeStarted(oUnit)

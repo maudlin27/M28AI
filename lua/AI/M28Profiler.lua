@@ -12,6 +12,7 @@ bGlobalDebugOverride = false --will turn debugmessages to true for all functions
 bFunctionCallDebugOverride = false --use to turn on logs for when functions are entered or exited
 bActiveProfiler = false --true if profiler is running
 refiLastSystemTimeRecorded = 'M28ProfilerLastSystemTime' --Used for simple profiler to just measure how long something is taking without all the logs
+GamePerformanceTrackerIsActive = false --set to true later if have active thread running the 'time taken by unit count and gametime' profiling logic used for cpu performance tourney
 
 refProfilerStart = 0
 refProfilerEnd = 1
@@ -431,5 +432,54 @@ function CompareDifThreatCalculationsForTableOfUnits(toUnits)
 
     for iCurScenario = 1, 4 do
         LOG('Time taken for scenario '..iCurScenario..'='..(tiTimeByScenario[iCurScenario] - tiTimeByScenario[iCurScenario - 1]))
+    end
+end
+
+local iTimeAtMainTickStart = 0
+local iIntervalInTicks = 100 --Every 10s
+local iCurUnitCount = 0
+
+local iCurTickCycle = iIntervalInTicks
+
+local iFreeze1Count = 0
+local iFreeze1Threshold = 0.1
+local iTimeAtSingleTickStart = 0
+
+
+function LogGamePerformanceData()
+    --Call via forkthread at start of game (duplicate of performance check condition to be extra sure we only run this when intended)
+    if M28Config.M28RunGamePerformanceCheck and not(GamePerformanceTrackerIsActive) then
+        GamePerformanceTrackerIsActive = true
+        local iTimeAtMainTickStart = 0
+        local iIntervalInTicks = 100 --Every 10s
+        local iCurUnitCount = 0
+
+        local iCurTickCycle = iIntervalInTicks
+
+        local iFreeze1Count = 0
+        local iFreeze1Threshold = 0.1
+        local iTimeAtSingleTickStart = 0
+
+
+
+        while ArmyBrains do
+            iTimeAtSingleTickStart = GetSystemTimeSecondsOnlyForProfileUse()
+            WaitTicks(1)
+            iCurTickCycle = iCurTickCycle - 1
+            if GetSystemTimeSecondsOnlyForProfileUse() - iTimeAtSingleTickStart > iFreeze1Threshold then
+                iFreeze1Count = iFreeze1Count + 1
+            end
+
+            if iCurTickCycle <= 0 then
+                iCurUnitCount = 0
+                for iBrain, oBrain in ArmyBrains do
+                    iCurUnitCount = iCurUnitCount + oBrain:GetCurrentUnits(categories.ALLUNITS - categories.BENIGN)
+                end
+                LOG('LogGamePerformanceData: GameTime='..math.floor(GetGameTimeSeconds())..' Time taken='..GetSystemTimeSecondsOnlyForProfileUse() - iTimeAtMainTickStart..'; Unit Count='..iCurUnitCount..'; iFreeze1Count='..iFreeze1Count)
+                iCurTickCycle = iIntervalInTicks
+                iTimeAtMainTickStart = GetSystemTimeSecondsOnlyForProfileUse()
+                iFreeze1Count = 0
+            end
+        end
     end
 end
