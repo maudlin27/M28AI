@@ -10695,29 +10695,59 @@ function GetBPToAssignToMassStorage(iPlateauOrZero, iLandOrWaterZone, iTeam, tLZ
 
     local iBPWanted = 0
     --Are all mexes in the LZ at T2+ or do we have any T3 mexes in the LZ?
-    if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; T2+T3 mex count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]..'; T1 mex count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][1]..'; Is table of mass storage locations to build empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]))..'; Size of mex table='..table.getn(tLZOrWZData[M28Map.subrefLZOrWZMexLocations])..'; Zone mex count='..tLZOrWZData[M28Map.subrefLZOrWZMexCount]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; T2+T3 mex count='..(tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] or 0) + (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] or 0)..'; T1 mex count='..(tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] or 'nil')..'; Is table of mass storage locations to build empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]))..'; Size of mex table='..table.getn((tLZOrWZData[M28Map.subrefLZOrWZMexLocations] or {}))..'; Zone mex count='..(tLZOrWZData[M28Map.subrefLZOrWZMexCount] or 'nil')) end
     if M28Building.iLowestMassStorageTechAvailable <= 2 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] == 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 4) then
         --Do we have empty locations for mass storage?
         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) == false then
-            --Do we have really low power?
-            if bDebugMessages == true then LOG(sFunctionRef..': Av energy%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
-            if not(bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0) then
-
-                iBPWanted = 10
-                if not (bHaveLowMass) or tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 5 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 4 and tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) then
-                    iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
-                    if not (bWantMorePower) then
-                        iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
-                    end
+            --Only try building mass storage if we have t2/t3 mex that needs the storage, if we also have t1/no mexes for some of the mass points in the zone (in case enemies are attacking and have killed them, to avoid us then tryign to rebuild mass storage around a t1 mex)
+            local bHaveT2PlusMexWantingStorage = false
+            local iT1AndT0MexCount = tLZOrWZData[M28Map.subrefLZOrWZMexCount] - (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
+            if iT1AndT0MexCount == 0 or (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and not(tLZOrWZTeamData[M28Map.subrefbLZWantsDFSupport])) then
+                bHaveT2PlusMexWantingStorage = true
+            else
+                local iAvailableLocationCount = table.getn(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable])
+                if iAvailableLocationCount > 4 * iT1AndT0MexCount then
+                    bHaveT2PlusMexWantingStorage = true
                 else
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 then
-                        iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 0.5
+                    local aiBrain = ArmyBrains[tLZOrWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+                    for _, tStorageLocation in tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable] do
+                        if CanBuildAtLocation(aiBrain, 'ueb1106', tStorageLocation, iPlateauOrZero, iLandOrWaterZone, nil, false, false, false, false, false) then
+                            local tNearbyUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tStorageLocation, 4))
+                            if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                                for iNearbyUnit, oNearbyUnit in tNearbyUnits do
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH1, oNearbyUnit.UnitId) and oNearbyUnit:GetFractionComplete() >= 0.9 then
+                                        bHaveT2PlusMexWantingStorage = true
+                                        break
+                                    end
+                                end
+                                if bHaveT2PlusMexWantingStorage then break end
+                            end
+                        end
                     end
                 end
-            elseif tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 then
-                iBPWanted = 5
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if have really low power, bWantMorePower='..tostring(bWantMorePower)..'; % E stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; iBPWanted='..iBPWanted) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iAvailableLocationCount based on table.getn='..table.getn(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable])..'; iT1AndT0MexCount='..iT1AndT0MexCount..'; bHaveT2PlusMexWantingStorage='..tostring(bHaveT2PlusMexWantingStorage or false)) end
+            if bHaveT2PlusMexWantingStorage then
+                --Do we have really low power?
+                if bDebugMessages == true then LOG(sFunctionRef..': Av energy%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
+                if not(bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0) then
+
+                    iBPWanted = 10
+                    if not (bHaveLowMass) or tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 5 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] >= 4 and tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) then
+                        iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
+                        if not (bWantMorePower) then
+                            iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
+                        end
+                    else
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 then
+                            iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 0.5
+                        end
+                    end
+                elseif tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 then
+                    iBPWanted = 5
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if have really low power, bWantMorePower='..tostring(bWantMorePower)..'; % E stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; iBPWanted='..iBPWanted) end
+            end
         end
     end
     if iBPWanted > 0 and M28Overseer.bNoRushActive then
