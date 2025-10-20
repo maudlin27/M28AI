@@ -4,14 +4,15 @@
 --- DateTime: 16/11/2022 07:31
 ---
 
-M28ShowUnitNames = false --Will update units to reflect the order theyve been given
-M28ShowEnemyUnitNames = false --Will rename enemy units to reflect their ID and lifetime count
-M28RunVeryFast = false --Game starts off at +15 speed if set to adjustable
+M28ShowUnitNames = true --Will update units to reflect the order theyve been given
+M28ShowEnemyUnitNames = true --Will rename enemy units to reflect their ID and lifetime count
+M28RunVeryFast = true --Game starts off at +15 speed if set to adjustable
 
 --Detailed profiling config options
 M28RunProfiling = false --If turning to true-part way through the game then also run ForkThread(M28Profiler.ProfilerActualTimePerTick); Records data on how long most functions are taking
 M28ProfilingIncludePerTick = false --if M28RunProfiling is true, then this determins whether will just do the detailed log of time taken for functions, or will also include the per tick results
 M28ProfilerIgnoreFirst2Seconds = false --Means logic relating to pathing generation gets ignored
 M28RunMemoryProfiling = false --if this is true then every 60s will list out how much memory each file in M28 is using
+M28RunGamePerformanceCheck = false --Aug 22 profiling tourney profiling - Runs regardless of whether M28 is active in the game, sends a log every second with how long it took to run that second and how many units are in the game.  Copy of same profiling available for M27 (that was used in the profiling tourney)
 --Simple profiling option:
 M28RunSimpleProfiling = false --if this is true then will output time taken every 10s
