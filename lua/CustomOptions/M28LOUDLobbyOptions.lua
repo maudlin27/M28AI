@@ -1143,7 +1143,7 @@ LobbyGlobalOptions = {
         },
     },
     {
-        default = 2,
+        default = 1,
         label = "M28: CA Inherit constructing unit status?",
         help = 'If combined armies are enabled, this determines whether units starting control will be based on their parent/constructing unit',
         key = 'M28CAInherit',
@@ -1157,6 +1157,25 @@ LobbyGlobalOptions = {
             {
                 text = 'No',
                 help = 'Disable control by default',
+                key = 2,
+            },
+        },
+    },
+    {
+        default = 2,
+        label = "M28: CA Disable engineer production?",
+        help = 'If combined armies are enabled, then this prevents factories controlled by the AI from building engineers',
+        key = 'M28CAEngi',
+        pref = 'pref_M28CAEngi',
+        values = {
+            { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
+                text = 'Disable',
+                help = 'Disable engi production',
+                key = 1,
+            },
+            {
+                text = 'Enable',
+                help = 'Enable engi production',
                 key = 2,
             },
         },

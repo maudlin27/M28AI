@@ -285,9 +285,12 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
     local iCurEngineers
-    if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild]
+    --Building engineers in combined army mode
+    if not(M28Orders.bDontConsiderCombinedArmy) and oFactory.M28Active and aiBrain.BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAEngi or 2) == 1 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then
+        sBPIDToBuild = nil
+        if bDebugMessages == true then LOG(sFunctionRef..': Dont build engis in combined armies mode if disabled by user') end
+    elseif M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild]
             --Exception - scouts where factory is on a different island to the core base
             and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, sBPIDToBuild)) or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbTeamHasOmniVision] or tLZTeamData[M28Map.subrefLZbCoreBase] or not(tLZTeamData[M28Map.subrefLZCoreExpansion]) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
