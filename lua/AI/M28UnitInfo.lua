@@ -2319,6 +2319,8 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
             end
         elseif not(bWeaponUnpacks) and not(bWeaponIsFixed) then
             oUnit[refbCanKite] = true
+        elseif oUnit.UnitId == 'ual0201' then --aurora - it rotates while moving so it can fire at an enemy
+            oUnit[refbCanKite] = true
         end
 
         --Special unit adjustments:
