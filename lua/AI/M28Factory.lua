@@ -285,9 +285,12 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
     local iCurEngineers
-    if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild]
+    --Building engineers in combined army mode
+    if not(M28Orders.bDontConsiderCombinedArmy) and oFactory.M28Active and aiBrain.BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAEngi or 2) == 1 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then
+        sBPIDToBuild = nil
+        if bDebugMessages == true then LOG(sFunctionRef..': Dont build engis in combined armies mode if disabled by user') end
+    elseif M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild]
             --Exception - scouts where factory is on a different island to the core base
             and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, sBPIDToBuild)) or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbTeamHasOmniVision] or tLZTeamData[M28Map.subrefLZbCoreBase] or not(tLZTeamData[M28Map.subrefLZCoreExpansion]) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
@@ -1021,7 +1024,28 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
             elseif bDebugMessages == true then LOG(sFunctionRef..': Dont want any support category for this LZ')
             end
             if not(iBaseCategoryWanted) and tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] then
-                iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
+                --can we reach the WZ with our units? (removed as only time had need of it the reason was map marker generation incorrectly thinking adjacent WZs were pathable on astro craters, but left commented out in case we arent doing this check when determining adjwz and want to reintroduce it)
+                --local bCanPathWithAmphibious = false
+                --if M28Utilities.IsTableEmpty(tTargetLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                    --for _, tAdjWZDetails in tTargetLZData[M28Map.subrefAdjacentWaterZones] do
+                        --if bDebugMessages == true then LOG(sFunctionRef..': Considering if we can reach adjWZ '..tAdjWZDetails[M28Map. subrefAWZRef]..' with Plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover,  M28Map.tPondDetails[M28Map.tiPondByWaterZone[tAdjWZDetails[M28Map. subrefAWZRef]]][M28Map.subrefPondWaterZones][tAdjWZDetails[M28Map. subrefAWZRef]][M28Map.subrefMidpoint]) or 'nil')..'; iPlateau='..iPlateau..'; and if enemy has combat units here') end
+                        --if tAdjWZDetails[M28Map. subrefAWZRef] then
+                            --local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tAdjWZDetails[M28Map. subrefAWZRef]]][M28Map.subrefPondWaterZones][tAdjWZDetails[M28Map. subrefAWZRef]]
+                            --[[local tAdjWZTeamData = tAdjWZData[M28Map.subrefWZTeamData][iTeam]
+                            if bDebugMessages == true then LOG(sFunctionRef..': subrefTThreatEnemyCombatTotal='..tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; subrefbWZOnlySubmersibleEnemies='..tostring(tAdjWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies] or false)) end
+                            if tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 and not(tAdjWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies]) then
+                                if NavUtils.GetLabel(M28Map.refPathingTypeHover, tAdjWZData[M28Map.subrefMidpoint]) == iPlateau then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Can path to naval enemies so will get combat units') end
+                                    bCanPathWithAmphibious = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+                if bCanPathWithAmphibious then--]]
+                    iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
+                --end
             end
         end
     end
@@ -1913,7 +1937,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if iFactoryTechLevel == 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and
             --Either dont want low power, or want enough gross E that we shoud really be thinking of getting T2 for t2 pgen even if we have low power (to avoid being stuck at t1 for ages building t1 pgens)
             (not(M28Conditions.HaveLowPower(iTeam)) or
-                (aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 100 * aiBrain[M28Economy.refiBrainResourceMultiplier] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and oFactory[refiTotalBuildCount] >= 15 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) then
+                    (aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 100 * aiBrain[M28Economy.refiBrainResourceMultiplier] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and oFactory[refiTotalBuildCount] >= 15 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) then
         local iLifetimeCountWanted = 35
         if not(bHaveLowMass) then
             iLifetimeCountWanted = iLifetimeCountWanted - 8
@@ -4803,8 +4827,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': If low power then will only consider building engineers or emergency AirAA, bHaveLowPower=' .. tostring(bHaveLowPower))
     end
-    if bHaveLowPower then
-        M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] = M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]
+    if bHaveLowPower or (bHaveLowMass and aiBrain[M28Overseer.refbPrioritiseLand] and ((M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] == 3 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 1500) or (iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 500))) then
+        if bHaveLowPower then M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] = M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] end
 
         --Emergency gunship builder if have no gunships and nearby enemies (or enemy has teleport), even if low power
         iCurrentConditionToTry = iCurrentConditionToTry + 1

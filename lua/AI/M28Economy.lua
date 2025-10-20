@@ -295,9 +295,9 @@ function ManuallyRecheckUnbuiltMexLocationsInZone(iPlateauOrZero, iLandOrWaterZo
     --Calll via forkthread when had unexpected mex result that in some cases might be valid but in others invalid
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManuallyRecheckUnbuiltMexLocationsInZone'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     WaitSeconds(iWaitInSeconds)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tMexLocations = tLZOrWZData[M28Map.subrefLZOrWZMexLocations] --same ref used for LZ and WZs
     if bDebugMessages == true then LOG(sFunctionRef..': Considering P'..iPlateauOrZero..'Z'..iLandOrWaterZone..'; Is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; Is subrefMexUnbuiltLocations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))) end
