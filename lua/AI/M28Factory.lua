@@ -4824,8 +4824,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': If low power then will only consider building engineers or emergency AirAA, bHaveLowPower=' .. tostring(bHaveLowPower))
     end
-    if bHaveLowPower then
-        M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] = M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]
+    if bHaveLowPower or (bHaveLowMass and aiBrain[M28Overseer.refbPrioritiseLand] and ((M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] == 3 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 1500) or (iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 500))) then
+        if bHaveLowPower then M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] = M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] end
 
         --Emergency gunship builder if have no gunships and nearby enemies (or enemy has teleport), even if low power
         iCurrentConditionToTry = iCurrentConditionToTry + 1
