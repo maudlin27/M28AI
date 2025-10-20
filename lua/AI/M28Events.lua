@@ -1545,8 +1545,13 @@ function OnWeaponFired(oWeapon)
                     if not(iTeam == oParentBrain.M28Team) then
                         if M28Utilities.IsTableEmpty(tTeam[M28Team.subreftoFriendlyActiveM28Brains]) == false then
                             for iBrain, oBrain in tTeam[M28Team.subreftoFriendlyActiveM28Brains] do
-                                M28Team.ConsiderAssigningUnitToZoneForBrain(oBrain, oUnit) --This function includes check of whether this is an M28 brain, and updates last known position
-                                break
+                                --If is M28Easy then only add if unit is relatively nearby
+                                if not(oBrain.M28Easy) or EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oUnit.UnitId) or (oUnit[M28UnitInfo.refiCombatRange] or 0) <= 80 then
+                                    M28Team.ConsiderAssigningUnitToZoneForBrain(oBrain, oUnit) --This function includes check of whether this is an M28 brain, and updates last known position
+                                    break
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then
+                                    M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] = true
+                                end
                             end
                         end
                     end
