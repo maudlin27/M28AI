@@ -2310,17 +2310,14 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                     end
                 end
                 if not(bRecordedManualOverride) then
-                    if bWeaponUnpacks or bWeaponIsFixed then
+                    if bWeaponUnpacks or (bWeaponIsFixed and not(oBP.Physics.RotateBodyWhileMoving)) then
                         --Dont set flag as no manual override
                     else
                         oUnit[refbCanKite] = true
                     end
                 end
             end
-        elseif not(bWeaponUnpacks) and not(bWeaponIsFixed) then
-            oUnit[refbCanKite] = true
-        elseif oBP.Physics.RotateBodyWhileMoving and not(bWeaponUnpacks) then --aurora - it rotates while moving so it can fire at an enemy when retreating
-        elseif oUnit.UnitId == 'ual0201' then --aurora - it rotates while moving so it can fire at an enemy
+        elseif not(bWeaponUnpacks) and (not(bWeaponIsFixed) or oBP.Physics.RotateBodyWhileMoving) then --aurora rotates while moving so it can fire at an enemy when retreating
             oUnit[refbCanKite] = true
         end
 
