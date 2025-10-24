@@ -3524,7 +3524,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     local oCurTarget = oWeapon:GetCurrentTarget()
                     if bDebugMessages == true and oCurTarget then LOG(sFunctionRef..': Cur weapon target='..oCurTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurTarget)..'; with combat range='..(oCurTarget[M28UnitInfo.refiCombatRange] or 'nil')) end
                     if M28UnitInfo.IsUnitValid(oCurTarget) and (oCurTarget[M28UnitInfo.refiCombatRange] or 0) > 0 then
-                        if not(oCurTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1][1] == iPlateau and oCurTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1][2] == iLandZone) then
+                        if not(oCurTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau and oCurTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Cur target isnt assigned to this zone so will add into table of units to target') end
                             table.insert(tUnitsToTarget, oCurTarget)
                         end
