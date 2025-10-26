@@ -3025,3 +3025,11 @@ function ReviewTreatingOldBaseAsCoreBase(aiBrain)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function DelayedArmyChangeForPings()
+    --Orig commit just did this for LOUD: https://github.com/maudlin27/M28AI/commit/db56187766479a769779b6c4567e66646cc2be66
+    --However, FAF has similar issue that is fixed with just this; decided to leave in LOUD as duplicate for redundancy/incase LOUD doesnt call same event on starting
+    WaitSeconds(0.5) --just in case some LOUD or FAF stuff hasnt loaded yet
+    local SimPing = import('/lua/SimPing.lua')
+    SimPing.OnArmyChange()
+end
