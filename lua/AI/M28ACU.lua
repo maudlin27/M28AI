@@ -3524,7 +3524,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     local oCurTarget = oWeapon:GetCurrentTarget()
                     if bDebugMessages == true and oCurTarget then LOG(sFunctionRef..': Cur weapon target='..oCurTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurTarget)..'; with combat range='..(oCurTarget[M28UnitInfo.refiCombatRange] or 'nil')) end
                     if M28UnitInfo.IsUnitValid(oCurTarget) and (oCurTarget[M28UnitInfo.refiCombatRange] or 0) > 0 then
-                        if not(oCurTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1][1] == iPlateau and oCurTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][1][2] == iLandZone) then
+                        if not(oCurTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau and oCurTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Cur target isnt assigned to this zone so will add into table of units to target') end
                             table.insert(tUnitsToTarget, oCurTarget)
                         end
@@ -7715,32 +7715,53 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
                 end
             end
         end
-        if bCheckIfOtherACUsUnderShield and oClosestShield then
+        local tiPlateauAndZoneACUCount = {}
+        if bCheckIfOtherACUsUnderShield then
+            local iShieldPlateau, iShieldZone
             for iFriendlyACU, oFriendlyACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
                 if not(oFriendlyACU == oACU) then
-                    if oFriendlyACU[refoShieldRallyTarget] and oFriendlyACU[refoShieldRallyTarget] == oClosestShield then
-                        if bAlreadyHaveFriendlyACU then --means have 2+ ACUs already here
-                            oClosestShield = nil
-                        else
-                            if bDebugMessages == true then LOG(sFunctionRef..': Wont go to nearest shield as it is already a rally target for another ACU') end
-                            iClosestShield = iClosestShield + 250
-                            bAlreadyHaveFriendlyACU = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': oFriendlyACU owned by '..oFriendlyACU:GetAIBrain().Nickname..' has oFriendlyACU[refoShieldRallyTarget]='..(oFriendlyACU[refoShieldRallyTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFriendlyACU[refoShieldRallyTarget]) or 'nil')..'; iShieldPlateau='..(oFriendlyACU[refoShieldRallyTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 'nil')..'; iShieldZone='..(oFriendlyACU[refoShieldRallyTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')) end
+                    if oFriendlyACU[refoShieldRallyTarget] then
+                        if oClosestShield and oFriendlyACU[refoShieldRallyTarget] == oClosestShield then
+                            if bAlreadyHaveFriendlyACU then --means have 2+ ACUs already here
+                                oClosestShield = nil
+                                if bDebugMessages == true then LOG(sFunctionRef..': Nearest shield is a rally target for multiple ACUs so will clear it') end
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..':nearest shield is already a rally target for another ACU') end
+                                iClosestShield = iClosestShield + 250
+                                bAlreadyHaveFriendlyACU = true
+                            end
+                        end
+                        iShieldPlateau = oFriendlyACU[refoShieldRallyTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+                        iShieldZone = oFriendlyACU[refoShieldRallyTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                        if iShieldPlateau and iShieldZone then
+                            if not(tiPlateauAndZoneACUCount[iShieldPlateau]) then
+                                tiPlateauAndZoneACUCount[iShieldPlateau] = {}
+                            end
+                            tiPlateauAndZoneACUCount[iShieldPlateau][iShieldZone] = (tiPlateauAndZoneACUCount[iShieldPlateau][iShieldZone] or 0) + 1
                         end
                     end
+
                 end
+            end
+            if oClosestShield and (tiPlateauAndZoneACUCount[oClosestShield[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][oClosestShield[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]] or 0) >= 2 then
+                if bDebugMessages == true then LOG(sFunctionRef..': We already have 2 ACUs in this zone so want to consider a further away shield') end
+                oClosestShield = nil
+                bAlreadyHaveFriendlyACU = true
             end
         end
         if not(oClosestShield) or bAlreadyHaveFriendlyACU then
-            --Do we have any active GE templates nearby?
+            --Do we have any active GE templates nearby in a zone with fewer than 2 assigned ACUs?
             if bDebugMessages == true then LOG(sFunctionRef..': dont have shield in GE template for this zone, is table of potentially active GE templates empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]))) end
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates]) == false then
                 iClosestShield = math.min(iClosestShield, 300) --dont want to consider travelling further away than this
-                local iPlateauWanted = iPlateauOrZero
-                if iPlateauOrZero == 0 then iPlateauWanted = NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition()) end
                 for iEntry, tTemplateTable in M28Team.tTeamData[iTeam][M28Team.tPotentiallyActiveGETemplates] do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; Active shield monitor='..tostring(tTemplateTable[M28Map.subrefGEbActiveShieldMonitor])..'; Is table of shield units empty='..tostring(M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEShieldUnits]))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; Active shield monitor='..tostring(tTemplateTable[M28Map.subrefGEbActiveShieldMonitor])..'; Is table of shield units empty='..tostring(M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEShieldUnits]))..'; ACU count for this zone='..((tiPlateauAndZoneACUCount[tTemplateTable[M28Map.subrefGEShieldUnits][1][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][tTemplateTable[M28Map.subrefGEShieldUnits][1][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]] or 0))) end
                     if tTemplateTable[M28Map.subrefGEbActiveShieldMonitor] and M28Utilities.IsTableEmpty(tTemplateTable[M28Map.subrefGEShieldUnits]) == false then
-                        if tTemplateTable[M28Map.subrefGEShieldUnits][1][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateauOrZero and M28UnitInfo.IsUnitValid(tTemplateTable[M28Map.subrefGEShieldUnits][1]) then
+                        --Can we path here, and do we have fewer than 2 assigned ACUs?
+                        if tTemplateTable[M28Map.subrefGEShieldUnits][1][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateauOrZero and M28UnitInfo.IsUnitValid(tTemplateTable[M28Map.subrefGEShieldUnits][1])
+                                and (tiPlateauAndZoneACUCount[tTemplateTable[M28Map.subrefGEShieldUnits][1][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][tTemplateTable[M28Map.subrefGEShieldUnits][1][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]] or 0) < 2
+                        then
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(tTemplateTable[M28Map.subrefGEShieldUnits][1]:GetPosition(), oACU:GetPosition())
                             if bDebugMessages == true then LOG(sFunctionRef..': dist to shield '..tTemplateTable[M28Map.subrefGEShieldUnits][1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tTemplateTable[M28Map.subrefGEShieldUnits][1])..'='..iCurDist) end
                             if iCurDist < iClosestShield then
@@ -7764,10 +7785,38 @@ function ConsiderRunningToGETemplate(oACU, tLZOrWZData, tLZOrWZTeamData, iPlatea
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for shield to run to in GE template, oClosestShield='..(oClosestShield.Unitid or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestShield) or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for shield to run to in GE template, oClosestShield='..(oClosestShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestShield) or 'nil')..'; bAlreadyHaveFriendlyACU='..tostring(bAlreadyHaveFriendlyACU or false)..'; bCheckIfOtherACUsUnderShield='..tostring(bCheckIfOtherACUsUnderShield)..'; oClosestShield assigned plateau and Zone=P'..(oClosestShield[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 'nil')..'Z'..(oClosestShield[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')) end
+        if bAlreadyHaveFriendlyACU and not(oClosestShield) then
+            --Get the ACU core base; If it doesnt have too many ACUs in it, and has shielding, then go here
+            local iOrigBasePlateauOrZero, iOrigBaseLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))
+            if bDebugMessages == true then LOG(sFunctionRef..': iOrigBasePlateauOrZero='..(iOrigBasePlateauOrZero or 'nil')..'; iOrigBaseLZOrWZ='..(iOrigBaseLZOrWZ or 'nil')..'; tiPlateauAndZoneACUCount='..repru(tiPlateauAndZoneACUCount))
+                if iOrigBasePlateauOrZero and iOrigBaseLZOrWZ and (tiPlateauAndZoneACUCount[iOrigBasePlateauOrZero][iOrigBaseLZOrWZ] or 0) < 2 and iOrigBasePlateauOrZero > 0 then
+                    local tOrigBaseLZData = M28Map.tAllPlateaus[iOrigBasePlateauOrZero][M28Map.subrefPlateauLandZones][iOrigBaseLZOrWZ]
+                    local tOrigBaseLZTeamData = tOrigBaseLZData[M28Map.subrefLZTeamData][iTeam]
+                    if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tOrigBaseLZData[M28Map.subrefMidpoint]) <= 350 and tOrigBaseLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and tOrigBaseLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and tOrigBaseLZTeamData[M28Map.subrefiT3FixedShieldConstructedCount] > 0 and tOrigBaseLZTeamData[M28Map.subrefLZSValue] >= 5000 then
+                        local tShieldsInOrigBase = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield - categories.TECH1 - categories.TECH2, tOrigBaseLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tShieldsInOrigBase) == false then
+                            iClosestShield = 350
+                            for iOrigShield, oOrigShield in tShieldsInOrigBase do
+                                if not(oOrigShield.Dead) then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oOrigShield:GetPosition(), oACU:GetPosition())
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering dist to oOrigShield in core base='..oOrigShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrigShield)..'; iCurDist='..iCurDist) end
+                                    if iCurDist < iClosestShield then
+                                        oClosestShield = oOrigShield
+                                        iClosestShield = iCurDist
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for shield in our original base and if we want to run to it, oClosestShield='..(oClosestShield.Unitid or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestShield) or 'nil')..'; bAlreadyHaveFriendlyACU='..tostring(bAlreadyHaveFriendlyACU or false)) end
+        end
+
         if oClosestShield then
             oACU[refoShieldRallyTarget] = oClosestShield
-            if bDebugMessages == true then LOG(sFunctionRef..': iClosestShield='..iClosestShield..'; Shield radius='..(oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0)..'; Shield health='..oClosestShield.MyShield:GetHealth()..'; brain'..oACU:GetAIBrain().Nickname..'; oClosestShield[M28Building.reftArtiTemplateRefs]='..repru(oClosestShield[M28Building.reftArtiTemplateRefs])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iClosestShield='..iClosestShield..'; Shield radius='..(oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0)..'; Shield health='..oClosestShield.MyShield:GetHealth()..'; brain'..oACU:GetAIBrain().Nickname..'; oClosestShield[M28Building.reftArtiTemplateRefs]='..repru(oClosestShield[M28Building.reftArtiTemplateRefs])..'; Assigned Plateau and Zone for oClosestShield=P'..oClosestShield[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]..'Z'..oClosestShield[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]..'; tiPlateauAndZoneACUCount='..repru(tiPlateauAndZoneACUCount)) end
             if iClosestShield <= 6 or (iClosestShield < math.min((oClosestShield:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5 - 3.5, 26) and oClosestShield.MyShield.GetHealth and oClosestShield.MyShield:GetHealth() >= 5000) then
                 --We want to be positioned inbetween the shield and the GE arti being shielded, to make sure if the shield is destroyed we are covered by other shields (as for some templates they only cover the midpoint of each shield)
                 local tPositionToBeCloserTo

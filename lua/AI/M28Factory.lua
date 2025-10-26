@@ -1999,8 +1999,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             else
                 --Also check - if we have built a number of sniperbots and enenmy still has T1 spam then we want to get some DF tanks to support them (unless in core base with enemies already here since we probably have ACU and PD to help)
                 local bGetDFSupport = false
+                local iFacLifetimeSniperBuild = M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategorySniperBot)
                 if oFactory[refsLastBlueprintBuilt] and M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] >= 500 and EntityCategoryContains( M28UnitInfo.refCategorySniperBot, oFactory[refsLastBlueprintBuilt]) and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0) then
-                    local iFacLifetimeSniperBuild = M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategorySniperBot)
                     if iFacLifetimeSniperBuild >= 3  then
                         local iDFLifetimeBuild = M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryMobileDFLand - M28UnitInfo.refCategorySkirmisher)
                         if bDebugMessages == true then LOG(sFunctionRef..': iDFLifetimeBuild='..iDFLifetimeBuild..'; iFacLifetimeSniperBuild='..iFacLifetimeSniperBuild) end
@@ -2058,6 +2058,45 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     end
                 end
                 if bGetDFSupport and ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileDFLand - M28UnitInfo.refCategorySkirmisher) then return sBPIDToBuild end
+                --Consider mobile arti instead of sniperbots if this factory has built sniperbot before, and our brain has built a decent number, and we have sniperbots who have retreated recently but not fired a shot (suggesting shot might be blocked)
+                if iFacLifetimeSniperBuild > 0 then
+                    local bGetMobileArtiBeforeSniperBot = false
+                    local iBrainLifetimeSniperBuild = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategorySniperBot * categories.TECH3)
+                    if iBrainLifetimeSniperBuild >= 3 then
+                        local iBrainLifetimeMobileArtiBuild = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryIndirectT3)
+                        if iBrainLifetimeSniperBuild >= 4 and iBrainLifetimeSniperBuild > 4 * iBrainLifetimeMobileArtiBuild then
+                            bGetMobileArtiBeforeSniperBot = true
+                        elseif iBrainLifetimeSniperBuild > iBrainLifetimeMobileArtiBuild and (iBrainLifetimeSniperBuild > iBrainLifetimeMobileArtiBuild * 1.5 or iBrainLifetimeMobileArtiBuild < 0) then
+                            local tCurSniperBots = aiBrain:GetListOfUnits(M28UnitInfo.refCategorySniperBot * categories.TECH3, false, true)
+                            local iRecentlyRetreatedNotFiredBotCount = 0
+                            local iRecentlyFiredBotCount = 0
+                            local iNotFiredOrRetreatedCount = 0
+                            local iTimeThreshold = 20
+                            if M28Utilities.IsTableEmpty(tCurSniperBots) == false then
+                                for iSniper, oSniper in tCurSniperBots do
+                                    if oSniper:GetFractionComplete() >= 1 then
+                                        if oSniper[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oSniper[M28UnitInfo.refiLastWeaponEvent] <= iTimeThreshold then
+                                            iRecentlyFiredBotCount = iRecentlyFiredBotCount + 1
+                                        elseif oSniper[M28UnitInfo.refiTimeLastTriedRetreating] and GetGameTimeSeconds() - oSniper[M28UnitInfo.refiTimeLastTriedRetreating] <= iTimeThreshold then
+                                            iRecentlyRetreatedNotFiredBotCount = iRecentlyRetreatedNotFiredBotCount + 1
+                                        else
+                                            iNotFiredOrRetreatedCount = iNotFiredOrRetreatedCount + 1
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iRecentlyRetreatedNotFiredBotCount='..iRecentlyRetreatedNotFiredBotCount..'; iRecentlyFiredBotCount='..iRecentlyFiredBotCount..'; iNotFiredOrRetreatedCount='..iNotFiredOrRetreatedCount..'; iBrainLifetimeSniperBuild='..iBrainLifetimeSniperBuild..'; iBrainLifetimeMobileArtiBuild='..iBrainLifetimeMobileArtiBuild) end
+                                if iRecentlyRetreatedNotFiredBotCount > iRecentlyFiredBotCount and iRecentlyRetreatedNotFiredBotCount / iRecentlyFiredBotCount > iBrainLifetimeMobileArtiBuild / iBrainLifetimeSniperBuild then
+                                    bGetMobileArtiBeforeSniperBot = true
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iBrainLifetimeSniperBuild='..iBrainLifetimeSniperBuild..'; bGetMobileArtiBeforeSniperBot='..tostring(bGetMobileArtiBeforeSniperBot)) end
+                    if bGetMobileArtiBeforeSniperBot then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryT3MobileArtillery) then return sBPIDToBuild end
+                    end
+
+                end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategorySniperBot) then return sBPIDToBuild end
             end
         end

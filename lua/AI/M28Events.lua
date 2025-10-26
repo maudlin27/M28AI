@@ -4764,6 +4764,7 @@ function OnGameStart()
     if M28Config.M28RunGamePerformanceCheck then
         ForkThread(M28Profiler.LogGamePerformanceData)
     end
+    ForkThread(M28Overseer.DelayedArmyChangeForPings)
 end
 
 function ShieldRechargeStarted(oUnit)

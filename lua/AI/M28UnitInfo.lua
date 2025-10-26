@@ -87,6 +87,7 @@ refbConstructionStart = 'M28UnitConStrt' --True if constructionstarted event log
 reftiTimeOfLastEnhancementComplete = 'M28TLstECmpl' --table, [x] = enhancement ID, gametimeseconds that the upgrade completed
 refsLastEnhancementStarted = 'M28ULstEnS' --last enhancement started for the unit (used to track if they have switched out enhancements)
 refoClosestEnemyFromLastCloseToEnemyUnitCheck = 'M28ClEnU' --If running the 'close to enemy unit' check, this will retunr the closest enemy unit before the code aborts
+refoMobileArtiRecentlyRanFrom = 'M28UT3ArR' --eg. sniperbots who are running from enemy mobile arti record the closest such arti here so can track when not in adj zone
 refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked unit identified' logic
 refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was created
 refiTimeMexConstructed = 'M28MxTimCn' --For mexes, records when it was constructed
@@ -2310,16 +2311,14 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                     end
                 end
                 if not(bRecordedManualOverride) then
-                    if bWeaponUnpacks or bWeaponIsFixed then
+                    if bWeaponUnpacks or (bWeaponIsFixed and not(oBP.Physics.RotateBodyWhileMoving)) then
                         --Dont set flag as no manual override
                     else
                         oUnit[refbCanKite] = true
                     end
                 end
             end
-        elseif not(bWeaponUnpacks) and not(bWeaponIsFixed) then
-            oUnit[refbCanKite] = true
-        elseif oUnit.UnitId == 'ual0201' then --aurora - it rotates while moving so it can fire at an enemy
+        elseif not(bWeaponUnpacks) and (not(bWeaponIsFixed) or oBP.Physics.RotateBodyWhileMoving) then --aurora rotates while moving so it can fire at an enemy when retreating
             oUnit[refbCanKite] = true
         end
 
