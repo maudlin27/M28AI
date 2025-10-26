@@ -6952,7 +6952,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                         end
                                                         if not(bRecordedAlready) then table.insert(tSkirmisherEnemyT3MobileArti, oUnit[M28UnitInfo.refoMobileArtiRecentlyRanFrom]) end
                                                     end
-                                                    if M28Utilities.IsTableEmpty(tSkirmisherEnemyT3MobileArti) == false and EntityCategoryContains(M28UnitInfo.refCategorySniperBot + M28UnitInfo.refCategoryAbsolver - categories.EXPERIMENTAL, oUnit.UnitId) and (not(M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileShield])) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoAssignedMobileShield]) >= 12) then
+                                                    if M28Utilities.IsTableEmpty(tSkirmisherEnemyT3MobileArti) == false and EntityCategoryContains(M28UnitInfo.refCategorySniperBot + M28UnitInfo.refCategoryAbsolver - categories.EXPERIMENTAL, oUnit.UnitId) and (not(M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileShield])) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoAssignedMobileShield]:GetPosition()) >= 12) then
                                                         --Check we are close manually (as dont want to override refoClosestEnemyFromLastCloseToEnemyUnitCheck, and want to check if either shot is blocked or the arti is the closest enemy unit)
                                                         local oClosestEnemyMobileArti
                                                         local iClosestEnemyMobileArtiDist = 1000
