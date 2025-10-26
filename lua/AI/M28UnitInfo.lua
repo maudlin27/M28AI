@@ -87,6 +87,7 @@ refbConstructionStart = 'M28UnitConStrt' --True if constructionstarted event log
 reftiTimeOfLastEnhancementComplete = 'M28TLstECmpl' --table, [x] = enhancement ID, gametimeseconds that the upgrade completed
 refsLastEnhancementStarted = 'M28ULstEnS' --last enhancement started for the unit (used to track if they have switched out enhancements)
 refoClosestEnemyFromLastCloseToEnemyUnitCheck = 'M28ClEnU' --If running the 'close to enemy unit' check, this will retunr the closest enemy unit before the code aborts
+refoMobileArtiRecentlyRanFrom = 'M28UT3ArR' --eg. sniperbots who are running from enemy mobile arti record the closest such arti here so can track when not in adj zone
 refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked unit identified' logic
 refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was created
 refiTimeMexConstructed = 'M28MxTimCn' --For mexes, records when it was constructed
