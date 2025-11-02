@@ -13004,7 +13004,7 @@ function ConsiderAssigningScoutToLurkerLogic(oUnit)
                         for iEntry, iZone in M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauIslandLurkerZones][iIsland] do
                             local tPotentialZoneData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iZone]
                             local tPotentialZoneTeamData = tPotentialZoneData[M28Map.subrefLZTeamData][iTeam]
-                            if tPotentialZoneTeamData and not(M28UnitInfo.IsUnitValid(tPotentialZoneTeamData[M28Map.refoAssignedLurkerScout])) and (tPotentialZoneTeamData[M28Map.refiAssignedLurkerCount] or 0) <= iLowestLurkCount then
+                            if tPotentialZoneTeamData and (tPotentialZoneTeamData[M28Map.refiAssignedLurkerCount] or 0) <= iLowestLurkCount then
                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(tPotentialZoneData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])
                                 if iCurDist < iClosestZoneDist then
                                     iClosestZoneDist = iCurDist

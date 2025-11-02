@@ -10096,6 +10096,34 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                                 end
                                                 UpdateBPTracking()
 
+                                                --Check for blocking selens if this is the primary engineer
+                                                if bDebugMessages == true then LOG(sFunctionRef..': refiAssignedLurkerCount='..(tLZOrWZTeamData[M28Map.refiAssignedLurkerCount] or 'nil')..'; tEngineersOfTechWanted[iEngiCount][refbPrimaryBuilder]='..tostring(tEngineersOfTechWanted[iEngiCount][refbPrimaryBuilder] or false)) end
+                                                if (tLZOrWZTeamData[M28Map.refiAssignedLurkerCount] or 0) > 0 then --Originally tried just for primarybuilder but was returning  false for all the engineers in question
+                                                    --Check for blocking selens and move them out of the way
+                                                    local iBuildingSize = M28UnitInfo.GetBuildingSize(sBlueprint)
+                                                    local rBuildRect = M28Utilities.GetRectAroundLocation(tBuildLocation, iBuildingSize * 0.5 + 1)
+                                                    local tUnitsInRect = GetUnitsInRect(rBuildRect)
+                                                    if bDebugMessages == true then
+                                                        LOG(sFunctionRef..': Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))..'; sBlueprint='..sBlueprint..'; iBuildingSize='..iBuildingSize)
+                                                        --M28Utilities.DrawRectangle(rBuildRect)
+                                                    end
+                                                    if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                                                        local tSelens = EntityCategoryFilterDown(categories.xsl0101, tUnitsInRect)
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': is tSelens empty='..tostring(M28Utilities.IsTableEmpty(tSelens))) end
+                                                        if M28Utilities.IsTableEmpty(tSelens) == false then
+                                                            for iSelen, oSelen in tSelens do
+                                                                if not(oSelen[M28UnitInfo.refbSpecialMicroActive]) then
+                                                                    local tMoveLocation = M28Utilities.MoveInDirection(oSelen:GetPosition(), M28Utilities.GetAngleFromAToB(tBuildLocation, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]), math.max(iBuildingSize + 3, 10), true, false, M28Map.bIsCampaignMap)
+                                                                    if not(tMoveLocation) or not(NavUtils.GetLabel(M28Map.refPathingTypeLand, tMoveLocation) == (tLZOrWZData[M28Map.subrefLZIslandRef] or 0)) then tMoveLocation = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]} end
+                                                                    --Move away for 8s
+                                                                    M28Orders.IssueTrackedMove(oSelen, tMoveLocation, 2, false, 'SelBlckB', true)
+                                                                    M28Micro.TrackTemporaryUnitMicro(oSelen, 8)
+                                                                end
+                                                            end
+                                                        end
+                                                    end
+                                                end
+
 
                                                 --Mex specific - build a separate unit
                                                 if iActionToAssign == refActionBuildMex and iTotalBuildPowerWanted > 0 and iEngiCount > 0 then
