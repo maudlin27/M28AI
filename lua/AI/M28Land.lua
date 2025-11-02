@@ -10056,27 +10056,29 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 --If we have any negligible zones, then send some units to these first and remove them from the table of DF or IF units
                 if M28Utilities.IsTableEmpty(tiDFLZWithNegligibleEnemies) == false and M28Utilities.IsTableEmpty(tDFUnits) == false then
                     --Cycle through each zone and assign DF units
-                    local iMaxThreatToAssign, iCurAssignedThreat
+                    local iMaxThreatToAssign, iCurAssignedThreat, iMaxExistingAssignedDFThreatToConsider
                     for iEntry, iOtherLZ in tiDFLZWithNegligibleEnemies do
                         --Calc threat to assign
                         local tOtherLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ]
                         local tOtherLZTeamData = tOtherLZData[M28Map.subrefLZTeamData][iTeam]
                         iCurAssignedThreat = 0
                         iMaxThreatToAssign = ((tOtherLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 6 + (tOtherLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)) * 3
+                        iMaxExistingAssignedDFThreatToConsider = math.max(iMaxThreatToAssign * 2, 1300)
                         --First assign any units last assigned to this zone
                         for iCurDFUnit = table.getn(tDFUnits), 1, -1 do
-                            if tDFUnits[iCurDFUnit][refiLastNegLZAssignment] == iOtherLZ then
+                            if tDFUnits[iCurDFUnit][refiLastNegLZAssignment] == iOtherLZ and tDFUnits[iCurDFUnit][M28UnitInfo.refiUnitMassCost] < iMaxExistingAssignedDFThreatToConsider then
                                 iCurAssignedThreat = iCurAssignedThreat + tDFUnits[iCurDFUnit][M28UnitInfo.refiUnitMassCost]
-                                M28Orders.IssueTrackedMove(tDFUnits[iCurDFUnit], tOtherLZData[M28Map.subrefMidpoint], 5, false, 'NegZDF'..iLandZone..'To'..iOtherLZ, false)
+                                M28Orders.IssueTrackedMove(tDFUnits[iCurDFUnit], tOtherLZData[M28Map.subrefMidpoint], 5, false, 'NegZDFX'..iLandZone..'To'..iOtherLZ, false)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Already Assigned DF unit '..tDFUnits[iCurDFUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tDFUnits[iCurDFUnit])..' to the negligible threat zone '..iOtherLZ..'; iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign) end
                                 table.remove(tDFUnits, iCurDFUnit)
                             end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign..'; iMaxExistingAssignedDFThreatToConsider='..iMaxExistingAssignedDFThreatToConsider) end
                         if iCurAssignedThreat < iMaxThreatToAssign then
                             for iCurDFUnit = table.getn(tDFUnits), 1, -1 do
                                 if tDFUnits[iCurDFUnit][M28UnitInfo.refiUnitMassCost] < iMaxThreatToAssign or (EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.EXPERIMENTAL, tDFUnits[iCurDFUnit].UnitId) and M28UnitInfo.GetUnitLifetimeCount(tDFUnits[iCurDFUnit]) > 3) then
                                     iCurAssignedThreat = iCurAssignedThreat + tDFUnits[iCurDFUnit][M28UnitInfo.refiUnitMassCost]
-                                    M28Orders.IssueTrackedMove(tDFUnits[iCurDFUnit], tOtherLZData[M28Map.subrefMidpoint], 5, false, 'NegZDF'..iLandZone..'To'..iOtherLZ, false)
+                                    M28Orders.IssueTrackedMove(tDFUnits[iCurDFUnit], tOtherLZData[M28Map.subrefMidpoint], 5, false, 'NegZDFN'..iLandZone..'To'..iOtherLZ, false)
                                     tDFUnits[iCurDFUnit][refiLastNegLZAssignment] = iOtherLZ
                                     if bDebugMessages == true then LOG(sFunctionRef..': Assigned DF unit '..tDFUnits[iCurDFUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tDFUnits[iCurDFUnit])..' to the negligible threat zone '..iOtherLZ..'; iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign) end
                                     table.remove(tDFUnits, iCurDFUnit)
