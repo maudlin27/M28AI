@@ -6606,6 +6606,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local iAngleThresholdForRally --i.e. what angle dif need between us and nearest enemy to just retreat in opposite direction instead of going to rally
                     local iSkirmisherDistToNearestEnemy
                     local bNearestEnemyIsACU = false
+                    local bConsiderAttackingAdjacentZoneEnemyWithOutrangedUnits --if we have outranged IF like t1 arti and they outrange enemy in adjacent zone (but not this zone) then consider having them attack that zone; nil if not considered yet, otherwise true or false
+                    local oAdjacentZoneEnemyToAttackWithOutrangedIF
                     if EntityCategoryContains(categories.COMMAND, oNearestEnemyToFriendlyBase.UnitId) then
                         bNearestEnemyIsACU = true
                     end
@@ -6695,7 +6697,25 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local iDistFromNearestEnemyToFriendlyBase = 10000 --used in some niche scenarios so we attack nearest unit e.g. mex instead of further away one
                     if oNearestEnemyToFriendlyBase then iDistFromNearestEnemyToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tLZTeamData[M28Map.reftClosestFriendlyBase]) end
 
-                    --local bCheckIfNearLocationToAvoid = not(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftiLocationsToAvoid]))
+                    function GivenIndirectAdjacentZoneKitingOrder(oUnit)
+                        local bGivenOrder = false
+                        if oAdjacentZoneEnemyToAttackWithOutrangedIF then
+                            if bDebugMessages == true then LOG(sFunctionRef..': GivenIndirectAdjacentZoneKitingOrder is the unit close to reftoNearestDFEnemies='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 25, iTeam, true, nil, nil, oUnit, 15, false))) end
+                            if not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], 25, iTeam, true, nil, nil, oUnit, 15, false)) then
+                                --Get the zone the enemy unit is in
+                                local tTargetZoneTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][oAdjacentZoneEnemyToAttackWithOutrangedIF[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam]
+                                if bDebugMessages == true then LOG(sFunctionRef..': GivenIndirectAdjacentZoneKitingOrder is the unit close to the target zone reftoNearestDFEnemies='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tTargetZoneTeamData[M28Map.reftoNearestDFEnemies], 5, iTeam, true, nil, nil, oUnit, 3, false))) end
+                                if oAdjacentZoneEnemyToAttackWithOutrangedIF[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone or M28Utilities.IsTableEmpty(tTargetZoneTeamData[M28Map.reftoNearestDFEnemies]) or not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tTargetZoneTeamData[M28Map.reftoNearestDFEnemies], 5, iTeam, true, nil, nil, oUnit, 3, false)) then
+                                    --We can advance
+                                    M28Orders.IssueTrackedAttackMove(oUnit, oAdjacentZoneEnemyToAttackWithOutrangedIF:GetPosition(), 3, false, 'SRIFAdjZ', false)
+                                    bGivenOrder = true
+                                end
+                            end
+                        else
+                            M28Utilities.ErrorHandler('Running code without valid unit to consider attacking')
+                        end
+                        return bGivenOrder
+                    end
 
 
                     if bDebugMessages == true then LOG(sFunctionRef..': Scenario 1 - will cycle through available combat units, is tSkirmisherDFEnemies empty='..tostring(M28Utilities.IsTableEmpty(tSkirmisherDFEnemies))..'; oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil')) end
@@ -7452,11 +7472,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             end
                                         end
                                     else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': DF unit is outranged so adding to tOutrangedCombatUnits') end
                                         table.insert(tOutrangedCombatUnits, oUnit)
                                     end
                                 elseif oUnit[M28UnitInfo.refiIndirectRange] > 0 then
                                     if (iDFRangeOverrideForScenario1 and oUnit[M28UnitInfo.refiIndirectRange] >= iDFRangeOverrideForScenario1) or (not(iDFRangeOverrideForScenario1) and oUnit[M28UnitInfo.refiIndirectRange] > iEnemyBestDFRange) then
                                         table.insert(tUnitsToSupport, oUnit)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': We exceed DF range override for this IF so adding to tUnitsToSupport') end
                                         if oUnit[M28UnitInfo.refbEasyBrain] then
                                             --Attackmove to nearest enemy
                                             if not(IgnoreOrderDueToStuckUnit(oUnit)) then
@@ -7640,8 +7662,76 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             end
                                         end
                                     else
-                                        --Treat the same as outranged DF units
-                                        table.insert(tOutrangedCombatUnits, oUnit)
+                                        --Consider if there are enemies in other adjacent zones that we do outrange
+                                        if bDebugMessages == true and bConsiderAttackingAdjacentZoneEnemyWithOutrangedUnits == nil then LOG(sFunctionRef..': Considering if enemy has units in adj zone that we outrange even if we dont outrange cur zone, subrefLZThreatEnemyBestMobileDFRange='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; refiIndirectRange='..oUnit[M28UnitInfo.refiIndirectRange]) end
+                                        if bConsiderAttackingAdjacentZoneEnemyWithOutrangedUnits == nil then
+                                            if tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] > 0 then
+                                                bConsiderAttackingAdjacentZoneEnemyWithOutrangedUnits = false
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has nearby LR DF threat so wont consider') end
+                                            elseif tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] < oUnit[M28UnitInfo.refiIndirectRange] or tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] < 50 then
+                                                bConsiderAttackingAdjacentZoneEnemyWithOutrangedUnits = false
+
+                                                --Is there an adjacent zone we could target? only consider if enemy mobile DF threat is outranged by us
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Will check for vulnerable enemy units we outrange in adjacent zones, is subrefLZAdjacentLandZones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
+                                                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                                    local toEnemiesThatOutrangeUs = {}
+                                                    for iRecordedEnemy, oRecordedEnemy in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                                                        if oRecordedEnemy[M28UnitInfo.refiCombatRange] >= oUnit[M28UnitInfo.refiIndirectRange] then
+                                                            table.insert(toEnemiesThatOutrangeUs, oRecordedEnemy)
+                                                        end
+                                                    end
+                                                    for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                                        local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                                        local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; subrefLZThreatEnemyBestMobileDFRange='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; subrefLZThreatEnemyBestStructureDFRange (which factors in nearest adj zone)='..tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))) end
+                                                        if tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] < oUnit[M28UnitInfo.refiIndirectRange] and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                                            --Get closest enemy unit in this zone
+                                                            local oClosestAdjacentPotentialEnemy
+                                                            local iClosestAdjacentPotentialEnemy = 200
+                                                            for iAdjacentEnemy, oAdjacentEnemy in tAdjLZTeamData[M28Map.subrefTEnemyUnits] do
+                                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oAdjacentEnemy:GetPosition())
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Checking for vulnerable targets we outrange in adj zone, oAdjacentEnemy='..oAdjacentEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAdjacentEnemy)..'; iCurDist='..iCurDist) end
+                                                                if iCurDist < iClosestAdjacentPotentialEnemy then
+                                                                    iClosestAdjacentPotentialEnemy = iCurDist
+                                                                    oClosestAdjacentPotentialEnemy = oAdjacentEnemy
+                                                                end
+                                                            end
+                                                            if oClosestAdjacentPotentialEnemy then
+                                                                --Is this near any of the enemies that outrange us?
+                                                                local bNearToLongerRangedEnemies = false
+                                                                if M28Utilities.IsTableEmpty(toEnemiesThatOutrangeUs) == false then
+                                                                    local iAngleToPotentialEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestAdjacentPotentialEnemy:GetPosition())
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': oClosestAdjacentPotentialEnemy='..oClosestAdjacentPotentialEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestAdjacentPotentialEnemy)..'; iAngleToPotentialEnemy='..iAngleToPotentialEnemy) end
+                                                                    for iEnemyToAvoid, oEnemyToAvoid in toEnemiesThatOutrangeUs do
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': oEnemyToAvoid='..oEnemyToAvoid.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToAvoid)..'; Dist to oClosestAdjacentPotentialEnemy='..M28Utilities.GetDistanceBetweenPositions(oEnemyToAvoid:GetPosition(), oClosestAdjacentPotentialEnemy:GetPosition())..' Combat range='..oEnemyToAvoid[M28UnitInfo.refiCombatRange]..'; Angle from oUnit to oEnemyToAvoid='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemyToAvoid:GetPosition())..'; Angle Dif='..M28Utilities.GetAngleDifference(iAngleToPotentialEnemy, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemyToAvoid:GetPosition()))) end
+                                                                        if M28Utilities.GetDistanceBetweenPositions(oEnemyToAvoid:GetPosition(), oClosestAdjacentPotentialEnemy:GetPosition()) <= 35 + oEnemyToAvoid[M28UnitInfo.refiCombatRange] then
+                                                                            bNearToLongerRangedEnemies = true
+                                                                            break
+                                                                        elseif M28Utilities.GetAngleDifference(iAngleToPotentialEnemy, M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oEnemyToAvoid:GetPosition())) <= 20 then
+                                                                            bNearToLongerRangedEnemies = true
+                                                                            break
+                                                                        end
+                                                                    end
+                                                                end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': bNearToLongerRangedEnemies='..tostring(bNearToLongerRangedEnemies)) end
+                                                                if not(bNearToLongerRangedEnemies) then
+                                                                    oAdjacentZoneEnemyToAttackWithOutrangedIF = oClosestAdjacentPotentialEnemy
+                                                                    bConsiderAttackingAdjacentZoneEnemyWithOutrangedUnits = true
+                                                                    break
+                                                                end
+                                                            end
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                        if bConsiderAttackingAdjacentZoneEnemyWithOutrangedUnits and GivenIndirectAdjacentZoneKitingOrder(oUnit) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will try attacking enemy unit in adjacent zone that this unit outranges') end
+                                        else
+                                            --Treat the same as outranged DF units
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Adding IF unit to outranged combat units') end
+                                            table.insert(tOutrangedCombatUnits, oUnit)
+                                        end
                                     end
                                 else
                                     M28Utilities.ErrorHandler('Have a unit without DF or indirect range, so will retreat with it')
