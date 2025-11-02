@@ -9445,7 +9445,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                     local iPrioritySearchCategory = M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedShield
                     local iMMLMassValue = M28UnitInfo.GetMassCostOfUnits(tMMLForSynchronisation)
-                    if iMMLMassValue >= 1000 then
+                    --if iMMLMassValue >= 1000 then --removed as want our mml to target stationery enemy mmls even when we only have 1-2 of them
                         iPrioritySearchCategory = iPrioritySearchCategory + (M28UnitInfo.refCategoryIndirect * categories.MOBILE - categories.TECH1)
                         if iMMLMassValue >= 2000 then --have 10+ T2 MML equivalent so include t2 arti when searching
                             bConsiderMultipleTargets = true
@@ -9454,7 +9454,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryT2PlusPD
                             end
                         end
-                    end
+                    --end
                     IncludeTMDAndShieldsInZone(iLandZone, nil, iPrioritySearchCategory)
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                         for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
