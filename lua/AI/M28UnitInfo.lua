@@ -89,6 +89,7 @@ refsLastEnhancementStarted = 'M28ULstEnS' --last enhancement started for the uni
 refoClosestEnemyFromLastCloseToEnemyUnitCheck = 'M28ClEnU' --If running the 'close to enemy unit' check, this will retunr the closest enemy unit before the code aborts
 refoMobileArtiRecentlyRanFrom = 'M28UT3ArR' --eg. sniperbots who are running from enemy mobile arti record the closest such arti here so can track when not in adj zone
 refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked unit identified' logic
+refbUnitGivenCloakOrder = 'M28UClO' --true if unit was given a cloak order for particular tracking (currently use for general land scouts when selen given cloaking, as lurker logic uses its own tracking)
 refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was created
 refiTimeMexConstructed = 'M28MxTimCn' --For mexes, records when it was constructed
 refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
@@ -3157,7 +3158,7 @@ function FixUnitResourceCheatModifiers(oUnit)
         local FAFBuffs = import('/lua/sim/Buff.lua')
         --local iBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
         local iResourceModifier = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
-        local iBuildModifier = (ScenarioInfo.Options.BuildMult or 1.5)
+        local iBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
         local oBP = oUnit:GetBlueprint()
         if bDebugMessages == true then LOG(sFunctionRef..': Considering applying resource modifier to unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', iResourceModifier='..iResourceModifier..'; iBuildModifier='..iBuildModifier..'; oBP.Economy.BuildRate='..oBP.Economy.BuildRate) end
         if iResourceModifier > 0 then
@@ -3233,8 +3234,11 @@ function FixUnitResourceCheatModifiers(oUnit)
                         end
                     end
                 end
-                FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate'..iIndex)
-                if bDebugMessages == true then LOG(sFunctionRef..': Applied build rate buff of '..(Buffs['BuildRate'..iIndex].Affects.BuildRate.Mult or 'nil')..' to the unit') end
+                if not(Buffs['BuildRate'..iIndex].Affects.BuildRate.Mult == nil) or iBuildModifier < 0.99 or iBuildModifier > 1.01 then
+                    FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate'..iIndex)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Applied build rate buff of '..(Buffs['BuildRate'..iIndex].Affects.BuildRate.Mult or 'nil value')..' to the unit, iBuildModifier='..iBuildModifier..'; Is mult nil='..tostring(Buffs['BuildRate'..iIndex].Affects.BuildRate.Mult == nil)..'; <0.99='..tostring(iBuildModifier < 0.99)..'; >1.01='..tostring(iBuildModifier > 1.01)..'; iBuildModifier=1.0='..tostring(iBuildModifier == 1.0)) end
+                elseif bDebugMessages == true then LOG(sFunctionRef..': Dont have a build rate buff for this brain so wont apply a build rate buff at all')
+                end
             end
         end
     end
@@ -3384,8 +3388,9 @@ else
     end
 end
 
-function CloakUnit(oUnit)
+function CloakUnit(oUnit, bDontClearExistingOrders, bUpdateTracking)
     if bDontConsiderCombinedArmy or oUnit.M28Active then
+        if not(bDontClearExistingOrders) then import('/mods/M28AI/lua/AI/M28Orders.lua').IssueTrackedClearCommands(oUnit) end
         if M28Utilities.bFAFActive and oUnit.HideUnit then
             oUnit:HideUnit()
         elseif oUnit.InvisState then
@@ -3393,6 +3398,7 @@ function CloakUnit(oUnit)
         else
             M28Utilities.ErrorHandler('Dont have hide or cloak option for unit '..oUnit.UnitId)
         end
+        if bUpdateTracking then oUnit[refbUnitGivenCloakOrder] = true end
     end
 end
 

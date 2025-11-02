@@ -392,7 +392,6 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refoBestRadar = 'BestRad' --Radar providing the best Radar Coverage for the land zone midpoint
             refoBestSonar = 'BestSon' --Sonar providing the best sonar coverage for the water zone midpoint
             reftoUnitsWantingPriorityScouts = 'PrLndS' --If the land subteam has any units flagged as wanting priority scouts, then they should be assigned against this zone
-            refoAssignedLurkerScout = 'AsLrSc' --combat scout assigned to 'lurk' in this zone
             refiAssignedLurkerCount = 'AsLrCn' --number of times we have assigned a combat scout to 'lurk' in this zone
             --Note: reftoAllOmniRadar is against LZData and contains all omni for all players
             refiTimeLastHadVisual = 'LstVis' --Gametimeseconds that last had an intel unit (e.g. land or air scout) in the land or water zone
