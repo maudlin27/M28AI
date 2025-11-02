@@ -89,6 +89,7 @@ refsLastEnhancementStarted = 'M28ULstEnS' --last enhancement started for the uni
 refoClosestEnemyFromLastCloseToEnemyUnitCheck = 'M28ClEnU' --If running the 'close to enemy unit' check, this will retunr the closest enemy unit before the code aborts
 refoMobileArtiRecentlyRanFrom = 'M28UT3ArR' --eg. sniperbots who are running from enemy mobile arti record the closest such arti here so can track when not in adj zone
 refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked unit identified' logic
+refbUnitGivenCloakOrder = 'M28UClO' --true if unit was given a cloak order for particular tracking (currently use for general land scouts when selen given cloaking, as lurker logic uses its own tracking)
 refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was created
 refiTimeMexConstructed = 'M28MxTimCn' --For mexes, records when it was constructed
 refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
@@ -3387,8 +3388,9 @@ else
     end
 end
 
-function CloakUnit(oUnit)
+function CloakUnit(oUnit, bDontClearExistingOrders, bUpdateTracking)
     if bDontConsiderCombinedArmy or oUnit.M28Active then
+        if not(bDontClearExistingOrders) then import('/mods/M28AI/lua/AI/M28Orders.lua').IssueTrackedClearCommands(oUnit) end
         if M28Utilities.bFAFActive and oUnit.HideUnit then
             oUnit:HideUnit()
         elseif oUnit.InvisState then
@@ -3396,6 +3398,7 @@ function CloakUnit(oUnit)
         else
             M28Utilities.ErrorHandler('Dont have hide or cloak option for unit '..oUnit.UnitId)
         end
+        if bUpdateTracking then oUnit[refbUnitGivenCloakOrder] = true end
     end
 end
 
