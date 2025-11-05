@@ -8175,7 +8175,8 @@ function GETemplateConsiderDefences(tAvailableEngineers, tAvailableT3EngineersBy
                     if iCurPD < 4 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false or (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 and (iCurPD == 0 or iCurPD < tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] / 500))) or M28Team.tTeamData[iTeam][M28Team.refbEnemyHasTeleport] or (M28UnitInfo.GetMassCostOfUnits(tTableRef[M28Map.subrefGEArtiUnits]) >= 150000 and tTableRef[M28Map.subrefGEArtiUnits][1].GetFractionComplete and tTableRef[M28Map.subrefGEArtiUnits][1]:GetFractionComplete() >= 0.8 and iCurPD < 2) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Want PD unless no space') end
                         if iCurSAMs > 0 or iCurPD < iTotalDefenceLocations - 2 then
-                            BuildDefensiveUnit(M28UnitInfo.refCategoryPD * categories.SIZE4, tTableRef[M28Map.subrefGEAvailableDefenceLocations], true)
+                            --Ravager size category invalid (although for FAF have drafted a PR to fix it 2025-11)
+                            BuildDefensiveUnit(M28UnitInfo.refCategoryPD * categories.SIZE4 + categories.xeb2306, tTableRef[M28Map.subrefGEAvailableDefenceLocations], true)
                         end
                     end
                 end
