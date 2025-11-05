@@ -2970,7 +2970,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
         end
         if not(iCategoryWanted) then
             if bDebugMessages == true then
-                LOG(sFunctionRef..': Deciding on what experimental to construct, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; Team mass income='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 'nil')..'; Brain='..(aiBrain.Nickname or 'nil')..'; Is campaignAI='..tostring(aiBrain.CampaignAI or false)..'; Is M28AI='..tostring(aiBrain.M28AI or false)..'; Land subteam='..(aiBrain.M28LandSubteam or 'nil')..'; Is table of land subteam empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains]))..'; Team gross mass='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; refbBuiltParagon='..tostring(aiBrain[M28Economy.refbBuiltParagon] or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(aiBrain.M28Team))..'; (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0)='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiFriendlyGameEnderCount] or 0))
+                LOG(sFunctionRef..': Deciding on what experimental to construct, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; Team mass income='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 'nil')..'; Brain='..(aiBrain.Nickname or 'nil')..'; Is campaignAI='..tostring(aiBrain.CampaignAI or false)..'; Is M28AI='..tostring(aiBrain.M28AI or false)..'; Land subteam='..(aiBrain.M28LandSubteam or 'nil')..'; Is table of land subteam empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains]))..'; Team gross mass='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; refbBuiltParagon='..tostring(aiBrain[M28Economy.refbBuiltParagon] or false)..'; Do we have air control='..tostring(M28Conditions.TeamHasAirControl(aiBrain.M28Team))..'; (M28Team.tTeamData[iTeam][M28Team.refiFriendlyGameEnderCount] or 0)='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiFriendlyGameEnderCount] or 0)..'; Cur t3 arti count='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryFixedT3Arti, aiBrain.M28Team)..'; refiEnemyT3ArtiCount='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyT3ArtiCount]..'; refiEnemyNovaxCount='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyNovaxCount])
                 local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(aiBrain.M28Team, iPlateauOrZero, iLandOrWaterZone, true, nil, nil, false, nil, aiBrain.M28AirSubteam)
                 LOG(sFunctionRef..': Checking if already building exp in other zones, iOtherLandZonesWithExperimental='..iOtherLandZonesWithExperimental..'; iMassToComplete='..iMassToComplete..'; Team net mass income='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetMass]..'; Team gross mass income='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass]..'; % mass stored='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored])
             end
@@ -3103,7 +3103,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             --T4 SAMs - if have less than enemy air to ground threat, and also less than between 30k-50k groundAA threat (depending on enemy air to ground threat), and are far behind on air, the nconsider building
             if M28Building.bHaveAllFactionExperimentalSAM and not(iCategoryWanted) and not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) and not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) and
                     ((aiBrain[M28Overseer.refbPrioritiseDefence] and tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < math.min(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat], 80000)) and ( tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.max(3, tLZOrWZData[M28Map.subrefLZOrWZMexCount]))
-                    or (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < math.max(math.min(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat], 30000), math.min(60000,M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.4)) and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 30000 and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.max(3, tLZOrWZData[M28Map.subrefLZOrWZMexCount]))) then
+                            or (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < math.max(math.min(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat], 30000), math.min(60000,M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.4)) and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 30000 and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= math.max(3, tLZOrWZData[M28Map.subrefLZOrWZMexCount]))) then
 
                 iCategoryWanted = M28UnitInfo.refCategoryStructureAA * categories.EXPERIMENTAL
                 if bDebugMessages == true then LOG(sFunctionRef..': want T4 SAM') end
@@ -8306,7 +8306,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
             if M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEEngineers]) then bStillValid = true end
             if M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEArtiUnits]) then bStillValid = true end
             if M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEShieldUnits]) then bStillValid = true end
-            if bDebugMessages == true then LOG(sFunctionRef..': Starting new loop at time='..GetGameTimeSeconds()..'; bStillValid='..tostring(bStillValid or false)..'; Time of last M28 death='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastM28PlayerDefeat] or 'nil')..'; Is this table flagged as no longer wanting engis='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Starting new loop at time='..GetGameTimeSeconds()..' for P'..iPlateau..'Z'..iLandZone..'TableRef'..iTemplateRef..'; bStillValid='..tostring(bStillValid or false)..'; Time of last M28 death='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastM28PlayerDefeat] or 'nil')..'; Is this table flagged as no longer wanting engis='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers])) end
             if bStillValid then
                 --Decide what to do with engineers, if we have any
                 bDisbandForPowerStall = false
@@ -12643,7 +12643,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Gateway for shieldSACU gameender
     iCurPriority = iCurPriority + 1
     if tLZTeamData[M28Map.subrefbGEShieldSACU] then
-        local tCompletedGateway = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+        local tCompletedGateway = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway * categories.UEF, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         local iCompletedGateway = 0
         if M28Utilities.IsTableEmpty(tCompletedGateway) == false then
             for iGateway, oGateway in tCompletedGateway do
@@ -12656,7 +12656,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             elseif bHaveLowMass then iBPWanted = 210
             else iBPWanted = 300
             end
-            HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
+            --HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
+            HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted,                  nil,                nil,                    nil,                        M28UnitInfo.refFactionUEF)
         end
     end
 
