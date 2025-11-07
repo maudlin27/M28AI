@@ -6920,7 +6920,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GETemplateStartBuildingArtiOrGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if iLandZone == 3 and GetGameTimeSeconds() >= 45*60+11 then bDebugMessages = true end
     local bTriedBuildingSomething = false
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of logic for building arti at zone '..iLandZone..', is tAvailableEngineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; Arti locations='..repru(tTableRef[M28Map.subrefGEArtiLocations])..'; Template size='..tTableRef[M28Map.subrefGESize]..'; oFirstAeon='..(oFirstAeon.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstAeon) or 'nil')..'; oFirstSeraphim='..(oFirstSeraphim.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstSeraphim) or 'nil')..'; oFirstUEF='..(oFirstUEF.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstUEF) or 'nil')) end
@@ -7036,7 +7036,8 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
             local tLowestValueBlockingBuildings, iCurValueBlockingBuildings, iLowestValueRef
             local bHavePotentiallyValidLocation = false
             local tUnitsToConsiderReclaiming, iXDif, iZDif
-            local iThresholdDistDif = M28UnitInfo.GetBuildingSize(sArtiToBuild) * 0.5 + 3 - 0.8 --i.e. a shield is radius 6; so this gives a 0.8 leeway to hopefully cover off rounding
+            local iArtiRadius = M28UnitInfo.GetBuildingSize(sArtiToBuild) * 0.5
+            local iThresholdDistDif = iArtiRadius + 3 - 0.8 --i.e. a shield is radius 6; so this gives a 0.8 leeway to hopefully cover off rounding
             for iEntry, tBuildLocation in tTableRef[M28Map.subrefGEArtiLocations] do
                 local tBlockingUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tBuildLocation, iBuildingSize * 0.5 - 0.3)) --tried with -0.7 but wouldnt pickup on SAM that was just inside the shield build area
                 if not(tBlockingUnits) then
@@ -7069,7 +7070,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                                     iXDif = oUnit:GetPosition()[1] - tBuildLocation[1]
                                     if iXDif < 0 then iXDif = iXDif - iUnitRadius
                                     else iXDif = iXDif + iUnitRadius end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Blocking unit XDif='..iXDif..'; iThresholdDistDif='..iThresholdDistDif) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Blocking unit XDif='..iXDif..'; iThresholdDistDif='..iThresholdDistDif..'; tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry]='..(tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] or 'nil')) end
                                     if math.abs(iXDif) >= iThresholdDistDif then
                                         bAbort = false
                                     else
@@ -7077,15 +7078,20 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
                                         if iZDif < 0 then iZDif = iZDif - iUnitRadius
                                         else iZDif = iZDif + iUnitRadius end
 
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Blocking unit ZDif='..iZDif) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Blocking unit ZDif='..iZDif..'; Unit Xposition='..oUnit:GetPosition()[1]..'; tBuildLocationX='..tBuildLocation[1]..'; Unit Z position='..oUnit:GetPosition()[3]..'; tBuildLocationZ='..tBuildLocation[3]..'; iUnitRadius='..iUnitRadius..'; iArtiRadius='..iArtiRadius) end
                                         if math.abs(iZDif) >= iThresholdDistDif then
                                             --Assume unit isnt actually a true blocking unit and ignore
                                             if bDebugMessages == true then LOG(sFunctionRef..': Unit might not actually be blocking so will continue search') end
+                                            bAbort = false
+                                            --Smaller artiref buildings - more likely they arent actually blocking if X is dif
+                                        elseif iUnitRadius <= 3 and iXDif >= iArtiRadius + iUnitRadius and (tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] or 0) <= 60 and (iUnitRadius == 1 or (tTableRef[M28Map.subrefGEArtiBlockedFailureCount][iEntry] or 0) <= 30) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Probably dont have a blocking building with this so will look for other buildings') end
                                             bAbort = false
                                         end
                                     end
 
                                     if bAbort then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Blocking building is part of arti template so want to abort and not reclaim anything') end
                                         tUnitsToConsiderReclaiming = nil
                                         break
                                     else
@@ -8301,6 +8307,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
         if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for P'..iPlateau..'Z'..iLandZone..'; iTableRef='..iTemplateRef..'; tTableRef[M28Map.subrefGEbDontNeedEngineers]='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers] or false)..'; is tableo f engineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; Time='..GetGameTimeSeconds()) end
 
         while not(tTableRef[M28Map.subrefGEbDontNeedEngineers]) do
+
             --Decide whether to continue with loop - abort if have no engineers and no arti and no shields
             local bStillValid = false
             if M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEEngineers]) then bStillValid = true end
@@ -8773,7 +8780,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                                             local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true,                                                      nil,            M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, false, iTemplateRef)
 
                                                             local bAvoidGameEnder = false
-                                                            if (iOtherLandZonesWithExperimental or 0) > 0 and (iMassToComplete or 0) >= math.max(100000, (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] or 0) * 2) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 200*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Conditions.TeamHasLowMass(iTeam)) and M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) <= 800 and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryGameEnder, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then bAvoidGameEnder = true end
+                                                            if (iOtherLandZonesWithExperimental or 0) > 0 and (iMassToComplete or 0) >= math.max(100000, (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] or 0) * 2) and not(M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon]) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 200*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Conditions.TeamHasLowMass(iTeam)) and M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) <= 800 and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryGameEnder, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then bAvoidGameEnder = true end
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to build another gameender unit from this template, iTeam='..(iTeam or 'nil')..'; iOtherLandZonesWithExperimental='..(iOtherLandZonesWithExperimental or 'nil')..'; iMassToComplete='..(iMassToComplete or 'nil')..'; Stored mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] or 'nil')..'; Gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Av mass%='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] or 'nil')..'; bAvoidGameEnder='..tostring(bAvoidGameEnder)..'; P'..iPlateau..'Z'..iLandZone..'T'..iTemplateRef..' Time='..GetGameTimeSeconds()) end
                                                             if bAvoidGameEnder then
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will reassess category to build as looks like we are building another gameender or similar in mass so dont want to start on another gameender') end
@@ -8782,7 +8789,7 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                                                                     or (iMassToComplete <= 20000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 5000 and iOtherLandZonesWithExperimental <= 1) then
 
                                                                 --Further check to avoid queuing up another unit if we are likely building a gameender
-                                                                if iMassToComplete < math.max(50000, M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] * 2) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3) or (iMassToComplete < 100000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 150) then
+                                                                if iMassToComplete < math.max(50000, M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] * 2) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3) or (iMassToComplete < 100000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 150) or (M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.02 or (oFirstEngineer and oFirstEngineer:GetAIBrain()[M28Economy.refbBuiltParagon])))  then
                                                                     --NOTE: IF CHANGING ABOVE THEN CHANGE THE SAME PLACE EARLIER IN CODE
                                                                     --Change the category to build if we have UEF and built a novax, or if we have high mass income on our team and we could be building a paragon
                                                                     if not(bHaveAlreadyTriedSwitchingCategoryForNovax) and oFirstUEF and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEArtiUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNovaxCentre, tTableRef[M28Map.subrefGEArtiUnits])) == false and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNovaxCentre, tLZTeamData[M28Map.refiLastGameEnderTemplateCategory]) then
@@ -8897,9 +8904,9 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                 break
             end
         end
-
+        
         --END OF LOOP (i.e. have exited from loop):
-        if bDebugMessages == true then LOG(sFunctionRef..': Aborting loop, is table of engineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; tTableRef[M28Map.subrefGEbDontNeedEngineers]='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers])..'; P'..iPlateau..'Z'..iLandZone..'T'..iTemplateRef..'; Time='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Aborting loop at time='..GetGameTimeSeconds()..', is table of engineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; tTableRef[M28Map.subrefGEbDontNeedEngineers]='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers])..'; P'..iPlateau..'Z'..iLandZone..'T'..iTemplateRef..'; Time='..GetGameTimeSeconds()) end
         if tTableRef[M28Map.subrefGEbDontNeedEngineers] and M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]) == false then
             for iEngineer, oEngineer in tTableRef[M28Map.subrefGEEngineers] do
                 if bDebugMessages == true then LOG(sFunctionRef..': We dont want any more engineers for this template ref, iTemplateRef='..iTemplateRef..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Clearing flag for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Time='..GetGameTimeSeconds()) end
