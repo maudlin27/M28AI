@@ -2416,7 +2416,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
     local sFunctionRef = 'DoesACUWantToRun'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 5 and GetGameTimeSeconds() >= 12.5*60 then bDebugMessages = true end
+
 
     local bWantToRun = false
     local iTeam = oACU:GetAIBrain().M28Team
@@ -2504,7 +2504,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                 end
                             end
 
-                            if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and (iACUThreat < 3500 or GetGameTimeSeconds() > 1200 or not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) then
+                            if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and (GetGameTimeSeconds() > 1260 or not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or (iACUThreat < 3500 and (iACUThreat < 1700 or oACU[refiUpgradeCount] < 3 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or iHealthPercent < 0.9 or M28UnitInfo.GetUnitMaxHealthIncludingShield(oACU) < 20000 or (oACU.MyShield.GetHealth and (iHealthPercent < 0.98 or M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) <= 0.95))))) then
                                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': No adjacent land zones and dangerous for ACU so want to run') end
                                     bWantToRun = true
@@ -2719,7 +2719,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                         if iEnemyNearbyThreat > math.min(math.max(iACUThreat * 2, iACUThreat * 0.75 + iAllyNearbyThreat), 4000 + 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (iEnemyNearbyThreat > math.max(iACUThreat * 3, iACUThreat + iAllyNearbyThreat) or ((not(bAgainstEnemyACUAndMightWin) and iPercentageToFriendlyBase >= 0.35 and not(bAdjacentToCoreLZ) and not(oACU[refbUseACUAggressively]))))
                                                 and (iACUThreat < iEnemyMobileNearbyDFThreat * 1.1 or iACUThreat * 3 < iEnemyNearbyThreat)
                                                 --In teamgames want ACU with shield to be more aggressive
-                                                and (iACUThreat < 1500 or oACU[refiUpgradeCount] <= 2 or M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) <= 0.9 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or tLZTeamData[M28Map.refiModDistancePercent] >= 0.45 or M28UnitInfo.GetUnitCurHealthAndShield(oACU) <= 18000 or GetGameTimeSeconds() >= 1500) then
+                                                and (iACUThreat < 1500 or oACU[refiUpgradeCount] <= 2 or M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) <= 0.9 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28UnitInfo.GetUnitCurHealthAndShield(oACU) <= 18000 or GetGameTimeSeconds() >= 1500 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.75 or (tLZTeamData[M28Map.refiModDistancePercent] >= 0.3 + 0.1 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Enemy has too large a threat so will run') end
                                             bWantToRun = true
                                         else
@@ -2777,6 +2777,12 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                         iACUFactor = iACUFactor * 1.15
                                                     end
                                                 end
+                                            end
+
+                                            --Increase ACU factor in teamgame if have shield
+                                            if not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) and oACU[refiUpgradeCount] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and ((oACU.MyShield.GetHealth and iHealthPercent >= 0.98 and M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) >= 0.9) or (oACU:GetMaxHealth() >= 26000 and iHealthPercent >= 0.9)) then
+                                                iACUFactor = iACUFactor + iACUFactor * 0.4 / iACUFactor
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Will be very aggressive due to ACU having shield or very high health') end
                                             end
 
                                             --NOTE: subrefLZTThreatAllyCombatTotal includes the ACU threat
@@ -3098,7 +3104,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
     local sFunctionRef = 'DoesACUWantToReturnToCoreBase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU:GetAIBrain():GetArmyIndex() == 5 and GetGameTimeSeconds() >= 12.5*60 then bDebugMessages = true end
+
 
     local iTeam = oACU:GetAIBrain().M28Team
 
@@ -3151,14 +3157,14 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
 
     end
     --First row - dangerous for ACUs related conditions
-    if bDebugMessages == true then LOG(sFunctionRef..': Condition1 (dangerousforACUs): M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])..'; Cond1a='..tostring(GetGameTimeSeconds() >= 1080)..';Cond1b='..tostring( M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0)..'; Cond1c='..tostring((M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and GetGameTimeSeconds() >= 300 and (((oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2))  or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 or (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) >= 3 or ((M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0) >= 5 and M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam) * 1.25 < (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) +  (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0)))))..'; cond1d='..tostring(M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9)..'; cond1e='..tostring(M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9)..'; cond1f='..tostring((tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 175))..'; cond1c broken out in more detail:refiOurHighestFactoryTechLevel='..oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel]..'; Moddist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; T3 mexes='..M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3]..';T2 mexes='..M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2]..'; Enemy T2+T3 mexes='..M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam)..'; Our fac and enemy fac or our LC t3='..tostring(oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Condition1 (dangerousforACUs): M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])..'; Cond1a='..tostring((GetGameTimeSeconds() >= 1080 and (GetGameTimeSeconds() >= 1200 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])))..';Cond1b='..tostring( M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0)..'; Cond1c='..tostring((M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and GetGameTimeSeconds() >= 300 and (((oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2))  or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 or (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) >= 3 or ((M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0) >= 5 and M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam) * 1.25 < (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) +  (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0)))))..'; cond1d='..tostring(M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9)..'; cond1e='..tostring(M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9)..'; cond1f='..tostring((tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 150 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])))..'; cond1c broken out in more detail:refiOurHighestFactoryTechLevel='..oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel]..'; Moddist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; T3 mexes='..M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3]..';T2 mexes='..M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2]..'; Enemy T2+T3 mexes='..M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam)..'; Our fac and enemy fac or our LC t3='..tostring(oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2))..'; Dist to base='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])) end
     if (M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and
-            (GetGameTimeSeconds() >= 1080 --1a
+            ((GetGameTimeSeconds() >= 1080 and (GetGameTimeSeconds() >= 1260 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])) --1a
                     or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 --1b
                     or (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and GetGameTimeSeconds() >= 300 and (oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 3 or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 or (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) >= 3 or ((M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0) >= 5 and M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam) * 1.25 < (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) +  (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0)))) --1c
                     or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false --1d
                     or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9 --1e
-                    or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 175)) --1f
+                    or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 150 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]))) --1f
             --Exception to dangerous for ACUs - we have 2+ M28 on team, fullshare, have an ACU threat of at least 3.5k (e.g. Sera ACU with 3 upgrades is 3.9k), mod dist is <0.7, and this ACU is closer to enemy base than any other ACU (i.e. have 1 ACU that will be more aggressive)
             and not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) and not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) and GetGameTimeSeconds() <= 1200 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and oACU[refiUpgradeCount] >= 2 and (M28UnitInfo.GetCombatThreatRating({ oACU}, false) or 0) >= 3500 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= 250 and M28Conditions.IsFurthestACUToFriendlyBase(oACU, tLZOrWZTeamData, iTeam)))
             --Rows 2+ - air snipe related conditions (note the log row references treat the above and the first one below as part of the same row)
@@ -5990,7 +5996,7 @@ function GetACUOrder(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if aiBrain:GetArmyIndex() == 5 and GetGameTimeSeconds() >= 12.5*60 then bDebugMessages = true end
+
 
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)

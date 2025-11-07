@@ -6920,7 +6920,7 @@ function GETemplateStartBuildingArtiOrGameEnder(tAvailableEngineers, tAvailableT
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GETemplateStartBuildingArtiOrGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iLandZone == 3 and GetGameTimeSeconds() >= 45*60+11 then bDebugMessages = true end
+
     local bTriedBuildingSomething = false
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of logic for building arti at zone '..iLandZone..', is tAvailableEngineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; Arti locations='..repru(tTableRef[M28Map.subrefGEArtiLocations])..'; Template size='..tTableRef[M28Map.subrefGESize]..'; oFirstAeon='..(oFirstAeon.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstAeon) or 'nil')..'; oFirstSeraphim='..(oFirstSeraphim.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstSeraphim) or 'nil')..'; oFirstUEF='..(oFirstUEF.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstUEF) or 'nil')) end
