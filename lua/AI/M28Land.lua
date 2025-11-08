@@ -5615,6 +5615,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             iValueFactor = 2 + 3 * oEnemy:GetWorkProgress() --e.g. support for mods with upgradable pgens
                                         end
                                     end
+                                else
+                                    iValueFactor = 1
                                 end
                                 --Reduce value if not actually in range
                                 if iCurDist > oUnit[M28UnitInfo.refiCombatRange] then

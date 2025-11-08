@@ -11681,13 +11681,15 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
         local iLifetimeCountVar --If havent built enough t3 land combat then will get more
         local iLifetimeCountCategory = (M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3
         if aiBrain[M28Overseer.refbPrioritiseLowTech] then
-            if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
+            if M28Utilities.bLoudModActive then
                 iLifetimeCountVar = 40
+            elseif M28Utilities.bQuietModActive then
+                iLifetimeCountVar = 35
             else
                 iLifetimeCountVar = 30
             end
         elseif M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
-            iLifetimeCountVar = 16
+            if M28Utilities.bLoudModActive then iLifetimeCountVar = 16 else iLifetimeCountVar = 8 end
         end
         if bIsWaterZone then
             if aiBrain[M28Overseer.refbPrioritiseNavy] then
@@ -12439,18 +12441,18 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             --Check not an easy AI
             --if not(ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28Easy) then --have instead disabled the 'ctrlk existing shield to build new shield' logic if M28Easy is enabled
 
-                if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
-                    iBPWanted = math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 300 + M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] * 75)
-                else
-                    iBPWanted = 100
-                end
+            if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+                iBPWanted = math.max(100, M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] * 300 + M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] * 75)
+            else
+                iBPWanted = 100
+            end
 
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Special shield defence action iBPWanted='..iBPWanted) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Special shield defence action iBPWanted='..iBPWanted) end
 
-                --Only use T3 engineers (even if we already have t3 engineers assigned) as want to make sure we can quickly get good concentrated build power
-                --function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist)
-                HaveActionToAssign(refActionSpecialShieldDefence, 3, iBPWanted,         nil,                nil,                    nil,                        nil,                            true)
+            --Only use T3 engineers (even if we already have t3 engineers assigned) as want to make sure we can quickly get good concentrated build power
+            --function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist)
+            HaveActionToAssign(refActionSpecialShieldDefence, 3, iBPWanted,         nil,                nil,                    nil,                        nil,                            true)
             --end
         end
     end
@@ -13255,6 +13257,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Power stalling and either gross power significantly lower than gross mass, or we are completely stalling E
+    iCurPriority = iCurPriority + 1
+    if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] then
+        iBPWanted = math.min(300, aiBrain[M28Economy.refiGrossMassBaseIncome] * 10)
+        HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, iBPWanted)
+    end
+
     --1st experimental - Enemy has land experimental and we dont have one of our own yet (and havent completed one before), unless enemy has a fatboy (in which case we want to focus more on getting t2 arti)
     iCurPriority = iCurPriority + 1
     if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 1 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] == 0 or (not(bWantT3LandForRavagers) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiOurT1ToT3BomberThreat] + (M28Team.tTeamData[iTeam][M28Team.subrefiOurExpBomberThreat] or 0) < 12000 and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandExperimental, iTeam) == 0)) and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryFatboy, M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])) == false then
@@ -13404,13 +13413,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         iBPWanted = 250
                     end
                 end
+            elseif M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] then
+                iBPWanted = 60
             elseif not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
                 iBPWanted = 120
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and rush our first experimental, iBPWanted='..iBPWanted) end
             --AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, iLandOrWaterZone, iTeam, tLZOrWZData, bIsWaterZone, iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
             AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam,               tLZData, tLZTeamData, false, refActionBuildExperimental, 3, iBPWanted)
-            --HaveActionToAssign(refActionBuildExperimental, 3, iBPWanted)
+                --HaveActionToAssign(refActionBuildExperimental, 3, iBPWanted)
         end
     end
 
@@ -14111,7 +14122,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyThreatThatDoesOutrangeUs='..(iEnemyThreatThatDoesOutrangeUs or 'nil')..'; iEnemyThreatThatDoesntOutrangeUs='..iEnemyThreatThatDoesntOutrangeUs..'; iCurPDThreat='..iCurPDThreat) end
             if (iEnemyThreatThatDoesntOutrangeUs >= 200 or tLZTeamData[M28Map.subrefbLZWantsDFSupport] or (not(bHaveLowMass) and not(bHaveLowPower)) or (iEnemyThreatThatDoesntOutrangeUs >= 100 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 600) or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))
-                and (iEnemyThreatThatDoesOutrangeUs == 0 or (iEnemyThreatThatDoesOutrangeUs < 8000 and iCurPDThreat < iEnemyThreatThatDoesntOutrangeUs * 2 and (aiBrain[M28Overseer.refbPrioritiseDefence] or iCurPDThreat < iEnemyThreatThatDoesntOutrangeUs * 1.5))) then
+                    and (iEnemyThreatThatDoesOutrangeUs == 0 or (iEnemyThreatThatDoesOutrangeUs < 8000 and iCurPDThreat < iEnemyThreatThatDoesntOutrangeUs * 2 and (aiBrain[M28Overseer.refbPrioritiseDefence] or iCurPDThreat < iEnemyThreatThatDoesntOutrangeUs * 1.5))) then
                 iBPWanted = 60
                 if not(bHaveLowPower) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then iBPWanted = 100 end
                 local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oClosestUnit:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone, tLZData, tLZTeamData, 2)
@@ -14744,7 +14755,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             else
                 iBPWanted = math.min(500, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 14 + M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] / 25)
             end
-            if bHaveLowPower then iBPWanted = math.min(120, iBPWanted * 0.5) end
+            if bHaveLowPower then
+                if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] then
+                    iBPWanted = math.min(90, iBPWanted * 0.4)
+                else
+                    iBPWanted = math.min(120, iBPWanted * 0.5)
+                end
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': BP want to assist under construction experimental='..iBPWanted) end
             --Assist the experimental
             AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam, tLZData, tLZTeamData, false, refActionBuildExperimental, 1, iBPWanted)
@@ -15291,7 +15308,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     if bExperimentalsBuiltInThisLZ and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.6 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 20000) and not(bHaveLowPower) then
                         --Want 60 extra BP vs what we have already assigned
                         iBPWanted = 60
-                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.8 or not(bWantMorePower) then iBPWanted = 120 end
+                        if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.8 and (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored])) or not(bWantMorePower) then iBPWanted = 120 end
                         AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam, tLZData, tLZTeamData, false, refActionBuildExperimental, iTechLevelWanted, iBPWanted, nil, false, true)
                         --HaveActionToAssign(refActionBuildExperimental, 3, iBPWanted, nil, false, true)
                     end
