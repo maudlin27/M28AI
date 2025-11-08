@@ -11583,7 +11583,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageExperimentalBomber'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 50*60 and iTeam == 2 then bDebugMessages = true end
 
     local tAvailableBombers, tBombersForRetreating, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableBombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; Is tUnavailableUnits empty='..tostring(M28Utilities.IsTableEmpty(tUnavailableUnits))) end
@@ -11621,7 +11621,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                 end
             end
         end
-        
+
 
         for iBomber, oBomber in tAvailableBombers do
             if bDebugMessages == true and not(oBomber.Dead) then LOG(sFunctionRef..': Considering oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; Special micro active='..tostring(oBomber[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()) end
@@ -11831,166 +11831,166 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                 if M28Utilities.IsTableEmpty(tEnemyGroundTargets) or not(bHaveTargetWhereShotIsntBlocked) then
                     --Check if want exp bomber to run to rally point if nearby enemy airAA (if give no targets for exp bomber then they will go to rally point or air staging
                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if too great an enemy threat in zone IsThereAANearLandOrWaterZone='..tostring(IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA) or false)..'; IsThereNearbyAirAA='..tostring(IsThereNearbyAirAA(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), 200, iMaxEnemyAirAA, oBomber:GetPosition()) or false)..'; Have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iBomberPlateauOrZero='..iBomberPlateauOrZero..'; iBomberLandOrWaterZone='..iBomberLandOrWaterZone) end
-                    if (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and not(IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA))) or (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and not(IsThereNearbyAirAA(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), 200, iMaxEnemyAirAA, oBomber:GetPosition()))) then
-                        --If there is enemy groundAA in the zone we are currently in and we are facing the rally point and are more than 20 from it, then keep moving to the rally point
-                        if (tBomberLandOrWaterZoneTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) + (tBomberLandOrWaterZoneTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) < 1000 or M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oBomber), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(),M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) >= 25 then
-                            --no nearby enemy air threat so can just evaluate each land zone or water zone on its own merits - cycle through each in order of distance, but first consider adjacent locations
-                            --First consider the land/water zone the bomber is in at the moment and any nearby zones
-                            AddEnemyGroundUnitsToTargetsSubjectToAA(iBomberPlateauOrZero, iBomberLandOrWaterZone, true)
+                    if ((M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and not(IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA))) or (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and not(IsThereNearbyAirAA(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), 200, iMaxEnemyAirAA, oBomber:GetPosition()))))
+                            --If there is enemy groundAA in the zone we are currently in and we are facing the rally point and are more than 20 from it, then keep moving to the rally point
+                            and ((tBomberLandOrWaterZoneTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) + (tBomberLandOrWaterZoneTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) < 1000 or M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oBomber), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(),M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) >= 25) then
+
+                        --no nearby enemy air threat so can just evaluate each land zone or water zone on its own merits - cycle through each in order of distance, but first consider adjacent locations
+                        --First consider the land/water zone the bomber is in at the moment and any nearby zones
+                        AddEnemyGroundUnitsToTargetsSubjectToAA(iBomberPlateauOrZero, iBomberLandOrWaterZone, true)
 
 
-                            local tFirstZoneWithTargetsMidpoint
-                            local iZonesConsideredAfterFirstTarget = 0
-                            local iDistFromFirstZoneToBomber
+                        local tFirstZoneWithTargetsMidpoint
+                        local iZonesConsideredAfterFirstTarget = 0
+                        local iDistFromFirstZoneToBomber
 
-                            local iCurBombDamage, iTargetSegmentX, iTargetSegmentZ
+                        local iCurBombDamage, iTargetSegmentX, iTargetSegmentZ
 
-                            function RemoveRecentBombTargets(tBombLZOrWZTeamData, iBombPlateauOrZero, iBombLandOrWaterZone)
-                                local bDontCheckForShields = (tBombLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 2000
-                                --Are we close to a recent bomb?
-                                for _, tRecentTarget in tiRecentExpBomberTargets do
-                                    iTargetSegmentX, iTargetSegmentZ = M28Map.GetPathingSegmentFromPosition(tRecentTarget)
-                                    if (iBombPlateauOrZero == 0 and M28Map.tWaterZoneBySegment[iTargetSegmentX][iTargetSegmentZ] == iBombLandOrWaterZone)
-                                            or (not(iBombPlateauOrZero == 0) and M28Map.tLandZoneBySegment[iTargetSegmentX][iTargetSegmentZ] == iBombLandOrWaterZone and NavUtils.GetLabel(M28Map.refPathingTypeHover, tRecentTarget) == iBombPlateauOrZero) then
-                                        --Target is close, so limit to only considering high value targets here
-                                        -- = EntityCategoryFilterDown(M28UnitInfo.refCategoryExperimentalLevel + categories.COMMAND + M28UnitInfo.refCategoryNavalSurface * categories.TECH3, tEnemyGroundTargets)
-                                        iCurBombDamage = 0 --will update later
-                                        for iEnemyCount = table.getn(tEnemyGroundTargets), 1, -1 do
-                                            if M28Utilities.GetDistanceBetweenPositions(tEnemyGroundTargets[iEnemyCount]:GetPosition(), tRecentTarget) <= iAOE and (M28UnitInfo.IsUnitUnderwater(tEnemyGroundTargets[iEnemyCount]) or (tEnemyGroundTargets[iEnemyCount]:GetHealth() <= iDamage and not(EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel + categories.COMMAND, tEnemyGroundTargets[iEnemyCount].UnitId)))) then
-                                                --Check if under shield
-                                                if bDontCheckForShields or M28Logic.IsTargetUnderShield(aiBrain, tEnemyGroundTargets[iEnemyCount], iDamage - 1000, false, true, true, false, false) then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Removing the target '..tEnemyGroundTargets[iEnemyCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEnemyGroundTargets[iEnemyCount])..' as it is too close to a recent bomb') end
-                                                    table.remove(tEnemyGroundTargets, iEnemyCount)
-                                                end
+                        function RemoveRecentBombTargets(tBombLZOrWZTeamData, iBombPlateauOrZero, iBombLandOrWaterZone)
+                            local bDontCheckForShields = (tBombLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0) > 2000
+                            --Are we close to a recent bomb?
+                            for _, tRecentTarget in tiRecentExpBomberTargets do
+                                iTargetSegmentX, iTargetSegmentZ = M28Map.GetPathingSegmentFromPosition(tRecentTarget)
+                                if (iBombPlateauOrZero == 0 and M28Map.tWaterZoneBySegment[iTargetSegmentX][iTargetSegmentZ] == iBombLandOrWaterZone)
+                                        or (not(iBombPlateauOrZero == 0) and M28Map.tLandZoneBySegment[iTargetSegmentX][iTargetSegmentZ] == iBombLandOrWaterZone and NavUtils.GetLabel(M28Map.refPathingTypeHover, tRecentTarget) == iBombPlateauOrZero) then
+                                    --Target is close, so limit to only considering high value targets here
+                                    -- = EntityCategoryFilterDown(M28UnitInfo.refCategoryExperimentalLevel + categories.COMMAND + M28UnitInfo.refCategoryNavalSurface * categories.TECH3, tEnemyGroundTargets)
+                                    iCurBombDamage = 0 --will update later
+                                    for iEnemyCount = table.getn(tEnemyGroundTargets), 1, -1 do
+                                        if M28Utilities.GetDistanceBetweenPositions(tEnemyGroundTargets[iEnemyCount]:GetPosition(), tRecentTarget) <= iAOE and (M28UnitInfo.IsUnitUnderwater(tEnemyGroundTargets[iEnemyCount]) or (tEnemyGroundTargets[iEnemyCount]:GetHealth() <= iDamage and not(EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel + categories.COMMAND, tEnemyGroundTargets[iEnemyCount].UnitId)))) then
+                                            --Check if under shield
+                                            if bDontCheckForShields or M28Logic.IsTargetUnderShield(aiBrain, tEnemyGroundTargets[iEnemyCount], iDamage - 1000, false, true, true, false, false) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Removing the target '..tEnemyGroundTargets[iEnemyCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEnemyGroundTargets[iEnemyCount])..' as it is too close to a recent bomb') end
+                                                table.remove(tEnemyGroundTargets, iEnemyCount)
                                             end
                                         end
                                     end
                                 end
                             end
+                        end
 
 
-                            if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyGroundTargets empty after considering enemies in the same LZ/WZ as experimental bomber='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
-                            if bAvoidRecentLowHealthBomberTargets and M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then
-                                RemoveRecentBombTargets(tBomberLandOrWaterZoneTeamData, iBomberPlateauOrZero, iBomberLandOrWaterZone)
-                            end
-                            if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false and bHaveTargetWhereShotIsntBlocked then
-                                --Check if already firing bomb here
-                                tFirstZoneWithTargetsMidpoint = tBomberZoneMidpoint
-                                iDistFromFirstZoneToBomber = 0
-                            end
-                            --if M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
-                            --Is there groundAA in the current plateau/water zone (i.e. there are enemies but we have chosen not to attack due to the threat)?
-                            if (tBomberLandOrWaterZoneData[M28Map.subrefiThreatEnemyGroundAA] or 0) > 0 or (tBomberLandOrWaterZoneData[M28Map.subrefiThreatEnemyGroundAA] or 0) > 0 then
-                                --Enemy has AA in the same LZ as our exp bomber and we dont want to attack enemies, so retreat (if no targets)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy GroundAA threat exists in same zone as exp bomber so want to retreat if not already got targets') end
-                            else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyGroundTargets empty after considering enemies in the same LZ/WZ as experimental bomber='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
+                        if bAvoidRecentLowHealthBomberTargets and M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then
+                            RemoveRecentBombTargets(tBomberLandOrWaterZoneTeamData, iBomberPlateauOrZero, iBomberLandOrWaterZone)
+                        end
+                        if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false and bHaveTargetWhereShotIsntBlocked then
+                            --Check if already firing bomb here
+                            tFirstZoneWithTargetsMidpoint = tBomberZoneMidpoint
+                            iDistFromFirstZoneToBomber = 0
+                        end
+                        --if M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
+                        --Is there groundAA in the current plateau/water zone (i.e. there are enemies but we have chosen not to attack due to the threat)?
+                        if (tBomberLandOrWaterZoneData[M28Map.subrefiThreatEnemyGroundAA] or 0) > 0 or (tBomberLandOrWaterZoneData[M28Map.subrefiThreatEnemyGroundAA] or 0) > 0 then
+                            --Enemy has AA in the same LZ as our exp bomber and we dont want to attack enemies, so retreat (if no targets)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy GroundAA threat exists in same zone as exp bomber so want to retreat if not already got targets') end
+                        else
 
-                                if bDebugMessages == true then LOG(sFunctionRef..': oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; iBomberPlateauOrZero='..(iBomberPlateauOrZero or 'nil')..'; iBomberLandOrWaterZone='..(iBomberLandOrWaterZone or 'nil')..'; tBomberZoneMidpoint='..repru(tBomberZoneMidpoint)) end
-                                RecordOtherLandAndWaterZonesByDistance(tBomberLandOrWaterZoneData)
-                                if M28Utilities.IsTableEmpty(tBomberLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each other zone by distance and consider the best target, tFirstZoneWithTargetsMidpoint='..repru(tFirstZoneWithTargetsMidpoint)) end
-                                    local bZoneIsCloseToFirstTargetZone
-                                    --local tiFirstPlateauAndZone
-                                    for iEntry, tSubtable in tBomberLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
-                                        if tFirstZoneWithTargetsMidpoint then
-                                            iZonesConsideredAfterFirstTarget = iZonesConsideredAfterFirstTarget + 1
-                                            if iZonesConsideredAfterFirstTarget >= 6 then
-                                                if iZonesConsideredAfterFirstTarget >= 20 or (tSubtable[M28Map.subrefiDistance] or 0) - (iDistFromFirstZoneToBomber or 50) >= 90 then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Already considered '..(iZonesConsideredAfterFirstTarget - 1)..' zones after the first, dist threshold vs dist from first zone to bomber='..tSubtable[M28Map.subrefiDistance] - iDistFromFirstZoneToBomber..' so will stop searching for more, dist to bomber zone='..tSubtable[M28Map.subrefiDistance]) end
-                                                    break
-                                                end
+                            if bDebugMessages == true then LOG(sFunctionRef..': oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; iBomberPlateauOrZero='..(iBomberPlateauOrZero or 'nil')..'; iBomberLandOrWaterZone='..(iBomberLandOrWaterZone or 'nil')..'; tBomberZoneMidpoint='..repru(tBomberZoneMidpoint)) end
+                            RecordOtherLandAndWaterZonesByDistance(tBomberLandOrWaterZoneData)
+                            if M28Utilities.IsTableEmpty(tBomberLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each other zone by distance and consider the best target, tFirstZoneWithTargetsMidpoint='..repru(tFirstZoneWithTargetsMidpoint)) end
+                                local bZoneIsCloseToFirstTargetZone
+                                --local tiFirstPlateauAndZone
+                                for iEntry, tSubtable in tBomberLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                                    if tFirstZoneWithTargetsMidpoint then
+                                        iZonesConsideredAfterFirstTarget = iZonesConsideredAfterFirstTarget + 1
+                                        if iZonesConsideredAfterFirstTarget >= 6 then
+                                            if iZonesConsideredAfterFirstTarget >= 20 or (tSubtable[M28Map.subrefiDistance] or 0) - (iDistFromFirstZoneToBomber or 50) >= 90 then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Already considered '..(iZonesConsideredAfterFirstTarget - 1)..' zones after the first, dist threshold vs dist from first zone to bomber='..tSubtable[M28Map.subrefiDistance] - iDistFromFirstZoneToBomber..' so will stop searching for more, dist to bomber zone='..tSubtable[M28Map.subrefiDistance]) end
+                                                break
                                             end
-                                        end
-
-                                        bZoneIsCloseToFirstTargetZone = true
-                                        if tFirstZoneWithTargetsMidpoint then
-                                            local tOtherZoneLZOrWZData
-                                            if tSubtable[M28Map.subrefbIsWaterZone] then
-                                                tOtherZoneLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
-                                            else
-                                                tOtherZoneLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
-                                            end
-
-                                            bZoneIsCloseToFirstTargetZone = false
-
-                                            if M28Utilities.GetDistanceBetweenPositions(tFirstZoneWithTargetsMidpoint, tOtherZoneLZOrWZData[M28Map.subrefMidpoint]) <= 100 then
-                                                bZoneIsCloseToFirstTargetZone = true
-                                            end
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if potential zone P'..tSubtable[M28Map.subrefiPlateauOrPond]..'Z'..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..' is close enough to the first zone target to warrant considering, dist to zone midpoint='..M28Utilities.GetDistanceBetweenPositions(tFirstZoneWithTargetsMidpoint, tOtherZoneLZOrWZData[M28Map.subrefMidpoint])..'; bZoneIsCloseToFirstTargetZone='..tostring(bZoneIsCloseToFirstTargetZone)..'; Dist to bomber zone='..tSubtable[M28Map.subrefiDistance]) end
-                                        end
-                                        if bZoneIsCloseToFirstTargetZone then
-                                            if tSubtable[M28Map.subrefbIsWaterZone] then
-                                                AddEnemyGroundUnitsToTargetsSubjectToAA(0, tSubtable[M28Map.subrefiLandOrWaterZoneRef],  true)
-                                            else
-                                                AddEnemyGroundUnitsToTargetsSubjectToAA(tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef],  true)
-                                            end
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Have just finished calling AddEnemyGroundUnitsToTargetsSubjectToAA for bombers for zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..', Is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))..'; tSubtable='..repru(tSubtable)..'; bHaveTargetWhereShotIsntBlocked='..tostring(bHaveTargetWhereShotIsntBlocked)) end
-                                            if not(tFirstZoneWithTargetsMidpoint) and M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false and bHaveTargetWhereShotIsntBlocked then
-                                                if bAvoidRecentLowHealthBomberTargets then
-                                                    local tOtherZoneLZOrWZData
-                                                    local tOtherZoneLZOrWZTeamData
-                                                    local iOtherPlateauOrZero
-                                                    local iTargetSegmentX, iTargetSegmentZ
-                                                    if tSubtable[M28Map.subrefbIsWaterZone] then
-                                                        tOtherZoneLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
-                                                        tOtherZoneLZOrWZTeamData = tOtherZoneLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                                                        iOtherPlateauOrZero = 0
-                                                    else
-                                                        tOtherZoneLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
-                                                        tOtherZoneLZOrWZTeamData = tOtherZoneLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-                                                        iOtherPlateauOrZero = tSubtable[M28Map.subrefiPlateauOrPond]
-                                                    end
-
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should ignore this zone due to recently targeting it with another ahwassa, enemy shield='..(tOtherZoneLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 'nil')..'; GroundAA='..(tOtherZoneLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')) end
-                                                    RemoveRecentBombTargets(tOtherZoneLZOrWZTeamData, iOtherPlateauOrZero, tSubtable[M28Map.subrefiLandOrWaterZoneRef])
-
-                                                end
-                                                if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then
-                                                    --Check we have at least 1 target where the bomb will deal damage of at least 100
-                                                    for iEnemyCount = table.getn(tEnemyGroundTargets), 1, -1 do
-                                                        --GetDamageFromBomb(aiBrain, tBaseLocation,                                 iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor, bCheckIfUnderwater, iOptionalGunshipFactor)
-                                                        iCurBombDamage = M28Logic.GetDamageFromBomb(aiBrain, tEnemyGroundTargets[iEnemyCount]:GetPosition(), iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true,                    4,                              M28UnitInfo.refCategoryGroundAA,    nil,                    nil,                0.5)
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Damage for iEnemyCount='..iEnemyCount..'; Enemy='..tEnemyGroundTargets[iEnemyCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEnemyGroundTargets[iEnemyCount])..' is iCurBombDamage='..iCurBombDamage) end
-                                                        if iCurBombDamage >= 200 then
-                                                            break
-                                                        elseif iCurBombDamage <= 40 then
-                                                            table.remove(tEnemyGroundTargets, iEnemyCount)
-                                                        end
-                                                    end
-                                                end
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Finished removing nil damage enemy ground targets, is table empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
-                                                if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then
-                                                    local tOtherZoneLZOrWZData
-                                                    if tSubtable[M28Map.subrefbIsWaterZone] then
-                                                        tOtherZoneLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
-                                                    else
-                                                        tOtherZoneLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
-                                                    end
-                                                    tFirstZoneWithTargetsMidpoint = tOtherZoneLZOrWZData[M28Map.subrefMidpoint]
-                                                    iDistFromFirstZoneToBomber = (tSubtable[M28Map.subrefiDistance] or M28Utilities.GetDistanceBetweenPositions(tFirstZoneWithTargetsMidpoint, oBomber:GetPosition()))
-
-                                                    --tiFirstPlateauAndZone = {tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef]}
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Have the first zone to target, tFirstZoneWithTargetsMidpoint='..repru(tFirstZoneWithTargetsMidpoint)..'; Dist to bomber zone='..tSubtable[M28Map.subrefiDistance]) end
-                                                end
-                                            end
-                                            --if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then break end
                                         end
                                     end
-                                    if M28Utilities.IsTableEmpty(tFirstZoneWithTargetsMidpoint) == false then
-                                        --We have a target, so consider SAMs and T3 MAA in nearby zones that we haven't already considered that are near here
-                                        local tMidpoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tFirstZoneWithTargetsMidpoint), iDistFromFirstZoneToBomber * 0.7)
-                                        local tNearbyDangerousAA = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryCruiser, tMidpoint, math.min(175, iDistFromFirstZoneToBomber * 0.5), 'Enemy')
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through each nearby T3 SAM, MAA or cruiser near the target and make sure that zone has been included in the table of potentail targets, is tNearbyDangerousAA empty='..tostring(M28Utilities.IsTableEmpty(tNearbyDangerousAA))) end
-                                        if M28Utilities.IsTableEmpty(tNearbyDangerousAA) == false then
-                                            for iUnit, oUnit in tNearbyDangerousAA do
-                                                if oUnit:GetFractionComplete() >= 1 then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Assessing enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Assigned Plateau and LZ='..repru(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam])) end
-                                                    if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam]) == false then
-                                                        --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, bCheckForAirAA)
-                                                        AddEnemyGroundUnitsToTargetsSubjectToAA(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1], oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2],  true)
-                                                    elseif oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then
-                                                        AddEnemyGroundUnitsToTargetsSubjectToAA(0, oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam],  true)
+
+                                    bZoneIsCloseToFirstTargetZone = true
+                                    if tFirstZoneWithTargetsMidpoint then
+                                        local tOtherZoneLZOrWZData
+                                        if tSubtable[M28Map.subrefbIsWaterZone] then
+                                            tOtherZoneLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                        else
+                                            tOtherZoneLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                        end
+
+                                        bZoneIsCloseToFirstTargetZone = false
+
+                                        if M28Utilities.GetDistanceBetweenPositions(tFirstZoneWithTargetsMidpoint, tOtherZoneLZOrWZData[M28Map.subrefMidpoint]) <= 100 then
+                                            bZoneIsCloseToFirstTargetZone = true
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if potential zone P'..tSubtable[M28Map.subrefiPlateauOrPond]..'Z'..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..' is close enough to the first zone target to warrant considering, dist to zone midpoint='..M28Utilities.GetDistanceBetweenPositions(tFirstZoneWithTargetsMidpoint, tOtherZoneLZOrWZData[M28Map.subrefMidpoint])..'; bZoneIsCloseToFirstTargetZone='..tostring(bZoneIsCloseToFirstTargetZone)..'; Dist to bomber zone='..tSubtable[M28Map.subrefiDistance]) end
+                                    end
+                                    if bZoneIsCloseToFirstTargetZone then
+                                        if tSubtable[M28Map.subrefbIsWaterZone] then
+                                            AddEnemyGroundUnitsToTargetsSubjectToAA(0, tSubtable[M28Map.subrefiLandOrWaterZoneRef],  true)
+                                        else
+                                            AddEnemyGroundUnitsToTargetsSubjectToAA(tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef],  true)
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have just finished calling AddEnemyGroundUnitsToTargetsSubjectToAA for bombers for zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..', Is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))..'; tSubtable='..repru(tSubtable)..'; bHaveTargetWhereShotIsntBlocked='..tostring(bHaveTargetWhereShotIsntBlocked)) end
+                                        if not(tFirstZoneWithTargetsMidpoint) and M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false and bHaveTargetWhereShotIsntBlocked then
+                                            if bAvoidRecentLowHealthBomberTargets then
+                                                local tOtherZoneLZOrWZData
+                                                local tOtherZoneLZOrWZTeamData
+                                                local iOtherPlateauOrZero
+                                                local iTargetSegmentX, iTargetSegmentZ
+                                                if tSubtable[M28Map.subrefbIsWaterZone] then
+                                                    tOtherZoneLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                                    tOtherZoneLZOrWZTeamData = tOtherZoneLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                                    iOtherPlateauOrZero = 0
+                                                else
+                                                    tOtherZoneLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                                    tOtherZoneLZOrWZTeamData = tOtherZoneLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                                                    iOtherPlateauOrZero = tSubtable[M28Map.subrefiPlateauOrPond]
+                                                end
+
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should ignore this zone due to recently targeting it with another ahwassa, enemy shield='..(tOtherZoneLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 'nil')..'; GroundAA='..(tOtherZoneLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')) end
+                                                RemoveRecentBombTargets(tOtherZoneLZOrWZTeamData, iOtherPlateauOrZero, tSubtable[M28Map.subrefiLandOrWaterZoneRef])
+
+                                            end
+                                            if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then
+                                                --Check we have at least 1 target where the bomb will deal damage of at least 100
+                                                for iEnemyCount = table.getn(tEnemyGroundTargets), 1, -1 do
+                                                    --GetDamageFromBomb(aiBrain, tBaseLocation,                                 iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor, bCheckIfUnderwater, iOptionalGunshipFactor)
+                                                    iCurBombDamage = M28Logic.GetDamageFromBomb(aiBrain, tEnemyGroundTargets[iEnemyCount]:GetPosition(), iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor,    nil,                            nil,                nil,                            iMobileUnitInnerDamageFactor,                nil,               iOptionalShieldReductionFactor,     true,                    4,                              M28UnitInfo.refCategoryGroundAA,    nil,                    nil,                0.5)
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Damage for iEnemyCount='..iEnemyCount..'; Enemy='..tEnemyGroundTargets[iEnemyCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEnemyGroundTargets[iEnemyCount])..' is iCurBombDamage='..iCurBombDamage) end
+                                                    if iCurBombDamage >= 200 then
+                                                        break
+                                                    elseif iCurBombDamage <= 40 then
+                                                        table.remove(tEnemyGroundTargets, iEnemyCount)
                                                     end
+                                                end
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Finished removing nil damage enemy ground targets, is table empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
+                                            if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then
+                                                local tOtherZoneLZOrWZData
+                                                if tSubtable[M28Map.subrefbIsWaterZone] then
+                                                    tOtherZoneLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                                else
+                                                    tOtherZoneLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                                end
+                                                tFirstZoneWithTargetsMidpoint = tOtherZoneLZOrWZData[M28Map.subrefMidpoint]
+                                                iDistFromFirstZoneToBomber = (tSubtable[M28Map.subrefiDistance] or M28Utilities.GetDistanceBetweenPositions(tFirstZoneWithTargetsMidpoint, oBomber:GetPosition()))
+
+                                                --tiFirstPlateauAndZone = {tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef]}
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Have the first zone to target, tFirstZoneWithTargetsMidpoint='..repru(tFirstZoneWithTargetsMidpoint)..'; Dist to bomber zone='..tSubtable[M28Map.subrefiDistance]) end
+                                            end
+                                        end
+                                        --if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then break end
+                                    end
+                                end
+                                if M28Utilities.IsTableEmpty(tFirstZoneWithTargetsMidpoint) == false then
+                                    --We have a target, so consider SAMs and T3 MAA in nearby zones that we haven't already considered that are near here
+                                    local tMidpoint = M28Utilities.MoveInDirection(oBomber:GetPosition(), M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tFirstZoneWithTargetsMidpoint), iDistFromFirstZoneToBomber * 0.7)
+                                    local tNearbyDangerousAA = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryCruiser, tMidpoint, math.min(175, iDistFromFirstZoneToBomber * 0.5), 'Enemy')
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through each nearby T3 SAM, MAA or cruiser near the target and make sure that zone has been included in the table of potentail targets, is tNearbyDangerousAA empty='..tostring(M28Utilities.IsTableEmpty(tNearbyDangerousAA))) end
+                                    if M28Utilities.IsTableEmpty(tNearbyDangerousAA) == false then
+                                        for iUnit, oUnit in tNearbyDangerousAA do
+                                            if oUnit:GetFractionComplete() >= 1 then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Assessing enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Assigned Plateau and LZ='..repru(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam])) end
+                                                if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam]) == false then
+                                                    --AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, bCheckForAirAA)
+                                                    AddEnemyGroundUnitsToTargetsSubjectToAA(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1], oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2],  true)
+                                                elseif oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then
+                                                    AddEnemyGroundUnitsToTargetsSubjectToAA(0, oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam],  true)
                                                 end
                                             end
                                         end
@@ -11999,6 +11999,50 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             end
                         end
                         --end
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': We want to run to rally point so wont consider further targets, subjcet to exception when down to last base, time of last bomb='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0)..'; Bomber refiModDistancePercent='..tBomberLandOrWaterZoneTeamData[M28Map.refiModDistancePercent]..'; Dist from bomber to rally='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist from rally to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tBomberLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) end
+                        --If bomber hasnt fired any bombs for a while, is within 175 of the rally point, rally point mod dist is low, and are enemies near the rally point, then consider ignoring enemy AA to target enemies adjacent to core base if we are the last 1-2 M28 players, and last on our air subteam
+                        if GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) >= 60 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] <= 2 and  tBomberLandOrWaterZoneTeamData[M28Map.refiModDistancePercent] <= 0.4 and M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) <= 175 and M28Utilities.GetDistanceBetweenPositions(tBomberLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) <= 125
+                        and M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
+                            local iAirSubteamCount = 0
+                            for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+                                if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then iAirSubteamCount = iAirSubteamCount + 1 end
+                            end
+                            if iAirSubteamCount <= 1 then
+                                local iClosestBasePlateauOrZero, iClosestBaseZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tBomberLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase])
+                                if iClosestBasePlateauOrZero > 0 and iClosestBaseZone > 0 and iClosestBasePlateauOrZero and iClosestBaseZone then
+                                    local tClosestBaseLZData = M28Map.tAllPlateaus[iClosestBasePlateauOrZero][M28Map.subrefPlateauLandZones][iClosestBaseZone]
+                                    local tClosestBaseLZTeamData = tClosestBaseLZData[M28Map.subrefLZTeamData][iTeam]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Are there enemies adjacent to reftClosestFriendlyBase iClosestBasePlateauOrZero P'..iClosestBasePlateauOrZero..'Z'..iClosestBaseZone..'='..tostring(tClosestBaseLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)) end
+                                    if tClosestBaseLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                                        if M28Utilities.IsTableEmpty(tClosestBaseLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                            AddEnemyGroundUnitsToTargetsSubjectToAA(iClosestBasePlateauOrZero, iClosestBaseZone, false)
+                                        end
+                                        if M28Utilities.IsTableEmpty(tClosestBaseLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                            for _, iAdjLZ in tClosestBaseLZData[M28Map.subrefLZAdjacentLandZones] do
+                                                local tAdjLZData = M28Map.tAllPlateaus[iClosestBasePlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                                if  M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will add enemy units in the adjacent zone '..iAdjLZ) end
+                                                    AddEnemyGroundUnitsToTargetsSubjectToAA(iClosestBasePlateauOrZero, iAdjLZ, false)
+                                                end
+                                            end
+                                            --Remove any targets that are too far away
+                                            if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then
+                                                local iMaxTargetDistFromBase = 175
+                                                for iCurEntry = table.getn(tEnemyGroundTargets, 1), 1, -1 do
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering cur target if too far away from base, target='..tEnemyGroundTargets[iCurEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEnemyGroundTargets[iCurEntry])..'; dist to closest base='..M28Utilities.GetDistanceBetweenPositions(tEnemyGroundTargets[iCurEntry]:GetPosition(), tBomberLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase])) end
+                                                    if M28Utilities.GetDistanceBetweenPositions(tEnemyGroundTargets[iCurEntry]:GetPosition(), tBomberLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase]) > iMaxTargetDistFromBase then
+                                                        table.remove(tEnemyGroundTargets, iCurEntry)
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Removing from potential targets') end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
 
