@@ -11681,13 +11681,15 @@ function AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, i
         local iLifetimeCountVar --If havent built enough t3 land combat then will get more
         local iLifetimeCountCategory = (M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3
         if aiBrain[M28Overseer.refbPrioritiseLowTech] then
-            if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
+            if M28Utilities.bLoudModActive then
                 iLifetimeCountVar = 40
+            elseif M28Utilities.bQuietModActive then
+                iLifetimeCountVar = 35
             else
                 iLifetimeCountVar = 30
             end
         elseif M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
-            iLifetimeCountVar = 16
+            if M28Utilities.bLoudModActive then iLifetimeCountVar = 16 else iLifetimeCountVar = 8 end
         end
         if bIsWaterZone then
             if aiBrain[M28Overseer.refbPrioritiseNavy] then
