@@ -19956,9 +19956,12 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
         else
             iAngleFromTargetToMidpoint = M28Utilities.GetAngleFromAToB(tPointToMoveFrom, tLZMidpoint)
             tTargetLocation = { tPointToMoveFrom[1], tPointToMoveFrom[2], tPointToMoveFrom[3] }
-            iDistToMoveFromEnemyToLZ = 0 --we are starting from the target location
+
+            local iDistToEnemyFromHere = M28Utilities.GetDistanceBetweenPositions(tPointToMoveFrom, tNearestEnemy)
+            iDistToMoveFromEnemyToLZ = math.max(iDistToEnemyFromHere * 0.7, iDistToMoveFromEnemyToLZ * 0.5)
             iDistToPointToMove = M28Utilities.GetDistanceBetweenPositions(tPointToMoveFrom, tLZMidpoint)
-            if bDebugMessages == true then LOG(sFunctionRef..': We have a point to move from based on the detailed travel path, which should already be sufficient distance from the nearest enemy, dist to midpoint (iDistToPointToMove)='..iDistToPointToMove) end
+            --NOTE: In v268 adjusted this, previously iDistToMoveFromEnemyToLZ = 0, but was causing errors where were adjusting for cliff height; however this new approach might also cause unexpected issues
+            if bDebugMessages == true then LOG(sFunctionRef..': We have a point to move from based on the detailed travel path, which should already be sufficient distance from the nearest enemy, dist to midpoint (iDistToPointToMove)='..iDistToPointToMove..'; Dist from tNearestEnemy to tPointToMoveFrom='..M28Utilities.GetDistanceBetweenPositions(tNearestEnemy, tPointToMoveFrom)..'; iDistToMoveFromEnemyToLZ after adjust='..iDistToMoveFromEnemyToLZ) end
         end
     else
         iDistToMoveFromEnemyToLZ = math.max(32, iDistToTarget * 0.6)
