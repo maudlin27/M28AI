@@ -3837,7 +3837,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
@@ -4631,12 +4631,17 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         end
                         local iGroundAAAdjacentThreshold = math.max(500, math.min(3000, iAvailableAndInCombatAirAAThreat * 0.01))
                         iAirAAAvoidThreshold = math.min(iAirAAAvoidThreshold, iAvailableAndInCombatAirAAThreat * 0.95)
-                        local iMaxDistFromFrontBomberOrAirSupportPoint = 150
+                        local iMaxDistFromZoneMidpointToFrontBomber = 125
+                        local iMaxDistFromAirSupportPoint = 80
+                        local iMaxDistFromFrontBomberToTarget = math.min(400, math.max(150, M28Map.iMapSize*0.3))
                         if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat] >= 20000 then
                             if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat] >= 50000 then
-                                iMaxDistFromFrontBomberOrAirSupportPoint = 200
+                                iMaxDistFromZoneMidpointToFrontBomber = 200
+                                iMaxDistFromAirSupportPoint = 140
+                                iMaxDistFromFrontBomberToTarget = iMaxDistFromFrontBomberToTarget * 1.1
                             else
-                                iMaxDistFromFrontBomberOrAirSupportPoint = 175
+                                iMaxDistFromZoneMidpointToFrontBomber = 175
+                                iMaxDistFromAirSupportPoint = 110
                             end
                         end
 
@@ -4646,45 +4651,52 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         else
                             tFrontBomberOrAirSupportPointPosition = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][3]}
                         end --]]
-                        for iBomberTarget, oBomberTarget in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoActiveBomberTargets] do
-                            if oBomberTarget[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then
-                                --Dealing with water zone bomber target
-                                iLandOrWaterZone = oBomberTarget[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]
-                                local tUnitLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-                                if M28Utilities.GetDistanceBetweenPositions(tUnitLZOrWZData[M28Map.subrefMidpoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) <= iMaxDistFromFrontBomberOrAirSupportPoint or (M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]) and M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]:GetPosition(), tUnitLZOrWZData[M28Map.subrefMidpoint]) <= iMaxDistFromFrontBomberOrAirSupportPoint) then
-                                    local tUnitLZOrWZTeamData = tUnitLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                                    if tUnitLZOrWZTeamData then
-                                        iCurUnitAASearchType = GetAASearchTypeForPriorityUnit(oFriendlyBomber, iPlateauOrZero, tUnitLZOrWZData, tUnitLZOrWZTeamData)
-                                        --AddEnemyAirInWaterZoneIfNoAA(iWaterZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, toOptionalUnitOverride, iOptionalAdjacentZoneSearchType, iOptionalMinDistToClosestEnemyBaseIfGroundThreat)
-                                        AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, false,       iCurUnitAASearchType,     iGroundAAAdjacentThreshold,       iAirAAAvoidThreshold,                   nil,                                 nil,                                    nil,                   refiAvoidOnlyGroundAA,              nil)
-                                        --Also include adjacent zones subject to air threat
-                                        if iCurUnitAASearchType == refiIgnoreAllAA then
-                                            AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, true, refiAvoidOnlyGroundAA,     iGroundAAAdjacentThreshold,iAirAAAvoidThreshold,       nil,     nil,   nil,    refiAvoidOnlyGroundAA)
+                        local iCurDistFromBomberToTarget
+                        if M28UnitInfo.IsUnitValid(oFriendlyBomber) then
+                            for iBomberTarget, oBomberTarget in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftoActiveBomberTargets] do
+                                iCurDistFromBomberToTarget = M28Utilities.GetDistanceBetweenPositions(oFriendlyBomber:GetPosition(), oBomberTarget:GetPosition())
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering bomber target '..oBomberTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomberTarget)..'; iCurDistFromBomberToTarget Dist from front bomber to this='..M28Utilities.GetDistanceBetweenPositions(oBomberTarget:GetPosition(), oFriendlyBomber:GetPosition())..'; iMaxDistFromFrontBomberToTarget='..iMaxDistFromFrontBomberToTarget) end
+                                if M28Utilities.GetDistanceBetweenPositions(oBomberTarget:GetPosition(), oFriendlyBomber:GetPosition()) <= iMaxDistFromFrontBomberToTarget then
+                                    if oBomberTarget[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then
+                                        --Dealing with water zone bomber target
+                                        iLandOrWaterZone = oBomberTarget[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]
+                                        local tUnitLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                                        if M28Utilities.GetDistanceBetweenPositions(tUnitLZOrWZData[M28Map.subrefMidpoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) <= iMaxDistFromAirSupportPoint or (M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]) and M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]:GetPosition(), tUnitLZOrWZData[M28Map.subrefMidpoint]) <= iMaxDistFromZoneMidpointToFrontBomber) then
+                                            local tUnitLZOrWZTeamData = tUnitLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                            if tUnitLZOrWZTeamData then
+                                                iCurUnitAASearchType = GetAASearchTypeForPriorityUnit(oFriendlyBomber, iPlateauOrZero, tUnitLZOrWZData, tUnitLZOrWZTeamData)
+                                                --AddEnemyAirInWaterZoneIfNoAA(iWaterZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, toOptionalUnitOverride, iOptionalAdjacentZoneSearchType, iOptionalMinDistToClosestEnemyBaseIfGroundThreat)
+                                                AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, false,       iCurUnitAASearchType,     iGroundAAAdjacentThreshold,       iAirAAAvoidThreshold,                   nil,                                 nil,                                    nil,                   refiAvoidOnlyGroundAA,              nil)
+                                                --Also include adjacent zones subject to air threat
+                                                if iCurUnitAASearchType == refiIgnoreAllAA then
+                                                    AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, true, refiAvoidOnlyGroundAA,     iGroundAAAdjacentThreshold,iAirAAAvoidThreshold,       nil,     nil,   nil,    refiAvoidOnlyGroundAA)
+                                                end
+                                            end
                                         end
-                                    end
-                                end
 
-                            else
-                                iLandOrWaterZone = oBomberTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
-                                iPlateauOrZero = oBomberTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
-                                local tUnitLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
-                                if bDebugMessages == true then LOG(sFunctionRef..': LZ oBomberTarget='..oBomberTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomberTarget)..'; LZ iLandOrWaterZone='..iLandOrWaterZone..'; bomber targ to air support point dist='..M28Utilities.GetDistanceBetweenPositions(tUnitLZOrWZData[M28Map.subrefMidpoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; iMaxDistFromFrontBomberOrAirSupportPoint='..iMaxDistFromFrontBomberOrAirSupportPoint)
-                                    if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]) then LOG(sFunctionRef..': Dist from front bomber to target='..M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]:GetPosition(), tUnitLZOrWZData[M28Map.subrefMidpoint])) end
-                                end
-                                if tUnitLZOrWZData and M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] and M28Utilities.GetDistanceBetweenPositions(tUnitLZOrWZData[M28Map.subrefMidpoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) <= iMaxDistFromFrontBomberOrAirSupportPoint or (M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]) and M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]:GetPosition(), tUnitLZOrWZData[M28Map.subrefMidpoint]) <= iMaxDistFromFrontBomberOrAirSupportPoint) then
-                                    local tUnitLZOrWZTeamData = tUnitLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-                                    if tUnitLZOrWZTeamData then
-                                        iCurUnitAASearchType = GetAASearchTypeForPriorityUnit(oFriendlyBomber, iPlateauOrZero, tUnitLZOrWZData, tUnitLZOrWZTeamData)
-                                        --AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, toOptionalUnitOverride, iOptionalAdjacentZoneSearchType, iOptionalMinDistToClosestEnemyBaseIfGroundThreat)
-                                        AddEnemyAirInLandZoneIfNoAA(iPlateauOrZero, iLandOrWaterZone, false, iCurUnitAASearchType, iGroundAAAdjacentThreshold, iAirAAAvoidThreshold, nil,           nil,                                        nil,                    nil,            nil)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Just finished considering adding enemy air in land zone near bomber target, iAASearchType='..iAASearchType..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; iCurUnitAASearchType='..iCurUnitAASearchType..'; AirAA threat of enemy units='..M28UnitInfo.GetAirThreatLevel(tEnemyAirTargets, true, true, false, false, false, false)) end
+                                    else
+                                        iLandOrWaterZone = oBomberTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                                        iPlateauOrZero = oBomberTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+                                        local tUnitLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                                        if bDebugMessages == true then LOG(sFunctionRef..': LZ oBomberTarget='..oBomberTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomberTarget)..'; LZ iLandOrWaterZone='..iLandOrWaterZone..'; bomber targ to air support point dist='..M28Utilities.GetDistanceBetweenPositions(tUnitLZOrWZData[M28Map.subrefMidpoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; iMaxDistFromZoneMidpointToFrontBomber='..iMaxDistFromZoneMidpointToFrontBomber..'; iMaxDistFromAirSupportPoint='..iMaxDistFromAirSupportPoint)
+                                            if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]) then LOG(sFunctionRef..': Dist from front bomber to target='..M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]:GetPosition(), tUnitLZOrWZData[M28Map.subrefMidpoint])) end
+                                        end
+                                        if tUnitLZOrWZData and M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] and M28Utilities.GetDistanceBetweenPositions(tUnitLZOrWZData[M28Map.subrefMidpoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) <= iMaxDistFromAirSupportPoint or (M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]) and M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber]:GetPosition(), tUnitLZOrWZData[M28Map.subrefMidpoint]) <= iMaxDistFromZoneMidpointToFrontBomber) then
+                                            local tUnitLZOrWZTeamData = tUnitLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                                            if tUnitLZOrWZTeamData then
+                                                iCurUnitAASearchType = GetAASearchTypeForPriorityUnit(oFriendlyBomber, iPlateauOrZero, tUnitLZOrWZData, tUnitLZOrWZTeamData)
+                                                --AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, toOptionalUnitOverride, iOptionalAdjacentZoneSearchType, iOptionalMinDistToClosestEnemyBaseIfGroundThreat)
+                                                AddEnemyAirInLandZoneIfNoAA(iPlateauOrZero, iLandOrWaterZone, false, iCurUnitAASearchType, iGroundAAAdjacentThreshold, iAirAAAvoidThreshold, nil,           nil,                                        nil,                    nil,            nil)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Just finished considering adding enemy air in land zone near bomber target, iAASearchType='..iAASearchType..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; iCurUnitAASearchType='..iCurUnitAASearchType..'; AirAA threat of enemy units='..M28UnitInfo.GetAirThreatLevel(tEnemyAirTargets, true, true, false, false, false, false)) end
 
-                                        --Also include adjacent zones subject to air threat
-                                        --AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride)
-                                        if iCurUnitAASearchType == refiIgnoreAllAA then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider adjacent zones to bomber target zone '..iLandOrWaterZone..' but factoring in any groundAA threat, iGroundAAAdjacentThreshold='..iGroundAAAdjacentThreshold) end
-                                            --AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone,          bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, toOptionalUnitOverride, iOptionalAdjacentZoneSearchType)
-                                            AddEnemyAirInLandZoneIfNoAA(iPlateauOrZero, iLandOrWaterZone, true, refiAvoidOnlyGroundAA, iGroundAAAdjacentThreshold, iAirAAAvoidThreshold, iDistanceToZoneEdgeToConsider, oBomberTarget:GetPosition(), nil,    refiAvoidOnlyGroundAA)
+                                                --Also include adjacent zones subject to air threat
+                                                --AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride)
+                                                if iCurUnitAASearchType == refiIgnoreAllAA then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider adjacent zones to bomber target zone '..iLandOrWaterZone..' but factoring in any groundAA threat, iGroundAAAdjacentThreshold='..iGroundAAAdjacentThreshold) end
+                                                    --AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone,          bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone, toOptionalUnitOverride, iOptionalAdjacentZoneSearchType)
+                                                    AddEnemyAirInLandZoneIfNoAA(iPlateauOrZero, iLandOrWaterZone, true, refiAvoidOnlyGroundAA, iGroundAAAdjacentThreshold, iAirAAAvoidThreshold, iDistanceToZoneEdgeToConsider, oBomberTarget:GetPosition(), nil,    refiAvoidOnlyGroundAA)
+                                                end
+                                            end
                                         end
                                     end
                                 end
