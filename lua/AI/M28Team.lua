@@ -5472,7 +5472,7 @@ end
 
 function SetIfLoseGameOnACUDeath(iTeam)
     local bAssassinationOrSimilar = true
-    if ScenarioInfo.Options.Share == 'FullShare' or ScenarioInfo.Options.Victory == 'team_assassination' then
+    if ScenarioInfo.Options.Share == 'FullShare' or ScenarioInfo.Options.Victory == 'team_assassination' or not(M28Utilities.bFAFActive) then --For non-faf can xfer units to teammate when ACU dies; FAF prevents this
         if tTeamData[iTeam][subrefiActiveM28BrainCount] > 1 then
             bAssassinationOrSimilar = false
             if ScenarioInfo.Options.Victory == 'decapitation' and M28Utilities.bFAFActive then

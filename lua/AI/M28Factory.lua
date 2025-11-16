@@ -5329,6 +5329,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) == false then
             local oACUToSnipe = M28Conditions.GetNearbyACUForAirFacBomberSnipe(oFactory, iTeam)
             if oACUToSnipe and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) or iFactoryTechLevel == 1) then
+                if bDebugMessages == true then LOG(sFunctionRef..': oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)..'; HealthAndShield%='..M28UnitInfo.GetUnitHealthAndShieldPercent(oACUToSnipe)..'; iFactoryTechLevel='..iFactoryTechLevel..'; subrefiOurT1ToT3BomberThreat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat]) end
                 if M28Utilities.bLoudModActive and iFactoryTechLevel >= 3 and ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild
                 elseif iFactoryTechLevel == 2 and EntityCategoryContains(categories.UEF, oFactory.UnitId) and ConsiderBuildingCategory(iNormalBomberCategoryToBuild * categories.TECH1) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Will build T1 UEF bombers due to ACU snipe target, oACUToSnipe='..oACUToSnipe.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUToSnipe)) end
@@ -5919,10 +5920,11 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
                 end
 
-                --Bombers if dont have at least 2 and either losses dont exceed kills, or thye're more effective than gunships
+                --Bombers if dont have at least 2 and either losses dont exceed kills, or thye're more effective than gunships, subject to our air subteam having bombers
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if ((M28Utilities.bQuietModActive) and M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] <= M28Team.tTeamData[iTeam][M28Team.refiBomberKills]) or (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] / M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]) then
-                    local iCurBombers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber)
+                if bDebugMessages == true then LOG(sFunctionRef..': Min bomber count, subrefiOurT1ToT3BomberThreat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat]..'; refbHaveAirControl='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) end
+                if (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat] < 500 or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] or (iFactoryTechLevel == 3 and M28Conditions.GetAirSubteamLifetimeBuildCount(iAirSubteam, M28UnitInfo.refCategoryBomber * categories.TECH3) == 0)) and ((M28Utilities.bQuietModActive) and M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] <= M28Team.tTeamData[iTeam][M28Team.refiBomberKills]) or (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] / M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]) then
+                    local iCurBombers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber) + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryBomber, false, false)
                     if (iCurBombers < 2 or (iCurBombers < 4 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] > M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 1.25)) and (iCurBombers == 0 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) then
                         if bDebugMessages == true then LOG(sFunctionRef..': iCurBombers='..iCurBombers..'; will try and get a basic number') end
                         if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
@@ -7227,9 +7229,9 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
 
     --LOUD specific - build SACUs if needed to build experimentals, but dont build anything if low on mass and have built a few
     local iCurSACUs = aiBrain:GetCurrentUnits(categories.SUBCOMMANDER)
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to abort for LOUD/QUIET if we have several SACUs already, iCurSACUs='..iCurSACUs..'; M28Utilities.bLoudModActive='..tostring(M28Utilities.bLoudModActive or false)..'; Mass%='..aiBrain:GetEconomyStoredRatio('MASS')..'; Fac total build count='..(oFactory[refiTotalBuildCount] or 'nil')..'; Team exp constructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to abort for LOUD if we have several SACUs already, iCurSACUs='..iCurSACUs..'; M28Utilities.bLoudModActive='..tostring(M28Utilities.bLoudModActive or false)..'; Mass%='..aiBrain:GetEconomyStoredRatio('MASS')..'; Fac total build count='..(oFactory[refiTotalBuildCount] or 'nil')..'; Team exp constructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]) end
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if iCurSACUs >= M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 2 and (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and (bHaveLowMass or aiBrain:GetEconomyStoredRatio('MASS') < 0.3) and oFactory[refiTotalBuildCount] >= 2 then
+    if iCurSACUs >= M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 2 and M28Utilities.bLoudModActive and (bHaveLowMass or aiBrain:GetEconomyStoredRatio('MASS') < 0.3) and oFactory[refiTotalBuildCount] >= 2 then
         if iCurSACUs >= M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 4 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] <= 1 then
             if bDebugMessages == true then LOG(sFunctionRef..': Want to hold off building more SACUs for now, Time='..GetGameTimeSeconds()) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -7258,7 +7260,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
 
     --General - if close to unit cap and have lots of SACUs then dont get more (except for LOUD where apparently they give you bonus unit cap?)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and iCurSACUs >= 15 and aiBrain[M28Overseer.refbCloseToUnitCap] and (iCurSACUs >= 30 or (iCurSACUs >= math.max(20, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -2) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1) then
+    if not(M28Utilities.bLoudModActive) and iCurSACUs >= 15 and aiBrain[M28Overseer.refbCloseToUnitCap] and (iCurSACUs >= 30 or (iCurSACUs >= math.max(20, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -2) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1) then
         if bDebugMessages == true then LOG(sFunctionRef..': Dont want more SACUs due to unit cap') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return nil

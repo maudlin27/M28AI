@@ -3620,7 +3620,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     --If have any SACUs without RAS upgrade that could get it, then get RAS upgrade, provided no enemies in the zone (LOUD - only doe this if close to unit cap or defending against t3 arti since that will stop us building mass fabs, due to how bad ras is)
     if M28Utilities.IsTableEmpty(tSACUs) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': Considering getting RAS if no enemies in LZ and not LOUD, tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; Enemy air to ground='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Unit cap level='..(M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 'nil')..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])..'; Team mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
-        if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) <= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
+        if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and (not(M28Utilities.bLoudModActive) or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) <= 2 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))) then
             local tSACUsToUpgrade = {}
             local tSACUsUpgrading = {}
             local bWantBuildPower = false
@@ -3981,7 +3981,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
 
                 --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
                 --(dont do this in LOUD unless near unit cap since wont be getting RAS SACUs)
-                if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 then
+                if not(M28Utilities.bLoudModActive) or M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 then
                     local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of quantum gateways empty='..tostring(M28Utilities.IsTableEmpty( tQuantumGateways))) end
                     if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
@@ -5451,7 +5451,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
             end
             if M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false and (iAvailableCombatUnitThreat >= 500 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= 3000)) then
-                if iEnemyBestDFRange >= 30 then
+                --if iEnemyBestDFRange >= 30 then
                     local iMobileDFWanted = math.min(M28UnitInfo.GetCombatThreatRating(toEnemyACUsNearZone, true), 8000)
                     if bDebugMessages == true then LOG(sFunctionRef..': Threat of enemy ACUs in zone (or nearest ACU to the zone that is in adj zone)='..M28UnitInfo.GetCombatThreatRating(toEnemyACUsNearZone, true)..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
                     if iMobileDFWanted <= 500 or iAvailableCombatUnitThreat > iMobileDFWanted then
@@ -5523,9 +5523,10 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                     end
-                else
+                --[[else
                     bConsiderAttackingACU = true
-                end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemyBestDFRange isnt at least 30 so will consider attacking ACU, iEnemyBestDFRange='..iEnemyBestDFRange) end
+                end--]]
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished deciding if we want to try and attack enemy ACU, bConsiderAttackingACU='..tostring(bConsiderAttackingACU or false)..'; Is table of enemy ACUs near zone empty='..tostring(M28Utilities.IsTableEmpty(toEnemyACUsNearZone))) end
 
@@ -9498,14 +9499,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local iPrioritySearchCategory = M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedShield
                     local iMMLMassValue = M28UnitInfo.GetMassCostOfUnits(tMMLForSynchronisation)
                     --if iMMLMassValue >= 1000 then --removed as want our mml to target stationery enemy mmls even when we only have 1-2 of them
-                        iPrioritySearchCategory = iPrioritySearchCategory + (M28UnitInfo.refCategoryIndirect * categories.MOBILE - categories.TECH1)
-                        if iMMLMassValue >= 2000 then --have 10+ T2 MML equivalent so include t2 arti when searching
-                            bConsiderMultipleTargets = true
-                            iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryFixedT2Arti
-                            if iMMLMassValue >= 4000 then --Include T2 and T3 PD as well
-                                iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryT2PlusPD
-                            end
+                    iPrioritySearchCategory = iPrioritySearchCategory + (M28UnitInfo.refCategoryIndirect * categories.MOBILE - categories.TECH1)
+                    if iMMLMassValue >= 2000 then --have 10+ T2 MML equivalent so include t2 arti when searching
+                        bConsiderMultipleTargets = true
+                        iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryFixedT2Arti
+                        if iMMLMassValue >= 4000 then --Include T2 and T3 PD as well
+                            iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryT2PlusPD
                         end
+                    end
                     --end
                     IncludeTMDAndShieldsInZone(iLandZone, nil, iPrioritySearchCategory)
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
