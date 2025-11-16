@@ -5451,7 +5451,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
             end
             if M28Utilities.IsTableEmpty(toEnemyACUsNearZone) == false and (iAvailableCombatUnitThreat >= 500 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= 3000)) then
-                if iEnemyBestDFRange >= 30 then
+                --if iEnemyBestDFRange >= 30 then
                     local iMobileDFWanted = math.min(M28UnitInfo.GetCombatThreatRating(toEnemyACUsNearZone, true), 8000)
                     if bDebugMessages == true then LOG(sFunctionRef..': Threat of enemy ACUs in zone (or nearest ACU to the zone that is in adj zone)='..M28UnitInfo.GetCombatThreatRating(toEnemyACUsNearZone, true)..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
                     if iMobileDFWanted <= 500 or iAvailableCombatUnitThreat > iMobileDFWanted then
@@ -5523,9 +5523,10 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                     end
-                else
+                --[[else
                     bConsiderAttackingACU = true
-                end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemyBestDFRange isnt at least 30 so will consider attacking ACU, iEnemyBestDFRange='..iEnemyBestDFRange) end
+                end--]]
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished deciding if we want to try and attack enemy ACU, bConsiderAttackingACU='..tostring(bConsiderAttackingACU or false)..'; Is table of enemy ACUs near zone empty='..tostring(M28Utilities.IsTableEmpty(toEnemyACUsNearZone))) end
 
@@ -9498,14 +9499,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local iPrioritySearchCategory = M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedShield
                     local iMMLMassValue = M28UnitInfo.GetMassCostOfUnits(tMMLForSynchronisation)
                     --if iMMLMassValue >= 1000 then --removed as want our mml to target stationery enemy mmls even when we only have 1-2 of them
-                        iPrioritySearchCategory = iPrioritySearchCategory + (M28UnitInfo.refCategoryIndirect * categories.MOBILE - categories.TECH1)
-                        if iMMLMassValue >= 2000 then --have 10+ T2 MML equivalent so include t2 arti when searching
-                            bConsiderMultipleTargets = true
-                            iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryFixedT2Arti
-                            if iMMLMassValue >= 4000 then --Include T2 and T3 PD as well
-                                iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryT2PlusPD
-                            end
+                    iPrioritySearchCategory = iPrioritySearchCategory + (M28UnitInfo.refCategoryIndirect * categories.MOBILE - categories.TECH1)
+                    if iMMLMassValue >= 2000 then --have 10+ T2 MML equivalent so include t2 arti when searching
+                        bConsiderMultipleTargets = true
+                        iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryFixedT2Arti
+                        if iMMLMassValue >= 4000 then --Include T2 and T3 PD as well
+                            iPrioritySearchCategory = iPrioritySearchCategory + M28UnitInfo.refCategoryT2PlusPD
                         end
+                    end
                     --end
                     IncludeTMDAndShieldsInZone(iLandZone, nil, iPrioritySearchCategory)
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
