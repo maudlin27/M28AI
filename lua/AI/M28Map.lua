@@ -437,6 +437,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiNonM28TeammateMexCount = 'NMTMx' --approx number of teammate mexes in the zone
             refiTimeOurT2ArtiLastFired = 'T2Arts' --Gametimeseconds we had a t2 arti fire a shot in this zone (to help avoiding overbuilding on plateaus that might not need it)
             reftoAttackingFriendlyExperimentals = 'AtExp' --table of attacking experimentals for land combat
+            refiTimeLastRunFromEnemyLand = 'EngTmR' --LZ or WZ variable, Gametimeseconds engineer in this zone has been given an order to run from enemy
             --reftiLocationsToAvoid = 'TLocAv' --if have enemy aoe unit targeting an M28 unit, then the first 10 such locations get recorded - removed as not sure it actually made things better
 
 --Pond and naval variables
