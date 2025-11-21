@@ -3906,6 +3906,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         iAirControlFactor = math.min(0.08, 0.08 * (GetGameTimeSeconds() - 2700) / 1800) + iAirControlFactor
     end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refiFarBehindFactor] = iFarBehindFactor
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirControlFactor] = iAirControlFactor
 
     if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * iFarBehindFactor then
         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] = true

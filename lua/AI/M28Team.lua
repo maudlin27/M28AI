@@ -281,6 +281,7 @@ tAirSubteamData = {}
     subrefiMaxScoutRadius = 'M28ASTMaxScoutRadius' --Search range for scouts for this AirSubteam
     refbFarBehindOnAir = 'M28ASTFarBehindOnAir' --true if we are far behind on air
     refiFarBehindFactor = 'M28ASTFarBhAFc' --e.g. 0.75 means refbFarBehindOnAir is true if our AirAA threat is <75% of enemy
+    refiAirControlFactor = 'M28ACFct' --% of airaa we want to consider we have air control
     refbHaveAirControl = 'M28ASTHaveAirControl'
     reftACUExpAndPriorityDefenceOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
 
