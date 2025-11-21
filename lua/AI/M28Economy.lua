@@ -3358,9 +3358,13 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
             local iTeam = aiBrain.M28Team
             local iMexTechLevel = M28UnitInfo.GetUnitTechLevel(oJustBuilt)
 
-            if bDebugMessages == true then LOG(sFunctionRef..': Is team stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Prioritise production for land team='..tostring(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refbPrioritiseProduction] or false)..'; Team low on mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Is team stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Prioritise production for land team='..tostring(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refbPrioritiseProduction] or false)..'; Team low on mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; refiMexCountByTech='..reprs(M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech])) end
             if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) or (iMexTechLevel >= 3 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.95) then
                 local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, iTeam)
+                if bDebugMessages == true then
+                    local iCurPlateauOrZero, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oJustBuilt:GetPosition())
+                    LOG(sFunctionRef..': Mex is in iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurZone='..(iCurZone or 'nil')..'; Mod dist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent])
+                end
                 --Wait 1 tick if oOptionalEngineer is set and we might be on last upgrade in zone, to make sure our tracking of active upgrades is updated
                 if oOptionalEngineer and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] == 1 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTechLevel] < tLZOrWZData[M28Map.subrefLZOrWZMexCount] then
                     if bDebugMessages == true then LOG(sFunctionRef..': Waiting 1 sec so our upgrade count can update, tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]='..tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]..'; will first try updating upgrade tracking') end
@@ -3490,8 +3494,19 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                                         local bGetT3Mex = M28Conditions.WantAnotherT3MexUpgrade(iTeam)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to get another t3 mex at this stage, bGetT3Mex='..tostring(bGetT3Mex)) end
                                         if bGetT3Mex then
-                                            --Consider mex of higher tech level if not already
-                                            tMexOfCategory = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                            if bDebugMessages == true then LOG(sFunctionRef..': We want another t3 mex on our team; however if this isnt a core base/similar mod dist then want to consider our base') end
+                                            if tLZOrWZTeamData[M28Map.refiModDistancePercent] > 0.05 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] < 10 then
+                                                local tNearestBaseLZData, tNearestBaseLZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(oJustBuilt:GetAIBrain()), true, iTeam)
+                                                --Does nearest base not have many t3 mexes yet, but seems as safe as this zone?
+                                                if tNearestBaseLZTeamData and tNearestBaseLZTeamData[M28Map.subrefMexCountByTech][3] <= 1 and tNearestBaseLZTeamData[M28Map.subrefMexCountByTech][2] > 0 and (tNearestBaseLZData[M28Map.subrefLZOrWZMexCount] >= 3 or tNearestBaseLZTeamData[M28Map.subrefMexCountByTech][3] == 0) and (M28Utilities.IsTableEmpty(tNearestBaseLZTeamData[M28Map.reftoNearestDFEnemies]) or not(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))) then
+                                                    bGetT3Mex = false
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Want more t3 mex in core base first so will cancel getting a t3 mex') end
+                                                end
+                                            end
+                                            if bGetT3Mex then
+                                                --Consider mex of higher tech level if not already
+                                                tMexOfCategory = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                            end
                                         end
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and find a mex to upgrade, is M28Utilities.IsTableEmpty(tMexOfCategory)='..tostring(M28Utilities.IsTableEmpty(tMexOfCategory))) end
