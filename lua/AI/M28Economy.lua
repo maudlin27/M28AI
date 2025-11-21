@@ -2456,7 +2456,7 @@ function ManageEnergyStalls(iTeam)
                                             end
                                         else
                                             if bDebugMessages == true then
-                                                LOG(sFunctionRef .. ': About to consider pausing/unpausingunit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4; bConsideringFactory='..tostring(bConsideringFactory)..'; brain gross energy='..oBrain[refiGrossEnergyBaseIncome]..'; Primary fac='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false))
+                                                LOG(sFunctionRef .. ': About to consider pausing/unpausingunit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4; bConsideringFactory='..tostring(bConsideringFactory)..'; brain gross energy='..oBrain[refiGrossEnergyBaseIncome]..'; Primary fac='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false)..'; MaintenanceConsumptionPerSecondEnergy='..(oUnit:GetBlueprint().Economy.MaintenanceConsumptionPerSecondEnergy or 'nil'))
                                                 if oUnit.GetWorkProgress then
                                                     local oUnitTarget = oUnit:GetFocusUnit()
                                                     if oUnitTarget then
@@ -2556,6 +2556,10 @@ function ManageEnergyStalls(iTeam)
                                             elseif iCategoryRef == M28UnitInfo.refCategoryTML and M28UnitInfo.GetMissileCount(oUnit) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 30 then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Dealing with TML that has no missile so dont want to pause it') end
                                                 bApplyActionToUnit = false
+                                                --Selens - dont pause as only costs 1 E per sec
+                                            elseif oUnit.UnitId == 'xsl0101' and (oUnit:GetBlueprint().Economy.MaintenanceConsumptionPerSecondEnergy or 1) <= 2 and oBrain[refiGrossEnergyBaseIncome] >= 20 then
+                                                bApplyActionToUnit = false
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Have a selen so E drain is negligible') end
                                             end
 
                                             if iCategoryRef == categories.COMMAND then
