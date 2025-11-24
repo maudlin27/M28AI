@@ -3937,7 +3937,12 @@ function ACULikelyToWantCombatUpgradeOrShield(oACU)
     local sFunctionRef = 'ACULikelyToWantCombatUpgradeOrShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..'; Start of code, ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs])..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]='..tostring(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithAmphibious])..'; Time='..GetGameTimeSeconds()) end
-    if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.7 then
+    --Cybran and Aeon - if have RAS then dont replace with shield
+    if (oACU:HasEnhancement('ResourceAllocationAdvanced') or oACU:HasEnhancement('ResourceAllocation')) and EntityCategoryContains(categories.CYBRAN + categories.AEON, oACU.UnitId) and (M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.8 or not(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbAssassinationOrSimilar])) then
+        if bDebugMessages == true then LOG(sFunctionRef..': We already have RAS so dont want to get stealth/shield for cybran/aeon') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return false
+    elseif M28UnitInfo.GetUnitHealthPercent(oACU) < 0.7 then
         if bDebugMessages == true then LOG(sFunctionRef..': ACU damaged so returning true to use in combat') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
