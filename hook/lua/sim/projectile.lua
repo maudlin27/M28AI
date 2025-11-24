@@ -38,5 +38,21 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             self:CreateImpactEffects(self.Army, self.FxOnKilled, self.FxOnKilledScale)
             self:Destroy()
         end,
+        OnTrackTargetGround = function(self)
+            if self.OriginalTarget.IsRedirected then
+                local target = self.OriginalTarget or self:GetTrackingTarget() or self.Launcher:GetTargetEntity()
+                --LOG('target.Launcher.UnitId='..(target.Launcher.UnitId or 'nil')..'; EntityId='..(target.Launcher.EntityId or 'nil')..'; .Launcher.UnitId='..(self.Launcher.UnitId or 'nil')..'; EntityId='..(self.Launcher.EntityId or 'nil')..'; target reprs='..reprs(target)..'; will now do launcher reprs='..reprs(self.Launcher))
+                if target.Launcher.EntityId == target.CreatedByWeapon.unit.EntityId then
+                    --Only consider if 'launcher' was Cybran loyalist or cruiser (that can deflect), and target doesnt have antimissile
+                    if self.Launcher then
+                        if EntityCategoryContains(categories.ANTIMISSILE * categories.MOBILE * categories.CYBRAN, self.Launcher.UnitId) and EntityCategoryContains(categories.MOBILE, target.CreatedByWeapon.unit.UnitId) then
+                            --Is this an M28 unit?
+                            ForkThread(M28Events.MissileReflected,target.CreatedByWeapon.unit, self.Launcher)
+                        end
+                    end
+                end
+            end
+            M28OldProjectile.OnTrackTargetGround(self)
+        end,
     }
 end

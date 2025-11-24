@@ -744,7 +744,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
+function DodgeShot(oTarget, oOptionalWeapon, oAttacker, iTimeToDodge)
     --Should have already checked oTarget is a valid unit that has a chance of dodging the shot in time before claling this
     --Gets unit to move at a slightly different angle to its current facing direction for iTimeToDodge
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
