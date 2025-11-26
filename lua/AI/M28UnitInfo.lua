@@ -2989,7 +2989,7 @@ function GetUnitHealthRegenRate(oUnit)
 end
 
 function SetUnitWeaponTargetPriorities(oUnit, tPriorityTable, bCheckIfCanAttackGround)
-    if (bDontConsiderCombinedArmy or oUnit.M28Active) and IsUnitValid(oUnit) and false then
+    if (bDontConsiderCombinedArmy or oUnit.M28Active) and IsUnitValid(oUnit) then
         if EntityCategoryContains(refCategoryMAA, oUnit) then M28Utilities.ErrorHandler('Changing weapon priority for MAA') end
         for i =1, oUnit:GetWeaponCount() do
             local wep = oUnit:GetWeapon(i)
