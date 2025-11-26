@@ -2614,7 +2614,7 @@ function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit)
         while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oClosestACUNearUnit) and not(oClosestACUNearUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oClosestACUNearUnit)) do
             --Move towards the ACU
             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUNearUnit:GetPosition())
-            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; bLastOrderWasManualAttack='..tostring(bLastOrderWasManualAttack)..'; Time='..GetGameTimeSeconds()) end
+            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; bLastOrderWasManualAttack='..tostring(bLastOrderWasManualAttack)..'; Will do attack move intead of manual attack this time='..tostring(iCurDist >= 8 or (iCurDist >= 5 and not(bLastOrderWasManualAttack)))..'; Time='..GetGameTimeSeconds()) end
             if iCurDist >= 8 or (iCurDist >= 5 and not(bLastOrderWasManualAttack)) then
                 M28Orders.IssueTrackedMove(oUnit, oClosestACUNearUnit:GetPosition(), 0.5, false, 'ExpKACUM', true)
                 bLastOrderWasManualAttack = false
