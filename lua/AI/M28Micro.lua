@@ -2932,7 +2932,7 @@ function SuicideExperimentalIntoFatboy(oUnit, oFatboy, iTeam, iPlateau)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SuicideExperimentalIntoFatboy'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 38*60+40 then bDebugMessages = true end
+
     local iDistanceFromFatboyWanted = math.max(oUnit[M28UnitInfo.refiDFRange], 40)
     local iCurFacingAngle
     local iAngleToFatboy
