@@ -1830,7 +1830,8 @@ function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClosest
 
     local bGivenOrder = false
 
-    if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Time since last weapon event='..(GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0))..'; refiTimeBetweenDFShots='..(oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
+    if not(oUnit[M28UnitInfo.refbEasyBrain]) and (oUnit[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent]) < (oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 1.2) + 0.5 then
 
         --Only consider applying micro if moving in opposite direction to that which we are facing should result in us moving in similar direction to rally point or closest base
         local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
