@@ -2279,7 +2279,6 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             end
             --FA M3 (Saving rihanne) - dont adjust orders of engineers building exp bombers for a while
         elseif ScenarioInfo.ExperimentalEngineers and M28Utilities.IsTableEmpty(ScenarioInfo.ExperimentalEngineers) == false then
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.M1P1.Active='..tostring(ScenarioInfo.M1P1.Active or false)..'; ScenarioInfo.M2P1.Active='..tostring(ScenarioInfo.M2P1.Active or false)..'; M3P1='..tostring(ScenarioInfo.M3P1.Active or false)..'; Time='..GetGameTimeSeconds()) end
             if ScenarioInfo.M2P1.Active or ScenarioInfo.M1P1.Active then
                 for iEngi, oEngi in ScenarioInfo.ExperimentalEngineers do
