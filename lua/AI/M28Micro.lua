@@ -2479,7 +2479,7 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
                 bManualAttack = false
 
                 --Are we facing the target? if not, then turn towards them
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToTarget='..iCurDistToTarget..'; iCurAngleToTarget='..iCurAngleToTarget..'; iCurFacingAngle='..iCurFacingAngle..'; iCurAngleDif='..iCurAngleDif..'; Target unit state='..M28UnitInfo.GetUnitState(oTarget)..'; Dist from ground='..(oTarget:GetPosition()[2] - GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3]))..'; Time since last fired weapon='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0)..'; iHalfDistThreshold='..iHalfDistThreshold) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToTarget='..iCurDistToTarget..'; iCurAngleToTarget='..iCurAngleToTarget..'; iCurFacingAngle='..iCurFacingAngle..'; iCurAngleDif='..iCurAngleDif..'; Target unit state='..M28UnitInfo.GetUnitState(oTarget)..'; Dist from ground='..(oTarget:GetPosition()[2] - GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3]))..'; Time since last fired weapon='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0)..'; time since last fired bomb='..(GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0))..'; oBomber[M28UnitInfo.refiTimeBetweenBombs]='..(oBomber[M28UnitInfo.refiTimeBetweenBombs] or 'nil')..'; iHalfDistThreshold='..iHalfDistThreshold) end
                 if iCurAngleDif > 15 then
                     if iBomberSpeed <= 0.1 and iCurDistToTarget > iQuarterDistThreshold and (iBomberSpeed <= 0.05 or iCurDistToTarget >= iHalfDistThreshold) then
                         iReorderDist = 1
@@ -2536,7 +2536,7 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
                         end
                     end
                     --We are facing the target, if we are able to fire then drop a bomb, otherwise slowly approach
-                elseif GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0) > iMaxTimeBetweenShotsWanted then
+                elseif GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) > iMaxTimeBetweenShotsWanted then
                     --Are facing the right direction and able to fire
                     --First time we are at the right angle - consider slowing down slightly if we dont have that far to reach target and are going quite fast
                     if not(iFurthestDistWhenAtCorrectAngle) then iFurthestDistWhenAtCorrectAngle = iCurDistToTarget end
