@@ -4332,7 +4332,7 @@ function MonitorToReissueReclaimOrder(oEngineer, oNearestReclaimableEnemy, iDist
             iCurDist = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oNearestReclaimableEnemy:GetPosition())
             if iCurDist <= iDistanceToReissue then
                 if bDebugMessages == true then LOG(sFunctionRef..': Engineer is close to target so will issue a reclaim order') end
-                M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'ReclByT', false)
+                M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'ReclByT', false, true)
                 bGivenNewOrder = true
                 break --Dont want to risk clearing engineer every tick and never reclaiming
             elseif iCurDist <= iDistanceToReissue + 0.5 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oNearestReclaimableEnemy.UnitId) and oEngineer:IsUnitState('Moving') and oNearestReclaimableEnemy:IsUnitState('Moving') then
@@ -4340,7 +4340,7 @@ function MonitorToReissueReclaimOrder(oEngineer, oNearestReclaimableEnemy, iDist
                 if bDebugMessages == true then LOG(sFunctionRef..': Almost in range of enemy engineer, so will try reclaiming very slightly sooner if angle dif from them suggests they are moving towards us, angle dif='..M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oNearestReclaimableEnemy:GetPosition(), oEngineer:GetPosition()), M28UnitInfo.GetUnitFacingAngle(oNearestReclaimableEnemy))) end
                 if M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oNearestReclaimableEnemy:GetPosition(), oEngineer:GetPosition()), M28UnitInfo.GetUnitFacingAngle(oNearestReclaimableEnemy)) <= 35 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Repeating reclaim order') end
-                    M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'ReclByET', false)
+                    M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'ReclByET', false, true)
                     bGivenNewOrder = true
                     break --Dont want to risk clearing engineer every tick and never reclaiming
                 end
@@ -4476,6 +4476,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local iEasyEnemyCategorySearch = M28UnitInfo.refCategoryStructure
     local iNormalEnemyCategorySearch = M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine
     local bCheckLRThreats = false
+
     if tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]) == false and iEnemyUnitSearchRange < 100 then bCheckLRThreats = true end
     local bConsiderRunningFromEnemies = true
     if tLZTeamData[M28Map.subrefLZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
@@ -4509,6 +4510,19 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
             for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
                 if iRange >= 50 and iThreat > 0 then
                     iThresholdToRunFromMobileEnemies = 5
+                    break
+                end
+            end
+        end
+
+        --Be more aggressive at trying to reclaim if enemy has low combat threat and we have multiple engineers, and be even more aggressive if any of them have a reclaim order
+        local iReclaimRangeAdjust = 0
+        if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 60 then
+            iReclaimRangeAdjust = 2
+            --If we have an engineer that has a reclaim order increase this further (so engis more likely to try and gang up together)
+            for iEngi, oEngi in tEngineers do
+                if oEngi[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueReclaim then
+                    iReclaimRangeAdjust = 9
                     break
                 end
             end
@@ -4677,9 +4691,10 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                             end
                                         end
                                         local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; oNearestReclaimableDangerousEnemy='..(oNearestReclaimableDangerousEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableDangerousEnemy) or 'nil')..'; oNearestReclaimableEnemy='..(oNearestReclaimableEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy) or 'nil')..'; iEngiBuildDistance='..iEngiBuildDistance..'; iNearestReclaimableDangerousEnemy='..iNearestReclaimableDangerousEnemy) end
-                                        if oNearestReclaimableEnemy and (iNearestReclaimableEnemy < 20 or (iNearestReclaimableEnemy < 40 and bCheckForWallsToReclaim and EntityCategoryContains(M28UnitInfo.refCategoryWall, oNearestReclaimableEnemy) and iClosestDistUntilInRangeOfStaticEnemy >= iNearestReclaimableEnemy + 10 and (not(oNearestReclaimableDangerousEnemy) or iNearestReclaimableDangerousEnemy >= iNearestReclaimableEnemy + 20 or (iNearestReclaimableEnemy <= 30 and iNearestReclaimableDangerousEnemy >= 35 and M28Utilities.GetDistanceBetweenPositions(oNearestReclaimableEnemy:GetPosition(), oNearestReclaimableDangerousEnemy:GetPosition()) > 10 + iNearestReclaimableDangerousEnemy)))) --i.e. if have a wall taht is in an adjacent zone but on the border, then increase search range to reduce issues where we try travel to that zone and take the wrong path
-                                        and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= iEngiBuildDistance) or iNearestReclaimableEnemy <= (iEngiBuildDistance + 7) or (iNearestReclaimableEnemy <= iEngiBuildDistance + 14 and (tLZTeamData[M28Map.subrefLZbCoreBase] or tLZTeamData[M28Map.subrefLZCoreExpansion])) or (bCheckForWallsToReclaim and EntityCategoryContains(M28UnitInfo.refCategoryWall, oNearestReclaimableEnemy) and (not(oNearestReclaimableDangerousEnemy) or iNearestReclaimableDangerousEnemy >= iNearestReclaimableEnemy + 20 or (iNearestReclaimableEnemy <= 30 and iNearestReclaimableDangerousEnemy >= 35)))) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; oNearestReclaimableDangerousEnemy='..(oNearestReclaimableDangerousEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableDangerousEnemy) or 'nil')..'; oNearestReclaimableEnemy='..(oNearestReclaimableEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy) or 'nil')..'; iEngiBuildDistance='..iEngiBuildDistance..'; iNearestReclaimableDangerousEnemy='..iNearestReclaimableDangerousEnemy..'; iReclaimRangeAdjust='..iReclaimRangeAdjust) end
+                                        if oNearestReclaimableEnemy and (iNearestReclaimableEnemy < 20 + iReclaimRangeAdjust or
+                                            (iNearestReclaimableEnemy < 40 and bCheckForWallsToReclaim and EntityCategoryContains(M28UnitInfo.refCategoryWall, oNearestReclaimableEnemy) and iClosestDistUntilInRangeOfStaticEnemy >= iNearestReclaimableEnemy + 10 and (not(oNearestReclaimableDangerousEnemy) or iNearestReclaimableDangerousEnemy >= iNearestReclaimableEnemy + 20 or (iNearestReclaimableEnemy <= 30 and iNearestReclaimableDangerousEnemy >= 35 and M28Utilities.GetDistanceBetweenPositions(oNearestReclaimableEnemy:GetPosition(), oNearestReclaimableDangerousEnemy:GetPosition()) > 10 + iNearestReclaimableDangerousEnemy)))) --i.e. if have a wall taht is in an adjacent zone but on the border, then increase search range to reduce issues where we try travel to that zone and take the wrong path
+                                                and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= iEngiBuildDistance) or iNearestReclaimableEnemy <= (iEngiBuildDistance + 7 + iReclaimRangeAdjust) or (iNearestReclaimableEnemy <= iEngiBuildDistance + 14 + iReclaimRangeAdjust and (tLZTeamData[M28Map.subrefLZbCoreBase] or tLZTeamData[M28Map.subrefLZCoreExpansion])) or (bCheckForWallsToReclaim and EntityCategoryContains(M28UnitInfo.refCategoryWall, oNearestReclaimableEnemy) and (not(oNearestReclaimableDangerousEnemy) or iNearestReclaimableDangerousEnemy >= iNearestReclaimableEnemy + 20 + iReclaimRangeAdjust or (iNearestReclaimableEnemy <= 30 and iNearestReclaimableDangerousEnemy >= 35)))) then
                                             --Reclaim enemy
                                             --Switch the target to the nearest dangerous enemy if it is in our build range
                                             if iNearestReclaimableDangerousEnemy <= iEngiBuildDistance + 0.5 and oNearestReclaimableDangerousEnemy
@@ -4745,7 +4760,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                     if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oNearestReclaimableEnemy.UnitId) and iNearestReclaimableEnemy <= iDistanceUntilInRange then
                                                         M28Orders.IssueTrackedCapture(oEngineer, oNearestReclaimableEnemy, false, 'CapT1Mx', false)
                                                     else
-                                                        M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
+                                                        M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE', false, iNearestReclaimableEnemy < iDistanceUntilInRange)
                                                     end
                                                 end
 
