@@ -10571,7 +10571,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
     local sFunctionRef = 'GetBPToAssignToSMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     local iBPWanted = 0
     local bAssistSMD = false
@@ -20273,7 +20273,7 @@ function ClearEngineersBuildingUnit(oEngineer, oJustBuilt, bClearEngineersBuildi
 
         function ClearEngineerIfActionObseleteNow(oCurEngineer, bCalledViaRepairTracking)
             local bClearEngineer = false
-            if M28UnitInfo.IsUnitValid(oCurEngineer) and not (oCurEngineer:IsUnitState('Reclaiming')) then
+            if M28UnitInfo.IsUnitValid(oCurEngineer) and not (oCurEngineer:IsUnitState('Reclaiming')) and not(oCurEngineer[M28UnitInfo.refbCampaignNeverPause]) then
                 --Does it have the same action, or alternatitvely is it trying to build something at this location that will now be blocked?
                 local tLastOrder = oCurEngineer[M28Orders.reftiLastOrders][oCurEngineer[M28Orders.refiOrderCount]]
                 local iOrderDistToJustBuilt

@@ -166,7 +166,8 @@ function IssueTrackedClearCommands(oUnit)
         --Clear orders:
 
         if oUnit.UnitId == 'xsl0001' and oUnit:IsUnitState('Teleporting') then M28Utilities.ErrorHandler('Are canceling teleport on a teleporting unit') end
-        --[[if GetGameTimeSeconds() >= 17*60 and oUnit.UnitId == 'uel0001' and oUnit:GetAIBrain():GetArmyIndex() == 2 then
+        if oUnit[M28UnitInfo.refbCampaignNeverPause] then
+        --if GetGameTimeSeconds() >= 17*60 and oUnit.UnitId == 'uel0001' and oUnit:GetAIBrain():GetArmyIndex() == 2 then
             LOG('TEMPCODE Just about to issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit state before clearing='..M28UnitInfo.GetUnitState(oUnit))
             M28Utilities.ErrorHandler('Audit trail', true, true)
         end--]]
@@ -767,6 +768,7 @@ end
 
 function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     if bDontConsiderCombinedArmy or oUnit.M28Active then
+        if oUnit[M28UnitInfo.refbCampaignNeverPause] then LOG('TEMPCODE repair order') M28Utilities.ErrorHandler('Audit trail repair', true, true) end
         UpdateRecordedOrders(oUnit)
         --Issue order if we arent already trying to attack them
         local tLastOrder
