@@ -4859,9 +4859,17 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                     M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastAirAASupportPointAngleAdjust] = iAngleAdjust
                                     local iDistToMove = 20 --asf max speed is 22
                                     local tMovePoint = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iAngleAdjust, iDistToMove, true, false, M28Map.bIsCampaignMap)
+                                    if bDebugMessages == true and tMovePoint[1] > 10000 then LOG(sFunctionRef..': tMovePoint='..repru(tMovePoint)..'; reftAirSubSupportPoint='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; iAngleAdjust='..iAngleAdjust..'; iDistToMove='..iDistToMove..'; Time='..GetGameTimeSeconds()) end
+                                    if M28Utilities.IsTableEmpty(tMovePoint) then
+                                        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) == false then tMovePoint = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][1],M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][2],M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][3]} end
+                                        if M28Utilities.IsTableEmpty(tMovePoint) then
+                                            M28Utilities.ErrorHandler('Have invalid move point due to no air support point, will try startp osition instead')
+                                            tMovePoint = M28Map.GetPlayerStartPosition(M28Team.GetFirstActiveM28Brain(iTeam), false)
+                                        end
+                                    end
 
                                     local bConsiderCtrlK = false
-                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and iAvailableAndInCombatAirAAThreat >= 1750 and M28Conditions.TeamHasLowMass(iTeam) then
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and iAvailableAndInCombatAirAAThreat >= 1750 and M28Conditions.TeamHasLowMass(iTeam) and M28Utilities.IsTableEmpty(tMovePoint) == false and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tMovePoint)) then
                                         local tInties = EntityCategoryFilterDown(categories.TECH1, tAvailableAirAA)
                                         if M28Utilities.IsTableEmpty(tInties) == false then
                                             local tASFs = EntityCategoryFilterDown(categories.TECH3, tAvailableAirAA)
@@ -4896,8 +4904,10 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                                     table.insert(tAirForRefueling, oUnit)
                                                 end
                                             else
-                                                M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
-                                                iIdleAirAACount = iIdleAirAACount + 1
+                                                if M28Utilities.IsTableEmpty(tMovePoint) == false then
+                                                    M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
+                                                    iIdleAirAACount = iIdleAirAACount + 1
+                                                end
                                             end
                                         elseif bDebugMessages == true then LOG(sFunctionRef..': Air unit appears to be dead?')
                                         end
@@ -6709,7 +6719,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                     iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryStructureAA + categories.COMMAND + M28UnitInfo.refCategoryGroundAA * categories.TECH3, oEnemyUnit.UnitId) then
                     iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.2
-                    if EntityCategoryContains(categories.COMMAND, oEnemyUnit.UnitId) then
+                    if EntityCategoryContains(categories.COMMAND, oEnemyUnit.UnitId) and aiBrain then
                         --Check if under a fixed shield
                         local iShieldHealth = M28Logic.IsTargetUnderShield(aiBrain, oEnemyUnit, 0, true, false, true, true)
                         iTotalStrikeDamageWanted = iTotalStrikeDamageWanted + (iShieldHealth or 0)
