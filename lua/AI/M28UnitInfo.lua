@@ -132,6 +132,7 @@ refbLurkerMode = 'M28ULrkMd' --true if unit is adopting selen 'engi lurker' mode
 refiACUGridSlot = 'M28ACUGS' --the reference against the target ACU[reftoGridXZAdjust]
 reftoGridXZAdjust = 'M28GridXZA' --against the ACU, [x] is the refiACUGridSlot reference, returns {Xadj,Zadj} from the ACU position
 reftoUnitAssignedToGridSlot = 'M28GridUn' --against the ACU, [x] is the slot reference, returns the unit assigned to this slot
+refiTimeLastWantedToSurface = 'M28SbmT' --gametimeseconds that we wanted a submarine unit to surface (to use its AA attack)
 
 
     --Ranges and weapon details

@@ -618,7 +618,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits], false,           false,          true,                   false,              false,              false,              false)
 
         if tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] > 0 then
-            local tMobileNavy = EntityCategoryFilterDown(categories.MOBILE, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            local tMobileNavy = EntityCategoryFilterDown(categories.MOBILE - M28UnitInfo.refCategorySubmarine, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             if M28Utilities.IsTableEmpty(tMobileNavy) == false then
                 tWZTeamData[M28Map.subrefWZThreatAlliedMAA] = M28UnitInfo.GetAirThreatLevel(tMobileNavy, false,           false,          true,                   false,              false,              false,              false)
             else
@@ -3398,16 +3398,38 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     end
 
     --Surface subs if enemy has airtoground in this zone (or nearby if it's a large threat)
-    if bDebugMessages == true then LOG(sFunctionRef..': Checking if should surface AA subs, iEnemyAdjacentAirToGroundThreat just from this zone='..iEnemyAdjacentAirToGroundThreat..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if should surface AA subs, iEnemyAdjacentAirToGroundThreat just from this zone='..iEnemyAdjacentAirToGroundThreat..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; tWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..tWZTeamData[M28Map.subrefWZBestEnemyDFRange]..'; subrefWZThreatEnemyVsSurface='..tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface]..'; subrefWZThreatEnemyAntiNavy='..tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy]..'; subrefWZThreatAlliedMAA='..tWZTeamData[M28Map.subrefWZThreatAlliedMAA]) end
     if (iEnemyAdjacentAirToGroundThreat > 2000 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) and M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
-        local tAASubs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAntiAir, tAvailableSubmarines)
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of AA subs empty='..tostring(M28Utilities.IsTableEmpty(tAASubs))) end
-        if M28Utilities.IsTableEmpty(tAASubs) == false then
-            for iUnit, oUnit in tAASubs do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to surface unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))) end
-                if M28UnitInfo.IsUnitUnderwater(oUnit) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and surface the unit, is special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Cur time='..GetGameTimeSeconds()..'; Time for micro to reset='..(oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
-                    M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit) --wont do anything if special micro is active, and will set special micro to active if it does give the order
+        --Exception if we have other AA units and enemy has some longer ranged surface units, as dont want to surface to die to battleships
+        local iEnemySurfaceLessSubmersibleThreat = math.max(0, tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] - tWZTeamData[M28Map.subrefWZThreatEnemySubmersible])
+        if iEnemySurfaceLessSubmersibleThreat > 2000 and (iEnemyAdjacentAirToGroundThreat * 0.3 < iEnemySurfaceLessSubmersibleThreat or iFriendlyAdjacentAAThreat >= iEnemyAdjacentAirToGroundThreat) then
+            if bDebugMessages == true then LOG(sFunctionRef..': We have decent MAA and enemy has significant anti-surface threat so wont surface subs') end
+        else
+            local tAASubs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAntiAir, tAvailableSubmarines)
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of AA subs empty='..tostring(M28Utilities.IsTableEmpty(tAASubs))) end
+            if M28Utilities.IsTableEmpty(tAASubs) == false then
+                --Check adjacent enemy threat
+                if iEnemyBestCombatRange > 55 and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                    for _, iAltWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                        local tAltWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAltWZ][M28Map.subrefWZTeamData][iTeam]
+                        iEnemySurfaceLessSubmersibleThreat = iEnemySurfaceLessSubmersibleThreat + math.max(0, tAltWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] - tAltWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy])
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iEnemySurfaceLessSubmersibleThreat after considering adj WZs='..iEnemySurfaceLessSubmersibleThreat..'; iEnemyAdjacentAirToGroundThreat='..iEnemyAdjacentAirToGroundThreat..'; iEnemySurfaceLessSubmersibleThreat='..iEnemySurfaceLessSubmersibleThreat..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat) end
+                if iEnemySurfaceLessSubmersibleThreat > 2000 and iEnemyAdjacentAirToGroundThreat * 0.3 < iEnemySurfaceLessSubmersibleThreat then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have decent MAA and enemy has significant anti-surface threat so wont surface subs') end
+
+                else
+                    --Check nearby enemy anti-surface threat if it is significant
+                    for iUnit, oUnit in tAASubs do
+                        oUnit[M28UnitInfo.refiTimeLastWantedToSurface] = GetGameTimeSeconds()
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to surface unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))) end
+                        if M28UnitInfo.IsUnitUnderwater(oUnit) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and surface the unit, is special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Cur time='..GetGameTimeSeconds()..'; Time for micro to reset='..(oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
+                            M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit) --wont do anything if special micro is active, and will set special micro to active if it does give the order
+                            ForkThread(SubmergeSubIfNoLongerWantSurfaced, oUnit, 20)
+                        end
+                    end
                 end
             end
         end
@@ -7454,4 +7476,25 @@ function ManageSACUsInWaterZone(tSACUs, tWZData, tWZTeamData, iPond, iWaterZone,
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function SubmergeSubIfNoLongerWantSurfaced(oUnit, iSecondsOfNotWantingToBeSurfaced)
+    WaitSeconds(iSecondsOfNotWantingToBeSurfaced)
+    if oUnit[M28UnitInfo.refiTimeLastWantedToSurface] and M28UnitInfo.IsUnitValid(oUnit) and not(oUnit['M28SurfaceReassessActive']) then
+        oUnit['M28SurfaceReassessActive'] = true
+        while M28UnitInfo.IsUnitValid(oUnit) do
+            if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+                --Check we havent already tried submerging
+                if M28UnitInfo.IsUnitUnderwater(oUnit) then
+                    break
+                elseif GetGameTimeSeconds() - oUnit[M28UnitInfo.refiTimeLastWantedToSurface] > iSecondsOfNotWantingToBeSurfaced then
+                    --Submerge
+                    M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit)
+                    break
+                end
+            end
+            WaitSeconds(1)
+        end
+        oUnit['M28SurfaceReassessActive'] = nil
+    end
 end
