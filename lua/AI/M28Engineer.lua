@@ -9957,6 +9957,19 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                             tLZOrWZTeamData[M28Map.refiHighestNavalFacAssistBP] = math.max(iTotalBuildPowerWanted, (tLZOrWZTeamData[M28Map.refiHighestNavalFacAssistBP] or 0))
                                         end
                                         if bDebugMessages == true then LOG(sFunctionRef..': oUnitToAssist='..(oUnitToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToAssist) or 'nil')..'; is oUnitToAssist valid='..tostring(M28UnitInfo.IsUnitValid(oUnitToAssist))..'; iCurPriority='..iCurPriority) end
+                                    elseif iActionToAssign == refActionAssistSMD or iActionToAssign == refActionAssistNuke then
+                                        --Get the one with the most progress in the zone
+                                        if M28Utilities.IsTableEmpty(tUnitsOfCategoryInLZ) == false then
+                                            local iBestProgress = -1
+                                            for iUnit, oUnit in tUnitsOfCategoryInLZ do
+                                                bDebugMessages = true
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; WorkProgress='..oUnit:GetWorkProgress()) end
+                                                if oUnit:GetWorkProgress() > iBestProgress then
+                                                    oUnitToAssist = oUnit
+                                                    iBestProgress = oUnit:GetWorkProgress()
+                                                end
+                                            end
+                                        end
                                     else
                                         for iUnit, oUnit in tUnitsOfCategoryInLZ do
                                             if oUnit:GetWorkProgress() > 0 then
