@@ -5104,8 +5104,52 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         end
     end
     if not(tRallyPoint) then
-        if bDebugMessages == true then LOG(sFunctionRef..': No shields so will move ACU to start point') end
         tRallyPoint = M28Map.GetPlayerStartPosition(oACU:GetAIBrain())
+        --If this isn't a core base then get the nearest core base (e.g. helps in campaign where start position is unreliable)
+        local tStartLZData, tStartLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
+        if bDebugMessages == true then LOG(sFunctionRef..': No shields so will move ACU to start point, subrefLZbCoreBase='..tostring(tStartLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; subrefWZbCoreBase='..tostring(tStartLZTeamData[M28Map.subrefWZbCoreBase] or false)) end
+        if (not(tStartLZTeamData[M28Map.subrefLZbCoreBase]) and not(tStartLZTeamData[M28Map.subrefWZbCoreBase])) or (M28Map.bIsCampaignMap and tStartLZTeamData[M28Map.subrefLZSValue] < 200) then
+            tRallyPoint = {tStartLZTeamData[M28Map.reftClosestFriendlyBase][1], tStartLZTeamData[M28Map.reftClosestFriendlyBase][2], tStartLZTeamData[M28Map.reftClosestFriendlyBase][3]}
+            local tClosestBaseLZData, tClosestBaseLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
+            if bDebugMessages == true then LOG(sFunctionRef..': Switched rally point to closest friendly base, subrefLZbCoreBase='..tostring(tClosestBaseLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; subrefWZbCoreBase='..tostring(tClosestBaseLZTeamData[M28Map.subrefWZbCoreBase] or false)..'; subrefLZSValue='..(tClosestBaseLZTeamData[M28Map.subrefLZSValue] or 'nil')..'; Not core base combined condition='..tostring((not(tClosestBaseLZTeamData[M28Map.subrefLZbCoreBase]) and not(tClosestBaseLZTeamData[M28Map.subrefWZbCoreBase])))..'; Campaign with low S value='..tostring((M28Map.bIsCampaignMap and (tClosestBaseLZTeamData[M28Map.subrefLZSValue] or 0) < 200))) end
+            if (not(tClosestBaseLZTeamData[M28Map.subrefLZbCoreBase]) and not(tClosestBaseLZTeamData[M28Map.subrefWZbCoreBase])) or (M28Map.bIsCampaignMap and (tClosestBaseLZTeamData[M28Map.subrefLZSValue] or 0) < 200) then
+                --Find the closest zone that has SValue in it, if any
+                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData)
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
+                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
+                    M28Utilities.ErrorHandler('No other zones found')
+                else
+                    tRallyPoint = nil
+                    local iPlateauWanted
+                    if iPlateauOrZero > 0 then iPlateauWanted = iPlateauOrZero
+                    else iPlateauWanted = NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition())
+                    end
+                    if iPlateauWanted then
+                        for iEntry, tSubtable in tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering subrefiPlateauOrPond='..tSubtable[M28Map.subrefiPlateauOrPond]..'Z'..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; subrefbIsWaterZone='..tostring(tSubtable[M28Map.subrefbIsWaterZone] or false)..'; iPlateauOrZero='..iPlateauOrZero..'; iPlateauWanted='..(iPlateauWanted or 'nil')) end
+                            if tSubtable[M28Map.subrefiPlateauOrPond] == iPlateauWanted and not(tSubtable[M28Map.subrefbIsWaterZone]) then
+                                local tAltLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                local tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to go to land zone on same plateau instead, currently considering P'..tSubtable[M28Map.subrefiPlateauOrPond]..'Z'..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; SValue='..(tAltLZOrWZTeamData[M28Map.subrefLZSValue] or 'nil')) end
+                                if tAltLZOrWZTeamData[M28Map.subrefLZSValue] > 200 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories, tAltLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will set this as the revised rally point for ACU to run to') end
+                                    tRallyPoint = {tAltLZOrWZData[M28Map.subrefMidpoint][1], tAltLZOrWZData[M28Map.subrefMidpoint][2], tAltLZOrWZData[M28Map.subrefMidpoint][3]}
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if not(tRallyPoint) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will just get nearest rally point') end
+                        if iPlateauOrZero == 0 then
+                            tRallyPoint = M28Navy.GetNearestWaterRallyPoint(tLZOrWZData, iTeam, M28Map.tiPondByWaterZone[iLandOrWaterZone], iLandOrWaterZone)
+                        else
+                            tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 10, true)
+                        end
+                    end
+                end
+            end
+        end
     end
 
     local iNearestEnemyExperimental = 1000
