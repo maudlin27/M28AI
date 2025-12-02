@@ -6052,7 +6052,7 @@ function GetACUOrder(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
@@ -6143,28 +6143,37 @@ function GetACUOrder(aiBrain, oACU)
                         end
                     end
                 end
-                if not(bCanceledUpgrade) and not(M28Conditions.SafeToUpgradeUnit(oACU)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and oACU:GetWorkProgress() <= 0.7 then
-                    local iClosestExp = 100
-                    local oClosestExp
-                    local iCurDist
-                    for iExp, oExp in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
-                        if not(oExp.Dead) and oExp[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateauOrZero then
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oExp:GetPosition())
-                            if iCurDist < iClosestExp then
-                                oClosestExp = oExp
-                                iClosestExp = iCurDist
-                            end
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Dont want to return to base so wont cancel upgrade except in a few niche cases, safe to upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))) end
+            end
+            if not(bCanceledUpgrade) and not(M28Conditions.SafeToUpgradeUnit(oACU)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+                local iClosestExp
+                local iWorkProgress = oACU:GetWorkProgress()
+                if iWorkProgress <= 0.3 then iClosestExp = 135
+                elseif iWorkProgress <= 0.7 then iClosestExp = 115
+                elseif iWorkProgress <= 0.9 then iClosestExp = 95
+                else iClosestExp = 75
+                end
+                local oClosestExp
+                local iCurDist
+                for iExp, oExp in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                    if not(oExp.Dead) and oExp[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateauOrZero then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oExp:GetPosition())
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist of oExp='..oExp.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExp)..' to ACU='..iCurDist..'; iClosestExp (or threshold at which ignore)='..iClosestExp) end
+                        if iCurDist < iClosestExp then
+                            oClosestExp = oExp
+                            iClosestExp = iCurDist
                         end
                     end
-                    if oClosestExp then
-                        --Just return to base, as normal 'no-upgrade' logic will kick in next cycle
-                        M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'CUExRun')
-                        if bDebugMessages == true then LOG(sFunctionRef..': will cancel upgrade and reun to base') end
-                        bCanceledUpgrade = true
-                    end
                 end
-            elseif bDebugMessages == true then LOG(sFunctionRef..': Dont want to return to base so wont cancel upgrade except in a few niche cases')
+                if oClosestExp then
+                    --Just return to base, as normal 'no-upgrade' logic will kick in next cycle
+                    M28Orders.IssueTrackedMove(oACU, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()), 5, false, 'CUExRun')
+                    if bDebugMessages == true then LOG(sFunctionRef..': will cancel upgrade and reun to base') end
+                    bCanceledUpgrade = true
+                end
             end
+
             if bDebugMessages == true then LOG(sFunctionRef..': bCanceledUpgrade='..tostring(bCanceledUpgrade or false)) end
             if not(bCanceledUpgrade) and tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.7 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) >= 35 and DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
                 local iACUHealthPercent = M28UnitInfo.GetUnitHealthPercent(oACU)
@@ -6184,7 +6193,6 @@ function GetACUOrder(aiBrain, oACU)
                 oACU[M28UnitInfo.refiTimeLastCanceledUpgrade] = GetGameTimeSeconds()
                 oACU[M28UnitInfo.refiDistToEnemyBaseWhenLastCanceledUpgrade] = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
             end
-
         end
     elseif oACU:IsUnitState('Teleporting') then
         --Do nothing
@@ -6679,8 +6687,8 @@ function GetACUOrder(aiBrain, oACU)
                             local bHaveNearbyExperimentalOrder = false
                             if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy land exp empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))) end
                             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
-                                local iClosestEnemyExp = 160
-                                if tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 20000 then iClosestEnemyExp = 135 end
+                                local iClosestEnemyExp = 165
+                                if tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 20000 then iClosestEnemyExp = 140 end
                                 local oClosestEnemyExp, iCurDist
                                 for iExp, oExp in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
                                     if M28UnitInfo.IsUnitValid(oExp) then
@@ -6698,12 +6706,38 @@ function GetACUOrder(aiBrain, oACU)
                                         --Is the rally point taking us further away from this?
                                         local iRallyPointDist = M28Utilities.GetDistanceBetweenPositions(oClosestEnemyExp:GetPosition(), tRallyPoint)
                                         local iAngleFromACUToExp = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oClosestEnemyExp:GetPosition())
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want ACU to run from enemy EXP, oClosestEnemyExp='..oClosestEnemyExp.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyExp)..'; iClosestEnemyExp='..iClosestEnemyExp..'; iAngleFromACUToExp='..iAngleFromACUToExp..'; iRallyPointDist='..iRallyPointDist..'; Angle to rally='..M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)..'; Dist to rally='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint)) end
-                                        if iRallyPointDist <= 30 + iClosestEnemyExp and (M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint) <= 30 or M28Utilities.GetAngleDifference(iAngleFromACUToExp, M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)) <= 110) then
+                                        local iAngleToRally = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)
+                                        local iAngleDif = M28Utilities.GetAngleDifference(iAngleFromACUToExp, iAngleToRally)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want ACU to run from enemy EXP, oClosestEnemyExp='..oClosestEnemyExp.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyExp)..'; iClosestEnemyExp='..iClosestEnemyExp..'; iAngleFromACUToExp='..iAngleFromACUToExp..'; iRallyPointDist='..iRallyPointDist..'; Angle to rally='..M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)..'; Dist to rally='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint)..'; iAngleDif='..iAngleDif) end
+                                        if (iRallyPointDist <= 30 + iClosestEnemyExp and (M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint) <= 30 or iAngleDif <= 110))
+                                                or (iAngleDif <= 130 and iClosestEnemyExp <= 95) then
                                             local tAltRallyPoint = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleFromACUToExp-180, 15, true, true, true)
                                             if M28Utilities.IsTableEmpty(tAltRallyPoint) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, tAltRallyPoint) == NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition()) then
                                                 bHaveNearbyExperimentalOrder = true
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will run to alt rally point') end
+                                                M28Orders.IssueTrackedMove(oACU, tAltRallyPoint, 5, false, 'RunExp')
+                                            end
+                                        elseif iAngleDif <= 150 and iClosestEnemyExp <= 105 then
+                                            --Go halfway between opposite direction to enemy Exp, and the angle to rally point
+                                            local iInitialAngleWanted = iAngleFromACUToExp-180
+                                            local iAngleMod =  M28Utilities.GetAngleDifference(iAngleToRally, iInitialAngleWanted) * 0.5
+                                            if iInitialAngleWanted > iAngleToRally then
+                                                if iInitialAngleWanted < iAngleToRally + 180 then
+                                                    --Want to decrease by iAngleMod as we are larger but not so much so that we should reduce angle
+                                                    iAngleMod = iAngleMod * -1
+                                                else
+                                                    --Increase by angle - we are larger, and by so much that incresing makes us get closer
+                                                end
+                                            else
+                                                if iInitialAngleWanted + 180 < iAngleToRally then
+                                                    iAngleMod = iAngleMod * -1
+                                                end
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iInitialAngleWanted='..iInitialAngleWanted..'; iAngleMod='..iAngleMod) end
+                                            local tAltRallyPoint = M28Utilities.MoveInDirection(oACU:GetPosition(), iInitialAngleWanted + iAngleMod, 15, true, true, true)
+                                            if M28Utilities.IsTableEmpty(tAltRallyPoint) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, tAltRallyPoint) == NavUtils.GetLabel(M28Map.refPathingTypeHover, oACU:GetPosition()) then
+                                                bHaveNearbyExperimentalOrder = true
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Will run to alternative rally point inbetween opposite direction to exp and cur rally point') end
                                                 M28Orders.IssueTrackedMove(oACU, tAltRallyPoint, 5, false, 'RunExp')
                                             end
                                         end

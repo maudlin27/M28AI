@@ -634,6 +634,23 @@ function SafeToUpgradeUnit(oUnit)
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
     local bSafeZone = false
 
+    --If have land exp and dealing with ACU then treat as not safe
+    if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.reftEnemyLandExperimentals]) == false then
+        local iTeam = oUnit:GetAIBrain().M28Team
+        local iCurDist
+        for iExp, oExp in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+            if not(oExp.Dead) and oExp[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateauOrZero then
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oExp:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': Dist of oExp='..oExp.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExp)..' to ACU='..iCurDist) end
+                if iCurDist < 150 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Within 150 of Exp so not safe to upgrade here') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return false
+                end
+            end
+        end
+    end
+
     if (iLandOrWaterZone or 'nil') > 0 and not(iPlateauOrZero == 0) then
         local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
         if M28Utilities.IsTableEmpty(tLZData) == false then
