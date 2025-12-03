@@ -1379,6 +1379,38 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     return bAreCloseToUnit
 end
 
+function CloseToIFUnit(oUnit, tHiddenIFEnemies, iTeam, iReturnTrueIfWithinThisDistOfEnemyShootingUs)
+    --Intended to be called for skirmisher units where we want them to stay out of range of enemy if we dont have intel of that enemy
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CloseToIFUnit'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tUnitPosition = oUnit:GetPosition()
+    local iClosestEnemyLessRange, iCurDistLessRange
+    if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+        iClosestEnemyLessRange = M28Utilities.GetDistanceBetweenPositions(tUnitPosition, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()) - (oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] or 0)
+    else
+        iClosestEnemyLessRange = 10000
+    end
+    local oClosestIFUnit
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking hidden IF enemies for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] before this='..(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) or 'nil')..'; iClosestEnemyLessRange='..iClosestEnemyLessRange) end
+    for iEnemy, oEnemy in tHiddenIFEnemies do
+        iCurDistLessRange = M28Utilities.GetDistanceBetweenPositions(tUnitPosition, oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) - oEnemy[M28UnitInfo.refiCombatRange]
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurDistLessRange='..iCurDistLessRange..'; Dist based on last known position='..M28Utilities.GetDistanceBetweenPositions(tUnitPosition, oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Actual dist based on actual position='..M28Utilities.GetDistanceBetweenPositions(tUnitPosition, oEnemy:GetPosition())) end
+        if iCurDistLessRange < iClosestEnemyLessRange then
+            iClosestEnemyLessRange = iCurDistLessRange
+            oClosestIFUnit = oEnemy
+            if iClosestEnemyLessRange < iReturnTrueIfWithinThisDistOfEnemyShootingUs then
+                break
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': iClosestEnemyLessRange after check='..iClosestEnemyLessRange..'; oClosestIFUnit='..(oClosestIFUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestIFUnit) or 'nil')..'; Value that will return='..tostring(iClosestEnemyLessRange < iReturnTrueIfWithinThisDistOfEnemyShootingUs)) end
+    if oClosestIFUnit then oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] = oClosestIFUnit end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return iClosestEnemyLessRange < iReturnTrueIfWithinThisDistOfEnemyShootingUs
+end
+
 function TeamHasAirControl(iTeam)
 --Returns true if any of the air subteams has air control
     local tbSubteams = {}
