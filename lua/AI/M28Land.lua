@@ -1596,7 +1596,8 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
         --If we have friendly units in this zone, then always include units within a threshold
         local iThresholdToAlwaysIncludeInDFRange
         local iMaxDistAwayToIncludeAdjUnitInDFRange
-        local bIncludedNearestDFDueToMinRange
+        local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+        --local bIncludedNearestDFDueToMinRange
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
             iThresholdToAlwaysIncludeInDFRange  = 0.5 * math.max(tLZData[M28Map.subrefLZMaxSegX] - tLZData[M28Map.subrefLZMinSegX], tLZData[M28Map.subrefLZMaxSegZ] - tLZData[M28Map.subrefLZMinSegZ]) * M28Map.iLandZoneSegmentSize
             iMaxDistAwayToIncludeAdjUnitInDFRange = iThresholdToAlwaysIncludeInDFRange + 20 --Want to include bit of an allowance as we might be managing units in the adjacent zone as well
@@ -1630,23 +1631,28 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
             if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefTEnemyUnits]) == false and tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 10 then
                 for iUnit, oUnit in tAltLZTeamData[M28Map.subrefTEnemyUnits] do
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout * categories.TECH1 - categories.SERAPHIM, oUnit.UnitId)) then
-                        iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - oUnit[M28UnitInfo.refiDFRange]
-                        if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then table.insert(toNearbyExperimentalsAndDistUntilInRange, {oUnit, iCurDistUntilInRange}) end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in adjacent zone and if it is close to being in range, iCurDistUntilInRange='..iCurDistUntilInRange..'; iLowestDistUntilInRange='..iLowestDistUntilInRange..'; DFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iMaxDistAwayToIncludeAdjUnitInDFRange='..iMaxDistAwayToIncludeAdjUnitInDFRange..'; Unit actual dist to this zone midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMidpoint)) end
-                        if iCurDistUntilInRange < iLowestDistUntilInRange then
-                            oLowestDFDistUntilInRange = oUnit
-                            iLowestDistUntilInRange = iCurDistUntilInRange
-                            if iThresholdToAlwaysIncludeInDFRange then bIncludedNearestDFDueToMinRange = iCurDistUntilInRange <= iThresholdToAlwaysIncludeInDFRange end
-                        end
-                        if iCurDistUntilInRange <= iMaxDistAwayToIncludeAdjUnitInDFRange then
-                            if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
-                                if oUnit[M28UnitInfo.refiDFRange] > iEnemyBestMobileDFRange then iEnemyBestMobileDFRange = oUnit[M28UnitInfo.refiDFRange] end
-                            else
-                                if oUnit[M28UnitInfo.refiDFRange] > iEnemyBestStructureDFRange then iEnemyBestStructureDFRange = oUnit[M28UnitInfo.refiDFRange] end
+                        --Ignore selens that are cloaked
+                        if oUnit.UnitId == 'xsl0101' and M28UnitInfo.GetUnitSpeed(oUnit) < 0.2 and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, false)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will ignore cloaked enemy selen') end
+                        else
+                            iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - oUnit[M28UnitInfo.refiDFRange]
+                            if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then table.insert(toNearbyExperimentalsAndDistUntilInRange, {oUnit, iCurDistUntilInRange}) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in adjacent zone and if it is close to being in range, iCurDistUntilInRange='..iCurDistUntilInRange..'; iLowestDistUntilInRange='..iLowestDistUntilInRange..'; DFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iMaxDistAwayToIncludeAdjUnitInDFRange='..iMaxDistAwayToIncludeAdjUnitInDFRange..'; Unit actual dist to this zone midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMidpoint)) end
+                            if iCurDistUntilInRange < iLowestDistUntilInRange then
+                                oLowestDFDistUntilInRange = oUnit
+                                iLowestDistUntilInRange = iCurDistUntilInRange
+                                --if iThresholdToAlwaysIncludeInDFRange then bIncludedNearestDFDueToMinRange = iCurDistUntilInRange <= iThresholdToAlwaysIncludeInDFRange end
                             end
-                            if iThresholdToAlwaysIncludeInDFRange and iCurDistUntilInRange <= iThresholdToAlwaysIncludeInDFRange then
-                                table.insert(tLZTeamData[M28Map.reftoNearestDFEnemies], oLowestDFDistUntilInRange)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Unit is close enough to being in range that we will include in nearest enemies') end
+                            if iCurDistUntilInRange <= iMaxDistAwayToIncludeAdjUnitInDFRange then
+                                if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
+                                    if oUnit[M28UnitInfo.refiDFRange] > iEnemyBestMobileDFRange then iEnemyBestMobileDFRange = oUnit[M28UnitInfo.refiDFRange] end
+                                else
+                                    if oUnit[M28UnitInfo.refiDFRange] > iEnemyBestStructureDFRange then iEnemyBestStructureDFRange = oUnit[M28UnitInfo.refiDFRange] end
+                                end
+                                if iThresholdToAlwaysIncludeInDFRange and iCurDistUntilInRange <= iThresholdToAlwaysIncludeInDFRange then
+                                    table.insert(tLZTeamData[M28Map.reftoNearestDFEnemies], oLowestDFDistUntilInRange)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit is close enough to being in range that we will include in nearest enemies') end
+                                end
                             end
                         end
                     end
@@ -5416,27 +5422,31 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if not(tEnemyEngineers) then tEnemyEngineers = {} end
                 for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
                     if not(bIgnoreEnemiesInThisZone) then
-                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], (oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition()))
-                        if iCurDist < iClosestDist and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
-                            iClosestDist = iCurDist
-                            oNearestEnemyToFriendlyBase = oUnit
-                        end
-                        if iCurDist < iClosestStructureDist and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit:GetFractionComplete() >= 0.5 then
-                            iClosestStructureDist = iCurDist
-                            oNearestEnemyStructureToMidpoint = oUnit
-                        end
-                        if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
-                            table.insert(tSkirmisherDFEnemies, oUnit)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with name '..(__blueprints[oUnit.UnitId].General.UnitName or 'nil')..' with DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..' against tSkirmisherDFEnemies') end
-                        elseif (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 10 then
-                            if oUnit[M28UnitInfo.refiIndirectRange] > 60 and oUnit[M28UnitInfo.refiIndirectRange] < 130 and EntityCategoryContains(M28UnitInfo.refCategoryT3MobileArtillery, oUnit.UnitId) then
-                                table.insert(tSkirmisherEnemyT3MobileArti, oUnit)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with name '..(__blueprints[oUnit.UnitId].General.UnitName or 'nil')..' with DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..' against tSkirmisherEnemyT3MobileArti') end
+                        if oUnit.UnitId == 'xsl0101' and M28UnitInfo.GetUnitSpeed(oUnit) < 0.2 and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, false)) then
+                            --Ignore selen
+                        else
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], (oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oUnit:GetPosition()))
+                            if iCurDist < iClosestDist and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
+                                iClosestDist = iCurDist
+                                oNearestEnemyToFriendlyBase = oUnit
                             end
-                            --Also check for hidden IF enemies
-                            if not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, false)) then
-                                if not(tHiddenIFEnemies) then tHiddenIFEnemies = {} end
-                                table.insert(tHiddenIFEnemies, oUnit)
+                            if iCurDist < iClosestStructureDist and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit:GetFractionComplete() >= 0.5 then
+                                iClosestStructureDist = iCurDist
+                                oNearestEnemyStructureToMidpoint = oUnit
+                            end
+                            if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                                table.insert(tSkirmisherDFEnemies, oUnit)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with name '..(__blueprints[oUnit.UnitId].General.UnitName or 'nil')..' with DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..' against tSkirmisherDFEnemies') end
+                            elseif (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 10 then
+                                if oUnit[M28UnitInfo.refiIndirectRange] > 60 and oUnit[M28UnitInfo.refiIndirectRange] < 130 and EntityCategoryContains(M28UnitInfo.refCategoryT3MobileArtillery, oUnit.UnitId) then
+                                    table.insert(tSkirmisherEnemyT3MobileArti, oUnit)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Recording enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with name '..(__blueprints[oUnit.UnitId].General.UnitName or 'nil')..' with DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..' against tSkirmisherEnemyT3MobileArti') end
+                                end
+                                --Also check for hidden IF enemies
+                                if not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, false)) then
+                                    if not(tHiddenIFEnemies) then tHiddenIFEnemies = {} end
+                                    table.insert(tHiddenIFEnemies, oUnit)
+                                end
                             end
                         end
                     end
@@ -5693,6 +5703,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     if M28UnitInfo.IsUnitValid(oUnit) then
                         if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                             table.insert(tEnemyEngineers, oUnit)
+                        elseif oUnit.UnitId == 'xsl0101' and M28UnitInfo.GetUnitSpeed(oUnit) < 0.2 and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, false)) then
+                            --Ignore selen that is potentially cloaked
                         elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
                             if not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
                                 table.insert(tSkirmisherDFEnemies, oUnit)
@@ -8176,15 +8188,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         if bDebugMessages == true then LOG(sFunctionRef..': Want reinforcements as enemy combat DF exceeds our combat rating, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Our combat units rating='..iAvailableCombatUnitThreat) end
                     end
 
-                    if bUpdateNearestUnit then
-                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                    if bUpdateNearestUnit and aiBrain then
+                        --[[if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
                             local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                            if aiBrain then
-                                M28Team.UpdateUnitLastKnownPosition(aiBrain, oNearestEnemyToFriendlyBase, true)
-                            end
+                            if aiBrain then--]]
+                        M28Team.UpdateUnitLastKnownPosition(aiBrain, oNearestEnemyToFriendlyBase, true)
+                            --[[end
                         else
                             M28Utilities.ErrorHandler('No active M28 brain')
-                        end
+                        end--]]
                     end
                 else
                     --SCENARIO 2 - we dont outrange enemy with DF, but have slightly more threat than them, or have nowhere left to run
