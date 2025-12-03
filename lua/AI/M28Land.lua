@@ -1057,7 +1057,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
             if bWantScoutToCloak then bWantScoutToCloak = false end
             oEnemyToConsiderAttacking = nil
             bConsiderAttacking = false
-            if oScout:GetFractionComplete() == 1 then
+            if not(oScout.Dead) and oScout:GetFractionComplete() == 1 then
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..'; bCheckForEnemies='..tostring(bCheckForEnemies)) end
                 if bCheckForEnemies then

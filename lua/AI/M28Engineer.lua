@@ -9962,7 +9962,6 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                         if M28Utilities.IsTableEmpty(tUnitsOfCategoryInLZ) == false then
                                             local iBestProgress = -1
                                             for iUnit, oUnit in tUnitsOfCategoryInLZ do
-                                                bDebugMessages = true
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; WorkProgress='..oUnit:GetWorkProgress()) end
                                                 if oUnit:GetWorkProgress() > iBestProgress then
                                                     oUnitToAssist = oUnit
