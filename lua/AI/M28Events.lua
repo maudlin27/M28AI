@@ -4362,7 +4362,7 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position, oProjectile)
     if M28Utilities.bM28AIInGame then
         if not(oLauncher.Dead) and M28UnitInfo.IsUnitValid(oTMD) and not(oLauncher:GetAIBrain().M28Team == oTMD:GetAIBrain().M28Team) then
             local sFunctionRef = 'OnMissileIntercepted'
-            local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             local oLauncherBrain = oLauncher:GetAIBrain()
 
