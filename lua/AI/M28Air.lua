@@ -4859,9 +4859,17 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                     M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastAirAASupportPointAngleAdjust] = iAngleAdjust
                                     local iDistToMove = 20 --asf max speed is 22
                                     local tMovePoint = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iAngleAdjust, iDistToMove, true, false, M28Map.bIsCampaignMap)
+                                    if bDebugMessages == true and tMovePoint[1] > 10000 then LOG(sFunctionRef..': tMovePoint='..repru(tMovePoint)..'; reftAirSubSupportPoint='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; iAngleAdjust='..iAngleAdjust..'; iDistToMove='..iDistToMove..'; Time='..GetGameTimeSeconds()) end
+                                    if M28Utilities.IsTableEmpty(tMovePoint) then
+                                        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) == false then tMovePoint = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][1],M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][2],M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][3]} end
+                                        if M28Utilities.IsTableEmpty(tMovePoint) then
+                                            M28Utilities.ErrorHandler('Have invalid move point due to no air support point, will try startp osition instead')
+                                            tMovePoint = M28Map.GetPlayerStartPosition(M28Team.GetFirstActiveM28Brain(iTeam), false)
+                                        end
+                                    end
 
                                     local bConsiderCtrlK = false
-                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and iAvailableAndInCombatAirAAThreat >= 1750 and M28Conditions.TeamHasLowMass(iTeam) then
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and iAvailableAndInCombatAirAAThreat >= 1750 and M28Conditions.TeamHasLowMass(iTeam) and M28Utilities.IsTableEmpty(tMovePoint) == false and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tMovePoint)) then
                                         local tInties = EntityCategoryFilterDown(categories.TECH1, tAvailableAirAA)
                                         if M28Utilities.IsTableEmpty(tInties) == false then
                                             local tASFs = EntityCategoryFilterDown(categories.TECH3, tAvailableAirAA)
@@ -4896,8 +4904,10 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                                     table.insert(tAirForRefueling, oUnit)
                                                 end
                                             else
-                                                M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
-                                                iIdleAirAACount = iIdleAirAACount + 1
+                                                if M28Utilities.IsTableEmpty(tMovePoint) == false then
+                                                    M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
+                                                    iIdleAirAACount = iIdleAirAACount + 1
+                                                end
                                             end
                                         elseif bDebugMessages == true then LOG(sFunctionRef..': Air unit appears to be dead?')
                                         end
@@ -6709,7 +6719,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                     iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryStructureAA + categories.COMMAND + M28UnitInfo.refCategoryGroundAA * categories.TECH3, oEnemyUnit.UnitId) then
                     iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.2
-                    if EntityCategoryContains(categories.COMMAND, oEnemyUnit.UnitId) then
+                    if EntityCategoryContains(categories.COMMAND, oEnemyUnit.UnitId) and aiBrain then
                         --Check if under a fixed shield
                         local iShieldHealth = M28Logic.IsTargetUnderShield(aiBrain, oEnemyUnit, 0, true, false, true, true)
                         iTotalStrikeDamageWanted = iTotalStrikeDamageWanted + (iShieldHealth or 0)
@@ -7677,8 +7687,10 @@ function ManageGunships(iTeam, iAirSubteam)
                     if not(tbPlateauAndZoneAdded[iTargetPlateauOrZero][iTargetLZOrWZ]) then
                         local tTargetLZTeamData = M28Map.tAllPlateaus[iTargetPlateauOrZero][M28Map.subrefPlateauLandZones][iTargetLZOrWZ][M28Map.subrefLZTeamData][iTeam]
                         iTargetHealthPercent = M28UnitInfo.GetUnitHealthAndShieldPercent(oUnit)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy snipe target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Will add all enemy ground units in P'..iTargetPlateauOrZero..'Z'..iTargetLZOrWZ..'; Unit health='..oUnit:GetHealth()..'; iAvailableGunshipThreat='..iAvailableGunshipThreat..'; iAvailableGunshipThreat='..iAvailableGunshipThreat..'; Enemy AA threat in this zone='..(tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')) end
-                        if oUnit:GetHealth() < iAvailableGunshipThreat and ((iTargetHealthPercent <= 0.2 and iAvailableGunshipThreat >= math.min(5000, oUnit:GetHealth() * 2)) or (tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iAvailableGunshipThreat and iTargetHealthPercent < 0.3)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy snipe target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Will add all enemy ground units in P'..iTargetPlateauOrZero..'Z'..iTargetLZOrWZ..'; Unit health='..oUnit:GetHealth()..'; iAvailableGunshipThreat='..iAvailableGunshipThreat..'; iAvailableGunshipThreat='..iAvailableGunshipThreat..'; Enemy AA threat in this zone='..(tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; second line condition='..tostring(iAvailableGunshipThreat < 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] or tTargetLZTeamData[M28Map.refiModDistancePercent] < 0.25 or (tTargetLZTeamData[M28Map.refiModDistancePercent] < 0.5 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) or M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbAssassinationOrSimilar])) end
+                        if oUnit:GetHealth() < iAvailableGunshipThreat and ((iTargetHealthPercent <= 0.2 and iAvailableGunshipThreat >= math.min(5000, oUnit:GetHealth() * 2)) or (tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iAvailableGunshipThreat and iTargetHealthPercent < 0.3))
+                        --Avoid suciiding into a snipe target if it is full share with players still on enemy team, and we are far behind on air and have enough fo a gunship threat taht would hurt to lose them
+                        and (iAvailableGunshipThreat < 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] or tTargetLZTeamData[M28Map.refiModDistancePercent] < 0.25 or (tTargetLZTeamData[M28Map.refiModDistancePercent] < 0.5 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) or M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbAssassinationOrSimilar]) then
                             --Just add the ACU as a target
                             if bDebugMessages == true then LOG(sFunctionRef..': Will just add the enemy ACU as a snipe target as it is so low health') end
                             AddUnitToTargetsTable(oUnit, true)
@@ -8060,7 +8072,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                     for iEntry, tSubtable in tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                         --Once found a zone with targets, use that unless we have another zone where mex is under threat that we want to consider instaed
                                         if bUseDefensively and tSubtable[M28Map.subrefiDistance] > iMaxDefensiveRange then break end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if P'..tSubtable[M28Map.subrefiPlateauOrPond]..'Z'..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..' is in range, subrefiDistance='..tSubtable[M28Map.subrefiDistance]..'; iDistanceOfFirstTarget='..(iDistanceOfFirstTarget or 'nil')..'; Dist from front gunship to midpoint of target zone='..M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefMidpoint])) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if P'..tSubtable[M28Map.subrefiPlateauOrPond]..'Z'..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..' is in range, subrefiDistance='..tSubtable[M28Map.subrefiDistance]..'; iDistanceOfFirstTarget='..(iDistanceOfFirstTarget or 'nil')..'; Dist from front gunship to midpoint of target zone (if it is a land zone)='..M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), (M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefMidpoint] or {0,0,0}))..'; subrefbIsWaterZone='..tostring(tSubtable[M28Map.subrefbIsWaterZone] or false)) end
                                         if iPostFirstTargetCount == 0 or (tSubtable[M28Map.subrefiDistance] <= iDistanceOfFirstTarget + iPostTargetMaxDistance) or (not(tSubtable[M28Map.subrefbIsWaterZone]) and tSubtable[M28Map.subrefiDistance] <= iDistanceOfFirstTarget + iPostTargetMaxDistance + iDistFromFrontGunshipToMidpoint and M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefMidpoint]) <= tSubtable[M28Map.subrefiDistance]) then
                                             if bMidpointPlayableOverride and tSubtable[M28Map.subrefiDistance] >= 120 then bMidpointPlayableOverride = false end
                                             if not(bCheckForAirAA) and tSubtable[M28Map.subrefiDistance] > iDistToStartCheckingForAirAA then bCheckForAirAA = true end

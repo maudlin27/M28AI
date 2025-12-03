@@ -9291,8 +9291,10 @@ function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
                 end
                 return false
             end
+            local tbChangedStartByTeam = {}
             for iTeam, bUpdate in tbTeamsToUpdate do
                 for iBrain, oBrain in ArmyBrains do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Updating iTeam='..iTeam..'; Considering whether to update for oBrain='..oBrain.Nickname..'; oBrain.M28Team='..oBrain.M28Team..'; Is this same team='..tostring(oBrain.M28Team==iTeam)..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oBrain.CampaignAI='..tostring(oBrain.CampaignAI or false)) end
                     if oBrain.M28Team == iTeam and oBrain.M28AI and oBrain.CampaignAI then
                         --Have a campaign AI on this team and map has just expanded, so consider if we should change the start position of this AI
                         local tCurStartPosition = GetPlayerStartPosition(oBrain)
@@ -9332,6 +9334,7 @@ function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
                                     for iZone, bInclude in tZones do
                                         local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone]
                                         iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tCurStartLZData[subrefMidpoint])
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering shortlist for iPlateau='..iPlateau..'; iZone='..iZone..'; iCurDist='..iCurDist..'; iClosestDistAnyPlateau='..iClosestDistAnyPlateau..'; iClosestDistSamePlateau='..iClosestDistSamePlateau..'; iStartPlateauOrZero='..iStartPlateauOrZero) end
                                         if iCurDist < iClosestDistAnyPlateau then
                                             iClosestDistAnyPlateau = iCurDist
                                             tiClosestplateauAndZoneAnyPlateau = {iPlateau, iZone}
@@ -9342,18 +9345,21 @@ function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
                                         end
                                     end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering changing the start position for campaign oBrain='..oBrain.Nickname..'; iClosestDistSamePlateau='..iClosestDistSamePlateau..'; iClosestDistAnyPlateau='..iClosestDistAnyPlateau) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering changing the start position for campaign oBrain='..oBrain.Nickname..'; iClosestDistSamePlateau='..iClosestDistSamePlateau..'; iClosestDistAnyPlateau='..iClosestDistAnyPlateau..'; is tiClosestPlateauAndZoneSamePlateau empty='..tostring(M28Utilities.IsTableEmpty(tiClosestPlateauAndZoneSamePlateau))..'; Is tiClosestplateauAndZoneAnyPlateau empty='..tostring(M28Utilities.IsTableEmpty(tiClosestplateauAndZoneAnyPlateau))) end
                                 local bChangedStart = false
                                 if M28Utilities.IsTableEmpty(tiClosestPlateauAndZoneSamePlateau) == false then
                                     --Set new start position to this zone midpoint
                                     local tLZData = tAllPlateaus[tiClosestPlateauAndZoneSamePlateau[1]][subrefPlateauLandZones][tiClosestPlateauAndZoneSamePlateau[2]]
                                     PlayerStartPoints[oBrain:GetArmyIndex()] = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
                                     bChangedStart = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Same plateau Changing to P'..tiClosestPlateauAndZoneSamePlateau[1]..'Z'..tiClosestPlateauAndZoneSamePlateau[2]) end
                                 elseif M28Utilities.IsTableEmpty(tiClosestplateauAndZoneAnyPlateau) == false then
                                     local tLZData = tAllPlateaus[tiClosestplateauAndZoneAnyPlateau[1]][subrefPlateauLandZones][tiClosestplateauAndZoneAnyPlateau[2]]
                                     PlayerStartPoints[oBrain:GetArmyIndex()] = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
                                     bChangedStart = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Dif plateau Changing to P'..tiClosestplateauAndZoneAnyPlateau[1]..'Z'..tiClosestplateauAndZoneAnyPlateau[2]) end
                                 end
+                                tbChangedStartByTeam[iTeam] = bChangedStart
                                 if bChangedStart then
                                     --Clear core zone flag from old zone
                                     tCurStartLZTeamData[subrefLZbCoreBase] = nil
@@ -9369,6 +9375,17 @@ function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
                                 end
                             end
                         end
+                    end
+                end
+            end
+            if M28Utilities.IsTableEmpty(tbChangedStartByTeam) == false then
+                --Update nearest friendly base after 1 tick delay (to ensure we have updated enemies as well)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will update closest friendly and enemy base for each zone for each team with M28AI in it, tbChangedStartByTeam='..repru(tbChangedStartByTeam)) end
+                for iTeam = 1, M28Team.iTotalTeamCount do
+                    if (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Updating for iTeam='..iTeam) end
+                        RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, false, false)
+                        RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, true)
                     end
                 end
             end

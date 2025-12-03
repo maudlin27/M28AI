@@ -671,6 +671,7 @@ function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnd
 
     --local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     --local sFunctionRef = 'MoveInDirection'
+
     local iTheta = ConvertAngleToRadians(iAngle)
     --if bDebugMessages == true then LOG(sFunctionRef..': iAngle='..(iAngle or 'nil')..'; iTheta='..(iTheta or 'nil')..'; iDistance='..(iDistance or 'nil')..'; M28Map.rMapPotentialPlayableArea='..repru(M28Map.rMapPotentialPlayableArea)..'; tStart='..repru(tStart)) end
     local iXAdj = math.sin(iTheta) * iDistance
@@ -698,12 +699,16 @@ function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnd
         end
         --Get actual distance required to keep within map bounds
         local iNewDistWanted = 10000
-
-        if tTargetPosition[1] < rPlayableArea[1] then iNewDistWanted = (iDistance - 0.5) * (tStart[1] - rPlayableArea[1]) / (tStart[1] - tTargetPosition[1]) end
-        if tTargetPosition[3] < rPlayableArea[2] then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (tStart[3] - rPlayableArea[2]) / (tStart[3] - tTargetPosition[3])) end
-        if tTargetPosition[1] > rPlayableArea[3] then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (rPlayableArea[3] - tStart[1]) / (tTargetPosition[1] - tStart[1])) end
-        if tTargetPosition[3] > rPlayableArea[4] then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (rPlayableArea[4] - tStart[3]) / (tTargetPosition[3] - tStart[3])) end
-        --if GetGameTimeSeconds() >= 2160 and iDistance == 200 then LOG('tStart='..repru(tStart)..'; tTargetPosition='..repru(tTargetPosition)..'; rPlayableArea='..repru(rPlayableArea)..'; iNewDistWanted='..iNewDistWanted..'; (10k means we dont need to adjust for playable area so will just return target position)') end
+        --if bDebugMessages == true then LOG(sFunctionRef..': Will determine iNewDistWanted, tTargetPosition='..repru(tTargetPosition)..';  rPlayableArea='..repru(rPlayableArea)) end
+        if not(tTargetPosition[1] == tStart[1]) then
+            if tTargetPosition[1] < rPlayableArea[1] then iNewDistWanted = (iDistance - 0.5) * (tStart[1] - rPlayableArea[1]) / (tStart[1] - tTargetPosition[1]) end
+            if tTargetPosition[1] > rPlayableArea[3] then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (rPlayableArea[3] - tStart[1]) / (tTargetPosition[1] - tStart[1])) end
+        end
+        if not(tTargetPosition[3] == tStart[3]) then
+            if tTargetPosition[3] < rPlayableArea[2] and not(tStart[3] == tTargetPosition[3]) then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (tStart[3] - rPlayableArea[2]) / (tStart[3] - tTargetPosition[3])) end
+            if tTargetPosition[3] > rPlayableArea[4] then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (rPlayableArea[4] - tStart[3]) / (tTargetPosition[3] - tStart[3])) end
+        end
+        --if bDebugMessages == true then LOG(sFunctionRef..': Finished determining iNewDistWanted='..iNewDistWanted) end
 
         if iNewDistWanted == 10000 then
             --if bDebugMessages == true then LOG(sFunctionRef..': Are inside playable area, returning tTargetPosition='..repru(tTargetPosition)) end

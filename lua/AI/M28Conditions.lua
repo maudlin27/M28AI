@@ -634,6 +634,23 @@ function SafeToUpgradeUnit(oUnit)
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
     local bSafeZone = false
 
+    --If have land exp and dealing with ACU then treat as not safe
+    if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.reftEnemyLandExperimentals]) == false then
+        local iTeam = oUnit:GetAIBrain().M28Team
+        local iCurDist
+        for iExp, oExp in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+            if not(oExp.Dead) and oExp[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateauOrZero then
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oExp:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': Dist of oExp='..oExp.UnitId..M28UnitInfo.GetUnitLifetimeCount(oExp)..' to ACU='..iCurDist) end
+                if iCurDist < 150 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Within 150 of Exp so not safe to upgrade here') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return false
+                end
+            end
+        end
+    end
+
     if (iLandOrWaterZone or 'nil') > 0 and not(iPlateauOrZero == 0) then
         local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
         if M28Utilities.IsTableEmpty(tLZData) == false then
@@ -1360,6 +1377,38 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bAreCloseToUnit
+end
+
+function CloseToIFUnit(oUnit, tHiddenIFEnemies, iTeam, iReturnTrueIfWithinThisDistOfEnemyShootingUs)
+    --Intended to be called for skirmisher units where we want them to stay out of range of enemy if we dont have intel of that enemy
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CloseToIFUnit'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tUnitPosition = oUnit:GetPosition()
+    local iClosestEnemyLessRange, iCurDistLessRange
+    if M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
+        iClosestEnemyLessRange = M28Utilities.GetDistanceBetweenPositions(tUnitPosition, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()) - (oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] or 0)
+    else
+        iClosestEnemyLessRange = 10000
+    end
+    local oClosestIFUnit
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking hidden IF enemies for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] before this='..(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) or 'nil')..'; iClosestEnemyLessRange='..iClosestEnemyLessRange) end
+    for iEnemy, oEnemy in tHiddenIFEnemies do
+        iCurDistLessRange = M28Utilities.GetDistanceBetweenPositions(tUnitPosition, oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) - oEnemy[M28UnitInfo.refiCombatRange]
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; iCurDistLessRange='..iCurDistLessRange..'; Dist based on last known position='..M28Utilities.GetDistanceBetweenPositions(tUnitPosition, oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Actual dist based on actual position='..M28Utilities.GetDistanceBetweenPositions(tUnitPosition, oEnemy:GetPosition())) end
+        if iCurDistLessRange < iClosestEnemyLessRange then
+            iClosestEnemyLessRange = iCurDistLessRange
+            oClosestIFUnit = oEnemy
+            if iClosestEnemyLessRange < iReturnTrueIfWithinThisDistOfEnemyShootingUs then
+                break
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': iClosestEnemyLessRange after check='..iClosestEnemyLessRange..'; oClosestIFUnit='..(oClosestIFUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestIFUnit) or 'nil')..'; Value that will return='..tostring(iClosestEnemyLessRange < iReturnTrueIfWithinThisDistOfEnemyShootingUs)) end
+    if oClosestIFUnit then oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] = oClosestIFUnit end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return iClosestEnemyLessRange < iReturnTrueIfWithinThisDistOfEnemyShootingUs
 end
 
 function TeamHasAirControl(iTeam)
@@ -3937,7 +3986,12 @@ function ACULikelyToWantCombatUpgradeOrShield(oACU)
     local sFunctionRef = 'ACULikelyToWantCombatUpgradeOrShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..'; Start of code, ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs])..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]='..tostring(oACU:GetAIBrain()[M28Map.refbCanPathToEnemyBaseWithAmphibious])..'; Time='..GetGameTimeSeconds()) end
-    if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.7 then
+    --Cybran and Aeon - if have RAS then dont replace with shield
+    if (oACU:HasEnhancement('ResourceAllocationAdvanced') or oACU:HasEnhancement('ResourceAllocation')) and EntityCategoryContains(categories.CYBRAN + categories.AEON, oACU.UnitId) and (M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.8 or not(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbAssassinationOrSimilar])) then
+        if bDebugMessages == true then LOG(sFunctionRef..': We already have RAS so dont want to get stealth/shield for cybran/aeon') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return false
+    elseif M28UnitInfo.GetUnitHealthPercent(oACU) < 0.7 then
         if bDebugMessages == true then LOG(sFunctionRef..': ACU damaged so returning true to use in combat') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true

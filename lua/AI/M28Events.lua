@@ -4918,3 +4918,9 @@ function OnImpactTerrain(oProjectile, targetType, targetEntity, tProjectilePosit
         end
     end
 end
+
+function MissileReflected(oTarget, oAttacker)
+    if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oTarget.M28Active) then
+        ForkThread(M28Micro.DodgeShot,oTarget, nil, oAttacker, 3)
+    end
+end

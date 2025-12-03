@@ -132,6 +132,7 @@ refbLurkerMode = 'M28ULrkMd' --true if unit is adopting selen 'engi lurker' mode
 refiACUGridSlot = 'M28ACUGS' --the reference against the target ACU[reftoGridXZAdjust]
 reftoGridXZAdjust = 'M28GridXZA' --against the ACU, [x] is the refiACUGridSlot reference, returns {Xadj,Zadj} from the ACU position
 reftoUnitAssignedToGridSlot = 'M28GridUn' --against the ACU, [x] is the slot reference, returns the unit assigned to this slot
+refiTimeLastWantedToSurface = 'M28SbmT' --gametimeseconds that we wanted a submarine unit to surface (to use its AA attack)
 
 
     --Ranges and weapon details
@@ -181,6 +182,7 @@ refWeaponPriorityExpSnipeACU = {'COMMAND', 'SHIELD STRUCTURE', 'SHIELD MOBILE', 
 refbUsingDefaultWeaponPriority = 'M28UDfW' --true if using default weapon priroity (for unit with multiple options - e.g. gunships)
 
 refbPaused = 'M28UnitPaused' --true if unit is paused
+refbCampaignNeverPause = 'M28UNeverPause' --only affects FAF; true if dont want unit to pause, e.g. due to being special campaign unit
 refiPausedPriority = 'M28UnitPsPr' --table index where the paused unit is s tored in team data
 reftoUnitsAssistingThis = 'M28UnitsAssisting' --table of units given an order to guard this unit
 
@@ -2644,7 +2646,7 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause, iOptionalTeam, iPauseP
             if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
         end
 
-        if IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 and oUnit.SetPaused then
+        if IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 and oUnit.SetPaused and (not(oUnit[refbCampaignNeverPause]) or not(bPauseNotUnpause)) then
 
             --Want to pause unit, check for any special logic for pausing
             --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100% and want to pause it
@@ -2697,7 +2699,7 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
             if oUnit.GetFocusUnit and oUnit:GetFocusUnit() then LOG(sFunctionRef..': Focus unit='..oUnit:GetFocusUnit().UnitId..GetUnitLifetimeCount(oUnit:GetFocusUnit())) end
             if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; Is arti template nil='..tostring(oUnit[import('/mods/M28AI/lua/AI/M28Building.lua').reftArtiTemplateRefs] == nil)) end
         end
-        if IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 and oUnit.SetPaused then
+        if IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 and oUnit.SetPaused and (not(oUnit[refbCampaignNeverPause]) or not(bPauseNotUnpause)) then
             --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100%
             --Want this to run before the later stages so can properly track if unit is paused
 
@@ -2989,7 +2991,7 @@ function GetUnitHealthRegenRate(oUnit)
 end
 
 function SetUnitWeaponTargetPriorities(oUnit, tPriorityTable, bCheckIfCanAttackGround)
-    if (bDontConsiderCombinedArmy or oUnit.M28Active) and IsUnitValid(oUnit) and false then
+    if (bDontConsiderCombinedArmy or oUnit.M28Active) and IsUnitValid(oUnit) then
         if EntityCategoryContains(refCategoryMAA, oUnit) then M28Utilities.ErrorHandler('Changing weapon priority for MAA') end
         for i =1, oUnit:GetWeaponCount() do
             local wep = oUnit:GetWeapon(i)

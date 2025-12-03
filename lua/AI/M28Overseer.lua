@@ -2277,6 +2277,31 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     M28Micro.TrackTemporaryUnitMicro(oUnit, 90, nil, false)
                 end
             end
+            --FA M3 (Saving rihanne) - dont adjust orders of engineers building exp bombers for a while
+        elseif ScenarioInfo.ExperimentalEngineers and M28Utilities.IsTableEmpty(ScenarioInfo.ExperimentalEngineers) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.M1P1.Active='..tostring(ScenarioInfo.M1P1.Active or false)..'; ScenarioInfo.M2P1.Active='..tostring(ScenarioInfo.M2P1.Active or false)..'; M3P1='..tostring(ScenarioInfo.M3P1.Active or false)..'; Time='..GetGameTimeSeconds()) end
+            if ScenarioInfo.M2P1.Active or ScenarioInfo.M1P1.Active then
+                for iEngi, oEngi in ScenarioInfo.ExperimentalEngineers do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering tracking engineer oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; oEngi[M28UnitInfo.refbSpecialMicroActive]='..tostring(oEngi[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                    oEngi[M28UnitInfo.refbCampaignNeverPause] = true
+                    if M28UnitInfo.IsUnitValid(oEngi) then
+                        if oEngi[M28UnitInfo.refbPaused] or (oEngi.IsPaused and oEngi:IsPaused()) then M28UnitInfo.PauseOrUnpauseMassUsage(oEngi, false) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will track special micro') end
+                        if not(oEngi[M28UnitInfo.refbSpecialMicroActive]) then
+                            M28Micro.TrackTemporaryUnitMicro(oEngi, 180, nil, false)
+                        end
+                        if ScenarioInfo.M2P1.Active then
+                            M28Engineer.TrackEngineerAction(oEngi, M28Engineer.refActionBuildExperimental, true, 1, nil, nil, false)
+                        end
+                    end
+                end
+            else
+                for iEngi, oEngi in ScenarioInfo.ExperimentalEngineers do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will remove special micro flags from engis') end
+                    oEngi[M28UnitInfo.refbCampaignNeverPause] = nil
+                    oEngi[M28UnitInfo.refbSpecialMicroActive] = false
+                end
+            end
         end
         --UEF M1 - Air fac upgrading breaks the mission
         if ScenarioInfo.AirFactory.UnitId and not(ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit]) and ScenarioInfo.AirFactory:GetBlueprint().General.UpgradesTo and ScenarioInfo.AirFactory:GetAIBrain().M28AI then

@@ -744,7 +744,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
+function DodgeShot(oTarget, oOptionalWeapon, oAttacker, iTimeToDodge)
     --Should have already checked oTarget is a valid unit that has a chance of dodging the shot in time before claling this
     --Gets unit to move at a slightly different angle to its current facing direction for iTimeToDodge
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1830,7 +1830,8 @@ function MegalithRetreatMicro(oUnit, tRallyPoint, tClosestFriendlyBase, oClosest
 
     local bGivenOrder = false
 
-    if not(oUnit[M28UnitInfo.refbEasyBrain]) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Time since last weapon event='..(GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0))..'; refiTimeBetweenDFShots='..(oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
+    if not(oUnit[M28UnitInfo.refbEasyBrain]) and (oUnit[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent]) < (oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 1.2) + 0.5 then
 
         --Only consider applying micro if moving in opposite direction to that which we are facing should result in us moving in similar direction to rally point or closest base
         local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
@@ -2478,7 +2479,7 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
                 bManualAttack = false
 
                 --Are we facing the target? if not, then turn towards them
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToTarget='..iCurDistToTarget..'; iCurAngleToTarget='..iCurAngleToTarget..'; iCurFacingAngle='..iCurFacingAngle..'; iCurAngleDif='..iCurAngleDif..'; Target unit state='..M28UnitInfo.GetUnitState(oTarget)..'; Dist from ground='..(oTarget:GetPosition()[2] - GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3]))..'; Time since last fired weapon='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0)..'; iHalfDistThreshold='..iHalfDistThreshold) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToTarget='..iCurDistToTarget..'; iCurAngleToTarget='..iCurAngleToTarget..'; iCurFacingAngle='..iCurFacingAngle..'; iCurAngleDif='..iCurAngleDif..'; Target unit state='..M28UnitInfo.GetUnitState(oTarget)..'; Dist from ground='..(oTarget:GetPosition()[2] - GetSurfaceHeight(oTarget:GetPosition()[1], oTarget:GetPosition()[3]))..'; Time since last fired weapon='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0)..'; time since last fired bomb='..(GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0))..'; oBomber[M28UnitInfo.refiTimeBetweenBombs]='..(oBomber[M28UnitInfo.refiTimeBetweenBombs] or 'nil')..'; iHalfDistThreshold='..iHalfDistThreshold) end
                 if iCurAngleDif > 15 then
                     if iBomberSpeed <= 0.1 and iCurDistToTarget > iQuarterDistThreshold and (iBomberSpeed <= 0.05 or iCurDistToTarget >= iHalfDistThreshold) then
                         iReorderDist = 1
@@ -2535,7 +2536,7 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
                         end
                     end
                     --We are facing the target, if we are able to fire then drop a bomb, otherwise slowly approach
-                elseif GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastWeaponEvent] or 0) > iMaxTimeBetweenShotsWanted then
+                elseif GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) > iMaxTimeBetweenShotsWanted then
                     --Are facing the right direction and able to fire
                     --First time we are at the right angle - consider slowing down slightly if we dont have that far to reach target and are going quite fast
                     if not(iFurthestDistWhenAtCorrectAngle) then iFurthestDistWhenAtCorrectAngle = iCurDistToTarget end
@@ -2614,7 +2615,7 @@ function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit)
         while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oClosestACUNearUnit) and not(oClosestACUNearUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oClosestACUNearUnit)) do
             --Move towards the ACU
             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUNearUnit:GetPosition())
-            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; bLastOrderWasManualAttack='..tostring(bLastOrderWasManualAttack)..'; Time='..GetGameTimeSeconds()) end
+            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; bLastOrderWasManualAttack='..tostring(bLastOrderWasManualAttack)..'; Will do attack move intead of manual attack this time='..tostring(iCurDist >= 8 or (iCurDist >= 5 and not(bLastOrderWasManualAttack)))..'; Time='..GetGameTimeSeconds()) end
             if iCurDist >= 8 or (iCurDist >= 5 and not(bLastOrderWasManualAttack)) then
                 M28Orders.IssueTrackedMove(oUnit, oClosestACUNearUnit:GetPosition(), 0.5, false, 'ExpKACUM', true)
                 bLastOrderWasManualAttack = false
