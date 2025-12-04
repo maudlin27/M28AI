@@ -4619,6 +4619,7 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
     local sFunctionRef = 'ConsiderManualT2ArtiTarget'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if not(oArti[M28UnitInfo.refbEasyBrain]) then
         local bProceedWithLogic = true
         if iOptionalDelaySecondsAndWeaponFireCheck then
@@ -4721,17 +4722,24 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
                 --Enemy has t2 arti nearby so consider groundfiring units unless they have a fatboy nearby
                 UpdateClosestUnit(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])
             end
-
-            if not(oClosestTargetOfInterest) and tLastTarget then
+            if bDebugMessages == true then LOG(sFunctionRef..': oClosestTargetOfInterest after checking for nearby enemy LR threats and t2 arti='..(oClosestTargetOfInterest.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestTargetOfInterest) or 'nil')..'; Did we have a priority target before, tLastTarget='..repru(tLastTarget)) end
+            if not(oClosestTargetOfInterest) then
+                if not(tLastTarget) then iClosestTargetOfInterest = math.min(iClosestTargetOfInterest, oArti[M28UnitInfo.refiIndirectRange]) end
                 --No T2 arti but we were firing at something before, so check if any enemy shields or T2 arti or ravagers around the arti and (if so) if we want to ground fire them
-                local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryPD * categories.TECH3, tArtiPosition, iClosestTargetOfInterest - 1, 'Enemy')
-                if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
-                    UpdateClosestUnit(tNearbyUnitsOfInterest)
-                end
-                if not(oClosestTargetOfInterest) then
-                    tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryIndirectT2Plus + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryTML, oArti:GetPosition(), iClosestTargetOfInterest - 1, 'Enemy')
+                local tNearbyUnitsOfPotentialInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryPD * categories.TECH3 + M28UnitInfo.refCategoryIndirectT2Plus + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategoryCruiser + M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategorySniperBot, tArtiPosition, iClosestTargetOfInterest - 1, 'Enemy')
+                if M28Utilities.IsTableEmpty(tNearbyUnitsOfPotentialInterest) == false then
+                    local tNearbyUnitsOfInterest = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryPD * categories.TECH3, tNearbyUnitsOfPotentialInterest)
                     if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
                         UpdateClosestUnit(tNearbyUnitsOfInterest)
+                    end
+                    if not(oClosestTargetOfInterest) then
+                        tNearbyUnitsOfInterest = EntityCategoryFilterDown(M28UnitInfo.refCategoryIndirectT2Plus + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategoryCruiser, tNearbyUnitsOfPotentialInterest)
+                        if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
+                            UpdateClosestUnit(tNearbyUnitsOfInterest)
+                        end
+                        if not(oClosestTargetOfInterest) then
+                            UpdateClosestUnit(tNearbyUnitsOfPotentialInterest)
+                        end
                     end
                 end
             end
