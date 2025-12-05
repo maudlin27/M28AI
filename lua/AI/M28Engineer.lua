@@ -3498,7 +3498,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     elseif bEnemyHasFatboys and bCanBuildNovax and iCurNovaxCount == 0 then
                                         iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get novax1') end
-                                    elseif iCurFatboyCount == 0 then
+                                    elseif iCurFatboyCount == 0 or (iCurFatboyCount == 1 and bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryFatboy) < 4) then
                                         iCategoryWanted = iUEFLandExpCategory
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get fatboy1') end
                                         --Game-ender for late game scenarios where enemy has their own arti and as a team we have already tried building a number of experimentals
