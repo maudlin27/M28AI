@@ -2524,11 +2524,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     end
                     for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                         if iFactoryTechLevel < 3 or not (bDontConsiderBuildingMAA) then
-                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, tLZTeamData, iPlateau, iLandZone, iAdjLZ, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers, (true and GetGameTimeSeconds() >= 21*60 and bDontGetCombat),nil,bDontConsiderLandScouts)
+                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, tLZTeamData, iPlateau, iLandZone, iAdjLZ, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers, bDontGetCombat,nil,bDontConsiderLandScouts)
                         elseif M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 1000 then
-                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, tLZTeamData, iPlateau, iLandZone, iAdjLZ, false, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers,(true and GetGameTimeSeconds() >= 21*60 and bDontGetCombat),nil,bDontConsiderLandScouts)
+                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, tLZTeamData, iPlateau, iLandZone, iAdjLZ, false, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers,bDontGetCombat,nil,bDontConsiderLandScouts)
                         else
-                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, tLZTeamData, iPlateau, iLandZone, iAdjLZ, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers,(true and GetGameTimeSeconds() >= 21*60 and bDontGetCombat),nil,bDontConsiderLandScouts)
+                            iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, tLZTeamData, iPlateau, iLandZone, iAdjLZ, bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bConsiderAbsolvers,bDontGetCombat,nil,bDontConsiderLandScouts)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Finished considering category to build for iAdjLZ='..iAdjLZ..'; is iCategoryToGet nil='..tostring(iCategoryToGet == nil)) end
                         if iCategoryToGet then

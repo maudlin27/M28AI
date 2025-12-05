@@ -6687,6 +6687,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     if bDebugMessages == true then LOG(sFunctionRef..': In scenario 1, so we either outrange enemy, or we have significantly more threat at their best range - i.e. equal range, bAttackWithSameRange='..tostring(bAttackWithSameRange)) end
                     local tOutrangedCombatUnits = {}
                     local tUnitsToSupport = {}
+                    local tFriendlyT2Arti --keep as nil, as will update if we think it is relevant
                     local bAttackWithOutrangedDFUnits = false
                     local iAngleThresholdForRally --i.e. what angle dif need between us and nearest enemy to just retreat in opposite direction instead of going to rally
                     local iSkirmisherDistToNearestEnemy
@@ -7079,27 +7080,45 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                         end
                                                         --Did 12 dist threshold but due to high firing randomness were still sometimes dying to mobile arti
                                                         if oClosestEnemyMobileArti and iClosestEnemyMobileArtiDist < 20 and (iMobileArtiAlmostWithinRange >= 4 or M28Logic.IsShotBlocked(oUnit, oClosestEnemyMobileArti)) then --within 12 of being in range of their mobile arti
-                                                            bUseNormalLogic = false
-                                                            local tRetreatLocationToUse
-                                                            local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyMobileArti:GetPosition())
-                                                            local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)
-                                                            if M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally) <= 65 then
-                                                                local tPotentialRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestEnemy - 180, 15, true, nil, M28Map.bIsCampaignMap)
-                                                                if M28Utilities.IsTableEmpty(tPotentialRetreatLocation) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialRetreatLocation) == iPlateau then
-                                                                    tRetreatLocationToUse = {tPotentialRetreatLocation[1], tPotentialRetreatLocation[2], tPotentialRetreatLocation[3]}
+                                                            --Do we have friendly T2 arti firing at their arti/in range of it? if so then attack with sniperbots still if our sniperbots will be ready to fire soon
+                                                            local bHaveFriendlyT2Arti
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider if enemy t3 arti in range of friendly t2 arti, Time since refiTimeOurT2ArtiLastFired='..GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 0)..'; Time since oUnit fired='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; refiTimeBetweenDFShots='..(oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 0)) end
+                                                            if tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] <= 30 and (not(oUnit[M28UnitInfo.refiLastWeaponEvent]) or GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] + 2 >= (oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 3)) then
+                                                                if not(tFriendlyT2Arti) then tFriendlyT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': is tFriendlyT2Arti empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyT2Arti))) end
+                                                                if M28Utilities.IsTableEmpty(tFriendlyT2Arti) == false then
+                                                                    for iT2Arti, oT2Arti in  tFriendlyT2Arti do
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Dist between oT2Arti='..oT2Arti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oT2Arti)..' and oClosestEnemyMobileArti='..oClosestEnemyMobileArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyMobileArti)..'='..M28Utilities.GetDistanceBetweenPositions(oT2Arti:GetPosition(), oClosestEnemyMobileArti:GetPosition())) end
+                                                                        if oT2Arti:GetFractionComplete() >= 1 and M28Utilities.GetDistanceBetweenPositions(oT2Arti:GetPosition(), oClosestEnemyMobileArti:GetPosition()) <= oT2Arti[M28UnitInfo.refiIndirectRange] then
+                                                                            bHaveFriendlyT2Arti = true
+                                                                            break
+                                                                        end
+                                                                    end
                                                                 end
                                                             end
-                                                            if not(tRetreatLocationToUse) then
-                                                                --Enemy has DF units and they are already in our range so retreat
-                                                                if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
-                                                                    tRetreatLocationToUse = {tAmphibiousRallyPoint[1], tAmphibiousRallyPoint[2], tAmphibiousRallyPoint[3]}
-                                                                else
-                                                                    tRetreatLocationToUse = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]}
+                                                            if not(bHaveFriendlyT2Arti) then
+                                                                bUseNormalLogic = false
+                                                                local tRetreatLocationToUse
+                                                                local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oClosestEnemyMobileArti:GetPosition())
+                                                                local iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tAmphibiousRallyPoint)
+                                                                if M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToRally) <= 65 then
+                                                                    local tPotentialRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestEnemy - 180, 15, true, nil, M28Map.bIsCampaignMap)
+                                                                    if M28Utilities.IsTableEmpty(tPotentialRetreatLocation) == false and NavUtils.GetLabel(M28Map.refPathingTypeHover, tPotentialRetreatLocation) == iPlateau then
+                                                                        tRetreatLocationToUse = {tPotentialRetreatLocation[1], tPotentialRetreatLocation[2], tPotentialRetreatLocation[3]}
+                                                                    end
                                                                 end
+                                                                if not(tRetreatLocationToUse) then
+                                                                    --Enemy has DF units and they are already in our range so retreat
+                                                                    if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+                                                                        tRetreatLocationToUse = {tAmphibiousRallyPoint[1], tAmphibiousRallyPoint[2], tAmphibiousRallyPoint[3]}
+                                                                    else
+                                                                        tRetreatLocationToUse = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]}
+                                                                    end
+                                                                end
+                                                                oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
+                                                                oUnit[M28UnitInfo.refoMobileArtiRecentlyRanFrom] = oClosestEnemyMobileArti
+                                                                M28Orders.IssueTrackedMove(oUnit, tRetreatLocationToUse, 6, false, 'MobArRetr'..iLandZone)
                                                             end
-                                                            oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
-                                                            oUnit[M28UnitInfo.refoMobileArtiRecentlyRanFrom] = oClosestEnemyMobileArti
-                                                            M28Orders.IssueTrackedMove(oUnit, tRetreatLocationToUse, 6, false, 'MobArRetr'..iLandZone)
                                                         end
                                                     end
 
