@@ -7315,6 +7315,7 @@ function ManageGunships(iTeam, iAirSubteam)
 
         local tGunshipsNearFront = {}
         local tGunshipsNotNearFront = {}
+        local bHaveGunshipsVeryFarFromFront = false
         local iCurDist
 
         for iUnit, oUnit in tAvailableGunships do
@@ -7324,6 +7325,7 @@ function ManageGunships(iTeam, iAirSubteam)
                 table.insert(tGunshipsNearFront, oUnit)
             else
                 table.insert(tGunshipsNotNearFront, oUnit)
+                if iCurDist >= 120 then bHaveGunshipsVeryFarFromFront = true end
             end
             --Track available gunship health
             if EntityCategoryContains(categories.TECH3, oUnit.UnitId) then
@@ -8220,6 +8222,89 @@ function ManageGunships(iTeam, iAirSubteam)
             end
         end
 
+        --Further away gunships - consider whether we want to move closer to the front gunship, if it is in the playable area
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want further away gunships to move towards front, is table of gunships not near front empty='..tostring(M28Utilities.IsTableEmpty(tGunshipsNotNearFront))..'; Is front gunship in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oFrontGunship:GetPosition()))..'; tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat]='..tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat]..'; iOurGunshipAA='..iOurGunshipAA..'; Front gunship groundAA='..(tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 'nil')..'; bHaveGunshipsVeryFarFromFront='..tostring(bHaveGunshipsVeryFarFromFront)) end
+        local bGivenOrdersToFarFromFrontGunships = false
+        local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+        if M28Utilities.IsTableEmpty(tGunshipsNotNearFront) == false and (bHaveGunshipsVeryFarFromFront or M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets)) and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(oFrontGunship:GetPosition())) then
+            bGivenOrdersToFarFromFrontGunships = true
+            local tiPlateauAndZonesConsidered = {}
+            local tiPlateauAndZonesForHighHealthConsidered
+            local bCurEntrySafe
+            local bAlwaysConsolidateHighHealthGunships = false
+            local iGroundAAHighHealthThreatThreshold
+            if ((tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= math.max(100, iOurGunshipThreat * 0.1, iOurGunshipAA) or (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) > 0) then
+                bAlwaysConsolidateHighHealthGunships = true
+                tiPlateauAndZonesForHighHealthConsidered = {}
+                if iOurGunshipThreat >= 8000 then --Assume we have t3 gunships
+                    iGroundAAHighHealthThreatThreshold = 500
+                else
+                    iGroundAAHighHealthThreatThreshold = 180
+                end
+            end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': bAlwaysConsolidateHighHealthGunships='..tostring(bAlwaysConsolidateHighHealthGunships)) end
+
+            for iUnit, oUnit in tGunshipsNotNearFront do
+                if ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                    table.insert(tGunshipsForRefueling, oUnit)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will send gunship '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for refueling') end
+                    --If we almost at full health and enemy has no AirAA in the front gunship zone, then move closer
+                elseif bAlwaysConsolidateHighHealthGunships and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.95 then
+                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oFrontGunship:GetPosition()) <= math.max(120, iCloseToFrontThreshold) then
+                        bCurEntrySafe = true
+                    else
+                        local iCurPlateauOrZero, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                        if tiPlateauAndZonesConsidered[iCurPlateauOrZero][iCurZone] then
+                            bCurEntrySafe = true
+                        elseif tiPlateauAndZonesForHighHealthConsidered[iCurPlateauOrZero][iCurZone] == nil then
+                            bCurEntrySafe = false
+                            local tPositionTowardsFront = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oFrontGunship:GetPosition()), iCloseToFrontThreshold, true, false, false)
+                            if tPositionTowardsFront then
+                                local iFrontPlateauOrZero, iFrontZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tPositionTowardsFront)
+                                --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck, bOptionalIgnoreOppositeDirectionZones, bIncludeEnemyGroundAAInAirAAThreat, bAssumeWontTargetInterimAAForDetailedCheck)
+                                bCurEntrySafe = not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurZone, iFrontPlateauOrZero, iFrontZone,                     true,          iGroundAAHighHealthThreatThreshold, -1, false, iAirSubteam, true, false, nil))
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if it is safe for high health gunship not near the front to move towards front gunship, iFrontPlateauOrZero='..(iFrontPlateauOrZero or 'nil')..'; iFrontZone='..(iFrontZone or 'nil')..'; iCurPlateauOrZero='..iCurPlateauOrZero..'; iCurZone='..iCurZone..'; bCurEntrySafe='..tostring(bCurEntrySafe)..'; this will be applied to oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                if not(tiPlateauAndZonesForHighHealthConsidered[iCurPlateauOrZero]) then tiPlateauAndZonesForHighHealthConsidered[iCurPlateauOrZero] = {} end
+                                tiPlateauAndZonesForHighHealthConsidered[iCurPlateauOrZero][iCurZone] = bCurEntrySafe
+                            end
+                        else
+                            bCurEntrySafe = tiPlateauAndZonesForHighHealthConsidered[iCurPlateauOrZero][iCurZone]
+                        end
+                    end
+                    if bCurEntrySafe then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Moving unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to be closer to front gunship despite the general retreat order') end
+                        M28Orders.IssueTrackedMove(oUnit, oFrontGunship:GetPosition(), 10, false, 'FACons2', false)
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Cur entry isnt safe so will move to tMovePoint instead') end
+                        M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'FAGSId', false)
+                    end
+                else
+                    local iCurPlateauOrZero, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                    if tiPlateauAndZonesConsidered[iCurPlateauOrZero][iCurZone] == nil then --will approximate by assuming every gunship in the same zone will give the same result, even if the positiontowardsfront may be slightly different
+                        bCurEntrySafe = false
+                        local tPositionTowardsFront = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oFrontGunship:GetPosition()), iCloseToFrontThreshold * 0.5, true, false, false)
+                        if tPositionTowardsFront then
+                            local iFrontPlateauOrZero, iFrontZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tPositionTowardsFront)
+                            bCurEntrySafe = not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurZone, iFrontPlateauOrZero, iFrontZone, false, 140, 0, false, iAirSubteam, true, false, nil))
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if it is safe for gunship not near the front to move towards front gunship, iFrontPlateauOrZero='..(iFrontPlateauOrZero or 'nil')..'; iFrontZone='..(iFrontZone or 'nil')..'; iCurPlateauOrZero='..iCurPlateauOrZero..'; iCurZone='..iCurZone..'; bCurEntrySafe='..tostring(bCurEntrySafe)..'; this will be applied to oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            if not(tiPlateauAndZonesConsidered[iCurPlateauOrZero]) then tiPlateauAndZonesConsidered[iCurPlateauOrZero] = {} end
+                            tiPlateauAndZonesConsidered[iCurPlateauOrZero][iCurZone] = bCurEntrySafe
+                        end
+                    else
+                        bCurEntrySafe = tiPlateauAndZonesConsidered[iCurPlateauOrZero][iCurZone]
+                    end
+                    if bCurEntrySafe then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Moving unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to be closer to front gunship despite the general retreat order') end
+                        M28Orders.IssueTrackedMove(oUnit, oFrontGunship:GetPosition(), 10, false, 'FACons1', false)
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Cur entry isnt safe so will move to tMovePoint instead') end
+                        M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'FAGSId', false)
+                    end
+                end
+            end
+        end
+
         if M28Utilities.IsTableEmpty(tEnemyGroundOrGunshipTargets) then
             if oFrontGunship and tTeleportTargetToMoveTo then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will move gunships to teleport target location, tTeleportTargetToMoveTo='..repru(tTeleportTargetToMoveTo)) end
@@ -8286,52 +8371,6 @@ function ManageGunships(iTeam, iAirSubteam)
                                     table.insert(tGunshipsForRefueling, oUnit)
                                 else
                                     M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'GSIdle', false)
-                                end
-                            end
-                        end
-
-                        --Further away gunships - consider whether we want to move closer to the front gunship, if it is in the playable area
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want further away gunships to move towards front, is table of gunships not near front empty='..tostring(M28Utilities.IsTableEmpty(tGunshipsNotNearFront))..'; Is front gunship in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oFrontGunship:GetPosition()))..'; tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat]='..tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat]..'; iOurGunshipAA='..iOurGunshipAA..'; Front gunship groundAA='..(tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 'nil')) end
-                        if M28Utilities.IsTableEmpty(tGunshipsNotNearFront) == false and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(oFrontGunship:GetPosition())) then
-                            local tiPlateauAndZonesConsidered = {}
-                            local bCurEntrySafe
-                            local bAlwaysConsolidateHighHealthGunships = false
-                            if ((tGunshipLandOrWaterZoneTeamData[M28Map.refiEnemyAirAAThreat] or 0) <= math.max(100, iOurGunshipThreat * 0.1, iOurGunshipAA) or (tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or tGunshipLandOrWaterZoneTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) > 0) then
-                                bAlwaysConsolidateHighHealthGunships = true
-                            end
-
-                            if bDebugMessages == true then LOG(sFunctionRef..': bAlwaysConsolidateHighHealthGunships='..tostring(bAlwaysConsolidateHighHealthGunships)) end
-
-                            for iUnit, oUnit in tGunshipsNotNearFront do
-                                if ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
-                                    table.insert(tGunshipsForRefueling, oUnit)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Will send gunship '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for refueling') end
-                                    --If we almost at full health and enemy has no AirAA in the front gunship zone, then move closer
-                                elseif bAlwaysConsolidateHighHealthGunships and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.95 then
-                                    M28Orders.IssueTrackedMove(oUnit, oFrontGunship:GetPosition(), 10, false, 'FACons2', false)
-                                    if bDebugMessages == true then LOG(sFunctionRef..'; Will send gunship '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to front gunship to consolidate') end
-                                else
-                                    local iCurPlateauOrZero, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                                    if tiPlateauAndZonesConsidered[iCurPlateauOrZero][iCurZone] == nil then --will approximate by assuming every gunship in the same zone will give the same result, even if the positiontowardsfront may be slightly different
-                                        bCurEntrySafe = false
-                                        local tPositionTowardsFront = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oFrontGunship:GetPosition()), iCloseToFrontThreshold * 0.5, true, false, false)
-                                        if tPositionTowardsFront then
-                                            local iFrontPlateauOrZero, iFrontZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tPositionTowardsFront)
-                                            bCurEntrySafe = not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurZone, iFrontPlateauOrZero, iFrontZone, false, 140, 0, false, iAirSubteam, true, false, nil))
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if it is safe for gunship not near the front to move towards front gunship, iFrontPlateauOrZero='..(iFrontPlateauOrZero or 'nil')..'; iFrontZone='..(iFrontZone or 'nil')..'; iCurPlateauOrZero='..iCurPlateauOrZero..'; iCurZone='..iCurZone..'; bCurEntrySafe='..tostring(bCurEntrySafe)..'; this will be applied to oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                                            if not(tiPlateauAndZonesConsidered[iCurPlateauOrZero]) then tiPlateauAndZonesConsidered[iCurPlateauOrZero] = {} end
-                                            tiPlateauAndZonesConsidered[iCurPlateauOrZero][iCurZone] = bCurEntrySafe
-                                        end
-                                    else
-                                        bCurEntrySafe = tiPlateauAndZonesConsidered[iCurPlateauOrZero][iCurZone]
-                                    end
-                                    if bCurEntrySafe then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Moving unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to be closer to front gunship despite the general retreat order') end
-                                        M28Orders.IssueTrackedMove(oUnit, oFrontGunship:GetPosition(), 10, false, 'FACons1', false)
-                                    else
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Cur entry isnt safe so will move to tMovePoint instead') end
-                                        M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'FAGSId', false)
-                                    end
                                 end
                             end
                         end
@@ -8422,7 +8461,11 @@ function ManageGunships(iTeam, iAirSubteam)
             if M28Conditions.IsTargetNearActiveNukeTarget(oClosestEnemy:GetPosition(), iTeam, 60) then
                 if bDebugMessages == true then LOG(sFunctionRef..': We are near an active nuke target so will change gunship position to go to rally point') end
                 --Return to rally instead
-                GetGunshipsToMoveToTarget(tAvailableGunships, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                if bGivenOrdersToFarFromFrontGunships then
+                    GetGunshipsToMoveToTarget(tGunshipsNearFront, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                else
+                    GetGunshipsToMoveToTarget(tAvailableGunships, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+                end
 
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and get gunships to move to oClosestEnemy at position '..repru(oClosestEnemy:GetPosition())..'; is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oClosestEnemy:GetPosition()))) end
@@ -8450,11 +8493,16 @@ function ManageGunships(iTeam, iAirSubteam)
 
                     end
                 end
-                --if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then --LOUD has significantly lowered gunship firing tolerance so they have to face enemy to fire
-                GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition(), oClosestEnemy)
-                --else
-                --GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
-                --end
+                if bGivenOrdersToFarFromFrontGunships then
+                    GetGunshipsToMoveToTarget(tGunshipsNearFront, oClosestEnemy:GetPosition(), oClosestEnemy)
+                else
+                    --if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then --LOUD has significantly lowered gunship firing tolerance so they have to face enemy to fire
+                    GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition(), oClosestEnemy)
+                    --else
+                    --GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
+                    --end
+                end
+
             end
         end
     else
