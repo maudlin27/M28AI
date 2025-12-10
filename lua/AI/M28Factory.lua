@@ -7601,6 +7601,13 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(iMAACategoryWanted) then return sBPIDToBuild end
         end
 
+        --Build mobile shield if enemy has nearby novax and have units wanting mobile shield in the zone, and not stalling E
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if true and GetGameTimeSeconds() >= 30*60 and M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 and tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] <= 30 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and (not(M28Conditions.HaveLowPower(iTeam)) or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 500 and M28UnitInfo.GetUnitHealthAndShieldPercent(oFactory) < 0.9)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Priority mobile shield for novax defence') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandShield) then return sBPIDToBuild end
+        end
+
         --Build engineer if we have lots of reclaim in this zone and dont have a large enemy threat
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Engineer for reclaim builder - mass in LZ='..tLZData[M28Map.subrefTotalMassReclaim]..'; Enemy mobile DF='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; Want BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP])) end
@@ -7619,6 +7626,13 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
             if iExistingMAA < M28Land.iFatboySafeMAACount and (iExistingMAA < M28Land.iFatboyBaseMAACount or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 and not(M28Conditions.TeamHasAirControl(iTeam)))) then--]]
             if ConsiderBuildingCategory(iMAACategoryWanted) then return sBPIDToBuild end
             --end
+        end
+
+        --Get mobile shield if fatboy lacks one
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if true and GetGameTimeSeconds() >= 30*60 and M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(M28Conditions.HaveLowPower(iTeam)) and not(M28UnitInfo.IsUnitValid(oFactory[M28Land.refoAssignedMobileShield])) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Fatboy lacks its own mobile shield') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandShield) then return sBPIDToBuild end
         end
 
         --Build df units or t1 arti if have nearby DF enemies in this zone or nearby
@@ -7662,6 +7676,13 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
             if M28Utilities.IsTableEmpty(tNearbyEnemies) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.TECH3, false) then return sBPIDToBuild end
             end
+        end
+
+        --Get mobile shield if this zone wants more
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if true and GetGameTimeSeconds() >= 30*60 and M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield]) == false and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(M28Conditions.HaveLowPower(iTeam)) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLandShield) < 30 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want more mobile shields for this LZ') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandShield) then return sBPIDToBuild end
         end
 
 

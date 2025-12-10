@@ -2278,7 +2278,7 @@ end
 
 function RecordMobileShieldAgainstTarget(oShield, oTarget)
     oShield[refoMobileShieldTarget] = oTarget
-    if EntityCategoryContains(categories.COMMAND, oTarget.UnitId) then
+    if EntityCategoryContains(categories.COMMAND + M28UnitInfo.refCategoryFatboy, oTarget.UnitId) then
         local iEnemyNovaxCount = M28Team.tTeamData[oTarget:GetAIBrain().M28Team][M28Team.refiEnemyNovaxCount]
         local bAssignAsExtraShield = false
         if iEnemyNovaxCount > 0 then
@@ -2377,12 +2377,16 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
             end
             if M28Utilities.IsTableEmpty(tUnitsToPrioritiseForShielding) == false then
                 for iTarget, oTarget in tUnitsToPrioritiseForShielding do
-                    if AssignClosestMobileShieldToTarget(oTarget) == false then break end
+                    if not(oTarget.Dead) then
+                        if AssignClosestMobileShieldToTarget(oTarget) == false then break end
+                    end
                 end
             end
             if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield]) == false and M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
                 for iTarget, oTarget in tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield] do
-                    if AssignClosestMobileShieldToTarget(oTarget) == false then break end
+                    if not(oTarget.Dead) then
+                        if AssignClosestMobileShieldToTarget(oTarget) == false then break end
+                    end
                 end
             end
         end
@@ -11165,6 +11169,12 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                         if not(oUnit[refoAssignedMobileShield]) then
                                             table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Wnat mobile shield for unit') end
+                                        elseif iUnitMassCost > 2000 and M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0 and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) then
+                                            --Fatboys - have +1 mobile shield per enemy novax (max of 5 incl base)
+                                            if not(M28Conditions.IsTableOfUnitsStillValid(oUnit[reftoAdditionalAssignedMobileShields])) or table.getn(oUnit[reftoAdditionalAssignedMobileShields]) < math.min(4, M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount]) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Want extra mobile shield for fatboy due to enemy novax') end
+                                                table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                                            end
                                         end
                                     end
                                     if iEnemyOmniCoverage <= 20 and not(EntityCategoryContains(M28UnitInfo.refCategoryStealth, oUnit.UnitId)) then
