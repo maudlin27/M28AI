@@ -9103,7 +9103,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 for iArti, oArti in tT2Arti do
                                                     if M28UnitInfo.IsUnitValid(oArti) and (oArti[M28UnitInfo.refiCombatRange] or 0) >= iBestEnemyExpRange then
                                                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oClosestEnemyExpToBase:GetPosition())
-                                                        if not(oClosestEnemyExpToBase == oClosestEnemyExpToMidpoint) and oClosestEnemyExpToMidpoint[M28UnitInfo.refiCombatRange] > 62 then iCurDist = math.min(iCurDist, M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oClosestEnemyExpToMidpoint)) end
+                                                        if not(oClosestEnemyExpToBase == oClosestEnemyExpToMidpoint) and oClosestEnemyExpToMidpoint and oClosestEnemyExpToMidpoint[M28UnitInfo.refiCombatRange] > 62 then iCurDist = math.min(iCurDist, M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oClosestEnemyExpToMidpoint:GetPosition())) end
                                                         if iCurDist < iClosestT2ArtiToEnemyDist then
                                                             iClosestT2ArtiToEnemyDist = iCurDist
                                                             oClosestT2ArtiToEnemyExp = oArti
