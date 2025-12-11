@@ -6482,3 +6482,33 @@ function GEMobileShieldTeleDefence(oTeleportingUnit, tTeleportDestination, iTeam
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function UpgradeShieldsCoveringSMD(iTeam)
+    --Called via fork thread when enemy has t3 arti/novax and SML, so we make sure any t2 shields covering SMD are upgraded to t3 to make it slightly harder to break through
+    while M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] do
+        WaitSeconds(5)
+    end
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            local toSMD = oBrain:GetListOfUnits(M28UnitInfo.refCategorySMD, false, true)
+            local toUpgradingShieldsByEntityId = {}
+
+            if M28Utilities.IsTableEmpty(toSMD) == false then
+                for iSMD, oSMD in toSMD do
+                    if M28Conditions.IsTableOfUnitsStillValid(oSMD[reftoShieldsProvidingCoverage]) then
+                        for iShield, oShield in oSMD[reftoShieldsProvidingCoverage] do
+                            if not(oShield.EntityId) or not(toUpgradingShieldsByEntityId[oShield.EntityId]) then
+                                if EntityCategoryContains(categories.TECH2, oShield.UnitId) and oShield:GetBlueprint().General.UpgradesTo then
+                                    if not(oShield:IsUnitState('Upgrading')) then --Will recheck this and similar in the logic to upgrade unit
+                                        toUpgradingShieldsByEntityId[oShield.EntityId] = true
+                                        M28Economy.UpgradeUnit(oShield)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end

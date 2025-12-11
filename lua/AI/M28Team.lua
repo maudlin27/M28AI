@@ -1745,6 +1745,12 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                                 end
                             end
                         end
+                        --If enemy has arti then upgrade any shields
+                        if (tTeamData[iTeam][refiEnemyNovaxCount] or 0)  > 0 or (tTeamData[iTeam][refiEnemyT3ArtiCount] or 0) > 0 then
+                            if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyNukeLaunchers]) == false then
+                                ForkThread(M28Building.UpgradeShieldsCoveringSMD, iTeam)
+                            end
+                        end
                         if bDebugMessages == true then LOG(sFunctionRef..': Have a nuke launcher, have finished checking if want to unpause our SMD') end
                     elseif M28Conditions.IsUnitLongRangeThreat(oUnit) then
                         if bDebugMessages == true then LOG(sFunctionRef..': have a long ranged DF big threat unit so adding to long range threat table as well') end
@@ -1757,7 +1763,7 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                         tTeamData[iTeam][refbDefendAgainstArti] = true
                         if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then tTeamData[iTeam][refiEnemyT3ArtiCount] = 1
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then tTeamData[iTeam][refiEnemyT3ArtiCount] = 2
-                        else tTeamData[iTeam][refiEnemyNovaxCount] = 1
+                        else tTeamData[iTeam][refiEnemyNovaxCount] = (tTeamData[iTeam][refiEnemyNovaxCount] or 0) + 1
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': have set flag to defend against T3 arti to true for team '..iTeam..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti])..'; tTeamData[iTeam][refiEnemyT3ArtiCount]='..(tTeamData[iTeam][refiEnemyT3ArtiCount] or 'nil')..'; tTeamData[iTeam][refiEnemyNovaxCount]='..(tTeamData[iTeam][refiEnemyNovaxCount] or 'nil')..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owner='..oUnit:GetAIBrain().Nickname..'; iTeam='..iTeam) end
                         --Refresh shielding wanted on existing units
@@ -4949,6 +4955,12 @@ function RefreshArtiAndNovaxCount(iTeam)
         end
         tTeamData[iTeam][refiEnemyNovaxCount] = math.max(iSatelliteCount, iCentreCount)
         tTeamData[iTeam][refiEnemyT3ArtiCount] = iT3ArtiCount
+    end
+    --If enemy has nuke and novax/t3 arti then upgrade shields covering SMD
+    if (tTeamData[iTeam][refiEnemyNovaxCount] > 0 or tTeamData[iTeam][refiEnemyT3ArtiCount] > 0) then
+        if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyNukeLaunchers]) == false then
+            ForkThread(M28Building.UpgradeShieldsCoveringSMD, iTeam)
+        end
     end
 end
 
