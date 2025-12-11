@@ -2908,7 +2908,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     if (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] >= 2 and iEnemyT3MexCount < 1.5 * M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3])
                             or (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] <= 2 and M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] >= 4 and iEnemyT2MexCount < 1.5 * M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2]) then
                         --Have significant eco lead, so dont treat as turtle
-                    elseif GetGameTimeSeconds() <= 360 then
+                    elseif GetGameTimeSeconds() <= 360 and (GetGameTimeSeconds() <= 300 or iEnemyT2MexCount < 3 or iEnemyT2MexCount * 0.5 / M28Team.iPlayersAtGameStart * 0.5 <= M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2]) then
                         --Too early game to tell if enemy is turtling
                     --A human player will be able to easily tell if enemy is turtling, so below is to act as a very rough proxy (less accurate than human in vast majority of cases):
                     elseif M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) and M28Conditions.GetEnemyTeamActualMassIncome(iTeam) < 1.2 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] then
