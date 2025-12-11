@@ -3242,6 +3242,23 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         iCategoryWanted = (M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.STRUCTURE - categories.TRANSPORTFOCUS
                     end
                 end
+
+                --Small % chance of T3 arti early on (10km+ maps) to mix things up for Cybran, aeon, and (if no air control) seraphim; i.e. not intended to be optimal, but just not so bad of a move that it might make enemy trip up if they expect M28 to paly a particular way
+                if not(iCategoryWanted) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 3 and not(bEnemyHasDangerousLandExpWeCantHandleOrNearbyThreats) and not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(aiBrain[M28Overseer.refbPrioritiseLand]) and not(aiBrain[M28Overseer.refbPrioritiseAir]) and not(aiBrain[M28Overseer.refbPrioritiseNavy]) and M28Map.iMapSize >= 512 then
+                    if M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 3 then
+                        if not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF]) and (not(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim]) or not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl])) then
+                            local iChance = 5 + M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] * 5
+                            if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] then iChance = iChance * 0.5
+                            elseif tLZOrWZTeamData[M28Map.refbBaseInSafePosition] then iChance = iChance * 1.5
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering small random % chance of getting t3 arti, iChance='..iChance) end
+                            if math.random(1,100) <= iChance then
+                                iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try and get t3 arti') end
+                            end
+                        end
+                    end
+                end
                 if not(iCategoryWanted) then
 
                     --Check if we have gameender under construction anywhere, and if we want to consider another
