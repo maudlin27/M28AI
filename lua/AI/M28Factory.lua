@@ -7090,6 +7090,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Consdering building bombardment category unit, bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Do we have UEF or seraphim factory=' .. tostring(EntityCategoryContains(categories.UEF + categories.SERAPHIM, oFactory.UnitId))..'; bReduceBuildingDueToStuckNavalUnits='..tostring(bReduceBuildingDueToStuckNavalUnits))
     end
+    if not(iCombatCategory) then iCombatCategory = M28UnitInfo.refCategoryBattleship + M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryFrigate end --redundancy
 
     --Add special bombardment ship categories
     --Seraphim T2 - get bombardment ships
@@ -7098,7 +7099,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         local iCurCombatCategory = aiBrain:GetCurrentUnits(iCombatCategory)
         if iCurCombatCategory <= 4 and ConsiderBuildingCategory(iCombatCategory) then
             return sBPIDToBuild
-        elseif iFactoryTechLevel >= 3 and iCurCombatCategory <= 15 and M28UnitInfo.DoesCategoryContainCategory(M28UnitInfo.refCategoryDestroyer, iCombatCategory, false) then
+        elseif iFactoryTechLevel >= 3 and iCurCombatCategory <= 15 and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryDestroyer, iCombatCategory, false) then
             if ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild end
         end
     elseif iFactoryTechLevel >= 2 and categories.bss0206 and oFactory:CanBuild('bss0206') and ConsiderBuildingCategory(categories.bss0206) then
