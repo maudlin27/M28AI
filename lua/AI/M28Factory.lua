@@ -2894,8 +2894,35 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
 
+        --If we think enemy is turtling then dont build unless we have significantly more eco
+        local bSaveMassForTurtling
+        if (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4) and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.refiModDistancePercent] <= 0.2 and tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]))) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking enemy mobile DF and IF threat on our side, refiEnemyMobileDFThreatNearOurSide='..M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide]..'; refiAllyMobileDFThreatNearOurSide='..M28Team.tLandSubteamData[iLandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide]..'; refiEnemyAirToGroundThreat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) end
+            if M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] < 2000 and M28Team.tLandSubteamData[iLandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] > 4 * M28Team.tLandSubteamData[iLandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] < 1000 or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': subrefMexCountByTech][3]='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; subrefLZOrWZMexCount='..tLZData[M28Map.subrefLZOrWZMexCount]) end
+                if tLZTeamData[M28Map.subrefMexCountByTech][3] < tLZData[M28Map.subrefLZOrWZMexCount] and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 3 then
+                    local iEnemyT3MexCount = M28Conditions.GetHighestOtherTeamT3MexCount(iTeam)
+                    local iEnemyT2MexCount = M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam) - iEnemyT3MexCount
+                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemyT3MexCount='..iEnemyT3MexCount..'; iEnemyT2MexCount='..iEnemyT2MexCount..'; GetEnemyTeamActualMassIncome='..M28Conditions.GetEnemyTeamActualMassIncome(iTeam)..'; subrefiTeamGrossMass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
+                    --Dont treat as a turtle if we have far better eco
+                    if (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] >= 2 and iEnemyT3MexCount < 1.5 * M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3])
+                            or (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] <= 2 and M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] >= 4 and iEnemyT2MexCount < 1.5 * M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2]) then
+                        --Have significant eco lead, so dont treat as turtle
+                    elseif GetGameTimeSeconds() <= 360 then
+                        --Too early game to tell if enemy is turtling
+                    --A human player will be able to easily tell if enemy is turtling, so below is to act as a very rough proxy (less accurate than human in vast majority of cases):
+                    elseif M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) and M28Conditions.GetEnemyTeamActualMassIncome(iTeam) < 1.2 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want more t1 spam') end
+                    else
+                        bSaveMassForTurtling = true
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bSaveMassForTurtling='..tostring(bSaveMassForTurtling)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; subrefbEnemiesInThisOrAdjacentLZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)..'; refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]..'; subrefLZIslandRef='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; reftClosestFriendlyBase island ref='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) or 'nil')) end
+
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if iFactoryTechLevel >= 2 and bHaveHighestLZTech and tLZTeamData[M28Map.subrefLZbCoreBase] and oFactory[refiTotalBuildCount] <= 16 and (iFactoryTechLevel == 2 or oFactory[refiTotalBuildCount] <= 12 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3) then
+        if iFactoryTechLevel >= 2 and bHaveHighestLZTech and not(bSaveMassForTurtling) and tLZTeamData[M28Map.subrefLZbCoreBase] and oFactory[refiTotalBuildCount] <= 16 and (iFactoryTechLevel == 2 or oFactory[refiTotalBuildCount] <= 12 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3) then
             --Can we path to enemy base from this land zone?
             local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
             local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
@@ -3109,7 +3136,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --Early game - get combat units in proportion to engineers at T1 if enemy relatively nearby spawn and aren't close to overflowing, or are in t1 spam mode and already have several engineers being built in factories in this zone
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Compat proportionate to engineers if enemy near spawn, Time='..GetGameTimeSeconds()..'; Dist to enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint])..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Av mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; refbAdjZonesWantEngiForUnbuiltMex='..tostring(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or false)) end
-        if iFactoryTechLevel <= 2 and GetGameTimeSeconds() <= 480 and not(tLZTeamData[M28Map.refbBaseInSafePosition]) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and
+        if not(bSaveMassForTurtling) and iFactoryTechLevel <= 2 and GetGameTimeSeconds() <= 480 and not(tLZTeamData[M28Map.refbBaseInSafePosition]) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and
                 (tLZTeamData[M28Map.subrefLZbCoreBase] and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 and aiBrain:GetEconomyStoredRatio('MASS') < 0.8)) and M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) < 450) or
                 (M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryEngineer, false) >= math.min(5, math.max(4, M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryLandFactory)) * 0.5)) then
             if iFactoryTechLevel == 1 then
@@ -3262,7 +3289,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
 
         --Other actions - dont do unless we have lots of mass if this is lower than our highest tech level
-        if bHaveHighestLZTech and (iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] or (not (bHaveLowMass) and (oFactory[refiTotalBuildCount] <= 5 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 or aiBrain:GetEconomyStored('MASS') >= 400 or iFactoryTechLevel >= 3 or not(tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]))))) and (not(M28Map.bIsLowMexMap) or iFactoryTechLevel >= 3 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or not(bHaveLowMass)) then
+        if bHaveHighestLZTech and not(bSaveMassForTurtling) and (iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] or (not (bHaveLowMass) and (oFactory[refiTotalBuildCount] <= 5 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.2 or aiBrain:GetEconomyStored('MASS') >= 400 or iFactoryTechLevel >= 3 or not(tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]))))) and (not(M28Map.bIsLowMexMap) or iFactoryTechLevel >= 3 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or not(bHaveLowMass)) then
             --Combat or MAA if this LZ needs more units
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             --if tLZTeamData[M28Map.subrefbLZWantsSupport] then
@@ -3876,7 +3903,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
         --T1 mobile arti if we dont ahve low mass and are below highest tech level, or normal tanks otherwise
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if not (bHaveLowMass) and (not (bSaveMassDueToEnemyFirebaseOrOurExperimental) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.45) then
+        if not (bHaveLowMass) and not(bSaveMassForTurtling) and (not (bSaveMassDueToEnemyFirebaseOrOurExperimental) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.45) then
             --Is there a relatively nearby enemy?
             local bEnemiesRelativelyNear = tLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]
             local bEnemyLongerRangedPDNearby = false
