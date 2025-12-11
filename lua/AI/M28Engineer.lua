@@ -20881,10 +20881,10 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                 end
                 --Further reduction if already have 4 T2 arti, and they haven't fired in last minute, and enemy has no nearby LR threat
                 if iLongRangeFurtherAwayThreat > 10000 and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or tLZTeamData[M28Map.refbBaseInSafePosition]) and GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 0) >= 60 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) < 1000 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeIFThreat] or 0) < 1000 then
-                    if tLZTeamData[M28Map.subrefMexCountByTech][3] < 4 then
-                        iLongRangeFurtherAwayThreat = math.max(10000, iLongRangeFurtherAwayThreat * 0.5)
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 and M28Conditions.GetEnemyTeamActualMassIncome(iTeam) * 1.5 < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] then
+                        iLongRangeFurtherAwayThreat = math.max(10000, iLongRangeFurtherAwayThreat * math.min(0.9, 0.43 + 0.06 * tLZTeamData[M28Map.subrefMexCountByTech][3] + 0.02 * tLZTeamData[M28Map.subrefMexCountByTech][2]))
                     else
-                        iLongRangeFurtherAwayThreat = math.max(10000, iLongRangeFurtherAwayThreat * 0.6)
+                        iLongRangeFurtherAwayThreat = math.max(10000, iLongRangeFurtherAwayThreat * math.min(0.95, (0.5 + 0.09 * tLZTeamData[M28Map.subrefMexCountByTech][3] + 0.03 * tLZTeamData[M28Map.subrefMexCountByTech][2])))
                     end
                 end
             end
