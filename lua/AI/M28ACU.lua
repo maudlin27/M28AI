@@ -8172,7 +8172,7 @@ function DoesACUWantToSuicideIntoEnemyACU(oACU, iTeam, iPlateauOrZero, iLandOrWa
             local iCurDist, aiBrain, bIsSuitableForSnipe
             for iSnipeTarget, oSnipeTarget in  M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets] do
                 bIsSuitableForSnipe, iCurDist = IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, iPlateauOrZero, iClosestEnemyACUDist, bEnemyACUMustBeInExplosionRange)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering if want '..oSnipeTarget:GetAIBrain().Nickname..' unit as a snipe target, bIsSuitableForSnipe='..tostring(bIsSuitableForSnipe)..'; iCurDist='..iCurDist..'; iClosestEnemyACUDist='..iClosestEnemyACUDist) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if want '..oSnipeTarget:GetAIBrain().Nickname..' unit as a snipe target, bIsSuitableForSnipe='..tostring(bIsSuitableForSnipe)..'; iCurDist='..(iCurDist or 'nil')..'; iClosestEnemyACUDist='..iClosestEnemyACUDist) end
                 if bIsSuitableForSnipe and iCurDist <= iClosestEnemyACUDist then
                     iClosestEnemyACUDist = iCurDist
                     oClosestEnemyACU = oSnipeTarget
@@ -8352,7 +8352,7 @@ end
 
 function SuicideACUIntoSnipeTarget(oACU, oSnipeTarget)
     local sFunctionRef = 'SuicideACUIntoSnipeTarget'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     oACU[refbACUSnipeModeActive] = true
@@ -8361,11 +8361,26 @@ function SuicideACUIntoSnipeTarget(oACU, oSnipeTarget)
     local iCurDist
     if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, is oACU valid='..tostring(M28UnitInfo.IsUnitValid(oACU))..'; Time='..GetGameTimeSeconds()) end
     local bOnlyAttackIfInExplosionRange = false
-    local iCurACUHealth
     local iTimeOriginallyInSnipeMode = GetGameTimeSeconds()
     local aiBrain = oACU:GetAIBrain()
+    local iDeathNukeDamage = 500
+    local iDeathNukeRange = 30
+    local iTicksBetweenCycle = 11 --11 is equiv to 1 second I think? However if its above 9 will just wait 1 second to be safe re interaction with ACU general logic
+    local iTeam = 1
+    if M28UnitInfo.IsUnitValid(oACU) then
+        iTeam = oACU:GetAIBrain().M28Team
+        local tWeapons = oACU:GetBlueprint().Weapon
+        for iWeapon, tWeapon in tWeapons do
+            if tWeapon.DamageType == 'Deathnuke' then
+                iDeathNukeDamage = (tWeapon.NukeInnerRingDamage or iDeathNukeDamage)
+                iDeathNukeRange = (tWeapon.NukeInnerRingRadius or iDeathNukeRange)
+                break
+            end
+        end
+    end
     while M28UnitInfo.IsUnitValid(oACU) do
         bOnlyAttackIfInExplosionRange = false
+        iTicksBetweenCycle = 11 --default
         if not(oSnipeTarget.Dead) and GetGameTimeSeconds() - iTimeOriginallyInSnipeMode >= 5 then --5s delay in case could get into a cycle where we say we shoudl suicide in the main logic, then we abort immediately in this loop. at least this way we have 5s of trying to kill them first
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, aiBrain.M28Team)
             bOnlyAttackIfInExplosionRange = DoesACUOnlyWantToSuicideIfInExplosionRange(oACU, tLZOrWZTeamData, aiBrain.M28Team)
@@ -8382,16 +8397,63 @@ function SuicideACUIntoSnipeTarget(oACU, oSnipeTarget)
             else
                 --Move to target
                 M28Orders.IssueTrackedMove(oACU, oSnipeTarget:GetPosition(), 3, false, 'ACUSnipM', true)
-                if bDebugMessages == true then LOG(sFunctionRef..': Will move to enemy ACU, enemy ACU position='..repru(oSnipeTarget:GetPosition())) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will move to enemy ACU, enemy ACU position='..repru(oSnipeTarget:GetPosition())..'; Will also consider if we want to ctrlk to kill the target, iDeathNukeRange='..iDeathNukeRange..'; iDeathNukeDamage='..iDeathNukeDamage..'; Target health+shield='..M28UnitInfo.GetUnitCurHealthAndShield(oSnipeTarget)) end
+                if iCurDist < iDeathNukeRange and iCurDist + 6 > iDeathNukeRange and M28UnitInfo.GetUnitCurHealthAndShield(oSnipeTarget) < iDeathNukeDamage and (M28Team.tTeamData[iTeam][M28Team.iTotalTeamCount] > 2 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 or M28Team.tTeamData[oSnipeTarget:GetAIBrain().M28Team][M28Team.refbAssassinationOrSimilar]) then
+                    --Monitor every tick if we want to ctrlk
+                    iTicksBetweenCycle = 1
+                    --ctrl-k if enemy is almost about to go outside our range and we want to
+                    if iCurDist + 0.8 > iDeathNukeRange then
+                        local bSelfDestruct = false
+                        --Behind on eco? then ctrlk
+                        if M28Conditions.GetEnemyTeamActualMassIncome(iTeam) > M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] then
+                            bSelfDestruct = true
+                        else
+                            --About to die to enemy tanks even if we have more health than their ACU? (do longer range for allies than enemy, and include only mobile enemies, and include friendly PD)
+                            local tNearbyEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileDFLand + M28UnitInfo.refCategoryDestroyer - categories.COMMAND, oACU:GetPosition(), 40, 'Enemy')
+                            if M28Utilities.IsTableEmpty(tNearbyEnemyUnits) == false then
+                                local tNearbyAlliedUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileDFLand + M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryPD, oACU:GetPosition(), 60, 'Ally')
+                                local iNearbyAlliedUnitThreat = M28UnitInfo.GetCombatThreatRating(tNearbyAlliedUnits, false, false, false)
+                                local iNearbyEnemyUnitThreat = M28UnitInfo.GetCombatThreatRating(tNearbyEnemyUnits, true, false, false)
+                                --Do we have gunships who can save us?
+                                if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refoFrontGunship]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refoFrontGunship]:GetPosition()) <= 110 then
+                                    iNearbyAlliedUnitThreat = iNearbyAlliedUnitThreat + M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurGunshipThreat] * 2
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Near front gunship so treating it as available to help us') end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iNearbyEnemyUnitThreat='..iNearbyEnemyUnitThreat..'; iNearbyAlliedUnitThreat='..iNearbyAlliedUnitThreat..'; ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)) end
+                                if iNearbyEnemyUnitThreat > 400 and iNearbyEnemyUnitThreat > iNearbyAlliedUnitThreat then --(for future ref in case change the threhsold - in one scenario M28 was surrounded by tanks, which had a threat of 837, and was quickly killed)
+                                    --If we are significantly ahead on eco then be less likely to ctrlk
+                                    if M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and M28Conditions.GetEnemyTeamActualMassIncome(iTeam) * 1.4 < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] and (iNearbyEnemyUnitThreat < 2000 or iNearbyEnemyUnitThreat < iNearbyAlliedUnitThreat * 1.5 or oACU:GetHealth() >= 4000) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Far enough ahead on eco that we should gamble on making it out alive') end
+                                    elseif iNearbyEnemyUnitThreat > iNearbyAlliedUnitThreat * 1.1 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.5 then
+                                        bSelfDestruct = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has stronger threat than us nearby, or we are getting low on health %, so want to ctrlk') end
+                                    end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': bSelfDestruct='..tostring(bSelfDestruct)..'; Time='..GetGameTimeSeconds()) end
+                        if bSelfDestruct then
+                            M28Chat.SendMessage(aiBrain, 'CtrlK', 'You can\'t escape the inevitable', 0, 60, false, false)
+                            aiBrain[M28Chat.refiTimeSentCustomEndOfGameMessage] = GetGameTimeSeconds()
+                            M28Orders.IssueTrackedKillUnit(oACU)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Sent ACU self destruct order') end
+                        end
+                    end
+                end
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitSeconds(1)
+            if iTicksBetweenCycle >= 10 and iTicksBetweenCycle <= 11 then
+                WaitSeconds(1)
+            else
+                WaitTicks(iTicksBetweenCycle)
+            end
+
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             if bDebugMessages == true and M28UnitInfo.IsUnitValid(oACU) and M28UnitInfo.IsUnitValid(oSnipeTarget) then LOG(sFunctionRef..': About to start new loop at time='..GetGameTimeSeconds()..'; oACU owner='..oACU:GetAIBrain().Nickname..'; oSnipeTarget owner='..oSnipeTarget:GetAIBrain().Nickname) end
         else
             break
         end
-    end
+        end
     if M28UnitInfo.IsUnitValid(oACU) then
         oACU[refbACUSnipeModeActive] = false
         oACU[M28UnitInfo.refbSpecialMicroActive] = false

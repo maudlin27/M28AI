@@ -54,6 +54,9 @@ tsPersonalityNames = {[refiFletcher] = 'Fletcher', [refiHall] = 'Hall', [refiCel
 --Against specific unit
 refbGivenUnitRelatedMessage = 'M28ChtUnitMs' --true if given unitspecific message involving this (used e.g. for ondamaged trigger for an experimental)
 
+--Against brain
+refiTimeSentCustomEndOfGameMessage = 'M28ChtEOGCs' --Gametimeseconds if given custom end of game message so ignore normal message
+
 --Other global variables
 iNukeGloatingMessagesSent = 0
 
@@ -643,7 +646,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
 
 
     --Only consider if enough of the game has passed to warrant such a message
-    if GetGameTimeSeconds() >= 90 then
+    if GetGameTimeSeconds() >= 90 and (not(oBrainDefeated[refiTimeSentCustomEndOfGameMessage]) or GetGameTimeSeconds() - oBrainDefeated[refiTimeSentCustomEndOfGameMessage] >= 60) then
 
         local bHaveTeammates = false
         local bLastM28OnTeamToDie = false
