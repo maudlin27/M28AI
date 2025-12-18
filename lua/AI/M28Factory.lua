@@ -2910,7 +2910,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         --Have significant eco lead, so dont treat as turtle
                     elseif GetGameTimeSeconds() <= 360 and (GetGameTimeSeconds() <= 300 or iEnemyT2MexCount < 3 or iEnemyT2MexCount * 0.5 / M28Team.iPlayersAtGameStart * 0.5 <= M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2]) then
                         --Too early game to tell if enemy is turtling
-                    --A human player will be able to easily tell if enemy is turtling, so below is to act as a very rough proxy (less accurate than human in vast majority of cases):
+                        --A human player will be able to easily tell if enemy is turtling, so below is to act as a very rough proxy (less accurate than human in vast majority of cases):
                     elseif M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) and M28Conditions.GetEnemyTeamActualMassIncome(iTeam) < 1.2 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] then
                         if bDebugMessages == true then LOG(sFunctionRef..': Want more t1 spam') end
                     else
@@ -3130,6 +3130,15 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     end
 
                 end
+            end
+        end
+
+        --Raiders if not assigned any for a while and only have a couple active
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 0) > 0 and (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0) < 2 and GetGameTimeSeconds() - (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment] or 0) >= 60 then
+            --Get raider unless already have 2+ raiders being built
+            if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryRaider, false, false) < 2 then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryRaider) then return sBPIDToBuild end
             end
         end
 
