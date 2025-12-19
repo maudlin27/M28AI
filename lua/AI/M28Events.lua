@@ -635,7 +635,7 @@ function OnUnitDeath(oUnit)
                             oUnit:DoUnitCallbacks('OnKilled')
                         end
 
-                        -------M28 specific logic---------
+    -------M28 specific logic---------
                         if bDebugMessages == true then LOG(sFunctionRef..': About to consider M28specific on death logic, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owned by brain '..oUnit:GetAIBrain().Nickname..'; Is M28='..tostring(oUnit:GetAIBrain().M28AI or false)) end
                         --Is the unit owned by M28AI?
                         if oUnit:GetAIBrain().M28AI then
@@ -664,6 +664,9 @@ function OnUnitDeath(oUnit)
                                 if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime]) then M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime] = {} end
                                 M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime][oUnit[M28Air.refiTargetZoneForDrop]] = GetGameTimeSeconds()
                             end
+
+                            --Raider assignment
+                            if oUnit[M28Land.refiRaidingBasePlateau] then M28Land.ClearUnitRaiderStatus(oUnit, oUnit:GetAIBrain().M28Team, false) end
 
                             --Logic that doesnt require the unit to ahve finished construction:
 
@@ -2909,6 +2912,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     if EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH2, oJustBuilt.UnitId) then
                                         ForkThread(M28Land.ConsiderAssigningMAABodyguardToACU, oJustBuilt)
                                     end
+                                end
+                                --Raiding units
+                                if EntityCategoryContains(M28UnitInfo.refCategoryRaider, oJustBuilt.UnitId) then
+                                    ForkThread(M28Land.ConsiderAssigningRaider, oEngineer, oJustBuilt)
                                 end
                             end
 

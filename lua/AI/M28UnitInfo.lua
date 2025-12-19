@@ -342,6 +342,7 @@ if M28Utilities.bSteamActive or M28Utilities.bLoudModActive or M28Utilities.bQui
 else
     refCategorySkirmisher = refCategorySkirmisher +  refCategoryMobileDFLand * categories.UEF * categories.TECH2 * categories.BOT + refCategoryMobileDFLand * categories.CYBRAN * categories.TECH2 * categories.BOT - refCategoryMobileBomb
 end
+refCategoryRaider = refCategoryIndirectT2Below + refCategoryT3MML
 refCategoryShieldDisruptor = categories.LAND * categories.MOBILE * categories.ANTISHIELD
 refCategoryAllShieldUnits = categories.SHIELD + refCategoryPersonalShield
 

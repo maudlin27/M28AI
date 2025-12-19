@@ -438,6 +438,19 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiTimeOurT2ArtiLastFired = 'T2Arts' --Gametimeseconds we had a t2 arti fire a shot in this zone (to help avoiding overbuilding on plateaus that might not need it)
             reftoAttackingFriendlyExperimentals = 'AtExp' --table of attacking experimentals for land combat
             refiTimeLastRunFromEnemyLand = 'EngTmR' --LZ or WZ variable, Gametimeseconds engineer in this zone has been given an order to run from enemy
+            reftRaiderSubtable = 'Raid'
+                subrefiCurRaidingZoneTarget = 'RZT' --Current zone that we want raiders assigned from this zone to target
+                subrefiTimeSinceLastConstructedRaiderAssignment = 'RAT' --Time since we last assigned a raider from a unit constructed in this zone
+                subrefiActiveRaidersCreatedByThisZone = 'RAcRC' --number of units created in this zone that have active raiding zone targets
+                subrefiActiveRaidersTargetingThisZone = 'RAcRT' --number of units that have been assigned this zone to raid
+                subrefiLifetimeRaidersTargetingThisZone = 'RAcRL' --number of units that have been assigned this zone to raid during the game (including dead ones)
+                subrefiPotentialRaiderUnitsSinceLastCreatedRaiderAssigned = 'RCmbC' --Number of raider units built in this zone since the last raider assignment (of a raider unit created in this zone), inclusive of current unit
+                subrefiTimeLastCheckedForZoneToTarget = 'RZTrT' --Gametimeseconds that we ran logic considering all zone we might want to raid
+                subrefiTimeLastDoneDetailedEnemyCheck = 'RDeT' --Gametimeseconds that the zone considered all DF enemies in adjacent zones instead of just this zone
+                subrefiEnemyDFRangeLastRunFromWhenTryingToReachThisZone = 'REnR' --If a raider was assigned this zone, and ends up running from DF unit that has the same or better range, it should record that unit here
+                subrefoLastEnemyDFLastRunFromWhenTryingToReachThisZone = 'REnU' --As above, but records the unit
+                subreftLastEnemyDFLastRunFromWhenTryingToReachThisZonePosition = 'REnP' --As above, but the unit position when this happened
+
             --reftiLocationsToAvoid = 'TLocAv' --if have enemy aoe unit targeting an M28 unit, then the first 10 such locations get recorded - removed as not sure it actually made things better
 
 --Pond and naval variables
