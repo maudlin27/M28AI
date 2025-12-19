@@ -959,7 +959,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
     local sFunctionRef = 'ManageLandZoneScouts'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if (iLandZone == 4 or iLandZone == 7) and GetGameTimeSeconds() >= 466 then bDebugMessages = true end
 
     tLZTeamData[M28Map.refbWantLandScout] = false
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]))..'; Is table of scouts currently in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))..'; Time='..GetGameTimeSeconds()) end
@@ -976,11 +976,26 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
 
     if (bLandZoneContainsNonScouts or tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 2 or (GetGameTimeSeconds() <= 420 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 3000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] < 3)) and (tLZData[M28Map.subrefLZOrWZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] > 30) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]) then
         --Want a land scout for htis land zone, unless we already have one traveling here; if we have available land scouts then will change this flag back to false
+        if bDebugMessages == true then LOG(sFunctionRef..': Probably want scout for this zone, doing further checks, subrefbPacifistArea='..tostring(tLZData[M28Map.subrefbPacifistArea] or false)..'; subrefbTeamHasOmniVision='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision] or false)..'; Is midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]))..'; subrefLZbCoreBase='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; subrefTEnemyUnits empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))) end
         if not(tLZData[M28Map.subrefbPacifistArea]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) then
             if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
                 if not(tLZTeamData[M28Map.subrefLZbCoreBase]) or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                     tLZTeamData[M28Map.refbWantLandScout] = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; We want to get a scout for this LZ '..(iLandZone or 'nil')..' on plateau '..(iPlateau or 'nil')..' with island '..(tLZData[M28Map.subrefLZIslandRef] or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; We want to get a scout for this LZ '..(iLandZone or 'nil')..' on plateau '..(iPlateau or 'nil')..' with island '..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; setting refbWantLandScout to true') end
+                elseif (GetGameTimeSeconds() >= 240 or M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyLandFactoryTech] > 1) and tLZTeamData[M28Map.refiRadarCoverage] < M28UnitInfo.iT3RadarSize - 20 then
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]) == false and (tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.refiRadarCoverage] < M28UnitInfo.iT2RadarSize - 10) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want scout as have priority units wanting scouts') end
+                        tLZTeamData[M28Map.refbWantLandScout] = true
+                    elseif not(tLZTeamData[M28Map.refbBaseInSafePosition]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZTeamData =  M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                            if tAdjLZTeamData[M28Map.refbWantLandScout] and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]) == false and tAdjLZTeamData [M28Map.refiRadarCoverage] < M28UnitInfo.iT2RadarSize - 20 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adjacent zone has priority units wanting land scout so will build one here') end
+                                tLZTeamData[M28Map.refbWantLandScout] = true
+                                break
+                            end
+                        end
+                    end
                 end
             end
         end
@@ -1170,7 +1185,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                                     bStandAlmostStill = false
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Want to run as unit is facing us and still relatively close, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so will stop searching') end
                                                     if not(bConsiderAttacking) or iClosestDangerousEnemy < iRunThreshold then break end
-                                                elseif bConsiderAttacking and ((oUnit[M28UnitInfo.refiDFRange] or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) and iCurDist < math.max(iAttackThreshold, iEnemyToConsiderAttackingDist) then
+                                                elseif bConsiderAttacking and ((oUnit[M28UnitInfo.refiDFRange] or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) and iCurDist < math.min(iAttackThreshold, iEnemyToConsiderAttackingDist, iClosestDangerousEnemy) and (not(oUnit[refoLandScoutTarget]) or iCurDist < 30) then
                                                     oEnemyToConsiderAttacking = oUnit
                                                     iEnemyToConsiderAttackingDist = iCurDist
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Want to consider attacking the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' but will first check no units to run from') end
@@ -1239,7 +1254,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 elseif oEnemyToConsiderAttacking and M28UnitInfo.IsUnitValid(oEnemyToConsiderAttacking) then
                     tLZTeamData[M28Map.refbWantLandScout] = false
                     iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemyToConsiderAttacking:GetPosition(), oScout:GetPosition())
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy to attack with combat scout, oEnemyToConsiderAttacking='..oEnemyToConsiderAttacking.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToConsiderAttacking)..'; iCurDist='..iCurDist..'; oScout[M28UnitInfo.refbLastShotBlocked]='..tostring(oScout[M28UnitInfo.refbLastShotBlocked])..'; Health% of enemy to consider attacking='..M28UnitInfo.GetUnitHealthPercent(oEnemyToConsiderAttacking)..'; Time of last weapon event='..GetGameTimeSeconds() - (oScout[M28UnitInfo.refiLastWeaponEvent] or 0)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy to attack with combat scout, oEnemyToConsiderAttacking='..oEnemyToConsiderAttacking.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToConsiderAttacking)..'; iCurDist='..iCurDist..'; oScout[M28UnitInfo.refbLastShotBlocked]='..tostring(oScout[M28UnitInfo.refbLastShotBlocked])..'; Health% of enemy to consider attacking='..M28UnitInfo.GetUnitHealthPercent(oEnemyToConsiderAttacking)..'; Time of last weapon event='..GetGameTimeSeconds() - (oScout[M28UnitInfo.refiLastWeaponEvent] or 0)..'; setting refbWantLandScout to false') end
                     if iCurDist >= 9 then
                         --Move closer if our shot is blocked and enemy isnt an engineer; also some redundancy incase our shot is blocked but isnt registering as blocked
                         if (oScout[M28UnitInfo.refbLastShotBlocked] or (iCurDist >= 8 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oEnemyToConsiderAttacking.UnitId) and (M28UnitInfo.GetUnitHealthPercent(oEnemyToConsiderAttacking) >= 1 or oEnemyToConsiderAttacking:GetHealth() <= 10))) and (not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEnemyToConsiderAttacking.UnitId)) or (iCurDist >= 5 and iCurDist > oEnemyToConsiderAttacking:GetBlueprint().Economy.MaxBuildDistance)) then
@@ -1254,7 +1269,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                     oPrevEnemyToRunFrom = nil --DOnt want to bypass checking enemy units incase there is a threatening one nearby
                 elseif oEnemyToRunFrom then
                     tLZTeamData[M28Map.refbWantLandScout] = false
-                    if bDebugMessages == true then LOG(sFunctionRef..': Want scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' to run from oEnemyToRunFrom '..oEnemyToRunFrom.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToRunFrom)..' unless iti s a combat scout vs an engineer/mex in a low threat LZ in which case want it to attack the unit; LZ combat total='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Scout DF range='..(oScout[M28UnitInfo.refiDFRange] or 'nil')..'; Do we have a combat scout='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId))..'; Distance to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oEnemyToRunFrom:GetPosition(), oScout:GetPosition())..'; bStandAlmostStill='..tostring(bStandAlmostStill)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' to run from oEnemyToRunFrom '..oEnemyToRunFrom.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToRunFrom)..' unless iti s a combat scout vs an engineer/mex in a low threat LZ in which case want it to attack the unit; LZ combat total='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Scout DF range='..(oScout[M28UnitInfo.refiDFRange] or 'nil')..'; Do we have a combat scout='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId))..'; Distance to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oEnemyToRunFrom:GetPosition(), oScout:GetPosition())..'; bStandAlmostStill='..tostring(bStandAlmostStill)..'; setting refbWantLandScout to false') end
                     oPrevEnemyToRunFrom = oEnemyToRunFrom
                     if bStandAlmostStill then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will try and run from enemy but only a short way as want to almost stand still') end
@@ -1269,7 +1284,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                         --Make scout available if its target LZ is this LZ
                         if oScout[reftiPlateauAndLZToMoveTo][2] == iLandZone and oScout[reftiPlateauAndLZToMoveTo][1] == iPlateau then
                             --Clear this unit from list of traveling units, but dont make it available as want a slight delay, so want it to be available on the next cycle
-                            if bDebugMessages == true then LOG(sFunctionRef..': Scout is traveling to this land zone and is here so will clear the trackers so next cycle it is shown as available') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Scout is traveling to this land zone and is here so will clear the trackers so next cycle it is shown as available, setting refbWantLandScout to false') end
                             RemoveUnitFromListOfUnitsTravelingToLandZone(oScout)
                             tLZTeamData[M28Map.refbWantLandScout] = false
                         else
@@ -1283,7 +1298,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                         if bDebugMessages == true then LOG(sFunctionRef..': Scout should travel to a water zone '..oScout[M28Navy.refiWZToMoveTo]..' so will resend the order to ensure it is still moving there') end
                     else
                         --Scout has no nearby enemies to run from, and isnt traveling to a plateau, so it should be available for use
-                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to run or attack with scout and it isnt already assigned to another LZ so will aadd to table of available scouts, oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to run or attack with scout and it isnt already assigned to another LZ so will aadd to table of available scouts, oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..'; oScout[refoLandScoutTarget]='..(oScout[refoLandScoutTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oScout[refoLandScoutTarget]) or 'nil')) end
                         if M28UnitInfo.GetUnitLifetimeCount(oScout) == 1 then
                             --Assign to enemy base if it is in the same island
                             local iEnemyBasePlateauOrZero, iEnemyBaseLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLZTeamData[M28Map.reftClosestEnemyBase])
@@ -1324,6 +1339,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 tAvailableScouts[1][refoLandScoutTarget] = oUnitToReceiveScout
                 table.insert(toEscortScouts, tAvailableScouts[1])
                 table.remove(tAvailableScouts, 1)
+                if bDebugMessages == true then LOG(sFunctionRef..': Have assigned scout to unit '..oUnitToReceiveScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToReceiveScout)) end
                 if oUnitToReceiveScout[refbFlaggedForPriorityScout] then
                     oUnitToReceiveScout[refbFlaggedForPriorityScout] = false
                     oUnitToReceiveScout[refiTimeLastBuiltLandScoutForUnit] = nil
@@ -1357,6 +1373,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished assigning to any ACU if relevant, is reftoUnitsWantingPriorityScouts empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]))..'; is tAvailableScouts empty='..tostring(M28Utilities.IsTableEmpty(tAvailableScouts))) end
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]) == false and M28Utilities.IsTableEmpty(tAvailableScouts) == false then
                 --Do same thing with units wanting priority land scout
                 for iRecorded, oRecorded in tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts] do
@@ -1364,6 +1381,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                     if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished assigning scouts to priority units if any, is reftoUnitsWantingPriorityScouts empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]))..'; is tAvailableScouts empty='..tostring(M28Utilities.IsTableEmpty(tAvailableScouts))) end
             if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
                 --First assign any available scouts to adjacent land zones wanting scouts
                 --Early game - prioritise zones with combat threat if we only have one scout available
@@ -1381,9 +1399,10 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                             if bDebugMessages == true then LOG(sFunctionRef..': Will send land scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go to adjacent land zone '..iAdjLZ..' in plateau '..iPlateau) end
                             if not(tAdjLZData[M28Map.subrefbPacifistArea]) then
                                 if not(bPrioritiseLandZonesWithFriendlyCombat) or M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedCombatUnits]) == false then
-
+                                    if iAdjLZ == 4 and GetGameTimeSeconds() >= 466 then bDebugMessages = true else bDebugMessages = false end
                                     GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, iAdjLZ, M28Map.subrefTScoutsTravelingHere)
                                     tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] = false
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Scout allocated to adjacent iAdjLZ='..iAdjLZ..' so flagging that zone no longer wants scouts, setting refbWantLandScout to false') end
                                     table.remove(tAvailableScouts, 1)
                                     if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
                                 else
@@ -1398,6 +1417,8 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                     if bPrioritiseLandZonesWithFriendlyCombat and M28Utilities.IsTableEmpty(tAvailableScouts) == false and tFirstPlateauOrLZIfWantCombat then
                         GetUnitToTravelToLandZone(tAvailableScouts[1], tFirstPlateauOrLZIfWantCombat[1], tFirstPlateauOrLZIfWantCombat[2], M28Map.subrefTScoutsTravelingHere)
                         M28Map.tAllPlateaus[tFirstPlateauOrLZIfWantCombat[1]][M28Map.subrefPlateauLandZones][tFirstPlateauOrLZIfWantCombat[2]][M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] = false
+                        if tFirstPlateauOrLZIfWantCombat[2] == 4 and GetGameTimeSeconds() >= 466 then bDebugMessages = true else bDebugMessages = false end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Sending scout to the land zone='..tFirstPlateauOrLZIfWantCombat[2]..' so will flag it no longer wants scouts, so setting refbWantLandScout to false') end
                         table.remove(tAvailableScouts, 1)
                     end
                 end
@@ -1435,6 +1456,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                     end
 
                     if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': We still have available scouts so setting refbWantLandScout to false, value before this='..tostring(tLZTeamData[M28Map.refbWantLandScout])) end
                         tLZTeamData[M28Map.refbWantLandScout] = false
                         --Want to apply if core base, as we dont treat core bases as wanting land scouts normally, meaning if only adjacent zones are also core bases we get stuck where we think we never have any targets for land scouts on the island
                         if tLZTeamData[M28Map.subrefLZbCoreBase] or table.getn(tAvailableScouts) > 1 then
@@ -1458,8 +1480,8 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                                 end
                                             end
                                         end
-
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Getting scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go from iLandZone '..iLandZone..'; to furhter away LZ='..tPathingDetails[M28Map.subrefLZNumber]) end
+                                        if tPathingDetails[M28Map.subrefLZNumber] == 4 and GetGameTimeSeconds() >= 466 then bDebugMessages = true else bDebugMessages = false end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Getting scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go from iLandZone '..iLandZone..'; to furhter away LZ='..tPathingDetails[M28Map.subrefLZNumber]..'; setting refbWantLandScout to false') end
                                         GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, tPathingDetails[M28Map.subrefLZNumber], M28Map.subrefTScoutsTravelingHere)
                                         tTeamTargetLZData[M28Map.refbWantLandScout] = false
                                         table.remove(tAvailableScouts, 1)
@@ -13637,9 +13659,14 @@ function HaveAttackingExperimentalToSupport(tLZTeamData)
 end
 
 function ConsiderAssigningRaider(oFactory, oUnit)
-    if oUnit[M28UnitInfo.refiCombatRange] > 28 and (oFactory[M28Factory.refiTotalBuildCount] or 0) >= 4 and M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oFactory) and M28UnitInfo.GetUnitLifetimeCount(oUnit)  >= 4 and GetGameTimeSeconds() >= 300 then
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderAssigningRaider'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true and not(oUnit.Dead) then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' built by oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' and owned by '..oUnit:GetAIBrain().Nickname..'; considering whether will be a raider, combatrange='..( oUnit[M28UnitInfo.refiCombatRange] or 'nil')..'; oFactory[M28Factory.refiTotalBuildCount]='..(oFactory[M28Factory.refiTotalBuildCount] or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if oUnit[M28UnitInfo.refiCombatRange] > 28 and (oFactory[M28Factory.refiTotalBuildCount] or 0) >= 4 and M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oFactory) and M28UnitInfo.GetUnitLifetimeCount(oUnit)  >= 3 and GetGameTimeSeconds() >= 300 then
         local iTeam = oFactory:GetAIBrain().M28Team
         local iBuildPlateau = oFactory[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+        if bDebugMessages == true then LOG(sFunctionRef..' iBuildPlateau='..(iBuildPlateau or 'nil')..'; iBuildZone='..(oFactory[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')) end
         if iBuildPlateau and iBuildPlateau > 0 then
             local iBuildZone = oFactory[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
             if iBuildZone and iBuildZone > 0 then
@@ -13647,13 +13674,14 @@ function ConsiderAssigningRaider(oFactory, oUnit)
                 local tBuildLZTeamData = tBuildLZData[M28Map.subrefLZTeamData][iTeam]
 
                 if not(tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]) then
-                    GetRaidingZoneTarget(iBuildPlateau, iBuildZone, oUnit[M28UnitInfo.refiCombatRange] - 3)
+                    GetRaidingZoneTarget(iBuildPlateau, iBuildZone, iTeam, oUnit[M28UnitInfo.refiCombatRange] - 3)
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': subrefiCurRaidingZoneTarget='..(tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 'nil')) end
                 if tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] then
                     tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiPotentialRaiderUnitsSinceLastCreatedRaiderAssigned] = (tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiPotentialRaiderUnitsSinceLastCreatedRaiderAssigned] or 0) + 1
                     --Dont raid if nearby firebase/t2 arti
                     if (tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0) < 4 and (tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiPotentialRaiderUnitsSinceLastCreatedRaiderAssigned] >= 4 or not(tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment])) and GetGameTimeSeconds() - (tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment] or 0) >= 30 and M28Utilities.IsTableEmpty(tBuildLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) and M28Utilities.IsTableEmpty(tBuildLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
-                        GetRaidingZoneTarget(iBuildPlateau, iBuildZone, oUnit[M28UnitInfo.refiCombatRange] - 3) --Will reassess if been a while since we last considered best zone to raid
+                        GetRaidingZoneTarget(iBuildPlateau, iBuildZone, iTeam, oUnit[M28UnitInfo.refiCombatRange] - 3) --Will reassess if been a while since we last considered best zone to raid
                         local iTargetZone = tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]
                         local tTargetLZTeamData = M28Map.tAllPlateaus[iBuildPlateau][M28Map.subrefPlateauLandZones][iTargetZone][M28Map.subrefLZTeamData][iTeam]
                         if (tTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersTargetingThisZone] or 0) < 2 then
@@ -13678,10 +13706,15 @@ function ConsiderAssigningRaider(oFactory, oUnit)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function AssignUnitAsRaiderForTargetZone(oUnit, iTargetZone, iOptionalBuildPlateau, iOptionalBuildZone)
     --If iOptionalBuildPlateau and iOptionalBuildZone arent specified then unit should already have them recorded (otherwise have an error/issue)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssignUnitAsRaiderForTargetZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Starto f code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; iTargetZone='..iTargetZone..'; iOptionalBuildPlateau='..(iOptionalBuildPlateau or 'nil')..'; iOptionalBuildZone='..(iOptionalBuildZone or 'nil')..'; oUnit[refiRaidingBasePlateau]='..(oUnit[refiRaidingBasePlateau] or 'nil')..'; refiRaidingTargetZone='..(oUnit[refiRaidingTargetZone] or 'nil')) end
     local iTeam = oUnit:GetAIBrain().M28Team
     local bFirstTimeAssigning = true
     if oUnit[refiRaidingBasePlateau] or oUnit[refiRaidingTargetZone] then bFirstTimeAssigning = false end
@@ -13694,6 +13727,7 @@ function AssignUnitAsRaiderForTargetZone(oUnit, iTargetZone, iOptionalBuildPlate
     elseif tBuildLZTeamData then
         if not(bFirstTimeAssigning) then ClearUnitRaiderStatus(oUnit, iTeam, true) end
         oUnit[refiRaidingTargetZone] = iTargetZone
+        oUnit[refbFlaggedForPriorityScout] = true
         local tTargetLZTeamData = M28Map.tAllPlateaus[oUnit[refiRaidingBasePlateau]][M28Map.subrefPlateauLandZones][iTargetZone][M28Map.subrefLZTeamData][iTeam]
         if not(tTargetLZTeamData[M28Map.reftRaiderSubtable]) then
             tTargetLZTeamData[M28Map.reftRaiderSubtable] = {}
@@ -13706,17 +13740,26 @@ function AssignUnitAsRaiderForTargetZone(oUnit, iTargetZone, iOptionalBuildPlate
             tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiPotentialRaiderUnitsSinceLastCreatedRaiderAssigned] = 0
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function GetRaidingZoneTarget(iStartPlateau, iStartZone, iTeam, iRangeThreshold, iOptionalZoneToIgnore)
     --Updates subrefiCurRaidingZoneTarget to the zone to target (or nil if we didnt find any suitable ones)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetRaidingZoneTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local tBuildLZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartZone]
     local tBuildLZTeamData = tBuildLZData[M28Map.subrefLZTeamData][iTeam]
-
+    if bDebugMessages == true then LOG(sFunctionRef..': iStartPlateau='..(iStartPlateau or 'nil')..'; iStartZone='..(iStartZone or 'nil')..'; iTeam='..iTeam..'; iRangeThreshold='..iRangeThreshold..'; iOptionalZoneToIgnore='..(iOptionalZoneToIgnore or 'nil')..'; is tBuildLZTeamData nil='..tostring(tBuildLZTeamData == nil)) end
     if not(tBuildLZTeamData[M28Map.reftRaiderSubtable]) then
-        tBuildLZTeamData[M28Map.reftRaiderSubtable] = {}
+        if tBuildLZTeamData then
+            tBuildLZTeamData[M28Map.reftRaiderSubtable] = {}
+        else
+            M28Utilities.ErrorHandler('Invalid plateau or zone reference, P'..(iStartPlateau or 'nil')..'Z'..(iStartZone or 'nil'))
+        end
     end
-    if tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or GetGameTimeSeconds() - (tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeLastCheckedForZoneToTarget] or 0) >= 30 then
+    if tBuildLZTeamData and (tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or GetGameTimeSeconds() - (tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeLastCheckedForZoneToTarget] or 0) >= 30) then
         tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeLastCheckedForZoneToTarget] = math.floor(GetGameTimeSeconds())
 
         --Decide what zone to target
@@ -13724,13 +13767,16 @@ function GetRaidingZoneTarget(iStartPlateau, iStartZone, iTeam, iRangeThreshold,
         local iLifetimeAssignmentForFirstZone
         local iFirstZoneWithRaiderLimit
         local iFirstLRThreatZoneDist --the first zone we find that is unsuitable due to enemy having t2 arti/longer ranged DF units should be recorded here
-
+        local iFirstZoneRaiderAndAngleLimit
+        local iAngleThreshold = 30
+        local iAngleToNearestBase = M28Utilities.GetAngleFromAToB(tBuildLZData[M28Map.subrefMidpoint], tBuildLZTeamData[M28Map.reftClosestFriendlyBase])
+        local iCurAngle
         function ConsiderTargetingZone(iCurZone, iOptionalDist)
             if not(iCurZone == iOptionalZoneToIgnore) then
                 local tAdjLZTeamData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iCurZone][M28Map.subrefLZTeamData][iTeam]
                 if (tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] >= iRangeThreshold or tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] >= iRangeThreshold or M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or tAdjLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] > 0)
-                    --Also look for enemies that have caused us to run that havent moved much
-                or (M28UnitInfo.IsUnitValid(tAdjLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefoLastEnemyDFLastRunFromWhenTryingToReachThisZone]) and tAdjLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefoLastEnemyDFLastRunFromWhenTryingToReachThisZone][M28UnitInfo.refiDFRange] >= iRangeThreshold and M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefoLastEnemyDFLastRunFromWhenTryingToReachThisZone]:GetPosition(), tAdjLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftLastEnemyDFLastRunFromWhenTryingToReachThisZonePosition]) <= 80) then
+                        --Also look for enemies that have caused us to run that havent moved much
+                        or (M28UnitInfo.IsUnitValid(tAdjLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefoLastEnemyDFLastRunFromWhenTryingToReachThisZone]) and tAdjLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefoLastEnemyDFLastRunFromWhenTryingToReachThisZone][M28UnitInfo.refiDFRange] >= iRangeThreshold and M28Utilities.GetDistanceBetweenPositions(tAdjLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefoLastEnemyDFLastRunFromWhenTryingToReachThisZone]:GetPosition(), tAdjLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftLastEnemyDFLastRunFromWhenTryingToReachThisZonePosition]) <= 80) then
                     if not(iFirstLRThreatZoneDist) then iFirstLRThreatZoneDist = iOptionalDist or M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iCurZone][M28Map.subrefMidpoint], tBuildLZData[M28Map.subrefMidpoint]) end
                 else
                     if (tAdjLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) > 0 then
@@ -13740,13 +13786,21 @@ function GetRaidingZoneTarget(iStartPlateau, iStartZone, iTeam, iRangeThreshold,
                             iLifetimeAssignmentForFirstZone = (tAdjLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiLifetimeRaidersTargetingThisZone] or 0)
                         end
                         if (tAdjLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersTargetingThisZone] or 0) < 2 and tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] == 0 and (iLifetimeAssignmentForFirstZone < 2 or (tAdjLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiLifetimeRaidersTargetingThisZone] or 0) < iLifetimeAssignmentForFirstZone) then
-                            iFirstZoneWithRaiderLimit = iCurZone
+                            if not(iFirstZoneWithRaiderLimit) then
+                                iFirstZoneWithRaiderLimit = iCurZone
+                            end
+                            --Prefer targets far from angle to enemy base since more likely will raid targets less likely to be under attack from our normal land combat logic
+                            iCurAngle = M28Utilities.GetAngleFromAToB(tBuildLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iCurZone][M28Map.subrefMidpoint])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurZone='..iCurZone..'; iCurAngle='..iCurAngle..'; iAngleToNearestBase='..iAngleToNearestBase..'; ANgleDif='..M28Utilities.GetAngleDifference(iCurAngle, iAngleToNearestBase)) end
+                            if M28Utilities.GetAngleDifference(iCurAngle, iAngleToNearestBase) > iAngleThreshold then
+                                iFirstZoneRaiderAndAngleLimit = iCurZone
+                            end
                         end
                     end
                 end
 
-                if not(tBuildLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iAdjLZ]) then
-                    M28Map.ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iStartPlateau, iStartZone, iAdjLZ, tBuildLZData[M28Map.subrefMidpoint])
+                if not(tBuildLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iCurZone]) then
+                    M28Map.ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iStartPlateau, iStartZone, iCurZone, tBuildLZData[M28Map.subrefMidpoint])
                 end
             end
         end
@@ -13756,19 +13810,21 @@ function GetRaidingZoneTarget(iStartPlateau, iStartZone, iTeam, iRangeThreshold,
                 if iFirstLRThreatZoneDist and tPathingDetails[M28Map.subrefLZTravelDist] - 200 > iFirstLRThreatZoneDist then break end
                 iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
                 ConsiderTargetingZone(iAdjLZ, tPathingDetails[M28Map.subrefLZTravelDist])
-                if iFirstZoneWithRaiderLimit then break end
+                if iFirstZoneRaiderAndAngleLimit then break end
             end
         else
             --Just look at adjacent zones (no need for distance check)
             if M28Utilities.IsTableEmpty(tBuildLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for _, iAdjLZ in tBuildLZData[M28Map.subrefLZAdjacentLandZones] do
                     ConsiderTargetingZone(iAdjLZ)
-                    if iFirstZoneWithRaiderLimit then break end
+                    if iFirstZoneRaiderAndAngleLimit then break end
                 end
             end
         end
-        tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] = (iFirstZoneWithRaiderLimit or iFirstZoneNoRaiderLimit)
+        tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] = (iFirstZoneRaiderAndAngleLimit or iFirstZoneWithRaiderLimit or iFirstZoneNoRaiderLimit)
+        if bDebugMessages == true then LOG(sFunctionRef..': Updated subrefiCurRaidingZoneTarget, iFirstZoneRaiderAndAngleLimit='..(iFirstZoneRaiderAndAngleLimit or 'nil')..'; iFirstZoneWithRaiderLimit='..(iFirstZoneWithRaiderLimit or 'nil')..'; iFirstZoneNoRaiderLimit='..(iFirstZoneNoRaiderLimit or 'nil')..'; tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]='..(tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 'nil')) end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ManageRaidersInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tRaiders)
@@ -13782,10 +13838,12 @@ function ManageRaidersInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZon
     end
     --Consider adjacent zone DF enemies
     if GetGameTimeSeconds() - (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeLastDoneDetailedEnemyCheck] or 0) >= 10.4 then
+        if not(tLZTeamData[M28Map.reftRaiderSubtable]) then
+            tLZTeamData[M28Map.reftRaiderSubtable] = {}
+        end
         tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeLastDoneDetailedEnemyCheck] = math.floor(GetGameTimeSeconds())
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
             for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                tbZonesConsidered[iAdjLZ] = true
                 local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                 if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
                     for iEnemy, oEnemy in tAdjLZTeamData[M28Map.reftoNearestDFEnemies] do
@@ -13848,7 +13906,7 @@ function ManageRaidersInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZon
                         bRunning = false
                         --Woudl we get near the closest enemy to run from if we target this unit?
                         if (oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 0) >= oRaider[M28UnitInfo.refiCombatRange] and M28UnitInfo.IsUnitValid(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) then
-                            local iAngleToNearestThreat = M28Utilities.GetAngleFromAToB(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
+                            local iAngleToNearestThreat = M28Utilities.GetAngleFromAToB(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
                             local iAngleToImmobileTarget = M28Utilities.GetAngleFromAToB(oRaider:GetPosition(), oClosestImmobile:GetPosition())
                             if M28Utilities.GetAngleDifference(iAngleToNearestThreat, iAngleToImmobileTarget) <= 50 and iClosestDist - oRaider[M28UnitInfo.refiCombatRange] <= math.max(0, M28Utilities.GetDistanceBetweenPositions(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()) - (oRaider[M28UnitInfo.refiDFRange] or 0)) then
                                 if oRaider[refiRaidingTargetZone] == iLandZone then
@@ -13873,7 +13931,7 @@ function ManageRaidersInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZon
                     --Move to target zone unless we are already there
                     if oRaider[refiRaidingTargetZone] == iLandZone then
                         --Reassess where to raid
-                        GetRaidingZoneTarget(iPlateau, iLandZone, oRaider[M28UnitInfo.refiCombatRange] - 3)
+                        GetRaidingZoneTarget(iPlateau, iLandZone, iTeam, oRaider[M28UnitInfo.refiCombatRange] - 3)
                         if (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 0) > 0 then
                             --AssignUnitAsRaiderForTargetZone(oUnit, iTargetZone, iOptionalBuildPlateau, iOptionalBuildZone, bFirstTimeAssigning)
                             AssignUnitAsRaiderForTargetZone(oRaider, tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget])
@@ -13916,4 +13974,5 @@ function ClearUnitRaiderStatus(oUnit, iTeam, bOnlyRemoveFromCurTargetZone, oOpti
             tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] = math.max(0, (tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0) - 1)
         end
     end
+    if not(bOnlyRemoveFromCurTargetZone) then oUnit[refbFlaggedForPriorityScout] = nil end
 end

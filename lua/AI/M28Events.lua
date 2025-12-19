@@ -2912,8 +2912,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     if EntityCategoryContains(M28UnitInfo.refCategoryMAA * categories.TECH2, oJustBuilt.UnitId) then
                                         ForkThread(M28Land.ConsiderAssigningMAABodyguardToACU, oJustBuilt)
                                     end
-                                    --Raiding units
-                                elseif EntityCategoryContains(M28UnitInfo.refCategoryRaider, oJustBuilt.UnitId) then
+                                end
+                                --Raiding units
+                                if EntityCategoryContains(M28UnitInfo.refCategoryRaider, oJustBuilt.UnitId) then
                                     ForkThread(M28Land.ConsiderAssigningRaider, oEngineer, oJustBuilt)
                                 end
                             end

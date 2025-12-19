@@ -440,7 +440,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiTimeLastRunFromEnemyLand = 'EngTmR' --LZ or WZ variable, Gametimeseconds engineer in this zone has been given an order to run from enemy
             reftRaiderSubtable = 'Raid'
                 subrefiCurRaidingZoneTarget = 'RZT' --Current zone that we want raiders assigned from this zone to target
-                subrefiTimeSinceLastConstructedRaiderAssignment 'RAT' --Time since we last assigned a raider from a unit constructed in this zone
+                subrefiTimeSinceLastConstructedRaiderAssignment = 'RAT' --Time since we last assigned a raider from a unit constructed in this zone
                 subrefiActiveRaidersCreatedByThisZone = 'RAcRC' --number of units created in this zone that have active raiding zone targets
                 subrefiActiveRaidersTargetingThisZone = 'RAcRT' --number of units that have been assigned this zone to raid
                 subrefiLifetimeRaidersTargetingThisZone = 'RAcRL' --number of units that have been assigned this zone to raid during the game (including dead ones)

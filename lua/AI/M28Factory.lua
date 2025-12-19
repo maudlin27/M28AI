@@ -689,7 +689,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, tBaseLZTeamData, iPla
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iLandZone == 4 and GetGameTimeSeconds() >= 466 then bDebugMessages = true end
 
     local iBaseCategoryWanted
     local tTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
@@ -726,12 +726,18 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, tBaseLZTeamData, iPla
     --LOUD - disable MMLs if enemy has TMD (not in QUIET though as they're meant to have similar stats to FAF)
     if M28Utilities.bLoudModActive and not(M28Utilities.bQuietModActive) and not(bDontGetIndirect) and (M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subreftoEnemyTMD]) == false or tLZTargetTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] and M28UnitInfo.GetUnitTechLevel(oFactory) <= 2 and GetGameTimeSeconds() - tLZTargetTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] <= 180) then bDontGetIndirect = true end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; bInSameIsland='..tostring(bInSameIsland)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)..'; tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport])..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]='..tLZTargetTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]..'; subrefLZThreatAllyMAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyMAA]..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefbLZWantsSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsSupport])..'; LZ Air to ground enemy threat='..tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.refbLZWantsMobileShield]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileShield])..'; tLZTargetTeamData[M28Map.refbLZWantsMobileStealth]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileStealth])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA or false)..'; bDontGetIndirect='..tostring(bDontGetIndirect or false)..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)..'; tLZTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships]='..(tLZTargetTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; bInSameIsland='..tostring(bInSameIsland)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)..'; tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport])..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]='..tLZTargetTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]..'; subrefLZThreatAllyMAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyMAA]..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefbLZWantsSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsSupport])..'; LZ Air to ground enemy threat='..tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.refbLZWantsMobileShield]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileShield])..'; tLZTargetTeamData[M28Map.refbLZWantsMobileStealth]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileStealth])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA or false)..'; bDontGetIndirect='..tostring(bDontGetIndirect or false)..'; bConsiderMobileShields='..tostring(bConsiderMobileShields)..'; tLZTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships]='..(tLZTargetTeamData[M28Map.subrefLZTimeMAARetreatedFromGunships] or 'nil')..'; bDontConsiderLandScouts='..tostring(bDontConsiderLandScouts or false)..'; Is reftoUnitsWantingPriorityScouts empty='..tostring(M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftoUnitsWantingPriorityScouts]))..'; Time since subrefPlateauIslandTimeLastFailedLandScoutByTeam='..(GetGameTimeSeconds() - (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam] or 0))) end
 
     --Priority scouts
-    if not(bDontConsiderLandScouts) and tLZTargetTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] and bInSameIsland and tLZTargetTeamData[M28Map.refbWantLandScout] and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTScoutsTravelingHere]) and GetGameTimeSeconds() - tLZTargetTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] <= 20 then
-        iBaseCategoryWanted = M28UnitInfo.refCategoryLandScout
-        if bDebugMessages == true then LOG(sFunctionRef..': We recently failed to get a land scout for this zone so want to get one now') end
+    if not(bDontConsiderLandScouts) then
+        if tLZTargetTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] and bInSameIsland and tLZTargetTeamData[M28Map.refbWantLandScout] and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subrefTScoutsTravelingHere]) and GetGameTimeSeconds() - tLZTargetTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] <= 20 then
+            iBaseCategoryWanted = M28UnitInfo.refCategoryLandScout
+            if bDebugMessages == true then LOG(sFunctionRef..': We recently failed to get a land scout for this zone so want to get one now') end
+            --Also prioritise if have priority units wanting scouts, and have at least 1 active raider
+        elseif M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.reftoUnitsWantingPriorityScouts]) == false and tLZTargetTeamData[M28Map.refbWantLandScout] and GetGameTimeSeconds() - (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam] or 0) >= 120 and (tBaseLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0) > 0 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tBaseLZTeamData, M28UnitInfo.refCategoryLandScout, false,false) == 0 then
+            iBaseCategoryWanted = M28UnitInfo.refCategoryLandScout
+            if bDebugMessages == true then LOG(sFunctionRef..': Want land scout for unit wanting priority scout') end
+        end
     end
 
     --MAA due to units retreating from gunships recently
@@ -1036,24 +1042,24 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, tBaseLZTeamData, iPla
                 --can we reach the WZ with our units? (removed as only time had need of it the reason was map marker generation incorrectly thinking adjacent WZs were pathable on astro craters, but left commented out in case we arent doing this check when determining adjwz and want to reintroduce it)
                 --local bCanPathWithAmphibious = false
                 --if M28Utilities.IsTableEmpty(tTargetLZData[M28Map.subrefAdjacentWaterZones]) == false then
-                    --for _, tAdjWZDetails in tTargetLZData[M28Map.subrefAdjacentWaterZones] do
-                        --if bDebugMessages == true then LOG(sFunctionRef..': Considering if we can reach adjWZ '..tAdjWZDetails[M28Map. subrefAWZRef]..' with Plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover,  M28Map.tPondDetails[M28Map.tiPondByWaterZone[tAdjWZDetails[M28Map. subrefAWZRef]]][M28Map.subrefPondWaterZones][tAdjWZDetails[M28Map. subrefAWZRef]][M28Map.subrefMidpoint]) or 'nil')..'; iPlateau='..iPlateau..'; and if enemy has combat units here') end
-                        --if tAdjWZDetails[M28Map. subrefAWZRef] then
-                            --local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tAdjWZDetails[M28Map. subrefAWZRef]]][M28Map.subrefPondWaterZones][tAdjWZDetails[M28Map. subrefAWZRef]]
-                            --[[local tAdjWZTeamData = tAdjWZData[M28Map.subrefWZTeamData][iTeam]
-                            if bDebugMessages == true then LOG(sFunctionRef..': subrefTThreatEnemyCombatTotal='..tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; subrefbWZOnlySubmersibleEnemies='..tostring(tAdjWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies] or false)) end
-                            if tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 and not(tAdjWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies]) then
-                                if NavUtils.GetLabel(M28Map.refPathingTypeHover, tAdjWZData[M28Map.subrefMidpoint]) == iPlateau then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Can path to naval enemies so will get combat units') end
-                                    bCanPathWithAmphibious = true
-                                    break
-                                end
-                            end
-                        end
+                --for _, tAdjWZDetails in tTargetLZData[M28Map.subrefAdjacentWaterZones] do
+                --if bDebugMessages == true then LOG(sFunctionRef..': Considering if we can reach adjWZ '..tAdjWZDetails[M28Map. subrefAWZRef]..' with Plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover,  M28Map.tPondDetails[M28Map.tiPondByWaterZone[tAdjWZDetails[M28Map. subrefAWZRef]]][M28Map.subrefPondWaterZones][tAdjWZDetails[M28Map. subrefAWZRef]][M28Map.subrefMidpoint]) or 'nil')..'; iPlateau='..iPlateau..'; and if enemy has combat units here') end
+                --if tAdjWZDetails[M28Map. subrefAWZRef] then
+                --local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tAdjWZDetails[M28Map. subrefAWZRef]]][M28Map.subrefPondWaterZones][tAdjWZDetails[M28Map. subrefAWZRef]]
+                --[[local tAdjWZTeamData = tAdjWZData[M28Map.subrefWZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': subrefTThreatEnemyCombatTotal='..tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; subrefbWZOnlySubmersibleEnemies='..tostring(tAdjWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies] or false)) end
+                if tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 and not(tAdjWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies]) then
+                    if NavUtils.GetLabel(M28Map.refPathingTypeHover, tAdjWZData[M28Map.subrefMidpoint]) == iPlateau then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Can path to naval enemies so will get combat units') end
+                        bCanPathWithAmphibious = true
+                        break
                     end
                 end
-                if bCanPathWithAmphibious then--]]
-                    iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
+            end
+        end
+    end
+    if bCanPathWithAmphibious then--]]
+                iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat - categories.FIELDENGINEER
                 --end
             end
         end
@@ -1202,7 +1208,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-
+    if iLandZone == 4 and GetGameTimeSeconds() >= 466 then bDebugMessages = true end
 
     local iEngisInZone
     function GetEngiCountInZone()
@@ -1256,7 +1262,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     end
     --Land scouts - if not yet got omni radar or built an experimental, and have an ACU that isnt in a core base and lacks a land scout and is relatively nearby, then still build a land scout
     if bDontConsiderLandScouts and tLZTeamData[M28Map.refiSpareLandScouts] <= 1 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT2RadarSize then
-        local oClosestACUWithoutScout
         for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
             if not(oACU[M28Land.refoAssignedLandScout]) and oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
                 if NavUtils.GetLabel(M28Map.refPathingTypeLand, oACU:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] then
@@ -2352,9 +2357,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local sEnhancementWanted = ConsiderFactoryEnhancement(oFactory, tLZTeamData)
     if sEnhancementWanted then return sEnhancementWanted, true end
 
-    --Support category for this zone (except very early game)
-    iCurrentConditionToTry = iCurrentConditionToTry + 1
+
     --Near unit cap - dont build anything at land fac if low mass and not highest tech level
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
     if aiBrain[M28Overseer.refbCloseToUnitCap] and (iFactoryTechLevel < math.min(3, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]) or (bHaveLowMass and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))) then
         --Try and get an upgrade if dont have low mass
         if not(bHaveLowMass) and (iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech] or (iFactoryTechLevel < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) then
@@ -2429,6 +2434,14 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if iExistingFactoriesAbleToBuildInZone >= 3 or (iExistingFactoriesAbleToBuildInZone >= 1 and oFactory[refiTotalBuildCount] > 10) and (not(bHaveLowMass) or not(aiBrain[M28Overseer.refbPrioritiseLowTech])) then
                 if ConsiderUpgrading() then return sBPIDToBuild end
             end
+        end
+
+        --High priority scout for raiders
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to get scout for raiders, is reftoUnitsWantingPriorityScouts empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]))..'; bDontConsiderLandScouts='..tostring(bDontConsiderLandScouts or false)..'; refbWantLandScout='..tostring(tLZTeamData[M28Map.refbWantLandScout])..'; Time since subrefPlateauIslandTimeLastFailedLandScoutByTeam='..(GetGameTimeSeconds() - (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam] or 0) or 'nil')..'; Scouts under construction='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryLandScout, false,false)) end
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsWantingPriorityScouts]) == false and not(bDontConsiderLandScouts) and tLZTeamData[M28Map.refbWantLandScout] and GetGameTimeSeconds() - (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandTimeLastFailedLandScoutByTeam] or 0) >= 120 and (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0) > 0 and M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryLandScout, false,false) == 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want land scout for raider') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
         end
 
         --More enineers if we have quite a lot of mass, active HQ upgrade (or lots of land facs), and no factories building engineers (e.g. want to cover scenario where have lots of t2 land facs and too few engineers to assist an HQ upgrade)
@@ -3135,7 +3148,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
         --Raiders if not assigned any for a while and only have a couple active
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 0) > 0 and (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0) < 2 and GetGameTimeSeconds() - (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment] or 0) >= 60 then
+        if (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 0) > 0 or (GetGameTimeSeconds() >= 360 and not(tLZTeamData[M28Map.reftRaiderSubtable]) and oFactory[refiTotalBuildCount] >= 8) and (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0) < 2 and GetGameTimeSeconds() - (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment] or 0) >= 60 then
             --Get raider unless already have 2+ raiders being built
             if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryRaider, false, false) < 2 then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryRaider) then return sBPIDToBuild end
