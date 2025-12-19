@@ -689,7 +689,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, tBaseLZTeamData, iPla
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 4 and GetGameTimeSeconds() >= 466 then bDebugMessages = true end
+
 
     local iBaseCategoryWanted
     local tTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
@@ -1208,7 +1208,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-    if iLandZone == 4 and GetGameTimeSeconds() >= 466 then bDebugMessages = true end
+
 
     local iEngisInZone
     function GetEngiCountInZone()
