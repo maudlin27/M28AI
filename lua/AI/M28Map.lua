@@ -201,8 +201,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         --Reclaim related (same values used for water zone)
         subrefReclaimSegments = 'ReclSeg' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], table, orderd 1,2,3...; returns {iReclaimSegmentX, iReclaimSegmentZ}
         subrefTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
-        subrefTotalSignificantMassReclaim = 'RecSigM' --Total mass recalim that is at least the value of iSignificantMassThreshold individually
-        subrefHighestIndividualReclaim = 'RecHighS' --Highest individual reclaim in the zone itself
+        subrefTotalSignificantMassReclaim = 'RecSigM' --NOT TEAM DATA (LZData instead); Total mass recalim that is at least the value of iSignificantMassThreshold individually
+        subrefHighestIndividualReclaim = 'RecHighS' --NOT TEAM DATA (LZData instead); Highest individual reclaim in the zone itself
         subrefLZTotalEnergyReclaim = 'RecEn' --Total energy reclaim in the land zone
         subrefLastReclaimRefresh = 'RecTime' --Time that we last refreshed the reclaim in the land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
         subrefLastComprehensiveReclaimRefresh = 'CmRecTim' --time we last refreshed every segment with mass in the zone
@@ -8544,7 +8544,7 @@ function RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bI
     tLZOrWZData[subrefLZTotalEnergyReclaim] = iEnergyReclaim
     tLZOrWZData[subrefHighestIndividualReclaim] = iHighestIndividualReclaim
 
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassReclaim='..iMassReclaim..'; LZ reclaim='..tLZOrWZData[subrefTotalMassReclaim]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassReclaim='..iMassReclaim..'; LZ reclaim='..tLZOrWZData[subrefTotalMassReclaim]..'; subrefTotalSignificantMassReclaim='..(tLZOrWZData[subrefTotalSignificantMassReclaim] or 'nil')) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
