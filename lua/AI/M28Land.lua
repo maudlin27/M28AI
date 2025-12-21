@@ -962,7 +962,14 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
 
 
     tLZTeamData[M28Map.refbWantLandScout] = false
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]))..'; Is table of scouts currently in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Considering if we want a land scout for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]))..'; Is table of scouts currently in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))..'; Time='..GetGameTimeSeconds())
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]) == false then
+            for iScout, oScout in tLZTeamData[M28Map.subrefTScoutsTravelingHere] do
+                LOG(sFunctionRef..': Scout travling here oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..'; dist='..M28Utilities.GetDistanceBetweenPositions(oScout:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; owned by ='..oScout:GetAIBrain().Nickname)
+            end
+        end
+    end
 
     --Refresh list of scouts traveling here
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]) == false then

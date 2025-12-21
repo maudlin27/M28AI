@@ -292,7 +292,9 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
         if bDebugMessages == true then LOG(sFunctionRef..': Dont build engis in combined armies mode if disabled by user') end
     elseif M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild]
             --Exception - scouts where factory is on a different island to the core base
-            and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, sBPIDToBuild)) or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbTeamHasOmniVision] or tLZTeamData[M28Map.subrefLZbCoreBase] or not(tLZTeamData[M28Map.subrefLZCoreExpansion]) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) then
+            and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, sBPIDToBuild)) or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbTeamHasOmniVision] or tLZTeamData[M28Map.subrefLZbCoreBase] or not(tLZTeamData[M28Map.subrefLZCoreExpansion]) or NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]))
+            --Further exception - factory has built 0 scouts and isnt in core base
+            and (tLZTeamData[M28Map.subrefLZbCoreBase] or M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) > 0 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout) >= 5) then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
         sBPIDToBuild = nil
     else
@@ -3222,6 +3224,34 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if iFactoryTechLevel == 1 and tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Land scout to check for approaching enemies before getting more engis, bDontConsiderLandScouts='..tostring(bDontConsiderLandScouts)..'; refbWantLandScout='..tostring(tLZTeamData[M28Map.refbWantLandScout])..'; subrefLZbCoreBase='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; refiTotalBuildCount='..oFactory[refiTotalBuildCount]..'; Factory engi LC='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer)..'; Factory land scout LC='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout)) end
+            if not(bDontConsiderLandScouts) and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and oFactory[refiTotalBuildCount] < 10 and iFactoryTechLevel == 1 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer) >= 3 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) == 0 then
+                if tLZTeamData[M28Map.refbWantLandScout] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will get land scout so can make sure no appraoching enemies, before getting more engis') end
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+                else
+                    --We might have set the flag to flase because we have a land scout travling to this zone; however if we have an adjacent zone that wants a land scout then still build one
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                            if tAdjLZTeamData[M28Map.refbWantLandScout] then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will get land scout so can make sure no appraoching enemies in adjacent zone, before getting more engis') end
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+                                break
+                            end
+                        end
+                    end
+                    --We might also have a scout travling here that is so far away we should just build a new one
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]) == false then
+                        for iScout, oScout in tLZTeamData[M28Map.subrefTScoutsTravelingHere] do
+                            if oScout.Dead or M28Utilities.GetDistanceBetweenPositions(oScout:GetPosition(), oFactory:GetPosition()) >= 175 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Scout travling here quite far away so will build a new one, oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..'; Dist='..M28Utilities.GetDistanceBetweenPositions(oScout:GetPosition(), oFactory:GetPosition())) end
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+                            end
+                        end
+                    end
+                end
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': Will get engineer for adjacent zones') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
@@ -3253,6 +3283,35 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if GetEngiCountInZone() < iEngisWanted then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
             elseif GetEngiCountInZone() < 10 then
+                --If we have built 3+ engis already then build a land scout as dont want to overbuild engis if appraoching enemies (if not core base)
+                if not(bDontConsiderLandScouts)  and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and oFactory[refiTotalBuildCount] < 10 and iFactoryTechLevel == 1 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer) >= 3 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) == 0 then
+                    if tLZTeamData[M28Map.refbWantLandScout] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will get land scout so can make sure no appraoching enemies, before getting more engis') end
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+                        --We might have set the flag to flase because we have a land scout travling to this zone; however if we have an adjacent zone that wants a land scout then still build one
+                    else
+                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                                if tAdjLZTeamData[M28Map.refbWantLandScout] then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will get a land scout so can make sure no appraoching enemies in adjacent zone, before getting more engis') end
+                                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+                                    break
+                                end
+                            end
+                        end
+                        --We might also have a scout travling here that is so far away we should just build a new one
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]) == false then
+                            for iScout, oScout in tLZTeamData[M28Map.subrefTScoutsTravelingHere] do
+                                if oScout.Dead or M28Utilities.GetDistanceBetweenPositions(oScout:GetPosition(), oFactory:GetPosition()) >= 175 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Scout travling here is quite far away so will build a new one') end
+                                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+                                end
+                            end
+                        end
+                    end
+
+                end
                 local bAdjacentLandZoneWantsEngineers = tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex]
                 if not(bAdjacentLandZoneWantsEngineers) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
