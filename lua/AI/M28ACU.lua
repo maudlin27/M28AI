@@ -2525,6 +2525,25 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                     bWantToRun = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': ACU owned by '..oACU:GetAIBrain().Nickname..' is getting a bit far from base so want to run, time='..GetGameTimeSeconds()) end
                                 end
+
+                                --Assassination mode - be wary of TML snipes if not in combat and not in core base/near it
+                                if bDebugMessages == true then LOG(sFunctionRef..': TML snipe check refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]..'; refbAssassinationOrSimilar='..tostring(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])..'; is reftEnemyTML empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML]))..'; Time since last ACU weapon event='..GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or 0)) end
+                                if not(bWantToRun) and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and tLZTeamData[M28Map.refiModDistancePercent] >= 0.15 and M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML]) == false and GetGameTimeSeconds() - (oACU[M28UnitInfo.refiLastWeaponEvent] or 0) >= 40 then
+                                    local iEnemyTMLDamagePotential = 0
+                                    for iTML, oTML in M28Team.tTeamData[iTeam][M28Team.reftEnemyTML] do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Dist from oTML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' to ACU='..M28Utilities.GetDistanceBetweenPositions(oTML:GetPosition(), oACU:GetPosition())..'; refiManualRange='..(oTML[M28UnitInfo.refiManualRange] or 'nil')) end
+                                        if not(oTML.Dead) and EntityCategoryContains(M28UnitInfo.refCategoryTML, oTML.UnitId) and M28Utilities.GetDistanceBetweenPositions(oTML:GetPosition(), oACU:GetPosition()) < (oTML[M28UnitInfo.refiManualRange] or oTML[M28UnitInfo.refiIndirectRange] or 256) then
+                                            iEnemyTMLDamagePotential = iEnemyTMLDamagePotential + (oTML:GetBlueprint().Weapon[1].Damage or 6000)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Increased iEnemyTMLDamagePotential to '..iEnemyTMLDamagePotential..'; ACU shield+health='..iCurShield+ oACU:GetHealth()) end
+                                            if iEnemyTMLDamagePotential >= iCurShield + oACU:GetHealth() then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': ACU at risk of TML snipe so want to run') end
+                                                bWantToRun = true
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+
                             end
                             if not(bWantToRun) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': deciding if want to run from air, iEnemyAirToGroundNearbyThreat='..iEnemyAirToGroundNearbyThreat..'; iFriendlyAAThreat='..(iFriendlyAAThreat or 'nil')..'; iPercentageToFriendlyBase='..(iPercentageToFriendlyBase or 'nil')..'; iDistToFriendlyBase='..(iDistToFriendlyBase or 'nil')..'; Enemy team air to ground threat='..(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refiEnemyAirToGroundThreat] or 'nil')..'; ACU health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)) end

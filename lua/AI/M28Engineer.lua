@@ -16587,7 +16587,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                     local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                     if not(tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
-                        tAdjLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true
+                        tAdjLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true --in v274 experimented with not enabling this if lots of engis already traveling but slowed down early expansion too much
                     end
                 end
             end
@@ -16811,7 +16811,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                     local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                    tAdjLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true
+                    tAdjLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true --in v274 experimented with not enabling this if lots of engis already traveling but slowed down early expansion too much
                 end
             end
         end

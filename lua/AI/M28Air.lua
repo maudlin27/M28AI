@@ -8982,12 +8982,12 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                         iMexesAvailable = iMexesAvailable + (tAdjLZData[M28Map.subrefLZOrWZMexCount] or 0)
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; with mexcount='..(tLZData[M28Map.subrefLZOrWZMexCount] or 0)..'; iMexesAvailable='..iMexesAvailable..'; bIncludeAdjacentZoneMexCount='..tostring(bIncludeAdjacentZoneMexCount or false)..'; iMexThresholdOverride='..(iMexThresholdOverride or 'nil')) end
-                if iMexesAvailable >= (iMexThresholdOverride or 3) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; with mexcount='..(tLZData[M28Map.subrefLZOrWZMexCount] or 0)..'; iMexesAvailable='..iMexesAvailable..'; bIncludeAdjacentZoneMexCount='..tostring(bIncludeAdjacentZoneMexCount or false)..'; iMexThresholdOverride='..(iMexThresholdOverride or 'nil')..'; iTeam='..iTeam) end
+                if iMexesAvailable >= (iMexThresholdOverride or 1) then
                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                     --Is it on our side of the map (or almost on our side of the map)?
-                    if bDebugMessages == true then LOG(sFunctionRef..': refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]) end
-                    if tLZTeamData[M28Map.refiModDistancePercent] <= 0.55 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) then --core base check is a redundancy, not even sure if it gets set before this code runs anyway
+                    if bDebugMessages == true then LOG(sFunctionRef..': refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]..'; subrefTotalSignificantMassReclaim='..(tLZTeamData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')) end
+                    if tLZTeamData[M28Map.refiModDistancePercent] <= 0.55 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and ((iMexesAvailable >= (iMexThresholdOverride or 3) or (tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 300 and iMexesAvailable + tLZData[M28Map.subrefTotalSignificantMassReclaim] / 300 >= 3)))  then --core base check is a redundancy, not even sure if it gets set before this code runs anyway
                         --Get travel distance to closest friendly base
                         iClosestBasePlateau, iClosestBaseLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZTeamData[M28Map.reftClosestFriendlyBase])
                         if bDebugMessages == true then LOG(sFunctionRef..': iClosestBasePlateau='..(iClosestBasePlateau or 'nil')..'; iClosestBaseLandZone='..(iClosestBaseLandZone or 'nil')) end
