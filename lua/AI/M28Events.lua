@@ -1979,6 +1979,26 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                     end
                 end
             end
+            --Has enemy started on a nuke, not under stealth, in their main base? such that as a player we would likely be scouting for such a unit periodically? If so then flag to try scouting
+            if EntityCategoryContains(M28UnitInfo.refCategorySML, oConstruction.UnitId) then
+                for iTeam = 1, M28Team.iTotalTeamCount, 1 do
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                        if not(M28UnitInfo.CanSeeUnit(aiBrain, oConstruction, true)) then
+                            --Is nuke close to enemy base?
+                            local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oConstruction:GetPosition(), true, iTeam)
+                            if M28Utilities.GetDistanceBetweenPositions(oConstruction:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase]) <= 180 then
+                                --Check not under stealth (cybran is 32 radius)
+                                local oEnemyBrain = oConstruction:GetAIBrain()
+                                local tNearbyStealth = oEnemyBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStealthGenerator + M28UnitInfo.refCategoryMobileLandStealth, oConstruction:GetPosition(), 32, 'Ally')
+                                if M28Utilities.IsTableEmpty(tNearbyStealth) then
+                                    M28Air.AddUnitWantingPriorityScout(oConstruction, false, aiBrain.M28AirSubteam)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
         end
 
 
@@ -3329,8 +3349,17 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
                 if aiBrain.M28Team and not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam][aiBrain.M28Team]) then
                     if not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam]) then oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam] = {} end
                     oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam][aiBrain.M28Team] = true
-                    if oUnitDetected[M28Air.refiTimeLastWantedPriorityAirScout] and EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnitDetected.UnitId) then
-                        oUnitDetected[M28Air.refiTimeLastWantedPriorityAirScout] = nil --not ideal for multi-team game but hopefully in most cases will be ok and is for niche scenairo anyway - i.e. if MMLs come across TMD with no intel they flag as a priority scout target; then when the unit is detected it gets cleared
+                    if oUnitDetected[M28Air.refiTimeLastWantedPriorityAirScout] and EntityCategoryContains(M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategorySML, oUnitDetected.UnitId) then
+                        if M28Utilities.IsTableEmpty(tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                            local tbAirSubteamConsidered = {}
+                            for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains] do
+                                if not(tbAirSubteamConsidered[oBrain.M28AirSubteam]) then
+                                    RemoveUnitFromPriorityScoutTable(oUnitDetected, oBrain.M28AirSubteam)
+                                    tbAirSubteamConsidered[oBrain.M28AirSubteam] = true
+                                end
+                            end
+                            oUnitDetected[M28Air.refiTimeLastWantedPriorityAirScout] = nil --redundancy
+                        end
                     end
                 end
                 --Update highest enemy ground unti health

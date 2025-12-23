@@ -8798,7 +8798,21 @@ function ManageAirScouts(iTeam, iAirSubteam)
             end
             if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false then
                 local iCurDist, iClosestDist
-                for iUnitToScout, oUnitToScout in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] do
+                --Get priority unit to scout - prioritise non-TMD
+                local oUnitToScout, iCurTimeSinceScouted
+                local iLongestTimeSinceScouted = -1
+                local iCurCount = 0
+                while M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false do
+                    iCurCount = iCurCount + 1
+                    if iCurCount >= 100 then M28Utilities.ErrorHandler('Infinite loop protection') break end
+                    for iPossibleUnitToScout, oPossibleUnitToScout in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout] do
+                        iCurTimeSinceScouted = GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingAirScout][iPossibleUnitToScout][refiTimeLastWantedPriorityAirScout] or GetGameTimeSeconds())
+                        if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oPossibleUnitToScout.UnitId) then iCurTimeSinceScouted = iCurTimeSinceScouted - math.min(90, iCurTimeSinceScouted - 1)  end --prioritise non-TMD
+                        if iCurTimeSinceScouted > iLongestTimeSinceScouted then
+                            iLongestTimeSinceScouted = iCurTimeSinceScouted
+                            oUnitToScout = oPossibleUnitToScout
+                        end
+                    end
                     --Find the nearest spy plane
                     iClosestDist = 100000
                     local iClosestRef
