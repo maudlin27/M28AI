@@ -304,6 +304,10 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subreftoEnemyPotentialTMLTargets = 'LZPotentialTMLTargets' --potential targets for TML in the LZ (ignoring TMD)
             subrefiTMLLifetimeBuildCount = 'LZLCTml' --lifetime count of TML construction for htis zone
             subrefiTimeOfLastBuildingDeathToTML = 'LZTmlTi' --gametimeseconds that an enemy tml (not a MML) killed a building
+            subreftiLandZonesTargetingThisWithOurDF = 'LZBTB' --table, [x] = land zone ref; returns 1 or 2 depending on if the land zone is attacking a unit in this zone, or is just moving to this zone; table of land zones on the same plateau that are sending friendly DF units to this zone in either scenario 2 or reinforcement (not scenario 1)
+                subrefiLZTAttackingUnit = 1
+                subrefiLZTMovingToOtherZone = 2
+            subreftiLandZoneTargetedByOurDF = 'LZTBD' --returns land zone ref we are sending DF units in this LZ to
 
             --Engineer related values
             subreftoPartBuiltMexes = 'PBMex' --If we are building a mex and the builder gets its orders cleared or dies, and it was building a mex, then the mex should be recorded in a table so it can be rebuilt
