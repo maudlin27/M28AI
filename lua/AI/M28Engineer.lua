@@ -10789,16 +10789,18 @@ function GetBPToAssignToMassStorage(iPlateauOrZero, iLandOrWaterZone, iTeam, tLZ
                 bHaveT2PlusMexWantingStorage = true
             else
                 local iAvailableLocationCount = table.getn(tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable])
-                if iAvailableLocationCount > 4 * iT1AndT0MexCount then
+                if (ScenarioInfo.Options.M28Teammate == 1 or tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and iAvailableLocationCount > 4 * iT1AndT0MexCount then
                     bHaveT2PlusMexWantingStorage = true
                 else
                     local aiBrain = ArmyBrains[tLZOrWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+                    local bDontCheckOwnership
+                    if ScenarioInfo.Options.M28Teammate == 1 then bDontCheckOwnership = true else bDontCheckOwnership = false end
                     for _, tStorageLocation in tLZOrWZData[M28Map.subrefLZOrWZMassStorageLocationsAvailable] do
                         if CanBuildAtLocation(aiBrain, 'ueb1106', tStorageLocation, iPlateauOrZero, iLandOrWaterZone, nil, false, false, false, false, false) then
                             local tNearbyUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tStorageLocation, 4))
                             if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
                                 for iNearbyUnit, oNearbyUnit in tNearbyUnits do
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH1, oNearbyUnit.UnitId) and oNearbyUnit:GetFractionComplete() >= 0.9 then
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH1, oNearbyUnit.UnitId) and oNearbyUnit:GetFractionComplete() >= 0.9 and (bDontCheckOwnership or (oNearbyUnit:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oNearbyUnit.M28Active))) then
                                         bHaveT2PlusMexWantingStorage = true
                                         break
                                     end
