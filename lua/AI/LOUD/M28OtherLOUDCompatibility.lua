@@ -203,6 +203,9 @@ function UpdateUnitCategories()
         --Czar doesnt register the czar
         M28UnitInfo.refCategoryCzar = M28UnitInfo.refCategoryCzar + categories.uaa0310
 
+        --Selens arent recognised as combat scouts
+        M28UnitInfo.refCategoryCombatScout =  M28UnitInfo.refCategoryCombatScout + categories.xsl0101
+
         --Az further changes for QUIET
         local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
         if M28Utilities.bQuietModActive then

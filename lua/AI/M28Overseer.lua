@@ -423,7 +423,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         else
             sMessage = 'M28AI active for AI: Normal.'
         end
-        sMessage = sMessage..'  See https://github.com/maudlin27/M28AI for the latest version; play M28AI on FAF For the best experience.  If you come across issues playing in steam please send maudlin27 a message on discord along with the replay.'
+        sMessage = sMessage..'  See https://github.com/maudlin27/M28AI for the latest version; play M28AI on FAF for the best experience.  If you come across issues playing in steam please send maudlin27 a message on discord along with the replay.'
         M28Chat.SendMessage(aiBrain, 'SteamCompatibility', sMessage, 2, 10)
     elseif M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
         --Probably done enough testing that can drop the warning now

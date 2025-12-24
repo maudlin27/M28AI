@@ -5280,7 +5280,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local tTargetingLandZoneTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF]][M28Map.subrefLZTeamData][iTeam]
                 if bDebugMessages == true then LOG(sFunctionRef..': About to update for iPlateau='..iPlateau..'subreftiLandZoneTargetedByOurDF='..(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF] or 'nil')..'; is tTargetingLandZoneTeamData nil='..tostring(tTargetingLandZoneTeamData == nil)) end
                 if not(tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF]) then tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF] = {} end
-                tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF][tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF]] = nil
+                tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF][iLandZone] = nil
                 tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF] = nil
             end
         else
@@ -11225,7 +11225,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                                             end
                                                             if bEnemyDoesntHaveBigEnoughBomberThreat and iCurDist < iMaxDistance then
                                                                 if bCustomThreat then
-                                                                    iEnemyBomberMassNearby = iEnemyBomberMassNearby + (oBomber[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * M28Utilities.iThreatFactor
+                                                                    iEnemyBomberMassNearby = iEnemyBomberMassNearby + (oBomber[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * M28UnitInfo.iThreatFactor
                                                                 else
                                                                     iEnemyBomberMassNearby = iEnemyBomberMassNearby + (oBomber[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
                                                                 end

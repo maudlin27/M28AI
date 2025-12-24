@@ -3396,6 +3396,9 @@ function CloakUnit(oUnit, bDontClearExistingOrders, bUpdateTracking)
         if not(bDontClearExistingOrders) then import('/mods/M28AI/lua/AI/M28Orders.lua').IssueTrackedClearCommands(oUnit) end
         if M28Utilities.bFAFActive and oUnit.HideUnit then
             oUnit:HideUnit()
+        --LOUD and steam give error when do oUnit:InvisState on selen, despite .InvisState not being nil;
+        elseif not(M28Utilities.bFAFActive) then
+            EnableUnitStealth(oUnit) --Not sure this works properly for steam, but it doesnt cause an error (whereas invisstate does)
         elseif oUnit.InvisState then
             oUnit:InvisState()
         else
