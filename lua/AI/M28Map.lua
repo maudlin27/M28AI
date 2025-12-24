@@ -340,6 +340,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftoTMLBatteryUnits = 'TMLBtU' --table of TMLs forming part of the TML battery
             refiDetailedTMLTargetWithoutTMDCheckByPlateauAndZone = 'DetTrgt' --[x] = target plateau, [y] = target zone, returns number of potential TML targets that didnt appear to have a TMD that would cover them from a shot from a TML at the base zone's midpoint
             refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone = 'DetTMDt' --[x] = target plateau, [y] = target zone, returns gametimeseconds that we did a detailed TMD check
+            reftObjectiveSMDLocation = 'TSMDOL' --For campaign maps - locaiton of SMD to complete objective (doesnt have a time limit)
+            refiTimeOfLastSMDPrioritisationRequest = 'GetSMD' --Gametimeseconds that this zone was recorded as wanting SMD (will treat similarly to objectivesmd if request was made in last 6m)
 
             refbIgnoreEmergencyPDReassignmentLogic = 'EmPDAtv' --true if have logic monitoring emergency PD builders active
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
@@ -435,7 +437,6 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiTransportRecentUnloadCount = 'TRUnC' --Number of times transports have tried to unload here recently
             refiTimeLastBuiltAtFactory = 'TLstBFac' --Gametimeseconds that a factory last tried ot build (used to make sure we spread things out by several ticks)
             reftoGroundFireFriendlyTarget = 'TGFTrg' --Location of a ground fire target that we wont be trying to target via normal means, e..g intended for Cybran mission 2 where need to ground fire temples that dont show as enemies and cant be reclaimed
-            reftObjectiveSMDLocation = 'TSMDOL' --For campaign maps - locaiton of SMD to complete objective
             refiTimeLastShowedBuildLocationFailure = 'TLFBL' --Gametimeseconds we last showed a warning that we had nowhere to build
             refiNonM28TeammateFactoryCount = 'NMTFc' --Approx number of teammate factories in the zone
             refiNonM28TeammateMexCount = 'NMTMx' --approx number of teammate mexes in the zone

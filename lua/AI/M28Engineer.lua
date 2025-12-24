@@ -10608,7 +10608,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
     local oUnderConstructionShield
     --Does this LZ have enough value?
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want SMD for iPlateau '..iPlateau..'; iLandZone '..iLandZone..'; LZ building vlaue='..(tLZTeamData[M28Map.subrefLZSValue] or 'nil')..'; M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap)..'; Is ScenarioInfo.CzarEngineer nil='..tostring(ScenarioInfo.CzarEngineer == nil)..'; ScenarioInfo.M1P1.Active='..tostring(ScenarioInfo.M1P1.Active or false)..'; ScenarioInfo.Czar is nil='..tostring(ScenarioInfo.Czar == nil)..'; ScenarioInfo.CzarFullyBuilt='..tostring(ScenarioInfo.CzarFullyBuilt or false)..'; ScenarioInfo.ControlCenter is nil='..tostring(ScenarioInfo.ControlCenter == nil)..'; Are we a cybran brain? army index='..ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetFactionIndex()) end
-    if tLZTeamData[M28Map.subrefLZSValue] >= 11000 or tLZTeamData[M28Map.reftObjectiveSMDLocation] then
+    if tLZTeamData[M28Map.subrefLZSValue] >= 11000 or tLZTeamData[M28Map.reftObjectiveSMDLocation] or (tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] <= 360) then
         --Special case for Cybran M6 - early on want to risk not getting SMD so can improve eco to deal with czar
         if M28Map.bIsCampaignMap and ScenarioInfo.ControlCenter and (ScenarioInfo.CzarEngineer or ScenarioInfo.Czar or (GetGameTimeSeconds() <= 250 and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].GetFactionIndex and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetFactionIndex() == M28UnitInfo.refFactionCybran)) and not(ScenarioInfo.CzarFullyBuilt) and GetGameTimeSeconds() <= 1200 and (ScenarioInfo.M1P1.Active or GetGameTimeSeconds() <= 250) then
             if bDebugMessages == true then LOG(sFunctionRef..': Want to hold off on getting SMD for now as want to save up to fight the czar') end
@@ -10731,7 +10731,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
                 end
             end
 
-            if iSMDWanted <= 0 and tLZTeamData[M28Map.reftObjectiveSMDLocation] then iSMDWanted = 1 end
+            if iSMDWanted <= 0 and (tLZTeamData[M28Map.reftObjectiveSMDLocation] or (tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] <= 360)) then iSMDWanted = 1 end
             if bDebugMessages == true then LOG(sFunctionRef..': iSMDsWeHave='..iSMDsWeHave..'; iSMDWanted='..iSMDWanted..'; iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
             if iSMDsWeHave < iSMDWanted or (iSMDsWithNoMissiles > 0 and iEnemyNormalNukes > 0 and iSMDWanted <= 1) then
                 if bHaveLowMass or iSMDsWeHave > 0 then iBPWanted = 150
@@ -12939,10 +12939,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
 
 
-    --Need SMD as enemy has nuke launcher
+    --Need SMD as enemy has nuke launcher (or teammate has requested SMD)
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; About to consider if want SMD, is table of enemy nukes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]))) end
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false or (tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] <= 360) then
         local bAssistSMD = false
         local oSMDToShield, oUnderConstructionShield
         iBPWanted, bAssistSMD, oSMDToShield, oUnderConstructionShield = GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, true, bHaveLowMass, bWantMorePower)
@@ -16988,9 +16988,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --SMD if very high value and enemy has nukes
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefLZSValue]='..tLZTeamData[M28Map.subrefLZSValue]..'; T3 mexes='..tLZTeamData[M28Map.subrefMexCountByTech][3]) end
-    if not(bEngineersRecentlyRunFromEnemy) and (tLZTeamData[M28Map.subrefLZSValue] >= 60000 or (not(bTeammateHasBuiltHere) and tLZTeamData[M28Map.subrefLZSValue] >= 17000 and (tLZTeamData[M28Map.subrefLZSValue] >= 20000 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false) or tLZTeamData[M28Map.reftObjectiveSMDLocation]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
+    if not(bEngineersRecentlyRunFromEnemy) and (tLZTeamData[M28Map.subrefLZSValue] >= 60000 or (not(bTeammateHasBuiltHere) and tLZTeamData[M28Map.subrefLZSValue] >= 17000 and (tLZTeamData[M28Map.subrefLZSValue] >= 20000 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false) or tLZTeamData[M28Map.reftObjectiveSMDLocation] or (tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] <= 360)) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
         --Make sure we have at least 2 T3 mex in this zone (or no T2 and T1 mexes)
-        if (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10)) or (tLZTeamData[M28Map.reftObjectiveSMDLocation] and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])) then
+        if (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10)) or ((tLZTeamData[M28Map.reftObjectiveSMDLocation] or (tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] <= 360)) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])) then
 
             local bAssistSMD = false
             local oSMDToShield, oUnderConstructionShield

@@ -4824,6 +4824,7 @@ function PingCreated(data)
 
     if bDebugMessages == true then LOG('Ping created, reprs='..reprs(data)..'; Is this a marker='..tostring(data.Type == 'Marker')) end
     local bEngiMarkerPing = false
+    local bSMDPing = false
     --Check for marker ping and get the message and brain creator
     local iIndex = data.Owner + 1
     local aiBrain
@@ -4861,7 +4862,7 @@ function PingCreated(data)
                 end
                 if tLZOrWZTeamData then
                     --Check if the message contains "Engi"
-                    if bDebugMessages == true then LOG(sFunctionRef..': string.lower of the text='..string.lower(data.Name)..'; Does this contain engi='..(string.find(string.lower(data.Name), 'engi') or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': string.lower of the text='..string.lower(data.Name)..'; Does this contain engi='..(string.find(string.lower(data.Name), 'engi') or 'nil')..'; Does this contain desired SMD refs='..tostring(string.find(string.lower(data.Name), 'smd', 1, true) and (string.find(string.lower(data.Name), 'get', 1, true) or string.find(string.lower(data.Name), 'build', 1, true) or string.find(string.lower(data.Name), 'need', 1, true) or string.lower(data.Name) == 'smd'))) end
                     if string.find(string.lower(data.Name), 'engi', 1, true) then
                         bEngiMarkerPing = true
                         if iTimeSinceLastRequest < 60 then
@@ -4892,11 +4893,61 @@ function PingCreated(data)
                                 M28Chat.SendMessage(oBrainForMessage, 'EngiUnav', 'I don\'t have any nearby engineers, ask again when I do', 1, 5, true, false, nil, nil, nil)
                             end
                         end
+                        --Does it contain SMD and either build, need, or get?
+                    elseif string.find(string.lower(data.Name), 'smd', 1, true) and (string.find(string.lower(data.Name), 'get', 1, true) or string.find(string.lower(data.Name), 'build', 1, true) or string.find(string.lower(data.Name), 'need', 1, true) or string.lower(data.Name) == 'smd') then
+                        bSMDPing = true
+                        local iTeam = aiBrain.M28Team
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have an SMD ping, subrefiActiveM28BrainCount='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) end
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                            --Check we have friendly units in this zone or nearby (if helpful teammates is disabled or it is not a core base/one with significant s value, then require these to be M28 units)
+                            local iNearbyFriendlyMass = 0
+                            local tNearbyFriendlyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure, data.Location, 120, 'Ally') --SMD typical range is 90, doing 120 to give allowance for placing it in the path of a nuke
+                            if M28Utilities.IsTableEmpty(tNearbyFriendlyUnits) == false then
+                                if ScenarioInfo.Options.M28Teammate == 1 and (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or tLZOrWZTeamData[M28Map.subrefLZSValue] >= 3000) then
+                                    iNearbyFriendlyMass = M28UnitInfo.GetMassCostOfUnits(tNearbyFriendlyUnits, false)
+                                else
+                                    for iUnit, oUnit in tNearbyFriendlyUnits do
+                                        if oUnit:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active) then
+                                            iNearbyFriendlyMass = iNearbyFriendlyMass + (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Deciding if should flag to build SMD, iNearbyFriendlyMass='..iNearbyFriendlyMass) end
+                            if iNearbyFriendlyMass >= 5000 then
+                                tLZOrWZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] = GetGameTimeSeconds()
+                            else
+                                --If enemy has SMD near the ping then dont send any message
+                                local rRectangleToSearch = M28Utilities.GetRectAroundLocation(data.Location, 20)
+                                local tUnitsInRect = GetUnitsInRect(rRectangleToSearch)
+                                local bEnemySMD = false
+                                if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                                    local tSMD = EntityCategoryFilterDown(M28UnitInfo.refCategorySMD, tUnitsInRect)
+                                    if M28Utilities.IsTableEmpty(tSMD) == false then
+                                        for iSMD, oSMD in tSMD do
+                                            if IsEnemy(oSMD:GetAIBrain():GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                                                bEnemySMD = true
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dont want to build SMD due to lack of friendly units, bEnemySMD='..tostring(bEnemySMD)) end
+                                if bEnemySMD then
+                                    --Ignore/do nothing
+                                elseif ScenarioInfo.Options.M28Teammate == 1 then
+                                    --SendMessage(      aiBrain,         sMessageType, sMessage,                                    iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank, oOptionalOnlyBrainToSendTo)
+                                    M28Chat.SendMessage(oBrainForMessage, 'SMDDenied', 'There aren\'t enough friendly units near there for me to justify building an SMD', 1,       2,                              true,           false, nil, nil, nil)
+                                else
+                                    M28Chat.SendMessage(oBrainForMessage, 'SMDDenied', 'I don\'t have enough units near there to justify building an SMD', 1,       2,                              true,           false, nil, nil, nil)
+                                end
+                            end
+                        end
                     end
                 end
             end
         end
-        if not(bEngiMarkerPing) then
+        if not(bEngiMarkerPing) and not(bSMDPing) then
             if oFirstM28Brain then
                 M28Team.tTeamData[aiBrain.M28Team][M28Team.refiGeneralPingsInLast30Seconds] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiGeneralPingsInLast30Seconds] or 0) + 1
                 M28Utilities.DelayChangeVariable(M28Team.tTeamData[aiBrain.M28Team], M28Team.refiGeneralPingsInLast30Seconds, -1, 30, nil, nil, nil, nil, true)
