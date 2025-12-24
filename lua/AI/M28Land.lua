@@ -13825,22 +13825,25 @@ function ConsiderAssigningRaider(oFactory, oUnit)
                     if (tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0) < 4 and (tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiPotentialRaiderUnitsSinceLastCreatedRaiderAssigned] >= 4 or not(tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment])) and GetGameTimeSeconds() - (tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment] or 0) >= 30 and M28Utilities.IsTableEmpty(tBuildLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) and M28Utilities.IsTableEmpty(tBuildLZTeamData[M28Map.subreftEnemyFirebasesInRange]) then
                         GetRaidingZoneTarget(iBuildPlateau, iBuildZone, iTeam, oUnit[M28UnitInfo.refiCombatRange] - 3) --Will reassess if been a while since we last considered best zone to raid
                         local iTargetZone = tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]
-                        local tTargetLZTeamData = M28Map.tAllPlateaus[iBuildPlateau][M28Map.subrefPlateauLandZones][iTargetZone][M28Map.subrefLZTeamData][iTeam]
-                        if (tTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersTargetingThisZone] or 0) < 2 then
-                            --Check we dont want t1 arti for a transport
-                            local bWantT1ArtiForTransport = false
-                            if M28Utilities.IsTableEmpty(tBuildLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false then
-                                for iTransport, oTransport in tBuildLZTeamData[M28Map.reftoTransportsWaitingForUnits] do
-                                    if (oTransport[M28Air.refiEngisWanted] or 0) > 0 or not(oTransport[M28Air.refbCombatDrop]) then
-                                        --Transport waiting for engis
-                                    elseif (oTransport[M28Air.refiCombatUnitsWanted] or 0) > 0 then
-                                        bWantT1ArtiForTransport = true
-                                        break
+                        if iTargetZone then
+                            local tTargetLZTeamData = M28Map.tAllPlateaus[iBuildPlateau][M28Map.subrefPlateauLandZones][iTargetZone][M28Map.subrefLZTeamData][iTeam]
+                            if bDebugMessages == true then LOG(sFunctionRef..': iTargetZone='..(iTargetZone or 'nil')..'; subrefiActiveRaidersTargetingThisZone='..((tTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersTargetingThisZone] or 'nil'))) end
+                            if (tTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersTargetingThisZone] or 0) < 2 then
+                                --Check we dont want t1 arti for a transport
+                                local bWantT1ArtiForTransport = false
+                                if M28Utilities.IsTableEmpty(tBuildLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false then
+                                    for iTransport, oTransport in tBuildLZTeamData[M28Map.reftoTransportsWaitingForUnits] do
+                                        if (oTransport[M28Air.refiEngisWanted] or 0) > 0 or not(oTransport[M28Air.refbCombatDrop]) then
+                                            --Transport waiting for engis
+                                        elseif (oTransport[M28Air.refiCombatUnitsWanted] or 0) > 0 then
+                                            bWantT1ArtiForTransport = true
+                                            break
+                                        end
                                     end
                                 end
-                            end
-                            if not(bWantT1ArtiForTransport) then
-                                AssignUnitAsRaiderForTargetZone(oUnit, iTargetZone, iBuildPlateau, iBuildZone)
+                                if not(bWantT1ArtiForTransport) then
+                                    AssignUnitAsRaiderForTargetZone(oUnit, iTargetZone, iBuildPlateau, iBuildZone)
+                                end
                             end
                         end
                     end
