@@ -11225,7 +11225,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                                             end
                                                             if bEnemyDoesntHaveBigEnoughBomberThreat and iCurDist < iMaxDistance then
                                                                 if bCustomThreat then
-                                                                    iEnemyBomberMassNearby = iEnemyBomberMassNearby + (oBomber[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * M28Utilities.iThreatFactor
+                                                                    iEnemyBomberMassNearby = iEnemyBomberMassNearby + (oBomber[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * M28UnitInfo.iThreatFactor
                                                                 else
                                                                     iEnemyBomberMassNearby = iEnemyBomberMassNearby + (oBomber[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
                                                                 end
