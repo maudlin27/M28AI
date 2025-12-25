@@ -6043,7 +6043,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         --If this exceeds our best DF range then are no longer in scenario1
                                         if bAreInScenario1 and not(iDFRangeOverrideForScenario1) and (iEnemyBestDFRange <= iFriendlyBestMobileDFRange or iEnemyBestDFRange < iFriendlyBestMobileIndirectRange) and oUnit[M28UnitInfo.refiDFRange] >= iFriendlyBestMobileDFRange and oUnit[M28UnitInfo.refiDFRange] >= iFriendlyBestMobileIndirectRange and ((oUnit[M28UnitInfo.refiDFRange] > iFriendlyBestMobileDFRange or (oUnit[M28UnitInfo.refiDFRange] == iFriendlyBestMobileDFRange and oUnit[M28UnitInfo.refiDFRange] > iFriendlyBestMobileIndirectRange)))  then
                                             bAreInScenario1 = false
-                                            bDebugMessages = true
                                             if bDebugMessages == true then LOG(sFunctionRef..': Are no longer in scenario 1 as have nearby enemy that outranges (or equals and outranges IF) our best range') end
                                         end
                                         iEnemyBestDFRange = oUnit[M28UnitInfo.refiDFRange]
