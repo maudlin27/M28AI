@@ -4315,10 +4315,16 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
             iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; Travel dist='..tPathingDetails[M28Map.subrefLZTravelDist]..'; Does it want DF support='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsDFSupport])) end
             if tPathingDetails[M28Map.subrefLZTravelDist] < iHighValueDistanceThreshold then
-                if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsDFSupport] then
-                    iCurValue = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTValue]
+                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                if tAdjLZTeamData[M28Map.subrefbLZWantsDFSupport] then
+                    iCurValue = tAdjLZTeamData[M28Map.subrefLZTValue]
                     if iAdjLZ == iRecentLandZoneRef then iCurValue = iCurValue * 1.05 + 25 end
-                    if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTValue] > iHighestValueAmount then
+                    if (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < 50 + 100 * oACU[refiUpgradeCount] then
+                        iCurValue = iCurValue * 0.7
+                        if bDebugMessages == true then LOG(sFunctionRef..': Reducing value of going to this zone as small enemy combat threat') end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurValue='..iCurValue..'; iHighestValueAmount='..iHighestValueAmount..'; subrefLZTValue (i.e. cur value before adjust)='..tAdjLZTeamData[M28Map.subrefLZTValue]) end
+                    if iCurValue > iHighestValueAmount then
                         --Have we run from this zone recently?
                         if not(oACU[reftiTimeLastRanFromZoneByPlateau][iPlateau][iAdjLZ]) or GetGameTimeSeconds() - oACU[reftiTimeLastRanFromZoneByPlateau][iPlateau][iAdjLZ] > iSecondsToIgnoreZonesRecentlyRunFrom then
                             if not(oACU[refiLastPlateauAndZoneToAttackUnitIn][2] == iAdjLZ) or not(oACU[refiLastPlateauAndZoneToAttackUnitIn][1] == iPlateau) or GetGameTimeSeconds() - (oACU[refiTimeLastToldToAttackUnitInOtherZone] or -100) > 30 then
@@ -7221,20 +7227,28 @@ function GetACUOrder(aiBrain, oACU)
                                                                                                         if bDebugMessages == true then LOG(sFunctionRef..': Will try getting reclaim in range or attacking enemy in this zone') end
                                                                                                     else
                                                                                                         --ACU is in a zone with lots of reclaim - consider prioritising this over attacking nearby enemies
-                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if reclaim in this zone valuable enough to focus on it instead of enemies; Cur mass stored='..aiBrain:GetEconomyStoredRatio('MASS')..'; Signif Reclaim in zone='..tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]..'; S value of zone='..tLZOrWZTeamData[M28Map.subrefLZSValue]) end
+
                                                                                                         --Only consider reclaim if min value of a wreck is 40 - dont want to waste ACU time on harder to get reclaim
                                                                                                         local iMinIndivReclaimThreshold = 40
-                                                                                                        if M28Conditions.ZoneWantsT1Spam(tLZOrWZTeamData, iTeam) then
-                                                                                                            if aiBrain:GetEconomyStored('MASS') < 50 then iMinIndivReclaimThreshold = 60 else iMinIndivReclaimThreshold = 100 end
+                                                                                                        local iMinTotalReclaimThreshold = 300
+                                                                                                        if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or (tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.2 and tLZOrWZTeamData[M28Map.refiTimeLastBuiltAtFactory] and GetGameTimeSeconds() - tLZOrWZTeamData[M28Map.refiTimeLastBuiltAtFactory] <= 60 and tLZOrWZTeamData[M28Map.subrefLZSValue] >= 500 and (tLZOrWZTeamData[M28Map.subrefLZSValue] >= 5000 or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZOrWZTeamData, M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryEngineer) >= 4)) then
+                                                                                                            iMinIndivReclaimThreshold = 100
+                                                                                                            iMinTotalReclaimThreshold = 900
+                                                                                                        elseif M28Conditions.ZoneWantsT1Spam(tLZOrWZTeamData, iTeam) then
+                                                                                                            if aiBrain:GetEconomyStored('MASS') < 50 then iMinIndivReclaimThreshold = 60 else
+                                                                                                                iMinIndivReclaimThreshold = 100
+                                                                                                                iMinTotalReclaimThreshold = 400
+                                                                                                            end
                                                                                                         end
-                                                                                                        if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= 300 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and tLZOrWZTeamData[M28Map.subrefLZSValue] <= 200 and aiBrain:GetEconomyStoredRatio('MASS') <= 0.6 and ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, iMinIndivReclaimThreshold) then
+                                                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if reclaim in this zone valuable enough to focus on it instead of enemies; Cur mass stored='..aiBrain:GetEconomyStoredRatio('MASS')..'; Signif Reclaim in zone='..tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]..'; S value of zone='..tLZOrWZTeamData[M28Map.subrefLZSValue]..'; iMinTotalReclaimThreshold='..iMinTotalReclaimThreshold) end
+                                                                                                        if tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] >= iMinTotalReclaimThreshold and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and tLZOrWZTeamData[M28Map.subrefLZSValue] <= 200 and aiBrain:GetEconomyStoredRatio('MASS') <= 0.6 and ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, false, iMinIndivReclaimThreshold) then
                                                                                                             if bDebugMessages == true then LOG(sFunctionRef..': Lots of reclaim in area so will focus on that') end
                                                                                                         else
                                                                                                             if AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
                                                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Attacking enemies in adjacent zone') end
                                                                                                             else
                                                                                                                 local bOnlyConsiderInBuildRange = false
-                                                                                                                if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and (not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or (GetGameTimeSeconds() <= 300 and aiBrain[M28Economy.refiGrossMassBaseIncome] <= 4)) then bOnlyConsiderInBuildRange = true
+                                                                                                                if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and (tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or (oACU[refiUpgradeCount] > 0 and not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])) or (GetGameTimeSeconds() <= 300 and aiBrain[M28Economy.refiGrossMassBaseIncome] <= 4)) then bOnlyConsiderInBuildRange = true
                                                                                                                 elseif oACU[refiUpgradeCount] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] <= 2 and not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.55 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 then
                                                                                                                     bOnlyConsiderInBuildRange = true
                                                                                                                 elseif M28Conditions.ZoneWantsT1Spam(tLZOrWZTeamData, iTeam) then bOnlyConsiderInBuildRange = true
