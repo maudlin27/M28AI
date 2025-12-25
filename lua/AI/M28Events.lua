@@ -3350,11 +3350,11 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
                     if not(oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam]) then oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam] = {} end
                     oUnitDetected[M28UnitInfo.refbHaveSeenUnitByTeam][aiBrain.M28Team] = true
                     if oUnitDetected[M28Air.refiTimeLastWantedPriorityAirScout] and EntityCategoryContains(M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategorySML, oUnitDetected.UnitId) then
-                        if M28Utilities.IsTableEmpty(tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains]) == false then
                             local tbAirSubteamConsidered = {}
                             for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains] do
                                 if not(tbAirSubteamConsidered[oBrain.M28AirSubteam]) then
-                                    RemoveUnitFromPriorityScoutTable(oUnitDetected, oBrain.M28AirSubteam)
+                                    M28Air.RemoveUnitFromPriorityScoutTable(oUnitDetected, oBrain.M28AirSubteam)
                                     tbAirSubteamConsidered[oBrain.M28AirSubteam] = true
                                 end
                             end
