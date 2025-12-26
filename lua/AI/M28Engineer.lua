@@ -6095,7 +6095,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                             --Backup e.g. if looking for energy reclaim but only have mass available
                             if not(oNearestReclaim) then
                                 if iCurDistToTargetPos < iNearestReclaimWithAnyValue and (oReclaim.MaxMassReclaim or 0) + (oReclaim.MaxEnergyReclaim or 0) > 0 then
-                                    if not(oNearestAnyValueReclaim) or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oReclaim.CachePosition) == iEngiPlateau or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oReclaim.CachePosition) == iPlateauOrPond then
+                                    if (not(oNearestAnyValueReclaim) or (oNearestAnyValueReclaim[M28Map.refbUnreachableReclaim] and not(oReclaim[M28Map.refbUnreachableReclaim]))) or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oReclaim.CachePosition) == iEngiPlateau or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oReclaim.CachePosition) == iPlateauOrPond then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Recording reclaim as a backup for now so we have at least something to reclaim') end
                                         oNearestAnyValueReclaim = oReclaim
                                         iNearestReclaimWithAnyValue = iCurDistToTargetPos
@@ -6113,24 +6113,51 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                     end
                     if M28Utilities.bCPUPerformanceMode and oNearestReclaim then break end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished cycling through reclaim, is oNearestReclaim nil='..tostring(oNearestReclaim == nil)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished cycling through reclaim, is oNearestReclaim nil='..tostring(oNearestReclaim == nil)..'; bCheckTerrain='..tostring(bCheckTerrain or false)) end
                 if not(oNearestReclaim) and bConsiderBelowMinValueIfCantFindAny then
                     oNearestReclaim = oNearestAnyValueReclaim
                     --Check this is in the same zone
                     if oNearestReclaim and bCheckTerrain then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if nearest any value reclaim is in the same plateau, Hover label of cacheposition='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaim.CachePosition) or 'ni')..'; iEngiPlateau='..(iEngiPlateau or 'nil')..'; iPlateauOrPond='..(iPlateauOrPond or 'nil')) end
                         if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaim.CachePosition) == iEngiPlateau or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaim.CachePosition) == iPlateauOrPond) then
                             local iDistToReclaim = M28Utilities.GetDistanceBetweenPositions(oNearestReclaim.CachePosition, oEngineer:GetPosition())
                             local iRangeToWreck = iMaxDistanceToEngineer + math.min((oNearestReclaim:GetBlueprint().SizeX or 0.5), (oNearestReclaim:GetBlueprint().SizeZ or 0.5))*0.5
+                            if bDebugMessages == true then LOG(sFunctionRef..': iDistToReclaim='..iDistToReclaim..'; iRangeToWreck='..iRangeToWreck) end
                             if iDistToReclaim > iRangeToWreck then
-                                local tPotentialLocationToMove = M28Utilities.MoveInDirection(oNearestReclaim.CachePosition, M28Utilities.GetAngleFromAToB(oNearestReclaim.CachePosition, oEngineer:GetPosition()), iRangeToWreck, true, false, M28Map.bIsCampaignMap)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Ignoring reclaim as we cant path to it, unless the engineer can path somewhere that is within build range of here, tPotentialLocationToMove='..repru(tPotentialLocationToMove)..'; Hover label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) or 'nil')..'; iPlateauOrPond='..iPlateauOrPond..'; iDistToReclaim='..iDistToReclaim..'; iMaxDistanceToEngineer='..iMaxDistanceToEngineer..'; Angle from engi to reclaim='..M28Utilities.GetAngleFromAToB(oEngineer:GetPosition(), oNearestReclaim.CachePosition)) end
-                                if M28Utilities.IsTableEmpty(tPotentialLocationToMove) or not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) == iEngiPlateau or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) == iPlateauOrPond) then
-                                    --Want to consider reassigning this reclaim segment if the only reclaim in it is in a different plateau
-                                    oNearestReclaim = nil
+                                local iBaseAngle = M28Utilities.GetAngleFromAToB(oNearestReclaim.CachePosition, oEngineer:GetPosition())
+                                local bNoValidPotentialLocation = true
+                                for iAngleAdjust = 0, 315, 45 do
+                                    local tPotentialLocationToMove = M28Utilities.MoveInDirection(oNearestReclaim.CachePosition, iBaseAngle + iAngleAdjust, iRangeToWreck, true, false, M28Map.bIsCampaignMap)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Ignoring reclaim as we cant path to it, unless the engineer can path somewhere that is within build range of here, tPotentialLocationToMove='..repru(tPotentialLocationToMove)..'; Hover label of this='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) or 'nil')..'; iPlateauOrPond='..iPlateauOrPond..'; iDistToReclaim='..iDistToReclaim..'; iMaxDistanceToEngineer='..iMaxDistanceToEngineer..'; Angle from engi to reclaim='..M28Utilities.GetAngleFromAToB(oEngineer:GetPosition(), oNearestReclaim.CachePosition)) end
+                                    if M28Utilities.IsTableEmpty(tPotentialLocationToMove) == false and (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) == iEngiPlateau or NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPotentialLocationToMove) == iPlateauOrPond) then
+                                        bNoValidPotentialLocation = false
+                                        break
+                                    end
+                                end
+                                if bNoValidPotentialLocation then
+                                    --Could we path to the midpoint of the reclaim segmetn from engi plateau, and (if so) can we then reach the reclaim position from this midpoint?
+                                    local bCantPathToSegmentMidpoint = true
                                     if tiClosestSegmentXZ then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segments for this zone before reassignment='..reprs(tLZOrWZData[M28Map.subrefReclaimSegments])) end
-                                        M28Map.ReassignReclaimSegment(tiClosestSegmentXZ[1], tiClosestSegmentXZ[2], tLZOrWZData)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segments for this zone after reassignment='..reprs(tLZOrWZData[M28Map.subrefReclaimSegments])) end
+                                        local tClosestSegmentMidpoint = M28Map.tReclaimAreas[tiClosestSegmentXZ[1]][tiClosestSegmentXZ[2]][M28Map.refReclaimSegmentMidpoint]
+                                        if tClosestSegmentMidpoint then
+                                            local iClosestSegmentPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tClosestSegmentMidpoint)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iClosestSegmentPlateau='..(iClosestSegmentPlateau or 'nil')..'; Dist from reclaim to segment midpoint='..M28Utilities.GetDistanceBetweenPositions(tClosestSegmentMidpoint, oNearestReclaim.CachePosition)..'; iRangeToWreck='..iRangeToWreck) end
+                                            if iClosestSegmentPlateau and iClosestSegmentPlateau == iEngiPlateau and M28Utilities.GetDistanceBetweenPositions(tClosestSegmentMidpoint, oNearestReclaim.CachePosition) <= iRangeToWreck then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': We can path here after all, probably, so will retain') end
+                                                bCantPathToSegmentMidpoint = false
+                                            end
+                                        end
+                                    end
+                                    if bCantPathToSegmentMidpoint then
+                                        --Mark against the reclaim it is of no value
+                                        oNearestAnyValueReclaim[M28Map.refbUnreachableReclaim] = true
+                                        --Want to consider reassigning this reclaim segment if the only reclaim in it is in a different plateau
+                                        oNearestReclaim = nil
+                                        if tiClosestSegmentXZ then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segments for this zone before reassignment='..reprs(tLZOrWZData[M28Map.subrefReclaimSegments])..'; Size of this='..table.getn(tLZOrWZData[M28Map.subrefReclaimSegments])..'; tiClosestSegmentXZ[1]='..(tiClosestSegmentXZ[1] or 'nil')..'; tiClosestSegmentXZ[2]='..(tiClosestSegmentXZ[2] or 'nil')) end
+                                            M28Map.ReassignReclaimSegment(tiClosestSegmentXZ[1], tiClosestSegmentXZ[2], tLZOrWZData)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segments for this zone after reassignment='..reprs(tLZOrWZData[M28Map.subrefReclaimSegments])..'; Size of this='..table.getn(tLZOrWZData[M28Map.subrefReclaimSegments])) end
+                                        end
                                     end
                                 end
                             end
@@ -6193,9 +6220,9 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                             elseif iMinIndividualValueOverride and iMinIndividualValueOverride > M28Map.iLowestMassThreshold and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': ACU was trying to get high value reclaim if there was any, since there isnt ACU should just proceed to other orders') end
                             else
-                                M28Utilities.ErrorHandler('Couldnt find anything to reclaim but we have refreshed the zone in the last second, mass value post refresh was less than pre refresh', true)
+                                M28Utilities.ErrorHandler('Couldnt find anything to reclaim but we have refreshed the zone in the last second, mass value post refresh was less than pre refresh, see log for more info', true)
+                                LOG(sFunctionRef..': Post warning message: iPlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; iMinIndividualValueOverride='..(iMinIndividualValueOverride or 'nil')..'; subrefHighestIndividualReclaim='..(tLZOrWZData[M28Map.subrefHighestIndividualReclaim] or 'nil'))
                             end
-
                         end
                     end
                 end
