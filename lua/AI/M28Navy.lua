@@ -4335,7 +4335,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
                                     --If we have a long range unit, then check if we already have any high value targets in our range (as sometimes attack-move e.g. on a summit doesnt cause it to stop and fire when enemy is in range)
 
-                                    if oUnit[M28UnitInfo.refiCombatRange] >= 100 then
+                                    if oUnit[M28UnitInfo.refiCombatRange] >= 100 and not(oEnemyToFocusOn.Dead) then
                                         if M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEnemyToFocusOn) and M28Utilities.GetDistanceBetweenPositions(oEnemyToFocusOn:GetPosition(), oUnit:GetPosition()) <= oUnit[M28UnitInfo.refiCombatRange] - 6 then --dont want to chase after enemy necessarily
                                             M28Orders.IssueTrackedAttack(oUnit, oEnemyToFocusOn, false, 'LRNAtE', false)
                                         else
