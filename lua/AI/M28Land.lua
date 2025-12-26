@@ -13353,7 +13353,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                             if not(oEnemy.Dead) and oEnemy:GetFractionComplete() >= 0.9 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Extra check for DF enemies in this zone, oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Dist to our scout='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oScout:GetPosition())..'; DF range='..oEnemy[M28UnitInfo.refiDFRange]) end
                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oScout:GetPosition())
-                                if iCurDist <= 60 and (iCurDist <= iRadarRange or M28UnitInfo.CanSeeUnit(aiBrain, oEnemy, false) and iCurDist - (oEnemy[M28UnitInfo.refiDFRange] or 0) <= 8) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oEnemy.UnitId)) then
+                                if iCurDist <= 60 and (iCurDist <= iRadarRange or M28UnitInfo.CanSeeUnit(aiBrain, oEnemy, false) and iCurDist - oEnemy[M28UnitInfo.refiDFRange] <= 8) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oEnemy.UnitId)) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Adding to table of enemies to run from') end
                                     if not(tEnemiesToRunFrom) then tEnemiesToRunFrom = {} end
                                     table.insert(tEnemiesToRunFrom, oEnemy)

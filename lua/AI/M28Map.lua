@@ -72,8 +72,6 @@ tReclaimAreas = {} --Stores reclaim info for each segment: tReclaimAreas[iSegmen
 iSignificantMassThreshold = 10 --global variable (not part of above table), being the threshold for recording mass reclaim as significant mass
 iLowestMassThreshold = 0.8 --E.g. covers some but not all individual trees on twin rivers; wont record any mass value for wrecks below this when updating segment info
 tiPlateauAndZonesToRefreshReclaimAgain = {} --[x] is the plateau or zero for water, [y] is 1,2,3....z, and returns the land/water zone
-refbUnreachableReclaim = 'RNV' --Against wreck; true if we wanted to reclaim the wreck but couldnt get an engineer in the same plateau near enough
-bMapHasUnreachableReclaim = false --true if we have unreachable reclaim
 --reftReclaimTimeOfLastEngineerDeathByArmyIndex = 4 --Table: [a] where a is the army index, and it returns the time the last engineer died
     --refReclaimTimeLastEnemySightedByArmyIndex = 5
     --refsSegmentMidpointLocationRef = 6
@@ -5431,11 +5429,10 @@ function GetReclaimInRectangle(iReturnType, rRectangleToSearch, bForceDebug)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iTotalResourceValue='..iTotalResourceValue) end
         else
-            local bMapHasNoReclaimThatIsUnreachable = not(bMapHasUnreachableReclaim)
             for _, v in tReclaimables do
                 --if bDebugMessages == true then LOG(sFunctionRef..': _='.._..'; repr of reclaimable='..repru(tReclaimables)) end
                 local WreckPos = v.CachePosition
-                if not(WreckPos[1]==nil) and (bMapHasNoReclaimThatIsUnreachable or not(v[refbUnreachableReclaim])) then
+                if not(WreckPos[1]==nil) then
                     if bDebugMessages == true then LOG(sFunctionRef..': _='.._..'; Cur mass value='..(v.MaxMassReclaim or 0)..'; Energy value='..(v.MaxEnergyReclaim or 0)) end
                     if (v.MaxMassReclaim or 0) > 0 or (v.MaxEnergyReclaim or 0) > 0 then
                         if bDebugMessages == true then LOG('Been destroyed='..tostring(v:BeenDestroyed())) end
@@ -8185,7 +8182,7 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                     iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
                     if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..aiBrain.Nickname..'; M28Team='..aiBrain.M28Team..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated]='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 'nil')..'; iTimeLastPlayerDefeat='..M28Overseer.iTimeLastPlayerDefeat..'; Cur time='..GetGameTimeSeconds()..'; Time since team defeated='..GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0)) end
                     --LOUD - even after 10s this can trigger when enemy team is all dead, so only display error after 37s
-                    if not(bIsCampaignMap) and GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 10 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 80) and GetGameTimeSeconds() - (M28Overseer.iTimeLastPlayerDefeat or 0) > 2 then M28Utilities.ErrorHandler('Dont have any enemy brains recorded for team '..aiBrain.M28Team..' so possible something has gone wrong') end
+                    if not(bIsCampaignMap) and GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 5 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeOfEnemiesDefeated] or 0) > 80) then M28Utilities.ErrorHandler('Dont have any enemy brains recorded for team '..aiBrain.M28Team..' so possible something has gone wrong') end
                 else
                     --Redundancy - work out closest enemy brain to the target
                     if not(oClosestEnemyBrainToTarget) then
@@ -8388,7 +8385,7 @@ function ReassignReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ, tCurAssigned
     if M28Utilities.IsTableEmpty(tCurAssignedLZOrWZData[subrefReclaimSegments]) == false then
         for iEntry, tReclaimXZ in tCurAssignedLZOrWZData[subrefReclaimSegments] do
             if tReclaimXZ[1] == iReclaimSegmentX and tReclaimXZ[2] == iReclaimSegmentZ then
-                if bDebugMessages == true then LOG(sFunctionRef..': will remove reclaim segment X'..iReclaimSegmentX..'Z'..iReclaimSegmentZ..' from the LZOrWZData, iEntry='..iEntry) end
+                if bDebugMessages == true then LOG(sFunctionRef..': will remove reclaim segment X'..iReclaimSegmentZ..'Z'..iReclaimSegmentZ..' from the LZOrWZData, iEntry='..iEntry) end
                 table.remove(tCurAssignedLZOrWZData[subrefReclaimSegments], iEntry)
                 break
             end
@@ -8576,14 +8573,13 @@ function GetReclaimablesMassAndEnergy(tReclaimables, iMinMass, iMinEnergy, bAppl
     local iLargestReclaimRef = 0
     local iTotalMassAboveThreshold = 0
     local iMassThreshold = math.max(iSignificantMassThreshold, iMinMass or 0) --Will consider anything >= this for iTotalMassAboveThreshold
-    local bMapHasNoReclaimThatIsUnreachable = not(bMapHasUnreachableReclaim)
 
     if tReclaimables and table.getn( tReclaimables ) > 0 then
         for iReclaimRef, v in tReclaimables do
             tWreckPos = v.CachePosition
             if tWreckPos[1] then
                 --if v.MaxMassReclaim > iIgnoreReclaimIfNotMoreThanThis then
-                if not(v:BeenDestroyed()) and (bMapHasNoReclaimThatIsUnreachable or not(v[refbUnreachableReclaim])) then
+                if not(v:BeenDestroyed()) then
                     if bDebugMessages == true then LOG(sFunctionRef..': iReclaimRef='..iReclaimRef..'; Mass='..(v[sMassRef] or 'nil')..'; Energy='..(v[sEnergyRef] or 'nil')) end
                     if v[sMassRef] > iMinMass then
                         iTotalMass = iTotalMass + v[sMassRef]

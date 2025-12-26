@@ -14038,12 +14038,13 @@ function EnemyNavalEngineerBomber(oBomber)
                                             local rRectAroundFactory = Rect(tPosition[1] - iRadius - oBP.SizeX, tPosition[3] - iRadius, tPosition[1] + iRadius + oBP.SizeX, tPosition[3] + iRadius + oBP.SizeZ)
                                             local toUnitsInRect = GetUnitsInRect(rRectAroundFactory)
                                             if M28Utilities.IsTableEmpty(toUnitsInRect) == false then
+                                                local oBP = oFactory:GetBlueprint()
                                                 local toEngisInRect = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, toUnitsInRect)
                                                 if M28Utilities.IsTableEmpty(toEngisInRect) == false and table.getn(toEngisInRect) >= 4 then
                                                     iCurEngineersWeLackIntelOf = 0
                                                     for iEngi, oEngi in toEngisInRect do
                                                         if not(oEngi.Dead) then
-                                                            if not(oEngi[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]) and not(M28UnitInfo.CanSeeUnit(aiBrain, oEngi)) then
+                                                            if not(oEngi[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]) and not(M28UnitInfo.CanSeeUnit(oEngi)) then
                                                                 iCurEngineersWeLackIntelOf = iCurEngineersWeLackIntelOf + 1
                                                             else
                                                                 iCurDamageFromBomb = 20 + M28Logic.GetDamageFromBomb(aiBrain, oEngi:GetPosition(), iAOE, iStrikeDamage, nil, nil, false, nil, nil, 1, false, nil, true, nil, nil, nil, false, nil)
