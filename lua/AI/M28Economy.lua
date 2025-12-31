@@ -67,7 +67,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker, iOptionalWait)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+        
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitToUpgrade='..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..' owned by '..oUnitToUpgrade:GetAIBrain().Nickname..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])..'; Unit enhancement upgrade count='..(oUnitToUpgrade[M28ACU.refiUpgradeCount] or 'nil')..'; refbTriedUpgrading='..tostring(oUnitToUpgrade[M28UnitInfo.refbTriedUpgrading] or false)..'; refbObjectiveUnit='..tostring(oUnitToUpgrade[M28UnitInfo.refbObjectiveUnit] or false)..'; Is oUnitToUpgrade.EventCallbacks.OnKilled nil='..tostring(oUnitToUpgrade.EventCallbacks.OnKilled == nil)..'; iOptionalWait='..(iOptionalWait or 'nil')) M28Utilities.ErrorHandler('Audit trail for unit upgrade', true, true) end
 
     if iOptionalWait and iOptionalWait > 0 then
@@ -775,22 +775,26 @@ function ConsiderHydroUpgradeLoop(oUnit)
                 if tLZTeamData[M28Map.refiModDistancePercent] >= 0.3 then
                     local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
                     local iResourceFactorAdjust = 1.5
-                    if tLZTeamData[M28Map.refiModDistancePercent] >= 0.45 then
+                    if tLZTeamData[M28Map.refiModDistancePercent] >= 0.45 then --dont really want to get if near middle of map
                         if iUnitTechLevel >= 2 then
                             iDelay = 120
-                            iResourceFactorAdjust = 6
+                            if aiBrain[refiGrossEnergyBaseIncome] >= 400 then
+                                iResourceFactorAdjust = 10
+                            else
+                                iResourceFactorAdjust = 8
+                            end
                         else
                             iDelay = 60
-                            iResourceFactorAdjust = 3
+                            iResourceFactorAdjust = 5
                         end
 
                     else
                         if iUnitTechLevel >= 2 then
                             iDelay = 60
-                            iResourceFactorAdjust = 2.5
+                            iResourceFactorAdjust = 3
                         else
                             iDelay = 30
-                            iResourceFactorAdjust = 1.75
+                            iResourceFactorAdjust = 2
                         end
                     end
                     iMassPerTickWanted = iMassPerTickWanted * iResourceFactorAdjust
