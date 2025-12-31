@@ -12651,7 +12651,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         tiAdjacentLandZonesWantingEngineersThatAlreadyHaveSome[iPathingRef] = iAdjLZ
                     else
                         tLZWantingBPConsidered[iAdjLZ] = true
-                                        --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
+                        --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
                         local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, true,            false,          true,                   true)
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; tiBPByTechWanted='..repru(tiBPByTechWanted)) end
                         if tiBPByTechWanted then
@@ -13184,7 +13184,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                                     if bDebugMessages == true then LOG(sFunctionRef..': Already have enough engineers traveling here') end
                                 else
                                     tLZWantingBPConsidered[iAdjLZ] = true
-                                                --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
+                                    --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
                                     local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, true,        false,          true,                   true)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; tiBPByTechWanted='..repru(tiBPByTechWanted)) end
                                     if tiBPByTechWanted then
@@ -13463,8 +13463,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --V high priority TMD (we have another TMD builder a bit lower)
     iCurPriority = iCurPriority + 1
+
     if bDebugMessages == true then LOG(sFunctionRef..': Very high priority TMD builder, is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; Enemy combat total='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD]) >= 4 then
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and (table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD]) >= 4 or (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 3 and table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD]) >= 2) or (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] == 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTMD) < 3)) then
         local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone)
         if bDebugMessages == true then LOG(sFunctionRef..': Is oUnitWantingTMD valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnitWantingTMD))) end
         if oUnitWantingTMD then
@@ -13473,10 +13474,21 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bSaveMassForMML then
                 iBPWanted = iBPWanted * 0.5
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Want to build TMD, iBPWanted='..iBPWanted..'; Unit wanting TMD='..oUnitWantingTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitWantingTMD)) end
-            HaveActionToAssign(refActionBuildTMD, 2, iBPWanted, oUnitWantingTMD)
+            --GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bReturnTMLCountAsWell, iOptionalCategoryWanted, bGetClosestUnitToOurBase)
+            local oSecondUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone,     false,                  nil,                    false,              oUnitWantingTMD)
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to build TMD, iBPWanted='..iBPWanted..'; Unit wanting TMD='..oUnitWantingTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitWantingTMD)..'; oSecondUnitWantingTMD='..(oSecondUnitWantingTMD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSecondUnitWantingTMD) or 'nil')) end
+            iCurPriority = iCurPriority + 1
+            if oUnitWantingTMD and not(oSecondUnitWantingTMD == oUnitWantingTMD) then
+                if bDebugMessages == true then LOG(sFunctionRef..': We will try and build a second TMD as well') end
+                HaveActionToAssign(refActionBuildSecondTMD, 2, math.min(10, iBPWanted), oSecondUnitWantingTMD)
+            end
+        else
+            iCurPriority = iCurPriority + 1
         end
+    else
+        iCurPriority = iCurPriority + 1
     end
+    bDebugMessages = false
 
     --first ever experimental to build - rush if have t3 mex
     iCurPriority = iCurPriority + 1
@@ -13503,7 +13515,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and rush our first experimental, iBPWanted='..iBPWanted) end
             --AssignBuildExperimentalOrT3NavyAction(fnHaveActionToAssign, iPlateau, iLandOrWaterZone, iTeam, tLZOrWZData, bIsWaterZone, iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
             AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam,               tLZData, tLZTeamData, false, refActionBuildExperimental, 3, iBPWanted)
-                --HaveActionToAssign(refActionBuildExperimental, 3, iBPWanted)
+            --HaveActionToAssign(refActionBuildExperimental, 3, iBPWanted)
         end
     end
 
@@ -14742,10 +14754,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if bDebugMessages == true then LOG(sFunctionRef..': Priority T3 radar for fatboy and sniperbots,  tLZTeamData[M28Map.refiRadarCoverage]='.. tLZTeamData[M28Map.refiRadarCoverage]..'; Exp cosntructed count='..M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount]..'; Team has omni vision='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision])..'; Team is stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Team gross E='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; aiBrain[M28Overseer.refbBuiltLongRangeLandUnit]='..tostring(aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] or false)..'; Brain gross E='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Team grossE='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Brain nickname='..aiBrain.Nickname..'; Is tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
     if (tLZTeamData[M28Map.refiRadarCoverage] <= M28UnitInfo.iT2RadarSize and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmniVision]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) and
             (((M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 900)) and
-            ((M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZOrWZMexCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 10)) or
-                    (aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] and (M28Map.iMapSize >= 500 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 700)) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 300 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 900 or not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1500))))
+                    ((M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZOrWZMexCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 10)) or
+                            (aiBrain[M28Overseer.refbBuiltLongRangeLandUnit] and (M28Map.iMapSize >= 500 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 700)) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 300 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 900 or not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1500))))
 
-            or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 600 and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategorySML,M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingAirScout])) == false)) then
+                    or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 600 and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingAirScout]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategorySML,M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftPriorityUnitsWantingAirScout])) == false)) then
 
         --We have built at least 1 exp, and lack omni coverage, and have enough powe that we could probably support an omni
         local bHaveFatboyOrSnipers = false
@@ -15488,7 +15500,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         if not(tAdjLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
                             --Can we reach the island?
                             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAdjLZData[M28Map.subrefMidpoint]) then
-                                            --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
+                                --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
                                 local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, tPathingData[M28Map.subrefIslandClosestLZRef], iEntry, iHighestTechEngiAvailable, false, true, false)
                                 if bDebugMessages == true then LOG(sFunctionRef..': tiBPByTechWanted='..repru(tiBPByTechWanted)) end
                                 if tiBPByTechWanted then
@@ -15748,7 +15760,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': iAdjacentEnemyThreat='..iAdjacentEnemyThreat) end
                                     if iAdjacentEnemyThreat < 10 then
-                                                      --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
+                                        --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
                                         local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, tPathingData[M28Map.subrefIslandClosestLZRef], iEntry, iHighestTechEngiAvailable, false, true, false, false)
                                         if bDebugMessages == true then LOG(sFunctionRef..': tiBPByTechWanted='..repru(tiBPByTechWanted)) end
                                         if (tiBPByTechWanted[1] or 0) > 0 then
