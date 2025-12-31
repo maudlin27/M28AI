@@ -1264,7 +1264,7 @@ function UpdateLZUnitsWantingTMDForUnitDeath(oUnit)
     oUnit[refbUnitWantsMoreTMD] = false --redundancy
 end
 
-function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bReturnTMLCountAsWell, iOptionalCategoryWanted, bGetClosestUnitToOurBase)
+function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bReturnTMLCountAsWell, iOptionalCategoryWanted, bGetClosestUnitToOurBase, oOptionalUnitToAvoid)
     --Gets the unit closest to the nearest enemy base that wants TMD; also refreshes the table for any dead units
     --bGetClosestUnitToOurBase - if this is true, then instead of nearest enemy base will get closest to our base
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1316,7 +1316,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
     for iEntry = iUnitsWantingTMD, 1, -1 do
         if not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])) then
             table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iEntry)
-        elseif not(iOptionalCategoryWanted) or EntityCategoryContains(iOptionalCategoryWanted, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId) then
+        elseif (not(iOptionalCategoryWanted) or EntityCategoryContains(iOptionalCategoryWanted, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId)) and (not(oOptionalUnitToAvoid) or (not(oOptionalUnitToAvoid == tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]) and M28Utilities.GetDistanceBetweenPositions(oOptionalUnitToAvoid:GetPosition(), tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition()) >= 25)) then
             iCurDist = M28Utilities.GetDistanceBetweenPositions(tBaseForDistanceCheck, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])..' is the closest, iCurDist='..iCurDist..'; iCLosestDist='..iClosestDist..'; refbUnitWantsMoreTMD='..tostring(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry][refbUnitWantsMoreTMD])) end
             if iCurDist < iClosestDist then
