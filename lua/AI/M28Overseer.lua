@@ -276,7 +276,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     end
     --Check for non-AI sim-mods.  Thanks to Softles for pointing me towards the __active_mods variable
     local tSimMods = __active_mods or {}
-    local tAIModNameWhitelist = { 'M27AI', 'AI-Swarm', 'AI-Uveso', 'AI: DilliDalli', 'Dalli AI', 'Dilli AI', 'M20AI', 'Marlo\'s Sorian AI edit', 'RNGAI', 'SACUAI', 'M28AI' }
+    local tAIModNameWhitelist = { 'M27AI', 'AI-Swarm', 'AI-Uveso', 'AI: DilliDalli', 'Dalli AI', 'Dilli AI', 'M20AI', 'Marlo\'s Sorian AI edit', 'RNGAI', 'SACUAI', 'M28AI', 'SorianAI-FAF'}
 
     local tAIModNameWhereExpectAI = { 'AI-Swarm', 'AI-Uveso', 'AI: DilliDalli', 'Dalli AI', 'Dilli AI', 'M20AI', 'Marlo\'s Sorian AI edit', 'RNGAI', 'M27AI' } --Dont include M28 in this list, i.e. it shoudl be every AI except M28
     local tModIsOk = {}
@@ -2838,7 +2838,9 @@ function DecideOnGeneralMapStrategy(aiBrain)
     if tLZData[M28Map.subrefLZIslandRef] == M28Utilities.NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
         --We can path to enemy with land
         --if brain is UEF then reduce the threshold, and eliminate entirely if enemy has aeon (as aurora have same range as snoops)
-        if aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
+        if aiBrain.M28Easy then
+            aiBrain[refiCombatLandScoutThreshold] = 0 --wont be kiting with the land scouts
+        elseif aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
             aiBrain[refiCombatLandScoutThreshold] = 15 --spirits only have 1 dps so this only gives a slight long term benefit in t1 land combat
         elseif not(aiBrain[refiCombatLandScoutThreshold]) then
             if aiBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF then
