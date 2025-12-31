@@ -2446,17 +2446,19 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
         end
 
-        --More enineers if we have quite a lot of mass, active HQ upgrade (or lots of land facs), and no factories building engineers (e.g. want to cover scenario where have lots of t2 land facs and too few engineers to assist an HQ upgrade)
+        --More enineers if we have quite a lot of mass, active HQ upgrade (or lots of land facs and low LC), and no factories building engineers (e.g. want to cover scenario where have lots of t2 land facs and too few engineers to assist an HQ upgrade)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Any tech engi builder if not low mass and not building many engis, bHaveLowMass='..tostring(bHaveLowMass)..'; iLandFactoriesInLZ='..iLandFactoriesInLZ..'; subrefLZbCoreBase='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]..'; refiTotalBuildCount='..oFactory[refiTotalBuildCount]..'; is subreftoActiveUpgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]))) end
-        if not(bHaveLowMass) and iLandFactoriesInLZ >= 2 and (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.refiModDistancePercent] < 0.1 and iLandFactoriesInLZ >= 5)) and oFactory[refiTotalBuildCount] >= 5 and (iFactoryTechLevel < 3 or oFactory[refiTotalBuildCount] >= 15) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandHQ, tLZTeamData[M28Map.subreftoActiveUpgrades])) == false and (iFactoryTechLevel >= 2 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] <= 2) then
+        if (not(bHaveLowMass) and iLandFactoriesInLZ >= 2 and (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.refiModDistancePercent] < 0.1 and iLandFactoriesInLZ >= 5)) and oFactory[refiTotalBuildCount] >= 5 and (iFactoryTechLevel < 3 or oFactory[refiTotalBuildCount] >= 15) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandHQ, tLZTeamData[M28Map.subreftoActiveUpgrades])) == false and (iFactoryTechLevel >= 2 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] <= 2))
+        or (iLandFactoriesInLZ >= 2 and tLZTeamData[M28Map.subrefLZbCoreBase] and iFactoryTechLevel > 1 and iFactoryTechLevel == aiBrain[M28Economy.refiOurHighestLandFactoryTech] and oFactory[refiTotalBuildCount] < 15 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 10)
+         then
             local iCurT1T2BPWanted = tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1]
             if iFactoryTechLevel > 1 then iCurT1T2BPWanted = iCurT1T2BPWanted + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2] end
             if bDebugMessages == true then LOG(sFunctionRef..': Dont have low mass, in core base, have upgrading HQ, iCurT1T2BPWanted='..iCurT1T2BPWanted..'; iLandFactoriesInLZ='..iLandFactoriesInLZ..'; subrefTbWantBP='..tostring(tLZTeamData[M28Map.subrefTbWantBP])) end
             if iCurT1T2BPWanted > 20 or (tLZTeamData[M28Map.subrefTbWantBP] and iLandFactoriesInLZ >= 4) then
                 local iCurEngineersBeingBuilt = M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer)
                 local iMaxEngisAtOnce = 1
-                if iLandFactoriesInLZ >= 4 and iCurT1T2BPWanted > 40 then
+                if not(bHaveLowMass) and iLandFactoriesInLZ >= 4 and iCurT1T2BPWanted > 40 then
                     if iLandFactoriesInLZ >= 8 then iMaxEngisAtOnce = 3 else iMaxEngisAtOnce = 2 end
                 end
 
