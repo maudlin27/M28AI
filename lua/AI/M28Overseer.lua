@@ -845,6 +845,12 @@ function CheckUnitCap(aiBrain)
                         tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryMAA * categories.TECH2
                     end
                 end
+                if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= -2 then
+                    --Include t2 mexes if we have lots of t3 mexes
+                    if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiMexCountByTech][3] >= 100 then
+                        tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryT2Mex
+                    end
+                end
             end
 
             --Restrict T3 land combat units being built if we have experimental level units and are at the lowest level of unit cap
