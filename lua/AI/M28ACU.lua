@@ -2416,7 +2416,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
     local sFunctionRef = 'DoesACUWantToRun'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU[refiUpgradeCount] >= 3 and oACU:GetAIBrain().M28Easy then bDebugMessages = true end
 
     local bWantToRun = false
     local iTeam = oACU:GetAIBrain().M28Team
@@ -2745,12 +2745,14 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                             if not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) and iHealthPercent >= 0.9 then iEnemyNearbyThreat = iEnemyNearbyThreat - M28UnitInfo.GetCombatThreatRating(tOutrangedACUs, true, false) * 0.4 end
                                         end
 
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyNearbyThreat='..iEnemyNearbyThreat..'; iACUThreat='..iACUThreat..'; iEnemyMobileNearbyDFThreat='..iEnemyMobileNearbyDFThreat..'; bAgainstEnemyACUAndMightWin='..tostring(bAgainstEnemyACUAndMightWin or false)..'; iPercentageToFriendlyBase='..iPercentageToFriendlyBase..'; bAdjacentToCoreLZ='..tostring(bAdjacentToCoreLZ)..'; iAllyNearbyThreat='..iAllyNearbyThreat..'; iMaxLRThreat='..iMaxLRThreat..'; ACU cur health+shield='..M28UnitInfo.GetUnitCurHealthAndShield(oACU)..'; ACU cur health+shield%='..M28UnitInfo.GetUnitHealthAndShieldPercent(oACU)) end
-                                        --Run if enemy has a really large threat (regardless of if we think we can beat it)
-                                        if iEnemyNearbyThreat > math.min(math.max(iACUThreat * 2, iACUThreat * 0.75 + iAllyNearbyThreat), 4000 + 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (iEnemyNearbyThreat > math.max(iACUThreat * 3, iACUThreat + iAllyNearbyThreat) or ((not(bAgainstEnemyACUAndMightWin) and iPercentageToFriendlyBase >= 0.35 and not(bAdjacentToCoreLZ) and not(oACU[refbUseACUAggressively]))))
-                                                and (iACUThreat < iEnemyMobileNearbyDFThreat * 1.1 or iACUThreat * 3 < iEnemyNearbyThreat)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyNearbyThreat='..iEnemyNearbyThreat..'; iACUThreat='..iACUThreat..'; iEnemyMobileNearbyDFThreat='..iEnemyMobileNearbyDFThreat..'; bAgainstEnemyACUAndMightWin='..tostring(bAgainstEnemyACUAndMightWin or false)..'; iPercentageToFriendlyBase='..iPercentageToFriendlyBase..'; bAdjacentToCoreLZ='..tostring(bAdjacentToCoreLZ)..'; iAllyNearbyThreat='..iAllyNearbyThreat..'; iMaxLRThreat='..iMaxLRThreat..'; ACU cur health+shield='..M28UnitInfo.GetUnitCurHealthAndShield(oACU)..'; ACU cur health+shield%='..M28UnitInfo.GetUnitHealthAndShieldPercent(oACU)..'; GetHighestOtherTeamT2AndT3MexCount='..M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam)..'; our refiMexCountByTech: T3='..(M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0)..'; T2='..(M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0)..'; Row1 Cond='..tostring(iEnemyNearbyThreat > math.min(math.max(iACUThreat * 2, iACUThreat * 0.75 + iAllyNearbyThreat), 4000 + 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (iEnemyNearbyThreat > math.max(iACUThreat * 3, iACUThreat + iAllyNearbyThreat) or ((not(bAgainstEnemyACUAndMightWin) and iPercentageToFriendlyBase >= 0.35 and not(bAdjacentToCoreLZ) and not(oACU[refbUseACUAggressively])))))..'; Row2 Cond='..tostring((iACUThreat < iEnemyMobileNearbyDFThreat * 1.1 or iACUThreat * 3 < iEnemyNearbyThreat))..'; Row 3 Cond='..tostring((iACUThreat < 1500 or oACU[refiUpgradeCount] <= 2 or M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) <= 0.9 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28UnitInfo.GetUnitCurHealthAndShield(oACU) <= 18000 or GetGameTimeSeconds() >= 1500 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.75 or (tLZTeamData[M28Map.refiModDistancePercent] >= 0.3 + 0.1 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])))..'; Row4 Cond='..tostring((iACUThreat < 1700 or oACU[refiUpgradeCount] < 3 or M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) <= 0.95 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.55 or M28Map.iMapSize >=700 or M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam) * 1.3 + 1 < (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) + (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0)))) end
+                                        --Run if enemy has a really large threat (regardless of if we think we can beat it) subject to some exceptions
+                                        if iEnemyNearbyThreat > math.min(math.max(iACUThreat * 2, iACUThreat * 0.75 + iAllyNearbyThreat), 4000 + 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (iEnemyNearbyThreat > math.max(iACUThreat * 3, iACUThreat + iAllyNearbyThreat) or ((not(bAgainstEnemyACUAndMightWin) and iPercentageToFriendlyBase >= 0.35 and not(bAdjacentToCoreLZ) and not(oACU[refbUseACUAggressively])))) --row1 cond
+                                                and (iACUThreat < iEnemyMobileNearbyDFThreat * 1.1 or iACUThreat * 3 < iEnemyNearbyThreat) --row2 cond
                                                 --In teamgames want ACU with shield to be more aggressive
-                                                and (iACUThreat < 1500 or oACU[refiUpgradeCount] <= 2 or M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) <= 0.9 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28UnitInfo.GetUnitCurHealthAndShield(oACU) <= 18000 or GetGameTimeSeconds() >= 1500 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.75 or (tLZTeamData[M28Map.refiModDistancePercent] >= 0.3 + 0.1 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
+                                                and (iACUThreat < 1500 or oACU[refiUpgradeCount] <= 2 or M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) <= 0.9 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28UnitInfo.GetUnitCurHealthAndShield(oACU) <= 18000 or GetGameTimeSeconds() >= 1500 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.75 or (tLZTeamData[M28Map.refiModDistancePercent] >= 0.3 + 0.1 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) --row3 cond
+                                                and (iACUThreat < 1700 or oACU[refiUpgradeCount] < 3 or M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) <= 0.95 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.55 or M28Map.iMapSize >=700 or M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam) * 1.3 + 1 < (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) + (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0)) --row4 cond
+                                        then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Enemy has too large a threat so will run') end
                                             bWantToRun = true
                                         else
@@ -2815,10 +2817,15 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                 iACUFactor = iACUFactor + iACUFactor * 0.4 / iACUFactor
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will be very aggressive due to ACU having shield or very high health') end
                                             end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will run as iACUThreat='..iACUThreat..'; iACUFactor='..iACUFactor..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; iEnemyNearbyThreat='..iEnemyNearbyThreat..'; Ally mobile DF total='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0)..'; iAllyNearbyThreat='..iAllyNearbyThreat..'; iAllyNearbyThreatFactor='..iAllyNearbyThreatFactor) end
 
                                             --NOTE: subrefLZTThreatAllyCombatTotal includes the ACU threat
-                                            if not(oACU[refbUseACUAggressively]) and (iACUThreat * iACUFactor + iAllyNearbyThreat * iAllyNearbyThreatFactor < iEnemyNearbyThreat) and iEnemyMobileNearbyDFThreat >= iACUThreat * iACUFactor then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Will run as iACUThreat='..iACUThreat..'; iACUFactor='..iACUFactor..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; iEnemyNearbyThreat='..iEnemyNearbyThreat..'; Ally mobile DF total='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0)..'; iAllyNearbyThreat='..iAllyNearbyThreat) end
+                                            if not(oACU[refbUseACUAggressively]) and (iACUThreat * iACUFactor + iAllyNearbyThreat * iAllyNearbyThreatFactor < iEnemyNearbyThreat) and iEnemyMobileNearbyDFThreat >= iACUThreat * iACUFactor
+                                            --Slightly increase ACU factor if have shield/lots of upgrade on a small map with low mod distance and not significantly ahead on eco
+                                                and (iACUThreat < 1700 or oACU[refiUpgradeCount] < 3 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.55 or M28Map.iMapSize >=700 or iACUThreat * (iACUFactor + 0.3) + iAllyNearbyThreat < iEnemyNearbyThreat or M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) <= 0.95 or M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam) * 1.3 + 1 < (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) + (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0))
+
+                                            then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Will run based on ACUThreat and nearby ally and enemy threat') end
                                                 bWantToRun = true
                                                 --Be more cautious in assassination mode
                                             elseif iHealthPercent < 0.75 and not(oACU[refbUseACUAggressively]) and not(bWantToRun) and M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and iACUThreat * math.min(1, iACUFactor) < iEnemyNearbyThreat * 1.25 and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) >= 25 then
@@ -3135,7 +3142,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
     local sFunctionRef = 'DoesACUWantToReturnToCoreBase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU[refiUpgradeCount] >= 3 and oACU:GetAIBrain().M28Easy then bDebugMessages = true end
 
     local iTeam = oACU:GetAIBrain().M28Team
 
@@ -3498,7 +3505,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU[refiUpgradeCount] >= 3 and oACU:GetAIBrain().M28Easy then bDebugMessages = true end
 
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
@@ -6077,7 +6084,7 @@ function GetACUOrder(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU[refiUpgradeCount] >= 3 and oACU:GetAIBrain().M28Easy then bDebugMessages = true end
 
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
