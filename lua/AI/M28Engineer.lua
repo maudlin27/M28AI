@@ -13488,7 +13488,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     else
         iCurPriority = iCurPriority + 1
     end
-    bDebugMessages = false
 
     --first ever experimental to build - rush if have t3 mex
     iCurPriority = iCurPriority + 1
