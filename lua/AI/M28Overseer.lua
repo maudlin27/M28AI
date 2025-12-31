@@ -991,6 +991,19 @@ function CheckUnitCap(aiBrain)
                 --Only reset cap if we have a bit of leeway
                 if iCurUnits < (iUnitCap - iThreshold * 5) - 20 then
                     aiBrain[refbCloseToUnitCap] = false
+                    --If none of the brains on the team are close to unit cap then increase adjustmentlevel if it is very low
+                    if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 1 then
+                        local bHaveABrainCloseToUnitCap = false
+                        for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains] do
+                            if oBrain[refbCloseToUnitCap] then
+                                bHaveABrainCloseToUnitCap = true
+                                break
+                            end
+                        end
+                        if not(bHaveABrainCloseToUnitCap) then
+                            M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.max(0, math.min(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] + 2, 1))
+                        end
+                    end
                 end
             end
         end

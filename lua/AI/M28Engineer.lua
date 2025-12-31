@@ -16620,7 +16620,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is table of unbuilt mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]))..'; Is table of part complete mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]))) end
     iCurPriority = iCurPriority + 1
     --Unclaimed mex high priority
-    if not(bTeammateHasBuiltHere) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) then
+    if not(bTeammateHasBuiltHere) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) >= -1 then
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, locations='..repru(tLZData[M28Map.subrefMexUnbuiltLocations])..'; will assign a mex to build') end
         HaveActionToAssign(refActionBuildMex, 1, 5)
         if not(bEngineersRecentlyRunFromEnemy) and (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionBuildMex] or 0) > 0 then
@@ -16839,7 +16839,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Unclaimed mex in the zone
     iCurPriority = iCurPriority + 1
-    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) then
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) >= -1 then
         iBPWanted = math.max(5, table.getn(tLZData[M28Map.subrefMexUnbuiltLocations]) * 2.5)
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, iBPWanted='..iBPWanted..', locations='..repru(tLZData[M28Map.subrefMexUnbuiltLocations])) end
         if bEngineersRecentlyRunFromEnemy then iBPWanted =5
@@ -18412,7 +18412,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
 
     --Higih priority mex if we have water zone start
     iCurPriority = iCurPriority + 1
-    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false and tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tWZData, true)) then
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false and tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tWZData, true)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) >= -1 then
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': We want to build a mex asap as we have unbuilt locations and have started in water')
         end
@@ -18662,7 +18662,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             LOG(sFunctionRef .. ': Size of unbuilt locations table=' .. table.getn(tWZData[M28Map.subrefMexUnbuiltLocations]))
         end
     end
-    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tWZData, true)) then
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tWZData, true)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) >= -1 then
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': We want to build a mex as we have unbuilt locations')
         end
