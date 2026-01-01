@@ -5359,6 +5359,8 @@ function MonitorLeavingT1SpamMode(iTeam)
                     or M28Utilities.IsTableEmpty(tTeamData[iTeam][reftoLongRangeEnemyDFUnits]) == false
                     or M28Conditions.GetHighestOtherTeamT3MexCount(iTeam) >= 2 or M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyLandExperimentals]) == false or M28Utilities.IsTableEmpty(tTeamData[iTeam][refiConstructedExperimentalCount]) == false
                     or M28Overseer.bNoRushActive
+                    --If built an average of 100 T1 tanks per player (+ up to 48 based on how long has elapsed) then also abort
+                    or GetGameTimeSeconds() >= 420 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryMobileDFLand) >= (100 + math.max(0, (900 - GetGameTimeSeconds()))*0.1) * tTeamData[iTeam][subrefiActiveM28BrainCount]
             then
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to cancel t1 spam based on one of basic flags') end
                 break

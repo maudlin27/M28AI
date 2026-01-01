@@ -2201,7 +2201,7 @@ function MonitorEnemyNukeForIntel(oProjectile, iTeam)
         if aiBrain then
             local iCurDist
             local iTickDelayBetweenChecks = 1
-            if M28Land.iTicksPerLandCycle > 11 then iTickDelayBetweenChecks = math.floor(M28Land.iTickDelayBetweenChecks / 10) end
+            if M28Land.iTicksPerLandCycle > 11 then iTickDelayBetweenChecks = math.max(1, math.floor(M28Land.iTicksPerLandCycle / 10)) end
             local bHaveIntel = false
             while not(oProjectile:BeenDestroyed()) do
                 --Check if we have intel of this position (i.e. visual)

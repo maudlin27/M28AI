@@ -3074,20 +3074,23 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
         else
             --Send units to rally point, unless lots of low fuel in which case consider ctrlking 1 unit (assuming we are past the first 10m)
             local bConsiderKillingUnits = false
-            local iLowFuelUnits = table.getn(tUnitsUnableToRefuel)
-            if iLowFuelUnits >= 10 and GetGameTimeSeconds() >= math.max(150, 600 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier]) then
-                local iTotalCurAirStaging = 0
-                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                    iTotalCurAirStaging = iTotalCurAirStaging + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirStaging)
-                end
-                if iTotalCurAirStaging == 0 or iLowFuelUnits / iTotalCurAirStaging >= 10 then
-                    bConsiderKillingUnits = true
+            if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1 then bConsiderKillingUnits = true
+            else
+                local iLowFuelUnits = table.getn(tUnitsUnableToRefuel)
+                if iLowFuelUnits >= 10 and GetGameTimeSeconds() >= math.max(150, 600 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier]) then
+                    local iTotalCurAirStaging = 0
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        iTotalCurAirStaging = iTotalCurAirStaging + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirStaging)
+                    end
+                    if iTotalCurAirStaging == 0 or iLowFuelUnits / iTotalCurAirStaging >= 10 then
+                        bConsiderKillingUnits = true
+                    end
                 end
             end
             for iUnit, oUnit in tUnitsUnableToRefuel do
                 if bDebugMessages == true then LOG(sFunctionRef..': Telling unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to move to refuel location, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Cur dist to tRefuelBase='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRefuelBase)) end
                 M28Orders.IssueTrackedMove(oUnit, tRefuelBase, 10, false, 'WntStgn', false)
-                if bConsiderKillingUnits and oUnit:GetFuelRatio() <= 0.1 and oUnit:GetFuelRatio() >= 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and (not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2)) then --(experimental condition is a redundancy)
+                if bConsiderKillingUnits and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 or oUnit:GetFuelRatio() <= 0.1 and oUnit:GetFuelRatio() >= 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap))) and (not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2)) then --(experimental condition is a redundancy)
                     ForkThread(M28Micro.MoveAndKillAirUnit,oUnit)
                     --M28Orders.IssueTrackedKillUnit(oUnit)
                     bConsiderKillingUnits = false --max one per second
