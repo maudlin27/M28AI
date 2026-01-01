@@ -5278,9 +5278,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         if not(iLandZoneTarget) then
             if tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF] then
                 local tTargetingLandZoneTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF]][M28Map.subrefLZTeamData][iTeam]
-                if bDebugMessages == true then LOG(sFunctionRef..': About to update for iPlateau='..iPlateau..'subreftiLandZoneTargetedByOurDF='..(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF] or 'nil')..'; is tTargetingLandZoneTeamData nil='..tostring(tTargetingLandZoneTeamData == nil)) end
-                if not(tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF]) then tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF] = {} end
-                tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF][iLandZone] = nil
+                if tTargetingLandZoneTeamData then
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to update for iPlateau='..iPlateau..'subreftiLandZoneTargetedByOurDF='..(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF] or 'nil')..'; is tTargetingLandZoneTeamData nil='..tostring(tTargetingLandZoneTeamData == nil)) end
+                    if not(tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF]) then tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF] = {} end
+                    tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF][iLandZone] = nil
+                else
+                    M28Utilities.ErrorHandler('invalid LZ ref, iPlateau='..(iPlateau or 'nil')..'; subreftiLandZoneTargetedByOurDF='..(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF] or 'nil'))
+                end
                 tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF] = nil
             end
         else
