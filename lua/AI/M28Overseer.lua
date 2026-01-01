@@ -731,7 +731,9 @@ function CheckUnitCap(aiBrain)
     local sFunctionRef = 'CheckUnitCap'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if GetGameTimeSeconds() - (aiBrain[refiLastUnitCapTimeCheck] or -1) >= 0.5 then
+
         aiBrain[refiLastUnitCapTimeCheck] = GetGameTimeSeconds()
         --local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
         --Use below method in case a mod has changed this
@@ -802,11 +804,18 @@ function CheckUnitCap(aiBrain)
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 then
                 --Include t3 land facs in cat-2 if too many of them (if likely overflowing)
                 if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 then
-                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) >= 30 then
+                    local iCurLandFac = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)
+                    if M28Utilities.bLoudModActive then iCurLandFac = iCurLandFac * 3 end --Unit cap for loud is adjusted for different units
+                    local iCurAirFac = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)
+                    if M28Utilities.bLoudModActive then iCurAirFac = iCurAirFac * 3 end --Unit cap for loud is adjusted for different units
+                    if bDebugMessages == true then LOG(sFunctionRef..': No Exp built yet, iCurLandFac='..iCurLandFac..'; iCurAirFac='..iCurAirFac) end
+                    if iCurLandFac >= 30 then
                         tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryLandFactory
+                        if bDebugMessages == true then LOG(sFunctionRef..': No exp but Including land factories in category to destroy') end
                     end
-                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) >= 40 then
+                    if iCurAirFac >= 40 then
                         tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryAirFactory
+                        if bDebugMessages == true then LOG(sFunctionRef..': No exp but Including air factories in category to destroy') end
                     end
                 end
             else
@@ -820,9 +829,11 @@ function CheckUnitCap(aiBrain)
                 if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 then
                     if aiBrain:GetEconomyStoredRatio('MASS') >= 0.5 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) >= 16 then
                         tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryLandFactory
+                        if bDebugMessages == true then LOG(sFunctionRef..': Including land factories in category to destroy') end
                     end
                     if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) >= 20 then
                         tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryAirFactory
+                        if bDebugMessages == true then LOG(sFunctionRef..': Including air factories in category to destroy') end
                     end
                 end
             end
@@ -846,10 +857,37 @@ function CheckUnitCap(aiBrain)
                     end
                 end
                 if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= -2 then
-                    --Include t2 mexes if we have lots of t3 mexes
-                    if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiMexCountByTech][3] >= 100 then
-                        tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryT2Mex
+                    --Exclude SACUs unless we have lots (and in LOUD never exclude as loud has them increase unit cap)
+                    if M28Utilities.bLoudModActive or aiBrain:GetCurrentUnits(categories.SUBCOMMANDER) < 20 then
+                        tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] - categories.SUBCOMMANDER
                     end
+                    if iCurUnits >= iUnitCap - 3 then
+                        --Include mexes if we have lots of mexes (more than 30% of cur units and cur units exceed unit cap)
+                        local iMaxMexes = iUnitCap * 0.35 * M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount]
+                        local iCurMexes
+                        if M28Utilities.bLoudModActive then
+                            --Approximation as LOUD has wierd unit cap settings
+                            iCurMexes = M28Team.tTeamData[aiBrain.M28Team][M28Team.refiMexCountByTech][3] * 3 + M28Team.tTeamData[aiBrain.M28Team][M28Team.refiMexCountByTech][2] * 2 + M28Team.tTeamData[aiBrain.M28Team][M28Team.refiMexCountByTech][1]
+                        else
+                            iCurMexes = M28Team.tTeamData[aiBrain.M28Team][M28Team.refiMexCountByTech][3]  + M28Team.tTeamData[aiBrain.M28Team][M28Team.refiMexCountByTech][2] + M28Team.tTeamData[aiBrain.M28Team][M28Team.refiMexCountByTech][1]
+                        end
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': At adjustment -2 level or worse, T3 mex count='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiMexCountByTech][3]..'; iCurMexes='..iCurMexes..'; iMaxMexes='..iMaxMexes) end
+                        if aiBrain:GetEconomyStoredRatio('MASS') >= 0.7 then iMaxMexes = iMaxMexes * (1.3 - aiBrain:GetEconomyStoredRatio('MASS')) end
+                        if iCurMexes > iMaxMexes then
+                            if iCurUnits >= iUnitCap then
+                                tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryMex
+                                if bDebugMessages == true then LOG(sFunctionRef..': Including all mexes') end
+                            elseif iCurUnits >= iUnitCap - 1 then
+                                tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryT2Mex + M28UnitInfo.refCategoryT1Mex
+                                if bDebugMessages == true then LOG(sFunctionRef..': Including t1-t2 mexes only') end
+                            else
+                                tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryT1Mex
+                                if bDebugMessages == true then LOG(sFunctionRef..': Including t1 mexes only') end
+                            end
+                        end
+                    end
+
                 end
             end
 
@@ -870,7 +908,7 @@ function CheckUnitCap(aiBrain)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; iMaxToDestroy='..iMaxToDestroy..'; iAdjustmentLevel='..iAdjustmentLevel..'; iCurUnits='..iCurUnits..'; Unit cap='..iUnitCap..'; iThreshold='..iThreshold) end
                 if tiCategoryToDestroy[iAdjustmentLevel] then
-                    if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
+                    if iCurUnits > (iUnitCap - iThreshold * math.min(0.5, iAdjustmentLevel)) or iCurUnitsDestroyed == 0 then
                         tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
                         if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
                             M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
@@ -946,8 +984,8 @@ function CheckUnitCap(aiBrain)
                                                 bKillUnit = false
                                             end
                                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
-                                            if oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or (oUnit[M28ACU.refiUpgradeCount] or 0) > 0 then bKillUnit = false end
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering destroying a factory, is this a primary factory='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false)..'; Number of factories on team='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, aiBrain.M28Team)..'; bKillUnit='..tostring(bKillUnit)) end
+                                            if oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or ((oUnit[M28ACU.refiUpgradeCount] or 0) > 0 and (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] > -2 or iCurUnits > iUnitCap + 5)) then bKillUnit = false end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering destroying a factory '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', is this a primary factory='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false)..'; Number of factories on team='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, aiBrain.M28Team)..'; bKillUnit='..tostring(bKillUnit)) end
                                         end
                                         if bKillUnit then
                                             if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' to avoid going over unit cap'..'; Have we already tried to kill this unit? oUnit[M28UnitInfo.refbTriedToKill]='..tostring(oUnit[M28UnitInfo.refbTriedToKill] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
@@ -965,6 +1003,7 @@ function CheckUnitCap(aiBrain)
                                                 if iAdjustmentLevel <= 3 and not(M28Map.bIsCampaignMap) and aiBrain.BrainType == 'AI' then
                                                     M28Chat.SendUnitCapMessage(aiBrain)
                                                 end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Destroyed max wanted so aborting loop of tUnitsToDestroy') end
                                                 break
                                             end
                                         end
@@ -972,8 +1011,12 @@ function CheckUnitCap(aiBrain)
                                 end
                             end
                         end
-                        if iCurUnitsDestroyed >= iMaxToDestroy then break end
+                        if iCurUnitsDestroyed >= iMaxToDestroy then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Destroyed max wanted so aborting loop of categories') end
+                            break
+                        end
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Destroyed enough so wont proceed with searching for this adjustment level, iCurUnits='..iCurUnits..'; iUnitCap='..iUnitCap..'; iThreshold='..iThreshold..'; iAdjustmentLevel='..iAdjustmentLevel..'; iCurUnitsDestroyed='..iCurUnitsDestroyed) end
                         break
                     end
                 end

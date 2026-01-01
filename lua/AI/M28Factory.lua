@@ -285,6 +285,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     local iCurEngineers
     --Building engineers in combined army mode
     if not(M28Orders.bDontConsiderCombinedArmy) and oFactory.M28Active and aiBrain.BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAEngi or 2) == 1 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then
@@ -593,11 +594,11 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider adjustment for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' for if close to unit cap, sBPIDToBuild='..(sBPIDToBuild or 'nil')..'; aiBrain[M28Overseer.refbCloseToUnitCap]='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap] or false)..'; aiBrain[M28Overseer.refiExpectedRemainingCap]='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 'nil')) end
     if sBPIDToBuild and aiBrain[M28Overseer.refbCloseToUnitCap] then
         --If just ctrlKd in last 60s and are ctrlking t3 land or engis then dont build naything (relevant e.g. for engineers from air fac, as land fac aborts much earlier)
-        if not(iCurEngineers) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) end
+        if not(iCurEngineers) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer - categories.SUBCOMMANDER, sBPIDToBuild) then iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) end
         if not(iCurEngineers) or iCurEngineers > M28Overseer.iT3EngineerUnitCapThresholdCount or (iCurEngineers >= 20 and not(EntityCategoryContains(categories.TECH3, sBPIDToBuild)) and aiBrain[refiHighestFactoryBuildCount] >= 3) then
             if aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] and GetGameTimeSeconds() - aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] <= 60 and (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 or (tLZTeamData[M28Map.subrefLZbCoreBase] and not(EntityCategoryContains(categories.TECH3, sBPIDToBuild)))) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Have recently ctrlkd unit so want to abort if we are about to build the same unit again if we have mobile land or same category, do we contain this='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileLand + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild))) end
-                if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have recently ctrlkd a unit so want to abort if we are about to build the same unit again if we have mobile land or same category, do we contain this='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileLand + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild))) end
+                if EntityCategoryContains((M28UnitInfo.refCategoryMobileLand - categories.SUBCOMMANDER) + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild) then
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return nil
                 end

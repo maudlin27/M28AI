@@ -1029,7 +1029,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 end
 
 
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId) then
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId) and M28Utilities.bFAFActive then
                 oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true --makes sure we dont pause this factory in a mass stall now it has enhancements
             end
             --Fix AIx modifier
