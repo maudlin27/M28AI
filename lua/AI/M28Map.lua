@@ -4257,11 +4257,12 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBa
 
     local iCurBrainDist
     local iClosestBrainDist
-    local iClosestBrainRef
+    local iClosestBrainRef, iClosestM28BrainRef, iClosestM28BrainDist
 
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
             iClosestBrainDist = 100000
+            iClosestM28BrainDist = 100000
             for iBrain, tStartPoint in tAllyBases do
                 if tBrainsByIndex[iBrain] then
                     iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tStartPoint)
@@ -4269,12 +4270,16 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBa
                         iClosestBrainRef = iBrain
                         iClosestBrainDist = iCurBrainDist
                     end
+                    if tBrainsByIndex[iBrain].M28AI and iCurBrainDist < iClosestM28BrainDist then
+                        iClosestM28BrainDist = iCurBrainDist
+                        iClosestM28BrainRef = iBrain
+                    end
                 end
             end
             if iClosestBrainRef then
                 local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
                 tLZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
-                tLZTeamData[reftiClosestFriendlyM28BrainIndex] = iClosestBrainRef
+                tLZTeamData[reftiClosestFriendlyM28BrainIndex] = (iClosestM28BrainRef or iClosestBrainRef)
                 tLZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
                 tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefMidpoint], false) /  math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZTeamData[reftClosestEnemyBase]))
                 if bDebugMessages == true then LOG(sFunctionRef..': Have recorded closest enemy base for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; tLZTeamData[reftClosestFriendlyBase]='..repru(tLZTeamData[reftClosestFriendlyBase])..'; repru(tLZTeamData[reftClosestEnemyBase])='..repru(tLZTeamData[reftClosestEnemyBase])..'; iClosestBrainRef='..iClosestBrainRef..'; tBrainsByIndex[iClosestBrainRef].Nickname='..tBrainsByIndex[iClosestBrainRef].Nickname..'; aiBrain[reftPrimaryEnemyBaseLocation] for this brain='..repru(tBrainsByIndex[iClosestBrainRef][reftPrimaryEnemyBaseLocation])..'; iClosestBrainDist='..iClosestBrainDist) end
@@ -4379,7 +4384,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
 
         local iCurBrainDist
         local iClosestBrainDist
-        local iClosestBrainRef
+        local iClosestBrainRef, iClosestM28BrainRef, iClosestM28BrainDist
 
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
@@ -4418,16 +4423,21 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
                 local tWZTeamData = tWZData[subrefWZTeamData][iTeam]
 
                 iClosestBrainDist = 100000
+                iClosestM28BrainDist = 100000
                 for iBrain, tStartPoint in tAllyBases do
                     iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tStartPoint)
                     if iCurBrainDist < iClosestBrainDist then
                         iClosestBrainRef = iBrain
                         iClosestBrainDist = iCurBrainDist
                     end
+                    if tBrainsByIndex[iBrain].M28AI and iCurBrainDist < iClosestM28BrainDist then
+                        iClosestM28BrainDist = iCurBrainDist
+                        iClosestM28BrainRef = iBrain
+                    end
                 end
 
                 tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
-                tWZTeamData[reftiClosestFriendlyM28BrainIndex] = iClosestBrainRef
+                tWZTeamData[reftiClosestFriendlyM28BrainIndex] = (iClosestM28BrainRef or iClosestBrainRef)
                 tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
                 tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false) / math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZTeamData[reftClosestEnemyBase]))
                 if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond..'; Mod dist to midpoint from our start='..GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false)..'; Mod dist to nearest enemy base (to this WZ) from our friendly base='..GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZTeamData[reftClosestEnemyBase])..'; tWZTeamData[refiModDistancePercent]='..tWZTeamData[refiModDistancePercent]) end

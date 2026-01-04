@@ -1470,7 +1470,6 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
 
 
-
     local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
     local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
     if iCurIsland ~= iEnemyIsland and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35 then
@@ -1714,7 +1713,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                             bWantMoreFactories = true
                             --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 350 land travel distance (225 if cant path by land), and we dont have loads of factories?
                         elseif (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.25 and not(bIgnoreMainEcoConditions)) or (iAverageCurAirAndLandFactories == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 and GetGameTimeSeconds() <= 300) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Brain net mass='..aiBrain[M28Economy.refiNetMassBaseIncome]..'; brain mass stored='..aiBrain:GetEconomyStored('MASS')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Net mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] or 'nil')..'; Brain net mass='..(aiBrain[M28Economy.refiNetMassBaseIncome] or 'nil')..'; brain mass stored='..aiBrain:GetEconomyStored('MASS')..'; iAverageCurAirAndLandFactories='..(iAverageCurAirAndLandFactories or 'nil')..'; refiOurHighestFactoryTechLevel='..(aiBrain[M28Economy.refiOurHighestFactoryTechLevel] or 'nil')..'; aiBrain='..(aiBrain.Nickname or 'nil')..'; tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]='..(tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex] or 'nil')) end
                             if bIgnoreMainEcoConditions or iAverageCurAirAndLandFactories < 6 - aiBrain[M28Economy.refiOurHighestFactoryTechLevel] or (aiBrain[M28Economy.refiNetMassBaseIncome] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 and aiBrain:GetEconomyStored('MASS') >= 50) or (iAverageCurAirAndLandFactories < 8 and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] == 1 and M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] and aiBrain:GetEconomyStored('MASS') >= 150 and (aiBrain:GetEconomyStored('MASS') >= 220 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > -0.5)) then
                                 --Just get nearest enemy base
                                 local iStartPlateau, iStartLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZTeamData[M28Map.reftClosestEnemyBase])
@@ -4658,4 +4657,16 @@ function DelayNavyWhereLessImportant(aiBrain, tWZData, tWZTeamData, iTeam, bCons
             end
         end
     end
+end
+
+function IsPositionInWayOfFactory(tPosition)
+    local rRect = M28Utilities.GetRectAroundLocation(tPosition, 4)
+    local tUnitsInRect = GetUnitsInRect(rRect)
+    if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+        local tFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tUnitsInRect)
+        if M28Utilities.IsTableEmpty(tFactories) == false then
+            return true
+        end
+    end
+    return false
 end
