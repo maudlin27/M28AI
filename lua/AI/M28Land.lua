@@ -4845,7 +4845,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             bIgnoreDistanceToMidpointCheck = true
                         end
                     end
-                    if bIgnoreDistanceToMidpointCheck then
+                    if bIgnoreDistanceToMidpointCheck and oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
                         oClosestFatboyOrACUInIslandToSuicideInto = oACU
                         bSuicideIntoFatboyOrACU = true
                         iClosestACUDist = iCurACUDist
@@ -4866,7 +4866,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if M28UnitInfo.IsUnitValid(oUnit) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Fatboy='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; land label='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) or 'nil')..'; LZ island ref='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
                     --Add to skirmisher enemies
-                    if NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] then
+                    if NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == tLZData[M28Map.subrefLZIslandRef] and oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
                         if iCurDist < iClosestDistToMidpoint then
                             iClosestDistToMidpoint = iCurDist
@@ -5283,7 +5283,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     if not(tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF]) then tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF] = {} end
                     tTargetingLandZoneTeamData[M28Map.subreftiLandZonesTargetingThisWithOurDF][iLandZone] = nil
                 else
-                    M28Utilities.ErrorHandler('invalid LZ ref, iPlateau='..(iPlateau or 'nil')..'; subreftiLandZoneTargetedByOurDF='..(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF] or 'nil'))
+                    M28Utilities.ErrorHandler('invalid LZ ref, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; subreftiLandZoneTargetedByOurDF='..(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF] or 'nil'))
                 end
                 tLZTeamData[M28Map.subreftiLandZoneTargetedByOurDF] = nil
             end
