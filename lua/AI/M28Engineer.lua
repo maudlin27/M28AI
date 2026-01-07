@@ -4710,7 +4710,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                         local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
                                         if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; oNearestReclaimableDangerousEnemy='..(oNearestReclaimableDangerousEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableDangerousEnemy) or 'nil')..'; oNearestReclaimableEnemy='..(oNearestReclaimableEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy) or 'nil')..'; iEngiBuildDistance='..iEngiBuildDistance..'; iNearestReclaimableDangerousEnemy='..iNearestReclaimableDangerousEnemy..'; iReclaimRangeAdjust='..iReclaimRangeAdjust) end
                                         if oNearestReclaimableEnemy and (iNearestReclaimableEnemy < 20 + iReclaimRangeAdjust or
-                                            (iNearestReclaimableEnemy < 40 and bCheckForWallsToReclaim and EntityCategoryContains(M28UnitInfo.refCategoryWall, oNearestReclaimableEnemy) and iClosestDistUntilInRangeOfStaticEnemy >= iNearestReclaimableEnemy + 10 and (not(oNearestReclaimableDangerousEnemy) or iNearestReclaimableDangerousEnemy >= iNearestReclaimableEnemy + 20 or (iNearestReclaimableEnemy <= 30 and iNearestReclaimableDangerousEnemy >= 35 and M28Utilities.GetDistanceBetweenPositions(oNearestReclaimableEnemy:GetPosition(), oNearestReclaimableDangerousEnemy:GetPosition()) > 10 + iNearestReclaimableDangerousEnemy)))) --i.e. if have a wall taht is in an adjacent zone but on the border, then increase search range to reduce issues where we try travel to that zone and take the wrong path
+                                                (iNearestReclaimableEnemy < 40 and bCheckForWallsToReclaim and EntityCategoryContains(M28UnitInfo.refCategoryWall, oNearestReclaimableEnemy) and iClosestDistUntilInRangeOfStaticEnemy >= iNearestReclaimableEnemy + 10 and (not(oNearestReclaimableDangerousEnemy) or iNearestReclaimableDangerousEnemy >= iNearestReclaimableEnemy + 20 or (iNearestReclaimableEnemy <= 30 and iNearestReclaimableDangerousEnemy >= 35 and M28Utilities.GetDistanceBetweenPositions(oNearestReclaimableEnemy:GetPosition(), oNearestReclaimableDangerousEnemy:GetPosition()) > 10 + iNearestReclaimableDangerousEnemy)))) --i.e. if have a wall taht is in an adjacent zone but on the border, then increase search range to reduce issues where we try travel to that zone and take the wrong path
                                                 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= iEngiBuildDistance) or iNearestReclaimableEnemy <= (iEngiBuildDistance + 7 + iReclaimRangeAdjust) or (iNearestReclaimableEnemy <= iEngiBuildDistance + 14 + iReclaimRangeAdjust and (tLZTeamData[M28Map.subrefLZbCoreBase] or tLZTeamData[M28Map.subrefLZCoreExpansion])) or (bCheckForWallsToReclaim and EntityCategoryContains(M28UnitInfo.refCategoryWall, oNearestReclaimableEnemy) and (not(oNearestReclaimableDangerousEnemy) or iNearestReclaimableDangerousEnemy >= iNearestReclaimableEnemy + 20 + iReclaimRangeAdjust or (iNearestReclaimableEnemy <= 30 and iNearestReclaimableDangerousEnemy >= 35)))) then
                                             --Reclaim enemy
                                             --Switch the target to the nearest dangerous enemy if it is in our build range
@@ -8282,7 +8282,21 @@ function GETemplateMoveEngineersUnderShield(tAvailableEngineers, tAvailableT3Eng
     end
 end
 
+function DelayedGEManagerCheck(tLZData, tLZTeamData, iTemplateRef, iPlateau, iLandZone, iTeam)
+    --Call via fork thread; currently used when engineer added but no active monitor
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DelayedGEManagerCheck'
 
+
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local tTableRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef]
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTemplateRef='..iTemplateRef..'; subrefGEbActiveMonitor='..tostring(tTableRef[M28Map.subrefGEbActiveMonitor] or false)..'; is subrefGEEngineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; Time='..GetGameTimeSeconds()) end
+    if not(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEbActiveMonitor]) then
+        GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, iLandZone, iTeam)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, iLandZone, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -8309,6 +8323,9 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                 oEngineer[M28Building.reftArtiTemplateRefs] = nil
             else
                 ClearEngineerTracking(oEngineer)
+                --redundancy
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished clearing engineer, reftArtiTemplateRefs before redundancy='..reprs(oEngineer[M28Building.reftArtiTemplateRefs])) end
+                if oEngineer[M28Building.reftArtiTemplateRefs] then oEngineer[M28Building.reftArtiTemplateRefs] = nil end
             end
         end
     end
@@ -8369,7 +8386,6 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
         if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for P'..iPlateau..'Z'..iLandZone..'; iTableRef='..iTemplateRef..'; tTableRef[M28Map.subrefGEbDontNeedEngineers]='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers] or false)..'; is tableo f engineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; Time='..GetGameTimeSeconds()) end
 
         while not(tTableRef[M28Map.subrefGEbDontNeedEngineers]) do
-
             --Decide whether to continue with loop - abort if have no engineers and no arti and no shields
             local bStillValid = false
             if M28Conditions.IsTableOfUnitsStillValid(tTableRef[M28Map.subrefGEEngineers]) then bStillValid = true end
@@ -8946,10 +8962,60 @@ function GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, 
                             end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to flag we no longer need engineers, iCompletedArti='..iCompletedArti..'; iArtiLocations='..iArtiLocations..'; bTriedBuildingSomething='..tostring(bTriedBuildingSomething)..'; is tAvailableEngineers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableEngineers))..'; iCompletedShields='..iCompletedShields..'; iShieldLocations='..iShieldLocations..'; iUnderConstructionArti='..iUnderConstructionArti..'; iUnderConstructionShields='..iUnderConstructionShields..'; bDisbandForPowerStall='..tostring(bDisbandForPowerStall or false)..'; tTableRef[M28Map.subrefGEbDontNeedEngineers] before considering='..tostring(tTableRef[M28Map.subrefGEbDontNeedEngineers])) end
-                        if iCompletedArti >= iArtiLocations and not(bTriedBuildingSomething) and M28Utilities.IsTableEmpty(tAvailableEngineers) == false and iCompletedShields >= iShieldLocations and iUnderConstructionArti == 0 and iUnderConstructionShields == 0 and not(bDisbandForPowerStall) then
-                            tTableRef[M28Map.subrefGEbDontNeedEngineers] = true
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCompletedArti='..iCompletedArti..'; iArtiLocations='..iArtiLocations..' so will abort the loop, iUnderConstructionArti='..iUnderConstructionArti..'; iUnderConstructionShields='..iUnderConstructionShields) end
-                            break
+                        if M28Utilities.IsTableEmpty(tAvailableEngineers) == false then
+                            if iCompletedArti >= iArtiLocations and not(bTriedBuildingSomething) and iCompletedShields >= iShieldLocations and iUnderConstructionArti == 0 and iUnderConstructionShields == 0 and not(bDisbandForPowerStall) then
+                                tTableRef[M28Map.subrefGEbDontNeedEngineers] = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCompletedArti='..iCompletedArti..'; iArtiLocations='..iArtiLocations..' so will abort the loop, iUnderConstructionArti='..iUnderConstructionArti..'; iUnderConstructionShields='..iUnderConstructionShields) end
+                                break
+                            else
+                                --Consider having engineers other than the first assist something else nearby if dont have low mass
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering orders for idle engineers, TeamHasLowMass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; HaveLowPower='..tostring(M28Conditions.HaveLowPower(iTeam))..'; Size of tAvailableEngineers='..table.getn(tAvailableEngineers)) end
+                                if not(M28Conditions.TeamHasLowMass(iTeam)) and not(M28Conditions.HaveLowPower(iTeam)) and table.getn(tAvailableEngineers) >= 3 then
+
+                                    local tUnitsToAssist, iClosestDist, iCurDist, oClosestUnitToAssist
+                                    for iEngi, oEngi in tAvailableEngineers do
+                                        if not(tUnitsToAssist) then
+                                            if iEngi > 1 then break end --we didnt find something to assist before
+                                            local tPotentialUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                            if M28Utilities.IsTableEmpty(tPotentialUnits) == false then
+                                                for iUnit, oUnit in tPotentialUnits do
+                                                    if not(oUnit.Dead) then
+                                                        if oUnit:GetFractionComplete() < 1 then
+                                                            if not(tUnitsToAssist) then tUnitsToAssist = {} end
+                                                            table.insert(tUnitsToAssist, oUnit)
+                                                        elseif oUnit.GetWorkProgress and EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) and oUnit:GetWorkProgress() > 0 then
+                                                            if not(tUnitsToAssist) then tUnitsToAssist = {} end
+                                                            table.insert(tUnitsToAssist, oUnit)
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        else
+                                            iClosestDist = 40 --dont want to get too far away; means a dist of this + 60 for experimentals
+                                            oClosestUnitToAssist = nil
+                                            for iUnitToAssist, oUnitToAssist in tUnitsToAssist do
+                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnitToAssist:GetPosition(), oEngi:GetPosition())
+                                                if (oUnitToAssist.refiUnitMassCost or M28UnitInfo.GetUnitMassCost(oUnitToAssist)) >= 6000 then
+                                                    iCurDist = iCurDist - 60 --want to prioritise nearby experimentals and high valeu buildings over other units; land t3 hq is 5.2k mass
+                                                end
+                                                if iCurDist < iClosestDist then
+                                                    oClosestUnitToAssist = oUnitToAssist
+                                                    iClosestDist = iCurDist
+                                                end
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering oEngi='..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; oClosestUnitToAssist='..(oClosestUnitToAssist or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitToAssist) or 'nil')) end
+                                            if oClosestUnitToAssist then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': oClosestUnitToAssist fraction complete='..oClosestUnitToAssist:GetFractionComplete()) end
+                                                if oClosestUnitToAssist:GetFractionComplete() < 1 then
+                                                    M28Orders.IssueTrackedRepair(oEngi, oClosestUnitToAssist, false, 'GETIdlAssP'..iPlateau..'Z'..iLandZone..'T'..iTemplateRef, false)
+                                                else
+                                                    M28Orders.IssueTrackedGuard(oEngi, oClosestUnitToAssist, false, 'GETIdlAGrP'..iPlateau..'Z'..iLandZone..'T'..iTemplateRef, false)
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
                         end
                     elseif bDebugMessages == true then LOG(sFunctionRef..': We dont have a first engineer')
                     end
@@ -9053,9 +9119,9 @@ function RecordEngineerAsPartofGameEnderTemplate(oEngineer, iPlateau, iLandZone,
         --Set priority to 1 so it is hopefully less likely to be overwritten
         oEngineer[refbPrimaryBuilder] = true
         oEngineer[refiAssignedActionPriority] = 1
+        local tTableRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef]
         --Record engineer as being part of shield SACUs if it is a UEF shield SACU and we have flagged we want to use shieldSACU logic
         if EntityCategoryContains(categories.UEF * categories.SUBCOMMANDER, oEngineer.UnitId) and tLZTeamData[M28Map.subrefbGEShieldSACU] and not(oEngineer:GetAIBrain().M28Easy) then
-            local tTableRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef]
             local bRecordedAlready = false
             if not(tTableRef[M28Map.subreftoGEShieldSACUs]) then tTableRef[M28Map.subreftoGEShieldSACUs] = {}
             else
@@ -9072,6 +9138,10 @@ function RecordEngineerAsPartofGameEnderTemplate(oEngineer, iPlateau, iLandZone,
                     end
                 end
             end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': subrefGEbActiveMonitor for template='..tostring(tTableRef[M28Map.subrefGEbActiveMonitor] or false)..'; is subrefGEEngineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))) end
+        if not(tTableRef[M28Map.subrefGEbActiveMonitor]) then
+            ForkThread(DelayedGEManagerCheck,M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone], tLZTeamData, iTemplateRef, iPlateau, iLandZone, oEngineer:GetAIBrain().M28Team)
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to track engineer action') end
