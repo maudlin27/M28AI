@@ -5366,6 +5366,30 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                                     if bDebugMessages == true then LOG(sFunctionRef..': Just given guard order to oUnitToAssist') end
                                 end
                             else
+                                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint) <= 25 then
+                                    local bFactoryInWay = M28Conditions.IsPositionInWayOfFactory(tRallyPoint)
+
+
+                                    if bDebugMessages == true then LOG(sFunctionRef..': RTB Will retreat to base unless would be blocking a factory, bFactoryInWay='..tostring(bFactoryInWay)) end
+                                    if bFactoryInWay then
+                                        local iAngleFromEnemyBase = M28Utilities.GetAngleFromAToB(tLZOrWZTeamData[M28Map.reftClosestEnemyBase], tRallyPoint)
+                                        local tPositionToRunTo
+                                        local iPlateauWanted
+                                        if iPlateauOrZero == 0 then iPlateauWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oACU:GetPosition())
+                                        else iPlateauWanted = iPlateauOrZero end
+
+                                        for iDist = 4, 24, 4 do
+                                            tPositionToRunTo = M28Utilities.MoveInDirection(tRallyPoint, iAngleFromEnemyBase, iDist, true, true, M28Map.bIsCampaignMap)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': RTB Trying to find position on same plateau not blocked by factory, iDist='..iDist..'; Plateau of tPositionToRunTo='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPositionToRunTo) or 'nil')..'; iPlateauWanted='..(iPlateauWanted or 'nil')..'; Is it in way of  factory='..tostring(M28Conditions.IsPositionInWayOfFactory(tPositionToRunTo) or false)) end
+                                            if tPositionToRunTo and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPositionToRunTo) == iPlateauWanted then
+                                                bFactoryInWay = M28Conditions.IsPositionInWayOfFactory(tPositionToRunTo)
+                                                if not(bFactoryInWay) then break end
+                                            end
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': RTB bFactoryInWay after trying to find alternative location='..tostring(bFactoryInWay)) end
+                                        if not(bFactoryInWay) then tRallyPoint = {tPositionToRunTo[1], tPositionToRunTo[2], tPositionToRunTo[3]} end
+                                    end
+                                end
                                 M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Rund')
                             end
 
@@ -6806,20 +6830,40 @@ function GetACUOrder(aiBrain, oACU)
                                         end
                                     end
                                 end
-                                if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) then
-                                    if iPlateauOrZero > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.GiveAttackMoveAsWeaponStuck(oACU) and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], oACU[M28UnitInfo.refiCombatRange], iTeam, false, nil, nil, nil, nil, nil) then
-                                        M28Orders.IssueTrackedAttackMove(oACU, tRallyPoint, 5, false, 'RunARP')
-                                    else
-                                        M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'RunRP')
-                                    end
-                                    oACU[reftLastRallyPointRanTo] = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]}
-                                elseif M28Conditions.BaseIsSafeToRetreatTo(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], iTeam) then
-                                    M28Orders.IssueTrackedMove(oACU, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, false, 'RunRBs') --v82 and earlier - the 'move to rally point' line was commented out in place of this; have switched back to enabling it (v83); if it causes issues then try and think of better solution than just running to base which I suspect was a placeholder
-                                    oACU[reftLastRallyPointRanTo] = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
-                                else
-                                    M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'RunRBr')
-                                    oACU[reftLastRallyPointRanTo] = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]}
+                                if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and M28Conditions.BaseIsSafeToRetreatTo(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], iTeam) then
+                                    tRallyPoint = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
                                 end
+                                local bFactoryInWay = false
+                                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint) <= 25 then
+                                    bFactoryInWay = M28Conditions.IsPositionInWayOfFactory(tRallyPoint)
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will retreat to base unless would be blocking a factory, bFactoryInWay='..tostring(bFactoryInWay)) end
+                                if bFactoryInWay then
+                                    local iAngleFromEnemyBase = M28Utilities.GetAngleFromAToB(tLZOrWZTeamData[M28Map.reftClosestEnemyBase], tRallyPoint)
+                                    local tPositionToRunTo
+                                    local iPlateauWanted
+                                    if iPlateauOrZero == 0 then iPlateauWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oACU:GetPosition())
+                                    else iPlateauWanted = iPlateauOrZero end
+
+                                    for iDist = 4, 24, 4 do
+                                        tPositionToRunTo = M28Utilities.MoveInDirection(tRallyPoint, iAngleFromEnemyBase, iDist, true, true, M28Map.bIsCampaignMap)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Trying to find position on same plateau not blocked by factory, iDist='..iDist..'; Plateau of tPositionToRunTo='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPositionToRunTo) or 'nil')..'; iPlateauWanted='..(iPlateauWanted or 'nil')..'; Is it in way of  factory='..tostring(M28Conditions.IsPositionInWayOfFactory(tPositionToRunTo) or false)) end
+                                        if tPositionToRunTo and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tPositionToRunTo) == iPlateauWanted then
+                                            bFactoryInWay = M28Conditions.IsPositionInWayOfFactory(tPositionToRunTo)
+                                            if not(bFactoryInWay) then break end
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': bFactoryInWay after trying to find alternative location='..tostring(bFactoryInWay)) end
+                                    if not(bFactoryInWay) then tRallyPoint = {tPositionToRunTo[1], tPositionToRunTo[2], tPositionToRunTo[3]} end
+                                end
+
+
+                                if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and iPlateauOrZero > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.GiveAttackMoveAsWeaponStuck(oACU) and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], oACU[M28UnitInfo.refiCombatRange], iTeam, false, nil, nil, nil, nil, nil) then
+                                    M28Orders.IssueTrackedAttackMove(oACU, tRallyPoint, 5, false, 'RunARP')
+                                else
+                                    M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'RunRP')
+                                end
+                                oACU[reftLastRallyPointRanTo] = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]}
                                 if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to run; aACU orders after this='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive])..'; Nearest land rally point='..repru(M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true))..'; P'..iPlateauOrZero..'Z'..iLandOrWaterZone..'; Rally point='..repru(tRallyPoint)..'; Nearest friendly base='..repru(M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from rally point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from ACU to rally point='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint)) end
                             end
                         elseif bDebugMessages == true then LOG(sFunctionRef..': Will run to GE template')

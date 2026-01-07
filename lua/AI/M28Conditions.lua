@@ -203,7 +203,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
 
     if bDebugMessages == true then
         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-        LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil')..'; Is unit state moving='..tostring(oEngineer:IsUnitState('Moving'))..'; Engineer position='..repru(oEngineer:GetPosition())..'; Engineer assigned action='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Special micro active='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; oEngineer[refiEngineerStuckCheckCount]='..(oEngineer[refiEngineerStuckCheckCount] or 'nil')..'; refiSequentialReclaimCount='..(oEngineer[M28Engineer.refiSequentialReclaimCount] or 'nil'))
+        LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil')..'; Is unit state moving='..tostring(oEngineer:IsUnitState('Moving'))..'; Engineer position='..repru(oEngineer:GetPosition())..'; Engineer assigned action='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; reftArtiTemplateRefs=P'..(oEngineer[M28Building.reftArtiTemplateRefs][1] or 'nil')..'Z'..(oEngineer[M28Building.reftArtiTemplateRefs][2] or 'nil')..'T'..(oEngineer[M28Building.reftArtiTemplateRefs][3] or 'nil')..'; Special micro active='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; oEngineer[refiEngineerStuckCheckCount]='..(oEngineer[refiEngineerStuckCheckCount] or 'nil')..'; refiSequentialReclaimCount='..(oEngineer[M28Engineer.refiSequentialReclaimCount] or 'nil'))
     end
     if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionManageGameEnderTemplate) and not(oEngineer:IsUnitState('Capturing')) then
         --Spare engineers - always treat as available even if in the middle of something
@@ -474,7 +474,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
             if oEngineer:IsUnitState('Building') then
                 local oFocusObject = oEngineer:GetFocusUnit()
                 if oFocusObject then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Engineer oFocusObject='..(oFocusObject.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocusObject) or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Engineer oFocusObject='..(oFocusObject.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocusObject) or 'nil')..'; Focus object fraction complete='..oFocusObject:GetFractionComplete()..'; Focus object work progress='..oFocusObject:GetWorkProgress()) end
                     if oEngineer[refiEngineerBuildWithoutFocusUnitCount] then oEngineer[refiEngineerBuildWithoutFocusUnitCount] = 0 end
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Engi is building without a focus object, will increase refiEngineerBuildWithoutFocusUnitCount') end
@@ -1470,7 +1470,6 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
 
 
-
     local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
     local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
     if iCurIsland ~= iEnemyIsland and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.35 then
@@ -1714,7 +1713,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                             bWantMoreFactories = true
                             --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 350 land travel distance (225 if cant path by land), and we dont have loads of factories?
                         elseif (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.25 and not(bIgnoreMainEcoConditions)) or (iAverageCurAirAndLandFactories == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.4 and GetGameTimeSeconds() <= 300) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Brain net mass='..aiBrain[M28Economy.refiNetMassBaseIncome]..'; brain mass stored='..aiBrain:GetEconomyStored('MASS')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Net mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] or 'nil')..'; Brain net mass='..(aiBrain[M28Economy.refiNetMassBaseIncome] or 'nil')..'; brain mass stored='..aiBrain:GetEconomyStored('MASS')..'; iAverageCurAirAndLandFactories='..(iAverageCurAirAndLandFactories or 'nil')..'; refiOurHighestFactoryTechLevel='..(aiBrain[M28Economy.refiOurHighestFactoryTechLevel] or 'nil')..'; aiBrain='..(aiBrain.Nickname or 'nil')..'; tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]='..(tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex] or 'nil')) end
                             if bIgnoreMainEcoConditions or iAverageCurAirAndLandFactories < 6 - aiBrain[M28Economy.refiOurHighestFactoryTechLevel] or (aiBrain[M28Economy.refiNetMassBaseIncome] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 and aiBrain:GetEconomyStored('MASS') >= 50) or (iAverageCurAirAndLandFactories < 8 and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] == 1 and M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] and aiBrain:GetEconomyStored('MASS') >= 150 and (aiBrain:GetEconomyStored('MASS') >= 220 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > -0.5)) then
                                 --Just get nearest enemy base
                                 local iStartPlateau, iStartLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZTeamData[M28Map.reftClosestEnemyBase])
@@ -4658,4 +4657,16 @@ function DelayNavyWhereLessImportant(aiBrain, tWZData, tWZTeamData, iTeam, bCons
             end
         end
     end
+end
+
+function IsPositionInWayOfFactory(tPosition)
+    local rRect = M28Utilities.GetRectAroundLocation(tPosition, 4)
+    local tUnitsInRect = GetUnitsInRect(rRect)
+    if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+        local tFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tUnitsInRect)
+        if M28Utilities.IsTableEmpty(tFactories) == false then
+            return true
+        end
+    end
+    return false
 end

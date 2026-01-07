@@ -5008,7 +5008,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                         if not(oBrain:IsDefeated()) then
                             iTotalRating = iTotalRating + (oBrain.Rating or 0)
                             iBrainCount = iBrainCount + 1
-                            iHighestRating = math.max(iHighestRating, oBrain.Rating)
+                            iHighestRating = math.max(iHighestRating, (oBrain.Rating or 0))
                         end
                     end
                     if iBrainCount > 1 and oUnit:GetAIBrain().Rating < math.min(iTotalRating / iBrainCount, iHighestRating - 500) then
