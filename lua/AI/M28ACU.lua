@@ -8197,6 +8197,7 @@ function IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, iOurACUPlateauOrZero, i
     if M28UnitInfo.IsUnitValid(oSnipeTarget) then
         local iDistAdjust = 0
         if oSnipeTarget:IsUnitState('Upgrading') then iDistAdjust = iACUAssassinationUpgradingRangeAdjust end
+        if oACU[refbSupportFriendlyACUAttack] then iDistAdjust = iDistAdjust + 25 end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering oSnipeTarget='..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..' owned by '..oSnipeTarget:GetAIBrain().Nickname..'; iOurACUPlateauOrZero='..iOurACUPlateauOrZero..'; iDistanceThreshold='..iDistanceThreshold..'; Enemy plateau='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, oSnipeTarget:GetPosition()) or 'nil')..'; iCurDist='..M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), oACU:GetPosition())..'; oACU[refbACUSnipeModeActive]='..tostring(oACU[refbACUSnipeModeActive] or false)..'; bMustBeWithinExplosionThreshold='..tostring(bMustBeWithinExplosionThreshold or false)..'; iDistanceThreshold='..iDistanceThreshold..'; iDistAdjust='..iDistAdjust) end
         if NavUtils.GetLabel(M28Map.refPathingTypeHover, oSnipeTarget:GetPosition()) == iOurACUPlateauOrZero then
             local iCurDist = M28Utilities.GetDistanceBetweenPositions(oSnipeTarget:GetPosition(), oACU:GetPosition())
@@ -8274,7 +8275,7 @@ function DoesACUWantToSuicideIntoEnemyACU(oACU, iTeam, iPlateauOrZero, iLandOrWa
     --Special case - we have no upgrades, enemy ACU is nearby getting an upgrade, and it is relatively early on, and we have multiple friendly ACUs - consider pushing in to force them to cancel the upgrade
     if oACU[refiUpgradeCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] < 2 and not(oACU[refbACUSnipeModeActive]) and iPlateauOrZero > 0 and not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftM28ACUs]) == false and (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) <= 2000 and oACU:GetHealth() >= 5000 then
         --Get nearest enemy ACU, and number of total nearby enemy ACUs
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy has nearby upgrading ACU, and none nearby that have completed the upgrade, and we have multiple friendly ACUs') end
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy has nearby upgrading ACU, and none nearby that have completed the upgrade, and we have multiple friendly ACUs, refbSupportFriendlyACUAttack='..tostring(oACU[refbSupportFriendlyACUAttack] or false)) end
         local iMaxDistToEnemyACU = oACU[M28UnitInfo.refiDFRange] + iACUAssassinationUpgradingRangeAdjust --NOTE: Have an issue where it also needs to be a valid snipe target or else we dont actually try and snipe it
         local iSearchDistEnemyACUs = 100
         local iNearbyEnemyACUCount = 0
@@ -8286,7 +8287,7 @@ function DoesACUWantToSuicideIntoEnemyACU(oACU, iTeam, iPlateauOrZero, iLandOrWa
         --First see if we have a nearby enemy ACU that is either upgrading or unupgraded, and dont have many enemy ACUs
         for iEnemyACU, oEnemyACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
             iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering ACU owned by '..oEnemyACU:GetAIBrain().Nickname..' and how close it is to oACU owned by '..oACU:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; Is enemy ACU upgrading='..tostring(oEnemyACU:IsUnitState('Upgrading'))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering ACU owned by '..oEnemyACU:GetAIBrain().Nickname..' and how close it is to oACU owned by '..oACU:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; Is enemy ACU upgrading='..tostring(oEnemyACU:IsUnitState('Upgrading'))..'; iSearchDistEnemyACUs='..iSearchDistEnemyACUs..'; iMaxDistToEnemyACU='..iMaxDistToEnemyACU) end
             if iCurDist <= iSearchDistEnemyACUs then
                 iNearbyEnemyACUCount = iNearbyEnemyACUCount + 1
                 if (oEnemyACU[refiUpgradeCount] or 0) > 0 or (oACU:IsUnitState('Upgrading') and oACU:GetWorkProgress() >= 0.8 and (oACU:GetHealth() >= 2500 or iCurDist >= 30)) then
@@ -8310,6 +8311,7 @@ function DoesACUWantToSuicideIntoEnemyACU(oACU, iTeam, iPlateauOrZero, iLandOrWa
             --Only 1 enemy ACU, and it either lacks an upgrade or is trying to get one, so consider attacking to force a cancellation if either we have multiple ACUs, or we have significantly more health
             local bHaveMuchMoreHealthOrFriendlyACUs = false
             local toFriendlyACUsToConsiderSupportingAttack = {}
+
             if oACU:GetHealth() >= oClosestACUToConsiderAttacking:GetHealth() + math.max(2000, oClosestACUToConsiderAttacking:GetHealth() * 0.5) then
                 bHaveMuchMoreHealthOrFriendlyACUs = true
             else
