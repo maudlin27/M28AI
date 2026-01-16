@@ -11714,6 +11714,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
         iOurExpBomberThreat = iOurExpBomberThreat + M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, true, false, false)
         local iTotalExpBombers = table.getn(tAvailableBombers)
+        
         local iBombersPerTick = math.max(1, math.ceil(iTotalExpBombers / 3)) --Logic can run slowly so want to spread it out over 3 ticks
         local iCurBomberPerTick = 0
 
@@ -11724,13 +11725,16 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
         local bAvoidRecentLowHealthBomberTargets
 
         local iHighestLC = 0
+        local iLowestLC = 10000
         for iExpBomb, oExpBomb in tAvailableBombers do
             iHighestLC = math.max(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iHighestLC)
+            iLowestLC = math.min(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iLowestLC)
         end
         if M28Utilities.IsTableEmpty(tBombersForRetreating) == false then
             iTotalExpBombers = iTotalExpBombers + table.getn(tBombersForRetreating)
             for iExpBomb, oExpBomb in tBombersForRetreating do
                 iHighestLC = math.max(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iHighestLC)
+                iLowestLC = math.min(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iLowestLC)
             end
         end
         if M28Utilities.IsTableEmpty(tUnavailableUnits) == false then
@@ -11738,6 +11742,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
             for iExpBomb, oExpBomb in tUnavailableUnits do
                 if oExpBomb:GetFractionComplete() == 1 then
                     iHighestLC = math.max(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iHighestLC)
+                    iLowestLC = math.min(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iLowestLC)
                 end
             end
         end
@@ -11768,8 +11773,8 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
 
                 if bDebugMessages == true then LOG(sFunctionRef..': oExpBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; owner='..oBomber:GetAIBrain().Nickname..'; Position='..repru(oBomber:GetPosition())..'; iBomberPlateauOrZero='..(iBomberPlateauOrZero or 'nil')..'; iBomberLandOrWaterZone='..(iBomberLandOrWaterZone or 'nil')..'; tGunshipMidpoint='..repru(tBomberZoneMidpoint)..'; WZ from position='..(M28Map.GetWaterZoneFromPosition(oBomber:GetPosition()) or 'nil')) end
 
-                local iMaxEnemyAirAA --Amount of enemy airaa threat required to make gunships to target enemies nearby
-                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 6000 then
+                local iMaxEnemyAirAA --Amount of enemy airaa threat required to make exp bomber to target enemies nearby
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 2000 + 4000 * iTotalExpBombers then
                     iMaxEnemyAirAA = 1000
                 else
                     --Is the air support location nearby?
@@ -11800,6 +11805,29 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         if iHighestLC == M28UnitInfo.GetUnitLifetimeCount(oBomber) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Increasing iMaxEnemyAirAA as we have lots of exp bombers so want to be aggressive with one of them, iMaxEnemyAirAA before increase='..iMaxEnemyAirAA) end
                             iMaxEnemyAirAA = math.max(M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat], iMaxEnemyAirAA * 1.5, 8000)
+                        end
+                    end
+                    --Be aggressive with the lowest LC as well if very dangerous scenario
+                    if iTotalExpBombers > 2 and (iTotalExpBombers >= 5 or iLowestLC < iTotalExpBombers * 4) and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] then
+                        if (iTotalExpBombers >= 5 or M28UnitInfo.GetUnitLifetimeCount(oBomber) == iLowestLC) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+                            local iEnemyArtiOrGEMassInvestment = 0
+                            local bApplyCustomThreatFactor = M28UnitInfo.bCustomThreatFactor
+                            if bApplyCustomThreatFactor and M28UnitInfo.iThreatFactor == 1 then bApplyCustomThreatFactor = false end
+                            local iCurCost
+
+                            for iArti, oArti in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+                                if not(oArti.Dead) then
+                                    iCurCost = oArti[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oArti)
+                                    if bApplyCustomThreatFactor then iCurCost = iCurCost * M28UnitInfo.iThreatFactor end
+                                    if oArti:GetFractionComplete() < 1 then iCurCost = iCurCost * oArti:GetFractionComplete() end
+                                    iEnemyArtiOrGEMassInvestment = iEnemyArtiOrGEMassInvestment + iCurCost
+                                end
+
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if should be more aggressive with all exp bombers and/or our lowest LC bomber, iEnemyArtiOrGEMassInvestment='..iEnemyArtiOrGEMassInvestment) end
+                            if iEnemyArtiOrGEMassInvestment >= 140000 or (iEnemyArtiOrGEMassInvestment >= 70000 and M28UnitInfo.GetUnitLifetimeCount(oBomber) == iLowestLC) then
+                                iMaxEnemyAirAA = math.max(iMaxEnemyAirAA, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat], 8000)
+                            end
                         end
                     end
                 end
@@ -12123,7 +12151,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         if bDebugMessages == true then LOG(sFunctionRef..': We want to run to rally point so wont consider further targets, subjcet to exception when down to last base, time of last bomb='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0)..'; Bomber refiModDistancePercent='..tBomberLandOrWaterZoneTeamData[M28Map.refiModDistancePercent]..'; Dist from bomber to rally='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist from rally to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tBomberLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) end
                         --If bomber hasnt fired any bombs for a while, is within 175 of the rally point, rally point mod dist is low, and are enemies near the rally point, then consider ignoring enemy AA to target enemies adjacent to core base if we are the last 1-2 M28 players, and last on our air subteam
                         if GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) >= 60 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] <= 2 and  tBomberLandOrWaterZoneTeamData[M28Map.refiModDistancePercent] <= 0.4 and M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) <= 175 and M28Utilities.GetDistanceBetweenPositions(tBomberLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) <= 125
-                        and M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
+                                and M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
                             local iAirSubteamCount = 0
                             for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
                                 if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then iAirSubteamCount = iAirSubteamCount + 1 end
