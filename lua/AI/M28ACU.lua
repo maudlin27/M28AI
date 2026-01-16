@@ -3505,7 +3505,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 8*60+30 and oACU:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+
 
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
@@ -6108,7 +6108,7 @@ function GetACUOrder(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 8*60+30 and oACU:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+
 
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
@@ -7856,7 +7856,7 @@ function HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOr
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 8*60+30 and oACU:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+
     if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) and (oACU[M28UnitInfo.refiDFRange] or 0) >= 20 then
         local oClosestEnemyTarget
         local iClosestEnemyTarget = oACU[M28UnitInfo.refiDFRange] + 30 --dont want ACU to try and attack if its further away than this
@@ -8190,7 +8190,7 @@ function IsTargetSuitableSnipeTarget(oACU, oSnipeTarget, iOurACUPlateauOrZero, i
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 8*60+30 and oACU:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+
 
     local iClosestDist
     local bIsSuitable
@@ -8246,7 +8246,7 @@ function DoesACUWantToSuicideIntoEnemyACU(oACU, iTeam, iPlateauOrZero, iLandOrWa
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 8*60+30 and oACU:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oACU[refbACUSnipeModeActive]='..tostring(oACU[refbACUSnipeModeActive])..'; oACU brain='..oACU:GetAIBrain().Nickname..'; iPlateauOrZero='..iPlateauOrZero..'; Cur health='..M28UnitInfo.GetUnitCurHealthAndShield(oACU)) end
     local oClosestEnemyACU
@@ -8442,7 +8442,7 @@ function SuicideACUIntoSnipeTarget(oACU, oSnipeTarget)
     local sFunctionRef = 'SuicideACUIntoSnipeTarget'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 8*60+30 and oACU:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+
     oACU[refbACUSnipeModeActive] = true
     M28Micro.EnableUnitMicroUntilManuallyTurnOff(oACU, false)
     M28UnitInfo.SetUnitWeaponTargetPriorities(oACU, M28UnitInfo.refWeaponPriorityACUSnipe, false)
@@ -8557,7 +8557,7 @@ function DoesACUOnlyWantToSuicideIfInExplosionRange(oACU, tLZOrWZTeamData, iTeam
     local sFunctionRef = 'DoesACUOnlyWantToSuicideIfInExplosionRange'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 8*60+30 and oACU:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+
     local iACUHealth = M28UnitInfo.GetUnitCurHealthAndShield(oACU)
     if bDebugMessages == true then LOG(sFunctionRef..': iACUHealth='..iACUHealth..'; Target health='..M28UnitInfo.GetUnitCurHealthAndShield(oOptionalSnipeTarget)..'; iHealthAdvantageAtStart='..iOptionalHealthAdvantageAtStart) end
     if iACUHealth >= 8000 then
