@@ -647,7 +647,13 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
 
     --Only consider if enough of the game has passed to warrant such a message
     if GetGameTimeSeconds() >= 90 and (not(oBrainDefeated[refiTimeSentCustomEndOfGameMessage]) or GetGameTimeSeconds() - oBrainDefeated[refiTimeSentCustomEndOfGameMessage] >= 60) then
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': About to cycle through every brain and whether they are still alive, oBrainDefeated='..(oBrainDefeated.Nickname or 'nil'))
+            for iBrain, oBrain in M28Overseer.tAllAIBrainsByArmyIndex do
+                LOG(sFunctionRef..': iBrain='..iBrain..'; oBrain='..(oBrain.Nickname or 'nil')..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)..'; oBrain:IsDefeated='..tostring(oBrain:IsDefeated())..'; .M28AI='..tostring(oBrain.M28AI or false)..'; .BrainType='..oBrain.BrainType)
+            end
 
+        end
         local bHaveTeammates = false
         local bLastM28OnTeamToDie = false
         local bTeamHadM28AI = false
@@ -837,7 +843,7 @@ function ConsiderEndOfGameMessage(oBrainDefeated)
                     local oEnemyM28AIBrain
                     if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
                         for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
-                            if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) and oBrain.M28AI and IsEnemy(oBrain:GetArmyIndex(), oBrainDefeated:GetArmyIndex()) and oBrain.BrainType == 'AI' then
+                            if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) and oBrain.M28AI and IsEnemy(oBrain:GetArmyIndex(), oBrainDefeated:GetArmyIndex()) and oBrain.BrainType == 'AI' and oBrain:GetCurrentUnits(categories.COMMAND) > 0 then
                                 oEnemyM28AIBrain = oBrain
                                 break
                             end
