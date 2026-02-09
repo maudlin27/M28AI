@@ -2693,7 +2693,7 @@ end
 
 function IsLocationInMap(tLocation)
     --NOT the playable area, just the map itself, e.g. for air units so can ignore updating their assigtned zone if they are outside the map entirely
-    if tLocation[1] < 0 or tLocation[3] < 0 or tLocation[1] > M28Map.iMapSize or tLocation[3] > M28Map.iMapSize then
+    if tLocation[1] < 0 or tLocation[3] < 0 or ((tLocation[1] > M28Map.iMapSize or tLocation[3] > M28Map.iMapSize) and (tLocation[1] > M28Map.rMapPlayableArea[3] or tLocation[3] > M28Map.rMapPlayableArea[4])) then
         return false
     else
         return true

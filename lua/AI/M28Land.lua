@@ -309,7 +309,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     local bUnitIsAttached
     if bUpdateTimeOfLastEnemyPositionCheck and not(bUseLastKnownPosition) then tLZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] = GetGameTimeSeconds() end
     if not(bUseLastKnownPosition) or (bUseLastKnownPosition and (tLZTeamData[M28Map.refiRadarCoverage] or 0) >= 70) then bUseActualPositionIfEnemy = true end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iRecordedPlateau='..iRecordedPlateau..' iRecordedLandZone='..iRecordedLandZone..'; bAreAirUnits='..tostring(bAreAirUnits or false)..'; bUseLastKnownPosition='..tostring(bUseLastKnownPosition or false)..'; iTableSize='..iTableSize) end
 
     for iOrigIndex=1, iTableSize do
         if not(tUnits[iOrigIndex]) or tUnits[iOrigIndex].Dead then
@@ -329,6 +329,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
                     else
                         iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], true, tUnits[iOrigIndex])
                     end
+                    --if bDebugMessages == true then LOG(sFunctionRef..': Are using last known position, iOrigIndex='..iOrigIndex..'; iActualPlateau='..(iActualPlateau or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit='..tUnits[iOrigIndex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex])..'; bUnitIsAttached='..tostring(bUnitIsAttached)..'; bAreAirUnits='..tostring(bAreAirUnits or false)..'; Unit brain owner='..tUnits[iOrigIndex]:GetAIBrain().Nickname..'; Unit position='..repru(tUnits[iOrigIndex]:GetPosition())) end
                 else
                     --Cases where can use actual position (i.e. Allied unit or special use cases where a human will likely infer an enemy unit has moved):
                     if bUnitIsAttached or bAreAirUnits then
@@ -370,6 +371,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
                 --Air unit is outside the map bounds - treat the actual plateau as the recorded plateau - i.e. just keep the air unit against this zone until it comes back inside the map
                 iActualPlateau = iRecordedPlateau
                 iActualLandZone = iRecordedLandZone
+                if bDebugMessages == true then LOG(sFunctionRef..': Air unit outside playable area so wont change assignment, iOrigIndex='..iOrigIndex..'; iRecordedPlateau='..iRecordedPlateau..'; iActualPlateau='..(iActualPlateau or 'nil')..';  iRecordedLandZone='..(iRecordedLandZone or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit actual position='..repru(tUnits[iOrigIndex]:GetPosition())..'; Plateau ref using navutils of actual position='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnits[iOrigIndex]:GetPosition()) or 'nil')..'; Last known position='..repru(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Hover nav utils of unit position='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tUnits[iOrigIndex]:GetPosition()) or 'nil')) end
             end
             if iRecordedPlateau == iActualPlateau and iRecordedLandZone == iActualLandZone then
                 --No change needed for unit
@@ -11046,6 +11048,8 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateau,             iLandZone,          M28Map.bIsCampaignMap, false, tLZTeamData,  false,                      true)
         if bDebugMessages == true then LOG(sFunctionRef..': Just ran updateunitpositions for enemy units in this zone') end
     end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Will update enemy air units if there are any, is reftLZEnemyAirUnits empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]))..'; Time since refiTimeOfLastAirUpdate='..GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOfLastAirUpdate] or -100)) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
         --Update air positions if we have units in the zone or has been a while to approximate a player being able to tell if enemy air force is still there
         local bAlwaysUpdateEnemyAirUnitPositions = M28Map.bIsCampaignMap --campaign map players are more likely to know when air attacks iwll attack and from where
@@ -11056,6 +11060,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
             UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.reftLZEnemyAirUnits], iTeam, iPlateau, iLandZone, false, true, tLZTeamData, false,                               true)
         else
             --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                           iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+            --if bDebugMessages == true then LOG(sFunctionRef..': Will just update based on last known positoin') end
             UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.reftLZEnemyAirUnits], iTeam, iPlateau, iLandZone,        M28Map.bIsCampaignMap, true, tLZTeamData,   false,                                  true)
         end
     end
