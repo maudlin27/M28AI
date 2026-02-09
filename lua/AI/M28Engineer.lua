@@ -12277,7 +12277,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if oNearestEnemyACU then tNearestEnemyACU = oNearestEnemyACU:GetPosition() end
     local iCurPDThreat
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Checking if emergency PD is needed, iApproachingACUThreat='..iApproachingACUThreat..'; Brain factory='..aiBrain[M28Economy.refiOurHighestFactoryTechLevel]..'; Zone wants T1 spam='..tostring(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam))..'; Team gross energy='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or 'nil')..'; PD builder: Part 1='..tostring(not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 25)..'; Part 2='..tostring((aiBrain[M28Overseer.refbPrioritiseDefence] and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and (not(bHaveLowPower) or aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 75)))..'; Part 3='..tostring((tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2))..'; Part 4='..tostring((M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] or aiBrain[M28Overseer.refbPrioritiseDefence] or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4)))..'; Part 5='..tostring((tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false))..'; Part 6='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 120 or (not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0)))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if emergency PD is needed, iApproachingACUThreat='..iApproachingACUThreat..'; Brain factory='..aiBrain[M28Economy.refiOurHighestFactoryTechLevel]..'; Zone wants T1 spam='..tostring(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam))..'; Team gross energy='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or 'nil')..'; PD builder: Part 1='..tostring(not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 25)..'; Part 2='..tostring((aiBrain[M28Overseer.refbPrioritiseDefence] and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and (not(bHaveLowPower) or aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 75)))..'; Part 3='..tostring((tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2))..'; Part 4='..tostring((M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] or aiBrain[M28Overseer.refbPrioritiseDefence] or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4)))..'; Part 5='..tostring((tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false))..'; Part 6='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 120 or (not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0)))..'; subrefiTeamGrossEnergy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
     if not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 25 and (((iApproachingACUThreat > 0 or
             (aiBrain[M28Overseer.refbPrioritiseDefence] and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and (not(bHaveLowPower) or aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 75))
             or (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2))
@@ -12371,6 +12371,30 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tTargetBuildLocation)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency T2 PD, iBPWanted='..iBPWanted..'; Dist from midpoint to tTargetBuildLocation='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tTargetBuildLocation)) end
                 end
+            end
+        end
+        --T1 PD if approaching enemy ACUs that lack gun
+    elseif iApproachingACUThreat > 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 25 and oNearestEnemyACU and tNearestEnemyACU and oNearestEnemyACU[M28UnitInfo.refiDFRange] < 26
+            and ((oNearestEnemyACU[M28ACU.refiUpgradeCount] or 0) == 0 or not(bSaveMassForMML) or (aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence]) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 or (iApproachingACUThreat  > tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryMML) >= 5))
+    then
+        local iDistFromACUToBase = M28Utilities.GetDistanceBetweenPositions(oNearestEnemyACU:GetPosition(), tLZData[M28Map.subrefMidpoint])
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering just getting t1 PD, iDistFromACUToBase='..iDistFromACUToBase) end
+        if iDistFromACUToBase <= 175 and (iApproachingACUThreat > 1500 or iDistFromACUToBase <= 150) and (iDistFromACUToBase <= 90 or M28Map.iMapSize > 500) then
+            iCurPDThreat = 0
+            local iRangeThreshold = 26
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+                for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                    if iRange >= iRangeThreshold then
+                        iCurPDThreat = iCurPDThreat + iThreat
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurPDThreat='..iCurPDThreat) end
+            if iCurPDThreat < iApproachingACUThreat * 0.75 and (iCurPDThreat == 0 or (iDistFromACUToBase <= 125 and (iDistFromACUToBase <= 100 or oNearestEnemyACU[M28UnitInfo.refiUpgradeCount] == 0))) then
+                iBPWanted = 15
+                local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone, tLZData, tLZTeamData, 1)
+                HaveActionToAssign(refActionBuildEmergencyPD, 1, iBPWanted, tTargetBuildLocation)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will get emergency T1 PD, iBPWanted='..iBPWanted..'; tNearestEnemyACU='..repru(tNearestEnemyACU)..'; tTargetBuildLocation='..repru(tTargetBuildLocation)) end
             end
         end
     end
@@ -20370,6 +20394,39 @@ function GetStartSearchPositionForEmergencyPD(tNearestEnemy, tLZMidpoint, iPlate
                         end
                     end
                 end
+            end
+        end
+    elseif GetTerrainHeight(tNearestEnemy[1], tNearestEnemy[3]) < M28Map.iMapWaterHeight then
+        --Dont build on the edge but instead move back if enemy is in the water
+        if bDebugMessages == true then LOG(sFunctionRef..': Enemy is approaching from the water so want to move back so they are just in our range when they make landfall') end
+        local iMinDistFromWaterWanted = 20 --Often water will be shallow so no harm on being able to hit slightly at the water
+        if iExpectedPDTechLevel > 1 then iMinDistFromWaterWanted = 35 end
+        --If we move from target location towards enemy are we in water?
+        local iAngleFromMidpointToNearestEnemy = M28Utilities.GetAngleFromAToB(tLZMidpoint, tNearestEnemy)
+        for iCurMoveBackDist = 0, iMinDistFromWaterWanted, 5 do
+            local tPotentialWaterLocation = M28Utilities.MoveInDirection(tTargetLocation, iAngleFromMidpointToNearestEnemy, iMinDistFromWaterWanted - iCurMoveBackDist, true, true, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurMoveBackDist='..iCurMoveBackDist..'; tPotentialWaterLocation='..repru(tPotentialWaterLocation)..'; Terrain height='..GetTerrainHeight(tPotentialWaterLocation[1], tPotentialWaterLocation[3])..'; iMapWaterHeight='..M28Map.iMapWaterHeight) end
+            if GetTerrainHeight(tPotentialWaterLocation[1], tPotentialWaterLocation[3]) >= M28Map.iMapWaterHeight then
+                --Have land; so consider switching to here
+                if iCurMoveBackDist > 0 then
+                    local tAltLocation = M28Utilities.MoveInDirection(tTargetLocation, iAngleFromMidpointToNearestEnemy + 180, iCurMoveBackDist, true, true, true)
+                    --Check we arent building on a cliff
+                    if bDebugMessages == true then LOG(sFunctionRef..': tAltLocation='..repru(tAltLocation)..'; Land pathing ref of this='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tAltLocation) or 'nil')..'; subrefLZIslandRef='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')) end
+                    if NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tAltLocation) == tLZData[M28Map.subrefLZIslandRef] then
+                        --Check we arent blocked by a cliff
+                        local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+                        local tShotStart = {tAltLocation[1], tAltLocation[2] + iExpectedPDTechLevel * 0.5, tAltLocation[3]}
+                        local tShotEndPosition = {tPotentialWaterLocation[1], tPotentialWaterLocation[2] + 1, tPotentialWaterLocation[3]}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is line blocked between shot start and shot end='..tostring(import('/mods/M28AI/lua/AI/M28Logic.lua').IsLineBlocked(aiBrain, tShotStart, tShotEndPosition, 0, false, false))) end
+                        if not(import('/mods/M28AI/lua/AI/M28Logic.lua').IsLineBlocked(aiBrain, tShotStart, tShotEndPosition, 0, false, false)) then
+                            --Change the start position
+                            tTargetLocation = {tAltLocation[1], tAltLocation[2], tAltLocation[3]}
+                            if bDebugMessages == true then LOG(sFunctionRef..': Changing PD placement so we move back from water by '..iCurMoveBackDist) end
+                        end
+
+                    end
+                end
+                break --First potential location is invalid, wont look further for performance reasons
             end
         end
     end
