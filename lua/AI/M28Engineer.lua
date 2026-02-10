@@ -1329,7 +1329,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             if bDebugMessages == true then LOG(sFunctionRef..': Dealing with a shield so reduce max area to search based on half of shield size. iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')..'; shield size='..__blueprints[sBlueprintToBuild].Defense.Shield.ShieldSize or 0) end
         elseif EntityCategoryContains(M28UnitInfo.refCategoryTMD, sBlueprintToBuild) then
             local iTMDRange = 30
-            local oTMDBP = __blueprints[sBlueprintToBuild]
+
             if M28Utilities.IsTableEmpty(__blueprints[sBlueprintToBuild]) == false then
                 for iWeapon, tWeapon in __blueprints[sBlueprintToBuild].Weapon do
                     if tWeapon.MaxRadius then
@@ -1389,7 +1389,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 end
             end
         end
-
+        local tWaterToBuildAwayFrom
         if bDebugMessages == true then LOG(sFunctionRef..': sBlueprintToBuild='..(sBlueprintToBuild or 'nil')..'; Location to look from='..repru(tTargetLocation)) end
         --Mex or hydro or mass storage - consider the resource/storage locations
         if EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMassStorage, sBlueprintToBuild) then
@@ -1459,7 +1459,24 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             end
         else
             --Get adjacency location if we want adjacency
-            if oUnitToBuildBy or (iCatToBuildBy and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) or not(sBlueprintToBuild) or not(EntityCategoryContains(M28UnitInfo.refCategoryPower - categories.TECH1, sBlueprintToBuild)) or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryPower * M28UnitInfo.ConvertTechLevelToCategory(M28UnitInfo.GetBlueprintTechLevel(sBlueprintToBuild))) >= 2)) then
+            local bWantAdjacency = false
+            if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                --Does enemy have long ranged DF units in an adjacent water zone?
+                for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                    local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+                    local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ]
+                    local tAdjWZTeamData = tAdjWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
+                    if tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] >= 50 and tAdjWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] > tAdjWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] then
+                        tWaterToBuildAwayFrom = {tAdjWZData[M28Map.subrefMidpoint][1], tAdjWZData[M28Map.subrefMidpoint][2], tAdjWZData[M28Map.subrefMidpoint][3]}
+                    end
+                end
+            end
+            if oUnitToBuildBy then bWantAdjacency = true
+            elseif iCatToBuildBy and not(tWaterToBuildAwayFrom) and
+                (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) or not(sBlueprintToBuild) or not(EntityCategoryContains(M28UnitInfo.refCategoryPower - categories.TECH1, sBlueprintToBuild)) or M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryPower * M28UnitInfo.ConvertTechLevelToCategory(M28UnitInfo.GetBlueprintTechLevel(sBlueprintToBuild))) >= 2) then
+                bWantAdjacency = true
+            end
+            if bWantAdjacency then
                 if bDebugMessages == true then LOG(sFunctionRef..': About to get potential adjacency locations, sBlueprintToBuild='..(sBlueprintToBuild or 'nil')..'; is iCatToBuildBy empty='..tostring(iCatToBuildBy == nil)..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')) end
                 tPotentialBuildLocations = GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocation, iMaxAreaToSearch, iCatToBuildBy, oUnitToBuildBy)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential adjacency locations, sBlueprintToBuild='..sBlueprintToBuild..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)) end
@@ -1597,8 +1614,8 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
         if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
             local bTryToBuildAtTarget = false
             if iOptionalEngineerAction == refActionBuildEmergencyPD and M28Utilities.GetDistanceBetweenPositions(tTargetLocation, tLZData[M28Map.subrefMidpoint]) >= 2 then bTryToBuildAtTarget = true end
-            --GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation)
-            local tBestLocation = GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iMaxAreaToSearch, bCalledFromGetBestLocation, bTryToBuildAtTarget)
+            --GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation, bAlreadyTriedAlternatives, bTryToBuildAtTarget, bForceOverlappingBuildingCheck, tOptionalLocationToBuildAwayFrom)
+            local tBestLocation = GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iMaxAreaToSearch, bCalledFromGetBestLocation, bTryToBuildAtTarget, false, tWaterToBuildAwayFrom)
             if bDebugMessages == true then LOG(sFunctionRef..': Just got best location to build at, tBestLocation='..repru(tBestLocation)) end
             if tBestLocation then
                 --TMD check - if too far away to proect the unit we are interested in, then flag that dont want to try building tmd for the unit anymore
@@ -1631,7 +1648,7 @@ function ResetFailedShieldBuildDistance(oUnit, iDelayInSeconds)
     end
 end
 
-function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation, bAlreadyTriedAlternatives, bTryToBuildAtTarget, bForceOverlappingBuildingCheck)
+function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation, bAlreadyTriedAlternatives, bTryToBuildAtTarget, bForceOverlappingBuildingCheck, tOptionalLocationToBuildAwayFrom)
     --Assumes we have already checked for: Adjacency; In the same land zone; Valid location to build
     --WIll then consider: If engineer can build without moving; How far away it is from the engineer; if it will block mex adjacency, and (if we specify a maximum distance) if it is within the max distance
     --bAlreadyTriedAlternatives - set to true if we have already called this function via this function, or we dont want to try other locations
@@ -1706,11 +1723,11 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
         bAvoidBuildingOnMassStorage = true
     end
 
-    local tArtiPositionsToBuildAwayFrom
+    local tArtiAndOtherPositionsToBuildAwayFrom
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
         --Get average position of enemy T2 arti and build away from here
-        tArtiPositionsToBuildAwayFrom = {}
-        table.insert(tArtiPositionsToBuildAwayFrom, M28Utilities.GetAverageOfUnitPositions(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))
+        tArtiAndOtherPositionsToBuildAwayFrom = {}
+        table.insert(tArtiAndOtherPositionsToBuildAwayFrom, M28Utilities.GetAverageOfUnitPositions(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))
         if table.getn(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) > 1 then
             local iClosestArti = 300
             local oClosestArti
@@ -1722,12 +1739,16 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                     oClosestArti = oArti
                 end
             end
-            if oClosestArti and M28Utilities.GetDistanceBetweenPositions(tArtiPositionsToBuildAwayFrom[1], oClosestArti:GetPosition()) >= 6 then
-                table.insert(tArtiPositionsToBuildAwayFrom, oClosestArti:GetPosition())
+            if oClosestArti and M28Utilities.GetDistanceBetweenPositions(tArtiAndOtherPositionsToBuildAwayFrom[1], oClosestArti:GetPosition()) >= 6 then
+                table.insert(tArtiAndOtherPositionsToBuildAwayFrom, oClosestArti:GetPosition())
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to build away from enemy T2 arti, Is table of enemy T2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; tArtiPositionsToBuildAwayFrom='..repru(tArtiPositionsToBuildAwayFrom)..'; Does enemy have units in adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)) end
+    if tOptionalLocationToBuildAwayFrom then
+        if not(tArtiAndOtherPositionsToBuildAwayFrom) then tArtiAndOtherPositionsToBuildAwayFrom = {} end
+        table.insert(tArtiAndOtherPositionsToBuildAwayFrom, tOptionalLocationToBuildAwayFrom)
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to build away from enemy T2 arti, Is table of enemy T2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))..'; tArtiAndOtherPositionsToBuildAwayFrom='..repru(tArtiAndOtherPositionsToBuildAwayFrom)..'; Does enemy have units in adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)) end
     if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, sBlueprintToBuild) then bTryAndBuildAtlantis = true end
     --25s as we might go first pgen to get an air fac
     if GetGameTimeSeconds() <= 25 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBlueprintToBuild) then
@@ -1774,10 +1795,10 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
         --Build towards the midpoing except for certain unit categories
         if not(EntityCategoryContains(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild)) then
             if (iLandZone or 0) > 0 and iPlateau > 0 then
-                if tArtiPositionsToBuildAwayFrom then
+                if tArtiAndOtherPositionsToBuildAwayFrom then
                     tLocationToBuildTowards = nil
                     tLocationsToBuildAwayFrom = {}
-                    for iEntry, tPosition in tArtiPositionsToBuildAwayFrom do
+                    for iEntry, tPosition in tArtiAndOtherPositionsToBuildAwayFrom do
                         table.insert(tLocationsToBuildAwayFrom, tPosition)
                     end
                     bAvoidArti = true
