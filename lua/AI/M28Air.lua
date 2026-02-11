@@ -1831,7 +1831,11 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             local tRallyPointLZOrWZData, tRallyPointLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tPreferredRallyPoint, true, iTeam)
             if M28Utilities.GetDistanceBetweenPositions(tPreferredRallyPoint, tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 20 then
                 local tClosestBaseLZOrWZData, tClosestBaseLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase], true, iTeam)
-                iCurRallyValue = GetRallyPointValueOfLandZone(iTeam, tClosestBaseLZOrWZData, tClosestBaseLZOrWZTeamData, iPlateau)
+                if GetTerrainHeight(tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]) < M28Map.iMapWaterHeight then
+                    iCurRallyValue = GetRallyPointValueOfWaterZone(iTeam, tClosestBaseLZOrWZData, tClosestBaseLZOrWZTeamData)
+                else
+                    iCurRallyValue = GetRallyPointValueOfLandZone(iTeam, tClosestBaseLZOrWZData, tClosestBaseLZOrWZTeamData, iPlateau)
+                end
                 if bDebugMessages == true then LOG(sFunctionRef..': iBestRallyValue currently='..iBestRallyValue..'; iCurRallyValue of closest friendly base to this='..iCurRallyValue..'; Rally point before update='..repru(tPreferredRallyPoint)) end
                 if iCurRallyValue > iBestRallyValue then
                     iBestRallyValue = iCurRallyValue
@@ -1863,9 +1867,13 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                             tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                             iPlateauOrZero = tSubtable[M28Map.subrefiPlateauOrPond]
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..(iCurLZOrWZRef or 'nil')..'; Plateua or pond='..(tSubtable[M28Map.subrefiPlateauOrPond] or 'nil')..'; is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone] or false)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]))..'; Rally value='..GetRallyPointValueOfLandZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData, iPlateauOrZero)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..(iCurLZOrWZRef or 'nil')..'; Plateua or pond='..(tSubtable[M28Map.subrefiPlateauOrPond] or 'nil')..'; is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone] or false)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]))..'; Rally value if LZ='..GetRallyPointValueOfLandZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData, iPlateauOrZero)..'; Rally value if WZ='..GetRallyPointValueOfWaterZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData)) end
                         if M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]) then
-                            iCurRallyValue = GetRallyPointValueOfLandZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData, iPlateauOrZero)
+                            if iPlateauOrZero == 0 then
+                                iCurRallyValue = GetRallyPointValueOfWaterZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData)
+                            else
+                                iCurRallyValue = GetRallyPointValueOfLandZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData, iPlateauOrZero)
+                            end
                             if iCurRallyValue > iBestRallyValue then
                                 iBestRallyValue = iCurRallyValue
                                 tPreferredRallyPoint = {tAltLZOrWZData[M28Map.subrefMidpoint][1], tAltLZOrWZData[M28Map.subrefMidpoint][2], tAltLZOrWZData[M28Map.subrefMidpoint][3]}
