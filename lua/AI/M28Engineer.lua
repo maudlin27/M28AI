@@ -4416,7 +4416,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..' for iPlateauOrPond='..iPlateauOrPond..'; iLandZone='..iLandZone..'; reprs of tEngineers='..reprs(tEngineers)) end
 
@@ -4508,7 +4508,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local bWantEngiToRun
     local bEngiIsUnavailable
 
-    local iLZOrWZToRunTo
+    local iLZOrWZToRunTo, iPlateauOrZeroToRunTo
     local iThresholdToRunFromMobileEnemies = 35
     if bInCoreZone or (bIsWaterZone and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
         iThresholdToRunFromMobileEnemies = 10
@@ -4528,7 +4528,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         end
         if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 2000 and iThresholdToRunFromMobileEnemies >= 35 and ((bIsWaterZone and tLZTeamData[M28Map.subrefWZThreatAlliedSurface] >= 300) or (not(bIsWaterZone) and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] >= 100)) then iThresholdToRunFromMobileEnemies = 26 end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': setting iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; Our combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Our mobile DF='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Signif mass reclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]..'; Is tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': setting iThresholdToRunFromMobileEnemies='..(iThresholdToRunFromMobileEnemies or 'nil')..'; Our combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Our mobile DF='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Signif mass reclaim='..(tLZData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 'nil')..'; Is tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]))) end
 
     local iEnemyUnitSearchRange = iThresholdToRunFromMobileEnemies + math.max(10, (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0))
     local iActualEnemySearchRange
@@ -4894,18 +4894,26 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                                     tLZTeamData[M28Map.refiTimeLastRunFromEnemyLand] = math.floor(GetGameTimeSeconds())
                                                                 end
                                                             end
-                                                        else
-                                                            iLZOrWZToRunTo = M28Navy.GetWaterZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
+                                                        else --Dealing with water zone:
+                                                            iLZOrWZToRunTo, iPlateauOrZeroToRunTo = M28Navy.GetWaterZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom, true)
 
-                                                            if not(iLZOrWZToRunTo == iLandZone) and not(iLandZone == M28Navy.GetWaterZoneToRunTo(iTeam, iPlateauOrPond, iLZOrWZToRunTo, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom))  then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build); similarly if we would run here from the WZ we want to run to
-                                                                --Run to the LZ
+                                                            if iPlateauOrZeroToRunTo == 0 and not(iLZOrWZToRunTo == iLandZone) then --If WZ to run to is same as cur WZ might as well use engineer normally (e.g. might have defences to build); similarly if we would run here from the WZ we want to run to
+                                                                --Run to the WZ
                                                                 M28Orders.IssueTrackedMove(oEngineer, M28Map.tPondDetails[iPlateauOrPond][M28Map.subrefPondWaterZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'NRunTo'..iLZOrWZToRunTo)
                                                                 bEngiIsUnavailable = true
                                                                 TrackEngineerAction(oEngineer, refActionRunToWaterZone, false, 1, nil, iLZOrWZToRunTo)
                                                                 tLZTeamData[M28Map.refiTimeLastRunFromEnemyLand] = math.floor(GetGameTimeSeconds())
+                                                            elseif (iPlateauOrZeroToRunTo or 0) > 0 and  iLZOrWZToRunTo then
+                                                                --Run to the land zone
+                                                                M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateauOrZeroToRunTo][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'WLRunTo'..iLZOrWZToRunTo)
+                                                                bEngiIsUnavailable = true
+                                                                TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateauOrZeroToRunTo, iLZOrWZToRunTo})
+                                                                tLZTeamData[M28Map.refiTimeLastRunFromEnemyLand] = math.floor(GetGameTimeSeconds())
                                                             else
-                                                                --Consider moving to land zone instead if there is an adjacent LZ
-                                                                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentLandZones]) == false then
+                                                                --Nowhere to run
+
+                                                                --Previous code -have replaced with logic in the function that gets the WZ to run to
+                                                                --[[if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentLandZones]) == false then
                                                                     local tClosestRallyPoint
                                                                     local iClosestRallyPointDist = 100000
                                                                     local iCurRallyPointDist
@@ -4926,7 +4934,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                                         TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateau, iLZToRunTo})
                                                                         tLZTeamData[M28Map.refiTimeLastRunFromEnemyLand] = math.floor(GetGameTimeSeconds())
                                                                     end
-                                                                end
+                                                                end--]]
                                                             end
                                                         end
                                                     end

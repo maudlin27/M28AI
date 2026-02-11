@@ -6024,10 +6024,11 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetWaterZoneToRunTo(iTeam, iPond, iCurWaterZone, sPathing, tOptionalStartPosition, tOptionalEnemyPositionToRunFrom)
-    --Returns cur WZ if no WZ to run to, otherwise returns the land zone we think is best to run to from iCurLandZone
+function GetWaterZoneToRunTo(iTeam, iPond, iCurWaterZone, sPathing, tOptionalStartPosition, tOptionalEnemyPositionToRunFrom, bConsiderReturningLandZoneAsWell)
+    --Returns cur WZ if no WZ to run to, otherwise returns the water zone we think is best to run to from iCurWaterZone; returns iLandOrWaterZone, and if bConsiderReturningLandZoneAsWell is true then returns iPlateauOrZero
     --tOptionalStartPosition - if nil then will use midpoint of iCurLandZone
     --tOptionalEnemyPositionToRunFrom - if this is specified, then will pick al ocation based on angle from the start position to the location vs the start position angle to the enemy position to run to (so we run in the opposite direction to the enemy position if the opposite direction WZ is safe)
+    --bConsiderReturningLandZoneAsWell - if true then will return a land zone to run to if it'd be better than a water zone
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetWaterZoneToRunTo'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -6044,46 +6045,81 @@ function GetWaterZoneToRunTo(iTeam, iPond, iCurWaterZone, sPathing, tOptionalSta
             end
         end
     end
-    if M28Utilities.IsTableEmpty(tWZShortlist) then
+    if M28Utilities.IsTableEmpty(tWZShortlist) and not(bConsiderReturningLandZoneAsWell) then
         --Nowhere to run to
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return iCurWaterZone
     else
         local tStartPoint = (tOptionalStartPosition or tWZData[M28Map.subrefMidpoint])
         local iPreferredWZRef
+        local iPreferredPlateauOrZero = 0
         if tOptionalEnemyPositionToRunFrom then
             --Go to the angle furthest in angle away from the nearest enemy
             local iAngleToEnemy = M28Utilities.GetAngleFromAToB(tStartPoint, tOptionalEnemyPositionToRunFrom)
             local iCurAngleDif
             local iHighestAngleDif = 0
-            for _, iPossibleWZ in tWZShortlist do
-                iCurAngleDif = M28Utilities.GetAngleDifference(iAngleToEnemy, M28Utilities.GetAngleFromAToB(tStartPoint, M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iPossibleWZ][M28Map.subrefMidpoint]))
-                if iCurAngleDif > iHighestAngleDif then
-                    iHighestAngleDif = iCurAngleDif
-                    iPreferredWZRef = iPossibleWZ
+            if not(bConsiderReturningLandZoneAsWell) or M28Utilities.IsTableEmpty(tWZShortlist) == false then
+                for _, iPossibleWZ in tWZShortlist do
+                    iCurAngleDif = M28Utilities.GetAngleDifference(iAngleToEnemy, M28Utilities.GetAngleFromAToB(tStartPoint, M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iPossibleWZ][M28Map.subrefMidpoint]))
+                    if iCurAngleDif > iHighestAngleDif then
+                        iHighestAngleDif = iCurAngleDif
+                        iPreferredWZRef = iPossibleWZ
+                    end
+                end
+            end
+            if bConsiderReturningLandZoneAsWell and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
+                local iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tStartPoint)
+                for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
+                    --Check we can path here
+                    if iCurPlateau == tSubtable[M28Map.subrefWPlatAndLZNumber][1] then
+                        local tAdjLZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
+                        iCurAngleDif = M28Utilities.GetAngleDifference(iAngleToEnemy, M28Utilities.GetAngleFromAToB(tStartPoint, tAdjLZData[M28Map.subrefMidpoint]))
+                        if iCurAngleDif > iHighestAngleDif then
+                            iHighestAngleDif = iCurAngleDif
+                            iPreferredWZRef = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
+                            iPreferredPlateauOrZero = iCurPlateau
+                        end
+                    end
                 end
             end
         else
-            --dont have angle to nearest enemy so just pick the closest land zone
+            --dont have angle to nearest enemy so just pick the closest water (or land if relevant) zone
 
             local iClosestWZDistance = 100000
             local iCurDist
-            for _, iPossibleWZ in tWZShortlist do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering distance from tStartPoint to iPossibleWZ '..(iPossibleWZ or 'nil')..'; Midpoint of that WZ='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPossibleWZ][M28Map.subrefMidpoint])..'; iCurDist='..(M28Utilities.GetTravelDistanceBetweenPositions(tStartPoint, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPossibleWZ][M28Map.subrefMidpoint], sPathing) or 'nil')) end
-                iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(tStartPoint, M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iPossibleWZ][M28Map.subrefMidpoint], sPathing)
-                --Backup - if the built in pathfinding doesnt htink we can path there (e.g. we are by a cliff) then use straight line distance
-                if not(iCurDist) then iCurDist = M28Utilities.GetDistanceBetweenPositions(tStartPoint, M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iPossibleWZ][M28Map.subrefMidpoint]) + 30 end
+            if not(bConsiderReturningLandZoneAsWell) or M28Utilities.IsTableEmpty(tWZShortlist) == false then
+                for _, iPossibleWZ in tWZShortlist do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering distance from tStartPoint to iPossibleWZ '..(iPossibleWZ or 'nil')..'; Midpoint of that WZ='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPossibleWZ][M28Map.subrefMidpoint])..'; iCurDist='..(M28Utilities.GetTravelDistanceBetweenPositions(tStartPoint, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPossibleWZ][M28Map.subrefMidpoint], sPathing) or 'nil')) end
+                    iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(tStartPoint, M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iPossibleWZ][M28Map.subrefMidpoint], sPathing)
+                    --Backup - if the built in pathfinding doesnt htink we can path there (e.g. we are by a cliff) then use straight line distance
+                    if not(iCurDist) then iCurDist = M28Utilities.GetDistanceBetweenPositions(tStartPoint, M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iPossibleWZ][M28Map.subrefMidpoint]) + 30 end
 
-                if iCurDist < iClosestWZDistance then
-                    iClosestWZDistance = iCurDist
-                    iPreferredWZRef = iPossibleWZ
+                    if iCurDist < iClosestWZDistance then
+                        iClosestWZDistance = iCurDist
+                        iPreferredWZRef = iPossibleWZ
+                    end
+                end
+            end
+            if bConsiderReturningLandZoneAsWell and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
+                local iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tStartPoint)
+                local iPossibleLZ
+                for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
+                    --Check we can path here
+                    if iCurPlateau == tSubtable[M28Map.subrefWPlatAndLZNumber][1] then
+                        local tAdjLZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
+                        iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(tStartPoint, tAdjLZData[M28Map.subrefMidpoint], sPathing)
+                        if iCurDist < iClosestWZDistance then
+                            iClosestWZDistance = iCurDist
+                            iPreferredWZRef = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
+                            iPreferredPlateauOrZero = iCurPlateau
+                        end
+                    end
                 end
             end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return (iPreferredWZRef or iCurWaterZone)
+        return (iPreferredWZRef or iCurWaterZone), (iPreferredPlateauOrZero or 0)
     end
-
 end
 
 function UpdateSonarCoverageForDestroyedSonar(oSonar)
