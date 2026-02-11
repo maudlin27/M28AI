@@ -4427,11 +4427,13 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]  --M28Team.GetFirstActiveM28Brain(iTeam)
     --local tNearbyEnemiesByZone = {}
     local bCheckForEnemies = false
+    local toNavalEnemiesAdjacentToLand
     local bCheckIfEnemyIsActuallyEnemy = false
     if M28Map.bIsCampaignMap and (M28Overseer.tbSpecialCodeForMission[41] or (ScenarioInfo.QAICommander and M28UnitInfo.IsUnitValid(ScenarioInfo.QAICommander))) then
         bCheckIfEnemyIsActuallyEnemy = true
     end
-    if (bIsWaterZone and (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]) == false)) or (not(bIsWaterZone) and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+    if (bIsWaterZone and (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]) == false))
+            or (not(bIsWaterZone) and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
         --table.insert(tNearbyEnemiesByZone, tLZTeamData[M28Map.subrefTEnemyUnits])
         bCheckForEnemies = true
         if M28Utilities.bCPUPerformanceMode then
@@ -4441,6 +4443,26 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
             end
         end
     end
+    if not(bIsWaterZone) and not(M28Utilities.bCPUPerformanceMode) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+        local iAdjWZ, iPond
+        for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+            iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+            iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+            local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..tSubtable[M28Map.subrefAWZRef]..'; subrefWZThreatEnemyVsSurface='..(tAdjWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 'nil')..'; subrefWZBestEnemyDFRange='..(tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 'nil')..'; is subrefTEnemyUnits empty='..tostring(M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) or false)) end
+            if tAdjWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] > 40 and tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] > 15 and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                for iEnemy, oEnemy in tAdjWZTeamData[M28Map.subrefTEnemyUnits] do
+                    if not(oEnemy.Dead) and oEnemy[M28UnitInfo.refiDFRange] > 15 then
+                        if not(toNavalEnemiesAdjacentToLand) then toNavalEnemiesAdjacentToLand = {} end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Including naval enemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..' in toNavalEnemiesAdjacentToLand') end
+                        table.insert(toNavalEnemiesAdjacentToLand, oEnemy)
+                    end
+                end
+            end
+        end
+    end
+
     if bDebugMessages == true then
         LOG(sFunctionRef..': Finished deciding if should check for enemies, bCheckForEnemies='..tostring(bCheckForEnemies)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or false)..'; M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]) empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestCombatEnemies]))..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false))
         if bIsWaterZone then
@@ -4572,13 +4594,14 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         local bConsiderReclaimableEnemiesInBuildRangeOnly
         for iEngineer, oEngineer in tEngineers do
             if not(oEngineer.Dead) then --redundancy for rare error
+
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')..'; oEngineer[M28UnitInfo.refbSpecialMicroActive]='..tostring(oEngineer[M28UnitInfo.refbSpecialMicroActive] or false)..'; refiGameTimeToResetMicroActive='..(oEngineer[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; bCheckForEnemies='..tostring(bCheckForEnemies)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
                 bWantEngiToRun = false
                 bEngiIsUnavailable = false
                 if not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) and not(oEngineer:IsUnitState('Capturing')) then --even when adding a not(oEngineer.Dead) to this, in LOUD it can sometimes have an error when checking unit state; however it should only last a short while
                     if bIsWaterZone and EntityCategoryContains(categories.HOVER, oEngineer.UnitId) then bIgnoreIfEnemyUnderwater = true end
                     --First check for enemies that we want to run from/take action from
-                    if bCheckForEnemies or bCheckForWallsToReclaim then
+                    if bCheckForEnemies or bCheckForWallsToReclaim or toNavalEnemiesAdjacentToLand then
                         local bReclaimingDangerousEnemy = false
                         iNearestReclaimableEnemy = 10000
                         iNearestReclaimableDangerousEnemy = 10000
@@ -4632,6 +4655,8 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                             iNearestEnemy = iActualEnemySearchRange
                                             iNearestReclaimableDangerousEnemy = iActualEnemySearchRange
                                             iNearestReclaimableEnemy = iActualEnemySearchRange
+                                        elseif toNavalEnemiesAdjacentToLand and not(bCheckForEnemies) and not(bCheckForWallsToReclaim) then
+                                            --Will update to reflect naval enemies below, so dont search
                                         elseif tLZTeamData[M28Map.refiRadarCoverage] >= 60 or not(bCheckForEnemies) then
                                             tNearbyEnemiesByZone = aiBrain:GetUnitsAroundPoint(iActualEnemyCategorySearch, oEngineer:GetPosition(), iActualEnemySearchRange, 'Enemy')
                                             if bDebugMessages == true then LOG(sFunctionRef..': Using getunitsaroundpoint to check for enemies, tLZTeamData[M28Map.refiRadarCoverage]='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')) end
@@ -4661,6 +4686,15 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                             table.insert( tNearbyEnemiesByZone, oUnit)
                                                         end
                                                     end
+                                                end
+                                            end
+                                        end
+                                        if toNavalEnemiesAdjacentToLand then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Updating nearby enemies to include toNavalEnemiesAdjacentToLand') end
+                                            if not(tNearbyEnemiesByZone) then tNearbyEnemiesByZone = toNavalEnemiesAdjacentToLand
+                                            else
+                                                for iEnemy, oEnemy in toNavalEnemiesAdjacentToLand do
+                                                    table.insert(tNearbyEnemiesByZone, oEnemy)
                                                 end
                                             end
                                         end
@@ -4813,7 +4847,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                             end
                                         else
                                             --Enemy not close enough to reclaim, do we want to run?
-                                            if bConsiderRunningFromEnemies then
+                                            if bConsiderRunningFromEnemies or (iClosestDistUntilInRangeOfMobileEnemy < 10 and iNearestReclaimableEnemy > 22 and iClosestDistUntilInRangeOfMobileEnemy <= iThresholdToRunFromMobileEnemies) then
                                                 --Above will have done getunitsaroundpoint; if dont have enemies that want to run from and we lack good intel in this zone, then do a more detailed check based on memory
                                                 if bCheckForEnemies and iClosestDistUntilInRangeOfMobileEnemy > iThresholdToRunFromMobileEnemies and (tLZTeamData[M28Map.refiOmniCoverage] or 0) < 50 then
                                                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
