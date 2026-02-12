@@ -1725,7 +1725,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         end
         local bConsiderStuckLogic = (tWZTeamData[M28Map.subrefWZbCoreBase] and not(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones])))
         for iUnit, oUnit in tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
-            if oUnit:GetFractionComplete() == 1 then
+            if oUnit:GetFractionComplete() == 1 and not(oUnit.Dead) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering in this WZ unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Active raider='..tostring((oUnit[refbActiveRaider] or false))..'; oUnit[M28ACU.refbTreatingAsACU]='..tostring((oUnit[M28ACU.refbTreatingAsACU] or false))..'; Water zone='..iWaterZone..'; Mobile navyoramhiborhover='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId))..'; Antinavy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAntiNavy, oUnit.UnitId))..'; Navy category='..tostring(EntityCategoryContains(categories.NAVAL, oUnit.UnitId))..'; submarine='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))..'; Does it contain the main combat unit grouping of categories='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId))..'; Is this a T3 mobile shield or shield boat='..tostring(EntityCategoryContains(iShieldCategory, oUnit.UnitId))..'; Time='..GetGameTimeSeconds()) end
 
                 --Special anti-stuck logic for T3 naval units (which are more prone to getting stuck)
@@ -4422,8 +4422,8 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                 end
                                 if tAdjWZTeamData[M28Map.subrefWZbSubsInScenario2] then
                                     --Check dist from closest surface unit to this WZ is closer than from our midpoint
-                                    if (not(oNearestEnemyNonHoverToFriendlyBase) and tAdjWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > 0) or M28Utilities.GetDistanceBetweenPositions(oNearestEnemyNonHoverToFriendlyBase:GetPosition(), M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefMidpoint]) < M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefMidpoint]) then
-                                        if not(oNearestEnemyNonHoverToFriendlyBase) and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                    if (not(oNearestEnemyNonHoverToFriendlyBase) and tAdjWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > 0) or (oNearestEnemyNonHoverToFriendlyBase and not(oNearestEnemyNonHoverToFriendlyBase.Dead) and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyNonHoverToFriendlyBase:GetPosition(), M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefMidpoint]) < M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefMidpoint])) then
+                                        if (not(oNearestEnemyNonHoverToFriendlyBase) or oNearestEnemyNonHoverToFriendlyBase.Dead) and M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                             local iCurDist
                                             local iClosestDist = 10000
                                             for iUnit, oUnit in tAdjWZTeamData[M28Map.subrefTEnemyUnits] do
@@ -4436,7 +4436,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                                 end
                                             end
                                         end
-                                        if oNearestEnemyNonHoverToFriendlyBase then
+                                        if oNearestEnemyNonHoverToFriendlyBase and not(oNearestEnemyNonHoverToFriendlyBase.Dead) then
                                             bAdjacentSubsInScenario2 = true
                                             iAdjacentEnemySurfaceThreatToInclude = tAdjWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] - tAdjWZTeamData[M28Map.subrefWZThreatEnemySubmersible]
                                             if bDebugMessages == true then LOG(sFunctionRef..': Hvae an adjacent zone with subs that want support') end
@@ -4943,7 +4943,9 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 tTargetPoint[2] = GetSurfaceHeight(tTargetPoint[1], tTargetPoint[3])
                 for iUnit, oUnit in tCombatUnitsNeedingAOEForSubs do
                     --Ground fire the closest enemy unit
-                    M28Orders.IssueTrackedGroundAttack(oUnit, tTargetPoint, 1, false, 'GrndFr', false)
+                    if not(oUnit.Dead) then --redundancy - wierd bug despite earlier check
+                        M28Orders.IssueTrackedGroundAttack(oUnit, tTargetPoint, 1, false, 'GrndFr', false)
+                    end
                 end
             end
         end
@@ -7298,221 +7300,223 @@ function ManageSACUsInWaterZone(tSACUs, tWZData, tWZTeamData, iPond, iWaterZone,
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iWaterZone='..iWaterZone..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()) end
     local iHighestUpgradingSACU = -1
     local oHighestUpgradingSACU
-    for iSACU, oSACU in tSACUs do
-        if oSACU:IsUnitState('Upgrading') then
-            if oSACU:GetWorkProgress() > iHighestUpgradingSACU then
-                iHighestUpgradingSACU = oSACU:GetWorkProgress()
-                oHighestUpgradingSACU = oSACU
-            end
-        end
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for upgrading SACU, oHighestUpgradingSACU='..(oHighestUpgradingSACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oHighestUpgradingSACU) or 'nil')..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]))) end
-    if oHighestUpgradingSACU then
-        --Assist upgrading SACU
+    if M28Conditions.IsTableOfUnitsStillValid(tSACUs) then --redundancy for rare error
         for iSACU, oSACU in tSACUs do
-            if not(oSACU:IsUnitState('Upgrading')) then
-                M28Orders.IssueTrackedGuard(oSACU, oHighestUpgradingSACU, false, 'WZAssSUgr', false)
-            end
-        end
-
-        --Do we have any upgrading units in thie zone? if so then assist
-    elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
-        --Get the upgrade closest to completion and assist it
-        local iClosestUpgrade = -1
-        local oClosestUpgrade
-        for iUnit, oUnit in tWZTeamData[M28Map.subreftoActiveUpgrades] do
-            if oUnit:GetWorkProgress() > iClosestUpgrade then
-                iClosestUpgrade = oUnit:GetWorkProgress()
-                oClosestUpgrade = oUnit
-            end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': Have an active upgrade in WZ, oClosestUpgrade='..oClosestUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUpgrade)) end
-        for iSACU, oSACU in tSACUs do
-            M28Orders.IssueTrackedGuard(oSACU, oClosestUpgrade, false, 'WZAssUgr', false)
-        end
-    else
-        local bGivenBuildOrder = false
-        function BuildCategoryWithSACUs(iCategoryWanted, iOptionalFactionWanted, toSACUByFaction, iOptionalEngineerActionForTracking, iOptionalAlternativeCategory)
-            --toSACUByFaction - only needed if iOptionalFactionWanted is specified
-            --iOptionalEngineerActionForTracking - if specified, then will call trackengineer function
-            --iOptionalAlternativeCategory - if cant find anything to build for category wanted, then will try this as an alternative
-            local oPrimaryEngineer
-            if iOptionalFactionWanted then
-                oPrimaryEngineer = toSACUByFaction[iOptionalFactionWanted][1]
-            else
-                oPrimaryEngineer = tSACUs[1]
-            end
-
-            if oPrimaryEngineer then
-                local aiBrain = oPrimaryEngineer:GetAIBrain()
-                --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction,                                                           iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
-                local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oPrimaryEngineer, iOptionalEngineerActionForTracking or M28Engineer.refActionBuildExperimental, iCategoryWanted, 100,                nil,                nil,                                false,                          nil,                nil,                                false,              tWZData, tWZTeamData)
-                if not(sBlueprint) and iOptionalAlternativeCategory then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oPrimaryEngineer, iOptionalEngineerActionForTracking or M28Engineer.refActionBuildExperimental, iOptionalAlternativeCategory, 100, nil, nil,                                false,                          nil,                nil,                                false, tWZData, tWZTeamData) end
-
-                --Update SACU table to remove any of the desired faction who can be given other orders
-                if bDebugMessages == true then LOG(sFunctionRef..': sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation or {})..'; oPrimaryEngineer='..(oPrimaryEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPrimaryEngineer) or 'nil')) end
-                if sBlueprint and tBuildLocation then
-                    local toBuilders
-                    if iOptionalFactionWanted then
-                        for iCurEntry = table.getn(tSACUs), 1, -1 do
-                            if M28UnitInfo.GetUnitFaction(tSACUs[iCurEntry]) == iOptionalFactionWanted then
-                                table.remove(tSACUs, iCurEntry)
-                            end
-                        end
-                        toBuilders = toSACUByFaction[iOptionalFactionWanted]
-                    else
-                        toBuilders = tSACUs
-                    end
-
-                    --Build with all the SACUs wanted
-                    if M28Utilities.IsTableEmpty(toBuilders) == false then
-                        for iSACU, oSACU in toBuilders do
-                            bGivenBuildOrder = true
-                            local tMoveLocation = M28Engineer.GetLocationToMoveForConstruction(oSACU, tBuildLocation, sBlueprint, 0, false)
-                            if tMoveLocation then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Telling oSACU '..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' to move to '..repru(tMoveLocation)..' and then build '..sBlueprint..' at location '..repru(tBuildLocation)) end
-                                M28Orders.IssueTrackedMoveAndBuild(oSACU, tBuildLocation, sBlueprint, tMoveLocation, 1, false, 'SACUExpMBld')
-                            else
-                                if bDebugMessages == true then LOG(sFunctionRef..': Telling engineer '..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' to build '..sBlueprint..' at build location '..repru(tBuildLocation)) end
-                                M28Orders.IssueTrackedBuild(oSACU, tBuildLocation, sBlueprint, false, 'SACUExpBld')
-                            end
-                            if iOptionalEngineerActionForTracking and not(oSACU[M28Engineer.refiAssignedAction] == iOptionalEngineerActionForTracking) then M28Engineer.TrackEngineerAction(oSACU, iOptionalEngineerActionForTracking, iSACU == 1, 1, nil, nil, false) end
-                            --M28Engineer.TrackEngineerAction(oSACU, M28Engineer.refActionBuildExperimental, true, 1, nil, nil, false)
-                        end
-                    end
+            if oSACU:IsUnitState('Upgrading') then
+                if oSACU:GetWorkProgress() > iHighestUpgradingSACU then
+                    iHighestUpgradingSACU = oSACU:GetWorkProgress()
+                    oHighestUpgradingSACU = oSACU
                 end
             end
         end
-
-        --Do we have a naval fac in the zone? base behaviour on this
-        local iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
-        local tFriendlyNavalFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly naval factories empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyNavalFactories))) end
-        if M28Utilities.IsTableEmpty(tFriendlyNavalFactories) then
-            --No naval fac - either build another (if no nearby enemies) or return to land
-            local tRetreatPoint
-            if tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] and not(tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
-                if NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZTeamData[M28Map.reftClosestFriendlyBase]) == iPlateau then
-                    tRetreatPoint = tWZTeamData[M28Map.reftClosestFriendlyBase]
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for upgrading SACU, oHighestUpgradingSACU='..(oHighestUpgradingSACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oHighestUpgradingSACU) or 'nil')..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]))) end
+        if oHighestUpgradingSACU then
+            --Assist upgrading SACU
+            for iSACU, oSACU in tSACUs do
+                if not(oSACU:IsUnitState('Upgrading')) then
+                    M28Orders.IssueTrackedGuard(oSACU, oHighestUpgradingSACU, false, 'WZAssSUgr', false)
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': want to retreat, tRetreatPoint='..repru(tRetreatPoint)) end
-            if tRetreatPoint then
-                for iSACU, oSACU in tSACUs do
-                    oSACU[M28UnitInfo.refiSACUWaterZoneTarget] = nil
-                    M28Orders.IssueTrackedMove(oSACU, tRetreatPoint, 5, false, 'WZSACURun', false)
+
+            --Do we have any upgrading units in thie zone? if so then assist
+        elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+            --Get the upgrade closest to completion and assist it
+            local iClosestUpgrade = -1
+            local oClosestUpgrade
+            for iUnit, oUnit in tWZTeamData[M28Map.subreftoActiveUpgrades] do
+                if oUnit:GetWorkProgress() > iClosestUpgrade then
+                    iClosestUpgrade = oUnit:GetWorkProgress()
+                    oClosestUpgrade = oUnit
                 end
-            else
-                --Just build a naval fac (more as a redundancy)
-                if bDebugMessages == true then LOG(sFunctionRef..': Redundancy, will build factory') end
-                for iSACU, oSACU in tSACUs do
-                    M28ACU.ACUActionBuildFactory(oSACU:GetAIBrain(), oSACU, iPlateau, iWaterZone, tWZData, tWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refCategoryNavalFactory)
-                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Have an active upgrade in WZ, oClosestUpgrade='..oClosestUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUpgrade)) end
+            for iSACU, oSACU in tSACUs do
+                M28Orders.IssueTrackedGuard(oSACU, oClosestUpgrade, false, 'WZAssUgr', false)
             end
         else
-            --High value reclaim?
-            local tSACUsWithoutOrder
-            local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
-            if (tWZData[M28Map.subrefTotalSignificantMassReclaim] or 0) >= 200 and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.7) then
-                local bGivenReclaimOrder
-                local bOnlyGetReclaimInRange = false
-                if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.35 then bOnlyGetReclaimInRange = true end
-                for iSACU, oSACU in tSACUs do
-                    if oSACU:IsUnitState('Reclaiming') then
-                        --Dont give any order as already reclaiming
-                    else
-                        --GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone, bOptionalReturnTrueIfGivenOrder)
-                        bGivenReclaimOrder = M28Engineer.GetEngineerToReclaimNearbyArea(oSACU, 1,                    tWZTeamData, iPlateau,          iWaterZone,      false,         bOnlyGetReclaimInRange, 20, true, true)
-                        if not(bGivenReclaimOrder) then
-                            if not(tSACUsWithoutOrder) then tSACUsWithoutOrder = {} end
-                            table.insert(tSACUsWithoutOrder, oSACU)
-                        end
-                    end
-                end
-                if tSACUsWithoutOrder then tSACUs = tSACUsWithoutOrder
-                else tSACUs = nil
-                end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': bHaveLowMass='..tostring(bHaveLowMass)..'; Significant mass reclaim='..(tWZData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')..'; Av mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; is tSACUs empty after considering reclaim='..tostring(M28Utilities.IsTableEmpty(tSACUs))) end
-            if tSACUs then
-                --Assist navy if no t3 naval fac here; get the first primary naval fac, or if there is none then assist the highest tech naval fac
-                local oFactoryToAssist
-                local iHighestTechFactory = 0
-                local oFirstHighestTechFactory, iCurTechLevel
-                for iFactory, oFactory in tFriendlyNavalFactories do
-                    iCurTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
-                    if iCurTechLevel > iHighestTechFactory then
-                        iHighestTechFactory = iCurTechLevel
-                        oFirstHighestTechFactory = oFactory
-                    end
-                    if oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond] then
-                        oFactoryToAssist = oFactory
-                        break
-                    end
-                end
-                if not(oFactoryToAssist) then oFactoryToAssist = oFirstHighestTechFactory end
-                if bDebugMessages == true then LOG(sFunctionRef..': iHighestTechFactory='..iHighestTechFactory..'; oFactoryToAssist='..(oFactoryToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryToAssist) or 'nil')) end
-                if oFactoryToAssist and iHighestTechFactory < 3 then --we dont even have t3 navy yet so dont want to try building a new experimental
-                    for iSACU, oSACU in tSACUs do
-                        M28Orders.IssueTrackedGuard(oSACU, oFactoryToAssist, false, 'SACUFacT12Ast', false)
-                    end
+            local bGivenBuildOrder = false
+            function BuildCategoryWithSACUs(iCategoryWanted, iOptionalFactionWanted, toSACUByFaction, iOptionalEngineerActionForTracking, iOptionalAlternativeCategory)
+                --toSACUByFaction - only needed if iOptionalFactionWanted is specified
+                --iOptionalEngineerActionForTracking - if specified, then will call trackengineer function
+                --iOptionalAlternativeCategory - if cant find anything to build for category wanted, then will try this as an alternative
+                local oPrimaryEngineer
+                if iOptionalFactionWanted then
+                    oPrimaryEngineer = toSACUByFaction[iOptionalFactionWanted][1]
                 else
-                    --Build a naval experimental unless low mass and already have some
-                    local oExperimentalToAssist
-                    --If we have one under construction already then assist
-                    local tExperimentals = EntityCategoryFilterDown(M28UnitInfo.refCategoryExperimentalLevel, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                    if M28Utilities.IsTableEmpty(tExperimentals) == false then
-                        for iExp, oExp in tExperimentals do
-                            if oExp:GetFractionComplete() < 1 then
-                                oExperimentalToAssist = oExp
-                                break
-                            end
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for under construction exp, oExperimentalToAssist='..(oExperimentalToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oExperimentalToAssist) or 'nil')) end
-                    if oExperimentalToAssist then
-                        for iSACU, oSACU in tSACUs do
-                            M28Orders.IssueTrackedGuard(oSACU, oExperimentalToAssist, false, 'SACUExpAst', false)
-                        end
-                    else
-                        local bWantExperimental = false
-                        local aiBrain = ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
-                        if not(bHaveLowMass) then bWantExperimental = true
-                        elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 10000 then
-                            bWantExperimental = true
-                        elseif not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
-                            --Arent stalling resources, so consider getting exp if either navy pers, or we dont own that may experimentals
-                            if aiBrain[M28Overseer.refbPrioritiseNavy] then
-                                bWantExperimental = true
-                            elseif not(M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond]) or GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] >= 15 then
-                                bWantExperimental = true
-                            elseif aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryExperimentalLevel * categories.NAVAL * categories.MOBILE) <= 1 then
-                                bWantExperimental = true
-                            end
-                        end
-                        if bDebugMessages == true then LOG(sFunctionRef..': bWantExperimental='..tostring(bWantExperimental)..'; aiBrain='..aiBrain.Nickname..'; StallingE='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Time since last bombardment='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or 0)..'; Cur mobile exp naval units='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryExperimentalLevel * categories.NAVAL * categories.MOBILE)) end
-                        if bWantExperimental then
-                            local toSACUByFaction = {}
-                            local tbEngineersOfFactionOrNilIfAlreadyAssigned = {}
-                            local iCurFaction
-                            for iSACU, oSACU in tSACUs do
-                                iCurFaction = M28UnitInfo.GetUnitFaction(oSACU)
-                                tbEngineersOfFactionOrNilIfAlreadyAssigned[iCurFaction] = true
-                                if not(aiBrain) then aiBrain = oSACU:GetAIBrain() end
-                                if not(toSACUByFaction[iCurFaction]) then toSACUByFaction[iCurFaction] = {} end
-                                table.insert(toSACUByFaction[iCurFaction], oSACU)
-                            end
-                            BuildCategoryWithSACUs(M28UnitInfo.refCategoryExperimentalLevel * categories.NAVAL * categories.MOBILE,nil, toSACUByFaction, M28Engineer.refActionBuildExperimental, categories.EXPERIMENTAL * categories.MOBILE * categories.ANTINAVY)
-                        end
-                        if not(bGivenBuildOrder) then
-                            --Assist naval fac
-                            if bDebugMessages == true then LOG(sFunctionRef..'; Will assist naval fac') end
-                            if oFactoryToAssist then
-                                for iSACU, oSACU in tSACUs do
-                                    M28Orders.IssueTrackedGuard(oSACU, oFactoryToAssist, false, 'SACUFacT3Ast', false)
+                    oPrimaryEngineer = tSACUs[1]
+                end
+
+                if oPrimaryEngineer then
+                    local aiBrain = oPrimaryEngineer:GetAIBrain()
+                    --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction,                                                           iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
+                    local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oPrimaryEngineer, iOptionalEngineerActionForTracking or M28Engineer.refActionBuildExperimental, iCategoryWanted, 100,                nil,                nil,                                false,                          nil,                nil,                                false,              tWZData, tWZTeamData)
+                    if not(sBlueprint) and iOptionalAlternativeCategory then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oPrimaryEngineer, iOptionalEngineerActionForTracking or M28Engineer.refActionBuildExperimental, iOptionalAlternativeCategory, 100, nil, nil,                                false,                          nil,                nil,                                false, tWZData, tWZTeamData) end
+
+                    --Update SACU table to remove any of the desired faction who can be given other orders
+                    if bDebugMessages == true then LOG(sFunctionRef..': sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation or {})..'; oPrimaryEngineer='..(oPrimaryEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPrimaryEngineer) or 'nil')) end
+                    if sBlueprint and tBuildLocation then
+                        local toBuilders
+                        if iOptionalFactionWanted then
+                            for iCurEntry = table.getn(tSACUs), 1, -1 do
+                                if M28UnitInfo.GetUnitFaction(tSACUs[iCurEntry]) == iOptionalFactionWanted then
+                                    table.remove(tSACUs, iCurEntry)
                                 end
                             end
-                            --Idle (do nothing)
+                            toBuilders = toSACUByFaction[iOptionalFactionWanted]
+                        else
+                            toBuilders = tSACUs
+                        end
+
+                        --Build with all the SACUs wanted
+                        if M28Utilities.IsTableEmpty(toBuilders) == false then
+                            for iSACU, oSACU in toBuilders do
+                                bGivenBuildOrder = true
+                                local tMoveLocation = M28Engineer.GetLocationToMoveForConstruction(oSACU, tBuildLocation, sBlueprint, 0, false)
+                                if tMoveLocation then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Telling oSACU '..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' to move to '..repru(tMoveLocation)..' and then build '..sBlueprint..' at location '..repru(tBuildLocation)) end
+                                    M28Orders.IssueTrackedMoveAndBuild(oSACU, tBuildLocation, sBlueprint, tMoveLocation, 1, false, 'SACUExpMBld')
+                                else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Telling engineer '..oSACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSACU)..' to build '..sBlueprint..' at build location '..repru(tBuildLocation)) end
+                                    M28Orders.IssueTrackedBuild(oSACU, tBuildLocation, sBlueprint, false, 'SACUExpBld')
+                                end
+                                if iOptionalEngineerActionForTracking and not(oSACU[M28Engineer.refiAssignedAction] == iOptionalEngineerActionForTracking) then M28Engineer.TrackEngineerAction(oSACU, iOptionalEngineerActionForTracking, iSACU == 1, 1, nil, nil, false) end
+                                --M28Engineer.TrackEngineerAction(oSACU, M28Engineer.refActionBuildExperimental, true, 1, nil, nil, false)
+                            end
+                        end
+                    end
+                end
+            end
+
+            --Do we have a naval fac in the zone? base behaviour on this
+            local iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
+            local tFriendlyNavalFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly naval factories empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyNavalFactories))) end
+            if M28Utilities.IsTableEmpty(tFriendlyNavalFactories) then
+                --No naval fac - either build another (if no nearby enemies) or return to land
+                local tRetreatPoint
+                if tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] and not(tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
+                    if NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZTeamData[M28Map.reftClosestFriendlyBase]) == iPlateau then
+                        tRetreatPoint = tWZTeamData[M28Map.reftClosestFriendlyBase]
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': want to retreat, tRetreatPoint='..repru(tRetreatPoint)) end
+                if tRetreatPoint then
+                    for iSACU, oSACU in tSACUs do
+                        oSACU[M28UnitInfo.refiSACUWaterZoneTarget] = nil
+                        M28Orders.IssueTrackedMove(oSACU, tRetreatPoint, 5, false, 'WZSACURun', false)
+                    end
+                else
+                    --Just build a naval fac (more as a redundancy)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Redundancy, will build factory') end
+                    for iSACU, oSACU in tSACUs do
+                        M28ACU.ACUActionBuildFactory(oSACU:GetAIBrain(), oSACU, iPlateau, iWaterZone, tWZData, tWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refCategoryNavalFactory)
+                    end
+                end
+            else
+                --High value reclaim?
+                local tSACUsWithoutOrder
+                local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
+                if (tWZData[M28Map.subrefTotalSignificantMassReclaim] or 0) >= 200 and (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.7) then
+                    local bGivenReclaimOrder
+                    local bOnlyGetReclaimInRange = false
+                    if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.35 then bOnlyGetReclaimInRange = true end
+                    for iSACU, oSACU in tSACUs do
+                        if oSACU:IsUnitState('Reclaiming') then
+                            --Dont give any order as already reclaiming
+                        else
+                            --GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone, bOptionalReturnTrueIfGivenOrder)
+                            bGivenReclaimOrder = M28Engineer.GetEngineerToReclaimNearbyArea(oSACU, 1,                    tWZTeamData, iPlateau,          iWaterZone,      false,         bOnlyGetReclaimInRange, 20, true, true)
+                            if not(bGivenReclaimOrder) then
+                                if not(tSACUsWithoutOrder) then tSACUsWithoutOrder = {} end
+                                table.insert(tSACUsWithoutOrder, oSACU)
+                            end
+                        end
+                    end
+                    if tSACUsWithoutOrder then tSACUs = tSACUsWithoutOrder
+                    else tSACUs = nil
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': bHaveLowMass='..tostring(bHaveLowMass)..'; Significant mass reclaim='..(tWZData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')..'; Av mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; is tSACUs empty after considering reclaim='..tostring(M28Utilities.IsTableEmpty(tSACUs))) end
+                if tSACUs then
+                    --Assist navy if no t3 naval fac here; get the first primary naval fac, or if there is none then assist the highest tech naval fac
+                    local oFactoryToAssist
+                    local iHighestTechFactory = 0
+                    local oFirstHighestTechFactory, iCurTechLevel
+                    for iFactory, oFactory in tFriendlyNavalFactories do
+                        iCurTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
+                        if iCurTechLevel > iHighestTechFactory then
+                            iHighestTechFactory = iCurTechLevel
+                            oFirstHighestTechFactory = oFactory
+                        end
+                        if oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond] then
+                            oFactoryToAssist = oFactory
+                            break
+                        end
+                    end
+                    if not(oFactoryToAssist) then oFactoryToAssist = oFirstHighestTechFactory end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iHighestTechFactory='..iHighestTechFactory..'; oFactoryToAssist='..(oFactoryToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryToAssist) or 'nil')) end
+                    if oFactoryToAssist and iHighestTechFactory < 3 then --we dont even have t3 navy yet so dont want to try building a new experimental
+                        for iSACU, oSACU in tSACUs do
+                            M28Orders.IssueTrackedGuard(oSACU, oFactoryToAssist, false, 'SACUFacT12Ast', false)
+                        end
+                    else
+                        --Build a naval experimental unless low mass and already have some
+                        local oExperimentalToAssist
+                        --If we have one under construction already then assist
+                        local tExperimentals = EntityCategoryFilterDown(M28UnitInfo.refCategoryExperimentalLevel, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tExperimentals) == false then
+                            for iExp, oExp in tExperimentals do
+                                if oExp:GetFractionComplete() < 1 then
+                                    oExperimentalToAssist = oExp
+                                    break
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for under construction exp, oExperimentalToAssist='..(oExperimentalToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oExperimentalToAssist) or 'nil')) end
+                        if oExperimentalToAssist then
+                            for iSACU, oSACU in tSACUs do
+                                M28Orders.IssueTrackedGuard(oSACU, oExperimentalToAssist, false, 'SACUExpAst', false)
+                            end
+                        else
+                            local bWantExperimental = false
+                            local aiBrain = ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+                            if not(bHaveLowMass) then bWantExperimental = true
+                            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 10000 then
+                                bWantExperimental = true
+                            elseif not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+                                --Arent stalling resources, so consider getting exp if either navy pers, or we dont own that may experimentals
+                                if aiBrain[M28Overseer.refbPrioritiseNavy] then
+                                    bWantExperimental = true
+                                elseif not(M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond]) or GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] >= 15 then
+                                    bWantExperimental = true
+                                elseif aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryExperimentalLevel * categories.NAVAL * categories.MOBILE) <= 1 then
+                                    bWantExperimental = true
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bWantExperimental='..tostring(bWantExperimental)..'; aiBrain='..aiBrain.Nickname..'; StallingE='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Time since last bombardment='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadBombardmentModeByPond][iPond] or 0)..'; Cur mobile exp naval units='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryExperimentalLevel * categories.NAVAL * categories.MOBILE)) end
+                            if bWantExperimental then
+                                local toSACUByFaction = {}
+                                local tbEngineersOfFactionOrNilIfAlreadyAssigned = {}
+                                local iCurFaction
+                                for iSACU, oSACU in tSACUs do
+                                    iCurFaction = M28UnitInfo.GetUnitFaction(oSACU)
+                                    tbEngineersOfFactionOrNilIfAlreadyAssigned[iCurFaction] = true
+                                    if not(aiBrain) then aiBrain = oSACU:GetAIBrain() end
+                                    if not(toSACUByFaction[iCurFaction]) then toSACUByFaction[iCurFaction] = {} end
+                                    table.insert(toSACUByFaction[iCurFaction], oSACU)
+                                end
+                                BuildCategoryWithSACUs(M28UnitInfo.refCategoryExperimentalLevel * categories.NAVAL * categories.MOBILE,nil, toSACUByFaction, M28Engineer.refActionBuildExperimental, categories.EXPERIMENTAL * categories.MOBILE * categories.ANTINAVY)
+                            end
+                            if not(bGivenBuildOrder) then
+                                --Assist naval fac
+                                if bDebugMessages == true then LOG(sFunctionRef..'; Will assist naval fac') end
+                                if oFactoryToAssist then
+                                    for iSACU, oSACU in tSACUs do
+                                        M28Orders.IssueTrackedGuard(oSACU, oFactoryToAssist, false, 'SACUFacT3Ast', false)
+                                    end
+                                end
+                                --Idle (do nothing)
+                            end
                         end
                     end
                 end
