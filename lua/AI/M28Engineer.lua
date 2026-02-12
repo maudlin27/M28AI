@@ -12848,10 +12848,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             iCurWZ = tSubtable[M28Map.subrefAWZRef]
             iCurPond = M28Map.tiPondByWaterZone[iCurWZ]
             local tWZData = M28Map.tPondDetails[iCurPond][M28Map.subrefPondWaterZones][iCurWZ]
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurWZ='..iCurWZ..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]))) end
-            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false then
-                local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-
+            local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurWZ='..iCurWZ..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]))..'; subrefWZbCoreBase='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; brain Gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Brain gross E='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Highest air fac='..aiBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Highest land fac='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]..'; Highest naval fac='..aiBrain[M28Economy.refiOurHighestNavalFactoryTech]..'; refiPriorityPondValues='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 0)) end
+            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false or (tWZTeamData[M28Map.subrefWZbCoreBase] and ((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 0) > 15 or not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])) and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.5 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 20 and aiBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0) then
                 local iEngineersTravelingHere
                 local iEngineersPresentHere
                 local iMaxEngineersWanted
@@ -12875,6 +12874,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefHydroUnbuiltLocations]) == false then
                         iMaxEngineersWanted = iMaxEngineersWanted + 1
                     end
+                    if iMaxEngineersWanted == 1 and tWZTeamData[M28Map.subrefWZbCoreBase] and not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.8 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 25 and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0 then iMaxEngineersWanted = 2 end
                     iBPWanted = iMaxEngineersWanted * 5
                     HaveActionToAssign(refActionMoveToWaterZone, 1, iBPWanted + iBPAlreadyAssigned, iCurWZ, true)
                     iBPAlreadyAssigned = iBPAlreadyAssigned + iBPWanted
@@ -13004,7 +13004,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 and (M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] >= 1.5 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.6) then
                         iBPWanted = iBPWanted * 0.5
                         HaveActionToAssign(iFactoryAction, 1, iBPWanted)
-                        if not(aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseDefence]) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 3) then
+                        if ((iFactoryAction == refActionBuildLandFactory or (not(bHaveLowPower) and iFactoriesInLZ <= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.98)) and not(aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseDefence])) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 and aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 3) then
                             local iSecondAction = refActionBuildSecondLandFactory
                             if iFactoryAction == refActionBuildAirFactory then iSecondAction = refActionBuildSecondAirFactory end
                             HaveActionToAssign(iSecondAction, 1, iBPWanted)
