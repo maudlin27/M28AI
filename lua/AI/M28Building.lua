@@ -1900,11 +1900,12 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
             --Aeon SML - one case having 11s threshold was fine, another when it was 12.1s since it fired a nuke it ended up clearing the old order
             local iTimeToWaitBetweenLaunches = 6 --i.e. TML
             if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
-                if EntityCategoryContains(categories.AEON, oLauncher.UnitId) then
-                    iTimeToWaitBetweenLaunches = 13
-                else
+                if EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId) then
                     iTimeToWaitBetweenLaunches = 8
+                else
+                    iTimeToWaitBetweenLaunches = 13 --had game where 10s delay wasnt enough (when iTimeToWaitBetweenLaunches was set to 8); 11s also wasnt (cybran SML); 13s still wasnt enough so added further 6s increase below which resolved it; also always have had 13s for aeon nuke which takes longer
                 end
+                if oLauncher:IsUnitState('Busy') and not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then iTimeToWaitBetweenLaunches = iTimeToWaitBetweenLaunches + 6 end
             end
 
             if bDebugMessages == true then
@@ -1925,6 +1926,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
             if oLauncher[refbSpecialLauncherTargeting] then M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) return end
 
             --If we have just tried giving an order to fire then wait longer
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have tried firing recently, iTimeToWaitBetweenLaunches='..iTimeToWaitBetweenLaunches..'; refiTimeLastFiredMissile='..(oLauncher[refiTimeLastFiredMissile] or 'nil')..'; Time since last fired='..GetGameTimeSeconds() - (oLauncher[refiTimeLastFiredMissile] or 0)..'; Unit state='..M28UnitInfo.GetUnitState(oLauncher)) end
             if oLauncher[refiTimeLastFiredMissile] and GetGameTimeSeconds() - oLauncher[refiTimeLastFiredMissile] <= iTimeToWaitBetweenLaunches then
                 if bDebugMessages == true then LOG(sFunctionRef..': we tried firing recently so will do a delayed launch instead') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
