@@ -4092,7 +4092,10 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 if bDebugMessages == true then LOG(sFunctionRef..': Nearest unit is a sub/underwater so will consider if we have units capable of groundfiring it') end
                 for iUnit, oUnit in tAvailableCombatUnits do
                     if not(oUnit.Dead) then --wierd bug where can have a dead unit remain in this table, despite logs confirming it was removed from the table of units for the WZ - not figured out cause so just adding in redundnacy here
-                        if bConsiderUsingAOE and (oUnit[M28UnitInfo.refiDFAOE] or 0) >= 1.4 and oNearestEnemyNonHoverToFriendlyBase and ((oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId)) then --Doing testing in sandbox, Aeon T2 destroyer aoe of 1.4 can kill subs, as can battleships, but other destroyers with aoe of 1 cant hit subs via ground fire
+                        if bConsiderUsingAOE and (oUnit[M28UnitInfo.refiDFAOE] or 0) >= 1.4 and oNearestEnemyNonHoverToFriendlyBase and ((oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId))
+                        --Also check we dont want to use unit against enemy surface instead of subs:
+                        and (not(oNearestEnemySurfaceToFriendlyBase) or (oUnit[M28UnitInfo.refiDFRange] or -1) < (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) or not(M28Utilities.GetDistanceBetweenPositions(oNearestEnemySurfaceToFriendlyBase:GetPosition(), oUnit:GetPosition()) <= 5 + math.max(oUnit[M28UnitInfo.refiDFRange], (oNearestEnemySurfaceToFriendlyBase[M28UnitInfo.refiDFRange] or 0)) and EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId)))
+                        then --Doing testing in sandbox, Aeon T2 destroyer aoe of 1.4 can kill subs, as can battleships, but other destroyers with aoe of 1 cant hit subs via ground fire
                             if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with no antinavy range but aoe of '..(oUnit[M28UnitInfo.refiDFAOE] or 0)..' to tCombatUnitsNeedingAOEForSubs') end
                             table.insert(tCombatUnitsNeedingAOEForSubs, oUnit)
                         elseif (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then
@@ -4185,7 +4188,9 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         end
                     end
 
-                    if not(oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting]) and oUnit[M28UnitInfo.refiUnitMassCost] > 1500 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 20 and oUnit[M28UnitInfo.refiTimeBetweenDFShots] and oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) > 4 + oUnit[M28UnitInfo.refiTimeBetweenDFShots] and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) <= math.max(oUnit[M28UnitInfo.refiDFRange]*0.5, math.min(oUnit[M28UnitInfo.refiDFRange] * 0.8, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange])) and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false) then
+                    if not(oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting]) and oUnit[M28UnitInfo.refiUnitMassCost] > 1500 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 20 and oUnit[M28UnitInfo.refiTimeBetweenDFShots] and oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) > 4 + oUnit[M28UnitInfo.refiTimeBetweenDFShots] and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) <= math.max(oUnit[M28UnitInfo.refiDFRange]*0.5, math.min(oUnit[M28UnitInfo.refiDFRange] * 0.8, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange])) and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false)
+
+                    then
                         oUnit[M28UnitInfo.refbAttackMoveInsteadOfKiting] = true
                         M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbAttackMoveInsteadOfKiting, false, 40)
                     end
@@ -4945,6 +4950,12 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     --Ground fire the closest enemy unit
                     if not(oUnit.Dead) then --redundancy - wierd bug despite earlier check
                         M28Orders.IssueTrackedGroundAttack(oUnit, tTargetPoint, 1, false, 'GrndFr', false)
+                        --Tempest - temporary give micro so it doesnt switch orders/targeting point and never fire
+                        if oUnit.UnitId == 'uas0401' and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+                            --tried :GetWeapon(1).RackSalvoChargeTime but didn't work; want to delay for a bit longer than this anyway to allow for weapon rotation; timebetweenDFShots doesnt work as returns 0.1
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will record temporary micro for tempest, refiTimeBetweenDFShots='..(oUnit[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
+                            M28Micro.TrackTemporaryUnitMicro(oUnit, 2.9, nil, false)
+                        end
                     end
                 end
             end
