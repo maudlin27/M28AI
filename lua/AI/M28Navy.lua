@@ -3759,9 +3759,10 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
 
                 --Include hover and amphibious units from an adjacent land zone
-                if bGetSurfaceAndLandThreat and M28Utilities.IsTableEmpty(tLikelyTargetWZTeamData[M28Map.subreftiLandZonesTargetingThisWithAmphibious]) == false then
+                if bGetSurfaceAndLandThreat and M28Utilities.IsTableEmpty(tLikelyTargetWZTeamData[M28Map.subreftiLandZonesTargetingThisWithAmphibious]) == false and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
                     local iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
                     local tbLandZonesAdjacentToThis = {}
+
                     for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
                         if iPlateau == tSubtable[M28Map.subrefWPlatAndLZNumber][1] then
                             tbLandZonesAdjacentToThis[tSubtable[M28Map.subrefWPlatAndLZNumber][2]] = true
