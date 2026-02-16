@@ -2932,7 +2932,7 @@ function IsPositionCloseToZoneEdge(iPlateauOrZero, iLandOrWaterZone, iMaxDistToE
     return false
 end
 
-function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease, iEnemyNearbySubmersibleThreat, iAvailableAntiNavyThreat)
+function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease, iEnemyNearbySubmersibleThreat, iAvailableAntiNavyThreat, iCommonZoneTargetSurfaceThreat)
     --iOptionalThreatAbsolutePercentIncrease - will increase enemy threat factors by this (absolute increase), e.g. set to 0.1 and instead of wanting 1.3 * enemy threat to attack, will want 1.4 * enemy threat
     local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2958,7 +2958,7 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
         if bDebugMessages == true then LOG(sFunctionRef..': Near start, bConsideringSubmarinesNotSurface='..tostring(bConsideringSubmarinesNotSurface)..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; iAdjacentAlliedSubmersibleThreat='..iAdjacentAlliedSubmersibleThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat..'; iEnemyCombatModHigh='..iEnemyCombatModHigh..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)..'; iEnemyCombatModLow='..iEnemyCombatModLow..'; iAdjacentEnemyAntiNavyThreat='..iAdjacentEnemyAntiNavyThreat..'; iEnemyAntiNavyMod='..iEnemyAntiNavyMod..'; iNearbyFriendlySubThreat='..iNearbyFriendlySubThreat) end
         if (bConsideringSubmarinesNotSurface and (iNearbyFriendlySubThreat >= iAdjacentEnemyAntiNavyThreat or iNearbyFriendlySubThreat >= 20000) and ((tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 + iAdjacentAlliedSubmersibleThreat >= 40000 or ((tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 + iAdjacentAlliedSubmersibleThreat > ((tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) + iAdjacentEnemyAntiNavyThreat) * iEnemyAntiNavyMod or (iAdjacentAlliedSubmersibleThreat + (tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 > (tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) + iAdjacentEnemyAntiNavyThreat and iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh)))) or
                 --Surface level consideration - want tobe similar to sub so we dont end up attacking with subs and not surface if reason for attacking with subs is our surface threat
-                (not(bConsideringSubmarinesNotSurface) and ((iAdjacentAlliedCombatThreat - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModLow))  then
+                (not(bConsideringSubmarinesNotSurface) and ((iAdjacentAlliedCombatThreat - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] + (iCommonZoneTargetSurfaceThreat or 0) - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModLow))  then
             if bDebugMessages == true then LOG(sFunctionRef..': Main scenario 2 condition satisfied') end
             bAreInScenario2 = true
         elseif tWZTeamData[M28Map.subrefWZbCoreBase] then
@@ -3003,7 +3003,7 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
         if iEnemyNearbySubmersibleThreat > iAvailableAntiNavyThreat and iEnemyNearbySubmersibleThreat * 5 > iAdjacentAlliedCombatThreat and (iEnemyNearbySubmersibleThreat > 500 or iEnemyNearbySubmersibleThreat * 2 > iAdjacentAlliedCombatThreat) then
             bAreInScenario2 = false
         elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
-            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false and iAdjacentAlliedCombatThreat + tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] <= 6000 and tWZTeamData[M28Map.subrefWZBestAlliedDFRange] < 100 then
+            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false and math.max(iAdjacentAlliedCombatThreat, (iCommonZoneTargetSurfaceThreat or 0)) + tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] <= 6000 and tWZTeamData[M28Map.subrefWZBestAlliedDFRange] < 100 then
                 bAreInScenario2 = false
             end
         end
