@@ -16997,7 +16997,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Unclaimed mex in the zone
     iCurPriority = iCurPriority + 1
-    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) >= -1 then
+    if (not(bTeammateHasBuiltHere) or (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) == 0) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefMexUnbuiltLocations]) == false and not(M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydroOrMex(tLZData, true)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) >= -1 then
         iBPWanted = math.max(5, table.getn(tLZData[M28Map.subrefMexUnbuiltLocations]) * 2.5)
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, iBPWanted='..iBPWanted..', locations='..repru(tLZData[M28Map.subrefMexUnbuiltLocations])) end
         if bEngineersRecentlyRunFromEnemy then iBPWanted =5
@@ -17006,8 +17006,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         elseif bHaveLowPower and iBPWanted > 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80  then
             iBPWanted = 10
         end
+        if bTeammateHasBuiltHere then iBPWanted = 5 end
         HaveActionToAssign(refActionBuildMex, 1, iBPWanted)
-        if not(bEngineersRecentlyRunFromEnemy) and (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionBuildMex] or 0) > 0 and not(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex]) then
+        if not(bTeammateHasBuiltHere) and not(bEngineersRecentlyRunFromEnemy) and (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionBuildMex] or 0) > 0 and not(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex]) then
             tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
