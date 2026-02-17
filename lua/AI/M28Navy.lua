@@ -1427,8 +1427,10 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                 local tAmphibiousDestination
                 if iAmphibiousLabel == tLZData[M28Map.refiMidpointAmphibiousLabel] then
                     tAmphibiousDestination = tLZData[M28Map.subrefMidpoint]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Going to midpoint of LZData') end
                 else
                     tAmphibiousDestination = tLZTeamData[M28Map.reftClosestEnemyBase]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Going to c losest enemy base') end
                 end
                 local tHoverRallyPoint
                 local tAmphibiousRallyPoint
@@ -4446,8 +4448,8 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 for iUnit, oUnit in tAvailableCombatUnits do
                     if not(oUnit.Dead) then --wierd bug where can have a dead unit remain in this table, despite logs confirming it was removed from the table of units for the WZ - not figured out cause so just adding in redundnacy here
                         if bConsiderUsingAOE and (oUnit[M28UnitInfo.refiDFAOE] or 0) >= 1.4 and oNearestEnemyNonHoverToFriendlyBase and ((oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId))
-                        --Also check we dont want to use unit against enemy surface instead of subs:
-                        and (not(oNearestEnemySurfaceToFriendlyBase) or (oUnit[M28UnitInfo.refiDFRange] or -1) < (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) or not(M28Utilities.GetDistanceBetweenPositions(oNearestEnemySurfaceToFriendlyBase:GetPosition(), oUnit:GetPosition()) <= 5 + math.max(oUnit[M28UnitInfo.refiDFRange], (oNearestEnemySurfaceToFriendlyBase[M28UnitInfo.refiDFRange] or 0)) and EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId)))
+                                --Also check we dont want to use unit against enemy surface instead of subs:
+                                and (not(oNearestEnemySurfaceToFriendlyBase) or (oUnit[M28UnitInfo.refiDFRange] or -1) < (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) or not(M28Utilities.GetDistanceBetweenPositions(oNearestEnemySurfaceToFriendlyBase:GetPosition(), oUnit:GetPosition()) <= 5 + math.max(oUnit[M28UnitInfo.refiDFRange], (oNearestEnemySurfaceToFriendlyBase[M28UnitInfo.refiDFRange] or 0)) and EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId)))
                         then --Doing testing in sandbox, Aeon T2 destroyer aoe of 1.4 can kill subs, as can battleships, but other destroyers with aoe of 1 cant hit subs via ground fire
                             if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with no antinavy range but aoe of '..(oUnit[M28UnitInfo.refiDFAOE] or 0)..' to tCombatUnitsNeedingAOEForSubs') end
                             table.insert(tCombatUnitsNeedingAOEForSubs, oUnit)

@@ -11928,6 +11928,9 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
             UpdateDFSupportForEarlyGameEngineers()
             UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFSupport, bWantIndirectSupport)
         end
+    else
+        --Make sure we dont flag we want support
+        UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, false, false)
     end
     --Handle engineers and even if no engineers still decide what engineers we would want for hte LZ
     M28Engineer.ConsiderLandOrWaterZoneEngineerAssignment(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tEngineers) --Should update the land zone engineer requirements, even if tEngineers itself is empty
