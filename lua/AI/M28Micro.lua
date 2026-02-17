@@ -518,7 +518,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             function ConsiderAddingUnitToTable(oCurUnit, bIncludeBusyUnits)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should add oCurUnit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurUnit)..'; Brain='..oCurUnit:GetAIBrain().Nickname..'; Unit state='..M28UnitInfo.GetUnitState(oCurUnit)..'; Special micro active='..tostring(oCurUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()..'; refiGameTimeToResetMicroActive='..(oCurUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
                 local aiBrain = oCurUnit:GetAIBrain()
-                if aiBrain.M28AI and not(aiBrain.M28Easy) and (not(aiBrain[refiMaxUnitsToDodgeMicroAtOnce]) or aiBrain[refiCurUnitsDodging] < aiBrain[refiMaxUnitsToDodgeMicroAtOnce]) and (bIncludeBusyUnits or (not(oCurUnit:IsUnitState('Upgrading')) and (not(oCurUnit[M28UnitInfo.refbSpecialMicroActive]) or oCurUnit[M28UnitInfo.refbLowerPriorityMicroActive]))) then
+                --M28Easy - dont dodge unless damaged ACU dodging t1 arti fire
+                if aiBrain.M28AI and (not(aiBrain.M28Easy) or (oCurUnit[M28ACU.refbTreatingAsACU] and oCurUnit:GetHealthPercent() < 0.9 and EntityCategoryContains(M28UnitInfo.refCategoryIndirect * categories.TECH1, oUnit.UnitId))) and (not(aiBrain[refiMaxUnitsToDodgeMicroAtOnce]) or aiBrain[refiCurUnitsDodging] < aiBrain[refiMaxUnitsToDodgeMicroAtOnce]) and (bIncludeBusyUnits or (not(oCurUnit:IsUnitState('Upgrading')) and (not(oCurUnit[M28UnitInfo.refbSpecialMicroActive]) or oCurUnit[M28UnitInfo.refbLowerPriorityMicroActive]))) then
                     if EntityCategoryContains(categories.AIR + categories.STRUCTURE, oCurUnit.UnitId) then
                         --Do nothing
                     elseif EntityCategoryContains(categories.MOBILE, oCurUnit.UnitId) then

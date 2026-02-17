@@ -1482,7 +1482,9 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
         end
     elseif M28Map.iMapSize >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 and tLZTeamData[M28Map.refiModDistancePercent] <= 0.2 then
         for iTech, iValue in tiGrossMassWantedPerFactoryByTech do
-            if not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.02) or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseHighTech] then
+            if aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] then
+                tiGrossMassWantedPerFactoryByTech[iTech] = iValue * 4
+            elseif not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.02) then
                 tiGrossMassWantedPerFactoryByTech[iTech] = iValue * 2
             else
                 tiGrossMassWantedPerFactoryByTech[iTech] = iValue * 1.5
@@ -1498,7 +1500,9 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
             if tBaseLZTeamData and tBaseLZData[M28Map.subrefLZOrWZMexCount] >= 6 and tBaseLZData[M28Map.subrefLZOrWZMexCount] > M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauTotalMexCount] * (0.3 / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and tBaseLZTeamData[M28Map.subrefMexCountByTech][3] < 2 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will reduce the number of factories wanted') end
                 for iTech, iValue in tiGrossMassWantedPerFactoryByTech do
-                    if not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.02) or aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseHighTech] then
+                    if aiBrain[M28Overseer.refbPrioritiseNavy] or aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] then
+                        tiGrossMassWantedPerFactoryByTech[iTech] = iValue * 4
+                    elseif not(M28Utilities.bQuietModActive) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.02) then
                         tiGrossMassWantedPerFactoryByTech[iTech] = iValue * 2
                     else
                         tiGrossMassWantedPerFactoryByTech[iTech] = iValue * 1.5
@@ -1822,7 +1826,9 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
             elseif iLandFacsInZone + iAirFacsInZone > 0 and aiBrain:GetEconomyStoredRatio('MASS') < 0.2 or (aiBrain:GetEconomyStoredRatio('MASS') < 0.75 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]  < 0 or GetGameTimeSeconds() <= 600) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.4 or (aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 or HaveLowPower(iTeam)))) then
                 if aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 or aiBrain[M28Economy.refiOurHighestLandFactoryTech] < 3
                         --Naval facs - want to get more land/air facs if we have lost navy
-                        or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0))) then
+                        or (aiBrain[M28Overseer.refbPrioritiseNavy] and iPlateau > 0 and (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 or (GetGameTimeSeconds() <= 600 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalFactory) == 0)))
+                        or (iLandFacsInZone + iAirFacsInZone >= 3 and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] < 2)
+                        then
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want more facs as want to tech or turtle, unless this zone has no factories') end
                     bWantMoreFactories = false
                     bDecided = true
@@ -1977,8 +1983,12 @@ function HaveEnoughThreatToAttack(iPlateau, iLandZone, tLZData, tLZTeamData, iOu
 
     local iDefaultThreatRatioWanted
     if iOptionalOverrideDefaultThreatRatioWanted then iDefaultThreatRatioWanted = iOptionalOverrideDefaultThreatRatioWanted
-    elseif bOptionalUseSlightlyLowerThreatRatio then iDefaultThreatRatioWanted = 1.25
-    else iDefaultThreatRatioWanted = 1.4
+    elseif bOptionalUseSlightlyLowerThreatRatio then
+        iDefaultThreatRatioWanted = 1.25
+        if ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Overseer.refbPrioritiseLowTech] then iDefaultThreatRatioWanted = 1.15 end
+    else
+        iDefaultThreatRatioWanted = 1.4
+        if ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Overseer.refbPrioritiseLowTech] then iDefaultThreatRatioWanted = 1.25 end
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have enough combat threat to attack, iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase)..'; iTeam='..(iTeam or 'nil')..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Map size='..M28Map.iMapSize..'; Time='..GetGameTimeSeconds()..'; subrefLZSValue='..tLZTeamData[M28Map.subrefLZSValue]..'; tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]) end
@@ -2693,7 +2703,7 @@ end
 
 function IsLocationInMap(tLocation)
     --NOT the playable area, just the map itself, e.g. for air units so can ignore updating their assigtned zone if they are outside the map entirely
-    if tLocation[1] < 0 or tLocation[3] < 0 or tLocation[1] > M28Map.iMapSize or tLocation[3] > M28Map.iMapSize then
+    if tLocation[1] < 0 or tLocation[3] < 0 or ((tLocation[1] > M28Map.iMapSize or tLocation[3] > M28Map.iMapSize) and (tLocation[1] > M28Map.rMapPlayableArea[3] or tLocation[3] > M28Map.rMapPlayableArea[4])) then
         return false
     else
         return true
@@ -2932,8 +2942,9 @@ function IsPositionCloseToZoneEdge(iPlateauOrZero, iLandOrWaterZone, iMaxDistToE
     return false
 end
 
-function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease, iEnemyNearbySubmersibleThreat, iAvailableAntiNavyThreat)
+function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iCurZoneAndAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease, iEnemyNearbySubmersibleThreat, iAvailableAntiNavyThreat, iCommonZoneTargetSurfaceThreat)
     --iOptionalThreatAbsolutePercentIncrease - will increase enemy threat factors by this (absolute increase), e.g. set to 0.1 and instead of wanting 1.3 * enemy threat to attack, will want 1.4 * enemy threat
+    --NOTE (v283 and earlier) - adjacent zone threats may include current zone, need to rework calculation of these amounts now that have access to common zone target data
     local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2945,7 +2956,7 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
         local iModMod = (iOptionalThreatAbsolutePercentIncrease or 0)
         if not(bConsideringSubmarinesNotSurface) and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
             iModMod = iModMod + 0.75
-            local iRoughSurfaceThreat = iAdjacentAlliedCombatThreat + tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iAdjacentAlliedSubmersibleThreat
+            local iRoughSurfaceThreat = iAdjacentAlliedCombatThreat + tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iCurZoneAndAdjacentAlliedSubmersibleThreat
             if iRoughSurfaceThreat > 6000 then iModMod = iModMod - 0.5 * math.min(1, (iRoughSurfaceThreat / 30000)) end
         end
         if bConsideringSubmarinesNotSurface and M28Utilities.bQuietModActive then
@@ -2955,10 +2966,10 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
         local iEnemyAntiNavyMod = 1.5 + iModMod
         local iEnemyCombatModHigh = 1.3 + iModMod
         local iEnemyCombatModLow = 1.1 + iModMod
-        if bDebugMessages == true then LOG(sFunctionRef..': Near start, bConsideringSubmarinesNotSurface='..tostring(bConsideringSubmarinesNotSurface)..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; iAdjacentAlliedSubmersibleThreat='..iAdjacentAlliedSubmersibleThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat..'; iEnemyCombatModHigh='..iEnemyCombatModHigh..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)..'; iEnemyCombatModLow='..iEnemyCombatModLow..'; iAdjacentEnemyAntiNavyThreat='..iAdjacentEnemyAntiNavyThreat..'; iEnemyAntiNavyMod='..iEnemyAntiNavyMod..'; iNearbyFriendlySubThreat='..iNearbyFriendlySubThreat) end
-        if (bConsideringSubmarinesNotSurface and (iNearbyFriendlySubThreat >= iAdjacentEnemyAntiNavyThreat or iNearbyFriendlySubThreat >= 20000) and ((tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 + iAdjacentAlliedSubmersibleThreat >= 40000 or ((tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 + iAdjacentAlliedSubmersibleThreat > ((tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) + iAdjacentEnemyAntiNavyThreat) * iEnemyAntiNavyMod or (iAdjacentAlliedSubmersibleThreat + (tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 > (tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) + iAdjacentEnemyAntiNavyThreat and iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh)))) or
+        if bDebugMessages == true then LOG(sFunctionRef..': Near start, bConsideringSubmarinesNotSurface='..tostring(bConsideringSubmarinesNotSurface)..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; iCurZoneAndAdjacentAlliedSubmersibleThreat='..iCurZoneAndAdjacentAlliedSubmersibleThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat..'; iEnemyCombatModHigh='..iEnemyCombatModHigh..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)..'; iEnemyCombatModLow='..iEnemyCombatModLow..'; iAdjacentEnemyAntiNavyThreat='..iAdjacentEnemyAntiNavyThreat..'; iEnemyAntiNavyMod='..iEnemyAntiNavyMod..'; iNearbyFriendlySubThreat='..iNearbyFriendlySubThreat) end            
+        if (bConsideringSubmarinesNotSurface and (iNearbyFriendlySubThreat >= iAdjacentEnemyAntiNavyThreat or iNearbyFriendlySubThreat >= 20000) and ((tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 + iCurZoneAndAdjacentAlliedSubmersibleThreat >= 40000 or ((tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 + iCurZoneAndAdjacentAlliedSubmersibleThreat > ((tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) + iAdjacentEnemyAntiNavyThreat) * iEnemyAntiNavyMod or (iCurZoneAndAdjacentAlliedSubmersibleThreat + (tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 > (tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) + iAdjacentEnemyAntiNavyThreat and iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh)))) or
                 --Surface level consideration - want tobe similar to sub so we dont end up attacking with subs and not surface if reason for attacking with subs is our surface threat
-                (not(bConsideringSubmarinesNotSurface) and ((iAdjacentAlliedCombatThreat - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModLow))  then
+                (not(bConsideringSubmarinesNotSurface) and ((iAdjacentAlliedCombatThreat - iCurZoneAndAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] + (iCommonZoneTargetSurfaceThreat or 0) - iCurZoneAndAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModLow))  then
             if bDebugMessages == true then LOG(sFunctionRef..': Main scenario 2 condition satisfied') end
             bAreInScenario2 = true
         elseif tWZTeamData[M28Map.subrefWZbCoreBase] then
@@ -3003,7 +3014,7 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
         if iEnemyNearbySubmersibleThreat > iAvailableAntiNavyThreat and iEnemyNearbySubmersibleThreat * 5 > iAdjacentAlliedCombatThreat and (iEnemyNearbySubmersibleThreat > 500 or iEnemyNearbySubmersibleThreat * 2 > iAdjacentAlliedCombatThreat) then
             bAreInScenario2 = false
         elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
-            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false and iAdjacentAlliedCombatThreat + tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] <= 6000 and tWZTeamData[M28Map.subrefWZBestAlliedDFRange] < 100 then
+            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false and math.max(iAdjacentAlliedCombatThreat, (iCommonZoneTargetSurfaceThreat or 0)) + tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] <= 6000 and tWZTeamData[M28Map.subrefWZBestAlliedDFRange] < 100 then
                 bAreInScenario2 = false
             end
         end

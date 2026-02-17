@@ -1831,7 +1831,11 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             local tRallyPointLZOrWZData, tRallyPointLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tPreferredRallyPoint, true, iTeam)
             if M28Utilities.GetDistanceBetweenPositions(tPreferredRallyPoint, tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 20 then
                 local tClosestBaseLZOrWZData, tClosestBaseLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase], true, iTeam)
-                iCurRallyValue = GetRallyPointValueOfLandZone(iTeam, tClosestBaseLZOrWZData, tClosestBaseLZOrWZTeamData, iPlateau)
+                if GetTerrainHeight(tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tRallyPointLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]) < M28Map.iMapWaterHeight then
+                    iCurRallyValue = GetRallyPointValueOfWaterZone(iTeam, tClosestBaseLZOrWZData, tClosestBaseLZOrWZTeamData)
+                else
+                    iCurRallyValue = GetRallyPointValueOfLandZone(iTeam, tClosestBaseLZOrWZData, tClosestBaseLZOrWZTeamData, iPlateau)
+                end
                 if bDebugMessages == true then LOG(sFunctionRef..': iBestRallyValue currently='..iBestRallyValue..'; iCurRallyValue of closest friendly base to this='..iCurRallyValue..'; Rally point before update='..repru(tPreferredRallyPoint)) end
                 if iCurRallyValue > iBestRallyValue then
                     iBestRallyValue = iCurRallyValue
@@ -1863,9 +1867,13 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                             tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                             iPlateauOrZero = tSubtable[M28Map.subrefiPlateauOrPond]
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..(iCurLZOrWZRef or 'nil')..'; Plateua or pond='..(tSubtable[M28Map.subrefiPlateauOrPond] or 'nil')..'; is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone] or false)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]))..'; Rally value='..GetRallyPointValueOfLandZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData, iPlateauOrZero)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..(iCurLZOrWZRef or 'nil')..'; Plateua or pond='..(tSubtable[M28Map.subrefiPlateauOrPond] or 'nil')..'; is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone] or false)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]))..'; Rally value if LZ='..GetRallyPointValueOfLandZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData, iPlateauOrZero)..'; Rally value if WZ='..GetRallyPointValueOfWaterZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData)) end
                         if M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]) then
-                            iCurRallyValue = GetRallyPointValueOfLandZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData, iPlateauOrZero)
+                            if iPlateauOrZero == 0 then
+                                iCurRallyValue = GetRallyPointValueOfWaterZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData)
+                            else
+                                iCurRallyValue = GetRallyPointValueOfLandZone(iTeam, tAltLZOrWZData, tAltLZOrWZTeamData, iPlateauOrZero)
+                            end
                             if iCurRallyValue > iBestRallyValue then
                                 iBestRallyValue = iCurRallyValue
                                 tPreferredRallyPoint = {tAltLZOrWZData[M28Map.subrefMidpoint][1], tAltLZOrWZData[M28Map.subrefMidpoint][2], tAltLZOrWZData[M28Map.subrefMidpoint][3]}
@@ -8989,7 +8997,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
             local iTravelDistance, iClosestBasePlateau, iClosestBaseLandZone
             local iTravelThreshold = 200
             if M28Map.iMapSize >= 1000 then iTravelThreshold = 260 end
-            local tbPlateauAndZoneDropLocations = {}
+
             function ConsiderAddingZoneInIsland(iPlateau, iIsland, iLandZone, bCheckDistFromExistingDropLocations, iMexThresholdOverride, bIncludeAdjacentZoneMexCount)
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                 local iMexesAvailable = (tLZData[M28Map.subrefLZOrWZMexCount] or 0)
@@ -9004,7 +9012,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                     --Is it on our side of the map (or almost on our side of the map)?
                     if bDebugMessages == true then LOG(sFunctionRef..': refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]..'; subrefTotalSignificantMassReclaim='..(tLZTeamData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')) end
-                    if tLZTeamData[M28Map.refiModDistancePercent] <= 0.55 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and ((iMexesAvailable >= (iMexThresholdOverride or 3) or (tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 300 and iMexesAvailable + tLZData[M28Map.subrefTotalSignificantMassReclaim] / 300 >= 3)))  then --core base check is a redundancy, not even sure if it gets set before this code runs anyway
+                    if tLZTeamData[M28Map.refiModDistancePercent] <= 0.55 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and ((iMexesAvailable >= (iMexThresholdOverride or 3) or (tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 300 and iMexesAvailable + tLZData[M28Map.subrefTotalSignificantMassReclaim] / 300 >= 3))) and (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) == 0  then --core base check is a redundancy, not even sure if it gets set before this code runs anyway
                         --Get travel distance to closest friendly base
                         iClosestBasePlateau, iClosestBaseLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZTeamData[M28Map.reftClosestFriendlyBase])
                         if bDebugMessages == true then LOG(sFunctionRef..': iClosestBasePlateau='..(iClosestBasePlateau or 'nil')..'; iClosestBaseLandZone='..(iClosestBaseLandZone or 'nil')) end
@@ -9079,7 +9087,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering the land zone '..iLandZone..' in iPlateau='..iPlateau..'; tLZTeamData[M28Map.subrefLZSValue]='..tLZTeamData[M28Map.subrefLZSValue]..'; subrefLZOrWZMexCount='..(tLZData[M28Map.subrefLZOrWZMexCount] or 'nil')) end
-                if tLZTeamData[M28Map.subrefLZSValue] <= 200 and (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) < 3 then --i.e. dont have a land factory or better in the zone, or if we have dropped at least twice recently here
+                if tLZTeamData[M28Map.subrefLZSValue] <= 200 and (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) == 0 and (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) < 3 then --i.e. dont have a land factory or better in the zone, or if we have dropped at least twice recently here
                     --Check we havent already got mexes on any of the positions
                     if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
                     if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 then
@@ -9412,7 +9420,7 @@ function UpdateTransportPlateauDropLocationShortlist(iTeam, bUpdateCombatDropSho
         --Cycle through every island, check it's not listed in the above table, and then record as a potential island to consider dropping
         local bAlreadyIncluded = false
         local iClosestLZToBase, iClosestBasePlateau, iClosestBaseLZ, iCurDistToFriendlyBase
-        local iMexesAlreadyBuiltOn, bHaveLandFactoryOnIsland
+
         for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; Is table of island land zones empty='..tostring(M28Utilities.IsTableEmpty(tPlateauSubtable[M28Map.subrefPlateauIslandLandZones]))) end
             if M28Utilities.IsTableEmpty(tPlateauSubtable[M28Map.subrefPlateauIslandLandZones]) == false then
@@ -9525,8 +9533,8 @@ function UpdateTransportPlateauDropLocationShortlist(iTeam, bUpdateCombatDropSho
                         iRecentDropCount = iRecentDropCount + (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0)
                         iMexesAlreadyBuiltOn = iMexesAlreadyBuiltOn + tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3]
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..' in the island, enemy threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of enemy engineers traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]))..'; iMexesAlreadyBuiltOn='..iMexesAlreadyBuiltOn) end
-                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
-                            if bDebugMessages == true then LOG(sFunctionRef..': we already have engineers traveling here so will abort') end
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false or (tLZTeamData[M28Map.refiNonM28TeammateFactoryCount] or 0) > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': we already have engineers traveling here or a teammate factory so will abort') end
                             bTooMuchThreatOrEngisTraveling = true
                             break
                         elseif tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 175 then
@@ -11714,6 +11722,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
         iOurExpBomberThreat = iOurExpBomberThreat + M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, true, false, false)
         local iTotalExpBombers = table.getn(tAvailableBombers)
+        
         local iBombersPerTick = math.max(1, math.ceil(iTotalExpBombers / 3)) --Logic can run slowly so want to spread it out over 3 ticks
         local iCurBomberPerTick = 0
 
@@ -11724,13 +11733,16 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
         local bAvoidRecentLowHealthBomberTargets
 
         local iHighestLC = 0
+        local iLowestLC = 10000
         for iExpBomb, oExpBomb in tAvailableBombers do
             iHighestLC = math.max(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iHighestLC)
+            iLowestLC = math.min(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iLowestLC)
         end
         if M28Utilities.IsTableEmpty(tBombersForRetreating) == false then
             iTotalExpBombers = iTotalExpBombers + table.getn(tBombersForRetreating)
             for iExpBomb, oExpBomb in tBombersForRetreating do
                 iHighestLC = math.max(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iHighestLC)
+                iLowestLC = math.min(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iLowestLC)
             end
         end
         if M28Utilities.IsTableEmpty(tUnavailableUnits) == false then
@@ -11738,6 +11750,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
             for iExpBomb, oExpBomb in tUnavailableUnits do
                 if oExpBomb:GetFractionComplete() == 1 then
                     iHighestLC = math.max(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iHighestLC)
+                    iLowestLC = math.min(M28UnitInfo.GetUnitLifetimeCount(oExpBomb), iLowestLC)
                 end
             end
         end
@@ -11768,8 +11781,8 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
 
                 if bDebugMessages == true then LOG(sFunctionRef..': oExpBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; owner='..oBomber:GetAIBrain().Nickname..'; Position='..repru(oBomber:GetPosition())..'; iBomberPlateauOrZero='..(iBomberPlateauOrZero or 'nil')..'; iBomberLandOrWaterZone='..(iBomberLandOrWaterZone or 'nil')..'; tGunshipMidpoint='..repru(tBomberZoneMidpoint)..'; WZ from position='..(M28Map.GetWaterZoneFromPosition(oBomber:GetPosition()) or 'nil')) end
 
-                local iMaxEnemyAirAA --Amount of enemy airaa threat required to make gunships to target enemies nearby
-                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 6000 then
+                local iMaxEnemyAirAA --Amount of enemy airaa threat required to make exp bomber to target enemies nearby
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 2000 + 4000 * iTotalExpBombers then
                     iMaxEnemyAirAA = 1000
                 else
                     --Is the air support location nearby?
@@ -11800,6 +11813,29 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         if iHighestLC == M28UnitInfo.GetUnitLifetimeCount(oBomber) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Increasing iMaxEnemyAirAA as we have lots of exp bombers so want to be aggressive with one of them, iMaxEnemyAirAA before increase='..iMaxEnemyAirAA) end
                             iMaxEnemyAirAA = math.max(M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat], iMaxEnemyAirAA * 1.5, 8000)
+                        end
+                    end
+                    --Be aggressive with the lowest LC as well if very dangerous scenario
+                    if iTotalExpBombers > 2 and (iTotalExpBombers >= 5 or iLowestLC < iTotalExpBombers * 4) and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] then
+                        if (iTotalExpBombers >= 5 or M28UnitInfo.GetUnitLifetimeCount(oBomber) == iLowestLC) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+                            local iEnemyArtiOrGEMassInvestment = 0
+                            local bApplyCustomThreatFactor = M28UnitInfo.bCustomThreatFactor
+                            if bApplyCustomThreatFactor and M28UnitInfo.iThreatFactor == 1 then bApplyCustomThreatFactor = false end
+                            local iCurCost
+
+                            for iArti, oArti in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+                                if not(oArti.Dead) then
+                                    iCurCost = oArti[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oArti)
+                                    if bApplyCustomThreatFactor then iCurCost = iCurCost * M28UnitInfo.iThreatFactor end
+                                    if oArti:GetFractionComplete() < 1 then iCurCost = iCurCost * oArti:GetFractionComplete() end
+                                    iEnemyArtiOrGEMassInvestment = iEnemyArtiOrGEMassInvestment + iCurCost
+                                end
+
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if should be more aggressive with all exp bombers and/or our lowest LC bomber, iEnemyArtiOrGEMassInvestment='..iEnemyArtiOrGEMassInvestment) end
+                            if iEnemyArtiOrGEMassInvestment >= 140000 or (iEnemyArtiOrGEMassInvestment >= 70000 and M28UnitInfo.GetUnitLifetimeCount(oBomber) == iLowestLC) then
+                                iMaxEnemyAirAA = math.max(iMaxEnemyAirAA, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat], 8000)
+                            end
                         end
                     end
                 end
@@ -12123,7 +12159,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         if bDebugMessages == true then LOG(sFunctionRef..': We want to run to rally point so wont consider further targets, subjcet to exception when down to last base, time of last bomb='..GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0)..'; Bomber refiModDistancePercent='..tBomberLandOrWaterZoneTeamData[M28Map.refiModDistancePercent]..'; Dist from bomber to rally='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist from rally to closest friendly base='..M28Utilities.GetDistanceBetweenPositions(tBomberLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) end
                         --If bomber hasnt fired any bombs for a while, is within 175 of the rally point, rally point mod dist is low, and are enemies near the rally point, then consider ignoring enemy AA to target enemies adjacent to core base if we are the last 1-2 M28 players, and last on our air subteam
                         if GetGameTimeSeconds() - (oBomber[M28UnitInfo.refiLastBombFired] or 0) >= 60 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] <= 2 and  tBomberLandOrWaterZoneTeamData[M28Map.refiModDistancePercent] <= 0.4 and M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) <= 175 and M28Utilities.GetDistanceBetweenPositions(tBomberLandOrWaterZoneTeamData[M28Map.reftClosestFriendlyBase], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) <= 125
-                        and M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
+                                and M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
                             local iAirSubteamCount = 0
                             for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
                                 if not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then iAirSubteamCount = iAirSubteamCount + 1 end

@@ -5627,7 +5627,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
         --Disable early bomber engineers some of the time
         if math.random(1,10) <= 3 then
             for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
-                if not(oBrain[M28Overseer.refbPrioritiseAir]) then
+                if not(oBrain[M28Overseer.refbPrioritiseAir]) and (oBrain[M28Map.refbCanPathToEnemyBaseWithLand] or math.random(1,3) == 1 or M28Map.iMapSize >= 700) then
                     tAirSubteamData[oBrain.M28AirSubteam][refbDontBuildEngiHunterEngineers] = true
                 end
             end

@@ -2044,7 +2044,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
     if oBP.Weapon then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
             if oCurWeapon.MaxRadius and not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit.HasEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with range category='..(oCurWeapon.RangeCategory or 'nil')..'; weapon category='..(oCurWeapon.WeaponCategory or 'nil')..' and label='..(oCurWeapon.Label or 'nil')..' with damage='..(oCurWeapon.Damage or 'nil')..' for unit '..oUnit.UnitId) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering weapon with range category='..(oCurWeapon.RangeCategory or 'nil')..'; weapon category='..(oCurWeapon.WeaponCategory or 'nil')..' and label='..(oCurWeapon.Label or 'nil')..' with damage='..(oCurWeapon.Damage or 'nil')..' for unit '..oUnit.UnitId..'; Rateoffire='..(oCurWeapon.RateOfFire or 'nil')) end
                 if oCurWeapon.ManualFire then
                     oUnit[refiManualRange] = math.max((oUnit[refiManualRange] or 0), oCurWeapon.MaxRadius)
                     oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.DamageRadius or 0)
@@ -2077,7 +2077,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                             oUnit[refiDFRange] = (oCurWeapon.MaxRadius or 0)
                             oUnit[refiDFMinRange] = oCurWeapon.MinRadius
                             if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = oCurWeapon.DamageRadius end
-                            if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = 1 / oCurWeapon.RateOfFire end
+                            if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max(1 / oCurWeapon.RateOfFire, (oCurWeapon.RackSalvoReloadTime or -1)) end
                         elseif not(bIgnoreValues) then
                             oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius or 0)
                             if oCurWeapon.MinRadius then
@@ -2086,7 +2086,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                                 end
                             end
                             if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
-                            if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max((oUnit[refiTimeBetweenDFShots] or 0), 1 / oCurWeapon.RateOfFire) end
+                            if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max((oUnit[refiTimeBetweenDFShots] or 0), math.max(1 / oCurWeapon.RateOfFire, (oCurWeapon.RackSalvoReloadTime or -1))) end
                         end
 
                     elseif oCurWeapon.RangeCategory == 'UWRC_AntiNavy' then
@@ -2104,7 +2104,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                             oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                             if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
                             oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), (oCurWeapon.DamageRadius or 0))
-                            if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenIFShots] = math.max((oUnit[refiTimeBetweenIFShots] or 0), 1 / oCurWeapon.RateOfFire) end
+                            if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenIFShots] = math.max((oUnit[refiTimeBetweenIFShots] or 0), math.max(1 / oCurWeapon.RateOfFire, (oCurWeapon.RackSalvoReloadTime or -1))) end
                             if oCurWeapon.MinRadius then oUnit[refiIFMinRange] = math.max((oUnit[refiIFMinRange] or 0), oCurWeapon.MinRadius) end
                         end
                     elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
@@ -2371,7 +2371,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
         end
     end
     oUnit[refiUnitMassCost] = iMassCost
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording range, mass value and other info for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[refiDFRange] or 'nil')..'; Indirect range='..(oUnit[refiIndirectRange] or 'nil')..'; AntiNavy range='..(oUnit[refiAntiNavyRange] or 'nil')..';Mass cost='..oUnit[refiUnitMassCost]..'; Can unit kite='..tostring(oUnit[refbCanKite] or false)..'; Bomber range='..(oUnit[refiBomberRange] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording range, mass value and other info for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[refiDFRange] or 'nil')..'; Indirect range='..(oUnit[refiIndirectRange] or 'nil')..'; AntiNavy range='..(oUnit[refiAntiNavyRange] or 'nil')..';Mass cost='..oUnit[refiUnitMassCost]..'; Can unit kite='..tostring(oUnit[refbCanKite] or false)..'; Bomber range='..(oUnit[refiBomberRange] or 'nil')..'; refiTimeBetweenDFShots='..(oUnit[refiTimeBetweenDFShots] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
