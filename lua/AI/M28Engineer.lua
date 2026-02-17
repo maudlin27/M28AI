@@ -12453,7 +12453,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iCurPDThreat='..iCurPDThreat) end
-            if iCurPDThreat < iApproachingACUThreat * 0.75 and (iCurPDThreat == 0 or (iDistFromACUToBase <= 125 and (iDistFromACUToBase <= 100 or oNearestEnemyACU[M28UnitInfo.refiUpgradeCount] == 0))) then
+            if iCurPDThreat < iApproachingACUThreat * 0.75 and (iCurPDThreat == 0 or (iDistFromACUToBase <= 125 and (iDistFromACUToBase <= 100 or oNearestEnemyACU[M28ACU.refiUpgradeCount] == 0))) then
                 iBPWanted = 15
                 local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone, tLZData, tLZTeamData, 1)
                 HaveActionToAssign(refActionBuildEmergencyPD, 1, iBPWanted, tTargetBuildLocation)
