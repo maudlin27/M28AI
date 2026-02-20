@@ -6306,6 +6306,20 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                     end
 
+                    --Update for water zones with threats
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                        local iAdjWZ, iPond
+                        for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                            iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+                            iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+                            local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                            if (tAdjWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 0) > 20 then
+                                iEnemyCombatThreat = iEnemyCombatThreat + math.max(0, tAdjWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] - (tAdjWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0))
+                                if bDebugMessages == true then LOG(sFunctionRef..': Factoring in enemy naval threat in iAdjWZ='..iAdjWZ..'; subrefWZThreatEnemyVsSurface='..tAdjWZTeamData[M28Map.subrefWZThreatEnemyVsSurface]..' less subrefWZTThreatAllyCombatTotal='..(tAdjWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil')) end
+                            end
+                        end
+                    end
+
                     --Update for nearby plateaus with threats
                     if tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] then
                         for iEntry, tPlateauAndZone in tLZData[M28Map.subrefDangerousNearbyPlateauAndZones] do
