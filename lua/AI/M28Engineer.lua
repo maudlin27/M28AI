@@ -12732,7 +12732,53 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
 
 
+    --Have 1 engi go to adjacent water zone early game to get naval fac (higher even than unclaimed mex) once we have built 4+ engis
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Early game naval fac for naval map: refbCanPathToEnemyBaseWithLand='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] or false)..'; is subrefAdjacentWaterZones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]))..'; refiOurHighestNavalFactoryTech='..(aiBrain[M28Economy.refiOurHighestNavalFactoryTech] or 'nil')..'; subrefiHighestFriendlyFactoryTech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')) end
+    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0 and GetGameTimeSeconds() <= 6*60 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 1 then
+        local iEngiLC = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)
+        if bDebugMessages == true then LOG(sFunctionRef..': iEngiLC='..iEngiLC) end
+        if iEngiLC >= 4 then
+            local iCurWZ, iCurPond
+            for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                iCurWZ = tSubtable[M28Map.subrefAWZRef]
+                iCurPond = M28Map.tiPondByWaterZone[iCurWZ]
+                local tWZData = M28Map.tPondDetails[iCurPond][M28Map.subrefPondWaterZones][iCurWZ]
+                local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent WZ iCurWZ='..iCurWZ..'; subrefWZbCoreBase='..tostring( tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; refiPriorityPondValues='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 'nil')) end
+                if tWZTeamData[M28Map.subrefWZbCoreBase] and (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 0) > 8 then
+                    local iEngineersTravelingHere
+                    local iEngineersPresentHere
+                    local iMaxEngineersWanted
+                    if bDebugMessages == true then LOG(sFunctionRef..': does zone want bp='..tostring(tWZTeamData[M28Map.subrefTbWantBP])..'; subrefbEnemiesInThisOrAdjacentWZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; enemy air to ground='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)) end
+                    if tWZTeamData[M28Map.subrefTbWantBP] and not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0) then
+                        iEngineersTravelingHere = 0
+                        iEngineersPresentHere = 0
+                        if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
+                            iEngineersTravelingHere = table.getn(tWZTeamData[M28Map.subrefTEngineersTravelingHere])
+                        end
+                        if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                            local tEngineersInAdjZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tEngineersInAdjZone) == false then
+                                iEngineersPresentHere = table.getn(tEngineersInAdjZone)
+                            end
+                        end
+                        iMaxEngineersWanted = 1
+                        if iEngiLC >= 8 then
+                            iMaxEngineersWanted = 2
+                        end
 
+                        iBPWanted = iMaxEngineersWanted * 5
+                        HaveActionToAssign(refActionMoveToWaterZone, 1, iBPWanted, iCurWZ, true)
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': High priority naval map initial factory engineer for adjacent WZ Tried to send engineers to iCurWZ '..iCurWZ..'; iBPWanted='..iBPWanted) end
+                        iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                        break
+                    end
+                end
+            end
+        end
+    end
 
     --Unclaimed mex in the zone
     iCurPriority = iCurPriority + 1
@@ -18631,13 +18677,13 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     --Naval fac if this is a core WZ and we dont have any (or lack an HQ), with eco condition
     iCurPriority = iCurPriority + 1
     --Commented out as need logic for identifying build locations first
-    if bDebugMessages == true then LOG(sFunctionRef .. ': About to see if we want to build a naval factory, is this a core WZ base=' .. tostring(tWZTeamData[M28Map.subrefWZbCoreBase]) .. '; tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation]='..tostring(tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; First M28 lifetime factory highest build count='..(M28Team.GetFirstActiveM28Brain(iTeam)[M28Factory.refiHighestFactoryBuildCount] or 'nil')..'; WZ brain build count='..(ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Factory.refiHighestFactoryBuildCount] or 'nil')..'; DelayNavyWhereLessImportant='..tostring(M28Conditions.DelayNavyWhereLessImportant(aiBrain, tWZData, tWZTeamData, iTeam) or false)..'; iTeam='..iTeam) end
+    if bDebugMessages == true then LOG(sFunctionRef .. ': About to see if we want to build a naval factory, is this a core WZ base=' .. tostring(tWZTeamData[M28Map.subrefWZbCoreBase]) .. '; tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation]='..tostring(tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; First M28 lifetime factory highest build count='..(M28Team.GetFirstActiveM28Brain(iTeam)[M28Factory.refiHighestFactoryBuildCount] or 'nil')..'; WZ brain build count='..(aiBrain[M28Factory.refiHighestFactoryBuildCount] or 'nil')..'; DelayNavyWhereLessImportant='..tostring(M28Conditions.DelayNavyWhereLessImportant(aiBrain, tWZData, tWZTeamData, iTeam) or false)..'; iTeam='..iTeam) end
     local iFactoriesWanted
     if tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] and GetGameTimeSeconds() - tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] <= 60 and (GetGameTimeSeconds() - tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] <= 20 or M28UnitInfo.IsUnitRestricted('ues0103', tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex])) then
         if tWZTeamData[M28Map.subrefWZbCoreBase] and not(M28Conditions.DelayNavyWhereLessImportant(aiBrain, tWZData, tWZTeamData, iTeam)) then iFactoriesWanted = 1 else iFactoriesWanted = 0 end
-    elseif (not(tWZTeamData[M28Map.subrefWZTimeLastDestroyedForStuckNavy]) or iExistingWaterFactory == 0) and ((tWZTeamData[M28Map.subrefWZbCoreBase] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.bIsCampaignMap or ((not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5) or ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Factory.refiHighestFactoryBuildCount] >= 30)))
+    elseif (not(tWZTeamData[M28Map.subrefWZTimeLastDestroyedForStuckNavy]) or iExistingWaterFactory == 0) and ((tWZTeamData[M28Map.subrefWZbCoreBase] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.bIsCampaignMap or ((not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5) or aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 30)))
             or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]
-            or (not(ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Map.refbCanPathToEnemyBaseWithLand]) and ArmyBrains[tWZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]][M28Map.refbCanPathToEnemyBaseWithAmphibious] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2 and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3) and (iExistingWaterFactory > 0 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] < 3 and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryNavalFactory, iTeam) < math.min(9, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.6))))) then
+            or (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1 and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1.5 or aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0) and (iExistingWaterFactory > 0 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] < 3 and M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryNavalFactory, iTeam) < math.min(9, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.6))))) then
         --Is this a priority pond for our team to expand to?
         if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]]='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')..'; DelayNavyWhereLessImportant='..tostring(M28Conditions.DelayNavyWhereLessImportant(aiBrain, tWZData, tWZTeamData, iTeam) or false)) end
         if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) >= 7 or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or ((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) >= 4 and M28Map.iMapSize > 512) or (iExistingWaterFactory > 0 and tWZTeamData[M28Map.subrefWZbCoreBase]) or (aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] < 2) or (tWZTeamData[M28Map.subrefWZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.refbNoAvailableTorpsForEnemies]) or ((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2))) then
