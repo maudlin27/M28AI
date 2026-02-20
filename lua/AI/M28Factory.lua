@@ -6001,6 +6001,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         end
                     end
                 end
+
+                --Torp bombers
+                if bDebugMessages == true then LOG(sFunctionRef..': Do we want torp bombers to kill enemy? refbNoAvailableTorpsForEnemies='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] or false)) end
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
+                end
             else
                 --We have suitably high tech level to consider normal air production (and engineer production), or there are nearby threats that we want to build units to try and deal with
                 --T2 air upgrade for 'safe' zones if lack any HQ upgrades in this zone and have decent base level of energy

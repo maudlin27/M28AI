@@ -3983,6 +3983,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             end
             if bDebugMessages == true then LOG(sFunctionRef..': oFrontSub='..oFrontSub.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFrontSub)..'; owned by brain '..oFrontSub:GetAIBrain().Nickname..'; iNearbyFriendlySubThreat='..iNearbyFriendlySubThreat) end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to flag we want reinforcements, tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or false)) end
         if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then
 
             local iClosestDist, iClosestSurfaceDist, iClosestNonHoverDist
@@ -4001,7 +4002,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             if tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 3 then
                 bMoveBlockedNotAttackMove = true
             end
-
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want reinforcements, subrefTThreatEnemyCombatTotal='..(tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; mass cost of tAvailableCombatUnits='..M28UnitInfo.GetMassCostOfUnits(tAvailableCombatUnits)..'; Mass cost of tAvailableSubmarines='..M28UnitInfo.GetMassCostOfUnits(tAvailableSubmarines)) end
             if tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 1.5 > M28UnitInfo.GetMassCostOfUnits(tAvailableCombatUnits) + M28UnitInfo.GetMassCostOfUnits(tAvailableSubmarines) then
                 bWantReinforcements = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Want reinforcements as enemy combat exceeds our combat rating, tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Our combat units rating='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true)) end
@@ -4590,7 +4591,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     local iEnemyRangeThreshold = math.max((oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0), (oNearestEnemyToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 0)) + 2
                     for iEnemy, oEnemy in tNearestEnemyWZTeamData[M28Map.reftoNearestCombatEnemies] do
                         --Only consider enemies that outrange the nearest enemy (since if they're the same or less range then we can kite them with the same units that can kite the nearest enemy)
-                        if bDebugMessages == true then LOG(sFunctionRef..': considering how close nearby DF and antinavy units are to closest enemy, factoring in their range, oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF range='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; AntiNavy='..(oEnemy[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; iEnemyRangeThreshold='..iEnemyRangeThreshold..'; Dist between positions='..M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition())..'; iClosestDistLessRange before update='..iClosestDistLessRange) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': considering how close nearby DF and antinavy units are to closest enemy, factoring in their range, oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF range='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; AntiNavy='..(oEnemy[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; iEnemyRangeThreshold='..iEnemyRangeThreshold..'; Dist between positions='..M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition())..'; iClosestDistLessRange before update='..iClosestDistLessRange..'; Enemy assigned WZ='..(oEnemy[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] or 'nil')) end
                         if (oEnemy[M28UnitInfo.refiDFRange] or 0) > iEnemyRangeThreshold and (oEnemy[M28UnitInfo.refiAntiNavyRange] or 0) > iEnemyRangeThreshold then
                             iClosestDistLessRange = math.min(iClosestDistLessRange, M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition()) - math.max((oEnemy[M28UnitInfo.refiDFRange] or 0), (oEnemy[M28UnitInfo.refiAntiNavyRange] or 0)))
                         end
