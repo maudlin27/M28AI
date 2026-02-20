@@ -5950,7 +5950,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) >= 10 then
                 iEnemyBestDFRange = math.max(iEnemyBestDFRange, oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange])
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated iEnemyBestDFRange for oNearestEnemyToFriendlyBase, oNearestEnemyToFriendlyBase DF range='..(oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 'nil')) end
-                if EntityCategoryContains(categories.MOBILE, oNearestEnemyToFriendlyBase.UnitId) then iEnemyBestMobileDFRange = math.max(iEnemyBestMobileDFRange, oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange])
+                if EntityCategoryContains(categories.MOBILE, oNearestEnemyToFriendlyBase.UnitId) then
+                    iEnemyBestMobileDFRange = math.max(iEnemyBestMobileDFRange, oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange])
+                    if oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                        local iAdjWZ = oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]
+                        local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                        if (tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] or -1) > iEnemyBestMobileDFRange then iEnemyBestMobileDFRange = tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] end
+                    end
                 else iEnemyBestStructureDFRange = math.max(iEnemyBestStructureDFRange, oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange])
                 end
             end
