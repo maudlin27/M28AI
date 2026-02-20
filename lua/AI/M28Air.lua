@@ -5302,8 +5302,14 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                 if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
                     local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
                     for iUnit, oUnit in tPotentialTargets do
+                        if bDebugMessages == true then
+                            if M28UnitInfo.IsUnitValid(oUnit) then LOG(sFunctionRef..': Considering if potential target is valid, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; IsUnitUnderwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; IsLocationInPlayableArea='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))..'; has desired category='..tostring(not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId)))
+                            else LOG(sFunctionRef..': Unit invalid, oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'))
+                            end
+                        end
                         if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) and (oUnit:GetFractionComplete() >= 0.9 or EntityCategoryContains(M28UnitInfo.refCategoryGroundAA, oUnit.UnitId)) then
                             if not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding to tEnemyTargets') end
                                 table.insert(tEnemyTargets, oUnit)
                             end
                         end
@@ -5365,7 +5371,9 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                                     --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck, bOptionalIgnoreOppositeDirectionZones, bIncludeEnemyGroundAAInAirAAThreat)
                                     if bDontCheckForEnemyThreats or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iOtherPlateauOrZero, iOtherLZOrWZ,            true,               1,                      400,                    false,          iAirSubteam, true,                      false,                          oBomber:GetPosition(),                      false,                                  nil,                                        false,                              false)) then
                                         FilterToAvailableTargets(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits], iEngiHunterCategories)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherPlateauOrZero='..(iOtherPlateauOrZero or 'nil')..'; iOtherLZOrWZ='..(iOtherLZOrWZ or 'nil')..'; dist='..(tPathingDetails[M28Map.subrefiDistance] or 'nil')..'; iSearchSize='..(iSearchSize or 'nil')..'; Does it have enemy units='..tostring(M28Utilities.IsTableEmpty(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of targets empty='..tostring(M28Utilities.IsTableEmpty( tEnemyTargets))) end
+                                        if bDebugMessages == true then
+                                            LOG(sFunctionRef..': Considering iOtherPlateauOrZero='..(iOtherPlateauOrZero or 'nil')..'; iOtherLZOrWZ='..(iOtherLZOrWZ or 'nil')..'; dist='..(tPathingDetails[M28Map.subrefiDistance] or 'nil')..'; iSearchSize='..(iSearchSize or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of targets empty='..tostring(M28Utilities.IsTableEmpty( tEnemyTargets)))
+                                        end
                                         if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
                                             if iSearchSize > 100 then iSearchSize = 100 end --we also set it to 100 further up
                                             --[[if bDebugMessages == true then LOG(sFunctionRef..': Assigning bomber targets for Engi hunter, iOtherLZOrWZ='..iOtherLZOrWZ) end
@@ -5379,17 +5387,19 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                         end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for targets in other zones, is tEnemyTargets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyTargets))) end
                 if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
                     --Pick the best target, based on distance, aoe damage, and angle to us
                     local iAOE, iStrikeDamage = M28UnitInfo.GetBomberAOEAndStrikeDamage(oBomber)
                     iStrikeDamage = math.max(150, iStrikeDamage) --assume we can 1-shot all engineers in case it gives strange results if we cant
                     local tAltEnemyTargets = {}
+                    local oBestEnemyTarget
                     if table.getn(tEnemyTargets) == 1 then
-                        tAltEnemyTargets = tEnemyTargets
+                        oBestEnemyTarget = tEnemyTargets[1]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Only have 1 potnetial target so will just target this, target='..tEnemyTargets[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEnemyTargets[1])) end
                     else
                         local iClosestEnemy = 100000
                         local iCurDist
-                        local oBestEnemyTarget
                         for iUnit, oUnit in tEnemyTargets do
                             if (oUnit[refiStrikeDamageAssigned] or 0) == 0 then
                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oBomber:GetPosition())
@@ -5420,16 +5430,19 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                                 end
                             end
                         end
-                        if oBestEnemyTarget then
-                            tAltEnemyTargets = {oBestEnemyTarget}
-                            local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())
-                            local iAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())
-                            local iBomberFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
-                            local iAngleDifToTarget = M28Utilities.GetAngleDifference(iBomberFacingAngle, iAngleToTarget)
-                            local iTimeUntilReadyToFire = M28UnitInfo.GetTimeUntilReadyToFireBomb(oBomber)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())..'; Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oBomber)..'; Angle to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())..'; oBomber[refiTimeBetweenBombs]='..(oBomber[M28UnitInfo.refiTimeBetweenBombs] or 'nil')..'; Bomber range='..oBomber[M28UnitInfo.refiBomberRange]..'; Bomber speed='..M28UnitInfo.GetUnitSpeed(oBomber)..'; iTimeUntilReadyToFire='..iTimeUntilReadyToFire) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Multiple potential targets to pick from, after considering these oBestEnemyTarget='..(oBestEnemyTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestEnemyTarget) or 'nil')) end
+                    end
+                    if oBestEnemyTarget then
+                        tAltEnemyTargets = {oBestEnemyTarget}
+                        local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())
+                        local iAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())
+                        local iBomberFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
+                        local iAngleDifToTarget = M28Utilities.GetAngleDifference(iBomberFacingAngle, iAngleToTarget)
+                        local iTimeUntilReadyToFire = M28UnitInfo.GetTimeUntilReadyToFireBomb(oBomber)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to micro turn to target, Dist to target='..M28Utilities.GetDistanceBetweenPositions(oBestEnemyTarget:GetPosition(), oBomber:GetPosition())..'; Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oBomber)..'; Angle to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), oBestEnemyTarget:GetPosition())..'; oBomber[refiTimeBetweenBombs]='..(oBomber[M28UnitInfo.refiTimeBetweenBombs] or 'nil')..'; Bomber range='..oBomber[M28UnitInfo.refiBomberRange]..'; Bomber speed='..M28UnitInfo.GetUnitSpeed(oBomber)..'; iTimeUntilReadyToFire='..iTimeUntilReadyToFire..'; oBomber[refbSpecialMicroActive]='..tostring(oBomber[M28UnitInfo.refbSpecialMicroActive] or false)..'; refbLowerPriorityMicroActive='..tostring(oBomber[M28UnitInfo.refbLowerPriorityMicroActive] or false)) end
 
-                            --If we have recently fired and enemy is close then hover-bomb
+                        --If we have recently fired and enemy is close then hover-bomb
+                        if not(oBomber[M28UnitInfo.refbSpecialMicroActive]) or oBomber[M28UnitInfo.refbLowerPriorityMicroActive] then
                             if iDistToTarget <= (oBomber[M28UnitInfo.refiBomberRange] or 30) + 10 and iTimeUntilReadyToFire >= 2 and oBestEnemyTarget:GetHealth() <= 250 and not(oBomber[M28UnitInfo.refbEasyBrain]) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Bomber recently fired and isnt able to fire again for a few seconds so will hoverbomb to attack '..oBestEnemyTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestEnemyTarget)) end
                                 ForkThread(M28Micro.T1OrT3HoverBombTarget, oBomber, oBestEnemyTarget, false, (EntityCategoryContains(M28UnitInfo.refCategoryStructure, oBestEnemyTarget.UnitId) or oBestEnemyTarget:GetFractionComplete() < 1), false)
@@ -5437,10 +5450,15 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                                 tAltEnemyTargets = nil
                                 tBomberTable = nil
                                 --If bomber is facing the wrong direction and isnt that far from the target, and is ready to fire, then consider using micro to turn around and fire at it
-                            elseif iDistToTarget <= 85 and iAngleDifToTarget > 30 and (iTimeUntilReadyToFire <= 0 or (iDistToTarget <= 60 and iTimeUntilReadyToFire <= 5 and (iDistToTarget <= 40 or iTimeUntilReadyToFire <= 3))) and not(oBomber[M28UnitInfo.refbEasyBrain]) then
+                            elseif iDistToTarget <= 85 and iAngleDifToTarget > 15 and (iTimeUntilReadyToFire <= 0 or (iDistToTarget <= 60 and iTimeUntilReadyToFire <= 5 and (iDistToTarget <= 40 or iTimeUntilReadyToFire <= 3))) and not(oBomber[M28UnitInfo.refbEasyBrain])
+                                    and (iAngleDifToTarget > 30 or (iDistToTarget < (oBomber[M28UnitInfo.refiBomberRange] or 30) - 5 and iTimeUntilReadyToFire <= 0))
+                            then
                                 --Want to turn to face the target and shoot it
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will use micro to turn where we are to fire a bomb at oBestEnemyTarget='..oBestEnemyTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestEnemyTarget)) end
-                                ForkThread(M28Micro.TurnAirUnitAndAttackTarget, oBomber, oBestEnemyTarget)
+                                local iAcceptableAngleDif = 23 --prev 30 (pre-v285) in all cases
+                                if iAngleDifToTarget <= 30 then iAcceptableAngleDif = 15 end --had scenario where bomber got intel of engineer from its own radar range, with angle dif just below 30 - too big an angle to fire its bomb
+                                --TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAttackingUntilTargetDead, bContinueAttackUntilFiredBomb, iAcceptableAngleDifOverride)
+                                ForkThread(M28Micro.TurnAirUnitAndAttackTarget, oBomber, oBestEnemyTarget, nil,             false,                              false,                           iAcceptableAngleDif)
                                 tEnemyTargets = nil
                                 tAltEnemyTargets = nil
                                 tBomberTable = nil
@@ -5448,13 +5466,16 @@ function ApplyEngiHuntingBomberLogic(oBomber, iAirSubteam, iTeam)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will target oBestEnemyTarget='..oBestEnemyTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestEnemyTarget)) end
                                 tAltEnemyTargets = {oBestEnemyTarget}
                             end
-                        else tAltEnemyTargets = tEnemyTargets
+                        else
+                            tAltEnemyTargets = tEnemyTargets
                         end
+                    else tAltEnemyTargets = tEnemyTargets
                     end
 
                     if tAltEnemyTargets then
                         AssignTorpOrBomberTargets(tBomberTable, tAltEnemyTargets, iAirSubteam, false, true)
                         tEnemyTargets = {}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will target the enemy with the bomber, is tBomberTable after assigning targets='..tostring(M28Utilities.IsTableEmpty(tBomberTable))) end
                     end
                 end
                 if M28Utilities.IsTableEmpty(tBomberTable) == false then
