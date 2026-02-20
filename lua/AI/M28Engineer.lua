@@ -4601,6 +4601,22 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
             end
         end
 
+        --Run from WZ midpoint as positiontorunfrom if WZ is dangerous (if land zone and no nearestenemy to run from)
+        local tWZPositionToRunFrom
+        if tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] and not(bIsWaterZone) then
+            local iAdjWZ, iPond
+            for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+                iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+                local tAdjWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ]
+                local tAdjWZTeamData = tAdjWZData[M28Map.subrefWZTeamData][iTeam]
+                if (tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) > 30 then
+                    tWZPositionToRunFrom = {tAdjWZData[M28Map.subrefMidpoint][1], tAdjWZData[M28Map.subrefMidpoint][2], tAdjWZData[M28Map.subrefMidpoint][3]}
+                    break
+                end
+            end
+        end
+
 
         if bDebugMessages == true then LOG(sFunctionRef..': iEnemyUnitSearchRange='..iEnemyUnitSearchRange..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; bCheckLRThreats='..tostring(bCheckLRThreats)..'; bConsiderRunningFromEnemies='..tostring(bConsiderRunningFromEnemies)..'; Time='..GetGameTimeSeconds()) end
         local bIgnoreIfEnemyUnderwater = false
@@ -4892,10 +4908,18 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Want to risk engineer sticking around to try and complete its building') end
                                                     else
                                                         local tPositionToRunFrom
-                                                        if oNearestEnemy then tPositionToRunFrom = oNearestEnemy:GetPosition() end
+                                                        if oNearestEnemy then tPositionToRunFrom = oNearestEnemy:GetPosition()
+                                                        elseif tWZPositionToRunFrom then tPositionToRunFrom = tWZPositionToRunFrom
+                                                        end
                                                         if not(bIsWaterZone) then
+                                                            --Core base - consider running if arent close to midpoint and are closer to enemy than the midpoint is
                                                             iLZOrWZToRunTo =  M28Land.GetLandZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
-                                                            if not(iLZOrWZToRunTo == iLandZone) and iLZOrWZToRunTo then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': iLZOrWZToRunTo from normal logic='..iLZOrWZToRunTo..'; subrefLZbCoreBase='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; tPositionToRunFrom='..repru(tPositionToRunFrom)) end
+                                                            if iLZOrWZToRunTo and tPositionToRunFrom and tLZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tPositionToRunFrom) - 10 > M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), tPositionToRunFrom) then
+                                                                --Retreat further back in core base
+                                                                iLZOrWZToRunTo = iLandZone
+                                                                TrackEngineerAction(oEngineer, refActionRunToLandZone, false, 1, {iPlateauOrPond, iLZOrWZToRunTo})
+                                                            elseif not(iLZOrWZToRunTo == iLandZone) and iLZOrWZToRunTo then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will run to LZ '..iLZOrWZToRunTo..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint]))..'; refbConstructionStart='..tostring(oEngineer[M28UnitInfo.refbConstructionStart] or false)) end
                                                                 if M28Map.bIsCampaignMap and not(oEngineer[M28UnitInfo.refbConstructionStart]) and not(M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint])) then
                                                                     if bDebugMessages == true then LOG(sFunctionRef..': campaign map, dont want engi that we havent constructed to retreat outside of playable area in case prevents expansion') end
