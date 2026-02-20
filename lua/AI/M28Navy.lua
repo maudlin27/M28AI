@@ -4587,8 +4587,14 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 end
                 --How close is an enemy unit to being in range of the nearest enemy (i.e. negative value means it can attack our units once they get this distance away)
                 local iClosestDistLessRange = 10000
+                local iEnemyRangeThreshold
+                if (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) > 0 and (not(EntityCategoryContains(categories.AMPHIBIOUS, oNearestEnemyToFriendlyBase.UnitId)) or not(M28UnitInfo.IsUnitUnderwater(oNearestEnemyToFriendlyBase))) then
+                    iEnemyRangeThreshold  = math.max((oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0), (oNearestEnemyToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 0)) + 2
+                else
+                    iEnemyRangeThreshold = (oNearestEnemyToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 0) + 2
+                end
                 if M28Utilities.IsTableEmpty(tNearestEnemyWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
-                    local iEnemyRangeThreshold = math.max((oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0), (oNearestEnemyToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 0)) + 2
+
                     for iEnemy, oEnemy in tNearestEnemyWZTeamData[M28Map.reftoNearestCombatEnemies] do
                         --Only consider enemies that outrange the nearest enemy (since if they're the same or less range then we can kite them with the same units that can kite the nearest enemy)
                         if bDebugMessages == true then LOG(sFunctionRef..': considering how close nearby DF and antinavy units are to closest enemy, factoring in their range, oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF range='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; AntiNavy='..(oEnemy[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; iEnemyRangeThreshold='..iEnemyRangeThreshold..'; Dist between positions='..M28Utilities.GetDistanceBetweenPositions(oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oNearestEnemyToFriendlyBase:GetPosition())..'; iClosestDistLessRange before update='..iClosestDistLessRange..'; Enemy assigned WZ='..(oEnemy[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] or 'nil')) end
@@ -4598,12 +4604,12 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     end
                 end
                 local iFriendlyDFRangeThresholdBasedOnAbove
-                if iClosestDistLessRange * -1 + 10 > (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) then
+                if iClosestDistLessRange * -1 + 8 > iEnemyRangeThreshold then
                     iFriendlyDFRangeThresholdBasedOnAbove = iClosestDistLessRange * -1 + 10
                     if bDebugMessages == true then LOG(sFunctionRef..': Updating range threshold for +8, iFriendlyDFRangeThresholdBasedOnAbove='..iFriendlyDFRangeThresholdBasedOnAbove..'; iClosestDistLessRange='..iClosestDistLessRange) end
                 else
-                    iFriendlyDFRangeThresholdBasedOnAbove = math.max((oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0), (oNearestEnemyToFriendlyBase[M28UnitInfo.refiAntiNavyRange] or 0)) + 6
-                    if bDebugMessages == true then LOG(sFunctionRef..': Updating range threshold for +3, iFriendlyDFRangeThresholdBasedOnAbove='..iFriendlyDFRangeThresholdBasedOnAbove..'; iClosestDistLessRange='..iClosestDistLessRange) end
+                    iFriendlyDFRangeThresholdBasedOnAbove = iEnemyRangeThreshold + 4
+                    if bDebugMessages == true then LOG(sFunctionRef..': Updating range threshold, iFriendlyDFRangeThresholdBasedOnAbove='..iFriendlyDFRangeThresholdBasedOnAbove..'; iClosestDistLessRange='..iClosestDistLessRange) end
                 end
 
                 if bAreInScenario1 and iFriendlyDFRangeThresholdBasedOnAbove + 6 < tWZTeamData[M28Map.subrefWZBestAlliedDFRange] and iFriendlyDFRangeThresholdBasedOnAbove + 6 < iEnemyBestRange then
