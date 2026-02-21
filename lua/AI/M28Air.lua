@@ -10520,9 +10520,12 @@ function ManageTransports(iTeam, iAirSubteam)
                         iPlateauToTravelTo = 0 --redundancy
                     end
                 else
-                    --Consider far away land zones with 3+ mexes in them if the target plateau only has 1 mex
-                    if bDebugMessages == true then LOG(sFunctionRef..': Mexes in target island='..(M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 'nil')..'; P'..iPlateauToTravelTo..'Z'..iLandZoneToTravelTo) end
-                    if iPlateauToTravelTo and iLandZoneToTravelTo and (M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 0) <= 1 then
+                    --Consider far away land zones with 3+ mexes in them if the target plateau only has 1 mex and not lots of reclaim
+                    local tCurTargetLZData = M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Mexes in target island='..(M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 'nil')..'; P'..iPlateauToTravelTo..'Z'..iLandZoneToTravelTo..'; subrefTotalSignificantMassReclaim='..(tCurTargetLZData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')) end
+
+
+                    if iPlateauToTravelTo and iLandZoneToTravelTo and (M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] or 0) <= 1 and (tCurTargetLZData[M28Map.subrefTotalSignificantMassReclaim] or 0) < 2000 then
                         local bUseFarAwayZoneInstead = false
                         local iOrigIsland, iOrigPlateau, iOrigLZ
                         iOrigIsland = iIslandToTravelTo
