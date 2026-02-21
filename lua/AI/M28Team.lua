@@ -2363,9 +2363,34 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to iLandZone '..iLandZone..' for plateau '..iPlateau..' and team '..aiBrain.M28Team) end
                                     AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone)
                                 elseif iPlateau > 0 then
-                                    --Is the unit in a water zone?
+                                    --Is the unit in a water zone (or a unit that can move in water and is on a beach/right by the water zone start)?
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iWaterZone='..(iWaterZone or 'nil')..'; Unit terrain height='..GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3])..'; iMapWaterHeight='..M28Map.iMapWaterHeight) end
+                                    if not(iWaterZone) and EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) and M28Map.iMapWaterHeight > GetTerrainHeight(oUnit:GetPosition()[1], oUnit:GetPosition()[3]) then
+                                        local iPotentialPlateauOrZero, iPotentialLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Dont have valid WZ based on segments, so considering WZ based on position, iPotentialPlateauOrZero='..(iPotentialPlateauOrZero or 'nil')..'; iPotentialLandOrWaterZone='..(iPotentialLandOrWaterZone or 'nil')) end
+                                        if iPotentialLandOrWaterZone then
+                                            if iPotentialPlateauOrZero == 0 then
+                                                iWaterZone = iPotentialLandOrWaterZone
+                                            else
+                                                --Based on the position we think it is a land zone, but it is in water - if we move 5 towards the land zone are we on land? if not, if we move 5 towards an adjacent water zone to that LZ, are we on water?
+                                                local tPotentialLZData = M28Map.tAllPlateaus[iPotentialPlateauOrZero][M28Map.subrefPlateauLandZones][iPotentialLandOrWaterZone]
+                                                local iAngleToLZ = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tPotentialLZData[M28Map.subrefMidpoint])
+                                                local tMoveTowardsLZ = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToLZ, 5)
+                                                local iMoveTowardsSegmentX, iMoveTowardsSegmentZ = M28Map.GetPathingSegmentFromPosition(tMoveTowardsLZ)
+                                                if M28Map.tLandZoneBySegment[iMoveTowardsSegmentX][iMoveTowardsSegmentZ] == iPotentialLandOrWaterZone then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will add the unit to the land zone it is right by, iPotentialPlateauOrZero='..iPotentialPlateauOrZero..'; iPotentialLandOrWaterZone='..iPotentialLandOrWaterZone) end
+                                                    iLandZone = iPotentialLandOrWaterZone
+                                                    AddUnitToLandZoneForBrain(aiBrain, oUnit, iPotentialPlateauOrZero, iPotentialLandOrWaterZone)
+                                                else
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will move to logic for retrying later') end
+                                                end
+                                            end
+                                        end
+                                    end
                                     if iWaterZone > 0 then
                                         AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone)
+                                    elseif iLandZone and iLandZone > 0 then
+                                        --Presumably already added from above
                                     else
                                         --Does the unit already have orders, and is a non-naval unit? If so then wait and try to reassign it in a bit, as e.g. may be a land unit that can path across water so has taken a shortcut
                                         if bDebugMessages == true then LOG(sFunctionRef..': Unit doesnt have al and or water zone, is this a non amphibious or hover naval unit='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllNavy - M28UnitInfo.refCategoryAmphibious - categories.HOVER, oUnit.UnitId))..'; Nav utils naval label for unit position='..(NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition()) or 'nil')) end

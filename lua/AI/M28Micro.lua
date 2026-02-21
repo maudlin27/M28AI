@@ -1547,7 +1547,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAttackingUntilTargetDead, bContinueAttackUntilFiredBomb)
+function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinueAttackingUntilTargetDead, bContinueAttackUntilFiredBomb, iAcceptableAngleDifOverride)
     --Currently just used for ahwassa and T1 bomber
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TurnAirUnitAndAttackTarget'
@@ -1575,7 +1575,7 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
         local iTicksBetweenOrders = 5
         local iDistanceAwayToMove = 10
         local iAngleAdjust = 50
-        local iMaxAcceptableAngleDif = 30
+        local iMaxAcceptableAngleDif = iAcceptableAngleDifOverride or 30
         local iAOE, iDamage = M28UnitInfo.GetBomberAOEAndStrikeDamage(oBomber)
         local iBombStraightLineDistance = 8.5 --i.e. will consider firing a bomb in bombers current facing direction by this distance, and seeing if the aoe will hit the target
             --strat bomber failed at the default (which is currently as of v141 a dist of 8.5); however when increased by leeway of 2.5 it dropped; so if change the 8.5 value for strats probably want to increase slightly to somewhere between the two
