@@ -798,6 +798,8 @@ function RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --If oTML is nil and oTMD is in range of oUnit then will record the TMD against the unit
 
+
+
     --TMD can block the TML
     local bAlreadyRecordedTMD = false
     if not(oUnit[reftTMDCoveringThisUnit]) then oUnit[reftTMDCoveringThisUnit] = {}
@@ -823,6 +825,16 @@ function RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
             end
         end
     end
+
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': End of code at time='..GetGameTimeSeconds()..'; will list out reftUnitsCoveredByThisTMD')
+        if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then
+            for iRecordedTMD, oRecordedTMD in oUnit[reftTMDCoveringThisUnit] do
+                LOG(sFunctionRef..': oRecordedTMD='..oRecordedTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecordedTMD))
+            end
+        end
+    end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -834,6 +846,13 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange, bOnlyIncl
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordIfUnitIsProtectedFromTMLByTMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; oTML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..'; is tTMDInRange empty='..tostring(M28Utilities.IsTableEmpty(tTMDInRange))..'; Time='..GetGameTimeSeconds()) end
+
+    local iTMDInitiallyRecorded = 0
+    if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then iTMDInitiallyRecorded = table.getn(oUnit[reftTMDCoveringThisUnit]) end
 
     if not(oUnit.UnitId) and not(M28Utilities.bFAFActive) and oUnit then --LOUD compatibility
         if not(oUnit.EntityId) then oUnit.EntityId = oUnit:GetEntityId() end
@@ -893,6 +912,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange, bOnlyIncl
                         if IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iBuildingSize) then
                             bIsBlockedByTMD = true
                             RecordThatTMDProtectsUnitFromTML(oTMD, oUnit, oTML)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Recorded that this TMD is protecting oUnit from oTML') end
                             break
                         end
                     end
@@ -952,12 +972,21 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange, bOnlyIncl
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Will record this unit against the TML as being in range, unless already included, bAlreadyIncluded='..tostring(bAlreadyIncluded)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Will record this unit against the TML as being in range, unless already included, bAlreadyIncluded='..tostring(bAlreadyIncluded)..'; bUpdateZoneForUnitsWantingTMD='..tostring(bUpdateZoneForUnitsWantingTMD)) end
     if not(bAlreadyIncluded) then
         table.insert(oTML[reftUnitsInRangeOfThisTML], oUnit)
     end
+    local iTMDRecordedAfterCode = 0
+    local bForceUpdateOfIfWantTMD = not(bAlreadyIncluded)
+    if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then iTMDRecordedAfterCode = table.getn(oUnit[reftTMDCoveringThisUnit]) end
+    if not(iTMDRecordedAfterCode == iTMDInitiallyRecorded) and ((oUnit[refbUnitWantsMoreTMD] and iTMDRecordedAfterCode > iTMDInitiallyRecorded) or not(oUnit[refbUnitWantsMoreTMD]) and iTMDRecordedAfterCode < iTMDInitiallyRecorded) then
+        bForceUpdateOfIfWantTMD = true
+        bUpdateZoneForUnitsWantingTMD = true --redundancy
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': bForceUpdateOfIfWantTMD='..tostring(bForceUpdateOfIfWantTMD)..'; iTMDInitiallyRecorded='..iTMDInitiallyRecorded..'; iTMDRecordedAfterCode='..iTMDRecordedAfterCode..'; bUpdateZoneForUnitsWantingTMD='..tostring(bUpdateZoneForUnitsWantingTMD)) end
+
     if bUpdateZoneForUnitsWantingTMD and oUnit:GetAIBrain().M28AI then
-        RecordIfUnitsWantTMDCoverageAgainstLandZone(oUnit:GetAIBrain().M28Team, { oUnit }, not(bAlreadyIncluded))
+        RecordIfUnitsWantTMDCoverageAgainstLandZone(oUnit:GetAIBrain().M28Team, { oUnit }, bForceUpdateOfIfWantTMD)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, time='..GetGameTimeSeconds()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1140,7 +1169,8 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueTo
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iTMDInRange, iUnitPlateau, iUnitLandZone
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; size of tUnits='..table.getn(tUnits)..'; iTeam='..iTeam) end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; size of tUnits='..table.getn(tUnits)..'; iTeam='..iTeam..'; bCalledDueToTMLOrTMDEvent='..tostring(bCalledDueToTMLOrTMDEvent or false)) M28Utilities.ErrorHandler('Audit trail', true, true) end
     local iVariableDelayInSeconds = math.max(10, M28Land.iTicksPerLandCycle * 0.25)
     for iUnit, oUnit in tUnits do
         if bCalledDueToTMLOrTMDEvent or not(oUnit[refbRecentlyCheckedTMDOrTML]) then
@@ -1160,7 +1190,7 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueTo
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considierng unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMDInRange='..iTMDInRange..'; TML in range='..table.getn((oUnit[reftTMLInRangeOfThisUnit] or {}))..'; oUnit[refbUnitWantsMoreTMD]='..tostring(oUnit[refbUnitWantsMoreTMD] or false)..'; Is oUnit[reftTMDCoveringThisUnit] empty='..tostring(M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considierng unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with fraction complete='..oUnit:GetFractionComplete()..' owned by '..oUnit:GetAIBrain().Nickname..'; iTMDInRange='..iTMDInRange..'; TML in range='..table.getn((oUnit[reftTMLInRangeOfThisUnit] or {}))..'; oUnit[refbUnitWantsMoreTMD]='..tostring(oUnit[refbUnitWantsMoreTMD] or false)..'; Is oUnit[reftTMDCoveringThisUnit] empty='..tostring(M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]))) end
             local iTMLValueInRangeOfUnit = 0
             if M28Utilities.IsTableEmpty(oUnit[reftTMLInRangeOfThisUnit]) == false then
                 for iRecordedTML, oRecordedTML in oUnit[reftTMLInRangeOfThisUnit] do
@@ -1275,7 +1305,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
     local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
     local iExistingValidTMD = 0
     local iEnemyTotalTMLCount
-    if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing TMD empty='..tostring(M28Utilities.IsTableEmpty(tExistingTMD))..'; iOptionalLandZone='..(iOptionalLandZone or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing TMD empty='..tostring(M28Utilities.IsTableEmpty(tExistingTMD))..'; iOptionalLandZone='..(iOptionalLandZone or 'nil')..'; oOptionalUnitToAvoid='..(oOptionalUnitToAvoid.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalUnitToAvoid) or 'nil')..'; Time='..GetGameTimeSeconds()) end
 
     if M28Utilities.IsTableEmpty(tExistingTMD) == false then
         iExistingValidTMD = table.getn(tExistingTMD)
@@ -1313,16 +1343,21 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
     if bGetClosestUnitToOurBase then tBaseForDistanceCheck = tLZTeamData[M28Map.reftClosestFriendlyBase]
     else tBaseForDistanceCheck = tLZTeamData[M28Map.reftClosestEnemyBase]
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through iUnitsWantingTMD, iUnitsWantingTMD='..iUnitsWantingTMD..'; is iOptionalCategoryWanted nil='..tostring(iOptionalCategoryWanted == nil)) end
     for iEntry = iUnitsWantingTMD, 1, -1 do
         if not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])) then
             table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iEntry)
-        elseif (not(iOptionalCategoryWanted) or EntityCategoryContains(iOptionalCategoryWanted, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId)) and (not(oOptionalUnitToAvoid) or (not(oOptionalUnitToAvoid == tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]) and M28Utilities.GetDistanceBetweenPositions(oOptionalUnitToAvoid:GetPosition(), tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition()) >= 25)) then
-            iCurDist = M28Utilities.GetDistanceBetweenPositions(tBaseForDistanceCheck, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])..' is the closest, iCurDist='..iCurDist..'; iCLosestDist='..iClosestDist..'; refbUnitWantsMoreTMD='..tostring(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry][refbUnitWantsMoreTMD])) end
-            if iCurDist < iClosestDist then
-                iClosestDist = iCurDist
-                oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
+        elseif (not(iOptionalCategoryWanted) or EntityCategoryContains(iOptionalCategoryWanted, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId)) then
+            if not(oOptionalUnitToAvoid) or (oOptionalUnitToAvoid and not(oOptionalUnitToAvoid == tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]) and M28Utilities.GetDistanceBetweenPositions(oOptionalUnitToAvoid:GetPosition(), tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition()) >= 25) then
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(tBaseForDistanceCheck, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])..' is the closest, iCurDist='..iCurDist..'; iCLosestDist='..iClosestDist..'; refbUnitWantsMoreTMD='..tostring(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry][refbUnitWantsMoreTMD])) end
+                if iCurDist < iClosestDist then
+                    iClosestDist = iCurDist
+                    oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
+                end
+
             end
+        elseif bDebugMessages == true then LOG(sFunctionRef..': Unit wnating TMD, '..tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])..', iEntry='..iEntry..' isnt the desired category')
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': If dont have a unit to cover with TMD and TMD has intercepted enemy missile recently then build TMD to cover TMD, oClosestUnit='..(oClosestUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnit) or 'nil')..'; tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile]='..(tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] or 'nil')..'; iExistingValidTMD='..iExistingValidTMD) end
@@ -1358,7 +1393,13 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
     end
 
     if bDebugMessages == true then
-        LOG(sFunctionRef..': End of code, oClosestUnit='..(oClosestUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnit) or 'nil')..'; Is table of TML in range of this unit empty='..tostring(M28Utilities.IsTableEmpty(oClosestUnit[reftTMLInRangeOfThisUnit]))..'; Is reftTMDCoveringThisUnit empty='..tostring(M28Utilities.IsTableEmpty(oClosestUnit[reftTMDCoveringThisUnit])))
+        LOG(sFunctionRef..': End of code, oClosestUnit='..(oClosestUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnit) or 'nil'))
+        if M28UnitInfo.IsUnitValid(oClosestUnit) then
+            LOG(sFunctionRef..': Closest unit % complete='..oClosestUnit:GetFractionComplete()..'; Is table of TML in range of this unit empty='..tostring(M28Utilities.IsTableEmpty(oClosestUnit[reftTMLInRangeOfThisUnit]))..'; Is reftTMDCoveringThisUnit empty='..tostring(M28Utilities.IsTableEmpty(oClosestUnit[reftTMDCoveringThisUnit])))
+            if M28Utilities.IsTableEmpty(oClosestUnit[reftTMDCoveringThisUnit]) == false then
+                LOG(sFunctionRef..': Size of reftTMDCoveringThisUnit='..table.getn(oClosestUnit[reftTMDCoveringThisUnit]))
+            end
+        end
         if M28Utilities.IsTableEmpty(oClosestUnit[reftTMLInRangeOfThisUnit]) == false then
             for iTML, oTML in oClosestUnit[reftTMLInRangeOfThisUnit] do
                 LOG(sFunctionRef..': oTML in range='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..'; Dist='..M28Utilities.GetDistanceBetweenPositions(oTML:GetPosition(), oClosestUnit:GetPosition())..'; TML range='..(oTML[M28UnitInfo.refiIndirectRange] or oTML[M28UnitInfo.refiManualRange] or 'nil'))
@@ -5178,10 +5219,12 @@ function MonitorSACUShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                                 oLowestHealthActiveShield = oShield
                             else
                                 --Want to discharge the shield furthest from the midpoint if they both have equal health
-                                iLowestHealthDistToArtiMidpoint = M28Utilities.GetDistanceBetweenPositions(oHighestHealthActiveShield:GetPosition(), tArtiMidpoint)
-                                if iCurDistToArtiMidpoint > iLowestHealthDistToArtiMidpoint then
-                                    iLowestHealthDistToArtiMidpoint = iCurDistToArtiMidpoint
-                                    oLowestHealthActiveShield = oShield
+                                if oHighestHealthActiveShield.GetPosition and tArtiMidpoint and not(oHighestHealthActiveShield.Dead) then
+                                    iLowestHealthDistToArtiMidpoint = M28Utilities.GetDistanceBetweenPositions(oHighestHealthActiveShield:GetPosition(), tArtiMidpoint)
+                                    if iCurDistToArtiMidpoint > iLowestHealthDistToArtiMidpoint then
+                                        iLowestHealthDistToArtiMidpoint = iCurDistToArtiMidpoint
+                                        oLowestHealthActiveShield = oShield
+                                    end
                                 end
                             end
                         end
