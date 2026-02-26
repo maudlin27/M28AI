@@ -14202,12 +14202,16 @@ function GetRaidingZoneTarget(iStartPlateau, iStartZone, iTeam, iRangeThreshold,
         end
         --Update current zone target tracking
         function RecordNewZoneTarget(iZoneBeingTargeted)
-            local tNewZoneTargetLZTeamData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iZoneBeingTargeted][M28Map.subrefLZTeamData][iTeam]
-            if not(tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids]) then
-                if not(tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable]) then tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable] = {} end
-                tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids] = {}
+            if iZoneBeingTargeted then
+                local tNewZoneTargetLZTeamData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iZoneBeingTargeted][M28Map.subrefLZTeamData][iTeam]
+                if tNewZoneTargetLZTeamData then
+                    if not(tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids]) then
+                        if not(tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable]) then tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable] = {} end
+                        tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids] = {}
+                    end
+                    table.insert(tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids], iStartZone)
+                end
             end
-            table.insert(tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids], iStartZone)
             tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] = iZoneBeingTargeted
         end
 
