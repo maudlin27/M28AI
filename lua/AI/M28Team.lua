@@ -5585,11 +5585,25 @@ function ConsiderSpecialStrategyAssignment(iTeam)
         elseif M28Map.iMapSize <= 512 and iPlayersAtGameStart <= 4 then
             iBomberChance = 0.175
         else
-            iBomberChance = math.max(0.1, (0.5 * math.min(10, iPlayersAtGameStart) / 10))
+            iBomberChance = math.max(0.1, (0.3 * math.min(10, iPlayersAtGameStart) / 10))
         end
         if ScenarioInfo.Options.Score == 'yes' then --Reduce bomber chance as score can indicate if M28 is going first bomber
             iBomberChance = math.max(math.min(0.1, iBomberChance * 0.6), iBomberChance * 0.35)
         end
+        --If have M28Air or M28Rush on team then make it slightly more likely
+        local iAirOrRushCount = 0
+        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+            if oBrain[M28Overseer.refbPrioritiseAir] then
+                iAirOrRushCount = iAirOrRushCount + 1
+            elseif oBrain[M28Overseer.refbPrioritiseLowTech] then
+                iAirOrRushCount = iAirOrRushCount + 0.5
+            end
+        end
+        if iAirOrRushCount > 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Increasing chance of bomber as we have air or rush on team, iAirOrRushCount='..iAirOrRushCount..'; total brains on team='..table.getn(tTeamData[iTeam][subreftoFriendlyActiveM28Brains])) end
+            iBomberChance = math.min(0.5, iBomberChance * (1 + 0.6 * iAirOrRushCount / table.getn(tTeamData[iTeam][subreftoFriendlyActiveM28Brains])))
+        end
+
         if bDebugMessages == true then LOG(sFunctionRef..': iBomberChance='..iBomberChance..'; ScenarioInfo.Options.Score='..ScenarioInfo.Options.Score) end
         if iBomberChance * 100 >= math.random(1, 100) then
             --Consider early bomber strategy for brain with closest enemy (unless in LOUD since bombers suck in LOUD)
