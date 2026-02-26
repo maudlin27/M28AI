@@ -3186,10 +3186,34 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
         --Raiders if not assigned any for a while and only have a couple active
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 0) > 0 or (GetGameTimeSeconds() >= 360 and not(tLZTeamData[M28Map.reftRaiderSubtable]) and oFactory[refiTotalBuildCount] >= 8) and (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0) < 2 and GetGameTimeSeconds() - (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment] or 0) >= 60 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Consider getting raider if not assigned any in a while, number of raiders under construction='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryRaider, false, false)..'; subrefiCurRaidingZoneTarget='..(tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 'nil')..'; is reftRaiderSubtable nil='..tostring(tLZTeamData[M28Map.reftRaiderSubtable] == nil)..'; subrefiTimeSinceLastConstructedRaiderAssignment='..GetGameTimeSeconds() - (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment] or 0)..'; subrefiActiveRaidersCreatedByThisZone='..(tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0)) end
+        if ((tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 0) > 0 or (GetGameTimeSeconds() >= 360 and not(tLZTeamData[M28Map.reftRaiderSubtable]) and oFactory[refiTotalBuildCount] >= 8 and GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastCheckedForZoneToTarget] or 0) >= 100 * iFactoryTechLevel)) and (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0) < 2 and GetGameTimeSeconds() - (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment] or 0) >= 60 then
             --Get raider unless already have 2+ raiders being built
-            if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryRaider, false, false) < 2 then
-                if ConsiderBuildingCategory(M28UnitInfo.refCategoryRaider) then return sBPIDToBuild end
+            local iCurRaidersBeingBuiltOrAssigned = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryRaider, false, false) + (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0)
+            if iCurRaidersBeingBuiltOrAssigned < 2 or (iFactoryTechLevel == 1 and iCurRaidersBeingBuiltOrAssigned < 3) then
+                --Check for other zones also targeting this, and see how many they have built or assigned
+                if tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] then
+                    local tTargetRaidingZoneLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]][M28Map.subrefLZTeamData][iTeam]
+                    if M28Utilities.IsTableEmpty(tTargetRaidingZoneLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids]) == false then
+                        for _, iOtherBaseZone in tTargetRaidingZoneLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids] do
+                            if not(iOtherBaseZone == iLandZone) then
+                                local tOtherLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherBaseZone][M28Map.subrefLZTeamData][iTeam]
+                                if bDebugMessages == true then LOG(sFunctionRef..': This zone current raiding zone target='..tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]..'; considering iOtherBaseZone='..iOtherBaseZone..'; iOtherBaseZone subrefiCurRaidingZoneTarget='..(tOtherLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 'nil')..';  Number of raiders built by iOtherBaseZone='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tOtherLZTeamData, M28UnitInfo.refCategoryRaider, false, false)..'; subrefiActiveRaidersCreatedByThisZone for otherzone='..(tOtherLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0)) end
+                                iCurRaidersBeingBuiltOrAssigned = iCurRaidersBeingBuiltOrAssigned + (tOtherLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0)
+                                if iCurRaidersBeingBuiltOrAssigned >= 3 then
+                                    break
+                                else
+                                    iCurRaidersBeingBuiltOrAssigned = iCurRaidersBeingBuiltOrAssigned + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tOtherLZTeamData, M28UnitInfo.refCategoryRaider, false, false)
+                                end
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurRaidersBeingBuiltOrAssigned after considering other zones with common target='..iCurRaidersBeingBuiltOrAssigned) end
+                if iCurRaidersBeingBuiltOrAssigned < 3 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will build a raider') end
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryRaider) then return sBPIDToBuild end
+                end
             end
         end
 

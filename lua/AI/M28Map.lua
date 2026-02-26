@@ -461,6 +461,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefiEnemyDFRangeLastRunFromWhenTryingToReachThisZone = 'REnR' --If a raider was assigned this zone, and ends up running from DF unit that has the same or better range, it should record that unit here
                 subrefoLastEnemyDFLastRunFromWhenTryingToReachThisZone = 'REnU' --As above, but records the unit
                 subreftLastEnemyDFLastRunFromWhenTryingToReachThisZonePosition = 'REnP' --As above, but the unit position when this happened
+                subreftiZonesTargetingThisForRaids = 'ROth' --table of ther land zones on same plateau which have this as their current subrefiCurRaidingZoneTarget
+
 
             --reftiLocationsToAvoid = 'TLocAv' --if have enemy aoe unit targeting an M28 unit, then the first 10 such locations get recorded - removed as not sure it actually made things better
 
