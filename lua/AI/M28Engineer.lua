@@ -12735,45 +12735,59 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Have 1 engi go to adjacent water zone early game to get naval fac (higher even than unclaimed mex) once we have built 4+ engis
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Early game naval fac for naval map: refbCanPathToEnemyBaseWithLand='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] or false)..'; is subrefAdjacentWaterZones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]))..'; refiOurHighestNavalFactoryTech='..(aiBrain[M28Economy.refiOurHighestNavalFactoryTech] or 'nil')..'; subrefiHighestFriendlyFactoryTech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')) end
-    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0 and GetGameTimeSeconds() <= 420 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 1 then
+    if (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or aiBrain[M28Overseer.refbPrioritiseNavy]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0 and GetGameTimeSeconds() <= 420 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 1 then
         local iEngiLC = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)
         if bDebugMessages == true then LOG(sFunctionRef..': iEngiLC='..iEngiLC) end
         if iEngiLC >= 4 then
-            local iCurWZ, iCurPond
+            local iCurWZ, iCurPond, bHaveAdjWZWithCoreBase
+            local iHighestValuePondValue = 0
             for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
                 iCurWZ = tSubtable[M28Map.subrefAWZRef]
                 iCurPond = M28Map.tiPondByWaterZone[iCurWZ]
                 local tWZData = M28Map.tPondDetails[iCurPond][M28Map.subrefPondWaterZones][iCurWZ]
                 local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent WZ iCurWZ='..iCurWZ..'; subrefWZbCoreBase='..tostring( tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; refiPriorityPondValues='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 'nil')) end
-                if tWZTeamData[M28Map.subrefWZbCoreBase] and (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 0) > 8 then
-                    local iEngineersTravelingHere
-                    local iEngineersPresentHere
-                    local iMaxEngineersWanted
-                    if bDebugMessages == true then LOG(sFunctionRef..': does zone want bp='..tostring(tWZTeamData[M28Map.subrefTbWantBP])..'; subrefbEnemiesInThisOrAdjacentWZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; enemy air to ground='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)) end
-                    if tWZTeamData[M28Map.subrefTbWantBP] and not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0) then
-                        iEngineersTravelingHere = 0
-                        iEngineersPresentHere = 0
-                        if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
-                            iEngineersTravelingHere = table.getn(tWZTeamData[M28Map.subrefTEngineersTravelingHere])
-                        end
-                        if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                            local tEngineersInAdjZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                            if M28Utilities.IsTableEmpty(tEngineersInAdjZone) == false then
-                                iEngineersPresentHere = table.getn(tEngineersInAdjZone)
+                if tWZTeamData[M28Map.subrefWZbCoreBase] then
+                    bHaveAdjWZWithCoreBase = true
+                end
+                iHighestValuePondValue = math.max(iHighestValuePondValue, M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]])
+            end
+            if iHighestValuePondValue > 8 then
+                for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                    iCurWZ = tSubtable[M28Map.subrefAWZRef]
+                    iCurPond = M28Map.tiPondByWaterZone[iCurWZ]
+                    local tWZData = M28Map.tPondDetails[iCurPond][M28Map.subrefPondWaterZones][iCurWZ]
+                    local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent WZ iCurWZ='..iCurWZ..'; subrefWZbCoreBase='..tostring( tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; refiPriorityPondValues='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 'nil')..'; Dist to pond midpoint='..M28Utilities.GetDistanceBetweenPositions(M28Map.tPondDetails[iCurPond][M28Map.subrefPondMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])) end
+                    if tWZTeamData[M28Map.subrefWZbCoreBase] or (not(bHaveAdjWZWithCoreBase) and iHighestValuePondValue >= 30 and M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 0) >= iHighestValuePondValue and M28Utilities.GetDistanceBetweenPositions(M28Map.tPondDetails[iCurPond][M28Map.subrefPondMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) >= 0.3 * M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) then
+                        local iEngineersTravelingHere
+                        local iEngineersPresentHere
+                        local iMaxEngineersWanted
+                        if bDebugMessages == true then LOG(sFunctionRef..': does zone want bp='..tostring(tWZTeamData[M28Map.subrefTbWantBP])..'; subrefbEnemiesInThisOrAdjacentWZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; enemy air to ground='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)) end
+                        if tWZTeamData[M28Map.subrefTbWantBP] and not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0) then
+                            iEngineersTravelingHere = 0
+                            iEngineersPresentHere = 0
+                            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
+                                iEngineersTravelingHere = table.getn(tWZTeamData[M28Map.subrefTEngineersTravelingHere])
                             end
-                        end
-                        iMaxEngineersWanted = 1
-                        if iEngiLC >= 8 then
-                            iMaxEngineersWanted = 2
-                        end
+                            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                local tEngineersInAdjZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                if M28Utilities.IsTableEmpty(tEngineersInAdjZone) == false then
+                                    iEngineersPresentHere = table.getn(tEngineersInAdjZone)
+                                end
+                            end
+                            iMaxEngineersWanted = 1
+                            if iEngiLC >= 8 then
+                                iMaxEngineersWanted = 2
+                            end
 
-                        iBPWanted = iMaxEngineersWanted * 5
-                        HaveActionToAssign(refActionMoveToWaterZone, 1, iBPWanted, iCurWZ, true)
+                            iBPWanted = iMaxEngineersWanted * 5
+                            HaveActionToAssign(refActionMoveToWaterZone, 1, iBPWanted, iCurWZ, true)
 
-                        if bDebugMessages == true then LOG(sFunctionRef..': High priority naval map initial factory engineer for adjacent WZ Tried to send engineers to iCurWZ '..iCurWZ..'; iBPWanted='..iBPWanted) end
-                        iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-                        break
+                            if bDebugMessages == true then LOG(sFunctionRef..': High priority naval map initial factory engineer for adjacent WZ Tried to send engineers to iCurWZ '..iCurWZ..'; iBPWanted='..iBPWanted) end
+                            iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                            break
+                        end
                     end
                 end
             end
