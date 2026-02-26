@@ -14030,7 +14030,7 @@ function ConsiderAssigningRaider(oFactory, oUnit)
     local sFunctionRef = 'ConsiderAssigningRaider'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true and not(oUnit.Dead) then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' built by oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' and owned by '..oUnit:GetAIBrain().Nickname..'; considering whether will be a raider, combatrange='..( oUnit[M28UnitInfo.refiCombatRange] or 'nil')..'; oFactory[M28Factory.refiTotalBuildCount]='..(oFactory[M28Factory.refiTotalBuildCount] or 'nil')..'; Time='..GetGameTimeSeconds()) end
-    if oUnit[M28UnitInfo.refiCombatRange] > 28 and (oFactory[M28Factory.refiTotalBuildCount] or 0) >= 4 and M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oFactory) and M28UnitInfo.GetUnitLifetimeCount(oUnit)  >= 3 and GetGameTimeSeconds() >= 300 then
+    if oUnit[M28UnitInfo.refiCombatRange] >= 28 and ((oFactory[M28Factory.refiTotalBuildCount] or 0) >= 4 or not(EntityCategoryContains(categories.TECH1, oFactory.UnitId))) and M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oFactory) and M28UnitInfo.GetUnitLifetimeCount(oUnit)  >= 3 and GetGameTimeSeconds() >= 300 then
         local iTeam = oFactory:GetAIBrain().M28Team
         local iBuildPlateau = oFactory[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
         if bDebugMessages == true then LOG(sFunctionRef..' iBuildPlateau='..(iBuildPlateau or 'nil')..'; iBuildZone='..(oFactory[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')) end
@@ -14200,7 +14200,40 @@ function GetRaidingZoneTarget(iStartPlateau, iStartZone, iTeam, iRangeThreshold,
                 end
             end
         end
-        tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] = (iFirstZoneRaiderAndAngleLimit or iFirstZoneWithRaiderLimit or iFirstZoneNoRaiderLimit)
+        --Update current zone target tracking
+        function RecordNewZoneTarget(iZoneBeingTargeted)
+            local tNewZoneTargetLZTeamData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iZoneBeingTargeted][M28Map.subrefLZTeamData][iTeam]
+            if not(tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids]) then
+                if not(tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable]) then tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable] = {} end
+                tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids] = {}
+            end
+            table.insert(tNewZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids], iStartZone)
+            tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] = iZoneBeingTargeted
+        end
+
+        local iNewZoneTarget = (iFirstZoneRaiderAndAngleLimit or iFirstZoneWithRaiderLimit or iFirstZoneNoRaiderLimit)
+        local iCurZoneTarget = tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]
+        if iCurZoneTarget then
+            if iCurZoneTarget == iNewZoneTarget then
+                --Already tracking
+            else
+                --Remove curzonetarget as it has changed
+                local tCurZoneTargetLZTeamData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iCurZoneTarget][M28Map.subrefLZTeamData][iTeam]
+                if M28Utilities.IsTableEmpty(tCurZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids]) == false then
+                    for iEntry, iRecordedTargetZone in tCurZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids] do
+                        if iRecordedTargetZone == iCurZoneTarget then
+                            table.remove(tCurZoneTargetLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids], iEntry)
+                            break
+                        end
+                    end
+                end
+                RecordNewZoneTarget(iNewZoneTarget)
+            end
+        elseif iNewZoneTarget then
+            --Update tracking
+            RecordNewZoneTarget(iNewZoneTarget)
+        end
+
         if bDebugMessages == true then LOG(sFunctionRef..': Updated subrefiCurRaidingZoneTarget, iFirstZoneRaiderAndAngleLimit='..(iFirstZoneRaiderAndAngleLimit or 'nil')..'; iFirstZoneWithRaiderLimit='..(iFirstZoneWithRaiderLimit or 'nil')..'; iFirstZoneNoRaiderLimit='..(iFirstZoneNoRaiderLimit or 'nil')..'; tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]='..(tBuildLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 'nil')) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

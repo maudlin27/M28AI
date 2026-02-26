@@ -5219,10 +5219,12 @@ function MonitorSACUShieldsForCycling(tTableRef, iTeam, iLandZone, iTemplateRef)
                                 oLowestHealthActiveShield = oShield
                             else
                                 --Want to discharge the shield furthest from the midpoint if they both have equal health
-                                iLowestHealthDistToArtiMidpoint = M28Utilities.GetDistanceBetweenPositions(oHighestHealthActiveShield:GetPosition(), tArtiMidpoint)
-                                if iCurDistToArtiMidpoint > iLowestHealthDistToArtiMidpoint then
-                                    iLowestHealthDistToArtiMidpoint = iCurDistToArtiMidpoint
-                                    oLowestHealthActiveShield = oShield
+                                if oHighestHealthActiveShield.GetPosition and tArtiMidpoint and not(oHighestHealthActiveShield.Dead) then
+                                    iLowestHealthDistToArtiMidpoint = M28Utilities.GetDistanceBetweenPositions(oHighestHealthActiveShield:GetPosition(), tArtiMidpoint)
+                                    if iCurDistToArtiMidpoint > iLowestHealthDistToArtiMidpoint then
+                                        iLowestHealthDistToArtiMidpoint = iCurDistToArtiMidpoint
+                                        oLowestHealthActiveShield = oShield
+                                    end
                                 end
                             end
                         end
