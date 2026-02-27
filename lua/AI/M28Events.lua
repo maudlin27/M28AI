@@ -911,6 +911,11 @@ function OnEnhancementStarted(self, work)
                 end
             end
         end
+        if M28UnitInfo.IsUnitValid(self) and EntityCategoryContains(categories.COMMAND, self.UnitId) and self:GetAIBrain().M28AI then
+            self[M28ACU.refiHealthWhenStartedUpgrade] = M28UnitInfo.GetUnitCurHealthAndShield(self)
+            self[M28ACU.reftiUpgradingHealthData] = {}
+            M28ACU.UpdateACUUpgradingHealth(self)
+        end
     end
 end
 
@@ -1016,6 +1021,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                     --Consider being more aggressive with ACU again (mainly relevant for team games)
                     oUnit[M28ACU.refbUseACUAggressively] = M28ACU.DoWeStillWantToBeAggressiveWithACU(oUnit)
+                    if oUnit[M28ACU.reftiUpgradingHealthData] then oUnit[M28ACU.reftiUpgradingHealthData] = nil end
                 end
                 --Flag that enemy has a dangerous ACU if they have multiple combat upgrades
                 if oUnit[M28ACU.refiUpgradeCount] >= 2 and (oUnit[M28UnitInfo.refiDFMassThreatOverride] or 0) - M28UnitInfo.iBaseACUThreat >= 1600 and (oUnit:GetMaxHealth() >= M28UnitInfo.iBaseACUExpectedHealth + 2000 or (oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0) or oUnit:HasEnhancement('StealthGenerator')) then
