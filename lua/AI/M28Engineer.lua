@@ -21093,7 +21093,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
         if tLZTeamData[M28Map.refbEnemiesInNearbyPlateau] then
             iEnemyIndirectThreatInNearbyPlateau, iBestEnemyRange = M28Land.GetNearestEnemyInOtherPlateau(iPlateau, tLZData, iTeam, true)
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want emergency T2 arti, M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))..'; Is tLZTeamData[M28Map.subreftEnemyFirebasesInRange] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))..'; subrefbDangerousEnemiesInAdjacentWZ='..tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want emergency T2 arti, M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))..'; Is tLZTeamData[M28Map.subreftEnemyFirebasesInRange] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))..'; subrefbDangerousEnemiesInAdjacentWZ='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or false)) end
         if ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) > 0 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits]) == false or (tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 5) or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5) or (tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] and (M28Team.tTeamData[iTeam][M28Team.refbNoAvailableTorpsForEnemies] or tLZTeamData[M28Map.subrefMexCountByTech][3] > 1 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 180 or ((not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and ((tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) then
             local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
             local iRangeThreshold = 65
@@ -21135,10 +21135,21 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Is table of firebases in range empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))..'; iSearchRange='..iSearchRange) end
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
+                local iEnemyFirebaseThreat = 0
                 for iFirebase, tPlateauAndZone in tLZTeamData[M28Map.subreftEnemyFirebasesInRange] do
-                    iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.max(1500, (M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefThreatEnemyStructureTotalMass] or 0))
-                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemyLongRangeThreat after increasing for firebase in tPlateauAndZone '..repru(tPlateauAndZone)..'='..iEnemyLongRangeThreat) end
+                    iEnemyFirebaseThreat = iEnemyFirebaseThreat + math.max(1500, (M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefThreatEnemyStructureTotalMass] or 0))
+                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemyFirebaseThreat after considering for firebase in tPlateauAndZone '..repru(tPlateauAndZone)..'='..iEnemyFirebaseThreat) end
                 end
+                if GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 0) >= 30 then
+                    if aiBrain[M28Overseer.refbPrioritiseDefence] then
+                        iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.min(9000, iEnemyFirebaseThreat * 0.75)
+                    else
+                        iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.min(6000, iEnemyFirebaseThreat * 0.5)
+                    end
+                else
+                    iEnemyLongRangeThreat = iEnemyLongRangeThreat + iEnemyFirebaseThreat
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': refiTimeOurT2ArtiLastFired='..GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 0)..'; iEnemyLongRangeThreat after update for firebase='..iEnemyLongRangeThreat) end
             end
 
             --Only consider enemy long range threat in adjacent zones - if already in this zone then presumably too close for arti to help that much
@@ -21368,14 +21379,16 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         end
                     end
 
+                    local iTimeSinceLastFired = GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 0)
+
                     if iT2ArtiThreat >= math.max(11000, math.min(iLongRangeFurtherAwayThreat * 1.25, 30000)) then iThreatWanted = iThreatWanted * 0.8 end
                     if iT2ArtiThreat >= 2800 and tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] <= 20 and tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] >= 3000 then
                         iThreatWanted = iThreatWanted + math.min(iThreatWanted, 4000)
                         if bDebugMessages == true then LOG(sFunctionRef..': Increasing t2 arti threat wanted due to firing t2 arti recently and enemy having LR arti threat, iLandZone='..iLandZone..'; iT2ArtiThreat='..iT2ArtiThreat..'; subrefiNearbyEnemyLongRangeDFThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]) end
                     end
-                    if tLZTeamData[M28Map.refbBaseInSafePosition] then iThreatWanted = iThreatWanted * 0.75
-                    elseif iT2ArtiThreat >= 6000 and iThreatWanted >= 6000 and GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOurT2ArtiLastFired] or 0) >= 40 then
-                        iThreatWanted = 6000 + (iThreatWanted - 6000)*0.5
+                    if tLZTeamData[M28Map.refbBaseInSafePosition] then iThreatWanted = iThreatWanted * 0.75 end
+                    if iT2ArtiThreat >= 4000 and iThreatWanted >= 4000 and iTimeSinceLastFired >= 40 then
+                        iThreatWanted = 4000 + (iThreatWanted - 4000)*0.5
                         if bDebugMessages == true then LOG(sFunctionRef..': Not fired t2 arti recently so reducing threat further') end
                     end
                     local iNetThreatWanted = iThreatWanted - iT2ArtiThreat
