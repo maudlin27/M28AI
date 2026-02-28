@@ -4770,7 +4770,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                                     end
                                                                 else
                                                                     if iCurDistUntilInRange < iClosestDistUntilInRangeOfStaticEnemy then
-                                                                        if bDontCheckForHostileCivilains or not(oUnit[M28UnitInfo.refbHostileImmobileCivilian]) or (M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEngineer) or iCurDistToEnemy - 4 <= M28UnitInfo.GetUnitMaxIntelOrVisualRange(oUnit, bWaterZone, bSonarAndVisionOnly)) then
+                                                                        if bDontCheckForHostileCivilains or not(oUnit[M28UnitInfo.refbHostileImmobileCivilian]) or (M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oEngineer) or iCurDistToEnemy - 4 <= M28UnitInfo.GetUnitMaxIntelOrVisualRange(oUnit, bIsWaterZone, false)) then
                                                                             iClosestDistUntilInRangeOfStaticEnemy = iCurDistUntilInRange
                                                                             if bDebugMessages == true then LOG(sFunctionRef..': Updating iClosestDistUntilInRangeOfStaticEnemy to '..iClosestDistUntilInRangeOfStaticEnemy..' for enemy '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; IndirectRange='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; AntiNAvy='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 'nil')..'; iCurUnitRange='..iCurUnitRange) end
                                                                         end
