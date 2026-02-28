@@ -12757,14 +12757,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     iCurPond = M28Map.tiPondByWaterZone[iCurWZ]
                     local tWZData = M28Map.tPondDetails[iCurPond][M28Map.subrefPondWaterZones][iCurWZ]
                     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent WZ iCurWZ='..iCurWZ..'; subrefWZbCoreBase='..tostring( tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; refiPriorityPondValues='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 'nil')..'; Dist to pond midpoint='..M28Utilities.GetDistanceBetweenPositions(M28Map.tPondDetails[iCurPond][M28Map.subrefPondMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])..'; Dist to closest enemy base='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent WZ iCurWZ='..iCurWZ..'; subrefWZbCoreBase='..tostring( tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; refiPriorityPondValues='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 'nil')) end
                     if tWZTeamData[M28Map.subrefWZbCoreBase] or (not(bHaveAdjWZWithCoreBase) and iHighestValuePondValue >= 30 and M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iCurWZ]] or 0) >= iHighestValuePondValue and M28Utilities.GetDistanceBetweenPositions(M28Map.tPondDetails[iCurPond][M28Map.subrefPondMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) >= 0.3 * M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) then
                         local iEngineersTravelingHere
                         local iEngineersPresentHere
                         local iMaxEngineersWanted
-                        if bDebugMessages == true then LOG(sFunctionRef..': does zone want bp='..tostring(tWZTeamData[M28Map.subrefTbWantBP])..'; subrefbEnemiesInThisOrAdjacentWZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; enemy air to ground='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)) end
-                        if tWZTeamData[M28Map.subrefTbWantBP] and not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': does zone want bp='..tostring(tWZTeamData[M28Map.subrefTbWantBP])..'; subrefbEnemiesInThisOrAdjacentWZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; enemy air to ground='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; aiBrain='..aiBrain.Nickname..'; subrefWZFactoryDestroyedCount='..(tWZTeamData[M28Map.subrefWZFactoryDestroyedCount] or 'nil')..'; refbPrioritiseNavy='..tostring(aiBrain[M28Overseer.refbPrioritiseNavy] or false)..'; first condition='..tostring(tWZTeamData[M28Map.subrefTbWantBP] and (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0)..'; Navy and destroyed condition='..tostring((aiBrain[M28Overseer.refbPrioritiseNavy] and (tWZTeamData[M28Map.subrefWZFactoryDestroyedCount] or 0) == 0))) end
+                        --If are M28Navy then will ignore enemies, as might be civlian or ACU or in adj WZ that is far away and since we are meant to be prioritising navy want to be more aggressive
+                        if tWZTeamData[M28Map.subrefTbWantBP] and (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 and
+                                (not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or
+                                        (aiBrain[M28Overseer.refbPrioritiseNavy] and (tWZTeamData[M28Map.subrefWZFactoryDestroyedCount] or 0) == 0))  then
                             iEngineersTravelingHere = 0
                             iEngineersPresentHere = 0
                             if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
@@ -12777,7 +12779,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                                 end
                             end
                             iMaxEngineersWanted = 1
-                            if iEngiLC >= 8 then
+                            if iEngiLC >= 8 and not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) then
                                 iMaxEngineersWanted = 2
                             end
 
