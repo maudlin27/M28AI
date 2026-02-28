@@ -7990,8 +7990,9 @@ function ManageLandRaidersInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     else
         local bRaiderMovingOn, iCurDist, iClosestDist, oClosestImmobile, bRunning
         for iRaider, oRaider in tRaiders do
-            if M28Conditions.CloseToEnemyUnit(oRaider:GetPosition(), tEnemiesToConsiderRunningFrom, math.max(5, (oRaider[M28UnitInfo.refiCombatRange]-25) * 0.3), iTeam, true, 3, oRaider, oRaider, oRaider[M28UnitInfo.refiCombatRange] - 4, false)
-            and not(M28UnitInfo.IsUnitUnderwater(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) then
+            if oRaider.Dead then --redundancy
+            elseif M28Conditions.CloseToEnemyUnit(oRaider:GetPosition(), tEnemiesToConsiderRunningFrom, math.max(5, (oRaider[M28UnitInfo.refiCombatRange]-25) * 0.3), iTeam, true, 3, oRaider, oRaider, oRaider[M28UnitInfo.refiCombatRange] - 4, false)
+                    and not(M28UnitInfo.IsUnitUnderwater(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])) then
                 --Run from enemy if it has an attack, or just do manual attack order (or attack ground if unit not visible but is immovable and isnt TMD)
                 if (oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) then
                     M28Land.RunFromEnemy(oRaider, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], iTeam, oRaider[M28Land.refiRaidingBasePlateau], 10)
