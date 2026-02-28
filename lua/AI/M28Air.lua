@@ -6453,7 +6453,10 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                             iAAThreatThreshold = math.min(iTorpBomberThreat * 0.9, iAAThreatThreshold + (0.5 * math.max(0, iTorpBomberThreat - 15000)) + 0.3 * (math.min(15000, iTorpBomberThreat) - 8000), math.max(iMassValueOfEnemyUnits * 0.6, iAAThreatThreshold * 1.2))
                         end
 
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..';  iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; iTorpBomberThreat='..iTorpBomberThreat..'; tWZTeamData[M28Map.refiModDistancePercent]='..tWZTeamData[M28Map.refiModDistancePercent]..'; iMassValueOfEnemyUnits='..iMassValueOfEnemyUnits..'; tWZTeamData[M28Map.refiEnemyTorpDefenceCount]='..(tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 'nil')..'; Enemy groundAA just in this water zone='..tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]) end
+                        --Min AA threat for nearby WZs as we can probably attrition enemy destroyers with a single torp bomber that then reheals itself at staging
+                        if tWZTeamData[M28Map.refiModDistancePercent] <= 0.35 and iAAThreatThreshold < 200 and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] then iAAThreatThreshold = 200 end
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..';  iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)..'; iTorpBomberThreat='..iTorpBomberThreat..'; tWZTeamData[M28Map.refiModDistancePercent]='..tWZTeamData[M28Map.refiModDistancePercent]..'; iMassValueOfEnemyUnits='..iMassValueOfEnemyUnits..'; tWZTeamData[M28Map.refiEnemyTorpDefenceCount]='..(tWZTeamData[M28Map.refiEnemyTorpDefenceCount] or 'nil')..'; Enemy groundAA just in this water zone='..tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]..'; iAAThreatThreshold after adjustments='..iAAThreatThreshold) end
                         if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                             --If enemy has too much AA in a WZ in a similar angle then ignore
                             bIgnoreDueToSimilarAngleAAThreat = false
@@ -6540,7 +6543,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                                 --Clear enemy targets (incase e.g. we have decided not to attack some of them because we have enough threat assigned already or outside playable area)
                                 tEnemyTargets = {}
                                 --Consider attacking the nearest enemy AA unit in the zone if it is exposed, or if there is no nearby AA unit the nearest non-hover unit
-                            elseif bDoDetailedCheck and tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] <= 2000 and tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iAAThreatThreshold * 0.8 then
+                            elseif bDoDetailedCheck and tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] <= 2000 and (iAAThreatThreshold < 400 or tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iAAThreatThreshold * 0.8) then
                                 local oClosestAAUnit, iCurDist
                                 local oClosestNonAAUnit
                                 local iClosestAAUnit = 10000
@@ -14133,7 +14136,7 @@ function EnemyNavalEngineerBomber(oBomber)
                                                         if bDebugMessages == true then LOG(sFunctionRef..': oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)) end
                                                         break
                                                     elseif iCurEngineersWeLackIntelOf >= 3 then
-                                                        if not(oFactoryWeWantIntelOf) or M28Utilities.GetDistanceBetweenPositions(oFactoryWeWantIntelOf:GetPosition(), oBomber:GetPosition()) > M28Utilities.GetDistancebetweenPositions(oFactory:GetPosition(), oBomber:GetPosition()) then
+                                                        if not(oFactoryWeWantIntelOf) or M28Utilities.GetDistanceBetweenPositions(oFactoryWeWantIntelOf:GetPosition(), oBomber:GetPosition()) > M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), oBomber:GetPosition()) then
                                                             oFactoryWeWantIntelOf = oFactory
                                                         end
                                                     end

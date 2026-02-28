@@ -2942,13 +2942,12 @@ function IsPositionCloseToZoneEdge(iPlateauOrZero, iLandOrWaterZone, iMaxDistToE
     return false
 end
 
-function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iCurZoneAndAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease, iEnemyNearbySubmersibleThreat, iAvailableAntiNavyThreat, iCommonZoneTargetSurfaceThreat)
+function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearbyFriendlySubThreat, iCurZoneAndAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface, iOptionalThreatAbsolutePercentIncrease, iEnemyNearbySubmersibleThreat, iAvailableAntiNavyThreat, iCommonZoneTargetSurfaceThreat, bNearbyEnemiesAreHostileCivilians)
     --iOptionalThreatAbsolutePercentIncrease - will increase enemy threat factors by this (absolute increase), e.g. set to 0.1 and instead of wanting 1.3 * enemy threat to attack, will want 1.4 * enemy threat
     --NOTE (v283 and earlier) - adjacent zone threats may include current zone, need to rework calculation of these amounts now that have access to common zone target data
     local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
 
     local bAreInScenario2 = false
     if M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then bAreInScenario2 = true
@@ -2966,7 +2965,7 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
         local iEnemyAntiNavyMod = 1.5 + iModMod
         local iEnemyCombatModHigh = 1.3 + iModMod
         local iEnemyCombatModLow = 1.1 + iModMod
-        if bDebugMessages == true then LOG(sFunctionRef..': Near start, bConsideringSubmarinesNotSurface='..tostring(bConsideringSubmarinesNotSurface)..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; iCurZoneAndAdjacentAlliedSubmersibleThreat='..iCurZoneAndAdjacentAlliedSubmersibleThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat..'; iEnemyCombatModHigh='..iEnemyCombatModHigh..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)..'; iEnemyCombatModLow='..iEnemyCombatModLow..'; iAdjacentEnemyAntiNavyThreat='..iAdjacentEnemyAntiNavyThreat..'; iEnemyAntiNavyMod='..iEnemyAntiNavyMod..'; iNearbyFriendlySubThreat='..iNearbyFriendlySubThreat) end            
+        if bDebugMessages == true then LOG(sFunctionRef..': Near start, bConsideringSubmarinesNotSurface='..tostring(bConsideringSubmarinesNotSurface)..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; iCurZoneAndAdjacentAlliedSubmersibleThreat='..iCurZoneAndAdjacentAlliedSubmersibleThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat..'; iEnemyCombatModHigh='..iEnemyCombatModHigh..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)..'; iEnemyCombatModLow='..iEnemyCombatModLow..'; iAdjacentEnemyAntiNavyThreat='..iAdjacentEnemyAntiNavyThreat..'; iEnemyAntiNavyMod='..iEnemyAntiNavyMod..'; iNearbyFriendlySubThreat='..iNearbyFriendlySubThreat) end
         if (bConsideringSubmarinesNotSurface and (iNearbyFriendlySubThreat >= iAdjacentEnemyAntiNavyThreat or iNearbyFriendlySubThreat >= 20000) and ((tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 + iCurZoneAndAdjacentAlliedSubmersibleThreat >= 40000 or ((tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 + iCurZoneAndAdjacentAlliedSubmersibleThreat > ((tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) + iAdjacentEnemyAntiNavyThreat) * iEnemyAntiNavyMod or (iCurZoneAndAdjacentAlliedSubmersibleThreat + (tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] or 0) * 0.8 > (tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] or 0) + iAdjacentEnemyAntiNavyThreat and iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh)))) or
                 --Surface level consideration - want tobe similar to sub so we dont end up attacking with subs and not surface if reason for attacking with subs is our surface threat
                 (not(bConsideringSubmarinesNotSurface) and ((iAdjacentAlliedCombatThreat - iCurZoneAndAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModHigh or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] + (iCommonZoneTargetSurfaceThreat or 0) - iCurZoneAndAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * iEnemyCombatModLow))  then
@@ -2987,20 +2986,48 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iNearb
 
                     local tFriendlyNavalFac
                     if tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] == false then tFriendlyNavalFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Is tFriendlyNavalFac empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyNavalFac))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; Is tFriendlyNavalFac empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyNavalFac))..'; refbHostileImmobileCombatCiviliansInZone='..tostring(tWZTeamData[M28Map.refbHostileImmobileCombatCiviliansInZone])..'; bNearbyEnemiesAreHostileCivilians='..tostring(bNearbyEnemiesAreHostileCivilians or false)) end
                     if M28Utilities.IsTableEmpty(tFriendlyNavalFac) then
                         --Greater search range as dont know how close to midpoint the naval fac build location would be
-                        if CloseToEnemyUnit(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftoNearestCombatEnemies], 30, iTeam, true) then
+                        local tEnemyUnitsToConsider
+                        if bNearbyEnemiesAreHostileCivilians or tWZTeamData[M28Map.refbHostileImmobileCombatCiviliansInZone] then
+                            tEnemyUnitsToConsider = {}
+                            for iEnemy, oEnemy in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
+                                if not(oEnemy[M28UnitInfo.refbHostileImmobileCivilian]) then
+                                    table.insert(tEnemyUnitsToConsider, oEnemy)
+                                end
+                            end
+                        else
+                            tEnemyUnitsToConsider = tWZTeamData[M28Map.reftoNearestCombatEnemies]
+                        end
+                        if M28Utilities.IsTableEmpty(tEnemyUnitsToConsider) then
+                            if tWZTeamData[M28Map.refbHostileImmobileCombatCiviliansInZone] then tWZTeamData[M28Map.refbHostileImmobileCombatCiviliansInZone] = false end
+                        elseif CloseToEnemyUnit(tWZData[M28Map.subrefMidpoint], tEnemyUnitsToConsider, 30, iTeam, true) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units almost in range of our core zone midpoint so will attack') end
                             bAreInScenario2 = true
                         end
                     else
                         --Cycle through each naval fac and see if enemy is close
-                        for iNavalFac, oNavalFac in tFriendlyNavalFac do
-                            if CloseToEnemyUnit(oNavalFac:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], 15, iTeam, true) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units almost in range of our naval fac so will attack') end
-                                bAreInScenario2 = true
-                                break
+                        local tEnemyUnitsToConsider
+                        if bNearbyEnemiesAreHostileCivilians or tWZTeamData[M28Map.refbHostileImmobileCombatCiviliansInZone] then
+                            tEnemyUnitsToConsider = {}
+                            for iEnemy, oEnemy in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
+                                if not(oEnemy[M28UnitInfo.refbHostileImmobileCivilian]) then
+                                    table.insert(tEnemyUnitsToConsider, oEnemy)
+                                end
+                            end
+                        else
+                            tEnemyUnitsToConsider = tWZTeamData[M28Map.reftoNearestCombatEnemies]
+                        end
+                        if M28Utilities.IsTableEmpty(tEnemyUnitsToConsider) then
+                            if tWZTeamData[M28Map.refbHostileImmobileCombatCiviliansInZone] then tWZTeamData[M28Map.refbHostileImmobileCombatCiviliansInZone] = false end
+                        else
+                            for iNavalFac, oNavalFac in tFriendlyNavalFac do
+                                if CloseToEnemyUnit(oNavalFac:GetPosition(), tEnemyUnitsToConsider, 15, iTeam, true) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units almost in range of our naval fac so will attack') end
+                                    bAreInScenario2 = true
+                                    break
+                                end
                             end
                         end
                     end

@@ -1336,16 +1336,19 @@ function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptio
         local tbEnemyFactions = {}
         local tbAlliedHumanFactions = {}
         local tbAlliedFactions = {}
+        local tbEnemyTeams = {}
         for iBrain, oBrain in ArmyBrains do
             if not(oBrain.M28Team == aiBrain.M28Team) then
                 if oBrain.BrainType == 'Human' then
                     iEnemyHumans = iEnemyHumans + 1
+                    tbEnemyTeams[oBrain.M28Team] = true
                 end
                 if not(M28Conditions.IsCivilianBrain(oBrain)) then
                     if not(oBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim) then
                         bEnemyHasNonSeraphimFaction = true
                     end
                     tbEnemyFactions[oBrain:GetFactionIndex()] = true
+                    tbEnemyTeams[oBrain.M28Team] = true
                 end
             else
                 if oBrain.BrainType == 'Human' then
@@ -1361,10 +1364,19 @@ function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptio
             AddPotentialMessage('Time to separate the wheat from the chaff')
             if iEnemyHumans >= 3 and iAllyHumans == 0 then AddPotentialMessage('Your lack of coordination shall be your undoing') end
             if iEnemyHumans > iAllyHumans + M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] and math.max(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainBuildMultiplier], M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier]) == 1 then
-                if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] > 1 then
-                    AddPotentialMessage('So, you didn\'t feel like you could take us on in an equal fight?')
-                else
-                    AddPotentialMessage('So, you didn\'t feel like you could take me on in an equal fight?')
+                --Check enemy is all on same team
+                if M28Utilities.IsTableEmpty(tbEnemyTeams) == false then
+                    local iEnemyTeamCount = 0
+                    for iTeam, bEnemy in tbEnemyTeams do
+                        iEnemyTeamCount = iEnemyTeamCount + 1
+                    end
+                    if iEnemyTeamCount == 1 or iEnemyHumans / iEnemyTeamCount > iAllyHumans + M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] then
+                        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiActiveM28BrainCount] > 1 then
+                            AddPotentialMessage('So, you didn\'t feel like you could take us on in an equal fight?')
+                        else
+                            AddPotentialMessage('So, you didn\'t feel like you could take me on in an equal fight?')
+                        end
+                    end
                 end
             end
         end

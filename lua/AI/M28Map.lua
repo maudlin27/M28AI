@@ -247,6 +247,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftoNearestDFEnemies = 'NearestDF' --Table of enemy DF units in this LZ, plus the nearest DF unit in each adjacnet LZ, with proximity based on unit distance and unit range (i.e. the dist until the unit is in range)
             refoNearestStructureInOtherPlateauIfNoEnemiesHere = 'NearSPl' --If dealing with a large enough land zone, this will record here the closest enemy structure in another plateau near to this land zone, if there is one
             refbEnemiesInNearbyPlateau = 'EnNrPl' --true if a nearby plateau has enemies in it - works imilsarly to refoNearestStructureInOtherPlateauIfNoEnemiesHere, and is intended so can do more detailed calc for mobile units if relevant
+            refbHostileImmobileCombatCiviliansInZone = 'HCv' --true if there are hostile civilains in the zone that have a combat attack (DF/IF/AntiNavy)
 
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
             subrefTThreatEnemyCombatTotal = 'ECTotal' --Land and water zone ref
@@ -4429,6 +4430,8 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
 
         --Update water zones
         if bDebugMessages == true then LOG(sFunctionRef..': About to start with updating water zone information, GameTime='..GetGameTimeSeconds()..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bHaveConsideredPreferredPondForM28AI='..tostring(bHaveConsideredPreferredPondForM28AI or false)) end
+        local tbConsiderM28NavyAllocationByPond --[x] is the pond, returns the M28Navy brain for which this is the closest pond, in cases where we have a mix of M28Navy and non-M28Navy AI
+
         for iPond, tPondSubtable in tPondDetails do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond) end
             for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
@@ -4458,6 +4461,53 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
             end
         end
         if not(bDontInitializeWZLogic) then ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam) end
+        --Override the closest brain if we have M28Navy and its closest pond isnt assigned to it (and is pathable by land)
+        local bHaveM28Navy = false
+        local bDontHaveM28Navy = false
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            if oBrain[M28Overseer.refbPrioritiseNavy] then bHaveM28Navy = true
+            else bDontHaveM28Navy = true
+            end
+        end
+        if bHaveM28Navy and bDontHaveM28Navy then
+            tbConsiderM28NavyAllocationByPond = {}
+            local iClosestPondDist, iCurPondDist
+            local iClosestPondRef, iClosestPondWZRef, iCurSegmentX, iCurSegmentZ, iPlateauWanted, iCurBrainIndex
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if oBrain[M28Overseer.refbPrioritiseNavy] then
+                    local tStartPosition = GetPlayerStartPosition(oBrain)
+                    iClosestPondDist = 100000
+                    iClosestPondRef = nil
+                    iPlateauWanted = NavUtils.GetLabel(refPathingTypeHover,tStartPosition)
+                    iCurBrainIndex = oBrain:GetArmyIndex()
+                    if iPlateauWanted then
+                        for iPond, tPondSubtable in tPondDetails do
+                            if tPondSubtable[subrefBuildLocationByStartPosition][iCurBrainIndex] then
+                                iCurPondDist = M28Utilities.GetDistanceBetweenPositions(tStartPosition, tPondSubtable[subrefBuildLocationByStartPosition][iCurBrainIndex])
+                                if iCurPondDist < iClosestPondDist and NavUtils.GetLabel(refPathingTypeHover, tPondSubtable[subrefBuildLocationByStartPosition][iCurBrainIndex]) == iPlateauWanted then
+                                    iClosestPondDist = iCurPondDist
+                                    iClosestPondRef = iPond
+                                    iCurSegmentX, iCurSegmentZ = GetPathingSegmentFromPosition(tPondSubtable[subrefBuildLocationByStartPosition][iCurBrainIndex])
+                                    if iCurSegmentX and iCurSegmentZ and tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then
+                                        iClosestPondWZRef = tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether the closest pond to oBrain='..oBrain.Nickname..' which is a M28Navy brain, is assigned to M28Navy, iClosestPondRef='..(iClosestPondRef or 'nil')..'; iClosestPondWZRef='..(iClosestPondWZRef or 'nil')) end
+                    if iClosestPondRef and iClosestPondWZRef then
+                        local tWZTeamData = tPondDetails[iClosestPondRef][subrefPondWaterZones][iClosestPondWZRef][subrefWZTeamData][iTeam]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Cur assigned brain='..(ArmyBrains[tWZTeamData[reftiClosestFriendlyM28BrainIndex]].Nickname or 'nil')) end
+                        if not(iCurBrainIndex == ArmyBrains[tWZTeamData[reftiClosestFriendlyM28BrainIndex]]) and not(ArmyBrains[tWZTeamData[reftiClosestFriendlyM28BrainIndex]][M28Overseer.refbPrioritiseNavy]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will replace closest M28 brain index with this M28Navy one, iBrain='..iBrain..'; oBrain:GetArmyIndex()='..oBrain:GetArmyIndex()..'; iCurBrainIndex='..iCurBrainIndex) end
+                            tWZTeamData[reftiClosestFriendlyM28BrainIndex] = iCurBrainIndex
+                        end
+                    end
+                end
+            end
+        end
+
     else
         M28Utilities.ErrorHandler('No M28 active brain')
     end

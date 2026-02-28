@@ -2092,6 +2092,11 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau][iPlateau] = math.max((tTeamData[iTeam][refiHighestEnemyDFRangeByPlateau][iPlateau] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0))
                             end
 
+                            --Hostile civilain units
+                            if M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()) then
+                                ForkThread(ConsiderHostileCivilianZoneFlagForDetectedUnit, oUnit, aiBrain.M28Team)
+                            end
+
                         else
                             --General - big threats (experimental) - include if dont have spare ACUs
                             --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
@@ -5876,6 +5881,66 @@ function TeamHasLostAIxOmniVision(iTeam)
     for iPond, tPondSubtable in M28Map.tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
             ResetLandOrWaterZone(tWZData[M28Map.subrefWZTeamData][iTeam])
+        end
+    end
+end
+
+function ConsiderHostileCivilianZoneFlagForDetectedUnit(oUnit, iTeam, bUnitDied)
+    if bUnitDied then
+        if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyActiveM28Brains]) == false then
+            local iPlateauOrZero, iLandOrWaterZone, tLZOrWZTeamData
+            if (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] and oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]) then
+                iPlateauOrZero = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+                iLandOrWaterZone = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+            elseif oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then
+                iPlateauOrZero = 0
+                iLandOrWaterZone = oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]
+                tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+            end
+            if tLZOrWZTeamData[M28Map.refbHostileImmobileCombatCiviliansInZone] then
+                local bStillHaveHostileImmobile = false
+                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    for iEnemy, oEnemy in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
+                        if oEnemy[M28UnitInfo.refbHostileImmobileCivilian] and not(oEnemy.Dead) and not(oEnemy == oUnit) then
+                            bStillHaveHostileImmobile = true
+                            break
+                        end
+                    end
+                end
+                tLZOrWZTeamData[M28Map.refbHostileImmobileCombatCiviliansInZone] = bStillHaveHostileImmobile
+            end
+        end
+    else
+        --First wait 1s to give a chance to see if unit is immobile
+        WaitSeconds(1)
+        if M28UnitInfo.IsUnitValid(oUnit) then
+            --Check unit isn't moving, and has a combat attack
+            if (EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or M28UnitInfo.GetUnitSpeed(oUnit) <= 0.01)
+                    and (oUnit[M28UnitInfo.refiDFRange] or 0) > 10 or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 or (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0 then
+                --Wait until we have assigned the unit a land or water zone
+                local iPlateauOrZero, iLandOrWaterZone
+                local iCurCycle = 0
+                local tLZOrWZTeamData
+                while M28UnitInfo.IsUnitValid(oUnit) do
+                    if (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] and oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]) then
+                        iPlateauOrZero = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+                        iLandOrWaterZone = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                        tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                    elseif oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then
+                        iPlateauOrZero = 0
+                        iLandOrWaterZone = oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]
+                        tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+                    end
+                    iCurCycle = iCurCycle + 1
+                    if iCurCycle >= 10 then break end
+                    WaitSeconds(5)
+                end
+                if tLZOrWZTeamData then
+                    tLZOrWZTeamData[M28Map.refbHostileImmobileCombatCiviliansInZone] = true
+                    oUnit[M28UnitInfo.refbHostileImmobileCivilian] = true
+                end
+            end
         end
     end
 end
