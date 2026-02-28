@@ -14136,7 +14136,7 @@ function EnemyNavalEngineerBomber(oBomber)
                                                         if bDebugMessages == true then LOG(sFunctionRef..': oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)) end
                                                         break
                                                     elseif iCurEngineersWeLackIntelOf >= 3 then
-                                                        if not(oFactoryWeWantIntelOf) or M28Utilities.GetDistanceBetweenPositions(oFactoryWeWantIntelOf:GetPosition(), oBomber:GetPosition()) > M28Utilities.GetDistancebetweenPositions(oFactory:GetPosition(), oBomber:GetPosition()) then
+                                                        if not(oFactoryWeWantIntelOf) or M28Utilities.GetDistanceBetweenPositions(oFactoryWeWantIntelOf:GetPosition(), oBomber:GetPosition()) > M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), oBomber:GetPosition()) then
                                                             oFactoryWeWantIntelOf = oFactory
                                                         end
                                                     end
