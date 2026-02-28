@@ -8030,13 +8030,7 @@ function ManageLandRaidersInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             local iAngleToNearestThreat = M28Utilities.GetAngleFromAToB(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
                             local iAngleToImmobileTarget = M28Utilities.GetAngleFromAToB(oRaider:GetPosition(), oClosestImmobile:GetPosition())
                             if M28Utilities.GetAngleDifference(iAngleToNearestThreat, iAngleToImmobileTarget) <= 50 and iClosestDist - oRaider[M28UnitInfo.refiCombatRange] <= math.max(0, M28Utilities.GetDistanceBetweenPositions(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition()) - (oRaider[M28UnitInfo.refiDFRange] or 0)) then
-                                if oRaider[refiRaidingTargetZone] == iLandZone then
-                                    bRunning = true
-                                    if not(tRallyPoint) then tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 1, false) end
-                                    M28Orders.IssueTrackedAttackMove(oRaider, tRallyPoint, 3, false, 'RaidRetRal', false)
-                                else
-                                    bRaiderMovingOn = true
-                                end
+                                bRaiderMovingOn = true
                             end
                         end
                         if not(bRaiderMovingOn) then
