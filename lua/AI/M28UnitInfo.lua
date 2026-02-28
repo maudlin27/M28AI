@@ -119,6 +119,7 @@ refbIssuedUpgrade = 'M28IssUpg' --true if the IssueUpgrade order is called; done
 refiTimeLastCanceledUpgrade = 'M28CancUpT' --time of last cancelling upgrade
 refiDistToEnemyBaseWhenLastCanceledUpgrade = 'M28CancUpD' --Dist to closest enemy base when last canceled upgrade
 reftiWallAdjacentLandZonesRecorded = 'M28UWlAZ' --if a wall is near anotherl and zone it records that other land zone here
+refbHostileImmobileCivilian = 'M28HsImC' --true if when unit is detected it appears to be immobile and owned by a hostile civilian (so we are less cautious with engineers around it)
 
     --Unit micro related
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI
@@ -3420,5 +3421,18 @@ function DoesBomberFireSalvo(oUnit)
             else return true
             end
         end
+    end
+end
+
+function GetUnitMaxIntelOrVisualRange(oUnit, bWaterZone, bSonarAndVisionOnly)
+    local tIntel = oUnit:GetBlueprint().Intel
+    if bWaterZone then
+        if bSonarAndVisionOnly then
+            return math.max((tIntel.SonarRadius or 0), (tIntel.WaterVisionRadius or 0), (tIntel.OmniRadius or 0))
+        else
+            return math.max((tIntel.SonarRadius or 0), (tIntel.WaterVisionRadius or 0), (tIntel.OmniRadius or 0), (tIntel.VisionRadius or 0), (tIntel.RadarRadius or 0), (tIntel.MaxVisionRadius or 0))
+        end
+    else
+        return math.max((tIntel.VisionRadius or 0), (tIntel.RadarRadius or 0), (tIntel.OmniRadius or 0), (tIntel.MaxVisionRadius or 0))
     end
 end

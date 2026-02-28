@@ -635,7 +635,14 @@ function OnUnitDeath(oUnit)
                             oUnit:DoUnitCallbacks('OnKilled')
                         end
 
-    -------M28 specific logic---------
+                        --Hostile civilian - update the zone flag for every M28Team
+                        if oUnit[M28UnitInfo.refbHostileImmobileCivilian] then
+                            for iTeam, tTeam in M28Team.tTeamData do
+                                ForkThread(M28Team.ConsiderHostileCivilianZoneFlagForDetectedUnit, oUnit, iTeam, true)
+                            end
+                        end
+
+                        -------M28 specific logic---------
                         if bDebugMessages == true then LOG(sFunctionRef..': About to consider M28specific on death logic, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Owned by brain '..oUnit:GetAIBrain().Nickname..'; Is M28='..tostring(oUnit:GetAIBrain().M28AI or false)) end
                         --Is the unit owned by M28AI?
                         if oUnit:GetAIBrain().M28AI then

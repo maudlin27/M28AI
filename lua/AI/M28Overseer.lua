@@ -2748,11 +2748,13 @@ function DelayedCheckOfUnitsAtStartOfGame()
         WaitTicks(1)
         local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
         for iBrain, oBrain in ArmyBrains do
-            local tAllUnits = oBrain:GetListOfUnits(categories.ALLUNITS - categories.UNSELECTABLE - categories.UNTARGETABLE, false, true)
-            if M28Utilities.IsTableEmpty(tAllUnits) == false then
-                for iUnit, oUnit in tAllUnits do
-                    if not(oUnit['M28OnCrRn']) and oUnit:GetFractionComplete() == 1 then
-                        M28Events.OnCreate(oUnit)
+            if oBrain.GetListOfUnits then
+                local tAllUnits = oBrain:GetListOfUnits(categories.ALLUNITS - categories.UNSELECTABLE - categories.UNTARGETABLE, false, true)
+                if M28Utilities.IsTableEmpty(tAllUnits) == false then
+                    for iUnit, oUnit in tAllUnits do
+                        if not(oUnit['M28OnCrRn']) and oUnit:GetFractionComplete() == 1 then
+                            M28Events.OnCreate(oUnit)
+                        end
                     end
                 end
             end
