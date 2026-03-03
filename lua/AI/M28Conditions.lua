@@ -3958,9 +3958,11 @@ function HaveEngineersOrFactoriesInZone(tLZOrWZTeamData)
 end
 
 
-function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, iTeam, iSearchDistance, tStartPoint, iEnemyMassTotalThreshold, iOptionalSearchCategory, tOptionalAdditionalUnits, bOnlyIncludeDFUnits, bIncludeEnemyCombatRange)
+function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, iTeam, iSearchDistance, tStartPoint, iEnemyMassTotalThreshold, iOptionalSearchCategory, tOptionalAdditionalUnits, bOnlyIncludeDFUnits, bIncludeEnemyCombatRange, iOptionalSpeedThreshold, iOptionalMinEnemyMassRequiredUnlessInRange, bIgnoreReductionIfJustInsideSearchDistance)
     --Essentially a much more cpu intesnive version of getunitsaroundpoint, that will make use of M28's memory of where units are; will search current zone and adjacent zones; can also pass it tOptionalAdditionalUnits for further away units
     --iEnemyMassTotalThreshold - if >= this in mass then returns true, otherwise returns false
+    --iOptionalSpeedThreshold - if specified, then will ignore units that are slower than this unless they are close to being in combat range
+    --iOptionalMinEnemyMassRequiredUnlessInRange - will ignore units with less mass than this unless they are almost in range
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'HaveSignificantEnemyThreatWithinRange'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -3975,16 +3977,33 @@ function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, i
             else tUnitTable = tUnits
             end
             if M28Utilities.IsTableEmpty(tUnitTable) == false then
+                local aiBrain = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
                 for iUnit, oUnit in tUnitTable do
                     if M28UnitInfo.IsUnitValid(oUnit) and (not(bOnlyIncludeDFUnits) or oUnit[M28UnitInfo.refiDFRange] > 0) then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartPoint)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..iCurDist..'; refiCombatRange='..oUnit[M28UnitInfo.refiCombatRange]..'; MassCost='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')..'; bIncludeEnemyCombatRange='..tostring(bIncludeEnemyCombatRange)) end
                         if iCurDist <= iSearchDistance or (bIncludeEnemyCombatRange and iCurDist - oUnit[M28UnitInfo.refiCombatRange] <= iSearchDistance) then
-                            iCumulativeUnitValue = iCumulativeUnitValue + math.max((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)), (M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]['1000000'] or 0))
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCumulativeUnitValue after considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'='..iCumulativeUnitValue..'; iEnemyMassTotalThreshold='..iEnemyMassTotalThreshold..'; M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]='..(M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]['1000000'] or 'nil')) end
-                            if iCumulativeUnitValue >= iEnemyMassTotalThreshold then
-                                bSignificantEnemyThreat = true
-                                if bDebugMessages == true then LOG(sFunctionRef..': Enoguh targets of interest so will return true') end
-                                break
+                            if iCurDist <= 5 + oUnit[M28UnitInfo.refiCombatRange] or ((not(iOptionalMinEnemyMassRequiredUnlessInRange) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= iOptionalMinEnemyMassRequiredUnlessInRange) and
+                                    --Speed check - if enemy has a splash or laser ACU then want to run slightly sooner than normal even if we are faster than it
+                                    (not(iOptionalSpeedThreshold) or iCurDist <= 5 + oUnit[M28UnitInfo.refiCombatRange] or oUnit:GetBlueprint().Physics.MaxSpeed >= iOptionalSpeedThreshold or iCurDist <= 10 + oUnit[M28UnitInfo.refiCombatRange] and ((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 4500 or (oUnit[M28UnitInfo.refiDFMassThreatOverride] and oUnit[M28UnitInfo.refiDFMassThreatOverride] >= 4500))))
+                                    then
+                                --Also ignore scouts generally (although should be negligible impact on threat)
+                                if not(iOptionalMinEnemyMassRequiredUnlessInRange) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= math.min(iOptionalMinEnemyMassRequiredUnlessInRange, 20) then
+                                    --Reduce increase if unit is only just in range and we aren't worried about enemy rushing us with army
+                                    if not(bIgnoreReductionIfJustInsideSearchDistance) and iCurDist > iSearchDistance - 8 and oUnit[M28UnitInfo.refiCombatRange] < iSearchDistance - 8 and (not(bIncludeEnemyCombatRange) or iCurDist - oUnit[M28UnitInfo.refiCombatRange] > iSearchDistance - 8) and (iCurDist > iSearchDistance - 2.5 or (not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit)) and M28UnitInfo.GetUnitSpeed(oUnit) > (iOptionalSpeedThreshold or 1.5) and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPoint), M28Utilities.GetUnitFacingAngle(oUnit)) <= 50)) then
+                                        --Reduce the value significantly
+                                        iCumulativeUnitValue = iCumulativeUnitValue + 0.3 * math.max((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)), (M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]['1000000'] or 0))
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will only recognise 30% of this unit') end
+                                    else
+                                        iCumulativeUnitValue = iCumulativeUnitValue + math.max((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)), (M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]['1000000'] or 0))
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCumulativeUnitValue after considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'='..iCumulativeUnitValue..'; iEnemyMassTotalThreshold='..iEnemyMassTotalThreshold..'; M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]='..(M28UnitInfo.tUnitThreatByIDAndType[oUnit.UnitId]['1000000'] or 'nil')) end
+                                    if iCumulativeUnitValue >= iEnemyMassTotalThreshold then
+                                        bSignificantEnemyThreat = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Enoguh targets of interest so will return true') end
+                                        break
+                                    end
+                                end
                             end
                         end
                     end
@@ -3992,15 +4011,17 @@ function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, i
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy units in the base LZ') end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy units in the base LZ, iSearchDistance='..iSearchDistance..'; iEnemyMassTotalThreshold='..iEnemyMassTotalThreshold) end
     ConsiderUnitTable(tLZTeamData[M28Map.subrefTEnemyUnits])
     if bSignificantEnemyThreat then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have significant threat after just considering enemy units in LZTeamData') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     end
     if tOptionalAdditionalUnits then  ConsiderUnitTable(tOptionalAdditionalUnits) end
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
         if bSignificantEnemyThreat then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have significant threat after just considering tOptionalAdditionalUnits') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
         end
@@ -4008,6 +4029,7 @@ function HaveSignificantEnemyThreatWithinRange(tLZData, tLZTeamData, iPlateau, i
             if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy units in the adjacent landzone='..iAdjLZ) end
             ConsiderUnitTable(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
             if bSignificantEnemyThreat then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have significant units') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
             end
