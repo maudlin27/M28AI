@@ -2136,6 +2136,8 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 else
                     local iAngleToTarget = M28Utilities.GetAngleFromAToB(tClosestBase, tClosestMidpoint)
                     local iSearchInterval = 10
+                    local iDistToPriorityUnitFromBase = 10000
+                    if oPriorityUnitBeingSupported then iDistToPriorityUnitFromBase = M28Utilities.GetDistanceBetweenPositions(oPriorityUnitBeingSupported:GetPosition(), tClosestBase) end
                     local iRoundedDist = math.floor(iDistToTarget / iSearchInterval) * iSearchInterval
                     local tCurTarget
                     local iPrevPlateau, iPrevLandZone, iPrevWaterZone
@@ -2180,6 +2182,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     end
                     local iZoneGroundAAThreshold = (iGroundAAThreshold or 0) * 0.1 --threshold for doing a more detailed check
                     local iZoneAirAAThreshold --threshold for doing a more detailed check
+                    local tPreviousSafePositionNeeded
                     iZoneAirAAThreshold = iAirAAThreshold
                     iZoneGroundAAThreshold = (iGroundAAThreshold or 0) * 0.75
 
@@ -2187,7 +2190,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         bCurTargetTooDangerous = false
                         tCurTarget = M28Utilities.MoveInDirection(tClosestBase, iAngleToTarget, iDist, true, false, false)
                         iCurPlateau, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tCurTarget)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering moving closer to the unit to protects zone, iDist='..iDist..'; tCurTarget='..repru(tCurTarget)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurZone='..(iCurZone or 'nil')) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering moving closer to the unit to protects zone, iDist='..iDist..'; tCurTarget='..repru(tCurTarget)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurZone='..(iCurZone or 'nil')..'; iDistToPriorityUnitFromBase='..iDistToPriorityUnitFromBase) end
                         if iCurPlateau and iCurZone then
                             if iCurPlateau == 0 then
                                 --iCurWZ = M28Map.GetWaterZoneFromPosition(tCurTarget)
@@ -2205,9 +2208,16 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                             if tCurWZTeamData[M28Map.subrefiThreatEnemyGroundAA] < 0.5 * iGroundAAThreshold then
                                                 bCurTargetTooDangerous = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]), iGroundAAThreshold, iZoneAirAAThreshold, false, iAirSubteam, true, nil, nil, nil, tCurTarget)
                                                 if bDebugMessages == true then LOG(sFunctionRef..': bCurTargetTooDangerous after second detailed check='..tostring(bCurTargetTooDangerous)) end
+                                                if not(bCurTargetTooDangerous) then
+                                                    tPreviousSafePositionNeeded = {tCurTarget[1], tCurTarget[2], tCurTarget[3]}
+                                                end
                                             end
                                             if bDebugMessages == true then LOG(sFunctionRef..': bCurTargetTooDangerous is too dangerous after detailed WZ check, is it too dangerous after adjusting midpoint to be tcurposition='..tostring(bCurTargetTooDangerous)..';  tCurWZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..( tCurWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')) end
+                                        elseif not(bCurTargetTooDangerous) then
+                                            tPreviousSafePositionNeeded = nil
                                         end
+                                    elseif not(bCurTargetTooDangerous) then
+                                        tPreviousSafePositionNeeded = nil --we are ok to use midpoint
                                     end
                                     if bCurTargetTooDangerous then
                                         if bDebugMessages == true then
@@ -2237,12 +2247,21 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                                         if bCurTargetTooDangerous and oPriorityUnitBeingSupported and EntityCategoryContains(M28UnitInfo.refCategoryAirNonScout, oPriorityUnitBeingSupported.UnitId) then
                                             local tCurLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurZone][M28Map.subrefLZTeamData][iTeam]
                                             if tCurLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < 0.5 * iGroundAAThreshold then
-                                                bCurTargetTooDangerous = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau, iCurZone, not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]), iGroundAAThreshold, iZoneAirAAThreshold, false, iAirSubteam, true, nil, nil, nil, tCurTarget)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': About to do second detailed check, with optioanl start='..repru(tCurTarget)) end
+                                                --_______________________DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat,                                     iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck, bOptionalIgnoreOppositeDirectionZones, bIncludeEnemyGroundAAInAirAAThreat, bAssumeWontTargetInterimAAForDetailedCheck)
+                                                bCurTargetTooDangerous = DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iCurPlateau,         iCurZone, not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]), iGroundAAThreshold, iZoneAirAAThreshold,   false,              iAirSubteam, true,                  nil,                            nil,                                            nil,                                tCurTarget)
                                                 if bDebugMessages == true then LOG(sFunctionRef..': bCurTargetTooDangerous after second detailed check for LZ='..tostring(bCurTargetTooDangerous)) end
+                                                if not(bCurTargetTooDangerous) then
+                                                    tPreviousSafePositionNeeded = {tCurTarget[1], tCurTarget[2], tCurTarget[3]}
+                                                end
                                             end
                                             if bDebugMessages == true then LOG(sFunctionRef..': bCurTargetTooDangerous is too dangerous after detailed LZ check, is it too dangerous after adjusting midpoint to be tcurposition='..tostring(bCurTargetTooDangerous)..';  tCurWZTeamData[M28Map.subrefiThreatEnemyGroundAA]='..( tCurLZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')) end
+                                        elseif not(bCurTargetTooDangerous) then
+                                            tPreviousSafePositionNeeded = nil
                                         end
                                         if bDebugMessages == true then LOG(sFunctionRef..': bCurTargetTooDangerous after detailed check='..tostring(bCurTargetTooDangerous)) end
+                                    elseif not(bCurTargetTooDangerous) then
+                                        tPreviousSafePositionNeeded = nil
                                     end
                                     if bCurTargetTooDangerous then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Land Zone is too dangerous so will stop looking further') end
@@ -2258,6 +2277,10 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                             end
                         else
                             --No valid plateau so ignore this position
+                        end
+                        if iDist > iDistToPriorityUnitFromBase then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will a bort as increasing iDist further means we go past the gunship (on way from our base to it)') end
+                            break
                         end
                     end
                     if bCurTargetTooDangerous and bDoDetailedCheck and oPriorityUnitBeingSupported and tClosestBase and EntityCategoryContains(M28UnitInfo.refCategoryAirToGround, oPriorityUnitBeingSupported.UnitId) then
@@ -2314,7 +2337,13 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         else
                             tSupportLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPrevWaterZone]][M28Map.subrefPondWaterZones][iPrevWaterZone]
                         end
-                        tSupportRallyPoint = {tSupportLZOrWZData[M28Map.subrefMidpoint][1], tSupportLZOrWZData[M28Map.subrefMidpoint][2], tSupportLZOrWZData[M28Map.subrefMidpoint][3]}
+                        if tPreviousSafePositionNeeded then
+                            tSupportRallyPoint = {tPreviousSafePositionNeeded[1], tPreviousSafePositionNeeded[2], tPreviousSafePositionNeeded[3]}
+                            if bDebugMessages == true then LOG(sFunctionRef..': The last plateau and zone we located we required a detailed check based on a non-midpoint position to be safe') end
+                            bDontMoveCloserToEnemyBase = true
+                        else
+                            tSupportRallyPoint = {tSupportLZOrWZData[M28Map.subrefMidpoint][1], tSupportLZOrWZData[M28Map.subrefMidpoint][2], tSupportLZOrWZData[M28Map.subrefMidpoint][3]}
+                        end
                         --Redundancy - check for enemy ground AA within range of the destination; if have any then move back towards base by 50
                         local bMoveCloserToRally = false
                         local tNearbyEnemyAA
@@ -3372,7 +3401,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     --Cycle through every relevant land and water zone along this path and calculate the threat
     --First do land zones
     local tBasePathingTable = tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone]
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..', iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; iEndPlateauOrZero='..iEndPlateauOrZero..'; iEndLandOrWaterZone='..iEndLandOrWaterZone..'; bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; iGroundAAThreatThreshold='..(iGroundAAThreatThreshold or 'nil')..'; Is table of land azones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) or false)..'; Is table of water zones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) or false)..'; iAirAAThreatThreshold='..(iAirAAThreatThreshold or 'nil')..'; tOptionalStartMidpointAdjustForDetailedCheck='..repru(tOptionalStartMidpointAdjustForDetailedCheck)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..', iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; iEndPlateauOrZero='..iEndPlateauOrZero..'; iEndLandOrWaterZone='..iEndLandOrWaterZone..'; bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; iGroundAAThreatThreshold='..(iGroundAAThreatThreshold or 'nil')..'; Is table of land azones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) or false)..'; Is table of water zones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) or false)..'; iAirAAThreatThreshold='..(iAirAAThreatThreshold or 'nil')..'; tOptionalStartMidpointAdjustForDetailedCheck='..repru(tOptionalStartMidpointAdjustForDetailedCheck)..'; tOptionalEndMidpointAdjustForDetailedCheck='..repru(tOptionalEndMidpointAdjustForDetailedCheck)) end
     local iAngleToDestination, iDistanceToDestination, iAngleToInterim, iDistanceToInterim, iInterimBestRange, tStartZoneMidpoint
     local tDestinationMidpoint, iDistanceFromInterimToDestination, iAngleDifToInterimVsToDestination
 
@@ -3403,8 +3432,9 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
         iDistanceToInterim = M28Utilities.GetDistanceBetweenPositions(tStartZoneMidpoint, tLZOrWZData[M28Map.subrefMidpoint])
         iDistanceFromInterimToDestination = M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tDestinationMidpoint)
         iAngleDifToInterimVsToDestination = M28Utilities.GetAngleDifference(iAngleToInterim, iAngleToDestination)
-        if bDebugMessages == true then LOG(sFunctionRef..': iAngleToInterim='..iAngleToInterim..'; iDistanceToInterim='..iDistanceToInterim..'; iDistanceFromInterimToDestination='..iDistanceFromInterimToDestination..'; AngleDif='..M28Utilities.GetAngleDifference(iAngleToInterim, iAngleToDestination)..'; iDistanceToDestination='..iDistanceToDestination) end
-        if (iDistanceToInterim + 70 <= iDistanceToDestination and (iAngleDifToInterimVsToDestination <= 15 or iDistanceToInterim *0.5 + 30 <= iDistanceToDestination)) or iDistanceFromInterimToDestination <= 110 then
+        --v285 - changed as these results returned not in similar direction, but enemy was able to hit the target zone with cruiser fire: iAngleToInterim=300.96374511719; iDistanceToInterim=119.53451538086; iDistanceFromInterimToDestination=119.53451538086; AngleDif=59.036254882813; iDistanceToDestination=0
+        if bDebugMessages == true then LOG(sFunctionRef..': iAngleToInterim='..iAngleToInterim..'; iDistanceToInterim='..iDistanceToInterim..'; iDistanceFromInterimToDestination='..iDistanceFromInterimToDestination..'; AngleDif='..M28Utilities.GetAngleDifference(iAngleToInterim, iAngleToDestination)..'; iDistanceToDestination='..iDistanceToDestination..'; GetMaxZoneRadiusSize='..M28Map.GetMaxZoneRadiusSize(tLZOrWZData)..'; Is dist from interim to dest less than radius+90='..tostring(iDistanceFromInterimToDestination <= M28Map.GetMaxZoneRadiusSize(tLZOrWZData) + 90)) end
+        if (iDistanceToInterim + 70 <= iDistanceToDestination and (iAngleDifToInterimVsToDestination <= 15 or iDistanceToInterim *0.5 + 30 <= iDistanceToDestination)) or iDistanceFromInterimToDestination <= 110 or (iDistanceFromInterimToDestination <= 160 and iDistanceFromInterimToDestination <= M28Map.GetMaxZoneRadiusSize(tLZOrWZData) + 90) then
             return true
         end
         return false

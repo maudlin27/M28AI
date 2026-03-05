@@ -135,9 +135,9 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefMexUnbuiltLocations = 'MexAvailLoc' --used by water and land zones; e.g. for LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZOrWZMexLocations]
         refiTimeOfLastMexDeath = 'MexLstDth' --Gametimeseconds that a mex died in this land zone - used to avoid sending an error message if it is rebuilt immediately (due to the mex deaht logic having a delay)
         subrefMidpoint = 'Midpoint' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefMidpoint]
-        subrefLZMinSegX = 'LZMinSegX'
+        subrefLZMinSegX = 'LZMinSegX' --see GetMaxZoneRadiusSize to get radius of zone
         subrefLZMinSegZ = 'LZMinSegZ'
-        subrefLZMaxSegX = 'LZMaxSegX'
+        subrefLZMaxSegX = 'LZMaxSegX' --see GetMaxZoneRadiusSize to get radius of zone
         subrefLZMaxSegZ = 'LZMaxSegZ'
         subrefHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ or WZ
         subrefHydroUnbuiltLocations = 'HydroAvailLoc' --against land or water zone, e.g. tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
@@ -504,9 +504,9 @@ tPondDetails = {}
         refiMidpointAmphibiousLabel = 'MPAmphbL' --Navutils label for the midpoint of the water zone; same ref is used for land zones
         subrefWZSegments = 'PWZSeg' --e.g. tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefWZSegments]
         subrefWZMinSegX = 'PWZMinSX'
-        subrefWZMinSegZ = 'PWZMinSZ'
+        subrefWZMinSegZ = 'PWZMinSZ' --see GetMaxZoneRadiusSize to get radius of zone
         subrefWZMaxSegX = 'PWZMaxSX'
-        subrefWZMaxSegZ = 'PWZMaxSZ'
+        subrefWZMaxSegZ = 'PWZMaxSZ' --see GetMaxZoneRadiusSize to get radius of zone
         subrefAdjacentLandZones = 'WZAdjLZ' --table of details for land zones adjacent to the water zone
             subrefWPlatAndLZNumber = 1 --returns {Plateau, LandZone}
             subrefALZDistance = 2 --Distance between midpoint from LZ to the WZ
@@ -10146,4 +10146,14 @@ function CreateMexPositionsInLandZones()
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetMaxZoneRadiusSize(tLZOrWZData)
+    if tLZOrWZData[subrefLZMinSegX] then
+        return math.max(tLZOrWZData[subrefLZMaxSegX]-tLZOrWZData[subrefLZMinSegX], tLZOrWZData[subrefLZMaxSegZ]-tLZOrWZData[subrefLZMinSegZ])*iLandZoneSegmentSize*0.5
+    elseif tLZOrWZData[subrefWZMaxSegX] then
+        return math.max(tLZOrWZData[subrefWZMaxSegX]-tLZOrWZData[subrefWZMinSegX], tLZOrWZData[subrefWZMaxSegZ]-tLZOrWZData[subrefWZMinSegZ])*iLandZoneSegmentSize*0.5
+    else
+        return 2
+    end
 end
