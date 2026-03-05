@@ -6829,7 +6829,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         LOG(sFunctionRef .. ': Checking if we want to get cruisers, iCurCruiserCarrier=' .. iCurCruiserCarrier..'; Cruiser LC='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryCruiser))
     end
     if iCurCruiserCarrier == 0 and iFactoryTechLevel >= 2 and (
-            (oFactory[refiTotalBuildCount] <= 5 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryCruiser) < M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] * 1500) or
+            (oFactory[refiTotalBuildCount] <= 5 and M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] > 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryCruiser) < M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] * 1500 and (not(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0.5 * tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryDestroyer) >= 2))) or
                     aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattlecruiser) > 0
                     or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDestroyer) >= 3) then
         if bDebugMessages == true then
