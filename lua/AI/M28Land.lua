@@ -1723,7 +1723,8 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
         --Factor in adjacent water zones
         if bDebugMessages == true then LOG(sFunctionRef..': Is tLZData[M28Map.subrefAdjacentWaterZones] empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]))) end
         if tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
-            local iAdjWZ, iPond
+            local iAdjWZ, iPond, bAlreadyRecorded
+            local bCheckIfRecorded = not(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))
             for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
                 iAdjWZ = tSubtable[M28Map.subrefAWZRef]
                 iPond = M28Map.tiPondByWaterZone[iAdjWZ]
@@ -1735,7 +1736,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
                     oLowestDFDistUntilInRange = nil
 
                     for iUnit, oUnit in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..(oUnit:GetAIBrain().Nickname or 'nil')..' assigned to WZ='..(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] or 'nil')..' with DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)) end
                         if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId)) then
                             iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - oUnit[M28UnitInfo.refiDFRange]
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurDistUntilInRange='..iCurDistUntilInRange) end
@@ -1743,9 +1744,26 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
                                 oLowestDFDistUntilInRange = oUnit
                                 iLowestDistUntilInRange = iCurDistUntilInRange
                             end
+                            if iCurDistUntilInRange <= iMaxDistAwayToIncludeAdjUnitInDFRange and (oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] or iAdjWZ) == iAdjWZ then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to the nearestDFEnemies for this land zone '..iLandZone..' unless already recorded') end
+                                bAlreadyRecorded = false
+                                if bCheckIfRecorded then
+                                    for iRecorded, oRecorded in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                                        if oRecorded == oUnit then
+                                            bAlreadyRecorded = true
+                                            break
+                                        end
+                                    end
+                                else
+                                    bCheckIfRecorded = true
+                                end
+                                if not(bAlreadyRecorded) then
+                                    table.insert(tLZTeamData[M28Map.reftoNearestDFEnemies], oUnit)
+                                end
+                            end
                         end
                     end
-                    if oLowestDFDistUntilInRange  then
+                    if oLowestDFDistUntilInRange and iLowestDistUntilInRange > iMaxDistAwayToIncludeAdjUnitInDFRange then --i.e. we wont have included in above logic
                         table.insert(tLZTeamData[M28Map.reftoNearestDFEnemies], oLowestDFDistUntilInRange)
                     end
                 end
