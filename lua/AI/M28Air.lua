@@ -3908,7 +3908,17 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; iAirSubteam='..iAirSubteam..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])) end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; iTeam='..iTeam..'; iAirSubteam='..iAirSubteam..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]))
+        --List out every brain in airsubteam
+        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false then
+            for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+                LOG(sFunctionRef..': oBrain in subteam='..oBrain.Nickname)
+            end
+        else
+            LOG('No M28 brains in air subteam')
+        end
+    end
     --Update threat level
     local iAvailableAndInCombatAirAAThreat = M28UnitInfo.GetAirThreatLevel(tAvailableAirAA, false, true) + M28UnitInfo.GetAirThreatLevel(tInCombatUnits, false, true)
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] = iAvailableAndInCombatAirAAThreat + M28UnitInfo.GetAirThreatLevel(tAirForRefueling, false, true) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, true)
@@ -4460,7 +4470,8 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                             if bDebugMessages == true then LOG(sFunctionRef..': Added fromt bomber unit to toPriorityUnitsByPlateauAndZone, is toPriorityUnitsByPlateauAndZone empty='..tostring(M28Utilities.IsTableEmpty(toPriorityUnitsByPlateauAndZone))..'; Is toPriorityUnitsByPlateauAndZone[iPlateauOrZero] empty='..tostring(M28Utilities.IsTableEmpty(toPriorityUnitsByPlateauAndZone[iPlateauOrZero]))..'; Is toPriorityUnitsByPlateauAndZone nil='..tostring(toPriorityUnitsByPlateauAndZone == nil)) end
                         end
                     end
-                    if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) or 'nil')..'; refbHaveAirControl='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) end
+                    if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] or ((M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] >= 20000 or (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] >= 3000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] >= 0.75 * M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat])) and (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > 1.1 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] >= 40000 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] >= 0.75 * M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat])))) then
                         local oUnit = M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]
                         iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering Front torp bomber unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; P='..(iPlateauOrZero or 'nil')..'Z'..(iLandOrWaterZone or 'nil')) end
@@ -4506,6 +4517,18 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                                     iGroundAAModifier = math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat], M28UnitInfo.GetMassCostOfUnits(tUnits)) * 0.2
                                                 end
                                                 iAirAAModifier = math.max(0, iAirAAAvoidThreshold - iAvailableAndInCombatAirAAThreat) + (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiOurGunshipAAThreat] or 0)
+                                            elseif not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) and EntityCategoryContains(M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL, oClosestUnitToEnemyBase.UnitId) then
+                                                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+                                                    iGroundAAModifier = math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat], M28UnitInfo.GetMassCostOfUnits(tUnits)) * 0.2
+                                                else
+                                                    iGroundAAModifier = math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat], M28UnitInfo.GetMassCostOfUnits(tUnits)) * 0.1
+                                                end
+                                            elseif not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) and EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oClosestUnitToEnemyBase.UnitId) then
+                                                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+                                                    iGroundAAModifier = math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat], M28UnitInfo.GetMassCostOfUnits(tUnits)) * 0.2
+                                                else
+                                                    iGroundAAModifier = math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat], M28UnitInfo.GetMassCostOfUnits(tUnits)) * 0.1
+                                                end
                                             else
                                                 iGroundAAModifier = 0
                                                 iAirAAModifier = 0
@@ -6212,9 +6235,40 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
     local tAvailableBombers, tBombersForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryTorpBomber - M28UnitInfo.refCategoryGunship, true)
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, false, false, true) + M28UnitInfo.GetAirThreatLevel(tBombersForRefueling, false, false, false, false, false, true) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, false, false, true)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; Is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; Is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; iTeam='..iTeam..'; iAirSubteam='..iAirSubteam)
+        --List out every brain in airsubteam
+        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false then
+            for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+                LOG(sFunctionRef..': oBrain in subteam='..oBrain.Nickname)
+            end
+        end
+    end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers] = false
+    local oRecentlyAttackingTorpBomber = M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]
     M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber] = nil
+    if M28UnitInfo.IsUnitValid(oRecentlyAttackingTorpBomber) and ((oRecentlyAttackingTorpBomber[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oRecentlyAttackingTorpBomber[M28UnitInfo.refiLastWeaponEvent] <= 20) or oRecentlyAttackingTorpBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack) then
+        if bDebugMessages == true then LOG(sFunctionRef..': We had an attacking torp bomber from last cycle so will maintain it (but might replace it later on in code if we give new attack orders)') end
+    else
+        oRecentlyAttackingTorpBomber = nil
+    end
+    --Check unavailableunits in case any of them has an attack order
+    if M28Utilities.IsTableEmpty(tUnavailableUnits) == false then
+        local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+        local iFurthestDistFromRally = 0
+        local iCurDistFromRally
+        if M28UnitInfo.IsUnitValid(oRecentlyAttackingTorpBomber) then iFurthestDistFromRally = M28Utilities.GetDistanceBetweenPositions(oRecentlyAttackingTorpBomber:GetPosition(), tRallyPoint) end
+        for iUnit, oUnit in tUnavailableUnits do
+            if (oUnit[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] <= 20) or oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
+                iCurDistFromRally = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)
+                if iCurDistFromRally > iFurthestDistFromRally then
+                    iFurthestDistFromRally = iCurDistFromRally
+                    oRecentlyAttackingTorpBomber = oUnit
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': oRecentlyAttackingTorpBomber after checking last recorded and unavailable torps='..(oRecentlyAttackingTorpBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oRecentlyAttackingTorpBomber) or 'nil')) end
     local iTorpBomberThreat = 0
     local tiWZWithTooMuchAA = {}
     local tiAnglesFromRallyOfWZWithTooMuchAA = {}
@@ -6431,8 +6485,14 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                                 oFurthestTorpFromRally = oTorp
                             end
                         end
+
                         if oFurthestTorpFromRally then
-                            M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber] = oFurthestTorpFromRally
+                            --Check we havent got a recently fired torp bomber who is even further away (unless it is only a bit further awawy)
+                            if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) and M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]:GetPosition(), tCurRally) > 10 + iFurthestDistToRally then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Wont update toFrontAttackingTorpBomber as we have a recently fired one that is further away, iFurthestDistToRally='..iFurthestDistToRally..'; Dist from rally for previously recorded attacking torp bomber='..M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]:GetPosition(), tCurRally)) end
+                            else
+                                M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber] = oFurthestTorpFromRally
+                            end
                         end
                     end
                 end
@@ -6690,8 +6750,21 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
         end
     end
 
+    --Update lastattackingtorp bomber if unavailable or previous entry is further from rally to current entry
+    if M28UnitInfo.IsUnitValid(oRecentlyAttackingTorpBomber) then
+        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) then
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber] = oRecentlyAttackingTorpBomber
+        else
+            local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+            local iFurthestDistFromRally = M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]:GetPosition(), tRallyPoint)
+            if M28Utilities.GetDistanceBetweenPositions(oRecentlyAttackingTorpBomber:GetPosition(), tRallyPoint) > iFurthestDistFromRally + 10 then
+                M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber] = oRecentlyAttackingTorpBomber
+            end
+        end
+    end
+
     --Send units for refueling
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished giving torp bomber orders, is table of air for refueling empty='..tostring(M28Utilities.IsTableEmpty(tBombersForRefueling))..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished giving torp bomber orders, is table of air for refueling empty='..tostring(M28Utilities.IsTableEmpty(tBombersForRefueling))..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies])..'; toFrontAttackingTorpBomber at end of code='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontAttackingTorpBomber]) or 'nil')) end
     --Run the function even if no units wanting refueling so already attached untis can be sent on their way
     SendUnitsForRefueling(tBombersForRefueling, iTeam, iAirSubteam)
     if bDebugMessages == true and M28Utilities.IsTableEmpty(tBombersForRefueling) == false then
