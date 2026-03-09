@@ -2863,26 +2863,47 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             end
 
             --Final adjustment - if have any recent nuke launch locations that are near either the rally point or support point,  then move away from here
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering moving rally point for nuke, is subrefNukeLaunchLocations empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]))) end
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
                 local iTimeThreshold = math.max(10, 60 * M28Map.iMapSize / 1000) + 10
                 local iReassessCount = 0
                 local iAngleToBase
                 local iDistThreshold = 60
-                if bDebugMessages == true then LOG(sFunctionRef..': Checking if air rally or support points are near a recent nuke launch location, Rally='..tostring(M28Conditions.IsTargetNearActiveNukeTarget(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iTeam, iDistThreshold, iTimeThreshold))..'; Support='..tostring(M28Conditions.IsTargetNearActiveNukeTarget(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iTeam, iDistThreshold, iTimeThreshold))) end
+                local bRallyIsntNear = true
+                local bSupportIsntNear = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if air rally or support points are near a recent nuke launch location, Rally='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..' is near nuke='..tostring(M28Conditions.IsTargetNearActiveNukeTarget(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iTeam, iDistThreshold, iTimeThreshold))..'; Support='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; is near nuke='..tostring(M28Conditions.IsTargetNearActiveNukeTarget(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iTeam, iDistThreshold, iTimeThreshold))) end
                 while M28Conditions.IsTargetNearActiveNukeTarget(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iTeam, iDistThreshold, iTimeThreshold) do
                     iReassessCount = iReassessCount + 1
                     if not(iAngleToBase) then iAngleToBase = M28Utilities.GetAngleFromAToB(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], tStartMidpoint) end
                     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iAngleToBase, iDistThreshold * iReassessCount, true, false, not(M28Map.bIsCampaignMap))
-                    if bDebugMessages == true then LOG(sFunctionRef..': Moving rally point due to nuke, iReassessCount='..iReassessCount) end
-                    if iReassessCount >= 5 then break end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Moving rally point due to nuke, iReassessCount='..iReassessCount..'; revised rally='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..'; iANgleToBase='..iAngleToBase..'; Distance='.. iDistThreshold * iReassessCount) end
+                    if iReassessCount >= 5 then
+                        bRallyIsntNear = false
+                        break
+                    end
                 end
                 iAngleToBase = nil
                 while M28Conditions.IsTargetNearActiveNukeTarget(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iTeam, iDistThreshold, iTimeThreshold) do
                     iReassessCount = iReassessCount + 1
                     if not(iAngleToBase) then iAngleToBase = M28Utilities.GetAngleFromAToB(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], tStartMidpoint) end
-                    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iAngleToBase, iDistThreshold * iReassessCount, true, false, not(M28Map.bIsCampaignMap))
-                    if bDebugMessages == true then LOG(sFunctionRef..': Moving support point due to nuke, iReassessCount='..iReassessCount) end
-                    if iReassessCount >= 5 then break end
+                    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iAngleToBase, iDistThreshold * iReassessCount, true, false, not(M28Map.bIsCampaignMap))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Moving support point due to nuke, iReassessCount='..iReassessCount..'; revised support location='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; dist='..iDistThreshold * iReassessCount) end
+                    if iReassessCount >= 5 then
+                        if bRallyIsntNear then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will use rally point instead of support point as support point still in range of nuke') end
+                            M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][3]}
+                        else
+                            bSupportIsntNear = false
+                        end
+                        break
+                    end
+                end
+                if bRallyIsntNear and not(bSupportIsntNear)
+                --Redundancy to be sure
+                and not(M28Conditions.IsTargetNearActiveNukeTarget(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iTeam, iDistThreshold, iTimeThreshold))
+                then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will make the rally point the air support point instead to avoid a nuke') end
+                    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][3]}
                 end
             end
             if bDebugMessages == true then
