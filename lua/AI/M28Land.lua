@@ -309,7 +309,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     local bUnitIsAttached
     if bUpdateTimeOfLastEnemyPositionCheck and not(bUseLastKnownPosition) then tLZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] = GetGameTimeSeconds() end
     if not(bUseLastKnownPosition) or (bUseLastKnownPosition and (tLZTeamData[M28Map.refiRadarCoverage] or 0) >= 70) then bUseActualPositionIfEnemy = true end
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iRecordedPlateau='..iRecordedPlateau..' iRecordedLandZone='..iRecordedLandZone..'; bAreAirUnits='..tostring(bAreAirUnits or false)..'; bUseLastKnownPosition='..tostring(bUseLastKnownPosition or false)..'; iTableSize='..iTableSize) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iRecordedPlateau='..iRecordedPlateau..' iRecordedLandZone='..iRecordedLandZone..'; bAreAirUnits='..tostring(bAreAirUnits or false)..'; bUseLastKnownPosition='..tostring(bUseLastKnownPosition or false)..'; iTableSize='..iTableSize..'; refiRadarCoverage='..(tLZTeamData[M28Map.refiRadarCoverage] or 0)) end
 
     for iOrigIndex=1, iTableSize do
         if not(tUnits[iOrigIndex]) or tUnits[iOrigIndex].Dead then
@@ -1136,8 +1136,8 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                             bConsiderAttacking = true
                             iEnemyToConsiderAttackingDist = 100000
                         end
-                        if bDebugMessages == true and oPrevEnemyToRunFrom then LOG(sFunctionRef..': oPrevEnemyToRunFrom='..oPrevEnemyToRunFrom.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPrevEnemyToRunFrom)..'; Dist to prev enemy='..M28Utilities.GetDistanceBetweenPositions(oPrevEnemyToRunFrom:GetPosition(), oScout:GetPosition())..'; Enemy range='..(oPrevEnemyToRunFrom[M28UnitInfo.refiDFRange] or 0)..'; Run threshold='..iRunThreshold..'; iLandZone='..iLandZone) end
-                        if not(bConsiderAttacking) and oPrevEnemyToRunFrom and not(oPrevEnemyToRunFrom.Dead) and M28Utilities.GetDistanceBetweenPositions(oPrevEnemyToRunFrom:GetPosition(), oScout:GetPosition()) - (oPrevEnemyToRunFrom[M28UnitInfo.refiDFRange] or 0) <= iRunThreshold and oPrevEnemyToRunFrom[M28UnitInfo.refiDFRange] <= 29 and not(EntityCategoryContains(categories.MOBILE, oPrevEnemyToRunFrom.UnitId) and not(oPrevEnemyToRunFrom:IsUnitState('Moving')) and not(oPrevEnemyToRunFrom:IsUnitState('Attacking'))) then
+                        if bDebugMessages == true and oPrevEnemyToRunFrom then LOG(sFunctionRef..': oPrevEnemyToRunFrom='..oPrevEnemyToRunFrom.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPrevEnemyToRunFrom)..'; Dist to prev enemy='..M28Utilities.GetDistanceBetweenPositions(oPrevEnemyToRunFrom:GetPosition(), oScout:GetPosition())..'; Dist based on last known position='..M28Utilities.GetDistanceBetweenPositions(oPrevEnemyToRunFrom[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition())..'; Enemy range='..(oPrevEnemyToRunFrom[M28UnitInfo.refiDFRange] or 0)..'; Run threshold='..iRunThreshold..'; iLandZone='..iLandZone) end
+                        if not(bConsiderAttacking) and oPrevEnemyToRunFrom and not(oPrevEnemyToRunFrom.Dead) and M28Utilities.GetDistanceBetweenPositions(oPrevEnemyToRunFrom[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oPrevEnemyToRunFrom[M28UnitInfo.refiDFRange] or 0) <= iRunThreshold and oPrevEnemyToRunFrom[M28UnitInfo.refiDFRange] <= 29 and not(EntityCategoryContains(categories.MOBILE, oPrevEnemyToRunFrom.UnitId) and not(oPrevEnemyToRunFrom:IsUnitState('Moving')) and not(oPrevEnemyToRunFrom:IsUnitState('Attacking'))) then
                             --Run from same enemy
                             oEnemyToRunFrom = oPrevEnemyToRunFrom
                         else
@@ -1203,7 +1203,9 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                                     if not(oEnemyToRunFrom) then
                                                         --Try to approximate case where enemy has a unit that is approaching our scout, and we are moving away, only to move back again - a human player would know to only move the scout a small bit to allow intel to catchup on the enemy unit; so will approximate that by having hte scout 'retreat' but not by much, if the enemy near
                                                         iActualCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
-                                                        if iActualCurDist - 5 <= iRunThreshold and (iActualCurDist - 3.5 <= iRunThreshold or oUnit:IsUnitState('Moving')) then
+                                                        if iActualCurDist - 5 <= iRunThreshold and (iActualCurDist - 3.5 <= iRunThreshold or oUnit:IsUnitState('Moving'))
+                                                        --If enemy has moved significantly from when we last had intel then dont run from them as we want the scout to refresh intel on that unit
+                                                        and (iCurDist - iActualCurDist <= 5) then
                                                             oEnemyToRunFrom = oUnit
                                                             bStandAlmostStill = true
                                                         end
@@ -11248,7 +11250,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     --Update unit positions and if still valid
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
         --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                               iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
-        UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateau,             iLandZone,          M28Map.bIsCampaignMap, false, tLZTeamData,  false,                      true)
+        UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateau,             iLandZone,          true, false, tLZTeamData,  false,                      true)
         if bDebugMessages == true then LOG(sFunctionRef..': Just ran updateunitpositions for enemy units in this zone') end
     end
 
