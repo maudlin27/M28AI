@@ -1319,19 +1319,27 @@ end
 function UpdateUnitLastKnownPosition(aiBrain, oUnit, bDontCheckIfCanSeeUnit, bInWaterZone)
     --Only updates the position if the unit isnt on the same team as us (to save space), since we can use :GetPosition() for allied units
     --Checks if the unti needs reassigning if it is a land or naval unit
-    local oUnitBrain = oUnit:GetAIBrain()
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateUnitLastKnownPosition'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local oUnitBrain = oUnit:GetAIBrain()
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, considering whether to update last known position, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' for iTeam='..aiBrain.M28Team..'; bDontCheckIfCanSeeUnit='..tostring(bDontCheckIfCanSeeUnit or false)..'; Cur dif in unit position and lastknownposition='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team])..'; Time='..GetGameTimeSeconds()) end
     if not(oUnitBrain == aiBrain or IsAlly(aiBrain:GetArmyIndex(), oUnitBrain:GetArmyIndex())) then
         if bDontCheckIfCanSeeUnit or M28UnitInfo.CanSeeUnit(aiBrain, oUnit) then
             if not(oUnit[M28UnitInfo.reftLastKnownPositionByTeam]) then oUnit[M28UnitInfo.reftLastKnownPositionByTeam] = {} end
             local tCurPosition = oUnit:GetPosition()
             oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team] = {tCurPosition[1], tCurPosition[2], tCurPosition[3]} --Do a copy of table as :GetPosition() means it will always update for the unit's latest position even when we lack intel of it
+            if bDebugMessages == true then LOG(sFunctionRef..': We can see the unit or we are ignoring if we can see unit, so updating last known position') end
         else
-            --Below to try and approximate scenarios where enemy retreats temporarily with the unit and we end up with units thinking the enemy is right infront of them (even though they can see the location it used to be to confirm it isnt there); will approximate by saying if we have friendly units in the same land zone as the last known position, then we can refresh its position
+            --Below to try and approximate scenarios where enemy retreats temporarily with the unit and we end up with units thinking the enemy is right infront of them (even though they can see the location it used to be to confirm it isnt there); will approximate by saying if we have friendly units in the same land zone as the last known position, and that position has changed by more than 10, then we can refresh its position
             if not(bInWaterZone) then
                 local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team])
-                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits]) == false
+                    --Require unit to have moved significnatly from last known position as want to limit use of this to get balance between AI recognising enemy no longer where it thinks it was, vs AI knowing where enemy actually is
+                        and (M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team]) >= 10)  then
                     local tCurPosition = oUnit:GetPosition()
+                    if bDebugMessages == true then LOG(sFunctionRef..': Updating unit last known position to actual since it has moved significantly further away and we have a unit in the same zone') end
                     oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team] = {tCurPosition[1], tCurPosition[2], tCurPosition[3]}
                 end
             else
@@ -1339,14 +1347,17 @@ function UpdateUnitLastKnownPosition(aiBrain, oUnit, bDontCheckIfCanSeeUnit, bIn
                 local iWaterZone = M28Map.tWaterZoneBySegment[iLastSegmentX][iLastSegmentZ]
                 if iWaterZone then
                     local iPond = M28Map.tiPondByWaterZone[iWaterZone]
-                    if M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                    if M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits]) == false
+                            and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team]) >= 10 then
                         local tCurPosition = oUnit:GetPosition()
+                        if bDebugMessages == true then LOG(sFunctionRef..': Updating unit last known position to actual since it has moved significantly further away and we have a unit in the same water zone') end
                         oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team] = {tCurPosition[1], tCurPosition[2], tCurPosition[3]}
                     end
                 end
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function DelayedUnitAssignmentForTeamSetup(aiBrain, oUnit)

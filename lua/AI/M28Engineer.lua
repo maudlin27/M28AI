@@ -3155,7 +3155,8 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] and not(aiBrain.M28Easy) then
                                 iCategoryWanted = M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                             else
-                                iCategoryWanted = (M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryGunship) * categories.EXPERIMENTAL - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
+                                iCategoryWanted = (M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryGunship) * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
+
                                 bGettingNonSeraphimAirExp = true
                                 --If have UEF and not other factions then include novax
                                 if bOnlyHaveUEF then
@@ -3691,7 +3692,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                             iCategoryWanted = nil
                                         end
                                     else
-                                        iCategoryWanted = (M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.EXPERIMENTAL - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
+                                        iCategoryWanted = (M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber) * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                                     end
                                     --If we have air control, or arent facing a threat from enemy land, then consider either exp bomber or yolona oss
                                     iCategoryWanted = M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
@@ -3836,7 +3837,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     end
                                     if bGetAirExperimentalInstead then
                                         bGettingNonSeraphimAirExp = true
-                                        iCategoryWanted = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
+                                        iCategoryWanted = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar - categories.TRANSPORTATION  - categories.DEFENSE * categories.STRUCTURE * categories.DIRECTFIRE - categories.TRANSPORTFOCUS - categories.STRUCTURE * categories.ANTIAIR
                                         if bDebugMessages == true then LOG(sFunctionRef..': Cybr will get exp air') end
                                     elseif not(bCanPathByLand) then
                                         if ScenarioInfo.Options.M28PrioritiseBPs == 2 then --dont want to prioritise certain units
@@ -13371,7 +13372,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Units needing air staging
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': About to check if we need air staging for core zone, Time='..GetGameTimeSeconds()..'; Time of last shortage='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to check if we need air staging for core zone, Time='..GetGameTimeSeconds()..'; Time of last shortage='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or 'nil')..'; subrefbTeamIsStallingEnergy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; T2+T3 mec count='..tLZTeamData[M28Map.subrefMexCountByTech][3] + tLZTeamData[M28Map.subrefMexCountByTech][2]..'; subrefiTeamGrossEnergy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; subrefiTeamGrossMass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or 0) <= 1.1 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 60*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (GetGameTimeSeconds() >= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 40*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2*M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
         --Limit of 3 air staging in a LZ
         local tExistingAirStaging = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirStaging, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
@@ -13405,6 +13406,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': Have flagged we want air staging with iBPWanted='..iBPWanted) end
         end
     end
+
 
     --Teammate asked for engi (core zone)
     iCurPriority = iCurPriority + 1

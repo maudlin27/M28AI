@@ -2196,6 +2196,7 @@ function MonitorEnemyNukeForIntel(oProjectile, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MonitorEnemyNukeForIntel'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for iTeam='..iTeam..'; oProjectile.Launcher='..(oProjectile.Launcher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oProjectile.Launcher) or 'nil')..'; Time='..GetGameTimeSeconds()) end
     if not(oProjectile:BeenDestroyed()) and oProjectile.GetCurrentTargetPosition then
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
@@ -2232,7 +2233,7 @@ function MonitorEnemyNukeForIntel(oProjectile, iTeam)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Exited the projectile monitor loop, bHaveIntel='..tostring(bHaveIntel)..'; Time='..GetGameTimeSeconds()) end
             if bHaveIntel then
-                MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oProjectile.Launcher, iTeam)
+                MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oProjectile.Launcher, iTeam, true)
             end
         end
     end
