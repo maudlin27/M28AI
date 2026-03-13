@@ -15,6 +15,8 @@ tUnitThreatByIDAndType = {} --Calculated at the start of the game
 tiThreatRefsCalculated = {} --table of the threat ID references that have done blueprint checks on
 bCustomThreatFactor = false --true if ScenarioInfo.Options.M28Aggression is not 1
 iThreatFactor = 1
+iLandThreatIgnoreHealthThreshold = 5 --If base threat value is < this then will just return base threat value
+iLandThreatJustConsiderHealthThreshold = 10 --If base threat value is < this then will return base threat * health %
 
 tbBuildOnLandLayerCaps = {['Land'] = true, ['Air'] = true, ['9'] = true, ['3'] = true, ['11'] = true} --used to translate the result of UnitBlueprint.Physics.BuildOnLayerCaps which doesnt return the table shown in the blueprint but instead returns one of these values (or 'Air' - which is what a czar returns)
 tbBuildOnWaterLayerCaps = {['Water'] = true, ['9'] = true, ['3'] = true, ['11'] = true, ['12'] = true}
@@ -928,8 +930,8 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                     if bDebugMessages == true then LOG(sFunctionRef..': iBaseThreat='..iBaseThreat..'; bJustGetMassValue='..tostring(bJustGetMassValue)..'; bCPUPerformanceMode='..tostring(M28Utilities.bCPUPerformanceMode)) end
                     if iBaseThreat > 0 then
                         if bJustGetMassValue then iCurThreat = iBaseThreat
-                        elseif M28Utilities.bCPUPerformanceMode then
-                            if iBaseThreat < 900 then iCurThreat = iBaseThreat
+                        elseif iBaseThreat < iLandThreatJustConsiderHealthThreshold then
+                            if iBaseThreat < iLandThreatIgnoreHealthThreshold then iCurThreat = iBaseThreat
                             else iCurThreat = iBaseThreat * oUnit:GetHealth() / oUnit:GetMaxHealth()
                             end
                         else
@@ -3434,5 +3436,18 @@ function GetUnitMaxIntelOrVisualRange(oUnit, bWaterZone, bSonarAndVisionOnly)
         end
     else
         return math.max((tIntel.VisionRadius or 0), (tIntel.RadarRadius or 0), (tIntel.OmniRadius or 0), (tIntel.MaxVisionRadius or 0))
+    end
+end
+
+
+function AdjustThreatThresholdsForConstructedExperimental(iConstructedCount)
+    if iLandThreatJustConsiderHealthThreshold < 900 then --e.g. ilshie is 360, so this means T2 and below get simpler logic applied
+        if iLandThreatJustConsiderHealthThreshold < 400 then
+            iLandThreatJustConsiderHealthThreshold = 400
+            iLandThreatIgnoreHealthThreshold = math.max(iLandThreatIgnoreHealthThreshold, 100)
+        elseif iConstructedCount >= 3 then
+            iLandThreatJustConsiderHealthThreshold = 400 + (iConstructedCount - 2) * 500 / 8
+            iLandThreatIgnoreHealthThreshold = 100 + (iConstructedCount - 2) * 500 / 8
+        end
     end
 end

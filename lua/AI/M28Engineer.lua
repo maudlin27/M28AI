@@ -8404,7 +8404,9 @@ function DelayedGEManagerCheck(tLZData, tLZTeamData, iTemplateRef, iPlateau, iLa
     local tTableRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef]
     if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTemplateRef='..iTemplateRef..'; subrefGEbActiveMonitor='..tostring(tTableRef[M28Map.subrefGEbActiveMonitor] or false)..'; is subrefGEEngineers empty='..tostring(M28Utilities.IsTableEmpty(tTableRef[M28Map.subrefGEEngineers]))..'; Time='..GetGameTimeSeconds()) end
     if not(tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef][M28Map.subrefGEbActiveMonitor]) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         GameEnderTemplateManager(tLZData, tLZTeamData, iTemplateRef, iPlateau, iLandZone, iTeam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -9719,6 +9721,7 @@ function ConsiderEmergencyPDReassignment(oEngiGivenPDOrder, tLZData, tLZMidpoint
                 --v223 - not sure why we were only clearing flag if we started construction, so decided to clear the flag either way after 3s (which should avoid infinite loop type scenarios)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitSeconds(3)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 tLZTeamData[M28Map.refbIgnoreEmergencyPDReassignmentLogic] = false
             end
         end
@@ -21934,7 +21937,9 @@ function HighValueReclaimOrder(iTeam, oWreck, tPosition)
                             end
                         end
                         if oEngineerToTryAndReclaim then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             TrackEngineerWithHighReclaimOrder(oEngineerToTryAndReclaim, oWreck, 1000)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                         end
                     end
                 end

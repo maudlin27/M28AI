@@ -33,6 +33,7 @@ iExtraTicksToWaitBetweenAirCycles = 0 --Set by ConsiderSlowdownForHighUnitCount;
 tbFullAirTeamCycleRun = {} --[x] = iteam, returns true if have run one full cycle
 tbFullAirSubteamCycleRun = {} --[x] = --iSubteam, returns true if have run one full cycle
 tiRecentExpBomberTargets = {} --when an experimental bomber fires, then will trakc here
+
 iBaseLowHealthThreshold = 0.55
 iProjectileLowHealthThreshold = 0.52 --should always be equal or lower than iBaseLowHealthThreshold
 iReclaimWantedForTransportDrop = 250 --i.e. amount of reclaim in amss to consider dropping for even if no mex
@@ -11928,15 +11929,22 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
 
 
     local tAvailableBombers, tBombersForRetreating, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL)
+
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableBombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; Is tUnavailableUnits empty='..tostring(M28Utilities.IsTableEmpty(tUnavailableUnits))) end
     local iOurExpBomberThreat = 0
     if M28Utilities.IsTableEmpty(tBombersForRetreating) == false then iOurExpBomberThreat = iOurExpBomberThreat + M28UnitInfo.GetAirThreatLevel(tBombersForRetreating, false, false, false, true, false, false) end
     if M28Utilities.IsTableEmpty(tUnavailableUnits) == false then iOurExpBomberThreat = iOurExpBomberThreat + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, false) end
 
-    if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+    --Skip a cycle if no orders last time
+    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoRecentExpBomberAttackOrders] then
+        --Do nothing
+        if bDebugMessages == true then LOG(sFunctionRef..': Skipping a cycle since bombers not got active targets') end
+        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoRecentExpBomberAttackOrders] = false
+    elseif M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+        local bGivenDifOrderToReturnToRally = false
         iOurExpBomberThreat = iOurExpBomberThreat + M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, true, false, false)
         local iTotalExpBombers = table.getn(tAvailableBombers)
-        
+
         local iBombersPerTick = math.max(1, math.ceil(iTotalExpBombers / 3)) --Logic can run slowly so want to spread it out over 3 ticks
         local iCurBomberPerTick = 0
 
@@ -12464,7 +12472,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                     end
                 else
                     --Have targets for bomber, send orders for targeting - if enemy has dangerous AA then target the closest such AA, otherwise pick the target that will deal the most damage
-
+                    bGivenDifOrderToReturnToRally = true
 
                     local oBestEnemyTarget
                     local iCurDamage
@@ -12765,11 +12773,19 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                 end
             end
         end
+        --Consider skipping the next cycle
+        if iTotalExpBombers >= 5 or (iTotalExpBombers >= 3 and M28Utilities.bCPUPerformanceMode) then
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoRecentExpBomberAttackOrders] = true
+        elseif bGivenDifOrderToReturnToRally or iTotalExpBombers <= 2 then
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoRecentExpBomberAttackOrders] = false
+        else
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoRecentExpBomberAttackOrders] = true
+        end
     end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurExpBomberThreat] = iOurExpBomberThreat
 
 
-    --Clear assignment flags for any refueling gunships
+    --Send retreating bombers to rally
     if M28Utilities.IsTableEmpty(tBombersForRetreating) == false then
         for iBomber, oBomber in tBombersForRetreating do
             if M28UnitInfo.IsUnitValid(oBomber) then
