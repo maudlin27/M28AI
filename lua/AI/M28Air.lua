@@ -5192,8 +5192,8 @@ function EnemyBaseEarlyBomber(oBomber)
                         --If we are targeting an enemy engineer that isn't too far from us then still attack it
                         local bAttackExistingTarget = false
                         if M28UnitInfo.IsUnitValid(oExistingValidAttackTarget) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Dist to existing target='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oExistingValidAttackTarget)..'; Bomber range='..(oBomber[M28UnitInfo.refiBomberRange] or 'nil')..'; Bomb missed count='..(oExistingValidAttackTarget[M28UnitInfo.refiBombMissedCount] or 'nil')) end
-                            if M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oExistingValidAttackTarget) <= 20 + (oBomber[M28UnitInfo.refiBomberRange] or 30) and (oExistingValidAttackTarget[M28UnitInfo.refiBombMissedCount] or 0) <= 1 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dist to existing target='..M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oExistingValidAttackTarget:GetPosition())..'; Bomber range='..(oBomber[M28UnitInfo.refiBomberRange] or 'nil')..'; Bomb missed count='..(oExistingValidAttackTarget[M28UnitInfo.refiBombMissedCount] or 'nil')) end
+                            if M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oExistingValidAttackTarget:GetPosition()) <= 20 + (oBomber[M28UnitInfo.refiBomberRange] or 30) and (oExistingValidAttackTarget[M28UnitInfo.refiBombMissedCount] or 0) <= 1 then
                                 bAttackExistingTarget = true
                                 AssignTorpOrBomberTargets({ oBomber}, { oExistingValidAttackTarget }, iAirSubteam, false, false, true)
                                 if bDebugMessages == true then LOG(sFunctionRef..': will keep attacking existing target') end
@@ -5316,7 +5316,7 @@ function EnemyBaseEarlyBomber(oBomber)
                                 iTicksToWait = 1 --Just to avoid infinite loop risk
                             else
                                 if M28UnitInfo.IsUnitValid(oNearestEnemy) then
-                                    M28Orders.IssueTrackedAttack(oBomber, oNearestEnemy, false, 'BaseBmAt', oBomber[M28UnitInfo.refbLowerPriorityMicroActive])
+                                    M28Orders.IssueTrackedAttack(oBomber, oNearestEnemy, false, 'BaseBmAt'..oNearestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemy), oBomber[M28UnitInfo.refbLowerPriorityMicroActive])
                                 else --redundancy
                                     if bDebugMessages == true then LOG(sFunctionRef..': WIll use normal bomber attack logic') end
                                     AssignTorpOrBomberTargets({ oBomber}, tEnemyTargets, iAirSubteam, false, false, true)
