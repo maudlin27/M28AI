@@ -2005,6 +2005,15 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if oFactory[refbWantMoreEngineersBeforeUpgrading] and not(bHaveLowMass) and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Conditions.CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory) then
         if bDebugMessages == true then LOG(sFunctionRef..': We want more engineers in order to upgrade') end
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        --Also priority engis to get reclaim at core base
+    elseif (not(bHaveHighestLZTech) or iFactoryTechLevel == 1) and tLZTeamData[M28Map.subrefLZbCoreBase] and tLZData[M28Map.subrefTotalMassReclaim] >= 2000 and tLZTeamData[M28Map.subrefTbWantBP] and (tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1] or 0) > 0 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 then
+        --Want half of factories building engineers
+        local iEngisUnderConstruction = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryEngineer)
+        if bDebugMessages == true then LOG(sFunctionRef..': Lots of reclaim in core base so want at leat half of factories building engineers, iEngisUnderConstruction='..iEngisUnderConstruction..'; iLandFactoriesInLZ='..iLandFactoriesInLZ..'; Air facs in zone='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryAirFactory)) end
+        if  iEngisUnderConstruction < iLandFactoriesInLZ * 0.5 or (iEngisUnderConstruction < iLandFactoriesInLZ and iEngisUnderConstruction < (iLandFactoriesInLZ + M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryAirFactory)) * 0.5) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will get another engi') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
     end
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1

@@ -71,6 +71,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbActiveT1PowerReclaimer = 'M28TeamActiveT1PowerReclaimer'
     subrefbActiveT2PowerReclaimer = 'M28TeamActiveT2PowerReclaimer'
     refbJustBuiltLotsOfPower = 'M28TeamJustBuiltPower' --temporarily set to true after building an early T2/T3 PGen so we dont think for hte few seconds after building it that we are power stalling if we have low % of power
+    refiTimeEndingActiveCheckOfLotsOfPower = 'M28TJBPAcC' --gametimeseconds if we are actively monitoring when to set refbJustBuiltLotsOfPower to false
     subrefiLowestEnergyStorageCount = 'M28TeamLowestEStorage' --Lowest number of EStorage owned by an M28 brain on the team
     subrefiGrossEnergyWhenStalled = 'M28TeamGrossEWhenStalled' --Amount of energy team had (gross) when we had a power stall
     refiTimeOfLastEnergyStall = 'M28TeamTimeOfLastEnergyStall'
