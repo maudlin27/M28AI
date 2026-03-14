@@ -2489,7 +2489,9 @@ function SendWarningWhenHaveVisualOnEnemy(aiBrain, oUnit)
                         fnSendMessage()
                         break
                     end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitSeconds(2)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 end
             end
         end

@@ -1054,7 +1054,7 @@ function HaveLowPower(iTeam)
 
     if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 80000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 80000 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 1) * (M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] or 1) and not(M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon])))
          or (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.5) then --Paragon gives 1000000 per sec I think
-        if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then
+        if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.8) then
             if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.95)
                     or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]
                     or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] then

@@ -520,7 +520,11 @@ function M28BrainCreated(aiBrain)
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains, will also fork various threads including for overwhelm, Overwhelm rate='..tonumber(ScenarioInfo.Options.M28OvwR or tostring(0))..'; ScenarioInfo.Options.M28OvwT='..(ScenarioInfo.Options.M28OvwT or 'nil')) end
         M28Utilities.bM28AIInGame = true
         --Specify if performance mode enabled
-        if ScenarioInfo.Options.M28CPUPerformance == 1 then M28Utilities.bCPUPerformanceMode = true end
+        if ScenarioInfo.Options.M28CPUPerformance == 1 and not(M28Utilities.bCPUPerformanceMode) then
+            M28Utilities.bCPUPerformanceMode = true
+            M28UnitInfo.iLandThreatIgnoreHealthThreshold = 900
+            M28UnitInfo.iLandThreatJustConsiderHealthThreshold = 500000
+        end
         --LOG('M28 in game 3')
 
         --Get the first non-human M28Brain

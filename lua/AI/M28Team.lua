@@ -71,6 +71,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbActiveT1PowerReclaimer = 'M28TeamActiveT1PowerReclaimer'
     subrefbActiveT2PowerReclaimer = 'M28TeamActiveT2PowerReclaimer'
     refbJustBuiltLotsOfPower = 'M28TeamJustBuiltPower' --temporarily set to true after building an early T2/T3 PGen so we dont think for hte few seconds after building it that we are power stalling if we have low % of power
+    refiTimeEndingActiveCheckOfLotsOfPower = 'M28TJBPAcC' --gametimeseconds if we are actively monitoring when to set refbJustBuiltLotsOfPower to false
     subrefiLowestEnergyStorageCount = 'M28TeamLowestEStorage' --Lowest number of EStorage owned by an M28 brain on the team
     subrefiGrossEnergyWhenStalled = 'M28TeamGrossEWhenStalled' --Amount of energy team had (gross) when we had a power stall
     refiTimeOfLastEnergyStall = 'M28TeamTimeOfLastEnergyStall'
@@ -293,6 +294,7 @@ tAirSubteamData = {}
     subrefiOurT1ToT3BomberThreat = 'M28ASTOurBomb' --Our bomber threat; also used as a team variable
     subrefiOurExpBomberThreat = 'M28ASTXpBmb' --our threat in experimental bombers; also used as a team variable
 
+    refbNoRecentExpBomberAttackOrders = 'M28AExpBA' --true if we just sent any available exp bombers to rally last cycle and it's been a while sine they've fired (so can wait longer before considering new orders)
     refbTooMuchGroundNavalAAForTorpBombers = 'M28TooMuchAAForTorps' --true if have avoided targeting a water zone with torps due to groundAA threat in a water zone
     refbNoAvailableTorpsForEnemies = 'M28NoAvailTorps' --true if have enemy naval unit in a wz we want to defend, and we lack available torp bombers
     refbNoAirAAForCoreEnemies = 'M28NoAirAAAv' --true if we have no airaa units to manage or ran out of airaa when trying to attack enemy
@@ -4696,23 +4698,61 @@ function MonitorEnemyMobileTMLThreats(iTeam)
         tTeamData[iTeam][refbActiveMobileTMLMonitor] = true
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy mobile TML empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]))) end
         local iCurTableSize = 0
-        local bLargeTable
         local iMinTickDelay = 50
+        local iDistFromLastCheck, iTimeFromLastCheck
+
+        local iMinDistToHaveMoved
+        local iModerateDistToHaveMoved
+        local iMinSecondsSinceLastCheck
+        local iMaxSecondsSinceLastCheck
+
+        local iLargeTableSize = 40
+        local iSmallTableSize = 10
+        local iPercentageTableSize
+
+
         while M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]) == false do
             local iTicksWaitedThisCycle = 0
             if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iTeam][reftEnemyMobileTML]) then
                 iCurTableSize = table.getn(tTeamData[iTeam][reftEnemyMobileTML])
-                if iCurTableSize >= 40 then
-                    bLargeTable = true
+
+                if iCurTableSize >= iLargeTableSize then
+                    iMinDistToHaveMoved = 15
+                    iModerateDistToHaveMoved = 60
+                    iMinSecondsSinceLastCheck = 10
+                    iMaxSecondsSinceLastCheck = 90
                     iMinTickDelay = 100
-                else
-                    bLargeTable = false
+
+                elseif iCurTableSize <= iSmallTableSize then
+                    iMinDistToHaveMoved = 5
+                    iModerateDistToHaveMoved = 15
+                    iMinSecondsSinceLastCheck = 3
+                    iMaxSecondsSinceLastCheck = 30
                     iMinTickDelay = 50
+                else
+                    iPercentageTableSize = (iCurTableSize - iSmallTableSize)/(iLargeTableSize - iSmallTableSize)
+                    iMinDistToHaveMoved = 5 + 10 * iPercentageTableSize
+                    iModerateDistToHaveMoved = 15 + 45 * iPercentageTableSize
+                    iMinSecondsSinceLastCheck = 3 + 7 * iPercentageTableSize
+                    iMaxSecondsSinceLastCheck = 30 + 60 * iPercentageTableSize
+                    iMinTickDelay = 50 + 50 * iPercentageTableSize
                 end
+                if M28Utilities.bCPUPerformanceMode then
+                    iMinDistToHaveMoved = iMinDistToHaveMoved + 5
+                    iModerateDistToHaveMoved = iModerateDistToHaveMoved + 10
+                    iMinSecondsSinceLastCheck = iMinSecondsSinceLastCheck + 5
+                    iMaxSecondsSinceLastCheck = iMaxSecondsSinceLastCheck + 30
+                end
+
                 --oUnit[refbRecentlyCheckedTMDOrTML]
                 for iUnit, oUnit in tTeamData[iTeam][reftEnemyMobileTML] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to update oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Cur position='..repru(oUnit:GetPosition())..'; Last location checked='..repru(oUnit[M28Building.reftMobileTMLLastLocationChecked])..'; Time since last hceck='..GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -1000)) end
-                    if (not(bLargeTable) and (not(oUnit[M28Building.reftMobileTMLLastLocationChecked]) or GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 30 or M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 10 or oUnit[M28Building.refbTMDBuiltSinceLastChecked]) or (bLargeTable and (GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 60 or (GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 20 and M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 15)))) then
+                    if oUnit[M28Building.reftMobileTMLLastLocationChecked] then iDistFromLastCheck = M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition())
+                    else iDistFromLastCheck = 10000
+                    end
+                    iTimeFromLastCheck = GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100)
+                    if iTimeFromLastCheck >= iMaxSecondsSinceLastCheck
+                            or (iDistFromLastCheck >= iMinDistToHaveMoved and iTimeFromLastCheck >= iMinSecondsSinceLastCheck and (iDistFromLastCheck >= iModerateDistToHaveMoved or (oUnit[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] <= 5 and oUnit[M28Building.refbTMDBuiltSinceLastChecked]))) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will record units in range of TML now') end
                         M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit, nil, false)
                         oUnit[M28Building.refbTMDBuiltSinceLastChecked] = false
@@ -5800,7 +5840,9 @@ function ConsiderTMLForLongRangeEnemyThreat(iTeam)
                         end
                     end
                     while M28UnitInfo.IsUnitValid(oClosestLREnemy) do --i.e. if the unit we built TML in response to is dead, then dont consider others
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         WaitTicks(M28Land.iTicksPerLandCycle)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     end
                     --Clear the LZ flag if hte unit we built TML battery in response to is dead, and free up monitor so can build in another zone if needed
                     tLZTeamData[M28Map.refbGetTMLBattery] = false

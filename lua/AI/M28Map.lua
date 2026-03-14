@@ -4141,14 +4141,20 @@ function DelayedConsiderationOfWhetherToIgnoreFriendlyBase(tLZData, tLZTeamData,
         if iConstructedFactories == 0 and GetGameTimeSeconds() >= 180 then
             if tLZTeamData[subrefLZTThreatAllyCombatTotal] <= tLZTeamData[subrefTThreatEnemyCombatTotal] or (tLZTeamData[subrefThreatEnemyStructureTotalMass] or 0) > 30 and tLZTeamData[subrefMexCountByTech][1] + tLZTeamData[subrefMexCountByTech][2] + tLZTeamData[subrefMexCountByTech][3] < math.min(tLZData[subrefLZOrWZMexCount], 2)  then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will update closest ally and enemy and closest friendlybase in particular') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, false, true)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': will call delayed consideration again1') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 DelayedConsiderationOfWhetherToIgnoreFriendlyBase(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, math.min(30, iDelayInSeconds + 5))
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiOrigM28BrainCount] > M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then --redundancy (have this condition earlier as well)
             if bDebugMessages == true then LOG(sFunctionRef..': will call delayed consideration again2') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             DelayedConsiderationOfWhetherToIgnoreFriendlyBase(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, math.min(30, iDelayInSeconds + 5))
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

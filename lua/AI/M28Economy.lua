@@ -839,7 +839,6 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptio
             local sFunctionRef = 'UpdateGrossIncomeForUnit'
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
             if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..' oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDestroyed='..tostring(bDestroyed or false)..': Unit aiBrain='..oUnit:GetAIBrain().Nickname..'; Brain recorded for economy='..((oUnit[refoBrainRecordedForEconomy] or {'nil'}).Nickname or 'nil')..'; Fraction complete='..oUnit:GetFractionComplete()) end
             if oUnit:GetFractionComplete() < 1 then M28Utilities.ErrorHandler('Trying to update income for unit whose fraction isnt complete') end
 
@@ -974,9 +973,29 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptio
                     --Set temporary flag that we have just built a lot of power (if we have)
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if should temporarily say we have enough power; iEnergyGen='..iEnergyGen..'; Gross energy='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] or 'nil')..'; Net energy='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] or 'nil')..'; Flag for lots of power='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbJustBuiltLotsOfPower] or false)) end
                     if iEnergyGen >= math.max(20, (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] or 0) * 0.15, -(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] or 0)) and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbJustBuiltLotsOfPower]) then
-                        M28Team.tTeamData[aiBrain.M28Team][M28Team.refbJustBuiltLotsOfPower] = true
-                        M28Utilities.DelayChangeVariable(M28Team.tTeamData[aiBrain.M28Team], M28Team.refbJustBuiltLotsOfPower, false, 6)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Just built a lot of power so will temporarily say we dont need more power') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Setting flag we have built lots of power, subrefiTeamNetEnergy='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] or 0)) end
+                        local iTeam = aiBrain.M28Team
+
+                        local iTimeToWait = 6
+                        if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 2 then
+                            local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
+                            if iUnitTechLevel > 1 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] or 0) >= iEnergyGen * 0.2 then
+                                iTimeToWait = math.max(6, math.min(30, M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] / math.max(0.1, M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored])))
+                            end
+                            if iTimeToWait < 10 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] or 0) >= iEnergyGen * 0.1 and (M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < -1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < -M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4)) then
+                                iTimeToWait = 10
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Just built a lot of power so will temporarily say we dont need more power, iTimeToWait='..iTimeToWait..'; refiTimeEndingActiveCheckOfLotsOfPower='..(M28Team.tTeamData[iTeam][M28Team.refiTimeEndingActiveCheckOfLotsOfPower] or 'nil')) end
+                        if iTimeToWait <= 6 then
+                            if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then
+                                M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] = true
+                                M28Utilities.DelayChangeVariable(M28Team.tTeamData[aiBrain.M28Team], M28Team.refbJustBuiltLotsOfPower, false, iTimeToWait)
+                            end
+                        else
+                            M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] = true
+                            ForkThread(JustBuiltSignificantPowerMonitor, aiBrain.M28Team, iTimeToWait, iEnergyGen) --This includes a check if we are already acitvely monitoring
+                        end
                     end
                     --Update team eco values to factor in impact of this on any decisions made before the next team eco refresh
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] = math.max(0, (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 0) + iMassGen)
@@ -3813,5 +3832,31 @@ function UnpausePausedMexFollowingUpgrade(oJustBuilt, bBuiltMexCanUpgrade)
             end
 
         end
+    end
+end
+
+function JustBuiltSignificantPowerMonitor(iTeam, iMaxTimeToWait, iEnergyGenPerTick)
+    --Called if we have built first 1-2 T2-T3 pgen on the team and want to wait more than standard 6s before resetting
+    local iTimeToStopMonitoring = GetGameTimeSeconds() + iMaxTimeToWait
+    if iTimeToStopMonitoring > (M28Team.tTeamData[iTeam][M28Team.refiTimeEndingActiveCheckOfLotsOfPower] or -1) then
+        M28Team.tTeamData[iTeam][M28Team.refiTimeEndingActiveCheckOfLotsOfPower] = iTimeToStopMonitoring
+        local iEnergyStoredAtStart = M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored]
+        local iAverageEnergyStoredAtStart = M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]
+        local iNetEnergyWanted = iEnergyGenPerTick * 0.1
+        local iTimeWaited = 6
+        WaitSeconds(iTimeWaited)
+
+        while (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iNetEnergyWanted or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] > iEnergyStoredAtStart and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > -2 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < -1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < -M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4))) do
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] > iEnergyStoredAtStart or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] > iAverageEnergyStoredAtStart then
+                --Do nothing
+            else
+                break
+            end
+            WaitSeconds(1)
+            iTimeWaited = iTimeWaited + 1
+            if iTimeWaited >= iMaxTimeToWait then break end
+        end
+        M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] = false
+        M28Team.tTeamData[iTeam][M28Team.refiTimeEndingActiveCheckOfLotsOfPower] = nil
     end
 end

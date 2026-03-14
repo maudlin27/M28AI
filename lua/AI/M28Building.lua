@@ -1375,9 +1375,10 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
                     if bDebugMessages == true then LOG(sFunctionRef..': iCurLaunchers='..iCurLaunchers..'; oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..'; Is table of TMD covering this unit empty='..tostring(M28Utilities.IsTableEmpty(oTMD[reftTMDCoveringThisUnit]))) end
                     if iCurLaunchers > 1 then
                         iCurTMD = 1
-                        for iLauncher, oLauncher in oTMD[toLaunchersIntercepted] do
-                            RecordUnitsInRangeOfTMLAndAnyTMDProtection(oLauncher, { oTMD }, false)
-                        end
+                        --v290 - tried moving the below line to the M28Event that adds the TML to table of intercepted TML to see if it helps with optimisation
+                        --for iLauncher, oLauncher in oTMD[toLaunchersIntercepted] do
+                            --RecordUnitsInRangeOfTMLAndAnyTMDProtection(oLauncher, { oTMD }, false)
+                        --end
                         if M28Utilities.IsTableEmpty(oTMD[reftTMDCoveringThisUnit]) then iCurTMD = 1
                         else iCurTMD = table.getn(oTMD[reftTMDCoveringThisUnit]) end
                         if iCurLaunchers > iCurTMD - 1 or (iCurLaunchers >= 4 and iCurLaunchers > math.min(iCurTMD - 2, iCurTMD * 0.6)) then

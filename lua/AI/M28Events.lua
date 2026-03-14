@@ -2501,6 +2501,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and rebuild the experimental we just built, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; iAction='..iAction) end
                             end
                         end
+
+                        --Performance mode
+                        M28UnitInfo.AdjustThreatThresholdsForConstructedExperimental(M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount])
                         --Loud T2 sniperbots - consider enhancement
                     elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and oJustBuilt.UnitId == 'ual0204' and (M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 15 or EntityCategoryContains(categories.TECH3, oEngineer.UnitId)) then
                         ForkThread(M28Land.DelayedGetFirstEnhancementOnUnit, oJustBuilt, 6)
@@ -4483,7 +4486,10 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position, oProjectile)
                                 end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': About to record oLauncher against TMD table of launchers intercepted if not already recorded, bRecordedAlready='..tostring(bRecordedAlready)..'; oTMD[M28Building.refiTimeTMDHitMissile]='..(oTMD[M28Building.refiTimeTMDHitMissile] or 'nil')..'; oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)) end
-                            if not(bRecordedAlready) then table.insert(oTMD[M28Building.toLaunchersIntercepted], oLauncher) end
+                            if not(bRecordedAlready) then
+                                table.insert(oTMD[M28Building.toLaunchersIntercepted], oLauncher)
+                                M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oLauncher, { oTMD }, false)
+                            end
                         end
                     end
                 end
