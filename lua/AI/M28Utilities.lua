@@ -857,7 +857,7 @@ function GetAverageOfUnitPositions(tUnits)
     for iUnit, oUnit in tUnits do
         if not(oUnit.Dead) then
             tTotalPos[1] = tTotalPos[1] + oUnit:GetPosition()[1]
-            tTotalPos[3] = tTotalPos[1] + oUnit:GetPosition()[3]
+            tTotalPos[3] = tTotalPos[3] + oUnit:GetPosition()[3]
             iLocationCount = iLocationCount + 1
         end
     end
