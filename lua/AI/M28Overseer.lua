@@ -525,6 +525,7 @@ function M28BrainCreated(aiBrain)
             M28UnitInfo.iLandThreatIgnoreHealthThreshold = 900
             M28UnitInfo.iLandThreatJustConsiderHealthThreshold = 500000
         end
+        if import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling then M28Utilities.ErrorHandler('Debut mode is enabled') end
         --LOG('M28 in game 3')
 
         --Get the first non-human M28Brain
