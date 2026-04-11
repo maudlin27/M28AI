@@ -731,7 +731,7 @@ function CreateNewTeam(aiBrain)
 
         --if not(oBrain.M28Team) then
         bAlreadyRecordedBrain = false
-        if oBrain == aiBrain or (IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain))) then
+        if oBrain == aiBrain or ((not(ScenarioInfo.Options.CommonArmy or (not(aiBrain.M28AI and M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains])))) and IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)))) then
             --Have we already recorded this as an ally?
             if M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains]) == false then
                 for iRecorded, oRecorded in tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains] do

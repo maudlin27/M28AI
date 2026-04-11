@@ -459,7 +459,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
 end
 
 function M28BrainCreated(aiBrain)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'M28BrainCreated'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -517,7 +517,7 @@ function M28BrainCreated(aiBrain)
         bInitialSetup = true
         local LoudCompatibility = import('/mods/M28AI/lua/AI/LOUD/M28OtherLOUDCompatibility.lua')
         if not(M28Utilities.bFAFActive) or not(_G.reprs) then LoudCompatibility.AddReprCommands() end --If LOUD is active will have already called this
-        if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains, will also fork various threads including for overwhelm, Overwhelm rate='..tonumber(ScenarioInfo.Options.M28OvwR or tostring(0))..'; ScenarioInfo.Options.M28OvwT='..(ScenarioInfo.Options.M28OvwT or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains, will also fork various threads including for overwhelm, Overwhelm rate='..tonumber(ScenarioInfo.Options.M28OvwR or tostring(0))..'; ScenarioInfo.Options.M28OvwT='..(ScenarioInfo.Options.M28OvwT or 'nil')..'; reprs of ScenarioInfo.Options='..reprs(ScenarioInfo.Options)) end
         M28Utilities.bM28AIInGame = true
         --Specify if performance mode enabled
         if ScenarioInfo.Options.M28CPUPerformance == 1 and not(M28Utilities.bCPUPerformanceMode) then
