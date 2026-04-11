@@ -140,7 +140,7 @@ function GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
 end
 
 function RefreshWaterRallyPoints(iTeam, iPond)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshWaterRallyPoints'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for team '..iTeam..' at time='..GetGameTimeSeconds()) end
