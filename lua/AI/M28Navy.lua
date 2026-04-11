@@ -3545,6 +3545,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
     function RetreatAllUnits(tUnitsToRetreat) --intended for availablecoombatunits and/or availablesubmarines
         local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+        if M28Map.bIsCampaignMap and not(M28Conditions.IsLocationInPlayableArea(tAmphibiousRallyPoint)) then tAmphibiousRallyPoint = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]} end
 
         for iUnit, oUnit in tUnitsToRetreat do
             --Only retreat units from this WZ
@@ -4408,6 +4409,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         tSubRallyPoint = tRallyPoint
                     end
                     local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                    if M28Map.bIsCampaignMap and not(M28Conditions.IsLocationInPlayableArea(tAmphibiousRallyPoint)) then tAmphibiousRallyPoint = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]} end
                     local iAmphibiousRallyPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tAmphibiousRallyPoint)
                     for iUnit, oUnit in tAvailableSubmarines do
                         --Only retreat units from this WZ
@@ -5295,6 +5297,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                 if M28Map.GetWaterZoneFromPosition(tSubRallyPoint) == iWaterZone then bAttackMoveIfRallyPointIsClose = true end
                             end
                             local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                            if M28Map.bIsCampaignMap and not(M28Conditions.IsLocationInPlayableArea(tAmphibiousRallyPoint)) then tAmphibiousRallyPoint = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]} end
                             local iAmphibiousRallyPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tAmphibiousRallyPoint)
 
 
@@ -5407,6 +5410,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
 
     local tRallyPoint = GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
     local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+    if M28Map.bIsCampaignMap and not(M28Conditions.IsLocationInPlayableArea(tAmphibiousRallyPoint)) then tAmphibiousRallyPoint = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]} end
     local iResisueOrderDistanceHover = 15
 
     --First split the MAA into those that need to run (due to being in range of DF units) and those that can advance

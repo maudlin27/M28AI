@@ -2979,6 +2979,28 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 end
             end
 
+            --Campaign - if not in playable area then change
+            if M28Map.bIsCampaignMap then
+                if not(M28Conditions.IsLocationInPlayableArea(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) then
+                    --Update the rally point
+                    local tLocation = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+                    if tLocation[1] < M28Map.rMapPlayableArea[1] then
+                        tLocation[1] = M28Map.rMapPlayableArea[1]
+                    elseif tLocation[1] > M28Map.rMapPlayableArea[3] then
+                        tLocation[1] = M28Map.rMapPlayableArea[3]
+                    end
+                    if tLocation[3] < M28Map.rMapPlayableArea[2] then
+                        tLocation[3] = M28Map.rMapPlayableArea[2]
+                    elseif tLocation[3] > M28Map.rMapPlayableArea[4] then
+                        tLocation[3] = M28Map.rMapPlayableArea[4]
+                    end
+                    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = {tLocation[1], tLocation[2], tLocation[3]}
+                end
+                if not(M28Conditions.IsLocationInPlayableArea(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])) then
+                    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][3]}
+                end
+            end
+
             --Final adjustment - if have any recent nuke launch locations that are near either the rally point or support point,  then move away from here
             if bDebugMessages == true then LOG(sFunctionRef..': Considering moving rally point for nuke, is subrefNukeLaunchLocations empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]))) end
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
@@ -3032,8 +3054,8 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             M28Utilities.ErrorHandler('No air support point for air subteam '..iAirSubteam)
         end
     end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function GetUnitAirStagingSize(oUnit)
     --Manually confirmed - ambassador takes up 4 spaces, janus, inties and asf take up 1, broadswords and solace take up 2 spaces

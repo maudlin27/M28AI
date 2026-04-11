@@ -193,7 +193,9 @@ function OnACUKilled(oUnit)
                 tLZOrWZData = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartZone]
                 tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
             end
-            ForkThread(M28Map.DelayedConsiderationOfWhetherToIgnoreFriendlyBase, tLZOrWZData, tLZOrWZTeamData, aiBrain.M28Team, iStartPlateauOrZero, iStartZone, M28Land.iTicksPerLandCycle * 0.1 + 0.1)
+            if M28Utilities.IsTableEmpty(tLZOrWZTeamData) == false then
+                ForkThread(M28Map.DelayedConsiderationOfWhetherToIgnoreFriendlyBase, tLZOrWZData, tLZOrWZTeamData, aiBrain.M28Team, iStartPlateauOrZero, iStartZone, M28Land.iTicksPerLandCycle * 0.1 + 0.1)
+            end
         end
 
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

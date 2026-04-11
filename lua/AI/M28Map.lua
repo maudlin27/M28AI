@@ -9403,24 +9403,43 @@ function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
                         local iStartPlateauOrZero, iStartLandZone = GetClosestPlateauOrZeroAndZoneToPosition(tCurStartPosition)
                         local tCurStartLZData, tCurStartLZTeamData = GetLandOrWaterZoneData(tCurStartPosition, true, iTeam)
                         local bStartNoLongerAppropriate = false
-                        if (tCurStartLZTeamData[subrefLZSValue] or 0) <= 5000 then
+                        if not(M28Conditions.IsLocationInPlayableArea(tCurStartLZData[subrefMidpoint])) then
+                            bStartNoLongerAppropriate = true
+                        elseif (tCurStartLZTeamData[subrefLZSValue] or 0) <= 5000 then
                             bStartNoLongerAppropriate = not(DoesZoneContainHQ(tCurStartLZData, iTeam))
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Checking if brain '..oBrain.Nickname..' still has an appropriate start point, bStartNoLongerAppropriate='..tostring(bStartNoLongerAppropriate)..'; LZ S value='..(tCurStartLZTeamData[subrefLZSValue] or 'nil')..'; Does it contain an HQ='..tostring(DoesZoneContainHQ(tCurStartLZData, iTeam))) end
                         if bStartNoLongerAppropriate then
                             --Cycle through every plateau and land zone looking for a core base, and see if the core base has factory HQs in it
                             local tbPlateauAndZoneShortlist = {}
+                            local tbBackupPlateauAndZoneShortlist = {}
                             for iPlateau, tPlateauSubtable in tAllPlateaus do
                                 if M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauLandZones]) == false then
                                     for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
                                         if tLZData[subrefLZTeamData][iTeam][subrefLZbCoreBase] then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Found a core base, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandZone='..iStartLandZone..'; Does zone contain HQ='..tostring(DoesZoneContainHQ(tLZData, iTeam))) end
                                             --Check it contains HQ (otherwise we might be considering the existing one/similar)
-                                            if not (iPlateau == iStartPlateauOrZero and iLandZone == iStartLandZone) and DoesZoneContainHQ(tLZData, iTeam) then
+                                            if not (iPlateau == iStartPlateauOrZero and iLandZone == iStartLandZone) and M28Conditions.IsLocationInPlayableArea(tLZData[subrefMidpoint]) and DoesZoneContainHQ(tLZData, iTeam) then
                                                 if not(tbPlateauAndZoneShortlist[iPlateau]) then tbPlateauAndZoneShortlist[iPlateau] = {} end
                                                 tbPlateauAndZoneShortlist[iPlateau][iLandZone] = true
                                             end
                                         end
+                                    end
+                                    if M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist[iPlateau]) then
+                                        --Look for any zones with factories in, and add zones with buildings (not factories) to backup list - i.e. remove the core base flag requirement
+                                        for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+                                            if not (iPlateau == iStartPlateauOrZero and iLandZone == iStartLandZone) and M28Conditions.IsLocationInPlayableArea(tLZData[subrefMidpoint]) then
+                                                --Do we have factories of any kind in here?
+                                                if DoesZoneContainHQ(tLZData, iTeam) then
+                                                    if not(tbPlateauAndZoneShortlist[iPlateau]) then tbPlateauAndZoneShortlist[iPlateau] = {} end
+                                                    tbPlateauAndZoneShortlist[iPlateau][iLandZone] = true
+                                                elseif (tLZData[subrefLZTeamData][iTeam][subrefLZSValue] or 0) > 0 then
+                                                    if not(tbBackupPlateauAndZoneShortlist[iPlateau]) then tbBackupPlateauAndZoneShortlist[iPlateau] = {} end
+                                                    tbBackupPlateauAndZoneShortlist[iPlateau][iLandZone] = true
+                                                end
+                                            end
+                                        end
+                                        if M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist[iPlateau]) then tbPlateauAndZoneShortlist[iPlateau] = tbBackupPlateauAndZoneShortlist[iPlateau] end
                                     end
                                 end
                             end
