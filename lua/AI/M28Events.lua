@@ -1647,7 +1647,7 @@ function OnWeaponFired(oWeapon)
                             end
                         end
                         if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
-                            if oUnit:GetNukeSiloAmmoCount() >= 1 then
+                            if (oUnit.GetNukeSiloAmmoCount and oUnit:GetNukeSiloAmmoCount() >= 1) or (oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() >= 1) then
                                 oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 240 - M28Building.iTimeForSMDToBeConstructed
                             else
                                 oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - M28Building.iTimeForSMDToBeConstructed --For an SMD this will effectively mean we think the SMD isnt loaded anymore; below acts as a basic check to approximate scenarios where SMD has been around a while (ideally if improving on this would just use a dif variable to refiTimeOfLastCheck so can track the actual values wanted)
@@ -1895,7 +1895,7 @@ function OnMissileBuilt(self, weapon)
                             if M28Utilities.IsTableEmpty(tSMD) == false then
                                 for iSMD, oSMD in tSMD do
                                     if not(oSMD == self) then
-                                        if oSMD:GetFractionComplete() < 1 or oSMD:GetNukeSiloAmmoCount() == 0 then
+                                        if oSMD:GetFractionComplete() < 1 or ((not(oSMD.GetNukeSIloAmmoCount) or oSMD:GetNukeSiloAmmoCount() == 0) and (not(oSMD.GetTacticalSiloAmmoCount) or oSMD:GetTacticalSiloAmmoCount() == 0)) then
                                             bHaveSMDOrSMLNeedingMissiles = true
                                             break
                                         end

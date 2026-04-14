@@ -656,7 +656,23 @@ end
 
 
 function TestCustom(aiBrain)
-    WaitSeconds(900)
+    WaitSeconds(300)
+
+    --Check SMD missile count
+    while true do
+        local tFriendlySMD = aiBrain:GetListOfUnits(M28UnitInfo.refCategorySMD)
+        if M28Utilities.IsTableEmpty(tFriendlySMD) == false then
+            for iSMD, oSMD in tFriendlySMD do
+                LOG('oSMD='..oSMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSMD)..'; GetNukeSiloAmmoCount is nil='..tostring(oSMD.GetNukeSiloAmmoCount or false)..'; GetTacticalSiloAmmoCount is nil='..tostring(oSMD.GetTacticalSiloAmmoCount or false))
+                if oSMD.GetNukeSiloAmmoCount then LOG('GetNukeSiloAmmoCount='..oSMD:GetNukeSiloAmmoCount()) end
+                if oSMD.GetTacticalSiloAmmoCount then LOG('GetTacticalSiloAmmoCount='..oSMD:GetTacticalSiloAmmoCount()) end
+            end
+        end
+        WaitSeconds(10)
+    end
+
+
+    --[[
     local oBrain
     for iBrain, oExistingBrain in ArmyBrains do
         if oExistingBrain:GetArmyIndex() == 1 then
@@ -686,7 +702,7 @@ function TestCustom(aiBrain)
             WaitSeconds(1)
         end
         WaitSeconds(20)
-    end
+    end--]]
 
 
     --M28Map.DrawSpecificLandZone(77, 14, 3)
