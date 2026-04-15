@@ -4103,6 +4103,11 @@ end
 function DeathTriggerAdded(oUnit)
     if M28Utilities.bM28AIInGame then
         oUnit[M28UnitInfo.refbCampaignTriggerAdded] = true
+        --UEF M2 - research facility gets transferred over meaning old tracking to repair it gets lost
+        if oUnit.UnitId == 'uec1201' and ScenarioInfo.ResearchFacility == oUnit and not(oUnit.Dead) and M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 and oUnit:GetAIBrain().BrainType == 'Human' then
+            --Add to table of units to repair subreftoUnitsToRepair, as it has been transferred from civilian to player 1
+            M28Overseer.AddCampaignUnitToUnitsToRepair(oUnit, oUnit:GetAIBrain().M28Team)
+        end
     end
 end
 function CreateUnitReclaimedTrigger(oUnit)
@@ -4116,7 +4121,7 @@ function ObjectiveAdded(oObjective, Type, Complete, Title, Description, ActionIm
         local sFunctionRef = 'ObjectiveAdded'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete') end
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame or false)) end
         --Wait until map setup complete
         while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
             if GetGameTimeSeconds() >= 10 then break end
@@ -4177,6 +4182,7 @@ function ObjectiveAdded(oObjective, Type, Complete, Title, Description, ActionIm
                         if IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
                             if bDebugMessages == true then LOG(sFunctionRef..'; Unit is an ally, health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)) end
                             if M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units to repair') end
                                 table.insert(tUnitsToRepair, oUnit)
                             else
                                 bHaveLowHealthAlly = false
@@ -4220,47 +4226,7 @@ function ObjectiveAdded(oObjective, Type, Complete, Title, Description, ActionIm
                     for iEntry, oUnit in tUnitsToRepair do
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in tUnitsToRepair; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
                         if M28UnitInfo.IsUnitValid(oUnit) then
-                            iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                            local tLZOrWZData
-                            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
-                            if iLandOrWaterZone > 0 then
-                                local tLZOrWZTeamData
-                                if iPlateauOrZero == 0 then
-                                    tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-                                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-                                else
-                                    tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
-                                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                                end
-                                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) then tLZOrWZData[M28Map.subreftoUnitsToRepair] = {} end
-                                table.insert(tLZOrWZData[M28Map.subreftoUnitsToRepair], oUnit)
-                                M28Air.AddPriorityAirDefenceTarget(oUnit)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to repair') end
-                                --Consider adding this zone as somewhere to drop if it's not adjacent to a core zone
-                                if iPlateauOrZero > 0 then
-                                    local bAdjacentToCoreBase = false
-                                    if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
-                                        bAdjacentToCoreBase = true
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Are in a core base; tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride]='..tostring(tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride])) end
-
-                                    elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
-                                        for _, iAdjLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
-                                            if M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ '..iAdjLZ..' is a core base, midpoint of adjlz='..repru(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefMidpoint])..'; Dist to midpoint of this LZ='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefMidpoint], tLZOrWZData[M28Map.subrefMidpoint])..'; Travel distance='..(M28Map.GetTravelDistanceBetweenLandZones(iPlateauOrZero, iLandOrWaterZone, iAdjLZ) or 'nil')) end
-                                                bAdjacentToCoreBase = true
-                                                break
-                                            end
-                                        end
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add location as a drop zone target, bAdjacentToCoreBase='..tostring(bAdjacentToCoreBase)..'; iTeam='..iTeam) end
-                                    if not(bAdjacentToCoreBase) then
-                                        --Add to locations for priority transport drop
-                                        M28Air.UpdateTransportPlateauDropLocationShortlist(iTeam) --incase not already run
-                                        M28Air.AddZoneToPotentialDropZonesSameIslandOrDifPond(iTeam, iPlateauOrZero, iLandOrWaterZone)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Have tried toa dd to same island drop list, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam) end
-                                    end
-                                end
-                            end
+                            M28Overseer.AddCampaignUnitToUnitsToRepair(oUnit, iTeam)
                         end
                     end
                     --If only have 1 unit (i.e. is a key location) then flag to fortify

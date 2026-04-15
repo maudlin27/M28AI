@@ -2441,6 +2441,57 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function AddCampaignUnitToUnitsToRepair(oUnit, iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddCampaignUnitToUnitsToRepair'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+    local tLZOrWZData
+    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
+    if iLandOrWaterZone > 0 then
+        local tLZOrWZTeamData
+        if iPlateauOrZero == 0 then
+            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+        else
+            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+        end
+        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) then
+            tLZOrWZData[M28Map.subreftoUnitsToRepair] = {}
+        end
+        table.insert(tLZOrWZData[M28Map.subreftoUnitsToRepair], oUnit)
+        M28Air.AddPriorityAirDefenceTarget(oUnit)
+        if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to repair') end
+        --Consider adding this zone as somewhere to drop if it's not adjacent to a core zone
+        if iPlateauOrZero > 0 then
+            local bAdjacentToCoreBase = false
+            if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
+                bAdjacentToCoreBase = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Are in a core base; tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride]='..tostring(tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride])) end
+
+            elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                for _, iAdjLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                    if M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ '..iAdjLZ..' is a core base, midpoint of adjlz='..repru(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefMidpoint])..'; Dist to midpoint of this LZ='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefMidpoint], tLZOrWZData[M28Map.subrefMidpoint])..'; Travel distance='..(M28Map.GetTravelDistanceBetweenLandZones(iPlateauOrZero, iLandOrWaterZone, iAdjLZ) or 'nil')) end
+                        bAdjacentToCoreBase = true
+                        break
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add location as a drop zone target, bAdjacentToCoreBase='..tostring(bAdjacentToCoreBase)..'; iTeam='..iTeam) end
+            if not(bAdjacentToCoreBase) then
+                --Add to locations for priority transport drop
+                M28Air.UpdateTransportPlateauDropLocationShortlist(iTeam) --incase not already run
+                M28Air.AddZoneToPotentialDropZonesSameIslandOrDifPond(iTeam, iPlateauOrZero, iLandOrWaterZone)
+                if bDebugMessages == true then LOG(sFunctionRef..': Have tried toa dd to same island drop list, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam) end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
     --E.g. for Dawn M2 where order switches from enemy to ally of player team - clears all land and water zone details of enemy and allied units, and then re-records all the units
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end

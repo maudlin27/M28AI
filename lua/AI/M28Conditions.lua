@@ -2892,7 +2892,7 @@ function IsTableOfUnitsStillValid(tUnits, bInvalidIfFullHealth)
             local oUnit = tUnits[iCurEntry]
             --if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Is oUnit.GetHealth nil='..tostring(oUnit.GetHealth == nil)) end
             if not(M28UnitInfo.IsUnitValid(oUnit)) or (bInvalidIfFullHealth and M28UnitInfo.GetUnitHealthPercent(oUnit) == 1) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' at time '..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bInvalidIfFullHealth='..tostring(bInvalidIfFullHealth or false)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' at time '..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bInvalidIfFullHealth='..tostring(bInvalidIfFullHealth or false)..'Unit.Dead='..tostring(oUnit.Dead or false)) end
                 table.remove(tUnits, iCurEntry)
             end
         end

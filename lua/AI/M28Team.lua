@@ -447,6 +447,7 @@ function CreateNewAirSubteam(aiBrain)
     end
 
     M28Air.AirSubteamInitialisation(aiBrain.M28Team, aiBrain.M28AirSubteam) --Dont fork thread
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished creating air subteam for aiBrain='..aiBrain.Nickname..' on M28Team='..aiBrain.M28Team..'; M28AirSubteam='..aiBrain.M28AirSubteam) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
