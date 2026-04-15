@@ -3327,8 +3327,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
         --Engineers if we have few engineers in the current land zone (or an adjacent zone wants them urgently) and want more, and no adjacent enemies
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if bDebugMessages == true then LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; Will consider if we want more engis due to only having a few in the land zone, bNeedCurTech=' .. tostring(bNeedCurTech) .. '; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]=' .. tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.subrefLZbCoreBase]='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])) end
-        if bNeedCurTech and not (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10) and (iFactoryTechLevel >= 3 or not(bHaveLowMass) or not(M28Map.bIsLowMexMap)) then
+        if bDebugMessages == true then LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; Will consider if we want more engis due to only having a few in the land zone, bNeedCurTech=' .. tostring(bNeedCurTech) .. '; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]=' .. tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.subrefLZbCoreBase]='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; subrefLZFortify='..tostring(tLZTeamData[M28Map.subrefLZFortify])) end
+        if bNeedCurTech and not (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10) and (iFactoryTechLevel >= 3 or not(bHaveLowMass) or not(M28Map.bIsLowMexMap) or (tLZTeamData[M28Map.subrefLZFortify] and iFactoryTechLevel > 1 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer) == 0)) then
             local iEngisWanted = 3
             if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
                 iEngisWanted = 2
@@ -3395,6 +3395,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if bAdjacentLandZoneWantsEngineers then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
                 end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Fortify zone additional check - number of engis of this cat in zone='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) end
+            if tLZTeamData[M28Map.subrefLZFortify] and iFactoryTechLevel > 1 and M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) == 0 then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then return sBPIDToBuild end
             end
         end
 
