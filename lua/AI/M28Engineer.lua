@@ -1701,9 +1701,14 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                         tAltNearTargetLocation = {tTargetLocation[1] + iAdjX, 0, tTargetLocation[3] + iAdjZ}
                         tAltNearTargetLocation[2] = GetSurfaceHeight(tAltNearTargetLocation[1], tAltNearTargetLocation[3])
                         if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tAltNearTargetLocation, iPlateauOrZero, iZone, nil, false, true, true, true, bResource) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': We can build right by the target location so will build here') end
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': We can build right by the target location so will build here')
+                                --Draw in gold
+                                M28Utilities.DrawLocation(tAltNearTargetLocation, 4, nil, nil)
+                            end
+
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            return tTargetLocation
+                            return tAltNearTargetLocation
                         end
                     end
                 end

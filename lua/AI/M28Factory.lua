@@ -1556,15 +1556,15 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
                 --T2 fac to T3 - dont upgrade if not core zone, unless have T3 mex in the zone or lots of mass and no recent power stall
                 if bDebugMessages == true then LOG(sFunctionRef..': If we have T2 land fac in minor zone then wont upgrade unless either T3 mex in zone, or lots of mass, iFactoryTechLevel='..iFactoryTechLevel..'; tLZTeamData[M28Map.subrefLZbCoreBase]='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Mass% stored='..aiBrain:GetEconomyStoredRatio('MASS')..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; tLZData[M28Map.subrefLZOrWZMexCount]='..tLZData[M28Map.subrefLZOrWZMexCount]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Primary fac='..tostring(oFactory[refbPrimaryFactoryForIslandOrPond] or false)..'; tLZTeamData[M28Map.subrefMexCountByTech][3]='..(tLZTeamData[M28Map.subrefMexCountByTech][3] or 'nil')..'; Condition part 1='..tostring(iFactoryTechLevel >= 2 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.8 and aiBrain[M28Economy.refiGrossMassBaseIncome] < 80))..'; Condition part2='..tostring((tLZData[M28Map.subrefLZOrWZMexCount] == 0 and not(bHaveLowMass) and not(bHaveLowPower) and oFactory[refbPrimaryFactoryForIslandOrPond]))..'; Condition part 3='..tostring((tLZData[M28Map.subrefLZOrWZMexCount] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZOrWZMexCount] * 0.5)))) end
-                if iFactoryTechLevel >= 2 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.8 and aiBrain[M28Economy.refiGrossMassBaseIncome] < 80 and not((M28Map.bIsCampaignMap and not(bHaveLowMass)) or (tLZData[M28Map.subrefLZOrWZMexCount] == 0 and not(bHaveLowMass) and not(bHaveLowPower) and oFactory[refbPrimaryFactoryForIslandOrPond] and (oFactory[refiTotalBuildCount] or 0) >= 10) or (tLZData[M28Map.subrefLZOrWZMexCount] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZOrWZMexCount] * 0.5)))) then
+                if iFactoryTechLevel >= 2 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and not((tLZTeamData[M28Map.subrefLZFortify] and iFactoryTechLevel == 1)) and (aiBrain:GetEconomyStoredRatio('MASS') < 0.8 and aiBrain[M28Economy.refiGrossMassBaseIncome] < 80 and not((M28Map.bIsCampaignMap and not(bHaveLowMass)) or (tLZData[M28Map.subrefLZOrWZMexCount] == 0 and not(bHaveLowMass) and not(bHaveLowPower) and oFactory[refbPrimaryFactoryForIslandOrPond] and (oFactory[refiTotalBuildCount] or 0) >= 10) or (tLZData[M28Map.subrefLZOrWZMexCount] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(2, tLZData[M28Map.subrefLZOrWZMexCount] * 0.5)))) then
                     bConsiderUpgrading = false
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want to go to T3 outside a core zone yet') end
-                elseif not(tLZTeamData[M28Map.subrefLZbCoreBase]) and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestFactoryTechLevel] and aiBrain:GetEconomyStoredRatio('MASS') < 0.8 then
+                elseif not(tLZTeamData[M28Map.subrefLZbCoreBase]) and not((tLZTeamData[M28Map.subrefLZFortify] and iFactoryTechLevel == 1)) and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestFactoryTechLevel] and aiBrain:GetEconomyStoredRatio('MASS') < 0.8 then
                     bConsiderUpgrading = false
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want a minor LZ to get an HQ when our main base doesnt') end
                 else
                     --Dont upgrade lots of HQs at once outside the core zone for non-primary factories (and also dont upgrade multiple in core zone if have active HQ upgrades)
-                    if not(oFactory[refbPrimaryFactoryForIslandOrPond]) and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or bHaveLowMass or M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, M28UnitInfo.refCategoryLandFactory)) and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] then
+                    if not(oFactory[refbPrimaryFactoryForIslandOrPond]) and not((tLZTeamData[M28Map.subrefLZFortify] and iFactoryTechLevel == 1)) and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or bHaveLowMass or M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, M28UnitInfo.refCategoryLandFactory)) and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] then
                         local iHQSearchCategory
                         if iFactoryTechLevel == 1 then iHQSearchCategory = M28UnitInfo.refCategoryLandFactory * categories.TECH1
                         elseif iFactoryTechLevel == 2 then iHQSearchCategory = M28UnitInfo.refCategoryLandHQ
@@ -3080,7 +3080,29 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if tLZData[M28Map.subrefLZOrWZMexCount] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][iFactoryTechLevel] == 0 then iUnitCountToUpgrade = iUnitCountToUpgrade + 10 end
                 --Overflowing mass - upgrade T1 support factory in core base to t2 support fac evne if normal unit count would be much higher
                 if bDebugMessages == true then LOG(sFunctionRef..': Will massively reduce unit count if t1 fac and want to upgrade to support fac, iUnitCountToUpgrade='..iUnitCountToUpgrade..'; Low mass='..tostring(bHaveLowMass)..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Our highest tech='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Energy stored%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Brain mass income='..aiBrain:GetEconomyIncome('MASS')) end
-                if iUnitCountToUpgrade >= 3 and not(bHaveLowMass) and tLZTeamData[M28Map.subrefLZbCoreBase] and iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech]  and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.99 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 150) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+                if tLZTeamData[M28Map.subrefLZFortify] and M28Map.bIsCampaignMap and iUnitCountToUpgrade > 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) then
+                    if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) then
+                            iUnitCountToUpgrade = 1
+                        elseif table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) < 2 then
+                            local iHighestHQProgress = 0
+                            for iHQ, oHQ in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
+                                iHighestHQProgress = math.max(oHQ:GetWorkProgress(), iHighestHQProgress)
+                            end
+                            if iHighestHQProgress < 0.2 then
+                                iUnitCountToUpgrade = 1
+                            elseif iHighestHQProgress < 0.4 then
+                                iUnitCountToUpgrade = 2
+                            end
+                        else
+                            iUnitCountToUpgrade = 3
+                        end
+                    elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) then
+                        iUnitCountToUpgrade = 2
+                    else
+                        iUnitCountToUpgrade = 3
+                    end
+                elseif iUnitCountToUpgrade >= 3 and not(bHaveLowMass) and tLZTeamData[M28Map.subrefLZbCoreBase] and iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech]  and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.99 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 150) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
                     local bAppliedLowerCount = false
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 and (aiBrain:GetEconomyIncome('MASS') > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.95)) and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 8) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Cur engineers='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer)..'; Engis in zone='..GetEngiCountInZone()) end

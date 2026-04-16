@@ -3268,7 +3268,11 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
         if not(aiBrain[M28Overseer.refbCloseToUnitCap]) and iFactoryTechLevel < 3 then
             local iTeam = aiBrain.M28Team
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oFactory:GetPosition(), true, iTeam)
-
+            if tLZOrWZTeamData[M28Map.subrefLZFortify] and iFactoryTechLevel < 2 and M28Map.bIsCampaignMap then
+                if bDebugMessages == true then LOG(sFunctionRef..': Campaign where we want to fortify zone so want to upgrade asap to T2') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return false
+            end
             local iBuildCountAdjust = 0
             if iFactoryTechLevel == 2 then
 
@@ -3460,6 +3464,7 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 return true
             end
         end
+
         if bDebugMessages == true then LOG(sFunctionRef..': End of code, bWantMoreEngineers='..tostring(bWantMoreEngineers or false)) end --here since lower down means not a factory
     end
     if bWantMoreEngineers and M28Map.bIsCampaignMap then
