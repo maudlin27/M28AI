@@ -16602,7 +16602,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8 then
                     iFactoriesWanted = 3
                 else
-                    iFactoriesWanted = math.max(iFactoriesWanted, 2)
+                    iFactoriesWanted = 2
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Increasing factories wanted due to fortification desire') end
             end
@@ -16641,7 +16641,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8 then
                 iFactoriesWanted = 3
             else
-                iFactoriesWanted = math.max(iFactoriesWanted, 2)
+                iFactoriesWanted = 2
             end
             if aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Overseer.refbPrioritiseNavy] then iFactoriesWanted = math.max(1, math.floor(iFactoriesWanted * 0.5)) end
         end
