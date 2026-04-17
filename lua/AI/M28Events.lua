@@ -1457,7 +1457,9 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
                                 if oUnit[M28Air.rebEarlyBomberTargetBase] then
                                     if not(M28UnitInfo.DoesBomberFireSalvo(oUnit)) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Clearing any micro flags we have for the bomber') end
-                                        if oUnit[M28UnitInfo.refbSpecialMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = false end
+                                        if oUnit[M28UnitInfo.refbSpecialMicroActive] then
+                                            oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+                                        end
                                     else
                                         if bDebugMessages == true then LOG(sFunctionRef..': Do nothing as bomber firing a salvo and is a 1st bomber') end
                                     end
@@ -4119,7 +4121,7 @@ end
 function ObjectiveAdded(oObjective, Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'ObjectiveAdded'
-        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame or false)) end
         --Wait until map setup complete

@@ -43,6 +43,7 @@ refbPausedToStopDefaultAI = 'M28FPsC' --true if we have paused factory to stop a
 refbActiveDelayedCheck = 'M28FAcDC' --true if we are running code to consider if factory has nearby blocked units
 refbPrimaryFactoryForIslandOrPond = 'M28FaPrim' --true if this is the primary factory for a zone that has a decent number of mexes (so it doesnt get paused in a mass stall)
 reftsFactoryEnhancementPreferences = 'M28FaPref' --false if no enhancements available or wanted, otherwise, contains a table of enhancement strings for a factory to try and get
+refsFactoryNextBlueprintOverride = 'M28FaOvrd' --If this is set, the factory will build this unit in place of normal logic
 
 --Variables against units (generally):
 refiTimeOfLastFacBlockOrder = 'M28FacBlkO' --Gametimeseconds that a unit was told to move (to try and unblock a factory)
@@ -4269,7 +4270,10 @@ end
 
 function DetermineWhatToBuild(aiBrain, oFactory)
     local sBPIDToBuild, bEnhancement
-    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
+    if oFactory[refsFactoryNextBlueprintOverride] and oFactory:CanBuild(oFactory[refsFactoryNextBlueprintOverride]) then
+        sBPIDToBuild = oFactory[refsFactoryNextBlueprintOverride]
+        bEnhancement = false
+    elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
         if EntityCategoryContains(categories.EXPERIMENTAL, oFactory.UnitId) then
             sBPIDToBuild, bEnhancement = GetBlueprintToBuildForExperimentalLandFactory(aiBrain, oFactory)
         else

@@ -636,7 +636,7 @@ end
 function InitialTeamInitialisationForReference() end --To help find the below more easily
 function CreateNewTeam(aiBrain)
     --See also TeamInitialisation which sets up team variables for zones
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CreateNewTeam'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -721,7 +721,7 @@ function CreateNewTeam(aiBrain)
     local bAlreadyRecordedBrain
 
     for iCurBrain, oBrain in ArmyBrains do
-        if bDebugMessages == true then LOG(sFunctionRef..': Doing setup for team '..iTotalTeamCount..'; Considering brain '..oBrain.Nickname..'; oBrain.M28Team='..(oBrain.M28Team or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Doing setup for team '..iTotalTeamCount..'; Considering brain '..oBrain.Nickname..'; oBrain.M28Team='..(oBrain.M28Team or 'nil')..'; ScenarioInfo.Options.CommonArmy='..reprs(ScenarioInfo.Options.CommonArmy)) end
         --First make sure we have recorded all brains (redundancy for AI like dillidalli) - the function below will check if we have already recorded the brain
         ForkThread(M28Events.OnCreateBrain, oBrain, nil, nil)
         --[[if not(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) then --redundancy
@@ -732,7 +732,7 @@ function CreateNewTeam(aiBrain)
 
         --if not(oBrain.M28Team) then
         bAlreadyRecordedBrain = false
-        if oBrain == aiBrain or ((not(ScenarioInfo.Options.CommonArmy or (not(aiBrain.M28AI and M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains])))) and IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)))) then
+        if oBrain == aiBrain or (not(ScenarioInfo.Options.CommonArmy == true) or (not(aiBrain.M28AI) and M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains]))) and IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
             --Have we already recorded this as an ally?
             if M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains]) == false then
                 for iRecorded, oRecorded in tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains] do

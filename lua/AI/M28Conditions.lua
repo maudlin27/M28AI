@@ -4735,3 +4735,8 @@ function IsPositionInWayOfFactory(tPosition)
     end
     return false
 end
+
+function IsPositionInRectangle(tPosition, rRect)
+    --Assumes rRect is defined with 'x0', 'x1', 'y0', 'y1' (as using for campaign rectangles)
+    if tPosition[1] >= rRect['x0'] and tPosition[1] <= rRect['x1'] and tPosition[3] >= rRect['y0'] and tPosition[3] <= rRect['y1'] then return true end
+end
