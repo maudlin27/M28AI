@@ -845,9 +845,13 @@ function CheckUnitCap(aiBrain)
                 --Exclude MML from category 2
                 tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA -M28UnitInfo.refCategoryMML + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1 - categories.INSIGNIFICANTUNIT
             end
-            --If have no T2+ power, then dont include T1 power in units to ctrlK
+            --If have no T2+ power, then dont include T1 power in units to ctrlK (unless unit restrictions and ACU has RAS)
             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1) == 0 then
-                tiCategoryToDestroy[3] = tiCategoryToDestroy[3] - M28UnitInfo.refCategoryPower
+                if bUnitRestrictionsArePresent and aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 50 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 and M28UnitInfo.IsUnitValid(aiBrain[M28ACU.refoPrimaryACU]) and (aiBrain[M28ACU.refoPrimaryACU]:HasEnhancement('ResourceAllocation') or aiBrain[M28ACU.refoPrimaryACU]:HasEnhancement('ResourceAllocationAdvanced')) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will still consider ctrlking t1 power as we have RAS on ACU') end
+                else
+                    tiCategoryToDestroy[3] = tiCategoryToDestroy[3] - M28UnitInfo.refCategoryPower
+                end
             end
 
             --If have no asfs then exclude inties from cat 2
@@ -881,7 +885,7 @@ function CheckUnitCap(aiBrain)
                     end
                 end
             else
-                --If we have <35 T3 engis then exclude engineers from cat -1
+                --If we have <35 T3 engis then exclude T3 engineers from cat -1
                 if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 1) <= 0 then
                     if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < iT3EngineerUnitCapThresholdCount then
                         tiCategoryToDestroy[-1] = tiCategoryToDestroy[-1] - M28UnitInfo.refCategoryEngineer * categories.TECH3
@@ -1033,6 +1037,15 @@ function CheckUnitCap(aiBrain)
                             end
                             if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
                                 local bKillUnit
+                                --For walls, enable ctrlk if we have control of player ACU, as walls may have been gifted to player at start of game
+                                if aiBrain.BrainType == 'Human' and M28Map.bIsCampaignMap and aiBrain[M28ACU.refoPrimaryACU].M28Active then
+                                    local toWallsToCtrlk = EntityCategoryFilterDown(M28UnitInfo.refCategoryWall, tUnitsToDestroy)
+                                    if M28Utilities.IsTableEmpty(toWallsToCtrlk) == false then
+                                        for  iWall, oWall in toWallsToCtrlk do
+                                            oWall.M28Active = true
+                                        end
+                                    end
+                                end
                                 for iUnit, oUnit in tUnitsToDestroy do
                                     if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
                                         --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
@@ -1058,6 +1071,8 @@ function CheckUnitCap(aiBrain)
                                                     iCurUnitsDestroyed = iCurUnitsDestroyed + 1
                                                 end
                                             end
+                                            oUnit[M28UnitInfo.refbTriedToKill] = true --set here as well, since otherwise we wont move on to try and ctrlk other units later
+
                                             M28Orders.IssueTrackedKillUnit(oUnit)
                                             bKilledUnit = true
 
@@ -1915,7 +1930,7 @@ end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
     --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3246,7 +3261,7 @@ end
 
 function UEFMission2ReinforceCivilianTracker()
     local sFunctionRef = 'UEFMission2ReinforceCivilianTracker'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Is player 1 M28AI?

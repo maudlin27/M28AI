@@ -636,7 +636,7 @@ end
 function InitialTeamInitialisationForReference() end --To help find the below more easily
 function CreateNewTeam(aiBrain)
     --See also TeamInitialisation which sets up team variables for zones
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CreateNewTeam'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
