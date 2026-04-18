@@ -3163,7 +3163,7 @@ function FixUnitResourceCheatModifiers(oUnit)
     --As of May 2023, AIx resource multipliers dont apply to upgrades such as for RAS SACUs.  The below attempts to fix this.
     WaitTicks(1)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if IsUnitValid(oUnit) and oUnit:GetAIBrain().CheatEnabled then
+    if IsUnitValid(oUnit) and oUnit:GetAIBrain().CheatEnabled and not(oUnit:GetAIBrain().PCxModifier) then
         local FAFBuffs = import('/lua/sim/Buff.lua')
         --local iBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
         local iResourceModifier = tonumber(ScenarioInfo.Options.CheatMult or 1.5)

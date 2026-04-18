@@ -186,7 +186,9 @@ function UpdateRecordedOrders(oUnit)
     --Checks a unit's command queue and removes items if we have fewer items than we recorded
     --Also acts as a bcakup for special micro not resetting
     if bDontConsiderCombinedArmy or oUnit.M28Active then
-        if oUnit[M28UnitInfo.refbSpecialMicroActive] and (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0) > 0 and GetGameTimeSeconds() > oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = false end
+        if oUnit[M28UnitInfo.refbSpecialMicroActive] and (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0) > 0 and GetGameTimeSeconds() > oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] then
+            oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+        end
         if not(oUnit[reftiLastOrders]) then
             oUnit[reftiLastOrders] = nil
             oUnit[refiOrderCount] = 0
@@ -255,7 +257,7 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
             else tLastOrder = oUnit[reftiLastOrders][1]
             end
         end
-        --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url01071' then LOG('IssueTrackedMove: Time='..GetGameTimeSeconds()..'; reprs of tLastOrder='..reprs(tLastOrder)..'; tOrderPosition='..repru(tOrderPosition)..'; iDistanceToReissueOrder='..iDistanceToReissueOrder..'; bAddToExistingQueue='..tostring(bAddToExistingQueue or false)..'; sOptionalOrderDesc='..(sOptionalOrderDesc or 'nil')..'; bOverrideMicroOrder='..tostring(bOverrideMicroOrder or false)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
+        --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uec00011' then LOG('IssueTrackedMove: Time='..GetGameTimeSeconds()..'; reprs of tLastOrder='..reprs(tLastOrder)..'; tOrderPosition='..repru(tOrderPosition)..'; iDistanceToReissueOrder='..iDistanceToReissueOrder..'; bAddToExistingQueue='..tostring(bAddToExistingQueue or false)..'; sOptionalOrderDesc='..(sOptionalOrderDesc or 'nil')..'; bOverrideMicroOrder='..tostring(bOverrideMicroOrder or false)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
         if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderIssueMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) then
             if (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))  then
                 local bChangedViaNavigator
@@ -264,14 +266,14 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
                         local oNavigator = oUnit:GetNavigator()
                         if oNavigator then
                             local tCurNavigatorTarget = oNavigator:GetCurrentTargetPos()
-                            --if oUnit.UnitId == 'xra0105' and GetGameTimeSeconds() >= 360 then LOG('TEMPCODE Just got tCurNavigatorTarget='..repru(tCurNavigatorTarget)..'; Is unit state moving='..tostring(oUnit:IsUnitState('Moving'))..'; iDistanceToReissueOrder='..(iDistanceToReissueOrder or 'nil')..'; tLastOrder[subrefiOrderType]='..(tLastOrder[subrefiOrderType] or 'nil')) end
+                            --if oUnit.UnitId == 'uec00011' and GetGameTimeSeconds() >= 360 then LOG('TEMPCODE Just got tCurNavigatorTarget='..repru(tCurNavigatorTarget)..'; Is unit state moving='..tostring(oUnit:IsUnitState('Moving'))..'; iDistanceToReissueOrder='..(iDistanceToReissueOrder or 'nil')..'; tLastOrder[subrefiOrderType]='..(tLastOrder[subrefiOrderType] or 'nil')) end
                             --Had a strange bug where a gunship would show as its last order being IssueMove based on tracking, be given a new navigator goal, but would stay in attack-move mode; although setgoal resulted in getcurrenttargetpos being updated straight away, by the next cycle it would've reset (but tracking on other orders for attackmove and attack yielded nothing); changing to only change navigator if unit state is moving fixed the problem
                             if tCurNavigatorTarget and M28Utilities.GetDistanceBetweenPositions(tLastOrder[subreftOrderPosition], tCurNavigatorTarget) <= 3 and oUnit:IsUnitState('Moving') then
                                 oNavigator:SetGoal(tOrderPosition)
                                 bChangedViaNavigator = true
                                 oUnit[reftiLastOrders] = {}
                                 oUnit[refiOrderCount] = 0
-                                --if oUnit.UnitId == 'xra0105' and GetGameTimeSeconds() >= 360 then LOG('TEMPCODE Just finished setting goal of navigator, cur navigator target='..repru(oNavigator:GetCurrentTargetPos())) end
+                                --if oUnit.UnitId == 'uec00011' and GetGameTimeSeconds() >= 360 then LOG('TEMPCODE Just finished setting goal of navigator, cur navigator target='..repru(oNavigator:GetCurrentTargetPos())) end
                             end
                         end
                     end
@@ -285,9 +287,8 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
                 if not(bChangedViaNavigator) then
                     IssueMove({oUnit}, tOrderPosition)
                 end
-                --[[if oUnit:GetAIBrain():GetArmyIndex() == 7 and oUnit.UnitId == 'ual0001' and GetGameTimeSeconds() >= 420+45 then
+                --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uec00011' then
                     LOG('TEMPCODE Just sent issuemove order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; bChangedViaNavigator='..tostring(bChangedViaNavigator)..'; Dist to target='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderPosition))
-                    M28Utilities.ErrorHandler('Audit trail', true, true)
                     M28Utilities.DrawLocation(tOrderPosition, 3) --black; will cause desync
                 end--]]
             else

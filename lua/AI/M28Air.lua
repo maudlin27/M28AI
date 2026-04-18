@@ -611,6 +611,7 @@ function AddPriorityAirDefenceTarget(oUnit)
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': iAirSubteam='..(iAirSubteam or 'nil')..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; brain='..(oUnit:GetAIBrain().Nickname or 'nil')) end
         --Check not already in table
         local bInTableAlready = false
         if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam]) == false then

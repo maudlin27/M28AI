@@ -1170,7 +1170,7 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits, bCalledDueTo
 
     local iTMDInRange, iUnitPlateau, iUnitLandZone
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; size of tUnits='..table.getn(tUnits)..'; iTeam='..iTeam..'; bCalledDueToTMLOrTMDEvent='..tostring(bCalledDueToTMLOrTMDEvent or false)) M28Utilities.ErrorHandler('Audit trail', true, true) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; size of tUnits='..table.getn(tUnits)..'; iTeam='..iTeam..'; bCalledDueToTMLOrTMDEvent='..tostring(bCalledDueToTMLOrTMDEvent or false)) end
     local iVariableDelayInSeconds = math.max(10, M28Land.iTicksPerLandCycle * 0.25)
     for iUnit, oUnit in tUnits do
         if bCalledDueToTMLOrTMDEvent or not(oUnit[refbRecentlyCheckedTMDOrTML]) then

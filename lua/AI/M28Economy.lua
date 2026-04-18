@@ -85,12 +85,19 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker, iOptionalWait)
     --Do we have any HQs of the same factory type of a higher tech level?
     local sUpgradeID = M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) --If not a factory or dont recognise the faction then just returns the normal unit ID
     --Redundancy if unit is capable of upgrading but the CanBuild check fails
+    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeID after trying GetUnitUpgradeBlueprint='..(sUpgradeID or 'nil')..'; refbTriedIgnoringCanBuildForUpgrade='..tostring(oUnitToUpgrade[refbTriedIgnoringCanBuildForUpgrade] or false)) end
     if not(sUpgradeID) and not(oUnitToUpgrade[refbTriedIgnoringCanBuildForUpgrade]) then
         oUnitToUpgrade[refbTriedIgnoringCanBuildForUpgrade] = true
         sUpgradeID = oUnitToUpgrade:GetBlueprint().General.UpgradesTo
     end
 
-    if sUpgradeID and M28UnitInfo.IsUnitValid(oUnitToUpgrade) then
+    if sUpgradeID and M28UnitInfo.IsUnitValid(oUnitToUpgrade) and bUpdateUpgradeTracker then
+        local bDelayedUpgradeTrackingCheck = false
+        if M28Overseer.bUnitRestrictionsArePresent and not(oUnitToUpgrade:CanBuild(sUpgradeID)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont think we c an upgrade this unit due to unit restrictions, so wont update the upgrade tracking') end
+            bDelayedUpgradeTrackingCheck = true
+            bUpdateUpgradeTracker = false
+        end
         local aiBrain = oUnitToUpgrade:GetAIBrain()
         if bDebugMessages == true then LOG(sFunctionRef..': About to issue ugprade to unit '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..'; Current state='..M28UnitInfo.GetUnitState(oUnitToUpgrade)..'; Work progress='..(oUnitToUpgrade:GetWorkProgress() or 'nil')..'; Is unit upgrading='..tostring(oUnitToUpgrade:IsUnitState('Upgrading'))..'; Fraction complete='..oUnitToUpgrade:GetFractionComplete()) end
 
@@ -158,6 +165,9 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker, iOptionalWait)
 
         if bUpdateUpgradeTracker then
             M28Team.UpdateUpgradeTrackingOfUnit(oUnitToUpgrade, false, sUpgradeID)
+        elseif bDelayedUpgradeTrackingCheck then
+            --Will only update if in 2 ticks the unit state is that it is upgrading
+            ForkThread(M28Orders.DelayedUpgradeTracking, oUnitToUpgrade, sUpgradeID)
         end
     else
         --Dont have an upgrade ID; if the unit has an UpgradesTo value in the blueprint and that unit is restricted, then dont show an error

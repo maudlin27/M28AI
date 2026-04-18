@@ -1701,9 +1701,14 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                         tAltNearTargetLocation = {tTargetLocation[1] + iAdjX, 0, tTargetLocation[3] + iAdjZ}
                         tAltNearTargetLocation[2] = GetSurfaceHeight(tAltNearTargetLocation[1], tAltNearTargetLocation[3])
                         if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tAltNearTargetLocation, iPlateauOrZero, iZone, nil, false, true, true, true, bResource) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': We can build right by the target location so will build here') end
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': We can build right by the target location so will build here')
+                                --Draw in gold
+                                M28Utilities.DrawLocation(tAltNearTargetLocation, 4, nil, nil)
+                            end
+
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            return tTargetLocation
+                            return tAltNearTargetLocation
                         end
                     end
                 end
@@ -10690,7 +10695,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         end
                     end
                     while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
-                        if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to repair nearby unit '..oUnitToRepair.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToRepair)..', iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount..'; tPositionToMoveNearFirst='..repru(tPositionToMoveNearFirst)..';  oUnitToRepair[M28Building.reftArtiTemplateRefs]='..repru( oUnitToRepair[M28Building.reftArtiTemplateRefs])..'; iDistanceToMoveNear='..(iDistanceToMoveNear or 'nil')) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to repair nearby unit '..oUnitToRepair.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToRepair)..', iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount..'; tPositionToMoveNearFirst='..repru(tPositionToMoveNearFirst)..';  oUnitToRepair[M28Building.reftArtiTemplateRefs]='..repru( oUnitToRepair[M28Building.reftArtiTemplateRefs])..'; iDistanceToMoveNear='..(iDistanceToMoveNear or 'nil')..'; Distance between engineer and tPositionToMoveNear if nonblank='..M28Utilities.GetDistanceBetweenPositions(tEngineersOfTechWanted[iEngiCount]:GetPosition(), (tPositionToMoveNearFirst or {0,0,0}))) end
                         if tPositionToMoveNearFirst and M28Utilities.GetDistanceBetweenPositions(tEngineersOfTechWanted[iEngiCount]:GetPosition(), tPositionToMoveNearFirst) > iDistanceToMoveNear then
                             M28Orders.IssueTrackedMove(tEngineersOfTechWanted[iEngiCount], tPositionToMoveNearFirst, 2, false, 'RepCons', false)
                         else
@@ -16597,7 +16602,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8 then
                     iFactoriesWanted = 3
                 else
-                    iFactoriesWanted = math.max(iFactoriesWanted, 2)
+                    iFactoriesWanted = 2
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Increasing factories wanted due to fortification desire') end
             end
@@ -16636,7 +16641,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8 then
                 iFactoriesWanted = 3
             else
-                iFactoriesWanted = math.max(iFactoriesWanted, 2)
+                iFactoriesWanted = 2
             end
             if aiBrain[M28Overseer.refbPrioritiseAir] or aiBrain[M28Overseer.refbPrioritiseHighTech] or aiBrain[M28Overseer.refbPrioritiseDefence] or aiBrain[M28Overseer.refbPrioritiseNavy] then iFactoriesWanted = math.max(1, math.floor(iFactoriesWanted * 0.5)) end
         end
@@ -16799,6 +16804,34 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if tClosestTeleport then
             iBPWanted = 60
             HaveActionToAssign(refActionBuildEmergencyPD, 1, iBPWanted, M28Utilities.MoveInDirection(tClosestTeleport, M28Utilities.GetAngleFromAToB(tClosestTeleport, tLZData[M28Map.subrefMidpoint]), 10, true))
+        end
+    end
+
+    --Priority repair for campaign objective if it is low health
+    if M28Map.bIsCampaignMap then
+        iCurPriority = iCurPriority + 1
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false then
+            local oUnitToTarget
+            for iUnit, oUnit in tLZData[M28Map.subreftoUnitsToRepair] do
+                if not(oUnit.Dead) and M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.1 then
+                    if oUnitToTarget[refbDontIncludeAsPartCompleteBuildingForConstruction] then
+                        --Remove unit from UnitsToRepair
+                        for iUnit, oUnit in tLZData[M28Map.subreftoUnitsToRepair] do
+                            if oUnit == oUnitToTarget then
+                                table.remove(tLZData[M28Map.subreftoUnitsToRepair], iUnit)
+                                break
+                            end
+                        end
+                    else
+                        oUnitToTarget = oUnit
+                        break
+                    end
+                end
+            end
+            if oUnitToTarget then
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair as priority='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)..'; health='..oUnitToTarget:GetHealth()..'; health%='..M28UnitInfo.GetUnitHealthPercent(oUnitToTarget)..'; will flag we want some BP for this') end
+                HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
+            end
         end
     end
 
@@ -17668,7 +17701,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     local tIslandLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingData[M28Map.subrefIslandClosestLZRef]]
                     if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tIslandLZData[M28Map.subrefMidpoint]) then
                         if tPathingData[M28Map.subrefIslandClosestLZRef] and M28Utilities.IsTableEmpty(tIslandLZData[M28Map.subrefMexUnbuiltLocations]) == false and not(tIslandLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
-                                        --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ,                                    iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
+                            --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ,                                    iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
                             local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, tPathingData[M28Map.subrefIslandClosestLZRef], iEntry, iHighestTechEngiAvailable, false, true, false, false)
                             if bDebugMessages == true then LOG(sFunctionRef..': tiBPByTechWanted='..repru(tiBPByTechWanted)) end
                             if tiBPByTechWanted then
@@ -17891,7 +17924,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 if bDebugMessages == true then LOG(sFunctionRef..': Lower priority logic to send engineers to another LZ, iAdjLZ='..iAdjLZ..'; Have we alreayd considered='..tostring(tLZWantingBPConsidered[iAdjLZ] or false)) end
                 if not(tLZWantingBPConsidered[iAdjLZ]) then
                     tLZWantingBPConsidered[iAdjLZ] = true
-                                --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
+                    --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
                     local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, false            , false, false, false)
                     if bDebugMessages == true then LOG(sFunctionRef..': tiBPByTechWanted='..repru(tiBPByTechWanted)) end
                     if tiBPByTechWanted then
@@ -17934,7 +17967,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 else
                     --Are there enemies in the target LZ?
                     if tPathingData[M28Map.subrefIslandClosestLZRef] and not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingData[M28Map.subrefIslandClosestLZRef]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
-                                    --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ,                                    iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
+                        --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ,                                    iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
                         local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, tPathingData[M28Map.subrefIslandClosestLZRef], iEntry, iHighestTechEngiAvailable, false,             true,       false,              false)
                         if bDebugMessages == true then LOG(sFunctionRef..': tiBPByTechWanted='..repru(tiBPByTechWanted)) end
                         if tiBPByTechWanted then
@@ -18360,7 +18393,7 @@ end--]]
                                 else
                                     --Are there enemies in the target LZ?
                                     if tPathingData[M28Map.subrefIslandClosestLZRef] and not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingData[M28Map.subrefIslandClosestLZRef]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
-                                                        --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ,                                iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
+                                        --function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ,                                iPathingRef, iHighestTechEngiAvailable, bNearbyZone, bIslandPathing, bRequireUnbuiltMexes, bCheckIfEngisRecentlyRun)
                                         local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, tPathingData[M28Map.subrefIslandClosestLZRef], iEntry, iHighestTechEngiAvailable, false,         true            , false,            false)
                                         if bDebugMessages == true then LOG(sFunctionRef..': tiBPByTechWanted='..repru(tiBPByTechWanted)) end
                                         if (tiBPByTechWanted[1] or 0) > 0 then

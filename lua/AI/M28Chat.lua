@@ -1213,7 +1213,7 @@ function AssignAIPersonalityAndRating(aiBrain)
         if M28Utilities.bFAFActive and (ScenarioInfo.Options.Ratings[aiBrain.Nickname] or 0) == 0 then --Hopefully will be able to get FAF to assign ratings at start of game via lobby, so below is temporary to provide basic compatibility in the meantime - wont affect displayed rating via scoreboards though, only relevant for things like full-share to make sure AIx gets stuff in priority to AI
             local iBaseRating = 750
             local iApproxRating
-            local bIsCheatingAI = aiBrain.CheatEnabled
+            local bIsCheatingAI = (aiBrain.CheatEnabled and not(aiBrain.PCxModifier))
             local iOmniCheat = 50
             local iResourceBaseMod = 1700 --i.e. if had AIx 1.5, then its rank shoudl be increased by 50% * this
             local iBuildRateBaseMod = 1300 --i.e. if had AIx 1.5, then its rank shoudl be increased by 50% * this

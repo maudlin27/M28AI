@@ -458,6 +458,31 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function SetPCxValuesForBrain(aiBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SetPCxValuesForBrain'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if not(M28Conditions.IsCivilianBrain(aiBrain)) and (aiBrain.BrainType == 'Human' or (aiBrain.BrainType == 'AI' and aiBrain.Nickname and M28Utilities.DoesAINicknameContainM28(aiBrain.Nickname, false, false))) then
+        local sBaseResource = 'PCxCheatMult'
+        local sBaseBuild = 'PCxBuildMult'
+        local iCurResource, iCurBuild
+        local iCurPlayerIndex = aiBrain:GetArmyIndex()
+        iCurResource = ScenarioInfo.Options[sBaseResource..iCurPlayerIndex]
+        iCurBuild = ScenarioInfo.Options[sBaseBuild..iCurPlayerIndex]
+        if not(iCurResource) then iCurResource = 1 else iCurResource = tonumber(iCurResource) end
+        if not(iCurBuild) then iCurBuild = 1 else iCurBuild = tonumber(iCurBuild) end
+        if iCurResource == 1 and iCurBuild == 1 then
+            --Do nothing - default
+        else
+            aiBrain.CheatEnabled = true
+            aiBrain.PCxModifier = true
+            SetBuildAndResourceCheatModifiers(aiBrain, iCurBuild, iCurResource, true, nil, true, true, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Have set resource and build values for brain '..aiBrain.Nickname..'; iCurBuild='..iCurBuild..'; iCurResource='..iCurResource) end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function M28BrainCreated(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'M28BrainCreated'
@@ -469,8 +494,24 @@ function M28BrainCreated(aiBrain)
     M28Utilities.bM28AIInGame = true
     table.insert(tAllActiveM28Brains, aiBrain)
 
+    --PCx mod support - M28 loads this before PCx, so do a hardcopy here if the mod is active
+    if not(aiBrain.CheatEnabled) then
+        local tSimMods = __active_mods or {}
+        if M28Utilities.IsTableEmpty(tSimMods) == false then
+            for iMod, tModData in tSimMods do
+                if tModData.name == 'Player Modifier PCx' then
+                    if tModData.enabled then
+                        if bDebugMessages == true then LOG(sFunctionRef..': PCx mod is active so will set AIx values if relevant') end
+                        SetPCxValuesForBrain(aiBrain)
+                    end
+                    break
+                end
+            end
+        end
+    end
+
     --Set cheat mult if this is campaign (which doesnt allow in game options)
-    if aiBrain.CheatEnabled then
+    if aiBrain.CheatEnabled and not(aiBrain.PCxModifier) then
         if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive or aiBrain.CheatValue then
             if bDebugMessages == true then LOG(sFunctionRef..': Setting build and resource cheat modifiers based on aiBrain.CheatValue='..aiBrain.CheatValue) end
             SetBuildAndResourceCheatModifiers(aiBrain, (aiBrain.CheatValue or 1), (aiBrain.CheatValue or 1), false)
@@ -615,7 +656,23 @@ end
 
 
 function TestCustom(aiBrain)
-    WaitSeconds(900)
+    WaitSeconds(300)
+
+    --Check SMD missile count
+    while true do
+        local tFriendlySMD = aiBrain:GetListOfUnits(M28UnitInfo.refCategorySMD)
+        if M28Utilities.IsTableEmpty(tFriendlySMD) == false then
+            for iSMD, oSMD in tFriendlySMD do
+                LOG('oSMD='..oSMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSMD)..'; GetNukeSiloAmmoCount is nil='..tostring(oSMD.GetNukeSiloAmmoCount or false)..'; GetTacticalSiloAmmoCount is nil='..tostring(oSMD.GetTacticalSiloAmmoCount or false))
+                if oSMD.GetNukeSiloAmmoCount then LOG('GetNukeSiloAmmoCount='..oSMD:GetNukeSiloAmmoCount()) end
+                if oSMD.GetTacticalSiloAmmoCount then LOG('GetTacticalSiloAmmoCount='..oSMD:GetTacticalSiloAmmoCount()) end
+            end
+        end
+        WaitSeconds(10)
+    end
+
+
+    --[[
     local oBrain
     for iBrain, oExistingBrain in ArmyBrains do
         if oExistingBrain:GetArmyIndex() == 1 then
@@ -645,7 +702,7 @@ function TestCustom(aiBrain)
             WaitSeconds(1)
         end
         WaitSeconds(20)
-    end
+    end--]]
 
 
     --M28Map.DrawSpecificLandZone(77, 14, 3)
@@ -788,9 +845,13 @@ function CheckUnitCap(aiBrain)
                 --Exclude MML from category 2
                 tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA -M28UnitInfo.refCategoryMML + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1 - categories.INSIGNIFICANTUNIT
             end
-            --If have no T2+ power, then dont include T1 power in units to ctrlK
+            --If have no T2+ power, then dont include T1 power in units to ctrlK (unless unit restrictions and ACU has RAS)
             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1) == 0 then
-                tiCategoryToDestroy[3] = tiCategoryToDestroy[3] - M28UnitInfo.refCategoryPower
+                if bUnitRestrictionsArePresent and aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 50 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 and M28UnitInfo.IsUnitValid(aiBrain[M28ACU.refoPrimaryACU]) and (aiBrain[M28ACU.refoPrimaryACU]:HasEnhancement('ResourceAllocation') or aiBrain[M28ACU.refoPrimaryACU]:HasEnhancement('ResourceAllocationAdvanced')) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will still consider ctrlking t1 power as we have RAS on ACU') end
+                else
+                    tiCategoryToDestroy[3] = tiCategoryToDestroy[3] - M28UnitInfo.refCategoryPower
+                end
             end
 
             --If have no asfs then exclude inties from cat 2
@@ -824,7 +885,7 @@ function CheckUnitCap(aiBrain)
                     end
                 end
             else
-                --If we have <35 T3 engis then exclude engineers from cat -1
+                --If we have <35 T3 engis then exclude T3 engineers from cat -1
                 if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 1) <= 0 then
                     if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < iT3EngineerUnitCapThresholdCount then
                         tiCategoryToDestroy[-1] = tiCategoryToDestroy[-1] - M28UnitInfo.refCategoryEngineer * categories.TECH3
@@ -976,6 +1037,15 @@ function CheckUnitCap(aiBrain)
                             end
                             if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
                                 local bKillUnit
+                                --For walls, enable ctrlk if we have control of player ACU, as walls may have been gifted to player at start of game
+                                if aiBrain.BrainType == 'Human' and M28Map.bIsCampaignMap and aiBrain[M28ACU.refoPrimaryACU].M28Active then
+                                    local toWallsToCtrlk = EntityCategoryFilterDown(M28UnitInfo.refCategoryWall, tUnitsToDestroy)
+                                    if M28Utilities.IsTableEmpty(toWallsToCtrlk) == false then
+                                        for  iWall, oWall in toWallsToCtrlk do
+                                            oWall.M28Active = true
+                                        end
+                                    end
+                                end
                                 for iUnit, oUnit in tUnitsToDestroy do
                                     if oUnit.Kill and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) and not(oUnit.Parent) then
                                         --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
@@ -1001,6 +1071,8 @@ function CheckUnitCap(aiBrain)
                                                     iCurUnitsDestroyed = iCurUnitsDestroyed + 1
                                                 end
                                             end
+                                            oUnit[M28UnitInfo.refbTriedToKill] = true --set here as well, since otherwise we wont move on to try and ctrlk other units later
+
                                             M28Orders.IssueTrackedKillUnit(oUnit)
                                             bKilledUnit = true
 
@@ -1606,7 +1678,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust, bDontApplyToUnits, bUpdateCheatValue)
+function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust, bDontApplyToUnits, bUpdateCheatValue, bDontCreateBuffs)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetBuildAndResourceCheatModifiers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1619,57 +1691,59 @@ function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceMod
         ScenarioInfo.Options.CheatMult = tostring(iResourceModifier)
         ScenarioInfo.Options.BuildMult = tostring(iBuildModifier)
     end
-    --local FAFBuffs = import('/lua/sim/Buff.lua')
-    local sCheatBuildRate = 'CheatBuildRate'..aiBrain:GetArmyIndex()
-    local sCheatIncome = 'CheatIncome'..aiBrain:GetArmyIndex()
-    --local AdjBuffFuncs = import('/lua/sim/adjacencybufffunctions.lua')
-    if not Buffs[sCheatBuildRate] then
-        BuffBlueprint {
-            Name = sCheatBuildRate,
-            DisplayName = sCheatBuildRate,
-            BuffType = 'BUILDRATECHEAT',
-            Stacks = 'ALWAYS',
-            Duration = -1,
-            Affects = {
-                BuildRate = {
-                    --BuffCheckFunction = AdjBuffFuncs.BuildRateBuffCheck,
-                    Add = 0,
-                    Mult = 1,
-                },
-            },
-        }
-    end
-    if not Buffs[sCheatIncome] then
-        BuffBlueprint {
-            Name = sCheatIncome,
-            DisplayName = sCheatBuildRate,
-            BuffType = 'INCOMECHEAT',
-            Stacks = 'ALWAYS',
-            Duration = -1,
-            Affects = {
-                EnergyProduction = {
-                    --BuffCheckFunction = AdjBuffFuncs.EnergyProductionBuffCheck,
-                    Add = 0,
-                    Mult = 1,
-                },
-                MassProduction = {
-                    --BuffCheckFunction = AdjBuffFuncs.MassProductionBuffCheck,
-                    Add = 0,
-                    Mult = 1,
-                }
-            },
-        }
-    end
     if bUpdateCheatValue then aiBrain.CheatValue = math.min(iBuildModifier, iResourceModifier) end
-    if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
-        Buffs[sCheatBuildRate].EntityCategory = 'ALLUNITS'
-        Buffs[sCheatIncome].EntityCategory = 'ALLUNITS'
-        Buffs[sCheatBuildRate].ParsedEntityCategory = categories.ALLUNITS
-        Buffs[sCheatIncome].ParsedEntityCategory = categories.ALLUNITS
+    if not(bDontCreateBuffs) then
+        --local FAFBuffs = import('/lua/sim/Buff.lua')
+        local sCheatBuildRate = 'CheatBuildRate'..aiBrain:GetArmyIndex()
+        local sCheatIncome = 'CheatIncome'..aiBrain:GetArmyIndex()
+        --local AdjBuffFuncs = import('/lua/sim/adjacencybufffunctions.lua')
+        if not Buffs[sCheatBuildRate] then
+            BuffBlueprint {
+                Name = sCheatBuildRate,
+                DisplayName = sCheatBuildRate,
+                BuffType = 'BUILDRATECHEAT',
+                Stacks = 'ALWAYS',
+                Duration = -1,
+                Affects = {
+                    BuildRate = {
+                        --BuffCheckFunction = AdjBuffFuncs.BuildRateBuffCheck,
+                        Add = 0,
+                        Mult = 1,
+                    },
+                },
+            }
+        end
+        if not Buffs[sCheatIncome] then
+            BuffBlueprint {
+                Name = sCheatIncome,
+                DisplayName = sCheatBuildRate,
+                BuffType = 'INCOMECHEAT',
+                Stacks = 'ALWAYS',
+                Duration = -1,
+                Affects = {
+                    EnergyProduction = {
+                        --BuffCheckFunction = AdjBuffFuncs.EnergyProductionBuffCheck,
+                        Add = 0,
+                        Mult = 1,
+                    },
+                    MassProduction = {
+                        --BuffCheckFunction = AdjBuffFuncs.MassProductionBuffCheck,
+                        Add = 0,
+                        Mult = 1,
+                    }
+                },
+            }
+        end
+        if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
+            Buffs[sCheatBuildRate].EntityCategory = 'ALLUNITS'
+            Buffs[sCheatIncome].EntityCategory = 'ALLUNITS'
+            Buffs[sCheatBuildRate].ParsedEntityCategory = categories.ALLUNITS
+            Buffs[sCheatIncome].ParsedEntityCategory = categories.ALLUNITS
+        end
+        Buffs['CheatBuildRate'..aiBrain:GetArmyIndex()].Affects.BuildRate.Mult = iBuildModifier
+        Buffs['CheatIncome'..aiBrain:GetArmyIndex()].Affects.EnergyProduction.Mult = iResourceModifier
+        Buffs['CheatIncome'..aiBrain:GetArmyIndex()].Affects.MassProduction.Mult = iResourceModifier
     end
-    Buffs['CheatBuildRate'..aiBrain:GetArmyIndex()].Affects.BuildRate.Mult = iBuildModifier
-    Buffs['CheatIncome'..aiBrain:GetArmyIndex()].Affects.EnergyProduction.Mult = iResourceModifier
-    Buffs['CheatIncome'..aiBrain:GetArmyIndex()].Affects.MassProduction.Mult = iResourceModifier
     if not(bDontApplyToUnits) then
         --Want both resource producing units, and units that can be upgraded
         local tExistingUnits = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryResourceUnit + M28UnitInfo.refCategoryProductionUnit, false, false)
@@ -1692,9 +1766,10 @@ function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceMod
     aiBrain[M28Economy.refiBrainResourceMultiplier] = iResourceModifier
     aiBrain[M28Economy.refiBrainBuildRateMultiplier] = iBuildModifier
     if aiBrain.CheatEnabled and aiBrain.M28Team then
-        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier] = iResourceModifier
-        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainBuildMultiplier] = iBuildModifier
+        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier] = math.max((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultiplier] or 0.1), iResourceModifier)
+        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainBuildMultiplier] = math.max((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainBuildMultiplier] or 0.1), iBuildModifier)
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for aiBrain='..aiBrain.Nickname..'; .CheatEnabled='..tostring(aiBrain.CheatEnabled or false)..'; refiBrainResourceMultiplier='..(aiBrain[M28Economy.refiBrainResourceMultiplier] or 'nil')..'; refiBrainBuildRateMultiplier='..(aiBrain[M28Economy.refiBrainBuildRateMultiplier] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1898,14 +1973,20 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
     end
     if aiBrain then
         local iTeam = aiBrain.M28Team
-        --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
+
         if bDebugMessages == true then
             LOG(sFunctionRef..': Further logs, ScenarioInfo.M3BaseDamageWarnings='..(ScenarioInfo.M3BaseDamageWarnings or 'nil')..'; ScenarioInfo.MainFrameIsAlive='..tostring(ScenarioInfo.MainFrameIsAlive or false)..'; ScenarioInfo.EMPFired='..tostring(ScenarioInfo.EMPFired or false)..'; ScenarioInfo.M3_Base is empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M3_Base))..'; bPacifistModeActive='..tostring(bPacifistModeActive)..'; ScenarioInfo.MissionNumber='..(ScenarioInfo.MissionNumber or 'nil')..'; iTeam='..iTeam..'; C M6: ScenarioInfo.ControlCenter is nil='..tostring(ScenarioInfo.ControlCenter == nil)..'; ScenarioInfo.Czar is nil='..tostring(ScenarioInfo.Czar == nil)..'; Is table of czars empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.Czar))..'; Is M3P1 active='..tostring(ScenarioInfo.M3P1.Active)..'; Is M3P2 active='..tostring(ScenarioInfo.M3P2.Active)..'; Is there a valid black sun unit='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon))..'; UEF M5: Is ScenarioInfo.M1P2.Active='..tostring(ScenarioInfo.M1P2.Active or false)..'; Is research facility 1 nil='..tostring(ScenarioInfo.ResearchFacility1 == nil)..'; Is research facility 2 nil='..tostring(ScenarioInfo.ResearchFacility2 == nil))
             if M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) then LOG(sFunctionRef..': Have a valid black sun unit, Target[1].UnitId='..(Target[1].UnitId or 'nil')..'; Black sun brain owner='..ScenarioInfo.BlackSunWeapon:GetAIBrain().Nickname..'; Faction index='..ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex()) end
             LOG(sFunctionRef..': Sera M3 logs, Is M4P3 active='..tostring(ScenarioInfo.M4P3.Active)..'; Is target category urc1901='..tostring(Target.Requirements[1].Category == categories.urc1901)..'; Target.Area='..(Target.Requirements[1].Area or 'nil')..'; reprs of ScenarioInfo.M2P2='..reprs(ScenarioInfo.M2P2)..'; reprs of Target='..reprs(Target))
             LOG(sFunctionRef..': Aeon M5 check, if ScenarioInfo.M2P1Obj.Active='..tostring(ScenarioInfo.M2P1Obj.Active or false)..'; ScenarioInfo.Ariel==nil='..tostring(ScenarioInfo.Ariel == nil)..'; Colonies is nil='..tostring(ScenarioInfo.Colonies == nil)..'; tbSpecialCodeForMission[21]='..tostring(tbSpecialCodeForMission[21] or false))
         end
-        if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
+        --UEF Mission 2 - if player 1 has M28AI logic active, then try and move units to the area for civilians
+        if Target.Area == 'Civilian_Area' and ScenarioInfo.M2P1.Active and ScenarioInfo.AllyResearch == 3 and ScenarioInfo.AllyCivilian == 4 and ScenarioInfo.CivilianFacilityReinforcedObjectiveComplete == false then
+            ForkThread(UEFMission2ReinforceCivilianTracker, iTeam)
+
+
+            --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
+        elseif ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
             if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
             local ScenarioFramework = import('/lua/ScenarioFramework.lua')
             ScenarioFramework.CreateUnitDeathTrigger(M28ErisKilled, ScenarioInfo.AeonCDR)
@@ -2377,6 +2458,57 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
         end
     else
         if bDebugMessages == true then LOG(sFunctionRef..': No active M28 brains so aborting') end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function AddCampaignUnitToUnitsToRepair(oUnit, iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddCampaignUnitToUnitsToRepair'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+    local tLZOrWZData
+    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
+    if iLandOrWaterZone > 0 then
+        local tLZOrWZTeamData
+        if iPlateauOrZero == 0 then
+            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+        else
+            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+        end
+        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) then
+            tLZOrWZData[M28Map.subreftoUnitsToRepair] = {}
+        end
+        table.insert(tLZOrWZData[M28Map.subreftoUnitsToRepair], oUnit)
+        M28Air.AddPriorityAirDefenceTarget(oUnit)
+        if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to repair') end
+        --Consider adding this zone as somewhere to drop if it's not adjacent to a core zone
+        if iPlateauOrZero > 0 then
+            local bAdjacentToCoreBase = false
+            if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
+                bAdjacentToCoreBase = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Are in a core base; tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride]='..tostring(tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride])) end
+
+            elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                for _, iAdjLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                    if M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ '..iAdjLZ..' is a core base, midpoint of adjlz='..repru(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefMidpoint])..'; Dist to midpoint of this LZ='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefMidpoint], tLZOrWZData[M28Map.subrefMidpoint])..'; Travel distance='..(M28Map.GetTravelDistanceBetweenLandZones(iPlateauOrZero, iLandOrWaterZone, iAdjLZ) or 'nil')) end
+                        bAdjacentToCoreBase = true
+                        break
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add location as a drop zone target, bAdjacentToCoreBase='..tostring(bAdjacentToCoreBase)..'; iTeam='..iTeam) end
+            if not(bAdjacentToCoreBase) then
+                --Add to locations for priority transport drop
+                M28Air.UpdateTransportPlateauDropLocationShortlist(iTeam) --incase not already run
+                M28Air.AddZoneToPotentialDropZonesSameIslandOrDifPond(iTeam, iPlateauOrZero, iLandOrWaterZone)
+                if bDebugMessages == true then LOG(sFunctionRef..': Have tried toa dd to same island drop list, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam) end
+            end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -3117,9 +3249,6 @@ function ReviewTreatingOldBaseAsCoreBase(aiBrain)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-
-
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function DelayedArmyChangeForPings()
@@ -3128,4 +3257,265 @@ function DelayedArmyChangeForPings()
     WaitSeconds(0.5) --just in case some LOUD or FAF stuff hasnt loaded yet
     local SimPing = import('/lua/SimPing.lua')
     SimPing.OnArmyChange()
+end
+
+function UEFMission2ReinforceCivilianTracker()
+    local sFunctionRef = 'UEFMission2ReinforceCivilianTracker'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Is player 1 M28AI?
+    local oFirstPlayer
+    local oM28Brain
+    for iBrain, oBrain in ArmyBrains do
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; .BrainType='..(oBrain.BrainType or 'nil')..'; .M28Team='..(oBrain.M28Team or 'nil')..'; Does nickname contain M28='..tostring(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname))..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oFirstPlayer.M28Team='..(oFirstPlayer.M28Team or 'nil')) end
+        if not(oFirstPlayer) and oBrain.BrainType == 'Human' then
+            oFirstPlayer = oBrain
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oFirstPlayer') end
+            if oM28Brain then break end
+        end
+        if oBrain.M28AI and oBrain.BrainType == 'AI' and M28Conditions.DoesAINicknameContainM28(oBrain.Nickname) and oBrain.M28Team == oFirstPlayer.M28Team then
+            oM28Brain = oBrain
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oM28Brain') end
+            if oFirstPlayer then break end
+        end
+    end
+    if not(oM28Brain) and oFirstPlayer.M28AI then oM28Brain = oFirstPlayer end
+    if bDebugMessages == true then LOG(sFunctionRef..': oM28Brain='..(oM28Brain.Nickname or 'nil')..'; oFirstPlayer='..(oFirstPlayer.Nickname or 'nil')) end
+    if oM28Brain and oFirstPlayer then
+        local rTargetRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('Civilian_Area')
+        local tTargetMidpoint = {(rTargetRect['x0'] + rTargetRect['x1'])*0.5 , 0, (rTargetRect['y0'] + rTargetRect['y1'])*0.5}
+        tTargetMidpoint[2] = GetTerrainHeight(tTargetMidpoint[1], tTargetMidpoint[3])
+        local iTargetPlateau, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tTargetMidpoint)
+        if iTargetPlateau and iTargetZone and iTargetPlateau > 0 then
+            local iTargetIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tTargetMidpoint)
+            if iTargetIsland then
+                local toTankReinforcements = {}
+                local toMAAReinforcements = {}
+                local toGunshipReinforcements = {}
+                local iTanksWanted = 20
+                local iMAAWanted = 14
+                local iGunshipsWanted = 12
+                local iTanksAssigned, iMAAAssigned, iGunshipsAssigned
+                local iTankCategory = categories.MOBILE * categories.LAND * categories.DIRECTFIRE - categories.COMMAND
+                local iMAACategory = categories.MOBILE * categories.LAND * categories.ANTIAIR
+                local iGunshipCategory = categories.uea0203
+                local aiBrain = oM28Brain
+                local iTeam = aiBrain.M28Team
+                local iTimeToResetMicro
+                function MoveUnitsToObjective(toUnits)
+                    if M28Utilities.IsTableEmpty(toUnits) == false then
+                        for iUnit, oUnit in toUnits do
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to give move order to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Orders.bDontConsiderCombinedArmy='..tostring(M28Orders.bDontConsiderCombinedArmy or false)..'; oUnit.M28Active='..tostring(oUnit.M28Active or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Unit speed='..M28UnitInfo.GetUnitSpeed(oUnit)..'; Dist to target='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetMidpoint)..'; refbSpecialMicroActive='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Time until refiGameTimeToResetMicroActive is passed='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 0)) end
+                            if M28Orders.bDontConsiderCombinedArmy or oUnit.M28Active then
+                                M28Orders.IssueTrackedMove(oUnit, tTargetMidpoint, 5, false, 'CampObjM', true)
+                                --Reapply micro flag in case it has been turned off elsewhere
+                                oUnit[M28UnitInfo.refbSpecialMicroActive] = true
+                                oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = iTimeToResetMicro
+                            end
+                        end
+                    end
+                end
+
+                function SearchForUnitsToAssign(iCategoryToSearch, iUnitsWanted, tTableToAddTo, bIsAirUnit, bDontSetFactoryOverrides)
+                    local iUnitsFound = 0
+                    local toUnitsOfCategory = aiBrain:GetListOfUnits(iCategoryToSearch, false, true)
+                    local bAlreadyRecorded
+                    if M28Utilities.IsTableEmpty(toUnitsOfCategory) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': iUnitsWanted='..iUnitsWanted..'; bIsAirUnit='..tostring(bIsAirUnit)..'; size of toUnitsOfCategory='..table.getn(toUnitsOfCategory)..'; Time='..GetGameTimeSeconds()) end
+                        for iUnit, oUnit in toUnitsOfCategory do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; refbSpecialMicroActive='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Assigned plateau='..(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 'nil')..'; Land label='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) or 'nil')..'; iTargetIsland='..(iTargetIsland or 'nil')) end
+                            if oUnit:GetFractionComplete() == 1 and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and (bIsAirUnit or (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iTargetPlateau and NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == iTargetIsland)) then
+                                --Check we havent already recorded unit
+                                bAlreadyRecorded = false
+                                if M28Utilities.IsTableEmpty(tTableToAddTo) == false then
+                                    for iRecordedUnit, oRecordedUnit in tTableToAddTo do
+                                        if oRecordedUnit == oUnit then
+                                            bAlreadyRecorded = true
+                                            break
+                                        end
+                                    end
+                                end
+                                if not(bAlreadyRecorded) then
+                                    oUnit[M28UnitInfo.refbSpecialMicroActive] = true
+                                    oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = iTimeToResetMicro
+                                    table.insert(tTableToAddTo, oUnit)
+                                    iUnitsFound = iUnitsFound + 1
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units to give orders to') end
+                                    if iUnitsFound >= iUnitsWanted then break end
+                                end
+                            end
+                        end
+                    end
+                    if iUnitsWanted > iUnitsFound and not(bDontSetFactoryOverrides) then
+                        local iFactoryCategory
+                        if bIsAirUnit then iFactoryCategory = M28UnitInfo.refCategoryAirFactory * categories.UEF - categories.TECH1
+                        else iFactoryCategory = M28UnitInfo.refCategoryLandFactory * categories.UEF
+                        end
+                        local toFactories = aiBrain:GetListOfUnits(iFactoryCategory, false, true)
+                        if M28Utilities.IsTableEmpty(toFactories) == false then
+                            --Make sure factory will only build these units
+                            for iFactory, oFactory in toFactories do
+                                --Is factory on same island?
+                                if NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == iTargetIsland then
+                                    --Get most expensive unit matching the category wanted
+                                    oFactory[M28Factory.refsFactoryNextBlueprintOverride] = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToSearch, oFactory, false, false, false, nil, false, nil, true)
+                                end
+                            end
+                        end
+                    end
+                    return iUnitsFound
+                end
+
+                local bAlsoSendTruckOrder = false
+                if oFirstPlayer.M28AI and oFirstPlayer == oM28Brain then bAlsoSendTruckOrder = true end --Will also set to true later on if we gift all the reinforcements from an M28 brain
+
+
+                while ScenarioInfo.CivilianFacilityReinforcedObjectiveComplete == false do
+                    iTimeToResetMicro = GetGameTimeSeconds() + 15
+                    --Do we have a shortfall of units?
+                    if M28Conditions.IsTableOfUnitsStillValid(toTankReinforcements) then
+                        iTanksAssigned = 0
+                        for iUnit, oUnit in toTankReinforcements do
+                            if M28UnitInfo.GetUnitSpeed(oUnit) == 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetMidpoint) >= 30 then
+                                --Unit may be stuck so want more units assigned
+                            else
+                                iTanksAssigned = iTanksAssigned + 1
+                            end
+                        end
+                    else iTanksAssigned = 0
+                    end
+                    if M28Conditions.IsTableOfUnitsStillValid(toMAAReinforcements) then
+                        iMAAAssigned = 0
+                        for iUnit, oUnit in toMAAReinforcements do
+                            if M28UnitInfo.GetUnitSpeed(oUnit) == 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetMidpoint) >= 30 then
+                                --Unit may be stuck so want more units assigned
+                            else
+                                iMAAAssigned = iMAAAssigned + 1
+                            end
+                        end
+                    else iMAAAssigned = 0
+                    end
+                    if M28Conditions.IsTableOfUnitsStillValid(toGunshipReinforcements) then
+                        iGunshipsAssigned = table.getn(toGunshipReinforcements)
+                    else iGunshipsAssigned = 0
+                    end
+                    if iTanksAssigned < iTanksWanted then
+                        iTanksAssigned = iTanksAssigned + SearchForUnitsToAssign(iTankCategory, iTanksWanted - iTanksAssigned, toTankReinforcements, false, false)
+                    end
+                    if iMAAAssigned < iMAAWanted then
+                        iMAAAssigned = iMAAAssigned + SearchForUnitsToAssign(iMAACategory, iMAAWanted - iMAAAssigned, toMAAReinforcements, false, iTanksAssigned < iTanksWanted)
+                    end
+                    if iGunshipsAssigned < iGunshipsWanted then
+                        iGunshipsAssigned = iGunshipsAssigned + SearchForUnitsToAssign(iGunshipCategory, iGunshipsWanted - iGunshipsAssigned, toGunshipReinforcements, true, false)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iTanksAssigned='..iTanksAssigned..'; iTanksWanted='..iTanksWanted..'; iMAAAssigned='..iMAAAssigned..'; iMAAWanted='..iMAAWanted) end
+                    MoveUnitsToObjective(toTankReinforcements)
+                    MoveUnitsToObjective(toMAAReinforcements)
+                    MoveUnitsToObjective(toGunshipReinforcements)
+
+                    if not(oFirstPlayer == oM28Brain) and iTanksAssigned >= iTanksWanted and iMAAAssigned >= iMAAWanted and iGunshipsAssigned >= iGunshipsWanted then
+                        --Gift units to player 1 if they are all in the target area
+                        local iTanksInTargetArea = 0
+                        for iUnit, oUnit in toTankReinforcements do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering position of oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; position='..repru(oUnit:GetPosition())..'; rTargetRect='..repru(rTargetRect)) end
+                            if M28Conditions.IsPositionInRectangle(oUnit:GetPosition(), rTargetRect) then iTanksInTargetArea = iTanksInTargetArea + 1 end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iTanksInTargetArea='..iTanksInTargetArea) end
+                        if iTanksInTargetArea >= iTanksWanted then
+                            local iMAAInTargetArea = 0
+                            for iUnit, oUnit in toMAAReinforcements do
+                                if M28Conditions.IsPositionInRectangle(oUnit:GetPosition(), rTargetRect) then iMAAInTargetArea = iMAAInTargetArea + 1 end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iMAAInTargetArea='..iMAAInTargetArea) end
+                            if iMAAInTargetArea >= iMAAWanted then
+                                local iGunshipsInTargetArea = 0
+                                for iUnit, oUnit in toGunshipReinforcements do
+                                    if M28Conditions.IsPositionInRectangle(oUnit:GetPosition(), rTargetRect) then iGunshipsInTargetArea = iGunshipsInTargetArea + 1 end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iGunshipsInTargetArea='..iGunshipsInTargetArea) end
+                                if iGunshipsInTargetArea >= iGunshipsWanted then
+                                    --Gift units to the player and exit loop, and give trucks a 1-off order
+                                    bAlsoSendTruckOrder = true
+                                    M28Team.TransferUnitsToPlayer(toTankReinforcements, oFirstPlayer:GetArmyIndex(), false)
+                                    M28Team.TransferUnitsToPlayer(toMAAReinforcements, oFirstPlayer:GetArmyIndex(), false)
+                                    M28Team.TransferUnitsToPlayer(toGunshipReinforcements, oFirstPlayer:GetArmyIndex(), false)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will gift units to oFirstPlayer') end
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitSeconds(10)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                end
+                --Clear factory overrides and unit orders
+                local toFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+                if M28Utilities.IsTableEmpty(toFactories) == false then
+                    for iFactory, oFactory in toFactories do
+                        if oFactory[M28Factory.refsFactoryNextBlueprintOverride] then oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil end
+                    end
+                end
+
+                if M28Conditions.IsTableOfUnitsStillValid(toTankReinforcements) then
+                    for iUnit, oUnit in toTankReinforcements do
+                        oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+                        oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = nil
+                    end
+                end
+                if M28Conditions.IsTableOfUnitsStillValid(toMAAReinforcements) then
+                    for iUnit, oUnit in toMAAReinforcements do
+                        oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+                        oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = nil
+                    end
+                end
+                if M28Conditions.IsTableOfUnitsStillValid(toGunshipReinforcements) then
+                    for iUnit, oUnit in toGunshipReinforcements do
+                        oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+                        oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = nil
+                    end
+                end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should try giving civilian trucks an order, bAlsoSendTruckOrder='..tostring(bAlsoSendTruckOrder)..'; ScenarioInfo.M2P2.Active='..tostring(ScenarioInfo.M2P2.Active or false)..'; ScenarioInfo.M2P2Complete='..tostring(ScenarioInfo.M2P2Complete or false)) end
+
+                --Monitor for the civilian trucks, and give them a 1-off order (even if M28 not active) to go to the research facility (refresh the order if M28Active is enabled)
+                if bAlsoSendTruckOrder and ScenarioInfo.M2P2.Active then
+                    local refiTimeLastGivenTruckMoveOrder = 'M28UEFM2TruckOrder'
+                    local tTruckTargetRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('Research_Area')
+                    local tTruckTargetMidpoint = {(tTruckTargetRect['x0'] + tTruckTargetRect['x1'])*0.5 , 0, (tTruckTargetRect['y0'] + tTruckTargetRect['y1'])*0.5}
+                    local iDelayBeforeReissuingIfNoSpeed = 300
+                    if oFirstPlayer.M28AI and oFirstPlayer == oM28Brain then iDelayBeforeReissuingIfNoSpeed = 120 end
+                    WaitSeconds(2)
+
+                    local bResetM28ActiveFlag
+                    while not(ScenarioInfo.M2P2Complete) do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is TruckList empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.TruckList))..'; Time='..GetGameTimeSeconds()..'; ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; iDelayBeforeReissuingIfNoSpeed='..iDelayBeforeReissuingIfNoSpeed) end
+                        if M28Utilities.IsTableEmpty(ScenarioInfo.TruckList) == false then
+                            for iTruck, oTruck in ScenarioInfo.TruckList do
+                                if bDebugMessages == true and not(oTruck.Dead) then LOG(sFunctionRef..': COnsidering g iving order to oTruck='..oTruck.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTruck)..'; oTruck[refiTimeLastGivenTruckMoveOrder]='..(oTruck[refiTimeLastGivenTruckMoveOrder] or 'nil')..'; truck speed='..M28UnitInfo.GetUnitSpeed(oTruck)..'; refiGameTimeToResetMicroActive='..(oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Dist to target midpoint='..M28Utilities.GetDistanceBetweenPositions(oTruck:GetPosition(), tTruckTargetMidpoint)) end
+                                if ((not(oTruck[refiTimeLastGivenTruckMoveOrder]) or oTruck.M28Active) and not(oTruck.Dead) and not(oTruck:IsUnitState('Attached')) and (M28UnitInfo.GetUnitSpeed(oTruck) < 0.1 or (oTruck.M28Active and (not(oTruck[M28UnitInfo.refiGameTimeToResetMicroActive]) or GetGameTimeSeconds() - oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] <= 10)))) or (oTruck[refiTimeLastGivenTruckMoveOrder] and GetGameTimeSeconds() - oTruck[refiTimeLastGivenTruckMoveOrder] >= iDelayBeforeReissuingIfNoSpeed and M28UnitInfo.GetUnitSpeed(oTruck) == 0) then
+                                    if not(oTruck.M28Active) and not(M28Orders.bDontConsiderCombinedArmy) then
+                                        --Temporarily set M28Active to true
+                                        bResetM28ActiveFlag = true
+                                        oTruck.M28Active = true
+                                    end
+                                    M28Orders.IssueTrackedMove(oTruck, tTruckTargetMidpoint, 5, false, 'CampObjMTr', true)
+                                    oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 120
+                                    oTruck[M28UnitInfo.refbSpecialMicroActive] = true
+                                    oTruck[refiTimeLastGivenTruckMoveOrder] = GetGameTimeSeconds()
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Given move order to truck') end
+                                    if bResetM28ActiveFlag then
+                                        oTruck.M28Active = false
+                                    end
+                                end
+                            end
+                        end
+                        WaitSeconds(10)
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

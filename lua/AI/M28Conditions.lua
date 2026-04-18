@@ -1648,7 +1648,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
                 if (iAirFacsInZone > 0 or not(bCanBuildAirFac)) and iLandFacsInZone > 0 then bDontWantDueToUnitCap = true end
 
                 --Have we failed to build something at existing land and air factories recently?
-                if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; iAverageCurAirAndLandFactories='..iAverageCurAirAndLandFactories..'; Map size='..(M28Map.iMapSize or 'nil')..'; % Stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] or 'nil')..'; AIx='..(M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or 'nil')..'; Gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Time of last stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 'nil')..'; Highest air fac tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or 'nil')..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Time of last energy stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or 'nil')..'; Team has air control='..tostring(TeamHasAirControl(iTeam))..'; iAirFacsInZone (if calculated)='..(iAirFacsInZone or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or false)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; iAverageCurAirAndLandFactories='..iAverageCurAirAndLandFactories..'; Map size='..(M28Map.iMapSize or 'nil')..'; % Stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] or 'nil')..'; AIx team highest build mult='..(M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or 'nil')..'; Gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Time of last stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 'nil')..'; Highest air fac tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or 'nil')..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Time of last energy stall='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or 'nil')..'; Team has air control='..tostring(TeamHasAirControl(iTeam))..'; iAirFacsInZone (if calculated)='..(iAirFacsInZone or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or false)) end
                 if (iAirFacsInZone == 0 and tLZTeamData[M28Map.subrefLZbCoreBase]) or (tLZTeamData[M28Map.refbBaseInSafePosition] and iAirFacsInZone < tLZTeamData[M28Map.subrefMexCountByTech][3] + 1) and DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then
                     if bDebugMessages == true then LOG(sFunctionRef..': we have a core base with no air fac (or safe zone with no more air facs than t3 mexes so want to build more facs') end
                     bWantMoreFactories = true
@@ -2892,7 +2892,7 @@ function IsTableOfUnitsStillValid(tUnits, bInvalidIfFullHealth)
             local oUnit = tUnits[iCurEntry]
             --if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Is oUnit.GetHealth nil='..tostring(oUnit.GetHealth == nil)) end
             if not(M28UnitInfo.IsUnitValid(oUnit)) or (bInvalidIfFullHealth and M28UnitInfo.GetUnitHealthPercent(oUnit) == 1) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' at time '..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bInvalidIfFullHealth='..tostring(bInvalidIfFullHealth or false)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' at time '..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bInvalidIfFullHealth='..tostring(bInvalidIfFullHealth or false)..'Unit.Dead='..tostring(oUnit.Dead or false)) end
                 table.remove(tUnits, iCurEntry)
             end
         end
@@ -3268,7 +3268,11 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
         if not(aiBrain[M28Overseer.refbCloseToUnitCap]) and iFactoryTechLevel < 3 then
             local iTeam = aiBrain.M28Team
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oFactory:GetPosition(), true, iTeam)
-
+            if tLZOrWZTeamData[M28Map.subrefLZFortify] and iFactoryTechLevel < 2 and M28Map.bIsCampaignMap then
+                if bDebugMessages == true then LOG(sFunctionRef..': Campaign where we want to fortify zone so want to upgrade asap to T2') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return false
+            end
             local iBuildCountAdjust = 0
             if iFactoryTechLevel == 2 then
 
@@ -3460,6 +3464,7 @@ function CheckIfNeedMoreEngineersOrSnipeUnitsBeforeUpgrading(oFactory)
                 return true
             end
         end
+
         if bDebugMessages == true then LOG(sFunctionRef..': End of code, bWantMoreEngineers='..tostring(bWantMoreEngineers or false)) end --here since lower down means not a factory
     end
     if bWantMoreEngineers and M28Map.bIsCampaignMap then
@@ -4681,7 +4686,7 @@ function GetNetMAAWantedForZone(tLZTeamData, iOptionalGrossFactorAdjust)
     return 0
 end
 function DoesBrainHaveOmniVision(aiBrain)
-    if aiBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
+    if aiBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' and not(aiBrain.PCxModifier) then
         return true
     end
 end
@@ -4729,4 +4734,9 @@ function IsPositionInWayOfFactory(tPosition)
         end
     end
     return false
+end
+
+function IsPositionInRectangle(tPosition, rRect)
+    --Assumes rRect is defined with 'x0', 'x1', 'y0', 'y1' (as using for campaign rectangles)
+    if tPosition[1] >= rRect['x0'] and tPosition[1] <= rRect['x1'] and tPosition[3] >= rRect['y0'] and tPosition[3] <= rRect['y1'] then return true end
 end

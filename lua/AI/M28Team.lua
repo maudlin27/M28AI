@@ -447,6 +447,7 @@ function CreateNewAirSubteam(aiBrain)
     end
 
     M28Air.AirSubteamInitialisation(aiBrain.M28Team, aiBrain.M28AirSubteam) --Dont fork thread
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished creating air subteam for aiBrain='..aiBrain.Nickname..' on M28Team='..aiBrain.M28Team..'; M28AirSubteam='..aiBrain.M28AirSubteam) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -687,8 +688,8 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiLastFailedIslandAndZoneDropTime] = {}
     tTeamData[iTotalTeamCount][subrefbUseFrigatesAsScoutsByPond] = {}
     M28Engineer.tiLastBuildingSizeFromActionForTeam[iTotalTeamCount] = {}
-    tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = 1
-    tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = 1
+    tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = 0.1
+    tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = 0.1
     tTeamData[iTotalTeamCount][refiConstructedExperimentalCount] = 0
     tTeamData[iTotalTeamCount][refiFriendlyGameEnderCount] = 0
     tTeamData[iTotalTeamCount][refiMexCountByTech] = {[1]=0,[2]=0,[3]=0,[4]=0}
@@ -720,7 +721,7 @@ function CreateNewTeam(aiBrain)
     local bAlreadyRecordedBrain
 
     for iCurBrain, oBrain in ArmyBrains do
-        if bDebugMessages == true then LOG(sFunctionRef..': Doing setup for team '..iTotalTeamCount..'; Considering brain '..oBrain.Nickname..'; oBrain.M28Team='..(oBrain.M28Team or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Doing setup for team '..iTotalTeamCount..'; Considering brain '..oBrain.Nickname..'; oBrain.M28Team='..(oBrain.M28Team or 'nil')..'; ScenarioInfo.Options.CommonArmy='..reprs(ScenarioInfo.Options.CommonArmy)..'; ScenarioInfo.Options.CommonArmy=true='..tostring(ScenarioInfo.Options.CommonArmy == true)..'; is table of M28 for this brain empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains]))) end
         --First make sure we have recorded all brains (redundancy for AI like dillidalli) - the function below will check if we have already recorded the brain
         ForkThread(M28Events.OnCreateBrain, oBrain, nil, nil)
         --[[if not(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) then --redundancy
@@ -731,7 +732,7 @@ function CreateNewTeam(aiBrain)
 
         --if not(oBrain.M28Team) then
         bAlreadyRecordedBrain = false
-        if oBrain == aiBrain or ((not(ScenarioInfo.Options.CommonArmy or (not(aiBrain.M28AI and M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains])))) and IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)))) then
+        if oBrain == aiBrain or ((not(ScenarioInfo.Options.CommonArmy == true) and not(ScenarioInfo.Options.CommonArmy == 'true')) or (not(aiBrain.M28AI) and M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains]))) and IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
             --Have we already recorded this as an ally?
             if M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains]) == false then
                 for iRecorded, oRecorded in tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains] do
@@ -773,19 +774,26 @@ function CreateNewTeam(aiBrain)
                     if not(oBrain.M28Team) or oBrain.M28Team == iTotalTeamCount then --e.g. campaign might change team part-way through, dont want to change team of existing players or breaks their logic
                         oBrain.M28Team = iTotalTeamCount
                         table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyHumanAndAIBrains], oBrain)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will add brain to table of friendly active M28 brains if it is an M28AI brain, oBrain.M28AI='..tostring(oBrain.M28AI)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will add brain to table of friendly active M28 brains if it is an M28AI brain, oBrain='..oBrain.Nickname..'; oBrain.M28AI='..tostring(oBrain.M28AI)..'; .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; oBrain.PCxModifier='..tostring(oBrain.PCxModifier or false)..'; refiBrainResourceMultiplier='..(oBrain[M28Economy.refiBrainResourceMultiplier] or 'nil')) end
                         if oBrain.M28AI then
                             table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
                             tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
                         end
                         if oBrain.CheatEnabled then
-                            tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
-                            tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
-                            oBrain[M28Economy.refiBrainResourceMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
-                            oBrain[M28Economy.refiBrainBuildRateMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.BuildMult or 1.5))
+                            if oBrain.PCxModifier then
+                                tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], (oBrain[M28Economy.refiBrainResourceMultiplier] or 1))
+                                tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], (oBrain[M28Economy.refiBrainBuildRateMultiplier] or 1))
+                            else
+                                tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+                                tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
+                                oBrain[M28Economy.refiBrainResourceMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
+                                oBrain[M28Economy.refiBrainBuildRateMultiplier] = (oBrain.CheatValue or tonumber(ScenarioInfo.Options.BuildMult or 1.5))
+                            end
                         else
                             oBrain[M28Economy.refiBrainResourceMultiplier] = 1
                             oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
+                            tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultiplier], 1)
+                            tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], 1)
                         end
                         bHaveM28BrainInTeam = true
                         --Check if we have omni vision for the team
@@ -794,7 +802,7 @@ function CreateNewTeam(aiBrain)
                         end
                         --Record brain details in log for ease of reference
                         local sAIxref = ''
-                        if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)..'; oBrain[M28Economy.refiBrainResourceMultiplier]='..(oBrain[M28Economy.refiBrainResourceMultiplier] or 'nil')) end
                         if oBrain.CheatEnabled then
                             sAIxref = ' AIx Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
                         end
@@ -827,7 +835,7 @@ function CreateNewTeam(aiBrain)
                 table.insert(tTeamData[iTotalTeamCount][subreftoEnemyBrains], oBrain)
                 tBrainIndexesRecordedAsEnemies[oBrain:GetArmyIndex()] = true
                 --Check if anyone on enemy team has omni
-                if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
+                if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' and not(aiBrain.PCxModifier) then
                     tTeamData[iTotalTeamCount][subrefbEnemyHasOmni] = true
                 end
             end
@@ -1735,7 +1743,7 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                     if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
                         tTeamData[iTeam][refbEnemySMDBuiltSinceLastNukeCheck] = true
                         local iTimeAssumedConstructed
-                        if oUnit:GetNukeSiloAmmoCount() >= 1 or oUnit:GetWorkProgress() >= 0.8 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) - 240 - M28Building.iTimeForSMDToBeConstructed
+                        if (oUnit.GetNukeSiloAmmoCount and oUnit:GetNukeSiloAmmoCount() >= 1) or (oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() >= 1) or oUnit:GetWorkProgress() >= 0.8 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) - 240 - M28Building.iTimeForSMDToBeConstructed
                             --Rough approximation of when SMD was built (ideally in future would work out the time we last scouted this area and then to be prudent assume the SMD got built 30s after that)
                         elseif oUnit:GetFractionComplete() == 1 then
                             oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - M28Building.iTimeForSMDToBeConstructed - 240 * oUnit:GetWorkProgress()
