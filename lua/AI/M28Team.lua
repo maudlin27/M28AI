@@ -284,7 +284,7 @@ tAirSubteamData = {}
     refiFarBehindFactor = 'M28ASTFarBhAFc' --e.g. 0.75 means refbFarBehindOnAir is true if our AirAA threat is <75% of enemy
     refiAirControlFactor = 'M28ACFct' --% of airaa we want to consider we have air control
     refbHaveAirControl = 'M28ASTHaveAirControl'
-    reftACUExpAndPriorityDefenceOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
+    reftACUExpAndPriorityDefenceOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals and campaign temporary escort objectives
 
     --NOTE: Some of below are used for team as well (AirAA, Gunship, and Bomber (non-torp) threats)
     subrefiOurAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat; also used as a team variable
@@ -5068,8 +5068,40 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
         local iHealthPercent = iCurHealth / iMaxHealth
         local iBaseHealthThreshold = 0.5
         if bIsUnderwater then iBaseHealthThreshold = 0.3 end
+        --For maps like UEF Mission 2 where AI ACU can sometimes move outside of safe location and take damage from not moving, and we have gunships who could suicide into it
+        local bCampaignSnipe = false
+        if M28Map.bIsCampaignMap and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+            bDebugMessages = true
+            local iCampaignFactor = (oUnit[M28UnitInfo.refiCampaignSnipeAttempts] or 0)
+            if oUnit[M28UnitInfo.refbIsSnipeTarget] then iCampaignFactor = iCampaignFactor - 1 end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering campaign snipe on injured enemy ACU, iCampaignFactor='..iCampaignFactor..'; refiOurGunshipThreat='..(tTeamData[iTeam][subrefiOurGunshipThreat] or 'nil')..'; Have air control='..tostring(M28Conditions.TeamHasAirControl(iTeam))..'; bIsUnderwater='..tostring(bIsUnderwater)..'; Brain target='..oUnit:GetAIBrain().Nickname..'; Time since ACU last fired='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)) end
+            --First attempt we will go even if ACU is on full health if it has no nearby AA and has fired at us recently (with 20s buffer if it is already a snipe target, use - since shoudl be -1 campaign factor)
+            if iCampaignFactor <= 5 and (iHealthPercent < 0.9 or iCampaignFactor <= 0 and oUnit[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] <= (20 - 20 * iCampaignFactor)) and tTeamData[iTeam][subrefiOurGunshipThreat] >= 9600 + 1000 * iCampaignFactor and M28Conditions.TeamHasAirControl(iTeam) and not(bIsUnderwater) and oUnit:GetAIBrain().BrainType == 'AI' and not(M28Conditions.DoesAINicknameContainM28(oUnit:GetAIBrain().Nickname)) then
+                --If enemy ACU is full health add extra check for nearby AA
+                local bContinue = true
+                if iHealthPercent >= 0.8 then
+                    if iHealthPercent >= 0.9 then bContinue = false end
+                    local iSearchRange = 40
+                    if oUnit[M28UnitInfo.refbIsSnipeTarget] then iSearchRange = 20 end
+                    local tNearbyEnemyAA = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, oUnit:GetPosition(), iSearchRange, 'Ally')
+                    local iEnemyNearbyAAThreat = 0
+                    if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false then iEnemyNearbyAAThreat = M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAA, true, false, true, false, false, false) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemyNearbyAAThreat='..iEnemyNearbyAAThreat..'; 35% of our gunship threat='..tTeamData[iTeam][subrefiOurGunshipThreat] * 0.3) end
+                    if iEnemyNearbyAAThreat <= tTeamData[iTeam][subrefiOurGunshipThreat] * 0.35 then
+                        bContinue = false
+                        iBaseHealthThreshold = 1
+                        bCampaignSnipe = true
+                    end
+                end
+                if bContinue then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Campaign so will be more likely to snipe') end
+                    iBaseHealthThreshold = 0.8
+                    bCampaignSnipe = true
+                end
+            end
+        end
         if oUnit[M28UnitInfo.refbIsSnipeTarget] then iBaseHealthThreshold = iBaseHealthThreshold+ 0.1 end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold..'; bCampaignSnipe='..tostring(bCampaignSnipe)) end
         if iHealthPercent < iBaseHealthThreshold then
             --Check for shield
             local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
@@ -5084,11 +5116,10 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated ACU target for shield, iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; iHealthPercent post update='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
             end
-
             if iMaxShield == 0 or (iHealthPercent < iBaseHealthThreshold and (iHealthPercent < 0.4 or iCurShield / iMaxShield < 0.3)) then
                 --Dont try and snipe lowest rated players on enemy team in full share
                 local bLowRatedTarget = false
-                if M28Utilities.bFAFActive and not(tTeamData[oUnit:GetAIBrain().M28Team][refbAssassinationOrSimilar]) and ScenarioInfo.Options.Share == 'FullShare' and oUnit:GetAIBrain().Rating < 1500 then
+                if M28Utilities.bFAFActive and not(tTeamData[oUnit:GetAIBrain().M28Team][refbAssassinationOrSimilar]) and ScenarioInfo.Options.Share == 'FullShare' and oUnit:GetAIBrain().Rating < 1500 and not(M28Map.bIsCampaignMap) then
                     --Get the average rating on the enemy team
                     local iTotalRating = 0
                     local iBrainCount = 0
@@ -5105,12 +5136,20 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering unit owned by brain '..oUnit:GetAIBrain().Nickname..'; that brains rating is '..(oUnit:GetAIBrain().Rating or 'nil')..'; Team iHighestRating='..iHighestRating..'; Team average rating='..iTotalRating / iBrainCount..'; bLowRatedTarget='..tostring(bLowRatedTarget)) end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': bLowRatedTarget='..tostring(bLowRatedTarget)) end
                 if not(bLowRatedTarget) then
 
                     --Very low health - attack
                     if (iHealthPercent < 0.175 or (iHealthPercent < 0.2 and oUnit[M28UnitInfo.refbIsSnipeTarget])) and (oUnit:GetHealth() <= 2000 or (oUnit[M28UnitInfo.refbIsSnipeTarget] and oUnit:GetHealth() <= 2500)) then
                         if bDebugMessages == true then LOG(sFunctionRef..': So low health that we might kill just with air') end
                         bAddAsSnipeTarget = true
+                    elseif bCampaignSnipe then
+                        bAddAsSnipeTarget = true
+                        --Track attempts made so we can increase requirements to avoid being stuck in a failing pattern
+                        if not(oUnit[M28UnitInfo.refbIsSnipeTarget]) then
+                            oUnit[M28UnitInfo.refiCampaignSnipeAttempts] = (oUnit[M28UnitInfo.refiCampaignSnipeAttempts] or 0) + 1
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will add as a campagin target, refiCampaignSnipeAttempts after adjustment='.. (oUnit[M28UnitInfo.refiCampaignSnipeAttempts] or 0)) end
                     else
                         --Is there a friendly ACU nearby with more health? Also factor in if that ACU has a better upgrade
                         local tNearbyAvailableACUs = {}

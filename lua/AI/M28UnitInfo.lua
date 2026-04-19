@@ -110,6 +110,7 @@ refbCampaignTriggerAdded = 'M28Trg' --true if a trigger has been recorded agains
 refbTransferredUnit = 'M28Xfer' --true if unit has been captured/transferred from its original owner
 refbIsSnipeTarget = 'M28STrg' --true if is a snipe target
 refiRecentBomberSnipeAttempts = 'M28BmSnAt' --number of times we have launched bombers thinking we will kill the target (resets after a long period of time)
+refiCampaignSnipeAttempts = 'M28CmSnAt' --number of times we have gone for an ACU in a campaign when it is slightly injured, hoping for a gunship snipe
 toBombersPlanningSnipe = 'M28BmbSnT' --table of bombers that are building up in preparation for a snipe attempt on this unit
 reftiTeamsRecordedAsNonM28Ally = 'M28TRNmA' --[x] = 1,2,3...' returns the iTeam value
 refiUnitMassCost = 'M28UMCs' --for profiling testing

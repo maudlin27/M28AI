@@ -3489,12 +3489,13 @@ function UEFMission2ReinforceCivilianTracker()
                     WaitSeconds(2)
 
                     local bResetM28ActiveFlag
+                    local bTruckIncludedInPriorityDefence
                     while not(ScenarioInfo.M2P2Complete) do
                         if bDebugMessages == true then LOG(sFunctionRef..': Is TruckList empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.TruckList))..'; Time='..GetGameTimeSeconds()..'; ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; iDelayBeforeReissuingIfNoSpeed='..iDelayBeforeReissuingIfNoSpeed) end
                         if M28Utilities.IsTableEmpty(ScenarioInfo.TruckList) == false then
                             for iTruck, oTruck in ScenarioInfo.TruckList do
                                 if bDebugMessages == true and not(oTruck.Dead) then LOG(sFunctionRef..': COnsidering g iving order to oTruck='..oTruck.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTruck)..'; oTruck[refiTimeLastGivenTruckMoveOrder]='..(oTruck[refiTimeLastGivenTruckMoveOrder] or 'nil')..'; truck speed='..M28UnitInfo.GetUnitSpeed(oTruck)..'; refiGameTimeToResetMicroActive='..(oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Dist to target midpoint='..M28Utilities.GetDistanceBetweenPositions(oTruck:GetPosition(), tTruckTargetMidpoint)) end
-                                if ((not(oTruck[refiTimeLastGivenTruckMoveOrder]) or oTruck.M28Active) and not(oTruck.Dead) and not(oTruck:IsUnitState('Attached')) and (M28UnitInfo.GetUnitSpeed(oTruck) < 0.1 or (oTruck.M28Active and (not(oTruck[M28UnitInfo.refiGameTimeToResetMicroActive]) or GetGameTimeSeconds() - oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] <= 10)))) or (oTruck[refiTimeLastGivenTruckMoveOrder] and GetGameTimeSeconds() - oTruck[refiTimeLastGivenTruckMoveOrder] >= iDelayBeforeReissuingIfNoSpeed and M28UnitInfo.GetUnitSpeed(oTruck) == 0) then
+                                if not(oTruck.Dead) and (((not(oTruck[refiTimeLastGivenTruckMoveOrder]) or oTruck.M28Active) and not(oTruck:IsUnitState('Attached')) and (M28UnitInfo.GetUnitSpeed(oTruck) < 0.1 or (oTruck.M28Active and (not(oTruck[M28UnitInfo.refiGameTimeToResetMicroActive]) or GetGameTimeSeconds() - oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] <= 10)))) or (oTruck[refiTimeLastGivenTruckMoveOrder] and GetGameTimeSeconds() - oTruck[refiTimeLastGivenTruckMoveOrder] >= iDelayBeforeReissuingIfNoSpeed and M28UnitInfo.GetUnitSpeed(oTruck) == 0)) then
                                     if not(oTruck.M28Active) and not(M28Orders.bDontConsiderCombinedArmy) then
                                         --Temporarily set M28Active to true
                                         bResetM28ActiveFlag = true
@@ -3507,6 +3508,20 @@ function UEFMission2ReinforceCivilianTracker()
                                     if bDebugMessages == true then LOG(sFunctionRef..': Given move order to truck') end
                                     if bResetM28ActiveFlag then
                                         oTruck.M28Active = false
+                                    end
+                                    bTruckIncludedInPriorityDefence = false
+                                    if not(M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam]) then
+                                        M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] = {}
+                                    else
+                                        for iRecordedTruck, oRecordedTruck in M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] do
+                                            if oTruck == oRecordedTruck then
+                                                bTruckIncludedInPriorityDefence = true
+                                                break
+                                            end
+                                        end
+                                    end
+                                    if not(bTruckIncludedInPriorityDefence) then
+                                        table.insert(oTruck, M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam])
                                     end
                                 end
                             end
