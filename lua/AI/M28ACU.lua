@@ -1098,7 +1098,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                     ACUActionBuildMex(aiBrain, oACU)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try building another mex') end
                                     --Third factory if overflowing mass or have quite a bit stored
-                                elseif iCurLandFactories < 3 and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) and (M28Map.iMapSize <= 512 and (M28Map.iMapSize <= 256 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1)) and aiBrain:GetEconomyStored('MASS') >= 250 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100) and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 4 and M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLZOrWZ) then
+                                elseif iCurLandFactories < 3 and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and (M28Map.iMapSize <= 512 and (M28Map.iMapSize <= 256 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1)) and aiBrain:GetEconomyStored('MASS') >= 250 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100) and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 4 and M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLZOrWZ) then
 
                                     if bWantAirFactory then
                                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData,     M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
@@ -1176,6 +1176,9 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Building mex means we take a detour so leave it for engineers and end our initial build order') end
                                                 oACU[refbDoingInitialBuildOrder] = false
                                             end
+                                        elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 20 and aiBrain:GetEconomyStoredRatio('ENERGY') < 0.99 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 15 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.1) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will get a bit more power') end
+                                            ACUActionBuildPower(aiBrain, oACU)
                                         else
                                             --Finish the initial BO
                                             oACU[refbDoingInitialBuildOrder] = false
