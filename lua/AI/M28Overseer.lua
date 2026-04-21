@@ -495,7 +495,7 @@ function M28BrainCreated(aiBrain)
     table.insert(tAllActiveM28Brains, aiBrain)
 
     --PCx mod support - M28 loads this before PCx, so do a hardcopy here if the mod is active
-    if not(aiBrain.CheatEnabled) then
+    if not(aiBrain.CheatEnabled) or aiBrain.BrainType == 'Human' then
         local tSimMods = __active_mods or {}
         if M28Utilities.IsTableEmpty(tSimMods) == false then
             for iMod, tModData in tSimMods do
@@ -1999,7 +1999,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
         if Target.Area == 'Civilian_Area' and ScenarioInfo.M2P1.Active and ScenarioInfo.AllyResearch == 3 and ScenarioInfo.AllyCivilian == 4 and ScenarioInfo.CivilianFacilityReinforcedObjectiveComplete == false then
             ForkThread(UEFMission2ReinforceCivilianTracker, iTeam)
 
-            --UEF Mission 3 - get MAA early on
+            --UEF Mission 3 - get MAA and inties early on
         elseif ScenarioInfo.Arnold == 3 and ScenarioInfo.Aeon == 2 and ScenarioInfo.M1P1.Active and not(aiBrain['M28UEFM3MAALoop']) then
             while true do
                 local iCurMAA = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA)
@@ -2034,7 +2034,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     end
                     if M28Utilities.IsTableEmpty(tAirFactories) == false then
                         for iFactory, oFactory in tAirFactories do
-                            if (oFactory[M28Factory.refiTotalBuildCount] or 0) > 3 and (oFactory[M28Factory.refsLastBlueprintBuilt] and not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oFactory[M28Factory.refsLastBlueprintBuilt])))
+                            if (oFactory[M28Factory.refiTotalBuildCount] or 0) >= 2 and (oFactory[M28Factory.refsLastBlueprintBuilt] and (iCurAirAA < 3 or not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oFactory[M28Factory.refsLastBlueprintBuilt]))))
                             and (iCurAirAA < 5 or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) then
                                 oFactory[M28Factory.refsFactoryNextBlueprintOverride] = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirAA, oFactory, false, false, false, nil, false, nil, true)
                             else

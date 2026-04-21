@@ -721,6 +721,7 @@ function CreateNewTeam(aiBrain)
     local bAlreadyRecordedBrain
 
     for iCurBrain, oBrain in ArmyBrains do
+        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Doing setup for team '..iTotalTeamCount..'; Considering brain '..oBrain.Nickname..'; oBrain.M28Team='..(oBrain.M28Team or 'nil')..'; ScenarioInfo.Options.CommonArmy='..reprs(ScenarioInfo.Options.CommonArmy)..'; ScenarioInfo.Options.CommonArmy=true='..tostring(ScenarioInfo.Options.CommonArmy == true)..'; is table of M28 for this brain empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains]))) end
         --First make sure we have recorded all brains (redundancy for AI like dillidalli) - the function below will check if we have already recorded the brain
         ForkThread(M28Events.OnCreateBrain, oBrain, nil, nil)
@@ -802,7 +803,7 @@ function CreateNewTeam(aiBrain)
                         end
                         --Record brain details in log for ease of reference
                         local sAIxref = ''
-                        if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)..'; oBrain[M28Economy.refiBrainResourceMultiplier]='..(oBrain[M28Economy.refiBrainResourceMultiplier] or 'nil')) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; ScenarioInfo.Options.BuildMult='..(ScenarioInfo.Options.BuildMult or 'nil')..'; oBrain[M28Economy.refiBrainResourceMultiplier]='..(oBrain[M28Economy.refiBrainResourceMultiplier] or 'nil')) end
                         if oBrain.CheatEnabled then
                             sAIxref = ' AIx Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
                         end
