@@ -5071,7 +5071,6 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
         --For maps like UEF Mission 2 where AI ACU can sometimes move outside of safe location and take damage from not moving, and we have gunships who could suicide into it
         local bCampaignSnipe = false
         if M28Map.bIsCampaignMap and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-            bDebugMessages = true
             local iCampaignFactor = (oUnit[M28UnitInfo.refiCampaignSnipeAttempts] or 0)
             if oUnit[M28UnitInfo.refbIsSnipeTarget] then iCampaignFactor = iCampaignFactor - 1 end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering campaign snipe on injured enemy ACU, iCampaignFactor='..iCampaignFactor..'; refiOurGunshipThreat='..(tTeamData[iTeam][subrefiOurGunshipThreat] or 'nil')..'; Have air control='..tostring(M28Conditions.TeamHasAirControl(iTeam))..'; bIsUnderwater='..tostring(bIsUnderwater)..'; Brain target='..oUnit:GetAIBrain().Nickname..'; Time since ACU last fired='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)) end

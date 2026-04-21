@@ -17333,7 +17333,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Reclaim specific units
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Checking if have units to reclaim, is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]))..'; Is table of units still valid='..tostring(M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoUnitsToReclaim]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if have units to reclaim, is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]))..'; Is table of units still valid='..tostring(M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoUnitsToReclaim]))..'; bEngineersRecentlyRunFromEnemy='..tostring(bEngineersRecentlyRunFromEnemy)) end
     if tLZTeamData[M28Map.subreftoUnitsToReclaim] and M28Conditions.IsTableOfUnitsStillValid(tLZTeamData[M28Map.subreftoUnitsToReclaim]) == true and not(bEngineersRecentlyRunFromEnemy) then
         local bObjectiveToReclaim = false
         if M28Map.bIsCampaignMap then
@@ -17353,8 +17353,10 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if not(M28Orders.bDontConsiderCombinedArmy) and not(bDontReclaimYet) then
             bDontReclaimYet = true
             for iUnit, oUnit in tLZTeamData[M28Map.subreftoUnitsToReclaim] do
-                if oUnit.M28Active or not(oUnit:GetAIBrain().M28Team == iTeam) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking we wont reclaim a teammate unit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; BrainType='..(oUnit:GetAIBrain().BrainType or 'nil')) end
+                if oUnit.M28Active or not(oUnit:GetAIBrain().M28Team == iTeam) or oUnit:GetAIBrain().BrainType == 'AI' then
                     bDontReclaimYet = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a nonhuman unit to reclaim') end
                     break
                 end
             end
@@ -17494,7 +17496,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         --Refresh the list
         local iCaptureCount = table.getn(tLZData[M28Map.subreftoUnitsToCapture])
         for iCurCount = iCaptureCount, 1, -1 do
-            if not(M28UnitInfo.IsUnitValid(tLZData[M28Map.subreftoUnitsToCapture][iCurCount])) then
+            if not(M28UnitInfo.IsUnitValid(tLZData[M28Map.subreftoUnitsToCapture][iCurCount])) or (tLZData[M28Map.subreftoUnitsToCapture][iCaptureCount].IsCapturable and not(tLZData[M28Map.subreftoUnitsToCapture][iCaptureCount]:IsCapturable())) then
                 table.remove(tLZData[M28Map.subreftoUnitsToCapture], iCurCount)
             end
         end

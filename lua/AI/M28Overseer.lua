@@ -1418,22 +1418,37 @@ function RecordUnitAsCaptureTarget(oUnit, iPlateau, iLandZone)
         end
     end
 
-    --Check not recorded as a reclaim target for any team
-    for iTeam = 1, M28Team.iTotalTeamCount do
-        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
-            local tUnitLZTeamData = tUnitLZData[M28Map.subrefLZTeamData][iTeam]
-            --Check if unit is recorded to be reclaimed, and if so then remove it
-            if M28Utilities.IsTableEmpty(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
-                for iCurEntry = table.getn(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]), 1, -1 do
-                    if tUnitLZTeamData[M28Map.subreftoUnitsToReclaim][iCurEntry] == oUnit then
-                        table.remove(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], iCurEntry)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Removed unit from the list of units to be reclaimed') end
+    --Check not recorded as a reclaim target for any team (if unit is capturable - due to UEF M3 where black box triggers this function despite being a reclaim objective)
+    ForkThread(ForkedUnitCaptureStatusCheck, oUnit, tUnitLZData)
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ForkedUnitCaptureStatusCheck(oUnit, tUnitLZData)
+    WaitTicks(1)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ForkedUnitCaptureStatusCheck'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Start of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Time='..GetGameTimeSeconds()..'; .Dead='..tostring(oUnit.Dead or false)..'; oUnit.IsCapturable is nil='..tostring(oUnit.IsCapturable == nil))
+        if not(oUnit.Dead) and oUnit.IsCapturable then LOG(':IsCapturable='..tostring(oUnit:IsCapturable())) end
+    end
+    if not(oUnit.Dead) and (not(oUnit.IsCapturable) or oUnit:IsCapturable()) then
+        for iTeam = 1, M28Team.iTotalTeamCount do
+            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                local tUnitLZTeamData = tUnitLZData[M28Map.subrefLZTeamData][iTeam]
+                --Check if unit is recorded to be reclaimed, and if so then remove it if are capturable
+                if M28Utilities.IsTableEmpty(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
+                    for iCurEntry = table.getn(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]), 1, -1 do
+                        if tUnitLZTeamData[M28Map.subreftoUnitsToReclaim][iCurEntry] == oUnit then
+                            table.remove(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], iCurEntry)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Removed unit '..tUnitLZTeamData[M28Map.subreftoUnitsToReclaim][iCurEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim][iCurEntry])..' from the list of units to be reclaimed') end
+                        end
                     end
                 end
             end
         end
     end
-
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1930,7 +1945,7 @@ end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
     --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
