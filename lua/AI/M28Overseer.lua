@@ -1999,6 +1999,53 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
         if Target.Area == 'Civilian_Area' and ScenarioInfo.M2P1.Active and ScenarioInfo.AllyResearch == 3 and ScenarioInfo.AllyCivilian == 4 and ScenarioInfo.CivilianFacilityReinforcedObjectiveComplete == false then
             ForkThread(UEFMission2ReinforceCivilianTracker, iTeam)
 
+            --UEF Mission 3 - get MAA early on
+        elseif ScenarioInfo.Arnold == 3 and ScenarioInfo.Aeon == 2 and ScenarioInfo.M1P1.Active and not(aiBrain['M28UEFM3MAALoop']) then
+            while true do
+                local iCurMAA = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA)
+                local iCurAirAA = M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] / 50
+                local tLandFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryLandFactory, false, true)
+                local tAirFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAirFactory, false, true)
+                if M28Utilities.IsTableEmpty(tLandFactories) == false or M28Utilities.IsTableEmpty(tAirFactories) == false then
+                    --Consider aborting the loop
+                    if GetGameTimeSeconds() >= 15*60 or iCurMAA >= 14 or iCurAirAA >= 20 or not(ScenarioInfo.M1P1.Active) then
+                        aiBrain['M28UEFM3MAALoop'] = nil
+                        if M28Utilities.IsTableEmpty(tLandFactories) == false then
+                            for iFactory, oFactory in tLandFactories do
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(tAirFactories) == false then
+                            for iFactory, oFactory in tAirFactories do
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                            end
+                        end
+                        break
+                    end
+                    if M28Utilities.IsTableEmpty(tLandFactories) == false then
+                        for iFactory, oFactory in tLandFactories do
+                            if (oFactory[M28Factory.refiTotalBuildCount] or 0) > 0 and (iCurMAA <= 8 or (oFactory[M28Factory.refsLastBlueprintBuilt] and not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oFactory[M28Factory.refsLastBlueprintBuilt])))) and (oFactory[M28Factory.refiTotalBuildCount] >= 5 or M28UnitInfo.GetUnitLifetimeCount(oFactory) > 1 or (M28UnitInfo.GetUnitTechLevel(oFactory) >= 2 and oFactory[M28Factory.refiTotalBuildCount] >= 2)) then
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryMAA, oFactory, false, false, false, nil, false, nil, true)
+                            else
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': COnsidered setting MAA override for oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; refsFactoryNextBlueprintOverride='..(oFactory[M28Factory.refsFactoryNextBlueprintOverride] or 'nil')..'; iCurMAA='..iCurMAA..'; refiTotalBuildCount='..(oFactory[M28Factory.refiTotalBuildCount] or 'nil')) end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tAirFactories) == false then
+                        for iFactory, oFactory in tAirFactories do
+                            if (oFactory[M28Factory.refiTotalBuildCount] or 0) > 3 and (oFactory[M28Factory.refsLastBlueprintBuilt] and not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oFactory[M28Factory.refsLastBlueprintBuilt])))
+                            and (iCurAirAA < 5 or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) then
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirAA, oFactory, false, false, false, nil, false, nil, true)
+                            else
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': COnsidered setting AirAA override for oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; refsFactoryNextBlueprintOverride='..(oFactory[M28Factory.refsFactoryNextBlueprintOverride] or 'nil')..'; iCurAirAA estimate='..iCurAirAA..'; refiTotalBuildCount='..(oFactory[M28Factory.refiTotalBuildCount] or 'nil')) end
+                        end
+                    end
+                end
+                WaitSeconds(5)
+            end
 
             --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
         elseif ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
@@ -2468,8 +2515,8 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
         end
         --UEF M1 - Air fac upgrading breaks the mission
         if ScenarioInfo.AirFactory.UnitId and not(ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit]) and ScenarioInfo.AirFactory:GetBlueprint().General.UpgradesTo and ScenarioInfo.AirFactory:GetAIBrain().M28AI then
-            if bDebugMessages == true then LOG(sFunctionRef..': Flagging not to upgrade unit '..ScenarioInfo.AirFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(ScenarioInfo.AirFactory.UnitId)..' as it may be an objective unit') end
-            ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit] = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Flagging not to upgrade unit '..ScenarioInfo.AirFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(ScenarioInfo.AirFactory.UnitId)..' as it may be an objective unit') end
+        ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit] = true
         end
     else
         if bDebugMessages == true then LOG(sFunctionRef..': No active M28 brains so aborting') end
