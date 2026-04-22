@@ -301,6 +301,28 @@ function ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOpti
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ACUActionBuildAA(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZData, tLZTeamData)
+    local sFunctionRef = 'ACUActionBuildAA'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iMaxAreaToSearch = 35
+    local iCategoryToBuild = M28UnitInfo.refCategoryGroundAA
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain '..aiBrain.Nickname..' at time '..GetGameTimeSeconds()) end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) and GetGameTimeSeconds() >= 60 and iPlateauOrZero > 0 and tLZTeamData[M28Map.subrefLZbCoreBase] then M28Utilities.ErrorHandler('Empty allied units table, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is LZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))) end
+
+    local iSearchSegments = 10
+    if iPlateauOrZero == 0 then
+        iSearchSegments = 20
+    end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Will try and search for '..iSearchSegments..' in iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..' so ACU is picking from best location for factory') end
+    M28Engineer.SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iSearchSegments)
+    ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iMaxAreaToSearch * 2)
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function ACUActionBuildPower(aiBrain, oACU)
     local sFunctionRef = 'ACUActionBuildPower'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -7077,7 +7099,11 @@ function GetACUOrder(aiBrain, oACU)
                                                         --ACU wants to get reclaim
                                                         if bDebugMessages == true then LOG(sFunctionRef..': ACU will get reclaim') end
                                                     else
-                                                        if not(bAreBuildingOrReclaiming) then
+                                                        --Consider building emergency AA
+                                                        if (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= 150 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 and (not(bAreBuildingOrReclaiming) or oACU:GetWorkProgress() >= 0.9 or (oACU:GetFocusUnit().UnitId and not(EntityCategoryContains(categories.ANTIAIR, oACU:GetFocusUnit().UnitId)))) then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Will try building fixed AA, even if already building something else') end
+                                                            ACUActionBuildAA(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData)
+                                                        elseif not(bAreBuildingOrReclaiming) then
                                                             --Consider building power if in core zone with lots of mass, and either we lack gun upgrade, or it is late game with no adjacent enemies; however require our stored actual energy to be less then 4k (since we may have just built energy storage)
                                                             local bBuildingOrAssistingPowerOrFactory = false
                                                             if bDebugMessages == true then LOG(sFunctionRef..': About to consider getting power or factories if in core base and have lots of mass stored, M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam])..'; tLZOrWZTeamData[M28Map.subrefLZbCoreBase]='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])..'; Energy%='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Mass %='..aiBrain:GetEconomyStoredRatio('MASS')..'; Gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Enemeis in this or adj='..tostring(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
