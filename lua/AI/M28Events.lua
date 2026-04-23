@@ -4075,7 +4075,7 @@ function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)
     --Intended for campaign maps where a capture objective gets captured by the enemy, e.g. black sun control centre
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'CaptureTriggerAdded'
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if M28Utilities.bM28AIInGame and M28Map.bIsCampaignMap then
             oUnit[M28UnitInfo.refbCampaignTriggerAdded] = true
@@ -4121,7 +4121,7 @@ end
 function ObjectiveAdded(oObjective, Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'ObjectiveAdded'
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame or false)) end
         --Wait until map setup complete
@@ -4327,7 +4327,7 @@ function ReclaimTargetObjectiveAdded(Type, Complete, Title, Description, Target)
     --Note that objectiveadded function above will also be triggered
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'ReclaimTargetObjectiveAdded'
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete') end
         --Wait until map setup complete
