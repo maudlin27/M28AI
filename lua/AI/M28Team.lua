@@ -5069,7 +5069,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
         local iBaseHealthThreshold = 0.5
         if bIsUnderwater then iBaseHealthThreshold = 0.3 end
         --For maps like UEF Mission 2 where AI ACU can sometimes move outside of safe location and take damage from not moving, and we have gunships who could suicide into it
-        local bCampaignSnipe = false
+        local bCampaignOrCombinedSnipe = false --Also use where we have a 2 friendly ACU vs 1 enemy ACU scenario via the ACU attack logic, and both are in range
         if M28Map.bIsCampaignMap and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
             local iCampaignFactor = (oUnit[M28UnitInfo.refiCampaignSnipeAttempts] or 0)
             if oUnit[M28UnitInfo.refbIsSnipeTarget] then iCampaignFactor = iCampaignFactor - 1 end
@@ -5089,18 +5089,35 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                     if iEnemyNearbyAAThreat <= tTeamData[iTeam][subrefiOurGunshipThreat] * 0.35 then
                         bContinue = false
                         iBaseHealthThreshold = 1
-                        bCampaignSnipe = true
+                        bCampaignOrCombinedSnipe = true
                     end
                 end
                 if bContinue then
                     if bDebugMessages == true then LOG(sFunctionRef..': Campaign so will be more likely to snipe') end
                     iBaseHealthThreshold = 0.8
-                    bCampaignSnipe = true
+                    bCampaignOrCombinedSnipe = true
                 end
             end
+        elseif oUnit[M28ACU.reftCommonACUTarget] and M28ACU.IsEnemyACUBeingTargetedByMultipleOfOurACUs(oUnit, iTeam) then
+            --Is the health of our 2 ACUs significantly more than the health of their ACU?
+            for iExistingEntry, tSubtable in oUnit[M28ACU.reftCommonACUTarget] do
+                if GetGameTimeSeconds() - (tSubtable[M28ACU.subrefiTimeLastRecorded] or 0) <= 10 and M28UnitInfo.IsUnitValid(tSubtable[M28ACU.subrefoSecondEnemyACU]) and tSubtable[M28ACU.subrefoSecondEnemyACU]:GetAIBrain().M28Team == iTeam and M28UnitInfo.IsUnitValid(tSubtable[M28ACU.subrefoEnemyACU]) then
+                    --Are we in range of both the ACUs?
+                    if M28Utilities.GetDistanceBetweenPositions(tSubtable[M28ACU.subrefoSecondEnemyACU]:GetPosition(), oUnit:GetPosition()) <= tSubtable[M28ACU.subrefoSecondEnemyACU][M28UnitInfo.refiDFRange] and M28Utilities.GetDistanceBetweenPositions(tSubtable[M28ACU.subrefoEnemyACU]:GetPosition(), oUnit:GetPosition()) <= tSubtable[M28ACU.subrefoEnemyACU][M28UnitInfo.refiDFRange] then
+                        local iEnemyHealthAndShield = M28UnitInfo.GetUnitCurHealthAndShield(oUnit)
+                        local iOurHealthAndShield = M28UnitInfo.GetUnitCurHealthAndShield(tSubtable[M28ACU.subrefoSecondEnemyACU]) + M28UnitInfo.GetUnitCurHealthAndShield(tSubtable[M28ACU.subrefoEnemyACU])
+                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyHealthAndShield='..iEnemyHealthAndShield..'; iOurHealthAndShield='..iOurHealthAndShield) end
+                        if iOurHealthAndShield >= 1.5 * iEnemyHealthAndShield then
+                            iBaseHealthThreshold = 0.85
+                            bCampaignOrCombinedSnipe = true
+                            break
+                        end
+                    end                    
+                end
+            end            
         end
         if oUnit[M28UnitInfo.refbIsSnipeTarget] then iBaseHealthThreshold = iBaseHealthThreshold+ 0.1 end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold..'; bCampaignSnipe='..tostring(bCampaignSnipe)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold..'; bCampaignOrCombinedSnipe='..tostring(bCampaignOrCombinedSnipe)) end
         if iHealthPercent < iBaseHealthThreshold then
             --Check for shield
             local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
@@ -5136,13 +5153,13 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering unit owned by brain '..oUnit:GetAIBrain().Nickname..'; that brains rating is '..(oUnit:GetAIBrain().Rating or 'nil')..'; Team iHighestRating='..iHighestRating..'; Team average rating='..iTotalRating / iBrainCount..'; bLowRatedTarget='..tostring(bLowRatedTarget)) end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': bLowRatedTarget='..tostring(bLowRatedTarget)) end
-                if not(bLowRatedTarget) then
+                if not(bLowRatedTarget) or (bCampaignOrCombinedSnipe and iHealthPercent + 0.1 < iBaseHealthThreshold)  then
 
                     --Very low health - attack
                     if (iHealthPercent < 0.175 or (iHealthPercent < 0.2 and oUnit[M28UnitInfo.refbIsSnipeTarget])) and (oUnit:GetHealth() <= 2000 or (oUnit[M28UnitInfo.refbIsSnipeTarget] and oUnit:GetHealth() <= 2500)) then
                         if bDebugMessages == true then LOG(sFunctionRef..': So low health that we might kill just with air') end
                         bAddAsSnipeTarget = true
-                    elseif bCampaignSnipe then
+                    elseif bCampaignOrCombinedSnipe then
                         bAddAsSnipeTarget = true
                         --Track attempts made so we can increase requirements to avoid being stuck in a failing pattern
                         if not(oUnit[M28UnitInfo.refbIsSnipeTarget]) then

@@ -54,6 +54,13 @@ refoShieldRallyTarget = 'M28ACUShR' --Shield unit that ACU is trying to shelter 
 refbWantsPriorityUpgrade = 'M28ACUPrU' --true if want to get upgrade asap (e.g. enemy ACU getting upgrade and we want our own upgrade to defend against it)
 refbOnlyOverchargeHighValueTargets = 'M28ACUOCHV' --true if we only want to overcharge high value targets - e.g. intended for if we are trying to chase down an enemy ACU
 iACUAssassinationUpgradingRangeAdjust = 25 --increase to apply to assassination search range if target is upgrading (use global variable since want to be consistent where use in several places)
+reftCommonACUTarget = 'M28ACUCmACUT' --table with details of common acu target, each entry references a different set of targets, with below subref
+    subrefoFriendlyACU = 'FriendlyACU' --if we are targeting enemy acu this will be the nearest friendly ACU (or the ACU prompting calling this logic) who has the target in common with us
+    subrefoEnemyACU = 'EnemyACU' --the enemy ACU target
+    subrefoSecondEnemyACU = 'EnemyACU2' --if the acu is the one being targeted this will be the second acu targeting it
+    subrefiTimeLastRecorded = 'Time' --Gametimeseconds that we last had the common target
+
+
 
 --ACU related variables against the ACU's brain
 refoPrimaryACU = 'M28PrimACU' --ACU unit for the brain; recorded against aibrain
@@ -3995,23 +4002,112 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyT1ArtiAndDFThreatCloseToOurRange='..iEnemyT1ArtiAndDFThreatCloseToOurRange..'; iEnemyMobileThreatSlightlyFurtherAway='..iEnemyMobileThreatSlightlyFurtherAway..'; iEnemyT1PDInRangeOfUs='..iEnemyT1PDInRangeOfUs..'; iEnemyNearbyT2PlusPDThreat='..iEnemyNearbyT2PlusPDThreat..'; iEnemyFurtherAwayLRPDThreat='..iEnemyFurtherAwayLRPDThreat..'; bEnemyHasLongerRangedUnits='..tostring(bEnemyHasLongerRangedUnits)..'; Is shot blocked='..tostring(M28Logic.IsShotBlocked(oACU, oEnemyToTarget, false, nil))) end
                         end
                     end
-
-                    --Check for ACUs in our range that we outrange
+                    local oUnitToMoveTo
+                    --Check for ACUs in our range that we outrange, or that we have a clear 2v1 advantage
                     local tACUsNearby
                     if M28Utilities.IsTableEmpty(tUnitsToTarget) == false then tACUsNearby = EntityCategoryFilterDown(categories.COMMAND, tUnitsToTarget) end
                     local oClosestACU
                     local iClosestACU = 1000
                     local bOutrangeAllACUs = true
-                    if M28Utilities.IsTableEmpty(tACUsNearby) == false and oACU[M28UnitInfo.refiDFRange] >= 28 then
-                        for iEnemyACU, oEnemyACU in tACUsNearby do
-                            if oACU[M28UnitInfo.refiDFRange] >= oEnemyACU then
-                                bOutrangeAllACUs = false
-                                break
+                    local bWeHaveMoreACUsInRange = false
+                    if M28Utilities.IsTableEmpty(tACUsNearby) == false then
+                        if oACU[M28UnitInfo.refiDFRange] >= 28 then
+                            for iEnemyACU, oEnemyACU in tACUsNearby do
+                                if oACU[M28UnitInfo.refiDFRange] >= oEnemyACU then
+                                    bOutrangeAllACUs = false
+                                    break
+                                end
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
+                                if iCurDist < iClosestACU then
+                                    iClosestACU = iCurDist
+                                    oClosestACU = oEnemyACU
+                                end
                             end
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
-                            if iCurDist < iClosestACU then
-                                iClosestACU = iCurDist
-                                oClosestACU = oEnemyACU
+                        end
+                        if true and GetGameTimeSeconds() >= 5*60+10 and not(oClosestACU) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                            --Consider if we are in a 2v1 scenario if already in range of enemy ACU (or almost in range and have friendly ACU that is in range)
+                            local bEnemyACUWithGunOrPDOrACUs = false
+                            for iEnemyACU, oEnemyACU in tACUsNearby do
+                                if oACU[M28UnitInfo.refiDFRange] < oEnemyACU[M28UnitInfo.refiDFRange] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition()) - oEnemyACU[M28UnitInfo.refiDFRange] <= 40 then
+                                    bEnemyACUWithGunOrPDOrACUs = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have enemy ACU that outranges us and is getting close to being in our range, oEnemyACU owned by '..oEnemyACU:GetAIBrain().Nickname) end
+                                    break
+                                end
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())
+                                if iCurDist < iClosestACU then
+                                    iClosestACU = iCurDist
+                                    oClosestACU = oEnemyACU
+                                end
+                            end
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Considering if we have multiple ACUs that can gang up on enemy, iClosestACU='..iClosestACU..'; bEnemyACUWithGunOrPDOrACUs='..tostring(bEnemyACUWithGunOrPDOrACUs)..'; Our ACU range='..oACU[M28UnitInfo.refiDFRange])
+                                if oClosestACU then LOG(sFunctionRef..': Have oClosestACU, CanSeeUnit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU))..'; Our health+shield='..M28UnitInfo.GetUnitCurHealthAndShield(oACU)..'; Enemy ACU CurHealthAndShield='..M28UnitInfo.GetUnitCurHealthAndShield(oClosestACU)) end
+                            end
+                            local iDistToBeingInRangeToConsider = 20
+                            local iMinHealthPercentOfEnemyACURequired = 0.6
+                            if not(bEnemyACUWithGunOrPDOrACUs) and oClosestACU and iClosestACU <= oACU[M28UnitInfo.refiDFRange] + iDistToBeingInRangeToConsider and M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) and M28UnitInfo.GetUnitCurHealthAndShield(oACU) >= iMinHealthPercentOfEnemyACURequired * M28UnitInfo.GetUnitCurHealthAndShield(oClosestACU) then
+                                --Check no other enemy ACU or completed PD within range of enemy ACU
+                                for iEnemyACU, oEnemyACU in tACUsNearby do
+                                    if not(oEnemyACU == oClosestACU) then
+                                        if M28Utilities.GetDistanceBetweenPositions(oClosestACU:GetPosition(), oEnemyACU:GetPosition()) - oEnemyACU[M28UnitInfo.refiDFRange] <= 5
+                                                or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition()) - oEnemyACU[M28UnitInfo.refiDFRange] <= 5 then
+                                            bEnemyACUWithGunOrPDOrACUs = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has an ACU nearby, owned by '..oEnemyACU:GetAIBrain().Nickname..'; dist to oClosestACU='..M28Utilities.GetDistanceBetweenPositions(oClosestACU:GetPosition(), oEnemyACU:GetPosition())..'; Dist to oACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oEnemyACU:GetPosition())) end
+                                            break
+                                        end
+                                    end
+                                end
+                                if not(bEnemyACUWithGunOrPDOrACUs) then --No other nearby enemy ACUs
+                                    local tPDNearby = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tUnitsToTarget)
+                                    if M28Utilities.IsTableEmpty(tPDNearby) == false then
+                                        for iPD, oPD in tPDNearby do
+                                            if not(oPD.Dead) and oPD:GetFractionComplete() >= 0.95 then
+                                                if M28Utilities.GetDistanceBetweenPositions(oClosestACU:GetPosition(), oPD:GetPosition()) - oPD[M28UnitInfo.refiDFRange] <= 5
+                                                        or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oPD:GetPosition()) - oPD[M28UnitInfo.refiDFRange] <= 5 then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy has PD near their ACU or ours so will abort, oPD='..oPD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPD)..'; Dist to oClosestACU='..M28Utilities.GetDistanceBetweenPositions(oClosestACU:GetPosition(), oPD:GetPosition())..'; Dist to our ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oPD:GetPosition())) end
+                                                    bEnemyACUWithGunOrPDOrACUs = true
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                    if not(bEnemyACUWithGunOrPDOrACUs) then
+                                        --Do we have another friendly ACU nearby?
+                                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftM28ACUs]) == false then
+                                            local oClosestFriendlyACU
+                                            local iClosestFriendlyACUDist = 1000
+                                            for iFriendlyACU, oFriendlyACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
+                                                if not(oFriendlyACU == oACU) and oFriendlyACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
+                                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oACU:GetPosition())
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking for friendly ACU, iCurDist='..iCurDist..'; ACU owned by '..oFriendlyACU:GetAIBrain().Nickname) end
+                                                    if iCurDist <= 50 and (iCurDist <= 20 or M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oClosestACU:GetPosition()) - oFriendlyACU[M28UnitInfo.refiDFRange] <= 20) then
+                                                        --Check we are in range with either this ACU or our current ACU
+                                                        if (iClosestACU <= oACU[M28UnitInfo.refiDFRange] or M28Utilities.GetDistanceBetweenPositions(oFriendlyACU:GetPosition(), oClosestACU:GetPosition()) - oFriendlyACU[M28UnitInfo.refiDFRange] <= 0)
+                                                                and M28UnitInfo.GetUnitCurHealthAndShield(oFriendlyACU) >= iMinHealthPercentOfEnemyACURequired * M28UnitInfo.GetUnitCurHealthAndShield(oClosestACU)
+                                                        then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Friendly ACU is in range') end
+                                                            bWeHaveMoreACUsInRange = true
+                                                            if iCurDist - oFriendlyACU[M28UnitInfo.refiDFRange] < iClosestFriendlyACUDist then
+                                                                iClosestFriendlyACUDist = iCurDist - oFriendlyACU[M28UnitInfo.refiDFRange]
+                                                                oClosestFriendlyACU = oFriendlyACU
+                                                            end
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                            if bWeHaveMoreACUsInRange and oClosestFriendlyACU then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Will record that we have a common ACU target') end
+                                                RecordCommonACUTarget(oACU, oClosestFriendlyACU, oClosestACU)
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': bWeHaveMoreACUsInRange='..tostring(bWeHaveMoreACUsInRange)..'; Checking if we still want to kite if we are well within our range, iClosestACU='..iClosestACU..'; refiDFRange='..oACU[M28UnitInfo.refiDFRange]..'; VisionRadius='..oACU:GetBlueprint().Intel.VisionRadius) end
+                                            if bWeHaveMoreACUsInRange and iClosestACU >= math.min(oACU[M28UnitInfo.refiDFRange], oACU:GetBlueprint().Intel.VisionRadius) - 10 then --tried at -6 but still had ACUs getting into range then moving out of range
+                                                oUnitToMoveTo = oClosestACU
+                                                bWantKitingRetreat = false
+                                            end
+                                        end
+                                    end
+                                end
+                                if not(bWeHaveMoreACUsInRange) then oClosestACU = nil end
                             end
                         end
                     end
@@ -4023,9 +4119,8 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                         end
                     end
 
-                    local oUnitToMoveTo
                     --If within 2 of being in range of enemy ACU that we outrange then keep pressing forwards (we will ignore this if we decide we still want kiting retreat)
-                    if iUnitPlateau > 0 and iClosestACU <= oACU[M28UnitInfo.refiDFRange] + 2 and (M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) or (M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedLandScout]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28Land.refoAssignedLandScout]:GetPosition()) <= 40) or (iOurACUHealthPercent >= 0.9 and iClosestACU <= oACU[M28UnitInfo.refiDFRange] and tLZTeamData[M28Map.refiModDistancePercent] <= 0.8 and M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) < iOurACUHealthPercent - 0.05)) and iOurACUHealthPercent * 0.95 > M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) then
+                    if not(oUnitToMoveTo) and oClosestACU and iUnitPlateau > 0 and iClosestACU <= oACU[M28UnitInfo.refiDFRange] + 2 and (M28UnitInfo.CanSeeUnit(aiBrain, oClosestACU) or (M28UnitInfo.IsUnitValid(oACU[M28Land.refoAssignedLandScout]) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28Land.refoAssignedLandScout]:GetPosition()) <= 40) or (iOurACUHealthPercent >= 0.9 and iClosestACU <= oACU[M28UnitInfo.refiDFRange] and tLZTeamData[M28Map.refiModDistancePercent] <= 0.8 and M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) < iOurACUHealthPercent - 0.05)) and iOurACUHealthPercent * 0.95 > M28UnitInfo.GetUnitHealthAndShieldPercent(oClosestACU) then
                         local iOurVisualRange = oACU:GetBlueprint().Intel.VisionRadius
                         if bDebugMessages == true then LOG(sFunctionRef..': iOurVisualRange='..iOurVisualRange..'; iClosestACU='..iClosestACU..'; oClosestACU owner='..oClosestACU:GetAIBrain().Nickname) end
                         if iClosestACU > iOurVisualRange - 3 or (oACU[M28UnitInfo.refbLastShotBlocked] or iOurACUHealthPercent > 0.4 + M28UnitInfo.GetUnitHealthPercent(oClosestACU) or M28Logic.IsShotBlocked(oACU, oClosestACU, false, false)) then
@@ -6949,8 +7044,8 @@ function GetACUOrder(aiBrain, oACU)
                             if bDebugMessages == true then LOG(sFunctionRef..': Are using ACU more as an engineer') end
                         else
                             --Snipe mode
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to use ACU to attack a snipe target, is table of snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
-                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) or not(HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to use ACU to attack a snipe target, is table of snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))..'; HaveRecentCommonACUTarget='..tostring(HaveRecentCommonACUTarget(oACU))) end
+                            if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]) or not(HaveACUSnipeAction(oACU, iTeam, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData))) and (not(HaveRecentCommonACUTarget(oACU)) or not(AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU))) then
                                 --Nearby enemy naval units
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if nearby naval units that should send ACU to try and fight; M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] ='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies])..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Is table of adjacent WZs empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]))) end
                                 local iWaterZoneEnemyRangeOverride
@@ -8765,4 +8860,106 @@ function UpdateACUUpgradingHealth(oACU)
     end
     if not(oACU[reftiUpgradingHealthData]) then oACU[reftiUpgradingHealthData] = {} end
     table.insert(oACU[reftiUpgradingHealthData], M28UnitInfo.GetUnitCurHealthAndShield(oACU))
+end
+
+function RecordCommonACUTarget(oOurACU, oClosestFriendlyACU, oClosestEnemyACU, bJustRecordForOurACU)
+    local sFunctionRef = 'RecordCommonACUTarget'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iEntryRef
+    if M28Utilities.IsTableEmpty(oOurACU[reftCommonACUTarget]) == false then
+        for iExistingEntry, tSubtable in oOurACU[reftCommonACUTarget] do
+            if tSubtable[subrefoEnemyACU] == oClosestEnemyACU and tSubtable[subrefoFriendlyACU] == oClosestFriendlyACU then
+                iEntryRef = iExistingEntry
+                break
+            end
+        end
+    else
+        oOurACU[reftCommonACUTarget] = {}
+    end
+    if not(iEntryRef) then
+        table.insert(oOurACU[reftCommonACUTarget], {[subrefoEnemyACU] = oClosestEnemyACU, [subrefoFriendlyACU] = oClosestFriendlyACU})
+        iEntryRef = table.getn(oOurACU[reftCommonACUTarget])
+    end
+    oOurACU[reftCommonACUTarget][iEntryRef][subrefiTimeLastRecorded] = GetGameTimeSeconds()
+    if not(bJustRecordForOurACU) then
+        --Record for closestfriendlyACU as well
+        RecordCommonACUTarget(oClosestFriendlyACU, oOurACU, oClosestEnemyACU, true)
+
+        --And record for enemy
+        iEntryRef = nil
+        if M28Utilities.IsTableEmpty(oClosestEnemyACU[reftCommonACUTarget]) == false then
+            for iExistingEntry, tSubtable in oClosestEnemyACU[reftCommonACUTarget] do
+                if (tSubtable[subrefoEnemyACU] == oOurACU and tSubtable[subrefoSecondEnemyACU] == oClosestFriendlyACU) or (tSubtable[subrefoEnemyACU] == oClosestFriendlyACU and tSubtable[subrefoSecondEnemyACU] == oOurACU) then
+                    iEntryRef = iExistingEntry
+                    break
+                end
+            end
+        else
+            oClosestEnemyACU[reftCommonACUTarget] = {}
+        end
+        if not(iEntryRef) then
+            table.insert(oClosestEnemyACU[reftCommonACUTarget], {[subrefoEnemyACU] = oOurACU, [subrefoSecondEnemyACU] = oClosestFriendlyACU})
+            iEntryRef = table.getn(oClosestEnemyACU[reftCommonACUTarget])
+        end
+        oClosestEnemyACU[reftCommonACUTarget][iEntryRef][subrefiTimeLastRecorded] = GetGameTimeSeconds()
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording, oClosestFriendlyACU owner='..oClosestFriendlyACU:GetAIBrain().Nickname..'; oClosestEnemyACU owner='..oClosestEnemyACU:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function HaveRecentCommonACUTarget(oOurACU)
+    local sFunctionRef = 'RecordCommonACUTarget'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, is reftCommonACUTarget empty='..tostring(M28Utilities.IsTableEmpty(oOurACU[reftCommonACUTarget]))..'; Time='..GetGameTimeSeconds()) end
+    if oOurACU[reftCommonACUTarget] and M28Utilities.IsTableEmpty(oOurACU[reftCommonACUTarget]) == false then
+        local iLastCommonTargetTime = 1000
+        local iCurCommonTargetTime
+        for iExistingEntry, tSubtable in oOurACU[reftCommonACUTarget] do
+            iCurCommonTargetTime = GetGameTimeSeconds() - (tSubtable[subrefiTimeLastRecorded] or 0)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iExistingEntry='..iExistingEntry..'; iCurCommonTargetTime='..iCurCommonTargetTime) end
+            if iCurCommonTargetTime <= 10 and not(tSubtable[subrefoSecondEnemyACU]) and M28UnitInfo.IsUnitValid(tSubtable[subrefoFriendlyACU]) then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            elseif iCurCommonTargetTime < iLastCommonTargetTime then iLastCommonTargetTime = iCurCommonTargetTime
+            end
+        end
+        if iLastCommonTargetTime > 20 then
+            --Clear all entries
+            if bDebugMessages == true then LOG(sFunctionRef..': Clearing all entries for common target') end
+            oOurACU[reftCommonACUTarget] = nil
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
+end
+function IsEnemyACUBeingTargetedByMultipleOfOurACUs(oEnemyACU, iTeam)
+    local sFunctionRef = 'RecordCommonACUTarget'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, is reftCommonACUTarget empty='..tostring(M28Utilities.IsTableEmpty(oEnemyACU[reftCommonACUTarget]))..'; Time='..GetGameTimeSeconds()) end
+    if oEnemyACU[reftCommonACUTarget] and M28Utilities.IsTableEmpty(oEnemyACU[reftCommonACUTarget]) == false then
+        local iLastCommonTargetTime = 1000
+        local iCurCommonTargetTime
+        for iExistingEntry, tSubtable in oEnemyACU[reftCommonACUTarget] do
+            iCurCommonTargetTime = GetGameTimeSeconds() - (tSubtable[subrefiTimeLastRecorded] or 0)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iExistingEntry='..iExistingEntry..'; iCurCommonTargetTime='..iCurCommonTargetTime) end
+            if iCurCommonTargetTime <= 10 and M28UnitInfo.IsUnitValid(tSubtable[subrefoSecondEnemyACU]) and tSubtable[subrefoSecondEnemyACU]:GetAIBrain().M28Team == iTeam and M28UnitInfo.IsUnitValid(tSubtable[subrefoEnemyACU]) then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            elseif iCurCommonTargetTime < iLastCommonTargetTime then iLastCommonTargetTime = iCurCommonTargetTime
+            end
+        end
+        if iLastCommonTargetTime > 20 then
+            --Clear all entries
+            if bDebugMessages == true then LOG(sFunctionRef..': Clearing all entries for common target') end
+            oEnemyACU[reftCommonACUTarget] = nil
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
 end
