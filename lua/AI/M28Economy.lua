@@ -566,6 +566,54 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
                 --If owned by M28Navy and LC is <=2 then also make primary factory
                 if oUnitJustBuilt:GetAIBrain()[M28Overseer.refbPrioritiseNavy] then oUnitJustBuilt[M28Factory.refbPrimaryFactoryForIslandOrPond] = true end
             end
+            --Safe base - make air fac the primary fac
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirHQ, oUnitJustBuilt.UnitId) then
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitJustBuilt:GetPosition())
+            if iPlateau and iLandZone then
+                local aiBrain = oUnitJustBuilt:GetAIBrain()
+                local iTeam = aiBrain.M28Team
+                local tFactoryLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                local tFactoryLZTeamData = tFactoryLZData[M28Map.subrefLZTeamData][iTeam]
+                if (tFactoryLZTeamData[M28Map.refbBaseInSafePosition] and not(aiBrain[M28Overseer.refbPrioritiseLand]) and not(aiBrain[M28Overseer.refbPrioritiseNavy])) or (aiBrain[M28Overseer.refbPrioritiseAir] and tFactoryLZTeamData[M28Map.subrefLZbCoreBase]) then
+                    local bHaveOtherFactoriesOfSameTech = false
+                    if M28Utilities.IsTableEmpty(tFactoryLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                        local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
+                        local iSearchCategory
+                        if iFactoryTechLevel == 1 then iSearchCategory = M28UnitInfo.refCategoryAirHQ
+                        elseif iFactoryTechLevel == 2 then iSearchCategory = M28UnitInfo.refCategoryAirHQ - categories.TECH1
+                        else iSearchCategory = M28UnitInfo.refCategoryAirHQ * categories.TECH3
+                        end
+
+                        local tFactoriesOfSameTech = EntityCategoryFilterDown(iSearchCategory, tFactoryLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tFactoriesOfSameTech) == false then
+                            for iExistingFactory, oExistingFactory in tFactoriesOfSameTech do
+                                if M28UnitInfo.IsUnitValid(oExistingFactory) and not(oExistingFactory == oUnitJustBuilt) and oExistingFactory:GetFractionComplete() == 1 then
+                                    bHaveOtherFactoriesOfSameTech = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': air hq bHaveOtherFactoriesOfSameTech='..tostring(bHaveOtherFactoriesOfSameTech)..'; Mex count for factory island='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tFactoryLZData[M28Map.subrefLZIslandRef]] or 0)..'; Mod dist%='..tFactoryLZTeamData[M28Map.refiModDistancePercent]) end
+                    if not(bHaveOtherFactoriesOfSameTech) then
+                        --Set flag of any other factories in this zone to false
+                        if M28Utilities.IsTableEmpty(tFactoryLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                            local tAllLandFacsInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tFactoryLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tAllLandFacsInZone) == false then
+                                for iFactory, oFactory in tAllLandFacsInZone do
+                                    if not(oFactory == oUnitJustBuilt) and oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond] then
+                                        if (oFactory[M28ACU.refiUpgradeCount] or 0) == 0 then
+                                            oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond] = false
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Just set air factory '..oUnitJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustBuilt)..' to be the primary factory for P'..iPlateau..'Z'..iLandZone..'at time='..GetGameTimeSeconds()) end
+                        oUnitJustBuilt[M28Factory.refbPrimaryFactoryForIslandOrPond] = true
+                    end
+                end
+            end
         end
 
         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustBuilt.UnitId) then
