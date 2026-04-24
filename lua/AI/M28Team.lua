@@ -274,6 +274,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiGeneralPingsInLast30Seconds = 'M28TmPngs' --number of unrecognised pings created in the last 30s
     reftiWaterZonesForBomberToKillEngis = 'M28NvBmb' --[x] is the water zone, = 0 if considering water zone for a fac but dont want a bomber, positivei f want bomber (in theory could make more than 1); if enemy builds a naval fac we should monitor it for if it has multiple engis assisting, and if so consider sending a bomber to the water zone to kill the engis
     reftiLastTransportDropByPlateauAndZone = 'M28TeamTrLstDpPZ' --[x] is the plateau (0 if water), [y] is the land/water zone; returns gametimeseconds that we last issued an unload order for that zone
+    subrefbRushT3AirInAirSlot = 'M28TRshT3Air' --if have a base in a safe position then will rush T3 air even faster than normal
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -2939,7 +2940,7 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                                 if tBrainStartZoneTeamData then
                                     local bHaveActiveAirUpgrade = DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to ignore this brain, tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition]='..tostring(tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition])..'; bHaveActiveAirUpgrade='..tostring(bHaveActiveAirUpgrade)..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]..'; oBrain[M28Economy.refiOurHighestAirFactoryTech]='..oBrain[M28Economy.refiOurHighestAirFactoryTech]..'; tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3]='..tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3]..'; Brain mass%='..oBrain:GetEconomyStoredRatio('MASS')) end
-                                    if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and (bHaveActiveAirUpgrade or (GetGameTimeSeconds() <= 1200 and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= oBrain[M28Economy.refiOurHighestAirFactoryTech]) or (oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, tBrainStartZoneData[M28Map.subrefLZOrWZMexCount]))) then
+                                    if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and (bHaveActiveAirUpgrade or (GetGameTimeSeconds() <= 1200 and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= oBrain[M28Economy.refiOurHighestAirFactoryTech]) or (oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, tBrainStartZoneData[M28Map.subrefLZOrWZMexCount])) or (tTeamData[iM28Team][subrefbRushT3AirInAirSlot] and oBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] < 0.3 and (oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 or tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3] < math.min(2, tBrainStartZoneData[M28Map.subrefLZOrWZMexCount])))) then
                                         bWantUpgrade = false
                                         if bDebugMessages == true then LOG(sFunctionRef..': Dont want land fac upgrade yet for air slot') end
                                     elseif bHaveActiveAirUpgrade and oBrain:GetEconomyStoredRatio('MASS') <= 0.3 and (oBrain:GetEconomyStoredRatio('MASS') <= 0.05 or oBrain[M28Economy.refiOurHighestLandFactoryTech] <= oBrain[M28Economy.refiOurHighestAirFactoryTech] or oBrain[M28Overseer.refbPrioritiseAir]) then
@@ -5837,6 +5838,14 @@ function ConsiderSpecialStrategyAssignment(iTeam)
         if not(M28Utilities.bLoudModActive) and (iStratRNG <= 10 or (M28Utilities.bQuietModActive and iStratRNG <= 50)) then
             for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                 oBrain[M28Overseer.refbStratsOverGunships] = true
+            end
+        end
+        --Early T3 air rush if air slot
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to rush T3 air, subrefiActiveM28BrainCount='..tTeamData[iTeam][subrefiActiveM28BrainCount]) end
+        if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 3 and M28Utilities.bFAFActive then
+            if true and GetGameTimeSeconds() >= 0 then --and math.random(1, 100) >= 1 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will rush T3 air if have base in a safe position') end
+                tTeamData[iTeam][subrefbRushT3AirInAirSlot] = true
             end
         end
     end
