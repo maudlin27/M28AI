@@ -4702,11 +4702,15 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
             local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oArti:GetPosition(), true, iTeam)
             local oClosestTargetOfInterest
             local iClosestTargetOfInterest
+            local oClosestUnshieldedTargetOfInterest
+            local iClosestUnshieldedTargetOfInterest
             if not(oArti[M28UnitInfo.refiIndirectRange]) then
                 M28Utilities.ErrorHandler('Dont have indirect fire range for T2 Arti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti))
                 iClosestTargetOfInterest = 115 + 30
+                iClosestUnshieldedTargetOfInterest = iClosestTargetOfInterest
             else
                 iClosestTargetOfInterest = oArti[M28UnitInfo.refiIndirectRange] + 30 --wont bother trying to fire at something further away than this (and in some cases will need to be closer - ie.. depends on shielding situation)
+                iClosestUnshieldedTargetOfInterest = iClosestTargetOfInterest
             end
             local iCurDist
             local tArtiPosition = oArti:GetPosition()
@@ -4730,14 +4734,15 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
             end
             local iCurTargetSegmentX, iCurTargetSegmentZ
             local bDontConsiderBlockedShots = M28Utilities.IsTableEmpty(oArti[reftbTerrainBlockedTargetsBySegment])
-            function UpdateClosestUnit(tUnits)
+            local bAddIfUnshielded
+            function UpdateClosestUnit(tUnits, bOnlyUpdateForClosestUnshieldedTarget)
                 for iUnit, oUnit in tUnits do
                     if not(oUnit.Dead) then
                         --Check unit is on land and not attached
                         if not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tArtiPosition)
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..repru(iCurDist)..'; iClosestTargetOfInterest='..repru(iClosestTargetOfInterest)..'; iMinRange='..repru(iMinRange)) end
-                            if iCurDist < iClosestTargetOfInterest and iCurDist >= iMinRange then
+                            if iCurDist < iClosestTargetOfInterest and iCurDist >= iMinRange and not(bOnlyUpdateForClosestUnshieldedTarget) then
                                 if bDontConsiderBlockedShots then
                                     iClosestTargetOfInterest = iCurDist
                                     oClosestTargetOfInterest = oUnit
@@ -4752,37 +4757,75 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
                                     end
                                 end
                             end
+                            if iCurDist < iClosestUnshieldedTargetOfInterest and iCurDist >= iMinRange then
+
+                                if bDontConsiderBlockedShots then
+                                    bAddIfUnshielded = true
+                                else
+                                    --Check are shot isnt likely to be blocked
+                                    iCurTargetSegmentX, iCurTargetSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Is Cur target expected to be blocked='..tostring(oArti[reftbTerrainBlockedTargetsBySegment][iCurTargetSegmentX][iCurTargetSegmentZ] or false)) end
+                                    if not(oArti[reftbTerrainBlockedTargetsBySegment][iCurTargetSegmentX][iCurTargetSegmentZ]) then
+                                        --This doesnt cover the scenario where taret is out of our range; however since we prioritise the closest unit, to stick with that target means we have no targets in our range, so am ok not covering that eventuality
+                                        bAddIfUnshielded = true
+                                    end
+                                end
+                                if bAddIfUnshielded then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if this unit is unshielded, in whicih case will update oClosestUnshieldedTargetOfInterest, IsTargetUnderShield='..tostring(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 4000, false, false, false, false, false))) end
+                                    if not(M28Logic.IsTargetUnderShield(aiBrain, oUnit, 4000, false, false, false, false, false)) then
+                                        iClosestUnshieldedTargetOfInterest = iCurDist
+                                        oClosestUnshieldedTargetOfInterest = oUnit
+                                    end
+                                end
+                            end
                         end
                     end
                 end
             end
 
+            local iDistThresholdToConsiderOtherTargets = oArti[M28UnitInfo.refiIndirectRange] + 3 --i.e. if unit we want to target is out of this range we will look for targets less critical that are in our range
+
             --First consider enemy fatboys
+            local bHaveEnemyFatboy = false
             if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) > 0 then
                 UpdateClosestUnit(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats])
+                if oClosestTargetOfInterest and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oClosestTargetOfInterest.UnitId) then bHaveEnemyFatboy = true end
             end
 
-            if not(oClosestTargetOfInterest) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+            if (not(oClosestTargetOfInterest) or iClosestTargetOfInterest > iDistThresholdToConsiderOtherTargets + 3) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
                 --Enemy has t2 arti nearby so consider groundfiring units unless they have a fatboy nearby
                 UpdateClosestUnit(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits])
             end
             if bDebugMessages == true then LOG(sFunctionRef..': oClosestTargetOfInterest after checking for nearby enemy LR threats and t2 arti='..(oClosestTargetOfInterest.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestTargetOfInterest) or 'nil')..'; Did we have a priority target before, tLastTarget='..repru(tLastTarget)) end
-            if not(oClosestTargetOfInterest) then
+            local bOnlyLookForUnshieldedTargets = false
+            if oClosestTargetOfInterest and iClosestTargetOfInterest < iDistThresholdToConsiderOtherTargets and iClosestUnshieldedTargetOfInterest > iDistThresholdToConsiderOtherTargets then
+                bOnlyLookForUnshieldedTargets = true
+            end
+            if not(oClosestTargetOfInterest) or ((bOnlyLookForUnshieldedTargets or iClosestTargetOfInterest > iDistThresholdToConsiderOtherTargets) and not(bHaveEnemyFatboy)) then
                 if not(tLastTarget) then iClosestTargetOfInterest = math.min(iClosestTargetOfInterest, oArti[M28UnitInfo.refiIndirectRange]) end
                 --No T2 arti but we were firing at something before, so check if any enemy shields or T2 arti or ravagers around the arti and (if so) if we want to ground fire them
                 local tNearbyUnitsOfPotentialInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryPD * categories.TECH3 + M28UnitInfo.refCategoryIndirectT2Plus + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategoryCruiser + M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategorySniperBot, tArtiPosition, iClosestTargetOfInterest - 1, 'Enemy')
+                if bDebugMessages == true then LOG(sFunctionRef..': is tNearbyUnitsOfPotentialInterest empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnitsOfPotentialInterest))) end
                 if M28Utilities.IsTableEmpty(tNearbyUnitsOfPotentialInterest) == false then
                     local tNearbyUnitsOfInterest = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryFatboy + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryPD * categories.TECH3, tNearbyUnitsOfPotentialInterest)
                     if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
-                        UpdateClosestUnit(tNearbyUnitsOfInterest)
+                        UpdateClosestUnit(tNearbyUnitsOfInterest, bOnlyLookForUnshieldedTargets)
                     end
-                    if not(oClosestTargetOfInterest) then
+                    if oClosestTargetOfInterest and not(bOnlyLookForUnshieldedTargets) and iClosestUnshieldedTargetOfInterest > iDistThresholdToConsiderOtherTargets then bOnlyLookForUnshieldedTargets = true
+                    elseif bOnlyLookForUnshieldedTargets and iClosestUnshieldedTargetOfInterest < iDistThresholdToConsiderOtherTargets then
+                        bOnlyLookForUnshieldedTargets = false
+                    end
+                    if not(oClosestTargetOfInterest) or bOnlyLookForUnshieldedTargets then
                         tNearbyUnitsOfInterest = EntityCategoryFilterDown(M28UnitInfo.refCategoryIndirectT2Plus + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategoryCruiser, tNearbyUnitsOfPotentialInterest)
                         if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
-                            UpdateClosestUnit(tNearbyUnitsOfInterest)
+                            UpdateClosestUnit(tNearbyUnitsOfInterest, bOnlyLookForUnshieldedTargets)
                         end
-                        if not(oClosestTargetOfInterest) then
-                            UpdateClosestUnit(tNearbyUnitsOfPotentialInterest)
+                        if oClosestTargetOfInterest and not(bOnlyLookForUnshieldedTargets) and iClosestUnshieldedTargetOfInterest > iDistThresholdToConsiderOtherTargets then bOnlyLookForUnshieldedTargets = true
+                        elseif bOnlyLookForUnshieldedTargets and iClosestUnshieldedTargetOfInterest < iDistThresholdToConsiderOtherTargets then
+                            bOnlyLookForUnshieldedTargets = false
+                        end
+                        if not(oClosestTargetOfInterest) or bOnlyLookForUnshieldedTargets then
+                            UpdateClosestUnit(tNearbyUnitsOfPotentialInterest, bOnlyLookForUnshieldedTargets)
                         end
                     end
                 end
@@ -4795,12 +4838,23 @@ function ConsiderManualT2ArtiTarget(oArti, oOptionalWeapon, iOptionalDelaySecond
                 if M28Utilities.IsTableEmpty(oClosestTargetOfInterest[reftoShieldsProvidingCoverage]) == false then
                     local iOrigUnitDist = iClosestTargetOfInterest
                     local oOrigUnitTarget = oClosestTargetOfInterest
-                    iClosestTargetOfInterest = 100000
-                    UpdateClosestUnit(oClosestTargetOfInterest[reftoShieldsProvidingCoverage])
-                    if iClosestTargetOfInterest >= 100000 then --Redundancy (e.g. shot might be blocked on the shield but not the unit being shielded)
-                        iClosestTargetOfInterest = iOrigUnitDist
-                        oClosestTargetOfInterest = oOrigUnitTarget
-                    elseif bDebugMessages == true then LOG(sFunctionRef..': Original target was covered by a fixed shield so will target the shield instead, revised target='..oOrigUnitTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrigUnitTarget)..'; iOrigUnitDist='..iOrigUnitDist)
+                    if oClosestUnshieldedTargetOfInterest and iClosestUnshieldedTargetOfInterest < iDistThresholdToConsiderOtherTargets then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Closest target is shielded, so will switch to the closest unshielded target, oClosestUnshieldedTargetOfInterest='..oClosestUnshieldedTargetOfInterest.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnshieldedTargetOfInterest)) end
+                        iClosestTargetOfInterest = iClosestUnshieldedTargetOfInterest
+                        oClosestTargetOfInterest = oClosestUnshieldedTargetOfInterest
+                    else
+                        iClosestTargetOfInterest = 100000
+                        UpdateClosestUnit(oClosestTargetOfInterest[reftoShieldsProvidingCoverage])
+                        if iClosestTargetOfInterest >= 100000 then --Redundancy (e.g. shot might be blocked on the shield but not the unit being shielded)
+                            iClosestTargetOfInterest = iOrigUnitDist
+                            oClosestTargetOfInterest = oOrigUnitTarget
+                        elseif bDebugMessages == true then LOG(sFunctionRef..': Original target was covered by a fixed shield so will target the shield instead, revised target='..oOrigUnitTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrigUnitTarget)..'; iOrigUnitDist='..iOrigUnitDist)
+                        end
+                        if iClosestTargetOfInterest >= 100000 then --Redundancy (e.g. shot might be blocked on the shield but not the unit being shielded)
+                            iClosestTargetOfInterest = iOrigUnitDist
+                            oClosestTargetOfInterest = oOrigUnitTarget
+                            if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find valid target so reverting to previous shielded target') end
+                        end
                     end
                 end
 

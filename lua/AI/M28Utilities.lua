@@ -541,7 +541,7 @@ function GenerateUniqueColourTable(iTableSize)
 
 end
 
-function GetNearestUnit(tUnits, tCurPos, bUseActualTravelDistance, sPathingToUse)
+function GetNearestUnit(tUnits, tCurPos, bUseActualTravelDistance, sPathingToUse, bAlsoReturnDistance)
     --returns the nearest unit in tUnits from tCurPos
 
     local sFunctionRef = 'GetNearestUnit'
@@ -570,7 +570,12 @@ function GetNearestUnit(tUnits, tCurPos, bUseActualTravelDistance, sPathingToUse
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    if iNearestUnit then return tUnits[iNearestUnit]
+    if iNearestUnit then
+        if bAlsoReturnDistance then
+            return tUnits[iNearestUnit], iMinDist
+        else
+            return tUnits[iNearestUnit]
+        end
     else return nil end
 end
 

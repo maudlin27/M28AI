@@ -274,6 +274,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiGeneralPingsInLast30Seconds = 'M28TmPngs' --number of unrecognised pings created in the last 30s
     reftiWaterZonesForBomberToKillEngis = 'M28NvBmb' --[x] is the water zone, = 0 if considering water zone for a fac but dont want a bomber, positivei f want bomber (in theory could make more than 1); if enemy builds a naval fac we should monitor it for if it has multiple engis assisting, and if so consider sending a bomber to the water zone to kill the engis
     reftiLastTransportDropByPlateauAndZone = 'M28TeamTrLstDpPZ' --[x] is the plateau (0 if water), [y] is the land/water zone; returns gametimeseconds that we last issued an unload order for that zone
+    subrefbRushT3AirInAirSlot = 'M28TRshT3Air' --if have a base in a safe position then will rush T3 air even faster than normal
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -284,7 +285,7 @@ tAirSubteamData = {}
     refiFarBehindFactor = 'M28ASTFarBhAFc' --e.g. 0.75 means refbFarBehindOnAir is true if our AirAA threat is <75% of enemy
     refiAirControlFactor = 'M28ACFct' --% of airaa we want to consider we have air control
     refbHaveAirControl = 'M28ASTHaveAirControl'
-    reftACUExpAndPriorityDefenceOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
+    reftACUExpAndPriorityDefenceOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals and campaign temporary escort objectives
 
     --NOTE: Some of below are used for team as well (AirAA, Gunship, and Bomber (non-torp) threats)
     subrefiOurAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat; also used as a team variable
@@ -802,7 +803,7 @@ function CreateNewTeam(aiBrain)
                         end
                         --Record brain details in log for ease of reference
                         local sAIxref = ''
-                        if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)..'; oBrain[M28Economy.refiBrainResourceMultiplier]='..(oBrain[M28Economy.refiBrainResourceMultiplier] or 'nil')) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; ScenarioInfo.Options.BuildMult='..(ScenarioInfo.Options.BuildMult or 'nil')..'; oBrain[M28Economy.refiBrainResourceMultiplier]='..(oBrain[M28Economy.refiBrainResourceMultiplier] or 'nil')) end
                         if oBrain.CheatEnabled then
                             sAIxref = ' AIx Res '..tonumber(ScenarioInfo.Options.CheatMult or -1)..'; BP '..tonumber(ScenarioInfo.Options.BuildMult or -1)
                         end
@@ -2939,7 +2940,7 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                                 if tBrainStartZoneTeamData then
                                     local bHaveActiveAirUpgrade = DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to ignore this brain, tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition]='..tostring(tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition])..'; bHaveActiveAirUpgrade='..tostring(bHaveActiveAirUpgrade)..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]..'; oBrain[M28Economy.refiOurHighestAirFactoryTech]='..oBrain[M28Economy.refiOurHighestAirFactoryTech]..'; tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3]='..tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3]..'; Brain mass%='..oBrain:GetEconomyStoredRatio('MASS')) end
-                                    if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and (bHaveActiveAirUpgrade or (GetGameTimeSeconds() <= 1200 and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= oBrain[M28Economy.refiOurHighestAirFactoryTech]) or (oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, tBrainStartZoneData[M28Map.subrefLZOrWZMexCount]))) then
+                                    if tBrainStartZoneTeamData[M28Map.refbBaseInSafePosition] and (bHaveActiveAirUpgrade or (GetGameTimeSeconds() <= 1200 and oBrain[M28Economy.refiOurHighestLandFactoryTech] >= oBrain[M28Economy.refiOurHighestAirFactoryTech]) or (oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 and tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3] < math.min(4, tBrainStartZoneData[M28Map.subrefLZOrWZMexCount])) or (tTeamData[iM28Team][subrefbRushT3AirInAirSlot] and oBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 and tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] < 0.3 and (oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 or tBrainStartZoneTeamData[M28Map.subrefMexCountByTech][3] < math.min(2, tBrainStartZoneData[M28Map.subrefLZOrWZMexCount])))) then
                                         bWantUpgrade = false
                                         if bDebugMessages == true then LOG(sFunctionRef..': Dont want land fac upgrade yet for air slot') end
                                     elseif bHaveActiveAirUpgrade and oBrain:GetEconomyStoredRatio('MASS') <= 0.3 and (oBrain:GetEconomyStoredRatio('MASS') <= 0.05 or oBrain[M28Economy.refiOurHighestLandFactoryTech] <= oBrain[M28Economy.refiOurHighestAirFactoryTech] or oBrain[M28Overseer.refbPrioritiseAir]) then
@@ -5068,8 +5069,56 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
         local iHealthPercent = iCurHealth / iMaxHealth
         local iBaseHealthThreshold = 0.5
         if bIsUnderwater then iBaseHealthThreshold = 0.3 end
+        --For maps like UEF Mission 2 where AI ACU can sometimes move outside of safe location and take damage from not moving, and we have gunships who could suicide into it
+        local bCampaignOrCombinedSnipe = false --Also use where we have a 2 friendly ACU vs 1 enemy ACU scenario via the ACU attack logic, and both are in range
+        if M28Map.bIsCampaignMap and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+            local iCampaignFactor = (oUnit[M28UnitInfo.refiCampaignSnipeAttempts] or 0)
+            if oUnit[M28UnitInfo.refbIsSnipeTarget] then iCampaignFactor = iCampaignFactor - 1 end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering campaign snipe on injured enemy ACU, iCampaignFactor='..iCampaignFactor..'; refiOurGunshipThreat='..(tTeamData[iTeam][subrefiOurGunshipThreat] or 'nil')..'; Have air control='..tostring(M28Conditions.TeamHasAirControl(iTeam))..'; bIsUnderwater='..tostring(bIsUnderwater)..'; Brain target='..oUnit:GetAIBrain().Nickname..'; Time since ACU last fired='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)) end
+            --First attempt we will go even if ACU is on full health if it has no nearby AA and has fired at us recently (with 20s buffer if it is already a snipe target, use - since shoudl be -1 campaign factor)
+            if iCampaignFactor <= 5 and (iHealthPercent < 0.9 or iCampaignFactor <= 0 and oUnit[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] <= (20 - 20 * iCampaignFactor)) and tTeamData[iTeam][subrefiOurGunshipThreat] >= 9600 + 1000 * iCampaignFactor and M28Conditions.TeamHasAirControl(iTeam) and not(bIsUnderwater) and oUnit:GetAIBrain().BrainType == 'AI' and not(M28Conditions.DoesAINicknameContainM28(oUnit:GetAIBrain().Nickname)) then
+                --If enemy ACU is full health add extra check for nearby AA
+                local bContinue = true
+                if iHealthPercent >= 0.8 then
+                    if iHealthPercent >= 0.9 then bContinue = false end
+                    local iSearchRange = 40
+                    if oUnit[M28UnitInfo.refbIsSnipeTarget] then iSearchRange = 20 end
+                    local tNearbyEnemyAA = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, oUnit:GetPosition(), iSearchRange, 'Ally')
+                    local iEnemyNearbyAAThreat = 0
+                    if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false then iEnemyNearbyAAThreat = M28UnitInfo.GetAirThreatLevel(tNearbyEnemyAA, true, false, true, false, false, false) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iEnemyNearbyAAThreat='..iEnemyNearbyAAThreat..'; 35% of our gunship threat='..tTeamData[iTeam][subrefiOurGunshipThreat] * 0.3) end
+                    if iEnemyNearbyAAThreat <= tTeamData[iTeam][subrefiOurGunshipThreat] * 0.35 then
+                        bContinue = false
+                        iBaseHealthThreshold = 1
+                        bCampaignOrCombinedSnipe = true
+                    end
+                end
+                if bContinue then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Campaign so will be more likely to snipe') end
+                    iBaseHealthThreshold = 0.8
+                    bCampaignOrCombinedSnipe = true
+                end
+            end
+        elseif oUnit[M28ACU.reftCommonACUTarget] and M28ACU.IsEnemyACUBeingTargetedByMultipleOfOurACUs(oUnit, iTeam) then
+            --Is the health of our 2 ACUs significantly more than the health of their ACU?
+            for iExistingEntry, tSubtable in oUnit[M28ACU.reftCommonACUTarget] do
+                if GetGameTimeSeconds() - (tSubtable[M28ACU.subrefiTimeLastRecorded] or 0) <= 10 and M28UnitInfo.IsUnitValid(tSubtable[M28ACU.subrefoSecondEnemyACU]) and tSubtable[M28ACU.subrefoSecondEnemyACU]:GetAIBrain().M28Team == iTeam and M28UnitInfo.IsUnitValid(tSubtable[M28ACU.subrefoEnemyACU]) then
+                    --Are we in range of both the ACUs?
+                    if M28Utilities.GetDistanceBetweenPositions(tSubtable[M28ACU.subrefoSecondEnemyACU]:GetPosition(), oUnit:GetPosition()) <= tSubtable[M28ACU.subrefoSecondEnemyACU][M28UnitInfo.refiDFRange] and M28Utilities.GetDistanceBetweenPositions(tSubtable[M28ACU.subrefoEnemyACU]:GetPosition(), oUnit:GetPosition()) <= tSubtable[M28ACU.subrefoEnemyACU][M28UnitInfo.refiDFRange] then
+                        local iEnemyHealthAndShield = M28UnitInfo.GetUnitCurHealthAndShield(oUnit)
+                        local iOurHealthAndShield = M28UnitInfo.GetUnitCurHealthAndShield(tSubtable[M28ACU.subrefoSecondEnemyACU]) + M28UnitInfo.GetUnitCurHealthAndShield(tSubtable[M28ACU.subrefoEnemyACU])
+                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyHealthAndShield='..iEnemyHealthAndShield..'; iOurHealthAndShield='..iOurHealthAndShield) end
+                        if iOurHealthAndShield >= 1.5 * iEnemyHealthAndShield then
+                            iBaseHealthThreshold = 0.85
+                            bCampaignOrCombinedSnipe = true
+                            break
+                        end
+                    end                    
+                end
+            end            
+        end
         if oUnit[M28UnitInfo.refbIsSnipeTarget] then iBaseHealthThreshold = iBaseHealthThreshold+ 0.1 end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering health threshold, iHealthPercent='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold..'; bCampaignOrCombinedSnipe='..tostring(bCampaignOrCombinedSnipe)) end
         if iHealthPercent < iBaseHealthThreshold then
             --Check for shield
             local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
@@ -5084,11 +5133,10 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated ACU target for shield, iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; iHealthPercent post update='..iHealthPercent..'; iBaseHealthThreshold='..iBaseHealthThreshold) end
             end
-
             if iMaxShield == 0 or (iHealthPercent < iBaseHealthThreshold and (iHealthPercent < 0.4 or iCurShield / iMaxShield < 0.3)) then
                 --Dont try and snipe lowest rated players on enemy team in full share
                 local bLowRatedTarget = false
-                if M28Utilities.bFAFActive and not(tTeamData[oUnit:GetAIBrain().M28Team][refbAssassinationOrSimilar]) and ScenarioInfo.Options.Share == 'FullShare' and oUnit:GetAIBrain().Rating < 1500 then
+                if M28Utilities.bFAFActive and not(tTeamData[oUnit:GetAIBrain().M28Team][refbAssassinationOrSimilar]) and ScenarioInfo.Options.Share == 'FullShare' and oUnit:GetAIBrain().Rating < 1500 and not(M28Map.bIsCampaignMap) then
                     --Get the average rating on the enemy team
                     local iTotalRating = 0
                     local iBrainCount = 0
@@ -5105,12 +5153,20 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering unit owned by brain '..oUnit:GetAIBrain().Nickname..'; that brains rating is '..(oUnit:GetAIBrain().Rating or 'nil')..'; Team iHighestRating='..iHighestRating..'; Team average rating='..iTotalRating / iBrainCount..'; bLowRatedTarget='..tostring(bLowRatedTarget)) end
                 end
-                if not(bLowRatedTarget) then
+                if bDebugMessages == true then LOG(sFunctionRef..': bLowRatedTarget='..tostring(bLowRatedTarget)) end
+                if not(bLowRatedTarget) or (bCampaignOrCombinedSnipe and iHealthPercent + 0.1 < iBaseHealthThreshold)  then
 
                     --Very low health - attack
                     if (iHealthPercent < 0.175 or (iHealthPercent < 0.2 and oUnit[M28UnitInfo.refbIsSnipeTarget])) and (oUnit:GetHealth() <= 2000 or (oUnit[M28UnitInfo.refbIsSnipeTarget] and oUnit:GetHealth() <= 2500)) then
                         if bDebugMessages == true then LOG(sFunctionRef..': So low health that we might kill just with air') end
                         bAddAsSnipeTarget = true
+                    elseif bCampaignOrCombinedSnipe then
+                        bAddAsSnipeTarget = true
+                        --Track attempts made so we can increase requirements to avoid being stuck in a failing pattern
+                        if not(oUnit[M28UnitInfo.refbIsSnipeTarget]) then
+                            oUnit[M28UnitInfo.refiCampaignSnipeAttempts] = (oUnit[M28UnitInfo.refiCampaignSnipeAttempts] or 0) + 1
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will add as a campagin target, refiCampaignSnipeAttempts after adjustment='.. (oUnit[M28UnitInfo.refiCampaignSnipeAttempts] or 0)) end
                     else
                         --Is there a friendly ACU nearby with more health? Also factor in if that ACU has a better upgrade
                         local tNearbyAvailableACUs = {}
@@ -5782,6 +5838,14 @@ function ConsiderSpecialStrategyAssignment(iTeam)
         if not(M28Utilities.bLoudModActive) and (iStratRNG <= 10 or (M28Utilities.bQuietModActive and iStratRNG <= 50)) then
             for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                 oBrain[M28Overseer.refbStratsOverGunships] = true
+            end
+        end
+        --Early T3 air rush if air slot
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to rush T3 air, subrefiActiveM28BrainCount='..tTeamData[iTeam][subrefiActiveM28BrainCount]) end
+        if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 3 and M28Utilities.bFAFActive then
+            if math.random(1, 100) >= 50 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will rush T3 air if have base in a safe position') end
+                tTeamData[iTeam][subrefbRushT3AirInAirSlot] = true
             end
         end
     end

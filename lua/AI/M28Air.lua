@@ -2011,7 +2011,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         local tSupportRallyPoint
         local tUnitsToProtect = {}
         if iCurRallyValue >= 0 then
-            if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam]) == false then
+            if M28Conditions.IsTableOfUnitsStillValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam]) then
                 for iUnit, oUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to protect='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to air support team, unit owner='..oUnit:GetAIBrain().Nickname) end
                     table.insert(tUnitsToProtect, oUnit)
@@ -8046,6 +8046,9 @@ function ManageGunships(iTeam, iAirSubteam)
                             AddUnitToTargetsTable(oUnit, true)
                             --Make sure gunships will prioritise enemy ACU
                             bUsingSnipePriority = true
+                        elseif M28Map.bIsCampaignMap and oUnit[M28UnitInfo.refiCampaignSnipeAttempts] then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Campaign ACU snipe attempt') end
+                            AddUnitToTargetsTable(oUnit, true)
                         elseif tTargetLZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iAvailableGunshipThreat then
                             tbPlateauAndZoneAdded[iTargetPlateauOrZero][iTargetLZOrWZ] = true
                             iMaxEnemyAirAA = math.min(iOrigMaxEnemyAirAA * (0.25 + 0.25 * iTargetHealthPercent), iOrigMaxEnemyAirAA)
@@ -8103,6 +8106,36 @@ function ManageGunships(iTeam, iAirSubteam)
 
             local bAlwaysInclAdjToStart = M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]
             if not(bAlwaysInclAdjToStart) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 0) < iOurGunshipThreat * 0.1 then bAlwaysInclAdjToStart = true end
+            --Campaign - temporary escort missions - treat a priority defence unit similar to a start position
+            if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam]) == false then
+                local tOtherDefenceUnits = EntityCategoryFilterDown(categories.ALLUNITS - categories.COMMAND - M28UnitInfo.refCategoryExperimentalLevel, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam])
+                if M28Utilities.IsTableEmpty(tOtherDefenceUnits) == false then
+                    local tbPlateauAndZone = {}
+                    if M28Utilities.IsTableEmpty(tiFriendlyStartPositionPlateauAndZones) == false then
+                        for _, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do
+                            if not(tbPlateauAndZone[tiPlateauAndZone[1]]) then tbPlateauAndZone[tiPlateauAndZone[1]] = {} end
+                            tbPlateauAndZone[tiPlateauAndZone[1]][tiPlateauAndZone[2]] = true
+                        end
+                    end
+                    local iCurUnitPlateau, iCurUnitZone
+                    for iUnit, oUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] do
+                        if not(oUnit.Dead) then
+                            iCurUnitPlateau = (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or -1)
+                            if iCurUnitPlateau > 0 then
+                                iCurUnitZone = (oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or -1)
+                                if iCurUnitZone > 0 then
+                                    if not(tbPlateauAndZone[iCurUnitPlateau]) then tbPlateauAndZone[iCurUnitPlateau] = true end
+                                    if not(tbPlateauAndZone[iCurUnitPlateau][iCurUnitZone]) then
+                                        tbPlateauAndZone[iCurUnitPlateau][iCurUnitZone] = true
+                                        if not(tiFriendlyStartPositionPlateauAndZones) then tiFriendlyStartPositionPlateauAndZones = {} end
+                                        table.insert(tiFriendlyStartPositionPlateauAndZones, {iCurUnitPlateau, iCurUnitZone})
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
             if M28Utilities.IsTableEmpty(tiFriendlyStartPositionPlateauAndZones) == false and (not(iClosestSnipeTarget) or iClosestSnipeTarget >= 400) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will look for enemies in tiFriendlyStartPositionPlateauAndZones, tiFriendlyStartPositionPlateauAndZones='..repru(tiFriendlyStartPositionPlateauAndZones)) end
                 for iEntry, tiPlateauAndZone in tiFriendlyStartPositionPlateauAndZones do

@@ -495,7 +495,7 @@ function M28BrainCreated(aiBrain)
     table.insert(tAllActiveM28Brains, aiBrain)
 
     --PCx mod support - M28 loads this before PCx, so do a hardcopy here if the mod is active
-    if not(aiBrain.CheatEnabled) then
+    if not(aiBrain.CheatEnabled) or aiBrain.BrainType == 'Human' then
         local tSimMods = __active_mods or {}
         if M28Utilities.IsTableEmpty(tSimMods) == false then
             for iMod, tModData in tSimMods do
@@ -1418,22 +1418,37 @@ function RecordUnitAsCaptureTarget(oUnit, iPlateau, iLandZone)
         end
     end
 
-    --Check not recorded as a reclaim target for any team
-    for iTeam = 1, M28Team.iTotalTeamCount do
-        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
-            local tUnitLZTeamData = tUnitLZData[M28Map.subrefLZTeamData][iTeam]
-            --Check if unit is recorded to be reclaimed, and if so then remove it
-            if M28Utilities.IsTableEmpty(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
-                for iCurEntry = table.getn(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]), 1, -1 do
-                    if tUnitLZTeamData[M28Map.subreftoUnitsToReclaim][iCurEntry] == oUnit then
-                        table.remove(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], iCurEntry)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Removed unit from the list of units to be reclaimed') end
+    --Check not recorded as a reclaim target for any team (if unit is capturable - due to UEF M3 where black box triggers this function despite being a reclaim objective)
+    ForkThread(ForkedUnitCaptureStatusCheck, oUnit, tUnitLZData)
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ForkedUnitCaptureStatusCheck(oUnit, tUnitLZData)
+    WaitTicks(1)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ForkedUnitCaptureStatusCheck'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Start of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Time='..GetGameTimeSeconds()..'; .Dead='..tostring(oUnit.Dead or false)..'; oUnit.IsCapturable is nil='..tostring(oUnit.IsCapturable == nil))
+        if not(oUnit.Dead) and oUnit.IsCapturable then LOG(':IsCapturable='..tostring(oUnit:IsCapturable())) end
+    end
+    if not(oUnit.Dead) and (not(oUnit.IsCapturable) or oUnit:IsCapturable()) then
+        for iTeam = 1, M28Team.iTotalTeamCount do
+            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                local tUnitLZTeamData = tUnitLZData[M28Map.subrefLZTeamData][iTeam]
+                --Check if unit is recorded to be reclaimed, and if so then remove it if are capturable
+                if M28Utilities.IsTableEmpty(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
+                    for iCurEntry = table.getn(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim]), 1, -1 do
+                        if tUnitLZTeamData[M28Map.subreftoUnitsToReclaim][iCurEntry] == oUnit then
+                            table.remove(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim], iCurEntry)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Removed unit '..tUnitLZTeamData[M28Map.subreftoUnitsToReclaim][iCurEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnitLZTeamData[M28Map.subreftoUnitsToReclaim][iCurEntry])..' from the list of units to be reclaimed') end
+                        end
                     end
                 end
             end
         end
     end
-
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1984,6 +1999,53 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
         if Target.Area == 'Civilian_Area' and ScenarioInfo.M2P1.Active and ScenarioInfo.AllyResearch == 3 and ScenarioInfo.AllyCivilian == 4 and ScenarioInfo.CivilianFacilityReinforcedObjectiveComplete == false then
             ForkThread(UEFMission2ReinforceCivilianTracker, iTeam)
 
+            --UEF Mission 3 - get MAA and inties early on
+        elseif ScenarioInfo.Arnold == 3 and ScenarioInfo.Aeon == 2 and ScenarioInfo.M1P1.Active and not(aiBrain['M28UEFM3MAALoop']) then
+            while true do
+                local iCurMAA = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA)
+                local iCurAirAA = M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] / 50
+                local tLandFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryLandFactory, false, true)
+                local tAirFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAirFactory, false, true)
+                if M28Utilities.IsTableEmpty(tLandFactories) == false or M28Utilities.IsTableEmpty(tAirFactories) == false then
+                    --Consider aborting the loop
+                    if GetGameTimeSeconds() >= 15*60 or iCurMAA >= 14 or iCurAirAA >= 20 or not(ScenarioInfo.M1P1.Active) then
+                        aiBrain['M28UEFM3MAALoop'] = nil
+                        if M28Utilities.IsTableEmpty(tLandFactories) == false then
+                            for iFactory, oFactory in tLandFactories do
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(tAirFactories) == false then
+                            for iFactory, oFactory in tAirFactories do
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                            end
+                        end
+                        break
+                    end
+                    if M28Utilities.IsTableEmpty(tLandFactories) == false then
+                        for iFactory, oFactory in tLandFactories do
+                            if (oFactory[M28Factory.refiTotalBuildCount] or 0) > 0 and (iCurMAA <= 8 or (oFactory[M28Factory.refsLastBlueprintBuilt] and not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oFactory[M28Factory.refsLastBlueprintBuilt])))) and (oFactory[M28Factory.refiTotalBuildCount] >= 5 or M28UnitInfo.GetUnitLifetimeCount(oFactory) > 1 or (M28UnitInfo.GetUnitTechLevel(oFactory) >= 2 and oFactory[M28Factory.refiTotalBuildCount] >= 2)) then
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryMAA, oFactory, false, false, false, nil, false, nil, true)
+                            else
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': COnsidered setting MAA override for oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; refsFactoryNextBlueprintOverride='..(oFactory[M28Factory.refsFactoryNextBlueprintOverride] or 'nil')..'; iCurMAA='..iCurMAA..'; refiTotalBuildCount='..(oFactory[M28Factory.refiTotalBuildCount] or 'nil')) end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tAirFactories) == false then
+                        for iFactory, oFactory in tAirFactories do
+                            if (oFactory[M28Factory.refiTotalBuildCount] or 0) >= 2 and (oFactory[M28Factory.refsLastBlueprintBuilt] and (iCurAirAA < 3 or not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oFactory[M28Factory.refsLastBlueprintBuilt]))))
+                            and (iCurAirAA < 5 or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) then
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirAA, oFactory, false, false, false, nil, false, nil, true)
+                            else
+                                oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': COnsidered setting AirAA override for oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; refsFactoryNextBlueprintOverride='..(oFactory[M28Factory.refsFactoryNextBlueprintOverride] or 'nil')..'; iCurAirAA estimate='..iCurAirAA..'; refiTotalBuildCount='..(oFactory[M28Factory.refiTotalBuildCount] or 'nil')) end
+                        end
+                    end
+                end
+                WaitSeconds(5)
+            end
 
             --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
         elseif ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
@@ -2453,8 +2515,8 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
         end
         --UEF M1 - Air fac upgrading breaks the mission
         if ScenarioInfo.AirFactory.UnitId and not(ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit]) and ScenarioInfo.AirFactory:GetBlueprint().General.UpgradesTo and ScenarioInfo.AirFactory:GetAIBrain().M28AI then
-            if bDebugMessages == true then LOG(sFunctionRef..': Flagging not to upgrade unit '..ScenarioInfo.AirFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(ScenarioInfo.AirFactory.UnitId)..' as it may be an objective unit') end
-            ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit] = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Flagging not to upgrade unit '..ScenarioInfo.AirFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(ScenarioInfo.AirFactory.UnitId)..' as it may be an objective unit') end
+        ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit] = true
         end
     else
         if bDebugMessages == true then LOG(sFunctionRef..': No active M28 brains so aborting') end
@@ -3489,12 +3551,13 @@ function UEFMission2ReinforceCivilianTracker()
                     WaitSeconds(2)
 
                     local bResetM28ActiveFlag
+                    local bTruckIncludedInPriorityDefence
                     while not(ScenarioInfo.M2P2Complete) do
                         if bDebugMessages == true then LOG(sFunctionRef..': Is TruckList empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.TruckList))..'; Time='..GetGameTimeSeconds()..'; ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; iDelayBeforeReissuingIfNoSpeed='..iDelayBeforeReissuingIfNoSpeed) end
                         if M28Utilities.IsTableEmpty(ScenarioInfo.TruckList) == false then
                             for iTruck, oTruck in ScenarioInfo.TruckList do
                                 if bDebugMessages == true and not(oTruck.Dead) then LOG(sFunctionRef..': COnsidering g iving order to oTruck='..oTruck.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTruck)..'; oTruck[refiTimeLastGivenTruckMoveOrder]='..(oTruck[refiTimeLastGivenTruckMoveOrder] or 'nil')..'; truck speed='..M28UnitInfo.GetUnitSpeed(oTruck)..'; refiGameTimeToResetMicroActive='..(oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Dist to target midpoint='..M28Utilities.GetDistanceBetweenPositions(oTruck:GetPosition(), tTruckTargetMidpoint)) end
-                                if ((not(oTruck[refiTimeLastGivenTruckMoveOrder]) or oTruck.M28Active) and not(oTruck.Dead) and not(oTruck:IsUnitState('Attached')) and (M28UnitInfo.GetUnitSpeed(oTruck) < 0.1 or (oTruck.M28Active and (not(oTruck[M28UnitInfo.refiGameTimeToResetMicroActive]) or GetGameTimeSeconds() - oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] <= 10)))) or (oTruck[refiTimeLastGivenTruckMoveOrder] and GetGameTimeSeconds() - oTruck[refiTimeLastGivenTruckMoveOrder] >= iDelayBeforeReissuingIfNoSpeed and M28UnitInfo.GetUnitSpeed(oTruck) == 0) then
+                                if not(oTruck.Dead) and (((not(oTruck[refiTimeLastGivenTruckMoveOrder]) or oTruck.M28Active) and not(oTruck:IsUnitState('Attached')) and (M28UnitInfo.GetUnitSpeed(oTruck) < 0.1 or (oTruck.M28Active and (not(oTruck[M28UnitInfo.refiGameTimeToResetMicroActive]) or GetGameTimeSeconds() - oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] <= 10)))) or (oTruck[refiTimeLastGivenTruckMoveOrder] and GetGameTimeSeconds() - oTruck[refiTimeLastGivenTruckMoveOrder] >= iDelayBeforeReissuingIfNoSpeed and M28UnitInfo.GetUnitSpeed(oTruck) == 0)) then
                                     if not(oTruck.M28Active) and not(M28Orders.bDontConsiderCombinedArmy) then
                                         --Temporarily set M28Active to true
                                         bResetM28ActiveFlag = true
@@ -3507,6 +3570,20 @@ function UEFMission2ReinforceCivilianTracker()
                                     if bDebugMessages == true then LOG(sFunctionRef..': Given move order to truck') end
                                     if bResetM28ActiveFlag then
                                         oTruck.M28Active = false
+                                    end
+                                    bTruckIncludedInPriorityDefence = false
+                                    if not(M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam]) then
+                                        M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] = {}
+                                    else
+                                        for iRecordedTruck, oRecordedTruck in M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] do
+                                            if oTruck == oRecordedTruck then
+                                                bTruckIncludedInPriorityDefence = true
+                                                break
+                                            end
+                                        end
+                                    end
+                                    if not(bTruckIncludedInPriorityDefence) then
+                                        table.insert(oTruck, M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam])
                                     end
                                 end
                             end

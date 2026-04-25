@@ -5111,6 +5111,74 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
     end
 
+    --Rushing T3 air
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Do we want to rush T3 air? subrefbRushT3AirInAirSlot='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbRushT3AirInAirSlot])..'; oFactory[refbPrimaryFactoryForIslandOrPond]='..tostring(oFactory[refbPrimaryFactoryForIslandOrPond] or false)..'; refiOurHighestAirFactoryTech='..aiBrain[M28Economy.refiOurHighestAirFactoryTech]..'; subrefbTeamIsStallingEnergy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; refbBaseInSafePosition='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition])) end
+    if iFactoryTechLevel < 3 and tLZTeamData[M28Map.refbBaseInSafePosition] and (oFactory[refbPrimaryFactoryForIslandOrPond] or (iFactoryTechLevel == 2 and EntityCategoryContains(M28UnitInfo.refCategoryAirHQ, oFactory.UnitId)) or (iFactoryTechLevel == 1 and aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 1)) and M28Team.tTeamData[iTeam][M28Team.subrefbRushT3AirInAirSlot] and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and
+            not(aiBrain[M28Overseer.refbPrioritiseLand]) and not(aiBrain[M28Overseer.refbPrioritiseNavy]) and not(aiBrain[M28Overseer.refbPrioritiseLowTech]) and not(aiBrain[M28Overseer.refbPrioritiseDefence]) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to get to T3 air asap, will consider early upgrade') end
+        --Check dont have an air factory upgrading already
+        local bHaveAirHQUpgrading = false
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+            for iUpgrade, oUpgrade in tLZTeamData[M28Map.subreftoActiveUpgrades] do
+                if EntityCategoryContains(M28UnitInfo.refCategoryAirHQ, oUpgrade.UnitId) then
+                    bHaveAirHQUpgrading = true
+                    break
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bHaveAirHQUpgrading='..tostring(bHaveAirHQUpgrading)) end
+        if not(bHaveAirHQUpgrading) then
+            local bWantUpgrade = false
+            if iFactoryTechLevel == 1 then
+                if (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 2.8 or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 7))
+                        and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 45 or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 35 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 80))
+                        and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(tLZData[M28Map.subrefLZOrWZMexCount], 7) then
+                    bWantUpgrade = true
+                end
+            elseif iFactoryTechLevel == 2 then
+                if (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4.2 or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 3.2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10))
+                        and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 120 or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 85 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 220))
+                        and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= math.min(3, tLZData[M28Map.subrefLZOrWZMexCount]) and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 6) then
+                    bWantUpgrade = true
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bWantUpgrade after doing eco checks='..tostring(bWantUpgrade)) end
+            if bWantUpgrade then
+                if ConsiderUpgrading() then return sBPIDToBuild end
+                if bDebugMessages == true then LOG(sFunctionRef..': Failed to get upgrade, Checking if we want more engis before we rush the air upgrade, oFactory[refbWantMoreEngineersBeforeUpgrading]='..tostring(oFactory[refbWantMoreEngineersBeforeUpgrading] or false)) end
+                if oFactory[refbWantMoreEngineersBeforeUpgrading] and ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+            else
+                --Get more engineers if havent built many units from this fac and no nearby enemy air to ground threat
+                if oFactory[refiTotalBuildCount] < 10 and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZData, tLZTeamData, iTeam, 150, 10) == 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just wnat to get engineers and upgrades for rushing t3 air so will get more engineers') end
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                end
+            end
+        end
+    end
+
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if t3 strat rush is relevant, subrefbRushT3AirInAirSlot='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbRushT3AirInAirSlot] or false)..'; iFactoryTechLevel='..iFactoryTechLevel..'; refiTotalBuildCount='..(oFactory[refiTotalBuildCount] or 'nil')..'; refiGrossEnergyBaseIncome='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; refbBaseInSafePosition='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition])) end
+    if iFactoryTechLevel == 3 and oFactory[refiTotalBuildCount] <= 2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 100 and M28Team.tTeamData[iTeam][M28Team.subrefbRushT3AirInAirSlot] and tLZTeamData[M28Map.refbBaseInSafePosition] then
+        local iRandChance = math.random(1,2)
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering rushing a strat bomber, subrefiHighestEnemyAirTech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]..'; refiTotalBuildCount='..oFactory[refiTotalBuildCount]..'; iRandChance='..iRandChance..'; refiEnemyAirAAThreat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]..'; subrefiOurAirAAThreat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]) end
+        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 or (M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryBomber * categories.TECH3) == 0 and iRandChance == 1 and (oFactory[refiTotalBuildCount] == 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] < M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] < 1000)) then
+            local bEnemyHasASFs = false
+            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 400 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirAA]) == false then
+                for iAirAA, oAirAA in M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirAA] do
+                    if EntityCategoryContains(categories.TECH3, oAirAA.UnitId) and not(oAirAA.Dead) and oAirAA:GetFractionComplete() >= 0.9 then
+                        bEnemyHasASFs = true
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and rush the strat unless enemy has ASFs, bEnemyHasASFs='..tostring(bEnemyHasASFs)) end
+            if not(bEnemyHasASFs) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber * categories.TECH3) then return sBPIDToBuild end
+            end
+        end
+    end
+
     --T2-T3 fac that hasnt built any engineers yet of the desired tech level and doesnt have enemy air to ground threat or combat threat in the zone, and not stalling mass
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Very high priority engi for tech builder, oFactory[refiTotalBuildCount]='..(oFactory[refiTotalBuildCount] or 'nil')..'; iFactoryTechLevel='..iFactoryTechLevel..'; Want BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP])..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) end
