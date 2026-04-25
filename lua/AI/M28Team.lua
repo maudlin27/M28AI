@@ -5843,7 +5843,7 @@ function ConsiderSpecialStrategyAssignment(iTeam)
         --Early T3 air rush if air slot
         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to rush T3 air, subrefiActiveM28BrainCount='..tTeamData[iTeam][subrefiActiveM28BrainCount]) end
         if tTeamData[iTeam][subrefiActiveM28BrainCount] >= 3 and M28Utilities.bFAFActive then
-            if true and GetGameTimeSeconds() >= 0 then --and math.random(1, 100) >= 1 then
+            if math.random(1, 100) >= 50 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will rush T3 air if have base in a safe position') end
                 tTeamData[iTeam][subrefbRushT3AirInAirSlot] = true
             end

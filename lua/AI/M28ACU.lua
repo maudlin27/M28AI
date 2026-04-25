@@ -4024,7 +4024,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                                 end
                             end
                         end
-                        if true and GetGameTimeSeconds() >= 5*60+10 and not(oClosestACU) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                        if not(oClosestACU) and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
                             --Consider if we are in a 2v1 scenario if already in range of enemy ACU (or almost in range and have friendly ACU that is in range)
                             local bEnemyACUWithGunOrPDOrACUs = false
                             for iEnemyACU, oEnemyACU in tACUsNearby do

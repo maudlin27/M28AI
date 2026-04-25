@@ -2793,43 +2793,47 @@ function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData
 
     local bConsiderSpecialMMLLogic = false
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau '..iPlateau..'; iLandZOne '..iLandZone..'; tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield]='..(tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or 'nil')..'; iAvailableMMLThreat='..iAvailableMMLThreat..'; oClosestUnitFromAllFirebases='..(oClosestUnitFromAllFirebases.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitFromAllFirebases) or 'nil')) end
-    if iAvailableMMLThreat >= 700 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 and (iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and iFriendlyBestMobileIndirectRange > (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0) then
+    if iAvailableMMLThreat >= 200 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 and (iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and iFriendlyBestMobileIndirectRange > (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0) then
         local bFiredRecentlyNearTMDOrShield = false
         if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 then bFiredRecentlyNearTMDOrShield = true
         elseif oClosestUnitFromAllFirebases then
             local tFirebaseLZData, tFirebaseLZTeamData = M28Map.GetLandOrWaterZoneData(oClosestUnitFromAllFirebases:GetPosition(), true, iTeam)
             if GetGameTimeSeconds() - (tFirebaseLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 then bFiredRecentlyNearTMDOrShield = true end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': bFiredRecentlyNearTMDOrShield='..tostring(bFiredRecentlyNearTMDOrShield)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': bFiredRecentlyNearTMDOrShield='..tostring(bFiredRecentlyNearTMDOrShield)..'; Time since last fired='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100)) end
         if bFiredRecentlyNearTMDOrShield then
-
-            local bEnemyHasAeonTMD = false --also includes loyalists and naval TMD
-            local bEnemyHasNonAeonTMD = false
-            function UpdateNearbyTMD(iAdjLZ)
-                local tAdjLZTeamData
-                if iAdjLZ == iLandZone then tAdjLZTeamData = tLZTeamData else tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam] end
-                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                    local tZoneTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD + categories.ANTIMISSILE * categories.MOBILE, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
-                    if M28Utilities.IsTableEmpty(tZoneTMD) == false then
-                        bEnemyHasNonAeonTMD = true
-                        if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.AEON + categories.ANTIMISSILE * categories.MOBILE, tZoneTMD)) == false then
-                            bEnemyHasAeonTMD = true
+            if iAvailableMMLThreat >= 1000 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                bConsiderSpecialMMLLogic = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Have significant number of MMLs, and enemy has t2 arti, so even if they have aeon tmd will still synchronise shots (so can better prioritise what units to target') end
+            else
+                local bEnemyHasAeonTMD = false --also includes loyalists and naval TMD
+                local bEnemyHasNonAeonTMD = false
+                function UpdateNearbyTMD(iAdjLZ)
+                    local tAdjLZTeamData
+                    if iAdjLZ == iLandZone then tAdjLZTeamData = tLZTeamData else tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam] end
+                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                        local tZoneTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD + categories.ANTIMISSILE * categories.MOBILE, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                        if M28Utilities.IsTableEmpty(tZoneTMD) == false then
+                            bEnemyHasNonAeonTMD = true
+                            if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.AEON + categories.ANTIMISSILE * categories.MOBILE, tZoneTMD)) == false then
+                                bEnemyHasAeonTMD = true
+                            end
                         end
                     end
                 end
-            end
-            UpdateNearbyTMD(iLandZone)
-            if not(bEnemyHasAeonTMD) then
-                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
-                    for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                        UpdateNearbyTMD(iAdjLZ)
-                        if bEnemyHasAeonTMD then break end
+                UpdateNearbyTMD(iLandZone)
+                if not(bEnemyHasAeonTMD) then
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                            UpdateNearbyTMD(iAdjLZ)
+                            if bEnemyHasAeonTMD then break end
+                        end
                     end
                 end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasAeonTMD='..tostring(bEnemyHasAeonTMD)..'; bEnemyHasNonAeonTMD='..tostring(bEnemyHasNonAeonTMD)) end
-            if not(bEnemyHasAeonTMD) and bEnemyHasNonAeonTMD then
-                bConsiderSpecialMMLLogic = true
+                if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasAeonTMD='..tostring(bEnemyHasAeonTMD)..'; bEnemyHasNonAeonTMD='..tostring(bEnemyHasNonAeonTMD)) end
+                if not(bEnemyHasAeonTMD) and ((iAvailableMMLThreat >= 500 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0) >= 40)) or bEnemyHasNonAeonTMD) then
+                    bConsiderSpecialMMLLogic = true
+                end
             end
         end
     end

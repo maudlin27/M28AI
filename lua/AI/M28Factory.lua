@@ -5173,7 +5173,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and rush the strat unless enemy has ASFs, bEnemyHasASFs='..tostring(bEnemyHasASFs)) end
-            if not(bEnemyHasASFs) then --or (true and GetGameTimeSeconds() >= 300) then
+            if not(bEnemyHasASFs) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber * categories.TECH3) then return sBPIDToBuild end
             end
         end
