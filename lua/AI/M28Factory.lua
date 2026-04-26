@@ -1352,7 +1352,42 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 iMAAFactor = 4
             end
             if M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] < M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] * iMAAFactor then
-                if not (tLZTeamData[M28Map.subrefLZCoreExpansion]) then
+                --Core base where we have a land exp under construction that is more than half-way done - want MAA threat in this and adjacent zones to be at least 4k if we dont have heavy air control
+                local bWantMAAForExperimental = false
+                local iMAAThresholdInNearbyZones = 2500
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we will want MAA to support an experimental that is being built, refbHaveAirControl='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; subrefiOurAirAAThreat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; LZTeamData subrefLZThreatAllyMAA='..(tLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)..'; Team subrefiAlliedMAAThreat='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat]..'; Team refiEnemyAirToGroundThreat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) end
+                if tLZTeamData[M28Map.subrefLZbCoreBase] and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < 4000 + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) and (tLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0) < iMAAThresholdInNearbyZones and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] < 15000 + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.5 and iFactoryTechLevel > 1 then
+                    local tLandExpInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tLandExpInZone) == false then
+                        for iExp, oExp in tLandExpInZone do
+                            if not(oExp.Dead) and oExp:GetFractionComplete() < 1 and oExp:GetFractionComplete() >= 0.4 then
+                                bWantMAAForExperimental = true
+                                break
+                            end
+                        end
+                    end
+                    if bWantMAAForExperimental then
+                        --Check we dont already have lots of MAA in adjacent zones
+                        local iTotalAdjMAA = (tLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)
+                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                                if (tAdjLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0) > 0 then
+                                    iTotalAdjMAA = iTotalAdjMAA + tAdjLZTeamData[M28Map.subrefLZThreatAllyMAA]
+                                    if iTotalAdjMAA > iMAAThresholdInNearbyZones then
+                                        bWantMAAForExperimental = false
+                                        break
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iTotalAdjMAA='..iTotalAdjMAA..'; bWantMAAForExperimental='..tostring(bWantMAAForExperimental)) end
+                        end
+                    end
+                end
+
+                if bWantMAAForExperimental then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We are building land exp so will consider getting more MAA') end
+                elseif not (tLZTeamData[M28Map.subrefLZCoreExpansion]) then
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': We have lots of MAA; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat])
                     end
@@ -1725,22 +1760,35 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]) == false and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 or iFactoryTechLevel == 1) then
         local bTransportWaitingForEngi = false
         local iCombatUnitsWanted = 0
+        local bHaveOldTransportEntries = false
         for iTransport, oTransport in tLZTeamData[M28Map.reftoTransportsWaitingForUnits] do
-            if (oTransport[M28Air.refiEngisWanted] or 0) > 0 or not(oTransport[M28Air.refbCombatDrop]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': oTransport='..oTransport.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTransport)..' owned by '..oTransport:GetAIBrain().Nickname..'; refiEngisWanted='..(oTransport[M28Air.refiEngisWanted] or 0)..'; refiCombatUnitsWanted='..(oTransport[M28Air.refiCombatUnitsWanted] or 0)) end
+            if (oTransport[M28Air.refiEngisWanted] or 0) == 0 and (oTransport[M28Air.refiCombatUnitsWanted] or 0) == 0 then
+                bHaveOldTransportEntries = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Transport no longer wants engis or combat units so removing it from table') end
+            elseif (oTransport[M28Air.refiEngisWanted] or 0) > 0 then
                 bTransportWaitingForEngi = true
                 break
             else
                 iCombatUnitsWanted = iCombatUnitsWanted + (oTransport[M28Air.refiCombatUnitsWanted] or 0)
             end
         end
+        if bHaveOldTransportEntries then
+            for iCurEntry = table.getn(tLZTeamData[M28Map.reftoTransportsWaitingForUnits]), 1, -1 do
+                local oTransport = tLZTeamData[M28Map.reftoTransportsWaitingForUnits][iCurEntry]
+                if (oTransport[M28Air.refiEngisWanted] or 0) == 0 and (oTransport[M28Air.refiCombatUnitsWanted] or 0) == 0 then
+                    table.remove(tLZTeamData[M28Map.reftoTransportsWaitingForUnits], iCurEntry)
+                end
+            end
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': Want engineers or t1 arti as have transport waiting for them, bTransportWaitingForEngi='..tostring(bTransportWaitingForEngi or false)..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 'nil')) end
         if bTransportWaitingForEngi then
             --If have enemies in an adjacent zone then only have half our factories building engineers
-            if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+            if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or iFactoryTechLevel >= 3 then
                 local iEngisUnderConstruction = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryEngineer, false)
                 local iLandFactoriesInZone = M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryLandFactory)
                 if bDebugMessages == true then LOG(sFunctionRef..': iLandFactoriesInZone='..iLandFactoriesInZone..'; iEngisUnderConstruction='..iEngisUnderConstruction) end
-                if iLandFactoriesInZone == 1 or iEngisUnderConstruction < iLandFactoriesInZone * 0.5 then
+                if (iLandFactoriesInZone == 1 or iEngisUnderConstruction < iLandFactoriesInZone * 0.5) and (iFactoryTechLevel < 3 or (iEngisUnderConstruction < 3 and (iEngisUnderConstruction == 0 or (iLandFactoriesInZone >= 2 and iEngisUnderConstruction < iLandFactoriesInZone * 0.5)))) then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
                 end
             else
