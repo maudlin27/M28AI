@@ -1561,6 +1561,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local sBPIDToBuild
     local iCurrentConditionToTry = 0
 
+    --Clear 'get engis before upgrading' flag for scenarios where we have multiple land facs we want to upgrade so set flag to true, then we upgrade 1 of them, and other overbuilds engineers
+    oFactory[refbWantMoreEngineersBeforeUpgrading] = nil
+
     function ConsiderUpgrading()
         --If this is a support factory or T1 factory then only consider upgrading if we have spare idle factories in this LZ, subject to how many factories we have
         local bConsiderUpgrading = true
