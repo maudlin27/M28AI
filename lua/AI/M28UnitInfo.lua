@@ -2375,7 +2375,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
         end
     end
     oUnit[refiUnitMassCost] = iMassCost
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording range, mass value and other info for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[refiDFRange] or 'nil')..'; Indirect range='..(oUnit[refiIndirectRange] or 'nil')..'; AntiNavy range='..(oUnit[refiAntiNavyRange] or 'nil')..';Mass cost='..oUnit[refiUnitMassCost]..'; Can unit kite='..tostring(oUnit[refbCanKite] or false)..'; Bomber range='..(oUnit[refiBomberRange] or 'nil')..'; refiTimeBetweenDFShots='..(oUnit[refiTimeBetweenDFShots] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording range, mass value and other info for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[refiDFRange] or 'nil')..'; Indirect range='..(oUnit[refiIndirectRange] or 'nil')..'; AARange='..(oUnit[refiAARange] or 'nil')..'; AntiNavy range='..(oUnit[refiAntiNavyRange] or 'nil')..'; CombatRange='..(oUnit[refiCombatRange] or 'nil')..'; Mass cost='..oUnit[refiUnitMassCost]..'; Can unit kite='..tostring(oUnit[refbCanKite] or false)..'; Bomber range='..(oUnit[refiBomberRange] or 'nil')..'; refiTimeBetweenDFShots='..(oUnit[refiTimeBetweenDFShots] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

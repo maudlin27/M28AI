@@ -14379,6 +14379,12 @@ function GetRaidingZoneTarget(iStartPlateau, iStartZone, iTeam, iRangeThreshold,
 end
 
 function ManageRaidersInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tRaiders)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManageRaidersInLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     local tEnemiesToConsiderRunningFrom = {}
     local tbUnitByEntityID = {}
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
@@ -14423,7 +14429,13 @@ function ManageRaidersInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZon
     for iRaider, oRaider in tRaiders do
         if not(bAllRaidersMovingOn) and M28Conditions.CloseToEnemyUnit(oRaider:GetPosition(), tEnemiesToConsiderRunningFrom, math.max(5, (oRaider[M28UnitInfo.refiCombatRange]-25) * 0.3), iTeam, true, 3, oRaider, oRaider, oRaider[M28UnitInfo.refiCombatRange] - 4, false) then
             --Run from enemy if it has an attack, or just do manual attack order (or attack ground if unit not visible but is immovable and isnt TMD)
-            if (oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Raider is close to one of the enemies toconsider running from, oRaider='..oRaider.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRaider)..'; refoClosestEnemyFromLastCloseToEnemyUnitCheck]='..oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId..M28UnitInfo.GetUnitLifetimeCount(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])..'; Dist to this unit='..M28Utilities.GetDistanceBetweenPositions(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())..'; Dist to last known position of the enemy unit='..M28Utilities.GetDistanceBetweenPositions(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Enemy Units range='..oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange]..'; Raiders range='..(oRaider[M28UnitInfo.refiCombatRange] or 0)..'; CanSeeUnit='..tostring(M28UnitInfo.CanSeeUnit(oRaider:GetAIBrain(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false))..'; Row2Cond='..tostring(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] + 1 >= oRaider[M28UnitInfo.refiCombatRange])..'; Row3Cond='..tostring((not(M28UnitInfo.CanSeeUnit(oRaider:GetAIBrain(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false)) and not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104') and oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] >= (oRaider:GetBlueprint().Intel.VisionRadius or 18)))..'; Row4Cond='..tostring(M28Utilities.GetDistanceBetweenPositions(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) < oRaider[M28UnitInfo.refiCombatRange] - 2)..'; Row5Cond='..tostring((M28UnitInfo.GetUnitSpeed(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) > 0.1 and not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104')))) end
+            if ((oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] or 0) > 0 and
+                    (oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] >= oRaider[M28UnitInfo.refiCombatRange]
+                    or (not(M28UnitInfo.CanSeeUnit(oRaider:GetAIBrain(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false)) and not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104') and oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] >= (oRaider:GetBlueprint().Intel.VisionRadius or 18))
+                    or (M28Utilities.GetDistanceBetweenPositions(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) < oRaider[M28UnitInfo.refiCombatRange] - 2 and (not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104') or M28UnitInfo.GetUnitSpeed(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) > 0.1))
+                    or (M28UnitInfo.GetUnitSpeed(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) > 0.1 and not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104'))))
+            or EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) then
                 RunFromEnemy(oRaider, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], iTeam, iPlateau, 10)
                 --If enemy outranges us then dont want to raid any more
                 if (oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 0) >= oRaider[M28UnitInfo.refiCombatRange] then
@@ -14432,6 +14444,8 @@ function ManageRaidersInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZon
             else
                 if M28UnitInfo.CanSeeUnit(oRaider:GetAIBrain(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false) or EntityCategoryContains(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryTMD, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) then
                     M28Orders.IssueTrackedAttack(oRaider, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'RaidAt')
+                elseif oRaider[M28UnitInfo.refiCombatRange] > oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] + 1 and M28UnitInfo.GetUnitSpeed(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) < 0.1 and M28Utilities.GetDistanceBetweenPositions( oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 1 then
+                    M28Orders.IssueTrackedGroundAttack(oRaider, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 0.5, false, 'RaidAG', false, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])
                 else
                     M28Orders.IssueTrackedAttackMove(oRaider, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), 3, false, 'RaidAM')
                 end
@@ -14496,6 +14510,7 @@ function ManageRaidersInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZon
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ClearUnitRaiderStatus(oUnit, iTeam, bOnlyRemoveFromCurTargetZone, oOptionalEnemyCausingUsToRun)
