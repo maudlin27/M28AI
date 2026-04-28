@@ -4545,6 +4545,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local iClosestFirebaseDist = 100000
     local oClosestUnitFromAllFirebases
     local oNearestFirebaseUnit
+
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
         --Is the firebase not in range of a core LZ?
         local bFirebaseInCoreLZRange = false
@@ -4651,7 +4652,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
     --If enemy has a firebase, then retreat if we dont have enough threat to beat it and we dont have significant indirect force
     local bRunFromFirebase = false
-    if bDebugMessages == true then LOG(sFunctionRef..': If enemy has nearby firebase will check if we have enough units to try and attack it, iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase or false)..'; iFirebaseCloseCombatThreat='..iFirebaseCloseCombatThreat) end
+    if bDebugMessages == true then LOG(sFunctionRef..': If enemy has nearby firebase will check if we have enough units to try and attack it, iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase or false)..'; iFirebaseCloseCombatThreat='..iFirebaseCloseCombatThreat..'; is subreftEnemyFirebasesInRange empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))..'; is subreftoAllNearbyEnemyT2ArtiUnits empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
     if iFirebaseThreatAdjust > 0 and not(bHaveSignificantCombatCloserToFirebase) then
         if iAvailableCombatUnitThreat < math.min(20000, iFirebaseThreatAdjust) or (iAvailableCombatUnitThreat < iFirebaseThreatAdjust * 2) then
             --Retreat by default then check if have enough threat to attack
@@ -13129,7 +13130,7 @@ function RecordEnemyFirebase(iTeam, iPlateau, iLandZone)
             if tPathingData[M28Map.subrefbIsWaterZone] then
                 tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tPathingData[M28Map.subrefiLandOrWaterZoneRef]]][M28Map.subrefPondWaterZones][tPathingData[M28Map.subrefiLandOrWaterZoneRef]]
                 tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-            elseif tPathingData[M28Map.subrefiDistance] >= 163 then
+            elseif tPathingData[M28Map.subrefiDistance] <= 163 then
                 tAltLZOrWZData = M28Map.tAllPlateaus[tPathingData[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tPathingData[M28Map.subrefiLandOrWaterZoneRef]]
                 tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
             end
@@ -13211,8 +13212,8 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
     local sFunctionRef = 'ConsiderIfHaveEnemyFirebase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oT2Arti:GetPosition())
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
     if (iLandZone or 0) > 0 then
         local bHaveFirebase = false
