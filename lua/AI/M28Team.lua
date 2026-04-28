@@ -5136,10 +5136,10 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
             if iMaxShield == 0 or (iHealthPercent < iBaseHealthThreshold and (iHealthPercent < 0.4 or iCurShield / iMaxShield < 0.3)) then
                 --Dont try and snipe lowest rated players on enemy team in full share
                 local bLowRatedTarget = false
+                local iBrainCount = 0
                 if M28Utilities.bFAFActive and not(tTeamData[oUnit:GetAIBrain().M28Team][refbAssassinationOrSimilar]) and ScenarioInfo.Options.Share == 'FullShare' and oUnit:GetAIBrain().Rating < 1500 and not(M28Map.bIsCampaignMap) then
                     --Get the average rating on the enemy team
                     local iTotalRating = 0
-                    local iBrainCount = 0
                     local iHighestRating = -1000
                     for iBrain, oBrain in tTeamData[oUnit:GetAIBrain().M28Team][subreftoFriendlyHumanAndAIBrains] do
                         if not(oBrain:IsDefeated()) then
@@ -5154,7 +5154,7 @@ function ConsiderAddingUnitAsSnipeTarget(oUnit, iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering unit owned by brain '..oUnit:GetAIBrain().Nickname..'; that brains rating is '..(oUnit:GetAIBrain().Rating or 'nil')..'; Team iHighestRating='..iHighestRating..'; Team average rating='..iTotalRating / iBrainCount..'; bLowRatedTarget='..tostring(bLowRatedTarget)) end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': bLowRatedTarget='..tostring(bLowRatedTarget)) end
-                if not(bLowRatedTarget) or (bCampaignOrCombinedSnipe and iHealthPercent + 0.1 < iBaseHealthThreshold)  then
+                if not(bLowRatedTarget) or (bCampaignOrCombinedSnipe and iHealthPercent + 0.1 < iBaseHealthThreshold) or (iHealthPercent < 0.2 and iHealthPercent < iBaseHealthThreshold * 0.5 and (oUnit:GetHealth() <= 1500 or iBrainCount == 2 or oUnit:GetAIBrain().Rating >= 1000)) then
 
                     --Very low health - attack
                     if (iHealthPercent < 0.175 or (iHealthPercent < 0.2 and oUnit[M28UnitInfo.refbIsSnipeTarget])) and (oUnit:GetHealth() <= 2000 or (oUnit[M28UnitInfo.refbIsSnipeTarget] and oUnit:GetHealth() <= 2500)) then
