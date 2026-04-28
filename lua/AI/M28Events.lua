@@ -1317,9 +1317,36 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                     elseif self[M28UnitInfo.refiMissileShotBlockedCount] and oUnitCausingDamage[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][self.EntityId] then
                         self[M28UnitInfo.refiMissileShotBlockedCount] = math.max(0, self[M28UnitInfo.refiMissileShotBlockedCount] - 8) --Missile ships have quite a high degree of firing randomness, so want to decrease by a lot if we manage to hit
                         oUnitCausingDamage[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][self.EntityId] = math.max(0, oUnitCausingDamage[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][self.EntityId] - 3)
-                    --Bombers - record that have successfully damaged the target (i.e. that our bomb didnt miss after all)
+                        --Bombers - record that have successfully damaged the target (i.e. that our bomb didnt miss after all)
                     elseif self[M28UnitInfo.refiBombMissedCount] and EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnitCausingDamage.UnitId) then
                         self[M28UnitInfo.refiBombMissedCount] = nil
+                        --Scouts on 'kite enemy' logic that have run into an ACU (which will regen more than they can damage) - free up scouts for other use
+                    elseif oUnitCausingDamage[M28UnitInfo.refbScoutCombatOverride] and EntityCategoryContains(categories.COMMAND, self.UnitId) and not(self.Dead) and M28UnitInfo.GetUnitHealthPercent(self) >= 0.99 then
+                        --Check how many scouts we have in the zone with combat override, if we have more than 3, then release this from override
+                        local iTeam = oUnitCausingDamage:GetAIBrain().M28Team
+                        local iPlateau = oUnitCausingDamage[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+                        local iLandZone = oUnitCausingDamage[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                        if iPlateau and iLandZone then
+                            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                            if tLZData then
+                                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                    local tLandScouts = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandScout, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                                    if M28Utilities.IsTableEmpty(tLandScouts) == false then
+                                        local iCombatScouts = 0
+                                        for iScout, oScout in tLandScouts do
+                                            if not(oScout.Dead) and oScout[M28UnitInfo.refbScoutCombatOverride] and M28Utilities.GetDistanceBetweenPositions(oScout:GetPosition(), self:GetPosition()) <= oScout[M28UnitInfo.refiCombatRange] +  6 then
+                                                iCombatScouts = iCombatScouts + 1
+                                            end
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iCombatScouts in range='..iCombatScouts..'; total scouts='..table.getn(tLandScouts)..'; Considering if should clear combat scout flag on oUnitCausingDamage='..oUnitCausingDamage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitCausingDamage)..' who just hurt ACU owned by '..self:GetAIBrain().Nickname) end
+                                        if iCombatScouts >= 3 then
+                                            oUnitCausingDamage[M28UnitInfo.refbScoutCombatOverride] = nil
+                                        end
+                                    end
+                                end
+                            end
+                        end
                     end
                     if EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId) and self:GetFractionComplete() < 1 and self:GetFractionComplete() > 0.1 then
                         if (M28Orders.bDontConsiderCombinedArmy or oUnitCausingDamage.M28Active) then

@@ -2027,6 +2027,12 @@ function ManageMassStalls(iTeam)
                                         elseif iCategoryRef == M28UnitInfo.refCategoryTML and M28UnitInfo.GetMissileCount(oUnit) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1.2 then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Dealing with TML that has no missile so dont want to pause it') end
                                             bApplyActionToUnit = false
+                                        --Dont pause t1-t2 mexes that arent upgrading due to bug where pausing the unit causes it to get mass without the energy cost
+                                        elseif (iCategoryRef == M28UnitInfo.refCategoryT2Mex or iCategoryRef == M28UnitInfo.refCategoryT1Mex) then
+                                            --dont pause if the unit isnt upgrading
+                                            if not(oUnit.UnitBeingBuilt) and (not(oUnit.GetWorkprogress) or (oUnit:GetWorkProgress() or 0) == 0) and not(oUnit:IsUnitState('Upgrading')) then
+                                                bApplyActionToUnit = false
+                                            end
                                         end
 
 
@@ -2645,6 +2651,12 @@ function ManageEnergyStalls(iTeam)
                                             elseif iCategoryRef == M28UnitInfo.refCategoryTML and M28UnitInfo.GetMissileCount(oUnit) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 30 then
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Dealing with TML that has no missile so dont want to pause it') end
                                                 bApplyActionToUnit = false
+                                                --Dont pause mexes that arent upgrading (due to issue where sending a pause order causes energy cost to be set to 0)
+                                            elseif (iCategoryRef == M28UnitInfo.refCategoryT2Mex or iCategoryRef == M28UnitInfo.refCategoryT1Mex) then
+                                                --dont pause if the unit isnt upgrading
+                                                if not(oUnit.UnitBeingBuilt) and (not(oUnit.GetWorkprogress) or (oUnit:GetWorkProgress() or 0) == 0) and not(oUnit:IsUnitState('Upgrading')) then
+                                                    bApplyActionToUnit = false
+                                                end
                                                 --Selens - dont pause as only costs 1 E per sec
                                             elseif oUnit.UnitId == 'xsl0101' and (oUnit:GetBlueprint().Economy.MaintenanceConsumptionPerSecondEnergy or 1) <= 2 and oBrain[refiGrossEnergyBaseIncome] >= 20 then
                                                 bApplyActionToUnit = false
@@ -2652,19 +2664,19 @@ function ManageEnergyStalls(iTeam)
                                             end
 
                                             if iCategoryRef == categories.COMMAND then
-                                                --want in addition to above as ACU might have personal shield
+                                            --want in addition to above as ACU might have personal shield
 
-                                                if not (oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded')) then
-                                                    bApplyActionToUnit = false
-                                                elseif oUnit.GetWorkProgress then
-                                                    if oUnit:GetWorkProgress() >= 0.85 then
-                                                        bApplyActionToUnit = false
-                                                        --dont pause t1 mex construction
-                                                    elseif oUnit.GetFocusUnit and oUnit:GetFocusUnit() and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oUnit:GetFocusUnit().UnitId) then
-                                                        bApplyActionToUnit = false
-                                                    end
+                                            if not (oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded')) then
+                                            bApplyActionToUnit = false
+                                            elseif oUnit.GetWorkProgress then
+                                            if oUnit:GetWorkProgress() >= 0.85 then
+                                            bApplyActionToUnit = false
+                                            --dont pause t1 mex construction
+                                            elseif oUnit.GetFocusUnit and oUnit:GetFocusUnit() and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oUnit:GetFocusUnit().UnitId) then
+                                            bApplyActionToUnit = false
                                                 end
-                                            end
+                                                end
+                                                end
                                         end
                                     elseif bDebugMessages == true then LOG(sFunctionRef..': Unit entry='..iUnit..'; Unit isnt valid or constructed')
                                     end

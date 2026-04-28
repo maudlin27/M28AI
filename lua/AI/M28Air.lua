@@ -10841,6 +10841,7 @@ function ManageTransports(iTeam, iAirSubteam)
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Do we have available transports after (if we have multiple trans) excluding those given unload order? is tAvailableTransports empty='..tostring(M28Utilities.IsTableEmpty(tAvailableTransports))) end
         if M28Utilities.IsTableEmpty(tAvailableTransports) == false then
             --DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndIsland[1], iClosestLZ, false, 60)) then
 
@@ -10907,6 +10908,7 @@ function ManageTransports(iTeam, iAirSubteam)
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones]) == false then
                         iIslandToTravelTo, iPlateauToTravelTo, iLandZoneToTravelTo = GetPlateauAndZoneForEngineerSupport(iTeam, oUnit)
                         if iIslandToTravelTo or iLandZoneToTravelTo then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Setting bIsEngiSupportDrop to true, iIslandToTravelTo='..(iIslandToTravelTo or 'nil')..'; iLandZoneToTravelTo='..(iLandZoneToTravelTo or 'nil')) end
                             bIsEngiSupportDrop = true
                             --Set min engi tech level
                             for iEntry, tPlateauZoneAndTech in M28Team.tTeamData[iTeam][M28Team.reftiHighTechEngiDropPlateauAndZones] do
@@ -10933,6 +10935,7 @@ function ManageTransports(iTeam, iAirSubteam)
                     end
                 else
                     oUnit[refbCombatDrop] = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont want combat drop') end
                 end
                 oUnit[refiTransMinEngiTechLevel] = iMinUnitTechLevel
                 if iIslandToTravelTo or iWaterZoneToTravelTo then
@@ -11107,6 +11110,7 @@ function ManageTransports(iTeam, iAirSubteam)
                                     end
                                 end
                                 if bRecordAgainstLZ then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Adding transport as waiting for units against cur LZ or WZ team data, EngisWnated='..(oUnit[refiEngisWanted] or 'nil')..'; refiCombatUnitsWanted='..(oUnit[refiCombatUnitsWanted] or 'nil')..'; CombatDrop='..tostring(oUnit[refbCombatDrop] or false)) end
                                     table.insert(tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForUnits], oUnit)
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Transport is in core base iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; is table of transports waiting for engineers empty='..tostring(M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForUnits]))) end
@@ -11252,11 +11256,15 @@ function ManageTransports(iTeam, iAirSubteam)
                             end
                         end
                     else
-                        --Go to rally point as have no cargo and nowhere we want to drop
+                        --Go to rally point as have no cargo and nowhere we want to drop, and flag we no longer want units
                         oUnit[refbCombatDrop] = false
+                        oUnit[refiEngisWanted] = 0
+                        oUnit[refiCombatUnitsWanted] = 0
+                        if bDebugMessages == true then LOG(sFunctionRef..': Sending transport to rally point and clearing units itw ants') end
                         M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'TIdle', false)
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': End of loop for this transport in available transports, refbCombatDrop='..tostring(oUnit[refbCombatDrop] or false)..'; refiEngisWanted='..(oUnit[refiEngisWanted] or 0)..'; refiCombatUnitsWanted='..(oUnit[refiCombatUnitsWanted] or 0)) end
             end
         end
     end
