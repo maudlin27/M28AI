@@ -346,7 +346,9 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftoTMLBatteryUnits = 'TMLBtU' --table of TMLs forming part of the TML battery
             refiDetailedTMLTargetWithoutTMDCheckByPlateauAndZone = 'DetTrgt' --[x] = target plateau, [y] = target zone, returns number of potential TML targets that didnt appear to have a TMD that would cover them from a shot from a TML at the base zone's midpoint
             refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone = 'DetTMDt' --[x] = target plateau, [y] = target zone, returns gametimeseconds that we did a detailed TMD check
-            reftObjectiveSMDLocation = 'TSMDOL' --For campaign maps - locaiton of SMD to complete objective (doesnt have a time limit)
+            reftObjectiveLocation = 'TSMDOL' --For campaign maps - locaiton of objective to build a unit, e.g. building SMD or building radar objectives
+                subreftObjLocation = 'ObjLoc' --location {x,y,z}
+                subrefiCategoryToBuild = 'Cat' --Category to build at the location
             refiTimeOfLastSMDPrioritisationRequest = 'GetSMD' --Gametimeseconds that this zone was recorded as wanting SMD (will treat similarly to objectivesmd if request was made in last 6m)
 
             refbIgnoreEmergencyPDReassignmentLogic = 'EmPDAtv' --true if have logic monitoring emergency PD builders active

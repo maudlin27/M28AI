@@ -2351,8 +2351,8 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tMidpoint)
                     if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
                         local tMidpointLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
-                        tMidpointLZTeamData[M28Map.reftObjectiveSMDLocation] = {tMidpoint[1], GetSurfaceHeight(tMidpoint[1], tMidpoint[3]), tMidpoint[3]}
-                        if bDebugMessages == true then LOG(sFunctionRef..': Set SMD location for iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Location='..repru(tMidpointLZTeamData[M28Map.reftObjectiveSMDLocation])) end
+                        tMidpointLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tMidpoint[1], GetSurfaceHeight(tMidpoint[1], tMidpoint[3]), tMidpoint[3]}, [M28Map.subrefiCategoryToBuild] = M28UnitInfo.refCategorySMD}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Set SMD location for iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Location='..repru(tMidpointLZTeamData[M28Map.reftObjectiveLocation])) end
                     end
 
                 end
@@ -2375,7 +2375,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
                         if (iLandZone or 0) > 0 then
                             local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-                            tLZTeamData[M28Map.reftObjectiveSMDLocation] = {tLocation[1], tLocation[2], tLocation[3]}
+                            tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tLocation[1], tLocation[2], tLocation[3]}, [M28Map.subrefiCategoryToBuild] = M28UnitInfo.refCategorySMD}
                             if bDebugMessages == true then LOG(sFunctionRef..': Added SMD location for Plateau '..iPlateau..'; Zone '..iLandZone) end
                         end
                     end
