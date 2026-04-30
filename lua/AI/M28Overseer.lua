@@ -286,6 +286,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     for iAI, sAI in tAIModNameWhitelist do
         tModIsOk[sAI] = true
     end
+    tModIsOk['Player Modifier PCx'] = true
 
     local iSimModCount = 0
     local bFlyingEngineers
@@ -1945,7 +1946,7 @@ end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
     --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2035,7 +2036,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     if M28Utilities.IsTableEmpty(tAirFactories) == false then
                         for iFactory, oFactory in tAirFactories do
                             if (oFactory[M28Factory.refiTotalBuildCount] or 0) >= 2 and (oFactory[M28Factory.refsLastBlueprintBuilt] and (iCurAirAA < 3 or not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oFactory[M28Factory.refsLastBlueprintBuilt]))))
-                            and (iCurAirAA < 5 or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) then
+                                    and (iCurAirAA < 5 or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) then
                                 oFactory[M28Factory.refsFactoryNextBlueprintOverride] = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirAA, oFactory, false, false, false, nil, false, nil, true)
                             else
                                 oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
@@ -2052,8 +2053,34 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
             local ScenarioFramework = import('/lua/ScenarioFramework.lua')
             ScenarioFramework.CreateUnitDeathTrigger(M28ErisKilled, ScenarioInfo.AeonCDR)
+            --UEF Mission 4 - send sweeney to gateway
+        elseif ScenarioInfo.M2P2.Active and ScenarioInfo.M3Gate and ScenarioInfo.M2EscapeTruck then
+            ForkThread(UEFMission4SendTruck, iTeam)
+            --UEF Mission 4 - build T2 radar
+        elseif ScenarioInfo.M3P1.Active and ScenarioInfo.M3RadarsUp then
+            local ScenarioUtils = import('/lua/sim/ScenarioUtilities.lua')
+            local tRect1 = ScenarioUtils.AreaToRect('M3_Radar_Loc_01')
+            local tRect2 = ScenarioUtils.AreaToRect('M3_Radar_Loc_02')
+            local tRect3 = ScenarioUtils.AreaToRect('M3_Radar_Loc_03')
+            local trRects = {}
+            for iRect, tRect in {tRect1, tRect2, tRect3} do
+                trRects[iRect] = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
+                if trRects[iRect] then
+                    local rRect = trRects[iRect]
+                    local tLocation = {(rRect[1] + rRect[3])*0.5, 0, (rRect[2] + rRect[4])*0.5}
+                    local iSize = math.min(rRect[3] - rRect[1], rRect[4] - rRect[2]) * 0.5
+                    tLocation[2] = GetTerrainHeight(tLocation[1], tLocation[3])
+                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
+                    if (iLandZone or 0) > 0 then
+                        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                        --Wont set a size for now (v296 functionality)
+                        tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tLocation[1], tLocation[2], tLocation[3]}, [M28Map.subrefiObjCategoryToBuild] = categories.ueb3201, [M28Map.subrefiObjLocationSize] = iSize, [M28Map.subrefiNumberWanted] = 1}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Added T2 radar location for Plateau '..iPlateau..'; Zone '..iLandZone..'; reftObjectiveLocation='..reprs(tLZTeamData[M28Map.reftObjectiveLocation])) end
+                    end
+                end
+            end
             --UEF Mission 5 - send ACU to gateway
-        elseif ScenarioInfo.M3P3.Active and Scenario.Areas['CDR_Gate_Area'] and ScenarioInfo.PlayerCDRs then
+        elseif ScenarioInfo.M3P3.Active and Scenario.Areas['CDR_Gate_Area'] and ScenarioInfo.PlayerCDRs and ScenarioInfo.City then
             --local rRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
             local tRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
             local rRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
@@ -2069,6 +2096,40 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                         end
                     end
                 end
+            end
+            --UEF M5 - build SMD and protect research facilities with heavy shields
+        elseif (ScenarioInfo.ResearchFacility1 or ScenarioInfo.ResearchFacility2 or ScenarioInfo.ResearchFacility3) then
+            if ScenarioInfo.M1P2.Active then
+                local tResearchLocations = {}
+                if M28UnitInfo.IsUnitValid(ScenarioInfo.ResearchFacility1) then
+                    table.insert(tResearchLocations, ScenarioInfo.ResearchFacility1:GetPosition())
+                end
+                if M28UnitInfo.IsUnitValid(ScenarioInfo.ResearchFacility2) then
+                    table.insert(tResearchLocations, ScenarioInfo.ResearchFacility2:GetPosition())
+                end
+                if M28UnitInfo.IsUnitValid(ScenarioInfo.ResearchFacility3) then
+                    table.insert(tResearchLocations, ScenarioInfo.ResearchFacility3:GetPosition())
+                end
+                if M28Utilities.IsTableEmpty(tResearchLocations) == false then
+                    for iEntry, tLocation in tResearchLocations do
+                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
+                        if (iLandZone or 0) > 0 then
+                            local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                            --Wont set a size for now (v296 functionality)
+                            tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tLocation[1], tLocation[2], tLocation[3]}, [M28Map.subrefiObjCategoryToBuild] = M28UnitInfo.refCategorySMD, [M28Map.subrefiNumberWanted] = 1}
+                            if bDebugMessages == true then LOG(sFunctionRef..': Added SMD location for Plateau '..iPlateau..'; Zone '..iLandZone) end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': tResearchLocations='..reprs(tResearchLocations)) end
+            elseif ScenarioInfo.M1P1.Active then
+                --Make sure research centres are added to list of buildings to shield
+                local oUnit = ScenarioInfo.ResearchFacility1
+                if M28UnitInfo.IsUnitValid(oUnit) then M28Building.CheckIfUnitWantsFixedShield(oUnit, true, 1) end
+                oUnit = ScenarioInfo.ResearchFacility2
+                if M28UnitInfo.IsUnitValid(oUnit) then M28Building.CheckIfUnitWantsFixedShield(oUnit, true, 1) end
+                oUnit = ScenarioInfo.ResearchFacility3
+                if M28UnitInfo.IsUnitValid(oUnit) then M28Building.CheckIfUnitWantsFixedShield(oUnit, true, 1) end
             end
         elseif ScenarioInfo.M1_TempleCombinedTable and (ScenarioInfo.M1P3.Active or ScenarioInfo.M1P2.Active) then
             if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim temples that need manually destroying') end
@@ -2098,7 +2159,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
             end
             --Cybran mission 2 - move to gate
-        elseif ScenarioInfo.M3P2.Active and ScenarioInfo.M3Gate and M28UnitInfo.IsUnitValid(ScenarioInfo.M3Gate) then
+        elseif ScenarioInfo.M3P2.Active and ScenarioInfo.M3Gate and M28UnitInfo.IsUnitValid(ScenarioInfo.M3Gate) and ScenarioInfo.FakeAeon then
             for iBrain, oBrain in tAllActiveM28Brains do
                 if not(oBrain.CampaignAI) then
                     local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
@@ -2348,47 +2409,15 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 if bDebugMessages == true then LOG(sFunctionRef..': tRect='..repru(tRect)..'; tBaseAreaForRect='..repru(tBaseAreaForRect)..'; sArea='..sArea) end
                 if tBaseAreaForRect then
                     local tMidpoint = {(tBaseAreaForRect[1] + tBaseAreaForRect[3]) * 0.5, 0, (tBaseAreaForRect[2] + tBaseAreaForRect[4]) * 0.5}
+                    local iSize = math.min(tBaseAreaForRect[3] - tBaseAreaForRect[1], tBaseAreaForRect[4] - tBaseAreaForRect[2]) * 0.5
                     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tMidpoint)
                     if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
                         local tMidpointLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
-                        tMidpointLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tMidpoint[1], GetSurfaceHeight(tMidpoint[1], tMidpoint[3]), tMidpoint[3]}, [M28Map.subrefiCategoryToBuild] = M28UnitInfo.refCategorySMD}
+                        tMidpointLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tMidpoint[1], GetSurfaceHeight(tMidpoint[1], tMidpoint[3]), tMidpoint[3]}, [M28Map.subrefiObjCategoryToBuild] = M28UnitInfo.refCategorySMD, [M28Map.subrefiObjLocationSize] = iSize, [M28Map.subrefiNumberWanted] = 1}
                         if bDebugMessages == true then LOG(sFunctionRef..': Set SMD location for iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Location='..repru(tMidpointLZTeamData[M28Map.reftObjectiveLocation])) end
                     end
 
                 end
-            end
-            --UEF M5 - build SMD and protect research facilities with heavy shields
-        elseif (ScenarioInfo.ResearchFacility1 or ScenarioInfo.ResearchFacility2 or ScenarioInfo.ResearchFacility3) then
-            if ScenarioInfo.M1P2.Active then
-                local tResearchLocations = {}
-                if M28UnitInfo.IsUnitValid(ScenarioInfo.ResearchFacility1) then
-                    table.insert(tResearchLocations, ScenarioInfo.ResearchFacility1:GetPosition())
-                end
-                if M28UnitInfo.IsUnitValid(ScenarioInfo.ResearchFacility2) then
-                    table.insert(tResearchLocations, ScenarioInfo.ResearchFacility2:GetPosition())
-                end
-                if M28UnitInfo.IsUnitValid(ScenarioInfo.ResearchFacility3) then
-                    table.insert(tResearchLocations, ScenarioInfo.ResearchFacility3:GetPosition())
-                end
-                if M28Utilities.IsTableEmpty(tResearchLocations) == false then
-                    for iEntry, tLocation in tResearchLocations do
-                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
-                        if (iLandZone or 0) > 0 then
-                            local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-                            tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tLocation[1], tLocation[2], tLocation[3]}, [M28Map.subrefiCategoryToBuild] = M28UnitInfo.refCategorySMD}
-                            if bDebugMessages == true then LOG(sFunctionRef..': Added SMD location for Plateau '..iPlateau..'; Zone '..iLandZone) end
-                        end
-                    end
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': tResearchLocations='..reprs(tResearchLocations)) end
-            elseif ScenarioInfo.M1P1.Active then
-                --Make sure research centres are added to list of buildings to shield
-                local oUnit = ScenarioInfo.ResearchFacility1
-                if M28UnitInfo.IsUnitValid(oUnit) then M28Building.CheckIfUnitWantsFixedShield(oUnit, true, 1) end
-                oUnit = ScenarioInfo.ResearchFacility2
-                if M28UnitInfo.IsUnitValid(oUnit) then M28Building.CheckIfUnitWantsFixedShield(oUnit, true, 1) end
-                oUnit = ScenarioInfo.ResearchFacility3
-                if M28UnitInfo.IsUnitValid(oUnit) then M28Building.CheckIfUnitWantsFixedShield(oUnit, true, 1) end
             end
         elseif ScenarioInfo.M4P3.Active and Target.Requirements[1].Category == categories.urc1901 and Target.Requirements[1].Area then --Seraphim M3 - protect QAI mainframe (as objective currently has strange way of doing this where it tracks the area rather htan the unit)
 
@@ -3589,6 +3618,112 @@ function UEFMission2ReinforceCivilianTracker()
                             end
                         end
                         WaitSeconds(10)
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function UEFMission4SendTruck()
+    local sFunctionRef = 'UEFMission4SendTruck'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Is player 1 M28AI?
+    local oFirstPlayer
+    local oM28Brain
+    for iBrain, oBrain in ArmyBrains do
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; .BrainType='..(oBrain.BrainType or 'nil')..'; .M28Team='..(oBrain.M28Team or 'nil')..'; Does nickname contain M28='..tostring(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname))..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oFirstPlayer.M28Team='..(oFirstPlayer.M28Team or 'nil')) end
+        if not(oFirstPlayer) and oBrain.BrainType == 'Human' then
+            oFirstPlayer = oBrain
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oFirstPlayer') end
+            if oM28Brain then break end
+        end
+        if oBrain.M28AI and oBrain.BrainType == 'AI' and M28Conditions.DoesAINicknameContainM28(oBrain.Nickname) and oBrain.M28Team == oFirstPlayer.M28Team then
+            oM28Brain = oBrain
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oM28Brain') end
+            if oFirstPlayer then break end
+        end
+    end
+    if not(oM28Brain) and oFirstPlayer.M28AI then oM28Brain = oFirstPlayer end
+    if bDebugMessages == true then LOG(sFunctionRef..': oM28Brain='..(oM28Brain.Nickname or 'nil')..'; oFirstPlayer='..(oFirstPlayer.Nickname or 'nil')) end
+    local refbGivenTruckOrder = 'M28UEFM2TruckOrder'
+    if oM28Brain and oFirstPlayer and not(oM28Brain[refbGivenTruckOrder]) then
+        local rTargetRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('M3_Engineer_Teleport')
+        local tTargetMidpoint = {(rTargetRect['x0'] + rTargetRect['x1'])*0.5 , 0, (rTargetRect['y0'] + rTargetRect['y1'])*0.5}
+        tTargetMidpoint[2] = GetTerrainHeight(tTargetMidpoint[1], tTargetMidpoint[3])
+        local iTargetPlateau, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tTargetMidpoint)
+        if iTargetPlateau and iTargetZone and iTargetPlateau > 0 then
+            local iTargetIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tTargetMidpoint)
+            if iTargetIsland then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should try giving civilian trucks an order, ScenarioInfo.M2P2.Active='..tostring(ScenarioInfo.M2P2.Active or false)..'; ScenarioInfo.M2P2Complete='..tostring(ScenarioInfo.M2P2Complete or false)) end
+                local iTimeToCheckUntil = GetGameTimeSeconds() + 90
+
+                local iCyclesWhereNotMovingWithoutOrder = 0
+                local oTruck
+                local tTrucks = ScenarioInfo.M2EscapeTruck:GetPlatoonUnits()
+                if M28Utilities.IsTableEmpty(tTrucks) == false then
+                    for iUnit, oUnit in tTrucks do
+                        oTruck = oUnit
+                        break
+                    end
+                end
+                if oTruck then
+                    local bResetM28ActiveFlag
+                    local refiTimeLastGivenTruckMoveOrder = 'M28UEFM4TruckOrder'
+                    local bTruckIncludedInPriorityDefence
+                    local iDelayBeforeReissuingIfNoSpeed = 300
+                    if oFirstPlayer.M28AI and oFirstPlayer == oM28Brain then iDelayBeforeReissuingIfNoSpeed = 120 end
+                    oM28Brain[refbGivenTruckOrder] = true
+                    while GetGameTimeSeconds() < iTimeToCheckUntil and ScenarioInfo.M2P2.Active do
+                        if M28UnitInfo.IsUnitValid(oTruck) and M28UnitInfo.GetUnitSpeed(oTruck) == 0 then
+                            iCyclesWhereNotMovingWithoutOrder = iCyclesWhereNotMovingWithoutOrder + 1
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCyclesWhereNotMovingWithoutOrder='..iCyclesWhereNotMovingWithoutOrder..'; Is oTruck valid='..tostring(M28UnitInfo.IsUnitValid(oTruck))..'; Time='..GetGameTimeSeconds()) end
+                        if iCyclesWhereNotMovingWithoutOrder > 1 and (iCyclesWhereNotMovingWithoutOrder >= 60 or oTruck.M28Active or (oTruck:GetAIBrain().M28AI and oTruck:GetAIBrain().BrainType == 'AI')) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will give order to truck if not dead, oTruck='..oTruck.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTruck)) end
+                            if not(oTruck.Dead) and (((not(oTruck[refiTimeLastGivenTruckMoveOrder]) or oTruck.M28Active) and not(oTruck:IsUnitState('Attached')) and (M28UnitInfo.GetUnitSpeed(oTruck) < 0.1 or (oTruck.M28Active and (not(oTruck[M28UnitInfo.refiGameTimeToResetMicroActive]) or GetGameTimeSeconds() - oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] <= 10)))) or (oTruck[refiTimeLastGivenTruckMoveOrder] and GetGameTimeSeconds() - oTruck[refiTimeLastGivenTruckMoveOrder] >= iDelayBeforeReissuingIfNoSpeed and M28UnitInfo.GetUnitSpeed(oTruck) == 0)) then
+                                iCyclesWhereNotMovingWithoutOrder = 0
+                                --Temporarily set M28Active to true
+                                if oFirstPlayer == oM28Brain and not(oTruck.M28Active) and not(M28Orders.bDontConsiderCombinedArmy) then
+                                    bResetM28ActiveFlag = true
+                                    oTruck.M28Active = true
+                                end
+                                M28Orders.IssueTrackedMove(oTruck, tTargetMidpoint, 5, false, 'CampObjMTr', true)
+                                oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 120
+                                oTruck[M28UnitInfo.refbSpecialMicroActive] = true
+                                oTruck[refiTimeLastGivenTruckMoveOrder] = GetGameTimeSeconds()
+                                if bDebugMessages == true then LOG(sFunctionRef..': Given move order to truck') end
+                                if bResetM28ActiveFlag then
+                                    oTruck.M28Active = false
+                                end
+                                bTruckIncludedInPriorityDefence = false
+                                if not(M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam]) then
+                                    M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] = {}
+                                else
+                                    for iRecordedTruck, oRecordedTruck in M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] do
+                                        if oTruck == oRecordedTruck then
+                                            bTruckIncludedInPriorityDefence = true
+                                            break
+                                        end
+                                    end
+                                end
+                                if not(bTruckIncludedInPriorityDefence) then
+                                    table.insert(oTruck, M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam])
+                                end
+                                if not(oM28Brain == oFirstPlayer) then
+                                    if oTruck.M28Active or (oTruck:GetAIBrain().M28AI and oTruck:GetAIBrain().BrainType == 'AI') then
+                                        --COntinue loop so can reissue order if truck gets stuck
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Given one-offo rder') end
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        WaitSeconds(1)
                     end
                 end
             end

@@ -348,7 +348,10 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone = 'DetTMDt' --[x] = target plateau, [y] = target zone, returns gametimeseconds that we did a detailed TMD check
             reftObjectiveLocation = 'TSMDOL' --For campaign maps - locaiton of objective to build a unit, e.g. building SMD or building radar objectives
                 subreftObjLocation = 'ObjLoc' --location {x,y,z}
-                subrefiCategoryToBuild = 'Cat' --Category to build at the location
+                subrefiObjLocationSize = 'ObjSize' --Size of the square for the objective location
+                subrefiObjCategoryToBuild = 'Cat' --Category to build at the location
+                subrefiObjTechLevelWanted = 'Tech' --Min tech level wanted for an engineer to attempt this
+                subrefiNumberWanted = 'Numb' --Total number of the category wanted around the obj location
             refiTimeOfLastSMDPrioritisationRequest = 'GetSMD' --Gametimeseconds that this zone was recorded as wanting SMD (will treat similarly to objectivesmd if request was made in last 6m)
 
             refbIgnoreEmergencyPDReassignmentLogic = 'EmPDAtv' --true if have logic monitoring emergency PD builders active
