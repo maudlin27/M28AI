@@ -4136,6 +4136,14 @@ function DeathTriggerAdded(oUnit)
         if oUnit.UnitId == 'uec1201' and ScenarioInfo.ResearchFacility == oUnit and not(oUnit.Dead) and M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 and oUnit:GetAIBrain().BrainType == 'Human' then
             --Add to table of units to repair subreftoUnitsToRepair, as it has been transferred from civilian to player 1
             M28Overseer.AddCampaignUnitToUnitsToRepair(oUnit, oUnit:GetAIBrain().M28Team)
+            --UEF M5 - Send trucks to gateway
+        elseif ScenarioInfo.M2TruckGroup1Delay and ScenarioInfo.NumUEFTrucksThroughGate and ScenarioInfo.NumUEFTrucksThroughGate < ScenarioInfo.RequiredUEFTrucks and ScenarioInfo.M3P2.Active and oUnit.UnitId == 'uec0001' then
+            WaitSeconds(10) --just in case the trucks move to their starting position
+            if not(oUnit.Dead) then
+                local rTargetRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
+                local tTargetMidpoint = {(rTargetRect['x0'] + rTargetRect['x1'])*0.5 , 0, (rTargetRect['y0'] + rTargetRect['y1'])*0.5}
+                ForkThread(M28Overseer.UEFMissionSendTruckToTarget, {oUnit}, tTargetMidpoint, ScenarioInfo.M3P2)
+            end
         end
     end
 end
