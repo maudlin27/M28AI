@@ -938,7 +938,9 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time we last completed sEnhancmeent '..sEnhancement..' for oUnit owned by player '..oUnit:GetAIBrain().Nickname..'='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100)..'; Upgrade count before update='..(oUnit[M28ACU.refiUpgradeCount] or 'nil')) end
         if GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100) >= 0.5 then
             --Clear micro flag as we set it to true for some units to avoid orders overriding
-            if oUnit[M28UnitInfo.refbSpecialMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = nil end
+            if oUnit[M28UnitInfo.refbSpecialMicroActive] then
+                oUnit[M28UnitInfo.refbSpecialMicroActive] = nil
+            end
             if not(oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete]) then oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete] = {} end
             if oUnit[M28ACU.refbWantsPriorityUpgrade] then oUnit[M28ACU.refbWantsPriorityUpgrade] = nil end
             oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] = GetGameTimeSeconds()
@@ -4156,7 +4158,7 @@ end
 function ObjectiveAdded(oObjective, Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'ObjectiveAdded'
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame or false)) end
         --Wait until map setup complete

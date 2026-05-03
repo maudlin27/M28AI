@@ -1946,7 +1946,7 @@ end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
     --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1955,7 +1955,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
         WaitSeconds(iOptionalWaitInSeconds)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code at time '..GetGameTimeSeconds()..' after iOptionalWaitInSeconds='..(iOptionalWaitInSeconds or 'nil')..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)..'; CDR_Gate_Area='..repru(Scenario.Areas['CDR_Gate_Area'])..'; ScenarioInfo.M1P3.Active='..tostring(ScenarioInfo.M1P3.Active or false)..'; Is combined table empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M1_TempleCombinedTable))..'; M1P2 active='..tostring(ScenarioInfo.M1P2.Active)..'; M1P1 active='..tostring(ScenarioInfo.M1P1.Active)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code at time '..GetGameTimeSeconds()..' after iOptionalWaitInSeconds='..(iOptionalWaitInSeconds or 'nil')..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)..'; CDR_Gate_Area='..repru(Scenario.Areas['CDR_Gate_Area'])..'; ScenarioInfo.M1P3.Active='..tostring(ScenarioInfo.M1P3.Active or false)..'; Is combined table empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M1_TempleCombinedTable))..'; M1P2 active='..tostring(ScenarioInfo.M1P2.Active)..'; M1P1 active='..tostring(ScenarioInfo.M1P1.Active)..'; ScenarioInfo.MissionNumber='..(ScenarioInfo.MissionNumber or 'nil')) end
 
     local aiBrain
     for iBrain, oBrain in tAllActiveM28Brains do
@@ -1995,11 +1995,12 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             if M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) then LOG(sFunctionRef..': Have a valid black sun unit, Target[1].UnitId='..(Target[1].UnitId or 'nil')..'; Black sun brain owner='..ScenarioInfo.BlackSunWeapon:GetAIBrain().Nickname..'; Faction index='..ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex()) end
             LOG(sFunctionRef..': Sera M3 logs, Is M4P3 active='..tostring(ScenarioInfo.M4P3.Active)..'; Is target category urc1901='..tostring(Target.Requirements[1].Category == categories.urc1901)..'; Target.Area='..(Target.Requirements[1].Area or 'nil')..'; reprs of ScenarioInfo.M2P2='..reprs(ScenarioInfo.M2P2)..'; reprs of Target='..reprs(Target))
             LOG(sFunctionRef..': Aeon M5 check, if ScenarioInfo.M2P1Obj.Active='..tostring(ScenarioInfo.M2P1Obj.Active or false)..'; ScenarioInfo.Ariel==nil='..tostring(ScenarioInfo.Ariel == nil)..'; Colonies is nil='..tostring(ScenarioInfo.Colonies == nil)..'; tbSpecialCodeForMission[21]='..tostring(tbSpecialCodeForMission[21] or false))
+            LOG(sFunctionRef..': UEF M6 check, ScenarioInfo.Component='..(ScenarioInfo.Component or 'nil')..'; ScenarioInfo.BlackSun='..(ScenarioInfo.BlackSun or 'nil')..'; is ScenarioInfo.BlackSunComponent valid='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunComponent))..'; is it nil='..tostring(ScenarioInfo.BlackSunComponent == nil)..'; ScenarioInfo.M1P2.Active='..tostring(ScenarioInfo.M1P2.Active))
         end
         --UEF Mission 2 - if player 1 has M28AI logic active, then try and move units to the area for civilians
         if Target.Area == 'Civilian_Area' and ScenarioInfo.M2P1.Active and ScenarioInfo.AllyResearch == 3 and ScenarioInfo.AllyCivilian == 4 and ScenarioInfo.CivilianFacilityReinforcedObjectiveComplete == false then
             ForkThread(UEFMission2ReinforceCivilianTracker, iTeam)
-        --UEF Mission 2 - repair research facility (it gets transfered to player when they land units) - refer to DeathTriggerAdded
+            --UEF Mission 2 - repair research facility (it gets transfered to player when they land units) - refer to DeathTriggerAdded
             --UEF Mission 3 - get MAA and inties early on
         elseif ScenarioInfo.Arnold == 3 and ScenarioInfo.Aeon == 2 and ScenarioInfo.M1P1.Active and not(aiBrain['M28UEFM3MAALoop']) then
             while true do
@@ -2139,7 +2140,9 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 oUnit = ScenarioInfo.ResearchFacility3
                 if M28UnitInfo.IsUnitValid(oUnit) then M28Building.CheckIfUnitWantsFixedShield(oUnit, true, 1) end
             end
-
+            --UEF M6 - check periodically if enemy navy near transport is dead, and if so send transport to load and then unload the truck
+        elseif ScenarioInfo.Component == 5 and ScenarioInfo.BlackSun == 2 and M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunComponent) and (ScenarioInfo.M1P2.Active or ScenarioInfo.MissionNumber == 1) then
+            ForkThread(UEFBlackSunComponentCheckForTransport)
         elseif ScenarioInfo.M1_TempleCombinedTable and (ScenarioInfo.M1P3.Active or ScenarioInfo.M1P2.Active) then
             if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim temples that need manually destroying') end
             if M28Utilities.IsTableEmpty(   ScenarioInfo.M1_TempleCombinedTable) == false and M28Utilities.IsTableEmpty(tAllActiveM28Brains) == false then
@@ -3637,7 +3640,7 @@ end
 
 function UEFMissionSendTruckToTarget(tTrucks, tTargetMidpoint, tScenarioObjective)
     local sFunctionRef = 'UEFMissionSendTruckToTarget'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Is player 1 M28AI?
@@ -3733,6 +3736,233 @@ function UEFMissionSendTruckToTarget(tTrucks, tTargetMidpoint, tScenarioObjectiv
                         end
                     end
                 end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function UEFBlackSunComponentCheckForTransport()       
+    --Looks to load a transport with the component and send the transport to black sun periodically, including ordering an air factory to build a transport if we have none
+    local sFunctionRef = 'UEFBlackSunComponentCheckForTransport'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    
+    local oFirstPlayer
+    local oM28Brain
+    for iBrain, oBrain in ArmyBrains do
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; .BrainType='..(oBrain.BrainType or 'nil')..'; .M28Team='..(oBrain.M28Team or 'nil')..'; Does nickname contain M28='..tostring(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname))..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oFirstPlayer.M28Team='..(oFirstPlayer.M28Team or 'nil')) end
+        if not(oFirstPlayer) and oBrain.BrainType == 'Human' then
+            oFirstPlayer = oBrain
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oFirstPlayer') end
+            if oM28Brain then break end
+        end
+        if oBrain.M28AI and oBrain.BrainType == 'AI' and M28Conditions.DoesAINicknameContainM28(oBrain.Nickname) and oBrain.M28Team == oFirstPlayer.M28Team then
+            oM28Brain = oBrain
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oM28Brain') end
+            if oFirstPlayer then break end
+        end
+    end
+    if not(oM28Brain) and oFirstPlayer.M28AI then oM28Brain = oFirstPlayer end
+    local refbUEFM6Monitor = 'M28UEFM6TruckMonitor'
+    if not(oM28Brain[refbUEFM6Monitor]) and M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunComponent) then
+        oM28Brain[refbUEFM6Monitor] = true
+        local oTransportToGiveOrder
+        local oComponent = ScenarioInfo.BlackSunComponent
+        local tComponentStartingPosition = { oComponent:GetPosition()[1], oComponent:GetPosition()[2], oComponent:GetPosition()[3] }
+        local oAeonBrain
+        for iBrain, oBrain in ArmyBrains do
+            if oBrain.Nickname == 'Aeon' then
+                oAeonBrain = oBrain
+                break
+            end
+        end
+        if not(oAeonBrain) then
+            for iBrain, oBrain in ArmyBrains do
+                if oBrain:GetArmyIndex() == ScenarioInfo.Aeon then
+                    oAeonBrain = oBrain
+                    break
+                end
+            end
+        end
+        if oAeonBrain then
+            --First wait at least 10 minutes
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(600)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            local bDontRequireM28Active = true
+            if oM28Brain == oFirstPlayer and not(M28Orders.bDontConsiderCombinedArmy) then
+                bDontRequireM28Active = false
+            end
+            local toFactoriesGivenOverride
+
+            local rTargetRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('Black_Sun_Component_Area')
+            local tTargetMidpoint = {(rTargetRect['x0'] + rTargetRect['x1'])*0.5 , 0, (rTargetRect['y0'] + rTargetRect['y1'])*0.5}
+            tTargetMidpoint[2] = GetTerrainHeight(tTargetMidpoint[1], tTargetMidpoint[3])
+            if bDebugMessages == true then LOG(sFunctionRef..': About to start the main loop, black sun drop location='..repru(tTargetMidpoint)..'; tComponentStartingPosition='..repru(tComponentStartingPosition)..'; Time='..GetGameTimeSeconds()..'; Dist from oComponent to tTargetMidpoint='..M28Utilities.GetDistanceBetweenPositions(oComponent:GetPosition(), tTargetMidpoint)) end
+            while M28UnitInfo.IsUnitValid(oComponent) and (ScenarioInfo.M1P2.Active or ScenarioInfo.MissionNumber == 1) do
+                if bDebugMessages == true then LOG(sFunctionRef..': Start of loop, oComponent unit state='..M28UnitInfo.GetUnitState(oComponent)..'; is oTransportToGiveOrder valid='..tostring(M28UnitInfo.IsUnitValid(oTransportToGiveOrder))..'; Time='..GetGameTimeSeconds()) end
+                if not(oComponent:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitValid(oTransportToGiveOrder)) then
+                    --If component has moved significantly then abort
+                    if bDebugMessages == true then LOG(sFunctionRef..': Copmonent dist from original position='..M28Utilities.GetDistanceBetweenPositions(oComponent:GetPosition(), tComponentStartingPosition)..'; Dist from component to black sun target='..M28Utilities.GetDistanceBetweenPositions(oComponent:GetPosition(), tTargetMidpoint)) end
+                    if M28Utilities.GetDistanceBetweenPositions(oComponent:GetPosition(), tComponentStartingPosition) >= 100 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Component has moved from start so presumably landed near black sun') end
+                    else
+                        --Is the area around the component safe from enemy ground to air? (ignore air to air)
+                        local tEnemyGroundAA = oAeonBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, tComponentStartingPosition, 120, 'Ally') --180 catches off-map enemies
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyGroundAA empty='..tostring(M28Utilities.IsTableEmpty( tEnemyGroundAA))) end
+                        if M28Utilities.IsTableEmpty( tEnemyGroundAA) then
+                            --Find a transport to give an order to
+                            local tTransports = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryTransport, false, true)
+                            if M28Utilities.IsTableEmpty(tTransports) == false then
+                                for iTransport, oTransport in tTransports do
+                                    if oTransport:GetFractionComplete() == 1 and (bDontRequireM28Active or oTransport.M28Active) and not(oTransport[M28UnitInfo.refbSpecialMicroActive]) then
+                                        oTransportToGiveOrder = oTransport
+                                        break
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': oTransportToGiveOrder='..(oTransportToGiveOrder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTransportToGiveOrder) or 'nil')..'; bDontRequireM28Active='..tostring(bDontRequireM28Active)..'; oTransport.M28Active='..tostring(oTransportToGiveOrder.M28Active or false)) end
+                            if not(oTransportToGiveOrder) then
+                                --Find an air fac and tell it to build a transport
+                                local toAirFactories = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryAirFactory, false, true)
+                                if M28Utilities.IsTableEmpty(toAirFactories) == false then
+                                    local oFirstFactory
+                                    local oFactoryToGiveOverride
+                                    for iFactory, oFactory in toAirFactories do
+                                        if bDontRequireM28Active or oFactory.M28Active then
+                                            oFactoryToGiveOverride = oFactory
+                                            break
+                                        elseif not(oFirstFactory) then
+                                            oFirstFactory = oFactory
+                                        end
+                                    end
+                                    if not(oFactoryToGiveOverride) and oFirstFactory then oFactoryToGiveOverride = oFirstFactory end
+                                    if oFactoryToGiveOverride then
+                                        local bAlreadyRecorded = false
+                                        if not(toFactoriesGivenOverride) then toFactoriesGivenOverride = {}
+                                        else
+                                            for iRecordedFactory, oRecordedFactory in toFactoriesGivenOverride do
+                                                if oRecordedFactory == oFactoryToGiveOverride then
+                                                    bAlreadyRecorded = true
+                                                end
+                                            end
+                                        end
+                                        if not(bAlreadyRecorded) then table.insert(toFactoriesGivenOverride, oFactoryToGiveOverride) end
+                                        oFactoryToGiveOverride[M28Factory.refsFactoryNextBlueprintOverride] = M28Factory.GetBlueprintThatCanBuildOfCategory(oM28Brain, M28UnitInfo.refCategoryTransport, oFactoryToGiveOverride, false, false, false, nil, false, nil, true)
+                                    end
+                                end
+                            else
+                                --We have a transport we can give an order to, clear any factory overrides
+                                if M28Utilities.IsTableEmpty(toFactoriesGivenOverride) == false then
+                                    for iFactory, oFactory in toFactoriesGivenOverride do
+                                        oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                                    end
+                                    toFactoriesGivenOverride = nil
+                                end
+
+                                --Tell the transport to pickup the component, and queue up an order to unload at black sun
+                                oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] = true
+                                oTransportToGiveOrder[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 120
+                                local iTimeGivenLoadOrder
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will start loop to get tarnsport into position near component, oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive]='..tostring(oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                                while M28UnitInfo.IsUnitValid(oTransportToGiveOrder) and M28UnitInfo.IsUnitValid(oComponent) and not(oComponent:IsUnitState('Attached')) do
+                                    --Move transport to component
+                                    if M28Utilities.GetDistanceBetweenPositions(oTransportToGiveOrder:GetPosition(), oComponent:GetPosition()) >= 15 then
+                                        --IssueTrackedMove(oUnit,                 tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+                                        M28Orders.IssueTrackedMove(oTransportToGiveOrder, oComponent:GetPosition(), 5,                  false, 'MoveToComp', true)
+                                        oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] = true
+                                        oTransportToGiveOrder[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 120
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Told transport to move to the component oComponent='..oComponent.UnitId..M28UnitInfo.GetUnitLifetimeCount(oComponent)..', time='..GetGameTimeSeconds()..'; Transport unit state='..M28UnitInfo.GetUnitState(oTransportToGiveOrder)..'; Dist to component='..M28Utilities.GetDistanceBetweenPositions(oTransportToGiveOrder:GetPosition(), oComponent:GetPosition())..'; oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive]='..tostring(oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] or false)..'; Component position='..repru(oComponent:GetPosition())..'; Is this in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oComponent:GetPosition()))) end
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Told component to load onto transport, Time='..GetGameTimeSeconds()) end
+                                        IssueTransportLoad({oComponent}, oTransportToGiveOrder)
+                                        iTimeGivenLoadOrder = GetGameTimeSeconds()
+                                        oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] = true
+                                        oTransportToGiveOrder[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 120
+                                        break
+                                    end
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    WaitSeconds(1)
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                end
+                                if iTimeGivenLoadOrder then
+                                    while M28UnitInfo.IsUnitValid(oTransportToGiveOrder) and M28UnitInfo.IsUnitValid(oComponent) and not(oComponent:IsUnitState('Attached')) do
+                                        if GetGameTimeSeconds() - iTimeGivenLoadOrder >= 30 then
+                                            IssueTransportLoad({oComponent}, oTransportToGiveOrder)
+                                            iTimeGivenLoadOrder = GetGameTimeSeconds()
+                                            oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] = true
+                                            oTransportToGiveOrder[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 120
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Given new load component order') end
+                                        end
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                        WaitSeconds(1)
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                    end
+                                    bDebugMessages = true
+                                    if M28UnitInfo.IsUnitValid(oTransportToGiveOrder) and M28UnitInfo.IsUnitValid(oComponent) and oComponent:IsUnitState('Attached') then
+                                        M28Orders.IssueTrackedTransportUnload(oTransportToGiveOrder, tTargetMidpoint, 5, false, 'ObjUnl', true)
+                                        oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] = true
+                                        oTransportToGiveOrder[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 300
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Given unload order, refbSpecialMicroActive='..tostring(oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                                        --Check the component, once it is no longer attached, and is still valid, give it a move order
+                                        local iTimeBetweenOrders = 2
+                                        local bResetActiveFlag = false
+                                        while M28UnitInfo.IsUnitValid(oComponent) and (ScenarioInfo.M1P2.Active or ScenarioInfo.MissionNumber == 1) do
+                                            if not(oComponent:IsUnitState('Attached')) then
+                                                local iAngleToBlackSun = M28Utilities.GetAngleFromAToB(oComponent:GetPosition(), tTargetMidpoint)
+                                                local tMoveDirection = M28Utilities.MoveInDirection(oComponent:GetPosition(), iAngleToBlackSun, math.random(3,6), true, false, true)
+                                                if not(bDontRequireM28Active) and not(oComponent.M28Actve) then
+                                                    oComponent.M28Active = true
+                                                    bResetActiveFlag = true
+                                                    iTimeBetweenOrders = 60
+                                                end
+                                                M28Orders.IssueTrackedMove(oComponent, tMoveDirection, 3, false, 'ObjMvBlckSn', true)
+                                                if bResetActiveFlag then oComponent.M28Active = false end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Telling component to move, iAngleToBlackSun='..iAngleToBlackSun..'; Dist='..M28Utilities.GetDistanceBetweenPositions(oComponent:GetPosition(), tTargetMidpoint)..'; oComponent'..oComponent.UnitId..M28UnitInfo.GetUnitLifetimeCount(oComponent)..'; tMoveDirection='..repru(tMoveDirection))
+                                                    if M28Utilities.IsTableEmpty(tMoveDirection) == false then
+                                                        M28Utilities.DrawLocation(tMoveDirection)
+                                                    end
+                                                end
+                                            end
+                                            WaitSeconds(iTimeBetweenOrders)
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': About to exit main loop') end
+                                        break
+                                    end
+                                end
+
+                            end
+                        elseif bDebugMessages == true then
+                            LOG(sFunctionRef..': GroundAA threat='..M28UnitInfo.GetAirThreatLevel(tEnemyGroundAA, true, false, true, false, false, false))
+                            for iUnit, oUnit in tEnemyGroundAA do
+                                LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to tComponentStartingPosition'..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tComponentStartingPosition)..'; refiAARange='..(oUnit[M28UnitInfo.refiAARange] or 'nil'))
+                            end
+                        end
+                    end
+                elseif oTransportToGiveOrder then
+                    --Maintain micro tracking
+                    oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] = true
+                    oTransportToGiveOrder[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 120
+                    if bDebugMessages == true then LOG(sFunctionRef..': Transport unit state='..M28UnitInfo.GetUnitState(oTransportToGiveOrder)..'; Dist to component='..M28Utilities.GetDistanceBetweenPositions(oTransportToGiveOrder:GetPosition(), oComponent:GetPosition())) end
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(20)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            if M28Utilities.IsTableEmpty(toFactoriesGivenOverride) == false then
+                for iFactory, oFactory in toFactoriesGivenOverride do
+                    oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                end
+            end
+            --Reset micro flag once no cargo
+            while M28UnitInfo.IsUnitValid(oTransportToGiveOrder) and oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] do
+                local tCargo = oTransportToGiveOrder:GetCargo()
+                if M28Utilities.IsTableEmpty(tCargo) then
+                    oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] = false
+                    oTransportToGiveOrder[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()
+                end
+                WaitSeconds(1)
             end
         end
     end

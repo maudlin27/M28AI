@@ -11240,6 +11240,7 @@ function ManageTransports(iTeam, iAirSubteam)
                                             end
                                         end
                                     end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': About to unload transport '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tMidpointToUnloadAt='..repru(tMidpointToUnloadAt)..'; refbSpecialMicroActive='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
                                     if M28Utilities.IsTableEmpty(tMidpointToUnloadAt) == false then
                                         M28Orders.IssueTrackedTransportUnload(oUnit, tMidpointToUnloadAt, 10, false, 'TRUnlZ', false)
                                     else

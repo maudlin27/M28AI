@@ -1797,7 +1797,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                             if (oUnit[refiCurrentWZAssignmentValue] or 0) < iCurWZValue or (oUnit[refiCurrentAssignmentWaterZone] == iWaterZone or (GetGameTimeSeconds() - (oUnit[refiTimeOfLastWZAssignment] or 0) >= 10 and not(oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ]))) then
                                 --Is it a unit with a shield that wants to retreat so its shield can regen?
                                 iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
-                                if iMaxShield > 0 and iCurShield < iMaxShield * 0.35 and iMaxShield > oUnit:GetMaxHealth() * 0.8 then --primarily fatboy, but in theory could affect SACUs
+                                if iMaxShield > 0 and iCurShield < iMaxShield * 0.6 and iMaxShield > oUnit:GetMaxHealth() * 0.8 then --primarily fatboy, but in theory could affect SACUs
                                     table.insert(tOtherUnitsToRetreat, oUnit)
                                     oUnit[refiCurrentWZAssignmentValue] = 100000
                                 else
@@ -4029,7 +4029,9 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             local iClosestDist, iClosestSurfaceDist, iClosestNonHoverDist
             iClosestDist, iClosestSurfaceDist, iClosestNonHoverDist, oNearestEnemyToFriendlyBase, oNearestEnemySurfaceToFriendlyBase, oNearestEnemyNonHoverToFriendlyBase = GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZTeamData, iTeam, tEnemySurfaceUnits, tEnemyNonHoverUnits, true)
             if oNearestEnemyToFriendlyBase then bMoveBlockedNotAttackMove = true end
+            if bDebugMessages == true then LOG(sFunctionRef..': Have long ranged untis so considering enemies in doubly adjacent zones') end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': oNearestEnemyToFriendlyBase after checking nearby zones='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil')..' for iWaterZone='..iWaterZone) end
 
         local tSubmarinesWithNoTarget
         local tCombatUnitsWithNoTarget
@@ -4142,7 +4144,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         end
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': oNearestEnemyNonHoverToFriendlyBase='..(oNearestEnemyNonHoverToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase) or 'nil')..'; Is table of avaialble subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange]='..tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange]..'; iEnemyBestAntiNavyRange='..iEnemyBestAntiNavyRange..', will set iScenario1AntiNavyRangeThreshold equal to enemy best antinavy range') end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering sub units, oNearestEnemyNonHoverToFriendlyBase='..(oNearestEnemyNonHoverToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase) or 'nil')..'; Is table of avaialble subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange]='..tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange]..'; iEnemyBestAntiNavyRange='..iEnemyBestAntiNavyRange..', will set iScenario1AntiNavyRangeThreshold equal to enemy best antinavy range') end
         if oNearestEnemyNonHoverToFriendlyBase and M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
             local bAttackAndKite = false
             local iScenario1AntiNavyRangeThreshold = iEnemyBestAntiNavyRange
@@ -4317,7 +4319,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 if tWZTeamData[M28Map.subrefWZbSubsInScenario2] and tWZTeamData[M28Map.subrefWZbCoreBase] then
 
                     tWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] = math.max((tWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] or 0), iNearbyFriendlySubThreat)
-                    M28Utilities.ForkedDelayedChangedVariable(tWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
+                    ForkThread(M28Utilities.ForkedDelayedChangedVariable,tWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
                     if bDebugMessages == true then LOG(sFunctionRef..': Subs Setting suicide flag to iNearbyFriendlySubThreat='..iNearbyFriendlySubThreat..', is table of adj WZs empty='..tostring( M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]))) end
                     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                         for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
@@ -4436,7 +4438,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
 
         --Now consider non-submarine combat units
-        if bDebugMessages == true then LOG(sFunctionRef..': oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil')..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; oNearestEnemySurfaceToFriendlyBase='..(oNearestEnemySurfaceToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemySurfaceToFriendlyBase) or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering nonsub combat units, oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil')..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; oNearestEnemySurfaceToFriendlyBase='..(oNearestEnemySurfaceToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemySurfaceToFriendlyBase) or 'nil')..'; iWaterZone='..iWaterZone) end
         if oNearestEnemyToFriendlyBase and M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
             local oEnemyToFocusOn
 
@@ -4527,10 +4529,11 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
             function KitingRetreatOfUnit(oUnit)
                 --Enemy has DF units and they are already in our range so retreat
-                if bDebugMessages == true then LOG(sFunctionRef..': KitingRetreatOfUnit: Are close to enemies, Unit combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': KitingRetreatOfUnit: Are close to enemies, Unit combat range='..oUnit[M28UnitInfo.refiCombatRange]..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oEnemyToFocusOn='..(oEnemyToFocusOn.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEnemyToFocusOn) or 'nil')) end
                 --If we havent fired for a while and are in a core WZ then try an attack order instead
                 oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                 if tWZTeamData[M28Map.subrefWZbCoreBase] and GetGameTimeSeconds() - 2 - (oUnit[M28UnitInfo.refiLastWeaponEvent] or -100) > oUnit[M28UnitInfo.refiTimeBetweenDFShots] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 16 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit is at position '..repru(oUnit:GetPosition())..'; oEnemyToFocusOn is at position '..repru(oEnemyToFocusOn:GetPosition())..'; IsDestroyed='..tostring(IsDestroyed(oEnemyToFocusOn))..'; .Dead='..tostring(oEnemyToFocusOn.Dead or false)) end
                     M28Orders.IssueTrackedAttack(oUnit, oEnemyToFocusOn, false, 'NotFirS', false)
                 else
                     --Check rally point means we will actually be moving away from the closest enemy
@@ -4643,7 +4646,10 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Not that much difference in ranges to normal scenario 1 best enemy range so wont give an override') end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we think closest enemy unit is vulnerable to a kiting attack, bAreInScenario1='..tostring(bAreInScenario1 or false)..'; iFriendlyDFScenario1RangeThresholdOverride='..(iFriendlyDFScenario1RangeThresholdOverride or 'nil')..'; nearest enemy unit state='..M28UnitInfo.GetUnitState(oNearestEnemyToFriendlyBase)) end
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Finished checking if we think closest enemy unit is vulnerable to a kiting attack, bAreInScenario1='..tostring(bAreInScenario1 or false)..'; iFriendlyDFScenario1RangeThresholdOverride='..(iFriendlyDFScenario1RangeThresholdOverride or 'nil'))
+                    if M28UnitInfo.IsUnitValid(oNearestEnemyToFriendlyBase) then LOG(sFunctionRef..': nearest enemy unit state='..M28UnitInfo.GetUnitState(oNearestEnemyToFriendlyBase)) end
+                end
             end
             if bAreInScenario1 then
                 --Scenario 1 - our ships outrange enemy
@@ -5377,7 +5383,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         end
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of subs with no target empty='..tostring(M28Utilities.IsTableEmpty(tSubmarinesWithNoTarget))..'; Is table of combat units with no target empty='..tostring(M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of subs with no target empty='..tostring(M28Utilities.IsTableEmpty(tSubmarinesWithNoTarget))..'; Is table of combat units with no target empty='..tostring(M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget))..'; oNearestEnemyNonHoverToFriendlyBase='..(oNearestEnemyNonHoverToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase) or 'nil')) end
         if M28Utilities.IsTableEmpty(tSubmarinesWithNoTarget) == false or M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false or M28Utilities.IsTableEmpty(tMissileShipsToBombard) == false then
             --No enemies in the water zone or adjacent that can target so will look to reinforce another water zone
             --ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, tSubmarinesWithNoTarget, tCombatUnitsWithNoTarget, tMissileShips)
@@ -7201,7 +7207,7 @@ function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZ
 
         --This records the closest unit for surface; and separately hover; units.  It gets reset for each new (adjacent) zone being considered so we end up including the closest in every adj zone.  The main zone includes slighlty more than this
         if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDealingWithAdjZone='..tostring(bDealingWithAdjZone or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bOnlyConsiderDoublyAdjacentZones='..tostring(bOnlyConsiderDoublyAdjacentZones or false)..'; Unit mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')) end
-        if (not(bDealingWithAdjZone) or M28UnitInfo.IsUnitValid(oUnit)) and (not(bOnlyConsiderDoublyAdjacentZones) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 250) then
+        if not(oUnit.Dead) and (not(bOnlyConsiderDoublyAdjacentZones) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 250) then
             if bDebugMessages == true then LOG(sFunctionRef..': Is this a campaign map='..tostring(M28Map.bIsCampaignMap)..'; Is unit in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))) end
             if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()) then
                 --Changed in v229 to use actual position, since the 'updatnearestunit' logic goes off this; meaning if we refer to the last known position here we can end up in the scenario where say a destroyer infront of a cruiser is spotted; we retreat; they both advance; and we think only the cruiser has advanced (due to firing), when a player would recognise they would likely advance together
