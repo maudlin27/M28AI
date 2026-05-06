@@ -1491,6 +1491,27 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                         end
                     end
                 end
+                local bAmphibiousRallyIsOnLand = (NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tAmphibiousRallyPoint) or 0) <= 0
+                local bRallyingToAdjacentWZRally
+                --Group up consolidating units from adjacent WZs based on which one is closest to the target LZ
+                if not(bAttackWithEverything) and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                    --Adjust rally point if we have an adjacent zone that has amphibious units consolidating to a naval rally point that is closer to the target LZ tLZData
+                    local iClosestDistToTargetLZ = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tAmphibiousRallyPoint)
+                    local iCurDistToTargetLZ
+                    for iEntry, iAdjWaterZone in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                        local tAltWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWaterZone]
+                        local tAltWZTeamData = tAltWZData[M28Map.subrefWZTeamData][iTeam]
+                        if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subreftoAmphibiousConsolInWater]) == false and tAltWZTeamData[M28Map.subreftAmphibiousConsolWaterRally] then
+                            iCurDistToTargetLZ = M28Utilities.GetDistanceBetweenPositions(tAltWZTeamData[M28Map.subreftAmphibiousConsolWaterRally], tLZData[M28Map.subrefMidpoint])
+                            if iCurDistToTargetLZ < iClosestDistToTargetLZ then
+                                iClosestDistToTargetLZ = iCurDistToTargetLZ
+                                tAmphibiousRallyPoint = {tAltWZTeamData[M28Map.subreftAmphibiousConsolWaterRally][1], tAltWZTeamData[M28Map.subreftAmphibiousConsolWaterRally][2], tAltWZTeamData[M28Map.subreftAmphibiousConsolWaterRally][3]}
+                            end
+                        end
+                    end
+                    tWZTeamData[M28Map.subreftAmphibiousConsolWaterRally] = {tAmphibiousRallyPoint[1], tAmphibiousRallyPoint[2], tAmphibiousRallyPoint[3]}
+                    tWZTeamData[M28Map.subreftoAmphibiousConsolInWater] = {}
+                end
 
                 for iUnit, oUnit in tAmphibiousLabelUnits do
                     if EntityCategoryContains(categories.HOVER, oUnit.UnitId) then iOrderReissueDistToUse = iResisueOrderDistanceHover
@@ -1570,7 +1591,13 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                         if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious, oUnit.UnitId) then
                             --Land experimental exception - make landfall if we are close and were headed there
                             if bDebugMessages == true then LOG(sFunctionRef..': Land zone of last order='..(M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) or 'nil')..'; Last order position='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])..'; Unit LC='..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit antinavy='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
-                            if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 3 and (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 and M28Utilities.IsTableEmpty(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) == false and M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) then
+                                    --Land exp that doesnt have good antinavy attack?
+                            if ((oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 10000 and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and ((oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 or oUnit[M28UnitInfo.refiCombatRange] >= 80 or oUnit.UnitId == 'url0402'))
+                                    --Is it already trying to get to land that isnt far away?
+                            and (M28Utilities.IsTableEmpty(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]) == false and M28Map.GetLandZoneFromPosition(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])) then
+                                --We have an amphibious experimental unit that doesnt have a good antinavy attack so want to consider if we have it make landfall instead of going to an amphibious rally point
+
+
                                 local iDistToLastOrder = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])
                                 if iDistToLastOrder <= 125 then
                                     --Fatboy - move instead of attack-move or it can get stuck underwater
@@ -1605,12 +1632,15 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                         if bDebugMessages == true then LOG(sFunctionRef..': Sending exp to consolidate, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
                                         oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                         M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NAECons'..iWaterZone)
+                                        table.insert(tWZTeamData[M28Map.subreftoAmphibiousConsolInWater], oUnit)
                                     end
                                 end
                             else
+                                --Normal amphibious consolidation
                                 if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
                                 oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                 M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NACons'..iWaterZone)
+                                table.insert(tWZTeamData[M28Map.subreftoAmphibiousConsolInWater], oUnit)
                             end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending hover unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to hover rally point') end
@@ -1669,6 +1699,12 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     end
     if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
         UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits], iTeam, iWaterZone, false, false, tWZTeamData)
+    end
+
+    --Clear amphibious consol data
+    if tWZTeamData[M28Map.subreftAmphibiousConsolWaterRally] then
+        tWZTeamData[M28Map.subreftoAmphibiousConsolInWater] = nil
+        tWZTeamData[M28Map.subreftAmphibiousConsolWaterRally] = nil
     end
 
     RecordAirThreatForWaterZone(tWZTeamData, iTeam, iPond, iWaterZone) --need to call first since ground threat references air threat for certain values when determining subrefWZMAAThreatWanted
@@ -4327,14 +4363,14 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to set Suicide flag to true for iAdjWZ='..iAdjWZ..' (based on base iWZ='..iWaterZone..'); tAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat]='..(tAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] or 'nil')) end
                             if not(tAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat]) then
                                 tAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] = iNearbyFriendlySubThreat
-                                M28Utilities.ForkedDelayedChangedVariable(tAdjWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
+                                ForkThread(M28Utilities.ForkedDelayedChangedVariable, tAdjWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
                                 if tAdjWZTeamData[M28Map.subrefWZbCoreBase] and M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ]) == false then
                                     for _, iSecondAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZAdjacentWaterZones] do
                                         local tSecondAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iSecondAdjWZ][M28Map.subrefWZTeamData][iTeam]
                                         if not(tSecondAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat]) then
                                             if tSecondAdjWZTeamData then
                                                 tSecondAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] = iNearbyFriendlySubThreat
-                                                M28Utilities.ForkedDelayedChangedVariable(tSecondAdjWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
+                                                ForkThread(M28Utilities.ForkedDelayedChangedVariable, tSecondAdjWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
                                             else
                                                 M28Utilities.ErrorHandler('Dont have a valid second WZ ref')
                                             end
@@ -5024,7 +5060,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                     end
                     if bAreInScenario2 and tWZTeamData[M28Map.subrefWZbCoreBase] then
                         tWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] = math.max((tWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] or 0), iAdjacentAlliedCombatThreat)
-                        M28Utilities.ForkedDelayedChangedVariable(tWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
+                        ForkThread(M28Utilities.ForkedDelayedChangedVariable, tWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
                         if bDebugMessages == true then LOG(sFunctionRef..': Surface setting suicide flag to true, is table of adj WZs empty='..tostring( M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]))) end
                         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                             for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
@@ -5032,14 +5068,14 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                 if bDebugMessages == true then LOG(sFunctionRef..': Nonsub suicide flag, considering iAdjWZ='..iAdjWZ..'; tAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat]='..(tAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] or 'nil')) end
                                 if not(tAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat]) then
                                     tAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] = iAdjacentAlliedCombatThreat
-                                    M28Utilities.ForkedDelayedChangedVariable(tAdjWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
+                                    ForkThread(M28Utilities.ForkedDelayedChangedVariable, tAdjWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
                                     if tAdjWZTeamData[M28Map.subrefWZbCoreBase] and M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZAdjacentWaterZones]) == false then
                                         for _, iSecondAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZAdjacentWaterZones] do
                                             local tSecondAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iSecondAdjWZ][M28Map.subrefWZTeamData][iTeam]
                                             if not(tSecondAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat]) then
                                                 if tSecondAdjWZTeamData then
                                                     tSecondAdjWZTeamData[M28Map.subrefWZiSuicideIntoEnemyCombatThreat] = iAdjacentAlliedCombatThreat
-                                                    M28Utilities.ForkedDelayedChangedVariable(tSecondAdjWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
+                                                    ForkThread(M28Utilities.ForkedDelayedChangedVariable, tSecondAdjWZTeamData, M28Map.subrefWZiSuicideIntoEnemyCombatThreat, nil, 30)
                                                 else
                                                     M28Utilities.ErrorHandler('Dont have a valid second WZ ref')
                                                 end
