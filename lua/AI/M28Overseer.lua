@@ -3808,8 +3808,8 @@ function UEFBlackSunComponentCheckForTransport()
                     if M28Utilities.GetDistanceBetweenPositions(oComponent:GetPosition(), tComponentStartingPosition) >= 100 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Component has moved from start so presumably landed near black sun') end
                     else
-                        --Is the area around the component safe from enemy ground to air? (ignore air to air)
-                        local tEnemyGroundAA = oAeonBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, tComponentStartingPosition, 120, 'Ally') --180 catches off-map enemies
+                        --Is the area around the component safe from enemy ground to air? (ignore air to air) and also no nearby battleships or destroyers?
+                        local tEnemyGroundAA = oAeonBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryBattleship + M28UnitInfo.refCategoryDestroyer, tComponentStartingPosition, 120, 'Ally') --180 catches off-map enemies
                         if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyGroundAA empty='..tostring(M28Utilities.IsTableEmpty( tEnemyGroundAA))) end
                         if M28Utilities.IsTableEmpty( tEnemyGroundAA) then
                             --Find a transport to give an order to

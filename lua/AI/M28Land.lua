@@ -4063,16 +4063,20 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of quantum gateways empty='..tostring(M28Utilities.IsTableEmpty( tQuantumGateways))) end
                     if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
                         for iUnit, oUnit in tQuantumGateways do
-                            oGateway = oUnit
-                            if not(EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId)) then
-                                bHaveRASGateway = true
-                                break
+                            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; refiTimeSinceLastFailedToGetOrder='..GetGameTimeSeconds() - (oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder] or 0)..'; work progress='..oUnit:GetWorkProgress()) end
+                            if oUnit:GetWorkProgress() > 0 or oUnit:GetFractionComplete() < 1 or not(oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder]) or GetGameTimeSeconds() - oUnit[M28Factory.refiTimeSinceLastFailedToGetOrder] >= 20 then
+                                oGateway = oUnit
+                                if not(EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId)) then
+                                    bHaveRASGateway = true
+                                    break
+                                end
                             end
                         end
                     end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': oGateway='..(oGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGateway))..'; bHaveRASGateway='..tostring(bHaveRASGateway)) end
+            bDebugMessages = false
             if oGateway then
                 if not(bHaveRASGateway) then
                     --Do we have a T3+ 'other' factory type on the team, for a non-sera faction?

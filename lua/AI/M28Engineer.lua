@@ -3640,6 +3640,10 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                                     elseif iCurFatboyCount == 0 and iEnemyLandExperimentalCount > 0 then
                                         iCategoryWanted = iUEFLandExpCategory
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will get fatboy3') end
+                                        --Enemy has significant threat in our land zone and we can path amphibiously and we already have significant t3 arti or equivalent
+                                    elseif bCanPathAmphibiously and iCurT3ArtiCount >= math.max(4, (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] or 0) * 3) and iCurT3ArtiCount > iLandExpCount and (iCurT3ArtiCount >= 6 or iCurT3ArtiCount > iLandExpCount * 0.5 or iLandExpCount == 0 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] or 0) == 0 or M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] > math.max(10000, M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] * 0.2)) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will get fatboy 3b') end
+                                        iCategoryWanted = iUEFLandExpCategory
                                     else
                                         --High mass - be more likely to consider mavor
                                         if not(bDontConsiderGameEnderInMostCases) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80 then

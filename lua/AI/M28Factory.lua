@@ -7730,7 +7730,9 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
 
     --General - if close to unit cap and have lots of SACUs then dont get more (except for LOUD where apparently they give you bonus unit cap?)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if not(M28Utilities.bLoudModActive) and iCurSACUs >= 15 and aiBrain[M28Overseer.refbCloseToUnitCap] and (iCurSACUs >= 30 or (iCurSACUs >= math.max(20, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -2) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1) then
+    local iUpperCap = 30
+    if M28Map.bIsCampaignMap then iUpperCap = math.min(60, math.max(30 + 5 * M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount], (GetGameTimeSeconds() - 2700) / 120, 30)) end
+    if not(M28Utilities.bLoudModActive) and iCurSACUs >= 15 and aiBrain[M28Overseer.refbCloseToUnitCap] and (iCurSACUs >= iUpperCap or (iCurSACUs >= math.max(iUpperCap * 0.7, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -2) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1) then
         if bDebugMessages == true then LOG(sFunctionRef..': Dont want more SACUs due to unit cap') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return nil
@@ -7740,9 +7742,9 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     if bDebugMessages == true then LOG(sFunctionRef..': Time since tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp]='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0)) end
     if (tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD]) and GetGameTimeSeconds() - math.max((tLZTeamData[M28Map.subrefiTimeLastWantSACUForExp] or 0), tLZTeamData[M28Map.subrefiTimeLastWantSACUForSMD] or 0) <= 10 then
         local bLotsOfSACUsInZone = false
-        if iCurSACUs >= 40 then
+        if iCurSACUs >= iUpperCap then
             local tSACUsInZone = EntityCategoryFilterDown(categories.SUBCOMMANDER, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-            if M28Utilities.IsTableEmpty(tSACUsInZone) == false and table.getn(tSACUsInZone) >= 30 then
+            if M28Utilities.IsTableEmpty(tSACUsInZone) == false and table.getn(tSACUsInZone) >= iUpperCap then
                 bLotsOfSACUsInZone = true
             end
         end

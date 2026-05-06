@@ -602,6 +602,8 @@ tPondDetails = {}
             subreftiWaterZonesTargetingThisWithSubmersibleNavy = 'WSBBTB'
             --subreftiLandZoneTargetedByOurCombat = 'LZTBD' --returns land zone ref we are sending DF units in this LZ or WZ to
             --subreftiWaterZoneTargetedByOurSurfaceCombat = 'WZTBD' --returns water zone ref we are sending combat units in this LZ or WZ to
+            subreftoAmphibiousConsolInWater = 'WZACUni' --table of amphibious units told to build up strength underwater before attacking a target LZ
+            subreftAmphibiousConsolWaterRally = 'WZACRal' --the rally point those amphibious units are consolidating at
 
             reftoWZUnitsWantingMobileShield = 'MShUnit'
             refbWZWantsMobileShield = 'bWntMSh'

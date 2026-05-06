@@ -2453,7 +2453,8 @@ function SendWarningWhenHaveVisualOnEnemy(aiBrain, oUnit)
                             table.insert(tsPotentialMessage, 'Looks like that\'s the game gone')
                         end
                         local sMessage = tsPotentialMessage[math.random(1, table.getn(tsPotentialMessage))]
-                        SendMessage(aiBrain, sMessageCode, sMessage, 0, 1000000, true, true, nil, nil, nil)
+                        sMessageCode = 'OnVisSML'..iTeam
+                        SendMessage(aiBrain, sMessageCode, sMessage, 0, 300, true, true, nil, nil, nil)
                     else
                         SendMessage(aiBrain, sMessageCode, 'Enemy '..sUnitName.. ' detected', 0, 1000000, true, true, nil, nil, nil)
                     end
