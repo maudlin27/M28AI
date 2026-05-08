@@ -3540,7 +3540,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         end
     end
 
-    --Surface subs if enemy has airtoground in this zone (or nearby if it's a large threat)
+    --Surface AA subs if enemy has airtoground in this zone (or nearby if it's a large threat)
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if should surface AA subs, iEnemyAdjacentAirToGroundThreat just from this zone='..iEnemyAdjacentAirToGroundThreat..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; tWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..tWZTeamData[M28Map.subrefWZBestEnemyDFRange]..'; subrefWZThreatEnemyVsSurface='..tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface]..'; subrefWZThreatEnemyAntiNavy='..tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy]..'; subrefWZThreatAlliedMAA='..tWZTeamData[M28Map.subrefWZThreatAlliedMAA]) end
     if (iEnemyAdjacentAirToGroundThreat > 2000 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) and M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
         --Exception if we have other AA units and enemy has some longer ranged surface units, as dont want to surface to die to battleships
@@ -4190,6 +4190,30 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             end
         end
 
+        --Surface T1 subs for more DPS if nearest enemy is hover or naval fac and no enemy threat
+        if (oNearestEnemyToFriendlyBase[M28UnitInfo.refiCombatRange] or 0) <= 6 and EntityCategoryContains(M28UnitInfo.refCategoryStructure + categories.HOVER, oNearestEnemyToFriendlyBase.UnitId) and tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] < 50 and tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] < 50 and tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] < 50 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyLongRangeUnits]) and (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 then
+            --Check enemy not close to being in range of our front sub
+            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) or not(M28Conditions.CloseToEnemyUnit(oFrontSub:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], 10, iTeam, true, nil, nil, oFrontSub, nil, true)) then
+                local bChangeNearestNonHoverToBeHover = EntityCategoryContains(categories.HOVER, oNearestEnemyToFriendlyBase.UnitId)
+
+                for iUnit, oUnit in tAvailableSubmarines do
+                    if (oUnit[M28UnitInfo.refiDFRange] or 0) >= 6 then
+                        oUnit[M28UnitInfo.refiTimeLastWantedToSurface] = GetGameTimeSeconds()
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to surface sub DF unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))) end
+                        if M28UnitInfo.IsUnitUnderwater(oUnit) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and surface the unit, is special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Cur time='..GetGameTimeSeconds()..'; Time for micro to reset='..(oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
+                            M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit) --wont do anything if special micro is active, and will set special micro to active if it does give the order
+                            ForkThread(SubmergeSubIfNoLongerWantSurfaced, oUnit, 10)
+                        end
+                    elseif bChangeNearestNonHoverToBeHover then bChangeNearestNonHoverToBeHover = false
+                    end
+                end
+                if bChangeNearestNonHoverToBeHover then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will target hover unit with our subs as they all have a DF attack') end
+                    oNearestEnemyNonHoverToFriendlyBase = oNearestEnemyToFriendlyBase
+                end
+            end
+        end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Considering sub units, oNearestEnemyNonHoverToFriendlyBase='..(oNearestEnemyNonHoverToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToFriendlyBase) or 'nil')..'; Is table of avaialble subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange]='..tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange]..'; iEnemyBestAntiNavyRange='..iEnemyBestAntiNavyRange..', will set iScenario1AntiNavyRangeThreshold equal to enemy best antinavy range') end
         if oNearestEnemyNonHoverToFriendlyBase and M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
