@@ -1933,9 +1933,9 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     if M28UnitInfo.IsUnitValid(oLauncher) and not(oLauncher[refbActiveMissileChecker]) then
         local aiBrain = oLauncher:GetAIBrain()
+        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySML) >= 3 and GetGameTimeSeconds() >= 90*60 then bDebugMessages = true end
         local iSecondsToWaitIfNoTarget = 10
         if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.HostileCampaignAI='..tostring(aiBrain.HostileCampaignAI or false)..'; ScenarioInfo.Options.CmpAIDelay='..tonumber((ScenarioInfo.Options.CmpAIDelay or 1))..'; ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; Time='..GetGameTimeSeconds()) end
         if not(aiBrain.HostileCampaignAI) or tonumber(ScenarioInfo.Options.CmpAIDelay) <= GetGameTimeSeconds() then
@@ -2920,7 +2920,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 end
                             end
                         else
-                            --Disable autobuild and pause
+                            --Disable autobuild and pause, and clear launcher
                             if not(oLauncher[refbPausedAsNoTargets]) and not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
                                 --Dont pause if we have loads of resources
                                 if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99))) then
@@ -2934,6 +2934,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                 end
                             end
                             oLauncher[refbActiveMissileChecker] = false
+                            M28Orders.IssueTrackedClearCommands(oLauncher)
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             WaitSeconds(iSecondsToWaitIfNoTarget)
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

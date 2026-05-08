@@ -2986,6 +2986,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 if EntityCategoryContains(M28UnitInfo.refCategoryRaider, oJustBuilt.UnitId) then
                                     ForkThread(M28Land.ConsiderAssigningRaider, oEngineer, oJustBuilt)
                                 end
+                                --Atlantis - surface and release cargo if it has a number of air units
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oEngineer.UnitId) and oEngineer.GetCargo then
+                                ForkThread(M28Micro.ConsiderSurfacingAtlantisToReleaseCargo, oEngineer)
                             end
 
 

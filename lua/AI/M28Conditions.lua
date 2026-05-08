@@ -4512,6 +4512,8 @@ function WantToPauseSMD(oUnit, bCalledFromOnMissileBuilt)
         bHaveEnoughSubjectToEco = true
     elseif iMissiles == 0 or (oUnit[M28UnitInfo.refiLastWeaponEvent] and iMissiles < 2) then
         --want more missiles
+    elseif M28Map.bIsCampaignMap and iMissiles <= 2 and (iMissiles <= 1 or (oUnit:GetAIBrain()[M28Economy.refiBrainBuildRateMultiplier] or 0) < 0.8) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+        --Want extra missile for campaign
     else
         bHaveEnoughSubjectToEco = true --will change back to false later
         --If only SMLs are battleships with no nukes then stop at 1 missile for minor zones, or core zones with no enemy battleships within range
@@ -4557,12 +4559,12 @@ function WantToPauseSMD(oUnit, bCalledFromOnMissileBuilt)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Near end, time='..GetGameTimeSeconds()..'; bHaveEnoughSubjectToEco='..tostring(bHaveEnoughSubjectToEco)) end
     if bHaveEnoughSubjectToEco then
-        if bDebugMessages == true then LOG(sFunctionRef..': Have low power='..tostring(HaveLowPower(iTeam))..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
-        if HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99))) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Returning true') end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            return true
-        end
+    if bDebugMessages == true then LOG(sFunctionRef..': Have low power='..tostring(HaveLowPower(iTeam))..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
+    if HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99)))) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Returning true') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return true
+    end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -3582,15 +3582,26 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     function RetreatAllUnits(tUnitsToRetreat) --intended for availablecoombatunits and/or availablesubmarines
         local tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
         if M28Map.bIsCampaignMap and not(M28Conditions.IsLocationInPlayableArea(tAmphibiousRallyPoint)) then tAmphibiousRallyPoint = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]} end
-
+        local bCheckPlayableArea = M28Map.bIsCampaignMap
         for iUnit, oUnit in tUnitsToRetreat do
             --Only retreat units from this WZ
             if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
                 oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                 if EntityCategoryContains(M28UnitInfo.refCategoryAmphibious + categories.HOVER, oUnit.UnitId) then --redundancy - wouldnt expect any subs to be amphibious or hover
-                    M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+                    --Attack-move if rally is right by us or outside playable area; tried with dist of 6 and wouldnt trigger, so increased to 10
+                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tAmphibiousRallyPoint) <= 10 or (bCheckPlayableArea and not(M28Conditions.IsLocationInPlayableArea(tAmphibiousRallyPoint))) then
+                        M28Orders.IssueTrackedAttackMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WSRetrFrM'..iWaterZone)
+                    end
                 else
-                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
+                    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ues03024' then bDebugMessages = true else bDebugMessages = false end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dist to tRallyPoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)..'; is rally in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tRallyPoint))) end
+                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 or (bCheckPlayableArea and not(M28Conditions.IsLocationInPlayableArea(tRallyPoint))) then
+                        M28Orders.IssueTrackedAttackMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrNA'..iWaterZone)
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrNM'..iWaterZone)
+                    end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': retreating unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to rally point or amphibious rally point') end
             else

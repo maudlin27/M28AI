@@ -2995,3 +2995,74 @@ function SuicideExperimentalIntoFatboy(oUnit, oFatboy, iTeam, iPlateau)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function ConsiderSurfacingAtlantisToReleaseCargo(oUnit)
+    if not(oUnit.Dead) then
+        local toCargo = oUnit:GetCargo()
+        if M28Utilities.IsTableEmpty(toCargo) == false then
+            local iTeam = oUnit:GetAIBrain().M28Team
+            local refbCheckingToUnload = 'M28AtlUnC'
+            if not(oUnit[refbCheckingToUnload]) then
+                oUnit[refbCheckingToUnload] = true
+                --Do we want to surface to release? Check nearby enemy AA threat
+                local bHaveUnloaded = false
+                local iTimeToWait
+                local iCargoSize
+                while not(bHaveUnloaded) and not(oUnit.Dead) and M28Utilities.IsTableEmpty(oUnit:GetCargo()) == false do
+                    iTimeToWait = 40
+                    iCargoSize = table.getn(oUnit:GetCargo())
+
+                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                    if tLZOrWZTeamData then
+                        if (tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) < 1000 then
+                            if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                                --Just release current cargo
+                                TrackTemporaryUnitMicro(oUnit, 2, nil, false)
+                                M28Orders.ReleaseStoredUnits(oUnit, false, 'AtlUnl', true)
+                                bHaveUnloaded = true
+                                break
+                            else
+                                --Do we want to surface to release? check for nearby enemy antisurface threats
+                                local iCargoWantedToSurface = 1
+                                if (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 0) > 2000 then
+                                    iCargoWantedToSurface = 5
+                                elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftEnemyLongRangeUnits]) == false then
+                                    iCargoWantedToSurface = 4
+                                elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                                    local iNearbySurfaceThreat = (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 0)
+                                    for _, iAdjWZ in tLZOrWZData[M28Map.subrefWZAdjacentWaterZones] do
+                                        local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                        iNearbySurfaceThreat = iNearbySurfaceThreat + (tAdjWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 0)
+                                        if iNearbySurfaceThreat >= 4000 then
+                                            iCargoWantedToSurface = 4
+                                            break
+                                        end
+                                    end
+                                end
+                                if iCargoSize >= iCargoWantedToSurface then
+                                    --Surface unit
+                                    M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit)
+                                    local iMicroTotalTime = 15
+                                    TrackTemporaryUnitMicro(oUnit, iMicroTotalTime, nil, false)
+                                    local iTimeToWaitUntil = GetGameTimeSeconds() + iMicroTotalTime - 2
+                                    while M28UnitInfo.IsUnitUnderwater(oUnit) do
+                                        WaitSeconds(1)
+                                        if GetGameTimeSeconds() >= iTimeToWaitUntil then break end
+                                    end
+                                    WaitSeconds(1)
+                                    M28Orders.ReleaseStoredUnits(oUnit, false, 'AtlUnl', true)
+                                    bHaveUnloaded = true
+                                    ForkThread(SubmergeSubIfNoLongerWantSurfaced, oUnit, math.max(2, iTimeToWaitUntil + 2 - GetGameTimeSeconds())+0.1)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if iCargoSize > 1 then iTimeToWait = iTimeToWait * (1 - 0.15 * math.min(iCargoSize, 6)) end
+                    WaitSeconds(iTimeToWait)
+                end
+                oUnit[refbCheckingToUnload] = false
+            end
+        end
+    end
+end
