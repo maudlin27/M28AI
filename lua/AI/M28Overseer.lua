@@ -401,6 +401,10 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
             M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected'..sIncompatibleMessage .. ' (v'..import('/mods/M28AI/mod_info.lua').version..') if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
         end
     end
+
+    --If concern about memory give a warning
+    ForkThread(CheckIfMemoryAConcern, aiBrain)
+
     if not(bDontPlayWithM27) and bHaveOtherAIMod and not(bHaveOtherAI) and sUnnecessaryAIMod then
         M28Chat.SendMessage(aiBrain, 'UnnecessaryMods', 'No other AI detected, These AI mods can be disabled: '..sUnnecessaryAIMod, 1, 10)
     end
@@ -457,6 +461,26 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     if M28Utilities.IsTableEmpty(tsNonStandardSettings) == false then M28Utilities.ErrorHandler('Non standard settings='..reprs(tsNonStandardSettings), true) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function CheckIfMemoryAConcern(aiBrain)
+    if M28Map.iMapSize > 512 then --larger than 10km
+        WaitSeconds(1)
+        if M28Team.iTotalTeamCount >= 4 then
+            local iTeamWithActiveM28 = 0
+            for iTeam = 1, M28Team.iTotalTeamCount do
+                if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                    iTeamWithActiveM28 = iTeamWithActiveM28 + 1
+                end
+            end
+            if iTeamWithActiveM28 >= 4 and not(M28Map.bIsCampaignMap) then
+                local iUnitCap = GetArmyUnitCap(aiBrain:GetArmyIndex())
+                if iUnitCap > 500 then
+                    M28Chat.SendMessage(aiBrain, 'MemoryConcern', 'There is a risk the game runs out of memory with this many M28 teams on a large map.  If the game crashes consider lowering the unit cap, the number of teams, using a smaller map, using the same faction, lowering graphics (solo), enabling CPU performance mode and M28Easy', 2, 10)
+                end
+            end
+        end
+    end
 end
 
 function SetPCxValuesForBrain(aiBrain)
