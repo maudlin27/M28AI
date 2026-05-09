@@ -5101,7 +5101,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
                     for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
                         if M28UnitInfo.IsUnitValid(oACU) then
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())
                             if bDebugMessages == true then LOG(sFunctionRef..': Dist to ACU owned by '..oACU:GetAIBrain().Nickname..'='..iCurDist) end
                             if iCurDist < iClosestACU and not(M28UnitInfo.IsUnitUnderwater(oACU)) and not(oACU:IsUnitState('Attached')) then
                                 --Check this isnt a deadly ACU (i.e. 10k+ of mass upgrades)
@@ -5120,7 +5120,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if oClosestACUNearUnit then
                     if bDebugMessages == true then LOG(sFunctionRef..': GetManualAttackTargetIfWantManualAttack Will launch micro logic to suicide into enemy ACU') end
                     --Suicide into this ACU as special micro logic (so dont get given new orders)
-                    ForkThread(M28Micro.SuicideExperimentalIntoEnemyACU, oUnit, oClosestACUNearUnit)
+                    ForkThread(M28Micro.SuicideExperimentalIntoEnemyACU, oUnit, oClosestACUNearUnit, iClosestACU)
                     return oClosestACUNearUnit, true
                 end
             end
@@ -5721,7 +5721,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                 if (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 15000 and oUnit[M28UnitInfo.refiCombatRange] <= 64 and (oUnit[M28UnitInfo.refiDFRange] <= 50 or oUnit.UnitId == 'url0402') and oUnit:GetMaxHealth() >= 40000 then --IF CHANGING HERE THEN CHANGE ABOVE AS WELL
                     if bDebugMessages == true then LOG(sFunctionRef..': Will suicide experimental into ACU') end
-                    ForkThread(M28Micro.SuicideExperimentalIntoEnemyACU, oUnit, oClosestACUToAttack)
+                    ForkThread(M28Micro.SuicideExperimentalIntoEnemyACU, oUnit, oClosestACUToAttack, iClosestACU)
                 end
                 if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
                     if (oUnit[M28UnitInfo.refiCombatRange] or 0) - iClosestACU >= iDistToBeInRange and (not(oUnit[M28UnitInfo.refbLastShotBlocked]) and (not(EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId)) or (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 or not(M28Logic.IsShotBlocked(oUnit, oClosestACUToAttack)))) then --ACU more than 5 inside our range - attack it unless our shot is blocked
@@ -10216,180 +10216,180 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     end
                                 end
                             end
-                                --If we would be running from an enemy PD (which cant chase us) and we aren't yet in range of it, then switch to attacking that PD instead; do +3 as if we get too close we might trigger dodge shot micro, and/or might move into range of the pd due to dodge shot micro
-                                elseif oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) > (oUnit[M28UnitInfo.refiDFRange] or 0) + 3 then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Normally would retreat but there is an enemy PD that is the closest to being in our range and we can attack it without getting in range') end
-                                M28Orders.IssueTrackedAttack(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'MMLAtckNtR', false)
-                                else
-                                local bTemporaryKiting = false
-                                if oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) <= math.max(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] + 8, oUnit[M28UnitInfo.refiCombatRange] - 10) then
-                            local tTemporaryRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()), 8, true, false, M28Map.bIsCampaignMap)
-                            if tTemporaryRetreatLocation and NavUtils.GetLabel(M28Map.refPathingTypeLand, tTemporaryRetreatLocation) == tLZData[M28Map.subrefLZIslandRef] then
-                            bTemporaryKiting = true
-                            M28Orders.IssueTrackedMove(oUnit, tTemporaryRetreatLocation, 6, false, 'MMLOpERetr'..iLandZone)
-                            end
+                            --If we would be running from an enemy PD (which cant chase us) and we aren't yet in range of it, then switch to attacking that PD instead; do +3 as if we get too close we might trigger dodge shot micro, and/or might move into range of the pd due to dodge shot micro
+                        elseif oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) > (oUnit[M28UnitInfo.refiDFRange] or 0) + 3 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Normally would retreat but there is an enemy PD that is the closest to being in our range and we can attack it without getting in range') end
+                            M28Orders.IssueTrackedAttack(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'MMLAtckNtR', false)
+                        else
+                            local bTemporaryKiting = false
+                            if oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) <= math.max(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] + 8, oUnit[M28UnitInfo.refiCombatRange] - 10) then
+                                local tTemporaryRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()), 8, true, false, M28Map.bIsCampaignMap)
+                                if tTemporaryRetreatLocation and NavUtils.GetLabel(M28Map.refPathingTypeLand, tTemporaryRetreatLocation) == tLZData[M28Map.subrefLZIslandRef] then
+                                    bTemporaryKiting = true
+                                    M28Orders.IssueTrackedMove(oUnit, tTemporaryRetreatLocation, 6, false, 'MMLOpERetr'..iLandZone)
+                                end
                             end
 
                             if bDebugMessages == true then
-                            if oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] then
-                            LOG(sFunctionRef..': Retreating MML, dist to closest enemy='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())..'; oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]='..oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])..' with DF range='..(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 'nil'))
-                            else
-                            LOG(sFunctionRef..': Will retreat MML') end
-                                end
-                                --Retreat temporarily from enemy units
-                                if not(bTemporaryKiting) then
-                                if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
-                            M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'MMLASKRetr'..iLandZone)
-                            else
-                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'MMLSKRetr'..iLandZone)
-                                end
-                                end
-                                end
-                        end
-
-                        if M28Utilities.IsTableEmpty(tPriorityEnemyScoutTargets) == false then
-                            local iAirSubteam = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam
-                            for iEnemy, oEnemy in tPriorityEnemyScoutTargets do
-                                M28Air.AddUnitWantingPriorityScout(oEnemy, false, iAirSubteam)
-                            end
-                        end
-
-                        --Do we have any MML that have targets in-range or almost in range? If so then consider synchronising their weapons (dont do this though if we only want to prioritise TMD and shields and dont want to synchronise)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is tMMLWithNearbyTargets empty='..tostring(M28Utilities.IsTableEmpty(tMMLWithNearbyTargets))) end
-                        if bConsiderSpecialMMLLogic and M28Utilities.IsTableEmpty(tMMLWithNearbyTargets) == false then
-                            local iMMLWithTargets = table.getn(tMMLWithNearbyTargets)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iMMLWithTargets='..iMMLWithTargets) end
-                            if iMMLWithTargets >= 4 then
-                                local iMMLJustFiredOrReadyToFire = 0
-                                local iMMLNotFiredForAges = 0
-                                local iMMLReloading = 0
-
-                                local iTimeUntilReadyToFire
-                                local iTotalTimeUntilReadyToFire = 0
-                                local iMinTimeUntilReady = 100000
-                                local iMaxTimeUntilReady = -100000
-                                local tiTimeUntilReadyToFire = {}
-                                for iUnit, oUnit in tMMLWithNearbyTargets do
-                                    iTimeUntilReadyToFire = oUnit[M28UnitInfo.refiTimeBetweenIFShots] - (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or -100))
-                                    if iTimeUntilReadyToFire <= math.min(-7, -oUnit[M28UnitInfo.refiTimeBetweenIFShots] - 1.5) then
-                                        iMMLNotFiredForAges = iMMLNotFiredForAges + 1
-                                    elseif iTimeUntilReadyToFire >= 1.01 then
-                                        iMMLReloading = iMMLReloading + 1
-                                    else
-                                        iMMLJustFiredOrReadyToFire = iMMLJustFiredOrReadyToFire + 1
-                                    end
-                                    if iTimeUntilReadyToFire < iMinTimeUntilReady then iMinTimeUntilReady = iTimeUntilReadyToFire end
-                                    if iTimeUntilReadyToFire > iMaxTimeUntilReady then iMaxTimeUntilReady = iTimeUntilReadyToFire end
-                                    iTotalTimeUntilReadyToFire = iTotalTimeUntilReadyToFire + iTimeUntilReadyToFire
-                                    table.insert(tiTimeUntilReadyToFire, iTimeUntilReadyToFire)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeUntilReadyToFire='..iTimeUntilReadyToFire..'; oUnit[M28UnitInfo.refiTimeBetweenIFShots]='..oUnit[M28UnitInfo.refiTimeBetweenIFShots]..'; oUnit[M28UnitInfo.refiLastWeaponEvent]='..(oUnit[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; Cur time='..GetGameTimeSeconds()) end
-                                end
-                                local iAverageTimeUntilReadyToFire = iTotalTimeUntilReadyToFire / iMMLWithTargets
-                                local iMMLWithin1OfAverage = 0
-                                for iEntry, iTime in tiTimeUntilReadyToFire do
-                                    if math.abs(iTime - iAverageTimeUntilReadyToFire) < 1 then
-                                        iMMLWithin1OfAverage = iMMLWithin1OfAverage + 1
-                                    end
-                                end
-                                if bDebugMessages == true then LOG(sFunctionRef..': iMMLJustFiredOrReadyToFire='..iMMLJustFiredOrReadyToFire..'; iMMLNotFiredForAges='..iMMLNotFiredForAges..'; iMMLWithTargets='..iMMLWithTargets..'; iMMLReloading='..iMMLReloading..'; iMMLWithin1OfAverage='..iMMLWithin1OfAverage..'; iAverageTimeUntilReadyToFire='..iAverageTimeUntilReadyToFire..'; iMaxTimeUntilReady='..iMaxTimeUntilReady..'; iMinTimeUntilReady='..iMinTimeUntilReady) end
-                                if iMMLJustFiredOrReadyToFire + iMMLNotFiredForAges >= iMMLWithTargets * 0.75 or iMMLNotFiredForAges >= iMMLWithTargets * 0.25 or iMMLWithin1OfAverage >= iMMLWithTargets * 0.8 or (iMaxTimeUntilReady - iMinTimeUntilReady) <= 1.4 then
-                                    --Dont want to synchronise as either already synchronised or have lots of MML that havent fired in a while
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Will enable all MML weapons') end
-                                    for iUnit, oUnit in tMMLWithNearbyTargets do
-                                        M28UnitInfo.EnableUnitWeapon(oUnit) --In addition to separate logic that will enable, as want to enable asap once we decide we want to fire)
-                                    end
+                                if oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] then
+                                    LOG(sFunctionRef..': Retreating MML, dist to closest enemy='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())..'; oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]='..oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])..' with DF range='..(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 'nil'))
                                 else
-                                    --Want to synchronise shots, disable the weapons (they shoudl be reenabled each cycle)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Will disable all MML weapons until they are better synchronised, time='..GetGameTimeSeconds()) end
-                                    for iUnit, oUnit in tMMLWithNearbyTargets do
-                                        M28UnitInfo.DisableUnitWeapon(oUnit)
-                                    end
+                                    LOG(sFunctionRef..': Will retreat MML') end
+                            end
+                            --Retreat temporarily from enemy units
+                            if not(bTemporaryKiting) then
+                                if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+                                    M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'MMLASKRetr'..iLandZone)
+                                else
+                                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'MMLSKRetr'..iLandZone)
                                 end
                             end
                         end
                     end
-                else
-                    --We dont have a nearest enemy to midpoint - if this is because we are ignoring low threat enemies, then send a small number of our available combat units to deal with them
-                    if not(bGivenCombatUnitsOrders) and bIgnoreEnemiesInThisZone and not(bConsiderEnemiesInAtLeastOneAdjacentZone) then
-                        local oEnemyToFocusOn
-                        local iClosestEnemyToFocusOn = 100000
-                        local iCurEnemyToFocusOnDist
 
-                        local iMaxThreatToAssign =(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 6 + (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 3
-                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                            for iEnemy, oEnemy in tLZTeamData[M28Map.subrefTEnemyUnits] do
-                                iCurEnemyToFocusOnDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint])
-                                if iCurEnemyToFocusOnDist < iClosestEnemyToFocusOn then
-                                    iClosestEnemyToFocusOn = iCurEnemyToFocusOnDist
-                                    oEnemyToFocusOn = oEnemy
-                                end
-                            end
+                    if M28Utilities.IsTableEmpty(tPriorityEnemyScoutTargets) == false then
+                        local iAirSubteam = ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].M28AirSubteam
+                        for iEnemy, oEnemy in tPriorityEnemyScoutTargets do
+                            M28Air.AddUnitWantingPriorityScout(oEnemy, false, iAirSubteam)
                         end
-                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
-                            for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                                iMaxThreatToAssign = iMaxThreatToAssign + (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 6 + (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 3
-                                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                                    for iEnemy, oEnemy in tAdjLZTeamData[M28Map.subrefTEnemyUnits] do
-                                        if M28UnitInfo.IsUnitValid(oEnemy) then
-                                            iCurEnemyToFocusOnDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint])
-                                            if iCurEnemyToFocusOnDist < iClosestEnemyToFocusOn then
-                                                iClosestEnemyToFocusOn = iCurEnemyToFocusOnDist
-                                                oEnemyToFocusOn = oEnemy
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                        if iMaxThreatToAssign > 0 then iMaxThreatToAssign = math.max(iMaxThreatToAssign, 60) end
-                        --T2+ indirect fire units - focus on nearby enemy T2 arti if there is any
-                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
-                            for iCurUnit = table.getn(tAvailableCombatUnits), 1, -1 do
-                                local oCurUnit = tAvailableCombatUnits[iCurUnit]
-                                if (oCurUnit[M28UnitInfo.refiIndirectRange] or 0) >= 45 then
-                                    local oNearestT2Arti, iCurArtiDist
-                                    local iNearestT2Arti = 160 --Ignore T2 arti further away than this
-                                    for iT2Arti, oT2Arti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
-                                        iCurArtiDist = M28Utilities.GetDistanceBetweenPositions(oT2Arti:GetPosition(), oCurUnit:GetPosition())
-                                        if iCurArtiDist <= iNearestT2Arti then
-                                            iNearestT2Arti = iCurArtiDist
-                                            oNearestT2Arti = oT2Arti
-                                        end
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Negligible enemy threat in this and adjacent zones but enemy has nearby t2 arti, oNearestT2Arti='..(oNearestT2Arti.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestT2Arti) or 'nil')..'; iNearestT2Arti='..iNearestT2Arti..'; IF unit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(iNearestT2Arti)..'; IF range='..(oCurUnit[M28UnitInfo.refiIndirectRange] or 0)) end
-                                    if oNearestT2Arti then
-                                        if iNearestT2Arti <= (oCurUnit[M28UnitInfo.refiIndirectRange] or 0) + 5 then
-                                            M28Orders.IssueTrackedGroundAttack(oCurUnit, oNearestT2Arti:GetPosition(), 0.5, false, 'NegT2ArtAG', false, oNearestT2Arti)
-                                        else
-                                            M28Orders.IssueTrackedAggressiveMove(oCurUnit, oNearestT2Arti:GetPosition(), 0.5, false, 'NegT2ArtAM', false)
-                                        end
-                                        table.remove(tAvailableCombatUnits, iCurUnit)
-                                    end
-                                end
-                            end
-                        end
+                    end
 
-                        if oEnemyToFocusOn then
-                            local iCurAssignedThreat = 0
-                            for iCurUnit = table.getn(tAvailableCombatUnits), 1, -1 do
-                                if tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiUnitMassCost] <= iMaxThreatToAssign or ((tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiDFRange] or 0) > 0 and (EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.EXPERIMENTAL, tAvailableCombatUnits[iCurUnit].UnitId) and M28UnitInfo.GetUnitLifetimeCount(tAvailableCombatUnits[iCurUnit]) > 3)) then
-                                    iCurAssignedThreat = iCurAssignedThreat + tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiUnitMassCost]
-                                    --Issue where ythotha stuck not firing at mex, dist away was 4, so do a dist of 8 to be safe
-                                    if bDebugMessages == true then LOG(sFunctionRef..': dist to oEnemyToFocusOn='..M28Utilities.GetDistanceBetweenPositions(tAvailableCombatUnits[iCurUnit]:GetPosition(),oEnemyToFocusOn:GetPosition())) end
-                                    if M28Utilities.GetDistanceBetweenPositions(tAvailableCombatUnits[iCurUnit]:GetPosition(),oEnemyToFocusOn:GetPosition()) <= 8 and (not(tAvailableCombatUnits[iCurUnit][M28UnitInfo.refbLastShotBlocked]) or GetGameTimeSeconds() - (tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiLastWeaponEvent] or 0) > math.max(2, (tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiTimeBetweenDFShots] or 2))) then
-                                        M28Orders.IssueTrackedAggressiveMove(tAvailableCombatUnits[iCurUnit], oEnemyToFocusOn:GetPosition(), 5, false, 'NegMZAM'..iLandZone, false)
-                                    else
-                                        M28Orders.IssueTrackedMove(tAvailableCombatUnits[iCurUnit], oEnemyToFocusOn:GetPosition(), 5, false, 'NegMZAC'..iLandZone, false)
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Assigned available combat unit '..tAvailableCombatUnits[iCurUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableCombatUnits[iCurUnit])..' to deal with threats in this and adjacent zones, iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign..'; oEnemyToFocusOn='..oEnemyToFocusOn.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToFocusOn)) end
-                                    table.remove(tAvailableCombatUnits, iCurUnit)
-                                    if iCurAssignedThreat >= iMaxThreatToAssign then break end
+                    --Do we have any MML that have targets in-range or almost in range? If so then consider synchronising their weapons (dont do this though if we only want to prioritise TMD and shields and dont want to synchronise)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is tMMLWithNearbyTargets empty='..tostring(M28Utilities.IsTableEmpty(tMMLWithNearbyTargets))) end
+                    if bConsiderSpecialMMLLogic and M28Utilities.IsTableEmpty(tMMLWithNearbyTargets) == false then
+                        local iMMLWithTargets = table.getn(tMMLWithNearbyTargets)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iMMLWithTargets='..iMMLWithTargets) end
+                        if iMMLWithTargets >= 4 then
+                            local iMMLJustFiredOrReadyToFire = 0
+                            local iMMLNotFiredForAges = 0
+                            local iMMLReloading = 0
+
+                            local iTimeUntilReadyToFire
+                            local iTotalTimeUntilReadyToFire = 0
+                            local iMinTimeUntilReady = 100000
+                            local iMaxTimeUntilReady = -100000
+                            local tiTimeUntilReadyToFire = {}
+                            for iUnit, oUnit in tMMLWithNearbyTargets do
+                                iTimeUntilReadyToFire = oUnit[M28UnitInfo.refiTimeBetweenIFShots] - (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or -100))
+                                if iTimeUntilReadyToFire <= math.min(-7, -oUnit[M28UnitInfo.refiTimeBetweenIFShots] - 1.5) then
+                                    iMMLNotFiredForAges = iMMLNotFiredForAges + 1
+                                elseif iTimeUntilReadyToFire >= 1.01 then
+                                    iMMLReloading = iMMLReloading + 1
+                                else
+                                    iMMLJustFiredOrReadyToFire = iMMLJustFiredOrReadyToFire + 1
+                                end
+                                if iTimeUntilReadyToFire < iMinTimeUntilReady then iMinTimeUntilReady = iTimeUntilReadyToFire end
+                                if iTimeUntilReadyToFire > iMaxTimeUntilReady then iMaxTimeUntilReady = iTimeUntilReadyToFire end
+                                iTotalTimeUntilReadyToFire = iTotalTimeUntilReadyToFire + iTimeUntilReadyToFire
+                                table.insert(tiTimeUntilReadyToFire, iTimeUntilReadyToFire)
+                                if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeUntilReadyToFire='..iTimeUntilReadyToFire..'; oUnit[M28UnitInfo.refiTimeBetweenIFShots]='..oUnit[M28UnitInfo.refiTimeBetweenIFShots]..'; oUnit[M28UnitInfo.refiLastWeaponEvent]='..(oUnit[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; Cur time='..GetGameTimeSeconds()) end
+                            end
+                            local iAverageTimeUntilReadyToFire = iTotalTimeUntilReadyToFire / iMMLWithTargets
+                            local iMMLWithin1OfAverage = 0
+                            for iEntry, iTime in tiTimeUntilReadyToFire do
+                                if math.abs(iTime - iAverageTimeUntilReadyToFire) < 1 then
+                                    iMMLWithin1OfAverage = iMMLWithin1OfAverage + 1
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iMMLJustFiredOrReadyToFire='..iMMLJustFiredOrReadyToFire..'; iMMLNotFiredForAges='..iMMLNotFiredForAges..'; iMMLWithTargets='..iMMLWithTargets..'; iMMLReloading='..iMMLReloading..'; iMMLWithin1OfAverage='..iMMLWithin1OfAverage..'; iAverageTimeUntilReadyToFire='..iAverageTimeUntilReadyToFire..'; iMaxTimeUntilReady='..iMaxTimeUntilReady..'; iMinTimeUntilReady='..iMinTimeUntilReady) end
+                            if iMMLJustFiredOrReadyToFire + iMMLNotFiredForAges >= iMMLWithTargets * 0.75 or iMMLNotFiredForAges >= iMMLWithTargets * 0.25 or iMMLWithin1OfAverage >= iMMLWithTargets * 0.8 or (iMaxTimeUntilReady - iMinTimeUntilReady) <= 1.4 then
+                                --Dont want to synchronise as either already synchronised or have lots of MML that havent fired in a while
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will enable all MML weapons') end
+                                for iUnit, oUnit in tMMLWithNearbyTargets do
+                                    M28UnitInfo.EnableUnitWeapon(oUnit) --In addition to separate logic that will enable, as want to enable asap once we decide we want to fire)
+                                end
+                            else
+                                --Want to synchronise shots, disable the weapons (they shoudl be reenabled each cycle)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will disable all MML weapons until they are better synchronised, time='..GetGameTimeSeconds()) end
+                                for iUnit, oUnit in tMMLWithNearbyTargets do
+                                    M28UnitInfo.DisableUnitWeapon(oUnit)
                                 end
                             end
                         end
                     end
                 end
+            else
+                --We dont have a nearest enemy to midpoint - if this is because we are ignoring low threat enemies, then send a small number of our available combat units to deal with them
+                if not(bGivenCombatUnitsOrders) and bIgnoreEnemiesInThisZone and not(bConsiderEnemiesInAtLeastOneAdjacentZone) then
+                    local oEnemyToFocusOn
+                    local iClosestEnemyToFocusOn = 100000
+                    local iCurEnemyToFocusOnDist
+
+                    local iMaxThreatToAssign =(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 6 + (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 3
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                        for iEnemy, oEnemy in tLZTeamData[M28Map.subrefTEnemyUnits] do
+                            iCurEnemyToFocusOnDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                            if iCurEnemyToFocusOnDist < iClosestEnemyToFocusOn then
+                                iClosestEnemyToFocusOn = iCurEnemyToFocusOnDist
+                                oEnemyToFocusOn = oEnemy
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                            iMaxThreatToAssign = iMaxThreatToAssign + (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 6 + (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) * 3
+                            if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                for iEnemy, oEnemy in tAdjLZTeamData[M28Map.subrefTEnemyUnits] do
+                                    if M28UnitInfo.IsUnitValid(oEnemy) then
+                                        iCurEnemyToFocusOnDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                                        if iCurEnemyToFocusOnDist < iClosestEnemyToFocusOn then
+                                            iClosestEnemyToFocusOn = iCurEnemyToFocusOnDist
+                                            oEnemyToFocusOn = oEnemy
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if iMaxThreatToAssign > 0 then iMaxThreatToAssign = math.max(iMaxThreatToAssign, 60) end
+                    --T2+ indirect fire units - focus on nearby enemy T2 arti if there is any
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                        for iCurUnit = table.getn(tAvailableCombatUnits), 1, -1 do
+                            local oCurUnit = tAvailableCombatUnits[iCurUnit]
+                            if (oCurUnit[M28UnitInfo.refiIndirectRange] or 0) >= 45 then
+                                local oNearestT2Arti, iCurArtiDist
+                                local iNearestT2Arti = 160 --Ignore T2 arti further away than this
+                                for iT2Arti, oT2Arti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                                    iCurArtiDist = M28Utilities.GetDistanceBetweenPositions(oT2Arti:GetPosition(), oCurUnit:GetPosition())
+                                    if iCurArtiDist <= iNearestT2Arti then
+                                        iNearestT2Arti = iCurArtiDist
+                                        oNearestT2Arti = oT2Arti
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Negligible enemy threat in this and adjacent zones but enemy has nearby t2 arti, oNearestT2Arti='..(oNearestT2Arti.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestT2Arti) or 'nil')..'; iNearestT2Arti='..iNearestT2Arti..'; IF unit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(iNearestT2Arti)..'; IF range='..(oCurUnit[M28UnitInfo.refiIndirectRange] or 0)) end
+                                if oNearestT2Arti then
+                                    if iNearestT2Arti <= (oCurUnit[M28UnitInfo.refiIndirectRange] or 0) + 5 then
+                                        M28Orders.IssueTrackedGroundAttack(oCurUnit, oNearestT2Arti:GetPosition(), 0.5, false, 'NegT2ArtAG', false, oNearestT2Arti)
+                                    else
+                                        M28Orders.IssueTrackedAggressiveMove(oCurUnit, oNearestT2Arti:GetPosition(), 0.5, false, 'NegT2ArtAM', false)
+                                    end
+                                    table.remove(tAvailableCombatUnits, iCurUnit)
+                                end
+                            end
+                        end
+                    end
+
+                    if oEnemyToFocusOn then
+                        local iCurAssignedThreat = 0
+                        for iCurUnit = table.getn(tAvailableCombatUnits), 1, -1 do
+                            if tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiUnitMassCost] <= iMaxThreatToAssign or ((tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiDFRange] or 0) > 0 and (EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.EXPERIMENTAL, tAvailableCombatUnits[iCurUnit].UnitId) and M28UnitInfo.GetUnitLifetimeCount(tAvailableCombatUnits[iCurUnit]) > 3)) then
+                                iCurAssignedThreat = iCurAssignedThreat + tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiUnitMassCost]
+                                --Issue where ythotha stuck not firing at mex, dist away was 4, so do a dist of 8 to be safe
+                                if bDebugMessages == true then LOG(sFunctionRef..': dist to oEnemyToFocusOn='..M28Utilities.GetDistanceBetweenPositions(tAvailableCombatUnits[iCurUnit]:GetPosition(),oEnemyToFocusOn:GetPosition())) end
+                                if M28Utilities.GetDistanceBetweenPositions(tAvailableCombatUnits[iCurUnit]:GetPosition(),oEnemyToFocusOn:GetPosition()) <= 8 and (not(tAvailableCombatUnits[iCurUnit][M28UnitInfo.refbLastShotBlocked]) or GetGameTimeSeconds() - (tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiLastWeaponEvent] or 0) > math.max(2, (tAvailableCombatUnits[iCurUnit][M28UnitInfo.refiTimeBetweenDFShots] or 2))) then
+                                    M28Orders.IssueTrackedAggressiveMove(tAvailableCombatUnits[iCurUnit], oEnemyToFocusOn:GetPosition(), 5, false, 'NegMZAM'..iLandZone, false)
+                                else
+                                    M28Orders.IssueTrackedMove(tAvailableCombatUnits[iCurUnit], oEnemyToFocusOn:GetPosition(), 5, false, 'NegMZAC'..iLandZone, false)
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Assigned available combat unit '..tAvailableCombatUnits[iCurUnit].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableCombatUnits[iCurUnit])..' to deal with threats in this and adjacent zones, iCurAssignedThreat='..iCurAssignedThreat..'; iMaxThreatToAssign='..iMaxThreatToAssign..'; oEnemyToFocusOn='..oEnemyToFocusOn.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToFocusOn)) end
+                                table.remove(tAvailableCombatUnits, iCurUnit)
+                                if iCurAssignedThreat >= iMaxThreatToAssign then break end
+                            end
+                        end
+                    end
+                end
+            end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to run from firebase or long range enemy threat, bRunFromFirebase='..tostring(bRunFromFirebase)..'; Nearby enemy long range threat='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0)..'; Zone combat total='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)..'; iAvailableCombatUnitThreat='..iAvailableCombatUnitThreat..'; bGivenCombatUnitsOrders='..tostring(bGivenCombatUnitsOrders)) end
@@ -11237,8 +11237,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     end
 
     UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFReinforcements, bWantIndirectReinforcements)
+
     if bDebugMessages == true then
-        LOG(sFunctionRef..': Just recorded if this LZ wants support, bWantDFReinforcements='..tostring(bWantDFReinforcements)..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)..'; tLZTeamData[M28Map.subrefbLZWantsSupport] = '..tostring(tLZTeamData[M28Map.subrefbLZWantsSupport])..'; tLZTeamData[M28Map.subrefbLZWantsDFSupport]='..tostring(tLZTeamData[M28Map.subrefbLZWantsDFSupport])..'; subreftiLandZoneTargetedByOurCombat='..(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurCombat] or 'nil')) end
+        LOG(sFunctionRef..': Just recorded if this LZ wants support, bWantDFReinforcements='..tostring(bWantDFReinforcements)..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)..'; tLZTeamData[M28Map.subrefbLZWantsSupport] = '..tostring(tLZTeamData[M28Map.subrefbLZWantsSupport])..'; tLZTeamData[M28Map.subrefbLZWantsDFSupport]='..tostring(tLZTeamData[M28Map.subrefbLZWantsDFSupport])..'; subreftiLandZoneTargetedByOurCombat='..(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurCombat] or 'nil')..'; refiTimeLastFailedToKiteDueToScoutIntel='..GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastFailedToKiteDueToScoutIntel] or 0)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
