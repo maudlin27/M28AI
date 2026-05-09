@@ -2451,7 +2451,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
     local sFunctionRef = 'DoesACUWantToRun'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU:GetAIBrain():GetArmyIndex() == 9 and GetGameTimeSeconds() >= 4*60+30 then bDebugMessages = true end
 
     local bWantToRun = false
     local iTeam = oACU:GetAIBrain().M28Team
@@ -3580,7 +3580,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU:GetAIBrain():GetArmyIndex() == 9 and GetGameTimeSeconds() >= 4*60+30 then bDebugMessages = true end
 
     local oEnemyToTarget
     if (oACU[M28UnitInfo.refiDFRange] or 0) > 0 then
@@ -3895,6 +3895,17 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': iAngleDif='..iAngleDif..'; iMaxDistToBeInRange='..iMaxDistToBeInRange..'; iEnemyHighestDFInThisLZ range='..iEnemyHighestDFInThisLZ..'; ACU vision range='..oACU:GetBlueprint().Intel.VisionRadius) end
                     end
+                    --Be more in range if enemy has stealthed ACU currently in our range; note we have more logic a bit later on which deals with nearest ACU (to help where nearest enemy isnt nearest ACU but is stealthed)
+                    if iMaxDistToBeInRange < 10 and oEnemyToTarget[refiUpgradeCount] and EntityCategoryContains(categories.COMMAND * categories.CYBRAN, oEnemyToTarget.UnitId) and oEnemyToTarget.HasEnhancement and (oEnemyToTarget:HasEnhancement('StealthGenerator') or oEnemyToTarget:HasEnhancement('FAF_SelfRepairSystem')) then
+                        --If enemy ACU is moving away from us then increase dist threshold to 10 (as 8 proved to not be enough)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy ACU speed='..M28UnitInfo.GetUnitSpeed(oEnemyToTarget)..'; Facing angle='..M28UnitInfo.GetUnitFacingAngle(oEnemyToTarget)..'; Dif between facing angle and angle to us='..M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oEnemyToTarget), M28Utilities.GetAngleFromAToB(oEnemyToTarget:GetPosition(), oACU:GetPosition()))) end
+                        if M28UnitInfo.GetUnitSpeed(oEnemyToTarget) > 0.1 and M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oEnemyToTarget), M28Utilities.GetAngleFromAToB(oEnemyToTarget:GetPosition(), oACU:GetPosition())) > 45 then
+                            iMaxDistToBeInRange = 10
+                        else
+                            iMaxDistToBeInRange = math.max(8, iMaxDistToBeInRange)
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Increasing iMaxDistToBeInRange to '..iMaxDistToBeInRange..' as up against stealthed ACU') end
+                    end
                     local iStraightLineDist = M28Utilities.GetDistanceBetweenPositions(oEnemyToTarget:GetPosition(), oACU:GetPosition())
                     local iNearbyMobileEnemyDFThreat = (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -4003,7 +4014,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                         end
                     end
                     local oUnitToMoveTo
-                    --Check for ACUs in our range that we outrange, or that we have a clear 2v1 advantage
+                    --Check for ACUs in our range that we outrange, or that we have a clear 2v1 advantage, or that have stealth meaning we want to stay closer to them
                     local tACUsNearby
                     if M28Utilities.IsTableEmpty(tUnitsToTarget) == false then tACUsNearby = EntityCategoryFilterDown(categories.COMMAND, tUnitsToTarget) end
                     local oClosestACU
@@ -4128,6 +4139,14 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                             if bDebugMessages == true then LOG(sFunctionRef..': Want to move to enemy ACU unless decide to kite, oClosestACU='..oClosestACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestACU)) end
                         end
                     end
+                    --If against stealthed ACU that is in our range then move towards it instead of attackmove
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if dealing with stealtehd ACU we want to be closer to, oClosestACU[refiUpgradeCount]='..(oClosestACU[refiUpgradeCount] or 'nil')..'; IsCybran='..tostring(EntityCategoryContains(categories.CYBRAN, oClosestACU.UnitId))..'; Has stealth or nano='..tostring((oClosestACU:HasEnhancement('StealthGenerator') or oClosestACU:HasEnhancement('FAF_SelfRepairSystem')))..'; refiOmniCoverage='.. (tLZTeamData[M28Map.refiOmniCoverage] or 0)..'; VisionRadius='..(oACU:GetBlueprint().Intel.VisionRadius or 26)..'; iOurACUHealthPercent='..iOurACUHealthPercent) end
+                    if oClosestACU and iClosestACU <= oACU[M28UnitInfo.refiDFRange] and iClosestACU > oACU[M28UnitInfo.refiDFRange] - math.max(8, iMaxDistToBeInRange) and oClosestACU[refiUpgradeCount] > 0 and EntityCategoryContains(categories.CYBRAN, oClosestACU.UnitId) and (oClosestACU:HasEnhancement('StealthGenerator') or oClosestACU:HasEnhancement('FAF_SelfRepairSystem')) and (tLZTeamData[M28Map.refiOmniCoverage] or 0) < 50
+                            and iClosestACU >= (oACU:GetBlueprint().Intel.VisionRadius or 26) - 6 and iOurACUHealthPercent >= 0.6 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Up against cybran acu with stealth so want to stay close to it so we can keep firing') end
+                        bWantKitingRetreat = false
+                        if not(oUnitToMoveTo) then oUnitToMoveTo = oClosestACU end
+                    end
 
                     --Consider override for kiting retreat if enemy ACU in our range, and we have more health than them, and enemy lacks T2 PD/similar
                     if oUnitToMoveTo and bWantKitingRetreat and oClosestACU and iClosestACU <= oACU[M28UnitInfo.refiDFRange] then
@@ -4136,12 +4155,6 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                                 if bDebugMessages == true then LOG(sFunctionRef..': We are in range of an enemy ACU that we outrange, so want to ignore kiting retreat and go for the kill') end
                                 bWantKitingRetreat = false
                             end
-                        end
-                        --Up against a stealthed ACU and we have good health
-                        if bDebugMessages == true then LOG(sFunctionRef..': iClosestACU='..iClosestACU..'; iOurACUHealthPercent='..iOurACUHealthPercent..'; Does enemy ACU have stealth or nano='..tostring((oClosestACU:HasEnhancement('Stealth') or oClosestACU:HasEnhancement('FAF_SelfRepairSystem')))) end
-                        if bWantKitingRetreat and iClosestACU >= (oACU:GetBlueprint().Intel.VisionRadius or 26) - 4 and iOurACUHealthPercent >= 0.8 and EntityCategoryContains(categories.CYBRAN, oClosestACU.UnitId) and (oClosestACU:HasEnhancement('Stealth') or oClosestACU:HasEnhancement('FAF_SelfRepairSystem')) and (tLZTeamData[M28Map.refiOmniCoverage] or 0) < 50 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Up against cybran acu with stealth so want to stay close to it so we can keep firing') end
-                            bWantKitingRetreat = false
                         end
                     end
 
@@ -6271,7 +6284,7 @@ function GetACUOrder(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU:GetAIBrain():GetArmyIndex() == 9 and GetGameTimeSeconds() >= 4*60+30 then bDebugMessages = true end
 
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
