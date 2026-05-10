@@ -4067,8 +4067,6 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 34.5*60 then bDebugMessages = true end
-
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
     if bDebugMessages == true then
@@ -4123,11 +4121,17 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         iFarBehindFactor = math.min(0.9, 0.75 + iEnemyThreatOverThreshold / 1000)
         iAirControlFactor = math.max(iAirControlFactor, math.min(1.45, iEnemyThreatOverThreshold / 1000))
     end
+    local iAirAAHeavyLossesReduceAirAAThresholdFactor = 1 --e.g. if normally would run from 1k enemy threat and this is 0.9 then will run from 900 threat
     if M28Team.tTeamData[iTeam][M28Team.refiAirAAKills] < M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] and M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] >= 1000 then
         local iAdjustValue = 0.1 * math.min(1.7, (M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] - M28Team.tTeamData[iTeam][M28Team.refiAirAAKills]) / 20000)
         iFarBehindFactor = math.min(0.99, iFarBehindFactor + iAdjustValue)
         iAirControlFactor = math.max(iAirControlFactor + 0.1, math.min(1.55, iAirControlFactor + iAdjustValue))
+        if true and GetGameTimeSeconds() >= 39*60+40 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+            iAirAAHeavyLossesReduceAirAAThresholdFactor = iAirAAHeavyLossesReduceAirAAThresholdFactor - math.min(0.2, iAdjustValue)
+            if bDebugMessages == true then LOG(sFunctionRef..': iAirAAHeavyLossesReduceAirAAThresholdFactor='..iAirAAHeavyLossesReduceAirAAThresholdFactor) end
+        end
     end
+
     if not(M28Utilities.bFAFActive) then iAirControlFactor = iAirControlFactor + 0.03 end
     --Larger maps - increase control factor slightly more as we are less likely to have intel of enemy air force
     if M28Map.iMapSize >= 700 then
@@ -4217,6 +4221,11 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
             if not(M28Utilities.bFAFActive) then iHigherPriorityEnemyAirAADefaultThreshold = iAvailableAndInCombatAirAAThreat * 0.65
             else iHigherPriorityEnemyAirAADefaultThreshold = iAvailableAndInCombatAirAAThreat * 0.8
             end
+            if not(iAirAAHeavyLossesReduceAirAAThresholdFactor == 1) then
+                iHigherPriorityEnemyAirAADefaultThreshold = iHigherPriorityEnemyAirAADefaultThreshold * iAirAAHeavyLossesReduceAirAAThresholdFactor
+                iLowerPriorityEnemyAirAADefaultThreshold = iLowerPriorityEnemyAirAADefaultThreshold * iAirAAHeavyLossesReduceAirAAThresholdFactor
+            end
+
         end
 
         local bOnlyConsiderThreatInZonesInSameDirection = true --true in all cases, but as variable incase ever want to change
@@ -4242,6 +4251,11 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         iAlongPathAAThreshold = iAlongPathAAThreshold * 0.75
                         if bDebugMessages == true then LOG(sFunctionRef..': Reduced iAlongPathAAThreshold as we lack good intel of this land zone, iAlongPathAAThreshold='..iAlongPathAAThreshold..'; refiRadarCoverage='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')) end
                     end
+                    if iAlongPathAAThreshold and not(iAirAAHeavyLossesReduceAirAAThresholdFactor == 1) then
+                        iAlongPathAAThreshold = iAlongPathAAThreshold * iAirAAHeavyLossesReduceAirAAThresholdFactor
+                        if bDebugMessages == true then LOG(sFunctionRef..': Further reduced threshold due to heavy losses, iAlongPathAAThreshold after reduction='..iAlongPathAAThreshold..'; iAirAAHeavyLossesReduceAirAAThresholdFactor='..iAirAAHeavyLossesReduceAirAAThresholdFactor) end
+                    end
+
                     if not(iAlongPathAAThreshold) or refiAASearchType == refiAvoidOnlyGroundAA then
                         if tLZTeamData[M28Map.refiModDistancePercent] <= 0.25 or tLZTeamData[M28Map.subrefLZSValue] >= 2000 or ( tLZTeamData[M28Map.subrefLZSValue] >= 10 and tLZTeamData[M28Map.refiModDistancePercent] <= 0.4) then
                             --If we have multiple M28 then dont throw away air trying to defend a base
@@ -7446,7 +7460,7 @@ function ManageGunships(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageGunships'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if GetGameTimeSeconds() >= 39.5*60 then bDebugMessages = true end
     local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryTransport * categories.EXPERIMENTAL + M28UnitInfo.refCategoryAAGunship, nil, not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets])))
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))..'; Is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tGunshipsForRefueling, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, false)
