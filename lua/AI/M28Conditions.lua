@@ -396,12 +396,12 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 return true
                             end
                         elseif (iLastOrderType == M28Orders.refiOrderIssueGuard or iLastOrderType == M28Orders.refiOrderIssueCapture) then
-                            if not(M28UnitInfo.IsUnitValid(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]])) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Guard or capture order where target no longer valid so available') end
+                            if not(M28UnitInfo.IsUnitValid(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget])) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Guard or capture order where target no longer valid so available, oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]]='..(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]]) or 'nil')) end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return true
                                 --Redundancy if assisting engineer with no action (shouldnt be needed)
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]].UnitId) then
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': We are assisting an engineer, engineer action we are assisting='..(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]][M28Engineer.refiAssignedAction] or 'nil')..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]])) end
                                 if not(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]][M28Engineer.refiAssignedAction]) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': We are assisting an engineer with no action so will make us available again') end
@@ -4512,6 +4512,8 @@ function WantToPauseSMD(oUnit, bCalledFromOnMissileBuilt)
         bHaveEnoughSubjectToEco = true
     elseif iMissiles == 0 or (oUnit[M28UnitInfo.refiLastWeaponEvent] and iMissiles < 2) then
         --want more missiles
+    elseif M28Map.bIsCampaignMap and iMissiles <= 2 and (iMissiles <= 1 or (oUnit:GetAIBrain()[M28Economy.refiBrainBuildRateMultiplier] or 0) < 0.8) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+        --Want extra missile for campaign
     else
         bHaveEnoughSubjectToEco = true --will change back to false later
         --If only SMLs are battleships with no nukes then stop at 1 missile for minor zones, or core zones with no enemy battleships within range
@@ -4557,12 +4559,12 @@ function WantToPauseSMD(oUnit, bCalledFromOnMissileBuilt)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Near end, time='..GetGameTimeSeconds()..'; bHaveEnoughSubjectToEco='..tostring(bHaveEnoughSubjectToEco)) end
     if bHaveEnoughSubjectToEco then
-        if bDebugMessages == true then LOG(sFunctionRef..': Have low power='..tostring(HaveLowPower(iTeam))..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
-        if HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99))) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Returning true') end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            return true
-        end
+    if bDebugMessages == true then LOG(sFunctionRef..': Have low power='..tostring(HaveLowPower(iTeam))..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
+    if HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.99)))) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Returning true') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return true
+    end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -4743,4 +4745,24 @@ end
 function IsPositionInRectangle(tPosition, rRect)
     --Assumes rRect is defined with 'x0', 'x1', 'y0', 'y1' (as using for campaign rectangles)
     if tPosition[1] >= rRect['x0'] and tPosition[1] <= rRect['x1'] and tPosition[3] >= rRect['y0'] and tPosition[3] <= rRect['y1'] then return true end
+end
+
+function DoWeWantToBuildObjectiveCategory(tObjectiveLocationSubtable)
+    local rRect = M28Utilities.GetRectAroundLocation(tObjectiveLocationSubtable[M28Map.subreftObjLocation], (tObjectiveLocationSubtable[M28Map.subrefiObjLocationSize] or 50))
+    local tUnitsInRect = GetUnitsInRect(rRect)
+    if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+        local tUnitsOfCategory = EntityCategoryFilterDown(tObjectiveLocationSubtable[M28Map.subrefiObjCategoryToBuild], tUnitsInRect)
+        if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
+            local iUnitsAlreadyHave = 0
+            for iUnit, oUnit in tUnitsOfCategory do
+                if not(oUnit.Dead) and oUnit:GetFractionComplete() == 1 then
+                    iUnitsAlreadyHave = iUnitsAlreadyHave + 1
+                    if iUnitsAlreadyHave >= (tObjectiveLocationSubtable[M28Map.subrefiNumberWanted] or 1) then
+                        return false
+                    end
+                end
+            end
+        end
+    end
+    return true
 end

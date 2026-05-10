@@ -2604,7 +2604,7 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit)
+function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit, iOrigDistFromEnemyACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SuicideExperimentalIntoEnemyACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2615,14 +2615,54 @@ function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit)
         M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityExpSnipeACU, false)
         local iCurDist
         local bLastOrderWasManualAttack
-        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, oUnit (experimental)='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; oClosestACUNearUnit='..oClosestACUNearUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestACUNearUnit)..' owned by '..oClosestACUNearUnit:GetAIBrain().Nickname..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUNearUnit:GetPosition())) end
+        local bCheckForExperimentals = EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0
+        local iTeam = oUnit:GetAIBrain().M28Team
+        local iCurExpDist
+        local iDistUntilInRangeOfACU
+
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, oUnit (experimental)='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; oClosestACUNearUnit='..oClosestACUNearUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestACUNearUnit)..' owned by '..oClosestACUNearUnit:GetAIBrain().Nickname..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUNearUnit:GetPosition())..'; iOrigDistFromEnemyACU='..iOrigDistFromEnemyACU) end
         while M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oClosestACUNearUnit) and not(oClosestACUNearUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oClosestACUNearUnit)) do
             --Move towards the ACU
             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestACUNearUnit:GetPosition())
-            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; bLastOrderWasManualAttack='..tostring(bLastOrderWasManualAttack)..'; Will do attack move intead of manual attack this time='..tostring(iCurDist >= 8 or (iCurDist >= 5 and not(bLastOrderWasManualAttack)))..'; Time='..GetGameTimeSeconds()) end
+            iDistUntilInRangeOfACU = iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0)
+            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; iCurDist='..iCurDist..'; bLastOrderWasManualAttack='..tostring(bLastOrderWasManualAttack)..'; Will do attack move intead of manual attack this time='..tostring(iCurDist >= 8 or (iCurDist >= 5 and not(bLastOrderWasManualAttack)))..'; iDistUntilInRangeOfACU='..iDistUntilInRangeOfACU..'; Time='..GetGameTimeSeconds()) end
             if iCurDist >= 8 or (iCurDist >= 5 and not(bLastOrderWasManualAttack)) then
-                M28Orders.IssueTrackedMove(oUnit, oClosestACUNearUnit:GetPosition(), 0.5, false, 'ExpKACUM', true)
-                bLastOrderWasManualAttack = false
+                --Check we dont have enemy experimental in our range that we should try and kill instead
+                if iCurDist > iOrigDistFromEnemyACU and iCurDist > iOrigDistFromEnemyACU + 5 and iDistUntilInRangeOfACU >= 10 then --e.g. we switched to attack enemy exp and now the ACU is too far away to try and run down
+                    if bDebugMessages == true then LOG(sFunctionRef..': ACU too far away from us now so will abort') end
+                    break
+                end
+                local oEnemyExpToAttackInstead
+                local iClosestEnemyExpToAttack = 1000
+                if bCheckForExperimentals and iDistUntilInRangeOfACU >= 8 then
+                    local tLZData = M28Map.tAllPlateaus[oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][M28Map.subrefPlateauLandZones][oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]]
+                    if tLZData then
+                        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                            local tEnemyExp = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental, tLZTeamData[M28Map.reftoNearestDFEnemies])
+                            if M28Utilities.IsTableEmpty(tEnemyExp) == false then
+                                for iEnemyExp, oEnemyExp in tEnemyExp do
+                                    if not(oEnemyExp.Dead) and (oEnemyExp[M28UnitInfo.refiDFRange] or 0) > 0 then
+                                        iCurExpDist = M28Utilities.GetDistanceBetweenPositions(oEnemyExp:GetPosition(), oUnit:GetPosition())
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want t o attack enemy experimental instead, iCurExpDist='..iCurExpDist..'; Our DF range='..oUnit[M28UnitInfo.refiDFRange]..'; Enemy Exp DF range='..oEnemyExp[M28UnitInfo.refiDFRange]..'; oEnemyExp='..oEnemyExp.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyExp)) end
+                                        if iCurExpDist <= oUnit[M28UnitInfo.refiDFRange] or (oEnemyExp[M28UnitInfo.refiDFRange] > oUnit[M28UnitInfo.refiDFRange] and iCurExpDist < oEnemyExp[M28UnitInfo.refiDFRange] and iCurExpDist <= oUnit[M28UnitInfo.refiDFRange] + iDistUntilInRangeOfACU - 12) then
+                                            if iCurExpDist < iClosestEnemyExpToAttack or (iCurExpDist < oUnit[M28UnitInfo.refiDFRange] and oEnemyExpToAttackInstead and M28UnitInfo.GetUnitHealthPercent(oEnemyExp) < M28UnitInfo.GetUnitHealthPercent(oEnemyExpToAttackInstead)) then
+                                                oEnemyExpToAttackInstead = oEnemyExp
+                                                iClosestEnemyExpToAttack = iCurExpDist
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                if oEnemyExpToAttackInstead then
+                    M28Orders.IssueTrackedAttack(oUnit, oEnemyExpToAttackInstead, false, 'ExpKACUEA', true)
+                else
+                    M28Orders.IssueTrackedMove(oUnit, oClosestACUNearUnit:GetPosition(), 0.5, false, 'ExpKACUM', true)
+                    bLastOrderWasManualAttack = false
+                end
             else
                 --Manual attack
                 bLastOrderWasManualAttack = true
@@ -2994,4 +3034,75 @@ function SuicideExperimentalIntoFatboy(oUnit, oFatboy, iTeam, iPlateau)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderSurfacingAtlantisToReleaseCargo(oUnit)
+    if not(oUnit.Dead) then
+        local toCargo = oUnit:GetCargo()
+        if M28Utilities.IsTableEmpty(toCargo) == false then
+            local iTeam = oUnit:GetAIBrain().M28Team
+            local refbCheckingToUnload = 'M28AtlUnC'
+            if not(oUnit[refbCheckingToUnload]) then
+                oUnit[refbCheckingToUnload] = true
+                --Do we want to surface to release? Check nearby enemy AA threat
+                local bHaveUnloaded = false
+                local iTimeToWait
+                local iCargoSize
+                while not(bHaveUnloaded) and not(oUnit.Dead) and M28Utilities.IsTableEmpty(oUnit:GetCargo()) == false do
+                    iTimeToWait = 40
+                    iCargoSize = table.getn(oUnit:GetCargo())
+
+                    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                    if tLZOrWZTeamData then
+                        if (tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) < 1000 then
+                            if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                                --Just release current cargo
+                                TrackTemporaryUnitMicro(oUnit, 2, nil, false)
+                                M28Orders.ReleaseStoredUnits(oUnit, false, 'AtlUnl', true)
+                                bHaveUnloaded = true
+                                break
+                            else
+                                --Do we want to surface to release? check for nearby enemy antisurface threats
+                                local iCargoWantedToSurface = 1
+                                if (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 0) > 2000 then
+                                    iCargoWantedToSurface = 5
+                                elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftEnemyLongRangeUnits]) == false then
+                                    iCargoWantedToSurface = 4
+                                elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                                    local iNearbySurfaceThreat = (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 0)
+                                    for _, iAdjWZ in tLZOrWZData[M28Map.subrefWZAdjacentWaterZones] do
+                                        local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                                        iNearbySurfaceThreat = iNearbySurfaceThreat + (tAdjWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 0)
+                                        if iNearbySurfaceThreat >= 4000 then
+                                            iCargoWantedToSurface = 4
+                                            break
+                                        end
+                                    end
+                                end
+                                if iCargoSize >= iCargoWantedToSurface then
+                                    --Surface unit
+                                    M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit)
+                                    local iMicroTotalTime = 15
+                                    TrackTemporaryUnitMicro(oUnit, iMicroTotalTime, nil, false)
+                                    local iTimeToWaitUntil = GetGameTimeSeconds() + iMicroTotalTime - 2
+                                    while M28UnitInfo.IsUnitUnderwater(oUnit) do
+                                        WaitSeconds(1)
+                                        if GetGameTimeSeconds() >= iTimeToWaitUntil then break end
+                                    end
+                                    WaitSeconds(1)
+                                    M28Orders.ReleaseStoredUnits(oUnit, false, 'AtlUnl', true)
+                                    bHaveUnloaded = true
+                                    ForkThread(SubmergeSubIfNoLongerWantSurfaced, oUnit, math.max(2, iTimeToWaitUntil + 2 - GetGameTimeSeconds())+0.1)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if iCargoSize > 1 then iTimeToWait = iTimeToWait * (1 - 0.15 * math.min(iCargoSize, 6)) end
+                    WaitSeconds(iTimeToWait)
+                end
+                oUnit[refbCheckingToUnload] = false
+            end
+        end
+    end
 end

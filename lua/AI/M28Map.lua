@@ -346,7 +346,12 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftoTMLBatteryUnits = 'TMLBtU' --table of TMLs forming part of the TML battery
             refiDetailedTMLTargetWithoutTMDCheckByPlateauAndZone = 'DetTrgt' --[x] = target plateau, [y] = target zone, returns number of potential TML targets that didnt appear to have a TMD that would cover them from a shot from a TML at the base zone's midpoint
             refiTimeOfLastDetailedTMLTMDCheckByPlateauAndZone = 'DetTMDt' --[x] = target plateau, [y] = target zone, returns gametimeseconds that we did a detailed TMD check
-            reftObjectiveSMDLocation = 'TSMDOL' --For campaign maps - locaiton of SMD to complete objective (doesnt have a time limit)
+            reftObjectiveLocation = 'TSMDOL' --For campaign maps - locaiton of objective to build a unit, e.g. building SMD or building radar objectives
+                subreftObjLocation = 'ObjLoc' --location {x,y,z}
+                subrefiObjLocationSize = 'ObjSize' --Size of the square for the objective location
+                subrefiObjCategoryToBuild = 'Cat' --Category to build at the location
+                subrefiObjTechLevelWanted = 'Tech' --Min tech level wanted for an engineer to attempt this
+                subrefiNumberWanted = 'Numb' --Total number of the category wanted around the obj location
             refiTimeOfLastSMDPrioritisationRequest = 'GetSMD' --Gametimeseconds that this zone was recorded as wanting SMD (will treat similarly to objectivesmd if request was made in last 6m)
 
             refbIgnoreEmergencyPDReassignmentLogic = 'EmPDAtv' --true if have logic monitoring emergency PD builders active
@@ -597,6 +602,8 @@ tPondDetails = {}
             subreftiWaterZonesTargetingThisWithSubmersibleNavy = 'WSBBTB'
             --subreftiLandZoneTargetedByOurCombat = 'LZTBD' --returns land zone ref we are sending DF units in this LZ or WZ to
             --subreftiWaterZoneTargetedByOurSurfaceCombat = 'WZTBD' --returns water zone ref we are sending combat units in this LZ or WZ to
+            subreftoAmphibiousConsolInWater = 'WZACUni' --table of amphibious units told to build up strength underwater before attacking a target LZ
+            subreftAmphibiousConsolWaterRally = 'WZACRal' --the rally point those amphibious units are consolidating at
 
             reftoWZUnitsWantingMobileShield = 'MShUnit'
             refbWZWantsMobileShield = 'bWntMSh'

@@ -938,7 +938,9 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time we last completed sEnhancmeent '..sEnhancement..' for oUnit owned by player '..oUnit:GetAIBrain().Nickname..'='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100)..'; Upgrade count before update='..(oUnit[M28ACU.refiUpgradeCount] or 'nil')) end
         if GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100) >= 0.5 then
             --Clear micro flag as we set it to true for some units to avoid orders overriding
-            if oUnit[M28UnitInfo.refbSpecialMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = nil end
+            if oUnit[M28UnitInfo.refbSpecialMicroActive] then
+                oUnit[M28UnitInfo.refbSpecialMicroActive] = nil
+            end
             if not(oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete]) then oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete] = {} end
             if oUnit[M28ACU.refbWantsPriorityUpgrade] then oUnit[M28ACU.refbWantsPriorityUpgrade] = nil end
             oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] = GetGameTimeSeconds()
@@ -2984,6 +2986,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 if EntityCategoryContains(M28UnitInfo.refCategoryRaider, oJustBuilt.UnitId) then
                                     ForkThread(M28Land.ConsiderAssigningRaider, oEngineer, oJustBuilt)
                                 end
+                                --Atlantis - surface and release cargo if it has a number of air units
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oEngineer.UnitId) and oEngineer.GetCargo then
+                                ForkThread(M28Micro.ConsiderSurfacingAtlantisToReleaseCargo, oEngineer)
                             end
 
 
@@ -4136,6 +4141,14 @@ function DeathTriggerAdded(oUnit)
         if oUnit.UnitId == 'uec1201' and ScenarioInfo.ResearchFacility == oUnit and not(oUnit.Dead) and M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 and oUnit:GetAIBrain().BrainType == 'Human' then
             --Add to table of units to repair subreftoUnitsToRepair, as it has been transferred from civilian to player 1
             M28Overseer.AddCampaignUnitToUnitsToRepair(oUnit, oUnit:GetAIBrain().M28Team)
+            --UEF M5 - Send trucks to gateway
+        elseif ScenarioInfo.M2TruckGroup1Delay and ScenarioInfo.NumUEFTrucksThroughGate and ScenarioInfo.NumUEFTrucksThroughGate < ScenarioInfo.RequiredUEFTrucks and ScenarioInfo.M3P2.Active and oUnit.UnitId == 'uec0001' then
+            WaitSeconds(10) --just in case the trucks move to their starting position
+            if not(oUnit.Dead) then
+                local rTargetRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
+                local tTargetMidpoint = {(rTargetRect['x0'] + rTargetRect['x1'])*0.5 , 0, (rTargetRect['y0'] + rTargetRect['y1'])*0.5}
+                ForkThread(M28Overseer.UEFMissionSendTruckToTarget, {oUnit}, tTargetMidpoint, ScenarioInfo.M3P2)
+            end
         end
     end
 end
