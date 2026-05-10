@@ -667,7 +667,7 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsAirUnitInCombat'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if GetGameTimeSeconds() >= 35*60+40 and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then bDebugMessages = true end
     local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
     if M28Utilities.IsTableEmpty(tLastOrder) then
         if bDebugMessages == true then LOG(sFunctionRef..': Air unit has no last orders so returning false') end
@@ -689,7 +689,7 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return false
                 end
-            elseif tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove then
+            elseif tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove or (true and GetGameTimeSeconds() >= 35*60+45 and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveMove) then
                 if oUnit[refoAirAACurTarget] and M28UnitInfo.IsUnitValid(oUnit[refoAirAACurTarget]) then
                     tOrderTarget = tTargetOverride or oUnit[refoAirAACurTarget]:GetPosition()
                     iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
@@ -710,7 +710,6 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
             if iDistToTarget < 100 then
                 local iDistThreshold = 100
                 if EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
-                    iDistThreshold = 30
                     iDistThreshold = math.min((oUnit[M28UnitInfo.refiAARange] or 35) - 5, 50)
                     if oUnit[refoAirAACurTarget].UnitId then
                         if oUnit[refoAirAACurTarget].Dead then
@@ -895,6 +894,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
     for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
         if oBrain.M28AI then
             local tCurUnits = oBrain:GetListOfUnits(iCategory, false, true)
+            if GetGameTimeSeconds() >= 35*60+40 and tCurUnits[1] and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, tCurUnits[1].UnitId) then bDebugMessages = true end
             local iFuelPercent
             local iHealthPercent
             local bSendUnitForRefueling
@@ -953,7 +953,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
                                 end
                             end
 
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs of tLastOrder='..reprs(tLastOrder)..'; Is oExistingValidAttackTarget valid='..tostring(M28UnitInfo.IsUnitValid(oExistingValidAttackTarget))..'; refoStrikeDamageAssigned='..(oUnit[refoStrikeDamageAssigned].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(refoStrikeDamageAssigned) or 'nil')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; LastOrder type='..(tLastOrder[M28Orders.subrefiOrderType] or 'nil')..'; subreftOrderPosition='..repru(tLastOrder[M28Orders.subreftOrderPosition] or {'nil'})..'; subrefoOrderUnitTarget='..(tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')..'; Is oExistingValidAttackTarget valid='..tostring(M28UnitInfo.IsUnitValid(oExistingValidAttackTarget))..'; refoStrikeDamageAssigned='..(oUnit[refoStrikeDamageAssigned].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(refoStrikeDamageAssigned) or 'nil')) end
                             if oUnit:IsUnitState('Attached') then
                                 --Clear any orders it might have as it is refueling
                                 if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel then
@@ -3407,18 +3407,20 @@ function TargetUnitWithAirAA(oAirAA, oEnemyUnit, iOptionalClosestDist)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function UpdateOrdersForExistingAirAATargets(tInCombatUnits, bReturnTableOfAssignedThreat)
+function UpdateOrdersForExistingAirAATargets(tInCombatUnits, bReturnTableOfAssignedThreat, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateOrdersForExistingAirAATargets'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local sUnitRef
     local tExistingThreatAssignedByUnitRef = {}
+    if GetGameTimeSeconds() >= 35*60+40 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': updating orders for all InCombatUnits, bReturnTableOfAssignedThreat='..tostring(bReturnTableOfAssignedThreat or false)..'; Is table of tInCombatUnits empty='..tostring(M28Utilities.IsTableEmpty(tInCombatUnits))..'; Brain of first in combat unit='..tInCombatUnits[1]:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
     for iAAUnit, oAirAA in tInCombatUnits do
         if bDebugMessages == true then LOG(sFunctionRef..': Updating orders for oAirAA unit='..oAirAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirAA)..'; Is cur target valid='..tostring(M28UnitInfo.IsUnitValid(oAirAA[refoAirAACurTarget]))) end
         --Update move orders
         if M28UnitInfo.IsUnitValid(oAirAA[refoAirAACurTarget]) then
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] = M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] + 1
             if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to target enemy unit '..oAirAA[refoAirAACurTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirAA[refoAirAACurTarget])..' with oAirAA='..oAirAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirAA)..' at time='..GetGameTimeSeconds()) end
             TargetUnitWithAirAA(oAirAA, oAirAA[refoAirAACurTarget])
 
@@ -4065,7 +4067,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 34.5*60 then bDebugMessages = true end
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits, tInCombatUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryAirAA)
@@ -4166,9 +4168,19 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 
     --Update orders for any in combat airaa units, and track the assigned damage to them
     local tExistingThreatAssignedByUnitRef = {}
+    M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] = 0
     if M28Utilities.IsTableEmpty(tInCombatUnits) == false then
-        if bDebugMessages == true then LOG(sFunctionRef..': About to update orders for all incombat units, iTeam='..iTeam..'; iAirSubteam='..iAirSubteam..'; Time='..GetGameTimeSeconds()) end
-        tExistingThreatAssignedByUnitRef = UpdateOrdersForExistingAirAATargets(tInCombatUnits, not(M28Utilities.IsTableEmpty(tAvailableAirAA)))
+        tExistingThreatAssignedByUnitRef = UpdateOrdersForExistingAirAATargets(tInCombatUnits, not(M28Utilities.IsTableEmpty(tAvailableAirAA)), iAirSubteam)
+        if bDebugMessages == true then LOG(sFunctionRef..': Just updated orders for all incombat units, iTeam='..iTeam..'; iAirSubteam='..iAirSubteam..'; refiAirAAInCombat='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    end
+    --If have lots of airaa in combat then send any refueling airaa to be available (i.e. want to suicide)
+    if true and GetGameTimeSeconds() >= 35*60+48 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] >= 8 and M28Utilities.IsTableEmpty(tAirForRefueling) == false and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] >= 16 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] * 450 * 5) then
+        if not(tAvailableAirAA) then tAvailableAirAA = {} end
+        if bDebugMessages == true then LOG(sFunctionRef..': Will have all refueling air remain and fight') end
+        for iUnit, oUnit in tAirForRefueling do
+            table.insert(tAvailableAirAA, oUnit)
+        end
+        tAirForRefueling = nil
     end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAirAAForCoreEnemies] = true
     if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
@@ -5077,7 +5089,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                             end
                                         end
                                         if bDebugMessages == true then
-                                            local tUnitLZOrWZData, tUnitLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                            local tUnitLZOrWZData, tUniTmtLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
                                             LOG(sFunctionRef..': Do we have enemy targets after checking for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'? table is empty='..tostring(M28Utilities.IsTableEmpty(tEnemyAirTargets))..'; iUnitPlateau='..iUnitPlateau..'; iUnitLandOrWaterZone='..iUnitLandOrWaterZone..'; Enemy LZ groundAA='..(tUnitLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; ENemy WZ AA='..(tUnitLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 'nil')..'; Enemy AirAA='..(tUnitLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil'))
                                         end
                                         if M28Utilities.IsTableEmpty(tEnemyAirTargets) == false then
@@ -5087,12 +5099,60 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                     end
                                 end
                             end
+                            --Available AirAA and are in a large air fight (so we dont retreat with some of them just because we arent sure we will win the air fight)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will add existing targets for all airaa units if in large air fight with available airaa, is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; Is tInCombatUnits empty='..tostring(M28Utilities.IsTableEmpty(tInCombatUnits))..'; is tEnemyAirTargets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyAirTargets))) end
+                            if true and GetGameTimeSeconds() >= 35*60+30 and M28Utilities.IsTableEmpty(tAvailableAirAA) == false and M28Utilities.IsTableEmpty(tInCombatUnits) == false then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Number of incombat airaa='..table.getn(tInCombatUnits)) end
+                                local iCurInCombatUnits = table.getn(tInCombatUnits)
+                                if iCurInCombatUnits >= 10 or (iCurInCombatUnits >= 5 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= 45000 and table.getn(tAvailableAirAA) < iCurInCombatUnits * 5) then
+                                    local tbEntityIDIncluded = {}
+                                    if M28Utilities.IsTableEmpty(tEnemyAirTargets) == false then
+                                        for iExistingTarget, oExistingTarget in tEnemyAirTargets do
+                                            tbEntityIDIncluded[oExistingTarget.EntityId] = true
+                                        end
+                                    end
+                                    local oClosestInCombatEnemyAirAA, iCurDist
+                                    local iClosestInCombatEnemyAirAA = 10000
+                                    local tStartPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
+                                    for iUnit, oUnit in tInCombatUnits do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is targeting refoAirAACurTarget='..oUnit[refoAirAACurTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoAirAACurTarget])..' with refiAARange='..(oUnit[refoAirAACurTarget][M28UnitInfo.refiAARange] or 'nil')) end
+                                        if oUnit[refoAirAACurTarget].EntityId and not(tbEntityIDIncluded[oUnit[refoAirAACurTarget].EntityId]) and not(oUnit[refoAirAACurTarget].Dead) and (oUnit[refoAirAACurTarget][M28UnitInfo.refiAARange] or 0) > 0 then
+                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit[refoAirAACurTarget]:GetPosition(), tStartPoint)
+                                            if iCurDist < iClosestInCombatEnemyAirAA then
+                                                iClosestInCombatEnemyAirAA = iCurDist
+                                                oClosestInCombatEnemyAirAA = oUnit[refoAirAACurTarget]
+                                            end
+                                            tbEntityIDIncluded[oUnit[refoAirAACurTarget].EntityId] = true
+                                            table.insert(tEnemyAirTargets,  oUnit[refoAirAACurTarget])
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Added existing AirAA target') end
+                                        end
+                                    end
+                                    if oClosestInCombatEnemyAirAA then
+                                        --Attack any airaa units in the area around the nearest enemy AirAA (will use enemy brain since human player would be able to attack without needing visual of the units and saves M28 performance with having to use M28 memory)
+                                        local toNearbyAirAA = oClosestInCombatEnemyAirAA:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryAirAA, oClosestInCombatEnemyAirAA:GetPosition(), 60, 'Ally')
+                                        if M28Utilities.IsTableEmpty(toNearbyAirAA) == false then
+                                            for iEnemyUnit, oEnemyUnit in toNearbyAirAA do
+                                                if oEnemyUnit.EntityId and not(tbEntityIDIncluded[oEnemyUnit.EntityId]) and (oEnemyUnit[M28UnitInfo.refiAARange] or 0) > 0 then
+                                                    tbEntityIDIncluded[oEnemyUnit.EntityId] = true
+                                                    table.insert(tEnemyAirTargets,  oEnemyUnit)
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Added oEnemyUnit='..oEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit)..' to AirAA target') end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': is tEnemyAirTargets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyAirTargets))) end
+                                if M28Utilities.IsTableEmpty(tEnemyAirTargets) == false then
+                                    AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets, iTeam, iAirSubteam, tExistingThreatAssignedByUnitRef, false)
+                                end
+                            end
 
                             --If have enemy air t argets, and available AirAA, then send more asfs to engage
                             if bDebugMessages == true then LOG(sFunctionRef..': Finished considering targets, will assign even more airaa if have available AirAA left, is tEnemyAirTargets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyAirTargets))..'; Is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))) end
                             if M28Utilities.IsTableEmpty(tEnemyAirTargets) == false and M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
                                 AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets, iTeam, iAirSubteam, tExistingThreatAssignedByUnitRef, true)
                             end
+
 
 
                             --If still have available air send them to the support location (unless they could do with a fuel or health top-up); if theyre already there and have low mass consider ctrl-king inties

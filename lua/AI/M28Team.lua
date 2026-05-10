@@ -323,6 +323,7 @@ tAirSubteamData = {}
     toFrontAttackingTorpBomber = 'M28FrnTrp' --If we are attacking with torp bombers then this should record the front torp bomber
     reftoActiveBomberTargets = 'M28BmbTr' --table of enemy units currently being targeted by bombers (gets reset each air cycle and repopulated based on unavailable bombers and attack orders given to bombers)
     refiLastAirAASupportPointAngleAdjust = 'M28SupAng' --will adjust the support point slightly to try and keep asfs moving in a similar direction
+    refiAirAAInCombat = 'AInAirF' --Number of AirAA units in combat in the last cycle
 
 
 --Land subteam data varaibles (used for factory production logic)
