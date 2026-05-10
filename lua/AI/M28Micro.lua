@@ -2605,7 +2605,7 @@ function T1OrT3HoverBombTarget(oBomber, oTarget, bDontAdjustMicroFlag, bContinue
 end
 
 function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit, iOrigDistFromEnemyACU)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SuicideExperimentalIntoEnemyACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Time='..GetGameTimeSeconds()) end
@@ -2615,7 +2615,6 @@ function SuicideExperimentalIntoEnemyACU(oUnit, oClosestACUNearUnit, iOrigDistFr
         M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityExpSnipeACU, false)
         local iCurDist
         local bLastOrderWasManualAttack
-        if oUnit.UnitId == 'ual0401' then bDebugMessages = true end
         local bCheckForExperimentals = EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0
         local iTeam = oUnit:GetAIBrain().M28Team
         local iCurExpDist

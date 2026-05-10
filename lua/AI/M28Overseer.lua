@@ -3923,7 +3923,6 @@ function UEFBlackSunComponentCheckForTransport()
                                         WaitSeconds(1)
                                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                                     end
-                                    bDebugMessages = true
                                     if M28UnitInfo.IsUnitValid(oTransportToGiveOrder) and M28UnitInfo.IsUnitValid(oComponent) and oComponent:IsUnitState('Attached') then
                                         M28Orders.IssueTrackedTransportUnload(oTransportToGiveOrder, tTargetMidpoint, 5, false, 'ObjUnl', true)
                                         oTransportToGiveOrder[M28UnitInfo.refbSpecialMicroActive] = true

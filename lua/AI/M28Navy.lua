@@ -3595,7 +3595,6 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'WSRetrFrM'..iWaterZone)
                     end
                 else
-                    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ues03024' then bDebugMessages = true else bDebugMessages = false end
                     if bDebugMessages == true then LOG(sFunctionRef..': Dist to tRallyPoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)..'; is rally in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tRallyPoint))) end
                     if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 or (bCheckPlayableArea and not(M28Conditions.IsLocationInPlayableArea(tRallyPoint))) then
                         M28Orders.IssueTrackedAttackMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrNA'..iWaterZone)

@@ -667,7 +667,7 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsAirUnitInCombat'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 35*60+40 and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then bDebugMessages = true end
+
     local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
     if M28Utilities.IsTableEmpty(tLastOrder) then
         if bDebugMessages == true then LOG(sFunctionRef..': Air unit has no last orders so returning false') end
@@ -689,7 +689,7 @@ function IsAirUnitInCombat(oUnit, iTeam, tTargetOverride)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return false
                 end
-            elseif tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove or (true and GetGameTimeSeconds() >= 35*60+45 and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveMove) then
+            elseif tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveMove then
                 if oUnit[refoAirAACurTarget] and M28UnitInfo.IsUnitValid(oUnit[refoAirAACurTarget]) then
                     tOrderTarget = tTargetOverride or oUnit[refoAirAACurTarget]:GetPosition()
                     iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
@@ -894,7 +894,6 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
     for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
         if oBrain.M28AI then
             local tCurUnits = oBrain:GetListOfUnits(iCategory, false, true)
-            if GetGameTimeSeconds() >= 35*60+40 and tCurUnits[1] and EntityCategoryContains(M28UnitInfo.refCategoryAirAA, tCurUnits[1].UnitId) then bDebugMessages = true end
             local iFuelPercent
             local iHealthPercent
             local bSendUnitForRefueling
@@ -3414,7 +3413,6 @@ function UpdateOrdersForExistingAirAATargets(tInCombatUnits, bReturnTableOfAssig
 
     local sUnitRef
     local tExistingThreatAssignedByUnitRef = {}
-    if GetGameTimeSeconds() >= 35*60+40 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': updating orders for all InCombatUnits, bReturnTableOfAssignedThreat='..tostring(bReturnTableOfAssignedThreat or false)..'; Is table of tInCombatUnits empty='..tostring(M28Utilities.IsTableEmpty(tInCombatUnits))..'; Brain of first in combat unit='..tInCombatUnits[1]:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
     for iAAUnit, oAirAA in tInCombatUnits do
         if bDebugMessages == true then LOG(sFunctionRef..': Updating orders for oAirAA unit='..oAirAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirAA)..'; Is cur target valid='..tostring(M28UnitInfo.IsUnitValid(oAirAA[refoAirAACurTarget]))) end
@@ -4126,7 +4124,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         local iAdjustValue = 0.1 * math.min(1.7, (M28Team.tTeamData[iTeam][M28Team.refiAirAALossesToAir] - M28Team.tTeamData[iTeam][M28Team.refiAirAAKills]) / 20000)
         iFarBehindFactor = math.min(0.99, iFarBehindFactor + iAdjustValue)
         iAirControlFactor = math.max(iAirControlFactor + 0.1, math.min(1.55, iAirControlFactor + iAdjustValue))
-        if true and GetGameTimeSeconds() >= 39*60+40 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
+        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
             iAirAAHeavyLossesReduceAirAAThresholdFactor = iAirAAHeavyLossesReduceAirAAThresholdFactor - math.min(0.2, iAdjustValue)
             if bDebugMessages == true then LOG(sFunctionRef..': iAirAAHeavyLossesReduceAirAAThresholdFactor='..iAirAAHeavyLossesReduceAirAAThresholdFactor) end
         end
@@ -4178,7 +4176,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         if bDebugMessages == true then LOG(sFunctionRef..': Just updated orders for all incombat units, iTeam='..iTeam..'; iAirSubteam='..iAirSubteam..'; refiAirAAInCombat='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] or 'nil')..'; Time='..GetGameTimeSeconds()) end
     end
     --If have lots of airaa in combat then send any refueling airaa to be available (i.e. want to suicide)
-    if true and GetGameTimeSeconds() >= 35*60+48 and M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] >= 8 and M28Utilities.IsTableEmpty(tAirForRefueling) == false and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] >= 16 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] * 450 * 5) then
+    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] >= 8 and M28Utilities.IsTableEmpty(tAirForRefueling) == false and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] >= 16 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= M28Team.tAirSubteamData[iAirSubteam][M28Team.refiAirAAInCombat] * 450 * 5) then
         if not(tAvailableAirAA) then tAvailableAirAA = {} end
         if bDebugMessages == true then LOG(sFunctionRef..': Will have all refueling air remain and fight') end
         for iUnit, oUnit in tAirForRefueling do
@@ -5115,7 +5113,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                             end
                             --Available AirAA and are in a large air fight (so we dont retreat with some of them just because we arent sure we will win the air fight)
                             if bDebugMessages == true then LOG(sFunctionRef..': Will add existing targets for all airaa units if in large air fight with available airaa, is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; Is tInCombatUnits empty='..tostring(M28Utilities.IsTableEmpty(tInCombatUnits))..'; is tEnemyAirTargets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyAirTargets))) end
-                            if true and GetGameTimeSeconds() >= 35*60+30 and M28Utilities.IsTableEmpty(tAvailableAirAA) == false and M28Utilities.IsTableEmpty(tInCombatUnits) == false then
+                            if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and M28Utilities.IsTableEmpty(tInCombatUnits) == false then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Number of incombat airaa='..table.getn(tInCombatUnits)) end
                                 local iCurInCombatUnits = table.getn(tInCombatUnits)
                                 if iCurInCombatUnits >= 10 or (iCurInCombatUnits >= 5 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= 45000 and table.getn(tAvailableAirAA) < iCurInCombatUnits * 5) then
@@ -7460,7 +7458,7 @@ function ManageGunships(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageGunships'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 39.5*60 then bDebugMessages = true end
+
     local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryTransport * categories.EXPERIMENTAL + M28UnitInfo.refCategoryAAGunship, nil, not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets])))
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))..'; Is table of active snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.toActiveSnipeTargets]))) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tGunshipsForRefueling, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, false)

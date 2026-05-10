@@ -1935,7 +1935,6 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28UnitInfo.IsUnitValid(oLauncher) and not(oLauncher[refbActiveMissileChecker]) then
         local aiBrain = oLauncher:GetAIBrain()
-        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySML) >= 3 and GetGameTimeSeconds() >= 90*60 then bDebugMessages = true end
         local iSecondsToWaitIfNoTarget = 10
         if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.HostileCampaignAI='..tostring(aiBrain.HostileCampaignAI or false)..'; ScenarioInfo.Options.CmpAIDelay='..tonumber((ScenarioInfo.Options.CmpAIDelay or 1))..'; ScenarioInfo.OpEnded='..tostring(ScenarioInfo.OpEnded or false)..'; Time='..GetGameTimeSeconds()) end
         if not(aiBrain.HostileCampaignAI) or tonumber(ScenarioInfo.Options.CmpAIDelay) <= GetGameTimeSeconds() then

@@ -4076,7 +4076,6 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': oGateway='..(oGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGateway))..'; bHaveRASGateway='..tostring(bHaveRASGateway)) end
-            bDebugMessages = false
             if oGateway then
                 if not(bHaveRASGateway) then
                     --Do we have a T3+ 'other' factory type on the team, for a non-sera faction?
