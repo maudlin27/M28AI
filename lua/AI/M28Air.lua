@@ -3165,12 +3165,14 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
         --Have air staging available for units to refuel, cycle through each air unit and find the closest air staging to it that has sufficient capacity to take it
         local iClosestAirStagingDist, iCurDist, iClosestAirStagingRef
         local iCurSize
-        --Sort between higher and lower priority units for refueling
-        for iUnit, oAirUnit in tUnitsForRefueling do
-            if M28UnitInfo.GetUnitHealthPercent(oAirUnit) <= 0.8 or (oAirUnit.GetFuelRatio and oAirUnit:GetFuelRatio() <= 0.1) then
-                table.insert(tPriorityUnitsForRefueling, oAirUnit)
-            else
-                table.insert(tLowerPriorityUnitsForRefueling, oAirUnit)
+        if tUnitsForRefueling then
+            --Sort between higher and lower priority units for refueling
+            for iUnit, oAirUnit in tUnitsForRefueling do
+                if M28UnitInfo.GetUnitHealthPercent(oAirUnit) <= 0.8 or (oAirUnit.GetFuelRatio and oAirUnit:GetFuelRatio() <= 0.1) then
+                    table.insert(tPriorityUnitsForRefueling, oAirUnit)
+                else
+                    table.insert(tLowerPriorityUnitsForRefueling, oAirUnit)
+                end
             end
         end
 
@@ -4182,7 +4184,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         for iUnit, oUnit in tAirForRefueling do
             table.insert(tAvailableAirAA, oUnit)
         end
-        tAirForRefueling = nil
+        tAirForRefueling = { }
     end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAirAAForCoreEnemies] = true
     if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
