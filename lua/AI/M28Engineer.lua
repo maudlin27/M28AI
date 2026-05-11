@@ -6063,7 +6063,6 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
     end
 
     local iTotalMassAtStartOfCodeInZone = tLZOrWZData[M28Map.subrefTotalMassReclaim] --used to give error message if 0 and we couldnt find reclaim
-
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iPlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; bWantEnergyNotMass='..tostring(bWantEnergyNotMass or false)..'; bOnlyConsiderReclaimInRangeOfEngineer='..tostring(bOnlyConsiderReclaimInRangeOfEngineer or false)..'; iMinIndividualValueOverride='..(iMinIndividualValueOverride or 'nil')..'; bIsWaterZone='..tostring(bIsWaterZone or false)..'; Total mass in zone='..tLZOrWZData[M28Map.subrefTotalMassReclaim]..'; Total significant mass='..tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]..'; tLZOrWZData[M28Map.subrefHighestIndividualReclaim]='..(tLZOrWZData[M28Map.subrefHighestIndividualReclaim] or 'nil')..'; iTotalMassAtStartOfCodeInZone='..(iTotalMassAtStartOfCodeInZone or 'nil')) end
     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefReclaimSegments]) == false then
         local iClosestSegmentDist = 100000
@@ -12748,8 +12747,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
         --Then have 1-2 engis search for reclaim generally
         iCurPriority = iCurPriority + 1
-        if bDebugMessages == true then LOG(sFunctionRef..': High priority engis for reclaim, iCurPriority='..iCurPriority..'; iBPWanted='..iBPWanted) end
-        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, {false, nil})
+        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 100 then --Incase refreshed value from above and have much less
+            if bDebugMessages == true then LOG(sFunctionRef..': High priority engis for reclaim, iCurPriority='..iCurPriority..'; iBPWanted='..iBPWanted) end
+            HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, {false, nil})
+        end
 
 
     else
@@ -16993,7 +16994,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
         --Then have 1-2 engis search for reclaim generally if we dont have unclaimed mexes and havent run from enemy recently
         iCurPriority = iCurPriority + 1
-        if (not(bEngineersRecentlyRunFromEnemy) or tLZData[M28Map.subrefHighestIndividualReclaim] < 50) and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZOrWZMexCount] then
+        --possible reclai mvalues have cahnged as if we ran above reclaimarea then we may have refreshed values, so recheck we have at least some significant mass reeclaim
+        if tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 100 and ((not(bEngineersRecentlyRunFromEnemy) or tLZData[M28Map.subrefHighestIndividualReclaim] < 50) and tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZOrWZMexCount]) then
             if bDebugMessages == true then LOG(sFunctionRef..': We have no unclaimed mexes so will consider having high priority reclaimers, bEngineersRecentlyRunFromEnemy='..tostring(bEngineersRecentlyRunFromEnemy)) end
             if bEngineersRecentlyRunFromEnemy then iBPWanted = 5
             elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.03 and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 1000 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
@@ -17008,11 +17010,13 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will assign '..iBPWanted..' to high priorty reclaimer') end
             HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, {false, nil})
         end
     else
         iCurPriority = iCurPriority + 1
     end
+    bDebugMessages = false
 
     --Low power - if at T1, and have lots of mass income but poor E, and lots of mexes in zone (6+), then build t1 pgen as very high priority instead of more t1 mexes
     iCurPriority = iCurPriority + 1
