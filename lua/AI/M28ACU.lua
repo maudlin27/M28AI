@@ -614,7 +614,6 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
 
@@ -665,9 +664,14 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local bACUWantsToRun = DoesACUWantToRun(iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, oACU)
     local bProceedWithLogic = true
     local iCurLandFacs = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)
-    if iCurLandFacs >= 1 and iPlateauOrZero > 0 and (not(M28Map.bIsCampaignMap) or iPlateauOrZero == 0 or not(bACUWantsToRun)) and AttackNearestEnemyWithACU(iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, oACU, iSearchDistance) then
+    if iCurLandFacs >= 1 and iPlateauOrZero > 0 and (iPlateauOrZero == 0 or not(bACUWantsToRun) or M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false) and AttackNearestEnemyWithACU(iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, oACU, iSearchDistance) then
         if bDebugMessages == true then LOG(sFunctionRef..': ACU has enemies within 40 of it so will attack as we already have a factory complete') end
         bProceedWithLogic = false
+        --Consider clearing early game flag
+        if iCurLandFacs >= 2 and GetGameTimeSeconds() >= 240 / aiBrain[M28Economy.refiBrainBuildRateMultiplier] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 20 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.4 and (oACU[refiUpgradeCount] > 0 or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 24 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) > 0) or bACUWantsToRun) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will clear initial build order flag as are nearby enemies so not getting a chance to build everything but have several factories and decent eco') end
+            oACU[refbDoingInitialBuildOrder] = false
+        end
     elseif bACUWantsToRun and M28Map.bIsCampaignMap and iCurLandFacs >= 1 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
         --Retreat from nearest enemy
         local bHaveRun = false
