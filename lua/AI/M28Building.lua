@@ -4464,7 +4464,7 @@ function JustBuiltParagon(oParagon)
                     --SACUs lose upgrades on transfer!
                     local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
                     local iMaxEngineersToGift = math.max(aiBrain[M28Overseer.refiExpectedRemainingCap] * 0.5, 30)
-                    if iMaxEngineersToGift < 80 and GetArmyUnitCap(aiBrain:GetArmyIndex()) >= 700 and M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] >= 1 then iMaxEngineersToGift = math.min(80, math.max(iMaxEngineersToGift, 30 + 20 * M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel])) end
+                    if iMaxEngineersToGift < 80 and GetArmyUnitCap(aiBrain:GetArmyIndex()) >= 700 and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) >= 1 then iMaxEngineersToGift = math.min(80, math.max(iMaxEngineersToGift, 30 + 20 * M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel])) end
                     local iEngineersGifted = 0
                     if bDebugMessages == true then LOG(sFunctionRef..': Getting details of engineers and factories and T1-T2 mexes to gift from paragon owner to teammates, iMaxEngineersToGift='..iMaxEngineersToGift) end
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
