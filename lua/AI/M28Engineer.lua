@@ -21489,7 +21489,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                         if iRange >= iBestEnemyRange then iCurIFThreat = iCurIFThreat + iThreat end
                     end
                 end
-                local iThreatWanted = math.max(iEnemyLongRangeThreat * 1.5, iHighestIndividiualLongRangeThreat * 0.75, iLongRangeFurtherAwayThreat) + iNearbyEnemyFixedShieldThreat * 5 - iCurDFThreat * 0.75 - iCurIFThreat
+                local iThreatWanted = math.max(iEnemyLongRangeThreat * 1.5, iHighestIndividiualLongRangeThreat * 0.75, iLongRangeFurtherAwayThreat) + math.max(iNearbyEnemyFixedShieldThreat * 2, math.min(14000, iNearbyEnemyFixedShieldThreat * 5)) - iCurDFThreat * 0.75 - iCurIFThreat
                 if iNearbyEnemyFixedShieldThreat > 0 and iEnemyLongRangeThreat > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
                     if iThreatWanted >= 4000 or (not(bHaveLowMass) and not(bHaveLowPower) and (tLZTeamData[M28Map.subrefMexCountByTech][3] or 0) >= math.min(4, tLZData[M28Map.subrefLZOrWZMexCount]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
                         iThreatWanted = math.max(10000, iThreatWanted)
