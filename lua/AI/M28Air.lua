@@ -3312,13 +3312,27 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
                     end
                 end
             end
+            local bIdleLowFuelUnitsOnGround = (M28Utilities.IsTableEmpty(tAirStagingUnitsAndCapacity) and (M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyAirFactoryTech] == 1 or (M28Overseer.bUnitRestrictionsArePresent and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryAirStaging) == 0)))
+            if not(bIdleLowFuelUnitsOnGround) and table.getn(tUnitsUnableToRefuel) >= 10 then
+                local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tRefuelBase, true, iTeam)
+                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeIFThreat] or 0) == 0 then
+                    bIdleLowFuelUnitsOnGround = true
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bIdleLowFuelUnitsOnGround='..tostring(bIdleLowFuelUnitsOnGround)..'; bConsiderKillingUnits='..tostring(bConsiderKillingUnits)) end
             for iUnit, oUnit in tUnitsUnableToRefuel do
                 if bDebugMessages == true then LOG(sFunctionRef..': Telling unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to move to refuel location, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Cur dist to tRefuelBase='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRefuelBase)) end
-                M28Orders.IssueTrackedMove(oUnit, tRefuelBase, 10, false, 'WntStgn', false)
-                if bConsiderKillingUnits and ((M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) < 0 or oUnit:GetFuelRatio() <= 0.1 and oUnit:GetFuelRatio() >= 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap))) and (not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2)) then --(experimental condition is a redundancy)
+                if bConsiderKillingUnits and ((M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) < 0 or oUnit:GetFuelRatio() <= 0.1 and oUnit:GetFuelRatio() >= 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap))) and (not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2)) then --(experimental condition is a redundancy)
                     ForkThread(M28Micro.MoveAndKillAirUnit,oUnit)
                     --M28Orders.IssueTrackedKillUnit(oUnit)
                     bConsiderKillingUnits = false --max one per second
+                else
+                    --If unit is close to the refuel base and we lack air staging at all then have it idle on ground
+                    if bIdleLowFuelUnitsOnGround and oUnit.GetFuelRatio and oUnit:GetFuelRatio() < 0.8 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRefuelBase) <= 60 then
+                        --Do nothing
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, tRefuelBase, 10, false, 'WntStgn', false)
+                    end
                 end
             end
         end
