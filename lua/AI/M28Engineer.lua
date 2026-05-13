@@ -14732,8 +14732,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Second power builder to help scale power late game if high on mass, or earlier on if getting lots of mass and low power and already have a number of pgens of current tech
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Second power builder check, bWantMorePower='..tostring(bWantMorePower)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bSaveMassForMML='..tostring(bSaveMassForMML)..'; bPrioritiseProduction='..tostring(bPrioritiseProduction)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir]='..(M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 'nil')) end
-    if bWantMorePower and not(bHaveLowMass) and not(bSaveMassForMML) and (not(bPrioritiseProduction) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.35 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.15)) and ((M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 0) >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 0.5 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 40 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) * 1.25 or bHaveLowPower) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Second power builder check, bWantMorePower='..tostring(bWantMorePower)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bSaveMassForMML='..tostring(bSaveMassForMML)..'; bPrioritiseProduction='..tostring(bPrioritiseProduction)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir]='..(M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 'nil')..'; refiHighestBrainBuildMultiplier='..M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier]) end
+    if bWantMorePower and (not(bHaveLowMass) or (bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) and not(bSaveMassForMML) and (not(bPrioritiseProduction) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.35 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.15)) and ((M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 0) >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 0.5 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] > 32 * math.max(aiBrain[M28Economy.refiBrainResourceMultiplier], aiBrain[M28Economy.refiBrainBuildRateMultiplier]))) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 40 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) * 1.25 or bHaveLowPower) then
         iBPWanted = tiBPByTech[(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 1)] * 10
         --reduce BP wanted if dont have massive amount of mass
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 5000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 then iBPWanted = iBPWanted * 0.6 end
@@ -14957,7 +14957,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to build a factory, bWantMoreFactories='..tostring(bWantMoreFactories)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Mass % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Highest tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; subrefbTeamIsStallingMass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Have air control='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl])..'; refbBaseInSafePosition='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition])) end
     if bWantMoreFactories and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 11 and
-        (not(bHaveLowMass) or (tLZTeamData[M28Map.refbBaseInSafePosition] and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 and not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and GetGameTimeSeconds() <= 600 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.05) or (M28Map.iMapSize <= 256 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 150 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0)))) and (iFactoriesInLZ == 0 or not(bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) then
+            (not(bHaveLowMass) or (tLZTeamData[M28Map.refbBaseInSafePosition] and aiBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 and not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and GetGameTimeSeconds() <= 600 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.05) or (M28Map.iMapSize <= 256 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 150 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0)))) and (iFactoriesInLZ == 0 or not(bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) then
         if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 0) > 0 then
             if bHaveLowMass then iBPWanted =  tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
             else iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 4
@@ -16256,6 +16256,27 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 --HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
                 HaveActionToAssign(refActionRepairUnit, 1,                  300,                oBuildingToAssist, true,                    true, nil, nil, true) --max 300 BP to allow for a very slight spreading of engineers where have lots
                 iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+            end
+        end
+
+        --Ctrl-K engineers if have lots and at unit cap and idle
+        if iHighestTechEngiAvailable > 0 and aiBrain[M28Overseer.refbCloseToUnitCap] == true and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) >= 150 then
+            local bHaveTriedToKillEngineer = false
+            local iIdleEngineers = 0
+            for iCurEngiTechLevel = 1, 3 do
+                iIdleEngineers = table.getn(toAvailableEngineersByTech[iCurEngiTechLevel])
+            end
+            if iIdleEngineers >= 8 then
+                for iCurEngiTechLevel = 1, 3 do
+                    for iEngi, oEngi in toAvailableEngineersByTech[iCurEngiTechLevel] do
+                        if oEngi:GetAIBrain() == aiBrain then
+                            M28Orders.IssueTrackedKillUnit(oEngi)
+                            bHaveTriedToKillEngineer = true
+                            break
+                        end
+                    end
+                    if bHaveTriedToKillEngineer then break end
+                end
             end
         end
 
@@ -18627,6 +18648,26 @@ end--]]
                                 HaveActionToAssign(refActionAttackMoveToLandZone, 1, 5, iAdjLZ, true, true,                    nil,                            nil,            false) --Dont treat it as spare action, or else it gets orders overwritten and can end up in a loop where it moves to another zone and that zone sends it back home
                                 iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
                                 if iHighestTechEngiAvailable == 0 then break end
+                            end
+                        end
+                        --Ctrl-K if close to unit cap
+                        if iHighestTechEngiAvailable > 0 and aiBrain[M28Overseer.refbCloseToUnitCap] == true and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) >= 150 then
+                            local bHaveTriedToKillEngineer = false
+                            local iIdleEngineers = 0
+                            for iCurEngiTechLevel = 1, 3 do
+                                iIdleEngineers = table.getn(toAvailableEngineersByTech[iCurEngiTechLevel])
+                            end
+                            if iIdleEngineers >= 4 then
+                                for iCurEngiTechLevel = 1, 3 do
+                                    for iEngi, oEngi in toAvailableEngineersByTech[iCurEngiTechLevel] do
+                                        if oEngi:GetAIBrain() == aiBrain then
+                                            M28Orders.IssueTrackedKillUnit(oEngi)
+                                            bHaveTriedToKillEngineer = true
+                                            break
+                                        end
+                                    end
+                                    if bHaveTriedToKillEngineer then break end
+                                end
                             end
                         end
                     end

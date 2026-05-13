@@ -4766,3 +4766,10 @@ function DoWeWantToBuildObjectiveCategory(tObjectiveLocationSubtable)
     end
     return true
 end
+
+function IsAirMoveLocationSafeToIdle(tMoveLocation, iTeam, bRequireCoreBase)
+    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tMoveLocation, true, iTeam)
+    if (not(bRequireCoreBase) or tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeIFThreat] or 0) == 0 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
+        return true
+    end
+end
