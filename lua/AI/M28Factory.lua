@@ -532,13 +532,14 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             if tLZTeamData[M28Map.subrefLZbCoreBase] and oFactory[refiTotalBuildCount] >= 5 then iMaxSpareWanted = 0
             else iMaxSpareWanted = 1
             end
-            if GetGameTimeSeconds() - iLastTimeOfSpareEngi <= 10 and GetGameTimeSeconds() >= 300 and (tLZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refiTotalBuildCount] >= 15) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] or 0) <= 0.3 then iMaxSpareWanted = -1 end
+
+            if GetGameTimeSeconds() - iLastTimeOfSpareEngi <= 10 and GetGameTimeSeconds() >= 300 and (tLZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refiTotalBuildCount] >= 15) and ((M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] or 0) <= 0.3 or (iCurEngineers or 0) >= 150) then iMaxSpareWanted = -1 end
             --tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][iFactoryTechLevel] or (
 
             if iMaxSpareWanted >= 0 and not(M28Conditions.TeamHasLowMass(aiBrain.M28Team)) and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or oFactory[refiTotalBuildCount] <= 10 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3) then
                 iMaxSpareWanted = math.max(2, 1 + math.floor((M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] or 0) * 10)) * M28Engineer.tiBPByTech[iFactoryTechLevel]
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if have enough spare BP, iFactoryTechLevel='..iFactoryTechLevel..'; tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel]='..(tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 'nil')..'; iMaxSpareWanted='..iMaxSpareWanted..'; Tech level of BP wanted='..M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)..'; Spare BP for this tech level='.. (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)] or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if have enough spare BP, iFactoryTechLevel='..iFactoryTechLevel..'; tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel]='..(tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 'nil')..'; iMaxSpareWanted='..iMaxSpareWanted..'; Tech level of BP wanted='..M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)..'; Spare BP for this tech level='.. (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)] or 'nil')..'; Time since iLastTimeOfSpareEngi='..GetGameTimeSeconds() - (iLastTimeOfSpareEngi or 0)..'; iCurEngineers='..(iCurEngineers or 'nil')) end
             if (tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 0) > iMaxSpareWanted or (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)] or 0) > iMaxSpareWanted then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have sufficient spare engineers, iMaxSpareWanted='..iMaxSpareWanted) end
                 sBPIDToBuild = nil
@@ -597,7 +598,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
         --If just ctrlKd in last 60s and are ctrlking t3 land or engis then dont build naything (relevant e.g. for engineers from air fac, as land fac aborts much earlier)
         if not(iCurEngineers) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer - categories.SUBCOMMANDER, sBPIDToBuild) then iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) end
         if not(iCurEngineers) or iCurEngineers > M28Overseer.iT3EngineerUnitCapThresholdCount or (iCurEngineers >= 20 and not(EntityCategoryContains(categories.TECH3, sBPIDToBuild)) and aiBrain[refiHighestFactoryBuildCount] >= 3) then
-            if aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] and GetGameTimeSeconds() - aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] <= 60 and (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 or (tLZTeamData[M28Map.subrefLZbCoreBase] and not(EntityCategoryContains(categories.TECH3, sBPIDToBuild)))) then
+            if aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] and GetGameTimeSeconds() - aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] <= 60 and ((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) < 0 or (tLZTeamData[M28Map.subrefLZbCoreBase] and not(EntityCategoryContains(categories.TECH3, sBPIDToBuild)))) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have recently ctrlkd a unit so want to abort if we are about to build the same unit again if we have mobile land or same category, do we contain this='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileLand + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild))) end
                 if EntityCategoryContains((M28UnitInfo.refCategoryMobileLand - categories.SUBCOMMANDER) + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild) then
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -618,14 +619,14 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 sBPIDToBuild = nil
             elseif iFactoryTechLevel >= M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] and not(EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild)) then
                 --Do nothing - are at highest tech level for this factory and we havent destroyed any units of this type
-            elseif EntityCategoryContains(categories.SUBCOMMANDER, sBPIDToBuild) and ((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) >= -1 or aiBrain:GetCurrentUnits(categories.SUBCOMMANDER) <= 60) then
+            elseif EntityCategoryContains(categories.SUBCOMMANDER, sBPIDToBuild) and ((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) >= -1 or aiBrain:GetCurrentUnits(categories.SUBCOMMANDER) <= 60) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Still build SACU as unit cap isnt too bad or we dont have loads') end
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Close to unit cap so wont build more') end
                 sBPIDToBuild = nil
             end
         end
-        if sBPIDToBuild and (aiBrain[M28Overseer.refiExpectedRemainingCap] < 10 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 and (aiBrain[M28Overseer.refiExpectedRemainingCap] < 40 or (aiBrain[M28Overseer.refiExpectedRemainingCap] < 70 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] == 0)))) then
+        if sBPIDToBuild and (aiBrain[M28Overseer.refiExpectedRemainingCap] < 10 or ((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 1 and (aiBrain[M28Overseer.refiExpectedRemainingCap] < 40 or (aiBrain[M28Overseer.refiExpectedRemainingCap] < 70 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] == 0)))) then
             --Dont build anything if already have lots of it
             if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit cap, sBPIDToBuild after initial close to unit override='..(sBPIDToBuild or 'nil')..'; Current units owned of this already='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
             local iCurUnitsOfCategory = aiBrain:GetCurrentUnits(categories[sBPIDToBuild])
@@ -641,7 +642,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                     if bDebugMessages == true then LOG(sFunctionRef..': Have lots of this category already, naval surface, cur units='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
                     sBPIDToBuild = nil
                 end
-            elseif (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 5) <= 1 then
+            elseif (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 1 then
                 if not(EntityCategoryContains(M28UnitInfo.refCategoryGunship, sBPIDToBuild)) and aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 100 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Are at a unit cap low level and have lots of units, cur units of category='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
                     sBPIDToBuild = nil
@@ -1241,7 +1242,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     end
 
     --Dont build anything if last unit cap was at -1 and we killed a unit in last minute
-    if aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] and GetGameTimeSeconds() - aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] <= 60 and M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 then
+    if aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] and GetGameTimeSeconds() - aiBrain[M28Overseer.refiTimeOfLastUnitCapDeath] <= 60 and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) < 0 then
         if bDebugMessages == true then LOG(sFunctionRef..': Not building from land fac due to recent unit cap ctrlk') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return nil
@@ -5149,7 +5150,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
     --Extreme unit cap scenario - avoid building more air and just abort altogether - if we dont have low mass and are at -1 or worse unit cap, then suggests we may not be able to build any more units
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if aiBrain[M28Overseer.refbCloseToUnitCap] and iFactoryTechLevel >= 3 and not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= -1 and aiBrain[M28Overseer.refiExpectedRemainingCap] < 20 then
+    if aiBrain[M28Overseer.refbCloseToUnitCap] and iFactoryTechLevel >= 3 and not(bHaveLowMass) and not(bHaveLowPower) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= -1 and aiBrain[M28Overseer.refiExpectedRemainingCap] < 20 then
         if bDebugMessages == true then LOG(sFunctionRef..': Close to unit cap with high mass stored so wont build anything from air fac') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return nil
@@ -7354,7 +7355,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade') end
                                     if ConsiderUpgrading() then return sBPIDToBuild end
                                 end
-                                if bHaveLowMass or bHaveLowPower or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.3 then
+                                if bHaveLowMass or bHaveLowPower or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.3 and (iActiveFactoryUpgrades > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] > 1)) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Aborting as would rather not build anything than build t1 navy vs torp launcher (unless are getting relatively high mass)') end
                                     bConsiderBuildingMoreCombat = false
                                     break
@@ -7732,7 +7733,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     local iUpperCap = 30
     if M28Map.bIsCampaignMap then iUpperCap = math.min(60, math.max(30 + 5 * M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount], (GetGameTimeSeconds() - 2700) / 120, 30)) end
-    if not(M28Utilities.bLoudModActive) and iCurSACUs >= 15 and aiBrain[M28Overseer.refbCloseToUnitCap] and (iCurSACUs >= iUpperCap or (iCurSACUs >= math.max(iUpperCap * 0.7, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -2) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1) then
+    if not(M28Utilities.bLoudModActive) and iCurSACUs >= 15 and aiBrain[M28Overseer.refbCloseToUnitCap] and (iCurSACUs >= iUpperCap or (iCurSACUs >= math.max(iUpperCap * 0.7, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= -2) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= -1) then
         if bDebugMessages == true then LOG(sFunctionRef..': Dont want more SACUs due to unit cap') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return nil

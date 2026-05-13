@@ -3283,23 +3283,29 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
         local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
         local tRefuelBase
         if tRallyLZTeamData[M28Map.reftClosestFriendlyBase] and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tRallyLZTeamData[M28Map.reftClosestFriendlyBase])) then tRefuelBase = tRallyLZTeamData[M28Map.reftClosestFriendlyBase] else tRefuelBase = tRallyPoint end
+        local iDistToReissueOrder = 10 --If the target location is safe then this is increased so that air units idle on hte ground to save fuel
+        if ((M28Utilities.IsTableEmpty(tAirStagingUnitsAndCapacity) and (M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyAirFactoryTech] == 1 or (M28Overseer.bUnitRestrictionsArePresent and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryAirStaging) == 0))) or table.getn(tUnitsUnableToRefuel) >= 10)
+                and M28Conditions.IsAirMoveLocationSafeToIdle(tRefuelBase, iTeam, false) then iDistToReissueOrder = 60 end
         --If close to unit cap consider ctrl-King unit if it is close to the rally point
-        if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) == 0 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or -100) <= 10 then
+        if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 0 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or -100) <= 10 then
             --Ctrlk units if close to rally point and aibrain owner is close to unit cap
             local iCtrlKCount = 0
             for iUnit, oUnit in tUnitsUnableToRefuel do
-                if not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)) and oUnit:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and iCtrlKCount < 3 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                if not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId)) and oUnit:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and iCtrlKCount < 3 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap))
+                        and (oUnit:GetFuelRatio() <= 0.4 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.5) then
                     iCtrlKCount = iCtrlKCount + 1
                     ForkThread(M28Micro.MoveAndKillAirUnit,oUnit)
                     --M28Orders.IssueTrackedKillUnit(oUnit)
+                elseif M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRefuelBase) <= iDistToReissueOrder then
+                    --Do nothing, want air unit to idle on ground
                 else
-                    M28Orders.IssueTrackedMove(oUnit, tRefuelBase, 10, false, 'UCWntStgn', false)
+                    M28Orders.IssueTrackedMove(oUnit, tRefuelBase, iDistToReissueOrder, false, 'UCWntStgn', false)
                 end
             end
         else
             --Send units to rally point, unless lots of low fuel in which case consider ctrlking 1 unit (assuming we are past the first 10m)
             local bConsiderKillingUnits = false
-            if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= -1 then bConsiderKillingUnits = true
+            if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= -1 then bConsiderKillingUnits = true
             else
                 local iLowFuelUnits = table.getn(tUnitsUnableToRefuel)
                 if iLowFuelUnits >= 10 and GetGameTimeSeconds() >= math.max(150, 600 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier]) then
@@ -3312,13 +3318,19 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
                     end
                 end
             end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': bConsiderKillingUnits='..tostring(bConsiderKillingUnits)) end
             for iUnit, oUnit in tUnitsUnableToRefuel do
                 if bDebugMessages == true then LOG(sFunctionRef..': Telling unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to move to refuel location, special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Cur dist to tRefuelBase='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRefuelBase)) end
-                M28Orders.IssueTrackedMove(oUnit, tRefuelBase, 10, false, 'WntStgn', false)
-                if bConsiderKillingUnits and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 or oUnit:GetFuelRatio() <= 0.1 and oUnit:GetFuelRatio() >= 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap))) and (not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2)) then --(experimental condition is a redundancy)
+                if bConsiderKillingUnits and ((M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) < 0 or oUnit:GetFuelRatio() <= 0.1 and oUnit:GetFuelRatio() >= 0 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap))) and (not(EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.2)) then --(experimental condition is a redundancy)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will kill unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with fuel %='..oUnit:GetFuelRatio()..' and health='..M28UnitInfo.GetUnitHealthPercent(oUnit)..' that is distance='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)..' to the rally point') end
                     ForkThread(M28Micro.MoveAndKillAirUnit,oUnit)
                     --M28Orders.IssueTrackedKillUnit(oUnit)
                     bConsiderKillingUnits = false --max one per second
+                elseif M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRefuelBase) <= iDistToReissueOrder then
+                    --Do nothing, want air unit to idle on ground
+                else
+                    M28Orders.IssueTrackedMove(oUnit, tRefuelBase, iDistToReissueOrder, false, 'WntStgn', false)
                 end
             end
         end
@@ -5202,22 +5214,25 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                         end
                                     end
 
-                                    local bConsiderCtrlK = false
+                                    local bConsiderCtrlKOfInties = false
                                     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and iAvailableAndInCombatAirAAThreat >= 1750 and M28Conditions.TeamHasLowMass(iTeam) and M28Utilities.IsTableEmpty(tMovePoint) == false and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tMovePoint)) then
                                         local tInties = EntityCategoryFilterDown(categories.TECH1, tAvailableAirAA)
                                         if M28Utilities.IsTableEmpty(tInties) == false then
                                             local tASFs = EntityCategoryFilterDown(categories.TECH3, tAvailableAirAA)
                                             if M28Utilities.IsTableEmpty(tASFs) == false and table.getn(tASFs) >= 6 then
-                                                bConsiderCtrlK = true
+                                                bConsiderCtrlKOfInties = true
                                             end
                                         end
                                     end
                                     local iIdleAirAACount = 0
+                                    local iDistToReissueMoveOrder = 10
+                                    if M28Conditions.IsAirMoveLocationSafeToIdle(tMovePoint, iTeam, true) then iDistToReissueMoveOrder = 60 end
+
                                     for iUnit, oUnit in tAvailableAirAA do
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bConsiderCtrlK='..tostring(bConsiderCtrlK)..'; oUnit.Dead='..tostring(oUnit.Dead or false)) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bConsiderCtrlKOfInties='..tostring(bConsiderCtrlKOfInties)..'; oUnit.Dead='..tostring(oUnit.Dead or false)) end
                                         if not(oUnit.Dead) then --redundancy
-                                            if bConsiderCtrlK and EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
-                                                bConsiderCtrlK = false
+                                            if bConsiderCtrlKOfInties and EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
+                                                bConsiderCtrlKOfInties = false
                                                 local bMoveUnitToRally = false
                                                 if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMovePoint) >= 10 then
                                                     local tUnitZoneData, tUnitTeamZoneData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
@@ -5234,12 +5249,14 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                                     if bDebugMessages == true then LOG(sFunctionRef..': CtrlKing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                                 end
                                             elseif ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
-                                                if M28UnitInfo.IsUnitValid(oUnit) then
-                                                    table.insert(tAirForRefueling, oUnit)
-                                                end
+                                                table.insert(tAirForRefueling, oUnit)
                                             else
                                                 if M28Utilities.IsTableEmpty(tMovePoint) == false then
-                                                    M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
+                                                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMovePoint) <= iDistToReissueMoveOrder and oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], tMovePoint) <= iDistToReissueMoveOrder then
+                                                        --Do nothing - idle on ground
+                                                    else
+                                                        M28Orders.IssueTrackedMove(oUnit, tMovePoint, iDistToReissueMoveOrder, false, 'AAIdle', false)
+                                                    end
                                                     iIdleAirAACount = iIdleAirAACount + 1
                                                 end
                                             end
@@ -6435,13 +6452,17 @@ function ManageBombers(iTeam, iAirSubteam)
                 end
 
                 --Send any remaining bombers to rally point (or for refueling if they are damaged)
+                local iIdleDistanceToReissueOrder = 20
+                if M28Conditions.IsAirMoveLocationSafeToIdle(tRallyPoint, iTeam, false) then iIdleDistanceToReissueOrder = 60 end
                 if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
                     for iUnit, oUnit in tAvailableBombers do
                         if ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or (M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85 and (M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.7 or EntityCategoryContains(categories.TECH1, oUnit.UnitId) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 200))) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have injured bomber so will send it for refueling as it is idle otherwise, Bomber oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                             table.insert(tBombersForRefueling, oUnit)
+                        elseif M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= iIdleDistanceToReissueOrder and oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], tRallyPoint) <= iIdleDistanceToReissueOrder then
+                            --Idle air unit on ground
                         else
-                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 20, false, 'BombIdl', false)
+                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iIdleDistanceToReissueOrder, false, 'BombIdl', false)
                         end
                     end
                 end

@@ -894,7 +894,7 @@ function CheckUnitCap(aiBrain)
             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to include factories in the -2 category to destroy, Exp count='..M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount]..'; Lowest unit cap adj level='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 'nil')..'; Mass%='..aiBrain:GetEconomyStoredRatio('MASS')..'; Energy%='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Cur land facs='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)..'; Current air facs='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)) end
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 then
                 --Include t3 land facs in cat-2 if too many of them (if likely overflowing)
-                if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 then
+                if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) < 0 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 then
                     local iCurLandFac = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)
                     if M28Utilities.bLoudModActive then iCurLandFac = iCurLandFac * 3 end --Unit cap for loud is adjusted for different units
                     local iCurAirFac = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)
@@ -911,13 +911,13 @@ function CheckUnitCap(aiBrain)
                 end
             else
                 --If we have <35 T3 engis then exclude T3 engineers from cat -1
-                if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 1) <= 0 then
+                if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 0 then
                     if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < iT3EngineerUnitCapThresholdCount then
                         tiCategoryToDestroy[-1] = tiCategoryToDestroy[-1] - M28UnitInfo.refCategoryEngineer * categories.TECH3
                     end
                 end
                 --Include T3 land factories if we have too many of them
-                if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 0 then
+                if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) < 0 then
                     if aiBrain:GetEconomyStoredRatio('MASS') >= 0.5 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) >= 16 then
                         tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] + M28UnitInfo.refCategoryLandFactory
                         if bDebugMessages == true then LOG(sFunctionRef..': Including land factories in category to destroy') end
@@ -930,7 +930,7 @@ function CheckUnitCap(aiBrain)
             end
 
 
-            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 2 then
+            if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 2 then
                 --If have no t3 gunships then keep t2 in cat 0
                 if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.TECH3) == 0 then
                     tiCategoryToDestroy[0] = tiCategoryToDestroy[0] - M28UnitInfo.refCategoryGunship
@@ -947,7 +947,7 @@ function CheckUnitCap(aiBrain)
                         tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryMAA * categories.TECH2
                     end
                 end
-                if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= -2 then
+                if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= -2 then
                     --Exclude SACUs unless we have lots (and in LOUD never exclude as loud has them increase unit cap)
                     if M28Utilities.bLoudModActive or aiBrain:GetCurrentUnits(categories.SUBCOMMANDER) < 20 then
                         tiCategoryToDestroy[-2] = tiCategoryToDestroy[-2] - categories.SUBCOMMANDER
@@ -983,7 +983,7 @@ function CheckUnitCap(aiBrain)
             end
 
             --Restrict T3 land combat units being built if we have experimental level units and are at the lowest level of unit cap
-            if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryExperimentalLevel) > 0 and aiBrain:GetCurrentUnits(tiCategoryToDestroy[0]) <= 10 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * categories.TECH3 - categories.SUBCOMMANDER) >= 20 then
+            if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryExperimentalLevel) > 0 and aiBrain:GetCurrentUnits(tiCategoryToDestroy[0]) <= 10 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * categories.TECH3 - categories.SUBCOMMANDER) >= 20 then
                 tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryLandCombat * categories.TECH3 - categories.SUBCOMMANDER
             end
 
@@ -1084,7 +1084,7 @@ function CheckUnitCap(aiBrain)
                                                 bKillUnit = false
                                             end
                                         elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
-                                            if oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or ((oUnit[M28ACU.refiUpgradeCount] or 0) > 0 and (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] > -2 or iCurUnits > iUnitCap + 5)) then bKillUnit = false end
+                                            if oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or ((oUnit[M28ACU.refiUpgradeCount] or 0) > 0 and ((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) > -2 or iCurUnits > iUnitCap + 5)) then bKillUnit = false end
                                             if bDebugMessages == true then LOG(sFunctionRef..': Considering destroying a factory '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', is this a primary factory='..tostring(oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or false)..'; Number of factories on team='..M28Conditions.GetCurrentM28UnitsOfCategoryInTeam(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, aiBrain.M28Team)..'; bKillUnit='..tostring(bKillUnit)) end
                                         end
                                         if bKillUnit then
@@ -1137,7 +1137,7 @@ function CheckUnitCap(aiBrain)
                 if iCurUnits < (iUnitCap - iThreshold * 5) - 20 then
                     aiBrain[refbCloseToUnitCap] = false
                     --If none of the brains on the team are close to unit cap then increase adjustmentlevel if it is very low
-                    if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] < 1 then
+                    if (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) < 1 then
                         local bHaveABrainCloseToUnitCap = false
                         for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains] do
                             if oBrain[refbCloseToUnitCap] then
@@ -1146,7 +1146,7 @@ function CheckUnitCap(aiBrain)
                             end
                         end
                         if not(bHaveABrainCloseToUnitCap) then
-                            M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.max(0, math.min(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] + 2, 1))
+                            M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.max(0, math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 3) + 2, 1))
                         end
                     end
                 end
@@ -2034,7 +2034,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 local tAirFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAirFactory, false, true)
                 if M28Utilities.IsTableEmpty(tLandFactories) == false or M28Utilities.IsTableEmpty(tAirFactories) == false then
                     --Consider aborting the loop
-                    if GetGameTimeSeconds() >= 15*60 or iCurMAA >= 14 or iCurAirAA >= 20 or not(ScenarioInfo.M1P1.Active) then
+                    if GetGameTimeSeconds() >= 900 or iCurMAA >= 14 or iCurAirAA >= 20 or not(ScenarioInfo.M1P1.Active) then
                         aiBrain['M28UEFM3MAALoop'] = nil
                         if M28Utilities.IsTableEmpty(tLandFactories) == false then
                             for iFactory, oFactory in tLandFactories do
@@ -2207,6 +2207,8 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     end
                 end
             end
+        elseif ScenarioInfo.CybranJanus == 3 and ScenarioInfo.FakeJanus == 6 and ScenarioInfo.M1NETechFound == false and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySubmarine) < 10 then
+            ForkThread(CybranM2GetSubs, iTeam)
             --Cybran mission 4 - play defensively and let human player try and capture the nodes
         elseif ScenarioInfo.M3BaseDamageWarnings and ScenarioInfo.MainFrameIsAlive and not ScenarioInfo.EMPFired and (ScenarioInfo.M3_Base or Scenario.Areas['Aeon_Base_M3']) and not(bPacifistModeActive) then
             --Reset base warnings to help M28 a bit since it can trigger the damage before this objective is even active
@@ -2578,8 +2580,8 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
             end
         end
-            --UEF M1 - Air fac upgrading breaks the mission
-            if ScenarioInfo.AirFactory.UnitId and not(ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit]) and ScenarioInfo.AirFactory:GetBlueprint().General.UpgradesTo and ScenarioInfo.AirFactory:GetAIBrain().M28AI then
+        --UEF M1 - Air fac upgrading breaks the mission
+        if ScenarioInfo.AirFactory.UnitId and not(ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit]) and ScenarioInfo.AirFactory:GetBlueprint().General.UpgradesTo and ScenarioInfo.AirFactory:GetAIBrain().M28AI then
         if bDebugMessages == true then LOG(sFunctionRef..': Flagging not to upgrade unit '..ScenarioInfo.AirFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(ScenarioInfo.AirFactory.UnitId)..' as it may be an objective unit') end
         ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit] = true
         end
@@ -3990,4 +3992,55 @@ function UEFBlackSunComponentCheckForTransport()
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function CybranM2GetSubs(iTeam)
+    local sFunctionRef = 'CybranM2GetSubs'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local oFirstPlayer
+    local oM28Brain
+    for iBrain, oBrain in ArmyBrains do
+        if oBrain.M28AI then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; .BrainType='..(oBrain.BrainType or 'nil')..'; .M28Team='..(oBrain.M28Team or 'nil')..'; Does nickname contain M28='..tostring(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname))..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oFirstPlayer.M28Team='..(oFirstPlayer.M28Team or 'nil')) end
+            if not(oFirstPlayer) and oBrain.BrainType == 'Human' then
+                oFirstPlayer = oBrain
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording as oFirstPlayer') end
+                if oM28Brain then break end
+            end
+            if oBrain.M28AI and oBrain.BrainType == 'AI' and M28Conditions.DoesAINicknameContainM28(oBrain.Nickname) and oBrain.M28Team == oFirstPlayer.M28Team then
+                oM28Brain = oBrain
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording as oM28Brain') end
+                if oFirstPlayer then break end
+            end
+        end
+    end
+    if not(oM28Brain) and oFirstPlayer.M28AI then oM28Brain = oFirstPlayer end
+    if oM28Brain then
+        local refbSubCheckActive = 'M28M2SubCheck'
+        if not(oM28Brain[refbSubCheckActive]) then
+            oM28Brain[refbSubCheckActive] = true
+            local sBlueprint
+
+
+            while oM28Brain:GetCurrentUnits(M28UnitInfo.refCategorySubmarine) < 10 do
+                local toNavalFac = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory, false, false)
+                if M28Utilities.IsTableEmpty(toNavalFac) == false then
+                    for iUnit, oUnit in toNavalFac do
+                        if not(oUnit[M28Factory.refsFactoryNextBlueprintOverride]) then
+                            oUnit[M28Factory.refsFactoryNextBlueprintOverride] =  M28Factory.GetBlueprintThatCanBuildOfCategory(oM28Brain, M28UnitInfo.refCategorySubmarine, oUnit, false, false, false, nil, false, nil, true)
+                        end
+                    end
+                end
+                WaitSeconds(10)
+            end
+            local toNavalFac = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory, false, false)
+            if M28Utilities.IsTableEmpty(toNavalFac) == false then
+                for iUnit, oUnit in toNavalFac do
+                    oUnit[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                end
+            end
+        end
+    end
 end

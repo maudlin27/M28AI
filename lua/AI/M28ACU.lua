@@ -59,7 +59,7 @@ reftCommonACUTarget = 'M28ACUCmACUT' --table with details of common acu target, 
     subrefoEnemyACU = 'EnemyACU' --the enemy ACU target
     subrefoSecondEnemyACU = 'EnemyACU2' --if the acu is the one being targeted this will be the second acu targeting it
     subrefiTimeLastRecorded = 'Time' --Gametimeseconds that we last had the common target
-
+refiACUStuckCount = 'M28ACUSC' --Number of times ACU has been immobile while trying to move somewhere
 
 
 --ACU related variables against the ACU's brain
@@ -614,7 +614,6 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
 
@@ -665,9 +664,14 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local bACUWantsToRun = DoesACUWantToRun(iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, oACU)
     local bProceedWithLogic = true
     local iCurLandFacs = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)
-    if iCurLandFacs >= 1 and iPlateauOrZero > 0 and (not(M28Map.bIsCampaignMap) or iPlateauOrZero == 0 or not(bACUWantsToRun)) and AttackNearestEnemyWithACU(iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, oACU, iSearchDistance) then
+    if iCurLandFacs >= 1 and iPlateauOrZero > 0 and (iPlateauOrZero == 0 or not(bACUWantsToRun) or M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false) and AttackNearestEnemyWithACU(iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, oACU, iSearchDistance) then
         if bDebugMessages == true then LOG(sFunctionRef..': ACU has enemies within 40 of it so will attack as we already have a factory complete') end
         bProceedWithLogic = false
+        --Consider clearing early game flag
+        if iCurLandFacs >= 2 and GetGameTimeSeconds() >= 240 / aiBrain[M28Economy.refiBrainBuildRateMultiplier] and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 20 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.4 and (oACU[refiUpgradeCount] > 0 or (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 24 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) > 0) or bACUWantsToRun) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will clear initial build order flag as are nearby enemies so not getting a chance to build everything but have several factories and decent eco') end
+            oACU[refbDoingInitialBuildOrder] = false
+        end
     elseif bACUWantsToRun and M28Map.bIsCampaignMap and iCurLandFacs >= 1 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
         --Retreat from nearest enemy
         local bHaveRun = false
@@ -5421,7 +5425,9 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         if iPlateauOrZero > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.GiveAttackMoveAsWeaponStuck(oACU) and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], oACU[M28UnitInfo.refiCombatRange], iTeam, false, nil, nil, nil, nil, nil) then
             M28Orders.IssueTrackedAttackMove(oACU, tRallyPoint, 3, false, 'RunT')
         else
-            M28Orders.IssueTrackedMove(oACU, tRallyPoint, 3, false, 'Runa')
+            --if not(ACUStuckAndGivenIntermediateMovePoint(oACU, tRallyPoint)) then --Function didnt actually help ACU get unstuck in one replay where it got stuck, but might in other scenario
+                M28Orders.IssueTrackedMove(oACU, tRallyPoint, 3, false, 'Runa')
+            --end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Sending ACU to core base') end
     else
@@ -7044,7 +7050,10 @@ function GetACUOrder(aiBrain, oACU)
                                 if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and iPlateauOrZero > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Conditions.GiveAttackMoveAsWeaponStuck(oACU) and M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], oACU[M28UnitInfo.refiCombatRange], iTeam, false, nil, nil, nil, nil, nil) then
                                     M28Orders.IssueTrackedAttackMove(oACU, tRallyPoint, 5, false, 'RunARP')
                                 else
-                                    M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'RunRP')
+                                    --if not(ACUStuckAndGivenIntermediateMovePoint(oACU, tRallyPoint)) then --Function didnt actually help ACU get unstuck in one replay where it got stuck, but might in other scenario
+                                        M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'RunRP')
+                                    --end
+
                                 end
                                 oACU[reftLastRallyPointRanTo] = {tRallyPoint[1], tRallyPoint[2], tRallyPoint[3]}
                                 if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to run; aACU orders after this='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive])..'; Nearest land rally point='..repru(M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true))..'; P'..iPlateauOrZero..'Z'..iLandOrWaterZone..'; Rally point='..repru(tRallyPoint)..'; Nearest friendly base='..repru(M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from rally point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, M28Map.GetPlayerStartPosition(oACU:GetAIBrain()))..'; Dist from ACU to rally point='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tRallyPoint)) end
@@ -8975,4 +8984,66 @@ function IsEnemyACUBeingTargetedByMultipleOfOurACUs(oEnemyACU, iTeam)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
+end
+
+function ACUStuckAndGivenIntermediateMovePoint(oACU, tMovePoint)
+    --If ACU appears stuck and not moving then will give it a shorter move point - decided not to use this for now as it didnt help in the replay where ACU got stuck (no matter what order it was given)
+
+    local sFunctionRef = 'ACUStuckAndGivenIntermediateMovePoint'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if ACU is stuck, Last order subrefiOrderType='..(oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] or 'nil')..'; M28Orders.refiOrderIssueMove='..M28Orders.refiOrderIssueMove..'; refbSpecialMicroActive='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Speed='..M28UnitInfo.GetUnitSpeed(oACU)..'; ACU owned by '..oACU:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+    if (oACU[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] or M28Orders.refiOrderIssueMove) == M28Orders.refiOrderIssueMove and not(oACU[M28UnitInfo.refbSpecialMicroActive]) and M28UnitInfo.GetUnitSpeed(oACU) < 0.1 then
+        local iCurDistToTarget = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tMovePoint)
+        if iCurDistToTarget >= 30 and (not(oACU[M28Orders.reftiLastOrders][1]) or M28Utilities.GetDistanceBetweenPositions(oACU[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], tMovePoint) <= 0.5) then
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToTarget='..iCurDistToTarget..'; refiACUStuckCount='..(oACU[refiACUStuckCount] or 'nil')..'; ACU owned by '..oACU:GetAIBrain().Nickname) end
+            if (oACU[refiACUStuckCount] or 2) >= 1 then
+                --Get interim move point
+                local tFullPath, iPathSize, iDistance = NavUtils.PathTo(M28Map.refPathingTypeAmphibious, oACU:GetPosition(), tMovePoint, nil)
+                local tNewMovePoint
+                if bDebugMessages == true then LOG(sFunctionRef..': tFullPath='..repru(tFullPath)..'; iDistance='..(iDistance or 'nil')) end
+                if tFullPath[1] then
+                    tNewMovePoint = tFullPath[1]
+                else
+                    local iAngleToMovePoint = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tMovePoint)
+                    local tPotentialNewPoint
+                    local iIslandWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeAmphibious, tMovePoint)
+                    if iIslandWanted then
+                        for iDistance = 5, math.min(60, iCurDistToTarget), 5 do
+                            tPotentialNewPoint = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleToMovePoint, iDistance, true, true, M28Map.bIsCampaignMap)
+
+                            if bDebugMessages == true then LOG(sFunctionRef..': iDistance='..iDistance..'; iIslandWanted='..iIslandWanted..'; Amphibious ref of tPotentialNewPoint='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeAmphibious, tPotentialNewPoint) or 'nil')) end
+                            if M28Utilities.IsTableEmpty(tPotentialNewPoint) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeAmphibious, tPotentialNewPoint) == iIslandWanted then
+                                tNewMovePoint = {tPotentialNewPoint[1], tPotentialNewPoint[2], tPotentialNewPoint[3]}
+                                break
+                            end
+                        end
+                    else
+                        --Just try moving in the direction slightly
+                        tPotentialNewPoint = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleToMovePoint, 2, true, true, M28Map.bIsCampaignMap)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try moving a few small steps in the direction wanted') end
+                    end
+                end
+
+                if tNewMovePoint then
+                    M28Orders.IssueTrackedMove(oACU, tNewMovePoint, 0, false, 'ACUStuck', false)
+                    M28Micro.TrackTemporaryUnitMicro(oACU, 2, nil, true)
+                    oACU[refiACUStuckCount] = 0
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Given ACU temporary move order towards ultimate destination, oACU[M28UnitInfo.refbSpecialMicroActive]='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false))
+                        M28Utilities.DrawLocation(tNewMovePoint)
+                    end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                else
+                    oACU[refiACUStuckCount] = (oACU[refiACUStuckCount] or 0) + 1
+                end
+            else
+                oACU[refiACUStuckCount] = (oACU[refiACUStuckCount] or 0) + 1
+            end
+        end
+
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)--]]
 end

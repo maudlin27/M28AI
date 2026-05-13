@@ -1788,7 +1788,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone, bIgnoreMainEcoConditions)
     end
 
     --More factories in cases where overflowing and have no T3 engineers or active upgrades (e.g. campaign missions with unit restrictions)
-    if not(bWantMoreFactories) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.99 and tLZTeamData[M28Map.subrefLZbCoreBase] and iAverageCurAirAndLandFactories <= 15 and not(HaveLowPower(iTeam)) and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] >= 0 or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] >= -1 and iAverageCurAirAndLandFactories <= 5)) then
+    if not(bWantMoreFactories) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.99 and tLZTeamData[M28Map.subrefLZbCoreBase] and iAverageCurAirAndLandFactories <= 15 and not(HaveLowPower(iTeam)) and ((M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) >= 0 or (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] >= -1 and iAverageCurAirAndLandFactories <= 5)) then
         bWantMoreFactories = true
         if bDebugMessages == true then LOG(sFunctionRef..': Overflowing mass with no t3 engineers so want to build more factories') end
     end
@@ -4189,7 +4189,7 @@ end
 function DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOptionalAlliedCumulativeCombatThreatToReturn)
     if iOptionalAlliedCumulativeCombatThreatToReturn then iOptionalAlliedCumulativeCombatThreatToReturn = iOptionalAlliedCumulativeCombatThreatToReturn + (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0) end
     local bEnemyHasLongRangeOrHover = false
-    if tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or (((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 or (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50) and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or math.max((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0), (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)) >= 64)) then
+    if tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or ((((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 and (tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] > 50 or tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] >= 50)) or (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50) and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or math.max((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0), (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)) >= 64)) then
         bEnemyHasLongRangeOrHover = true
     else
         local iEnemyCombatThreat = (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
@@ -4765,4 +4765,11 @@ function DoWeWantToBuildObjectiveCategory(tObjectiveLocationSubtable)
         end
     end
     return true
+end
+
+function IsAirMoveLocationSafeToIdle(tMoveLocation, iTeam, bRequireCoreBase)
+    local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tMoveLocation, true, iTeam)
+    if (not(bRequireCoreBase) or tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeIFThreat] or 0) == 0 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
+        return true
+    end
 end
