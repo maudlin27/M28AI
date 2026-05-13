@@ -499,6 +499,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             end
         end
         if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then
+            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) >= 50 then bDebugMessages = true end
             --Engineers - dont build if we have spare engineers at our current LZ
             local iLastTimeOfSpareEngi
             if iFactoryTechLevel >= 3 then iLastTimeOfSpareEngi = (tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][iFactoryTechLevel] or -1000)
@@ -532,13 +533,14 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             if tLZTeamData[M28Map.subrefLZbCoreBase] and oFactory[refiTotalBuildCount] >= 5 then iMaxSpareWanted = 0
             else iMaxSpareWanted = 1
             end
-            if GetGameTimeSeconds() - iLastTimeOfSpareEngi <= 10 and GetGameTimeSeconds() >= 300 and (tLZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refiTotalBuildCount] >= 15) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] or 0) <= 0.3 then iMaxSpareWanted = -1 end
+
+            if GetGameTimeSeconds() - iLastTimeOfSpareEngi <= 10 and GetGameTimeSeconds() >= 300 and (tLZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refiTotalBuildCount] >= 15) and ((M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] or 0) <= 0.3 or (iCurEngineers or 0) >= 150) then iMaxSpareWanted = -1 end
             --tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][iFactoryTechLevel] or (
 
             if iMaxSpareWanted >= 0 and not(M28Conditions.TeamHasLowMass(aiBrain.M28Team)) and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or oFactory[refiTotalBuildCount] <= 10 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3) then
                 iMaxSpareWanted = math.max(2, 1 + math.floor((M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamAverageMassPercentStored] or 0) * 10)) * M28Engineer.tiBPByTech[iFactoryTechLevel]
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if have enough spare BP, iFactoryTechLevel='..iFactoryTechLevel..'; tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel]='..(tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 'nil')..'; iMaxSpareWanted='..iMaxSpareWanted..'; Tech level of BP wanted='..M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)..'; Spare BP for this tech level='.. (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)] or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if have enough spare BP, iFactoryTechLevel='..iFactoryTechLevel..'; tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel]='..(tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 'nil')..'; iMaxSpareWanted='..iMaxSpareWanted..'; Tech level of BP wanted='..M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)..'; Spare BP for this tech level='.. (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)] or 'nil')..'; Time since iLastTimeOfSpareEngi='..GetGameTimeSeconds() - (iLastTimeOfSpareEngi or 0)..'; iCurEngineers='..(iCurEngineers or 'nil')) end
             if (tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 0) > iMaxSpareWanted or (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)] or 0) > iMaxSpareWanted then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have sufficient spare engineers, iMaxSpareWanted='..iMaxSpareWanted) end
                 sBPIDToBuild = nil
@@ -1219,7 +1221,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-
+    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH2) >= 40 then bDebugMessages = true end
 
     local iEngisInZone
     function GetEngiCountInZone()
@@ -7354,7 +7356,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade') end
                                     if ConsiderUpgrading() then return sBPIDToBuild end
                                 end
-                                if bHaveLowMass or bHaveLowPower or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.3 then
+                                if bHaveLowMass or bHaveLowPower or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] < 0.3 and (iActiveFactoryUpgrades > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] > 1)) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Aborting as would rather not build anything than build t1 navy vs torp launcher (unless are getting relatively high mass)') end
                                     bConsiderBuildingMoreCombat = false
                                     break

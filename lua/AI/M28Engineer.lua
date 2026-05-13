@@ -16267,15 +16267,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iIdleEngineers = table.getn(toAvailableEngineersByTech[iCurEngiTechLevel])
             end
             if iIdleEngineers >= 8 then
+                local iKilled
                 for iCurEngiTechLevel = 1, 3 do
-                    for iEngi, oEngi in toAvailableEngineersByTech[iCurEngiTechLevel] do
-                        if oEngi:GetAIBrain() == aiBrain then
-                            M28Orders.IssueTrackedKillUnit(oEngi)
-                            bHaveTriedToKillEngineer = true
-                            break
-                        end
-                    end
-                    if bHaveTriedToKillEngineer then break end
+                    iKilled = ConsiderDestroyingLowTechEngineers(toAvailableEngineersByTech[iCurEngiTechLevel][1], 1, toAvailableEngineersByTech[iCurEngiTechLevel])
+                    if iKilled > 0 then break end
                 end
             end
         end
@@ -18658,15 +18653,10 @@ end--]]
                                 iIdleEngineers = table.getn(toAvailableEngineersByTech[iCurEngiTechLevel])
                             end
                             if iIdleEngineers >= 4 then
+                                local iKilled
                                 for iCurEngiTechLevel = 1, 3 do
-                                    for iEngi, oEngi in toAvailableEngineersByTech[iCurEngiTechLevel] do
-                                        if oEngi:GetAIBrain() == aiBrain then
-                                            M28Orders.IssueTrackedKillUnit(oEngi)
-                                            bHaveTriedToKillEngineer = true
-                                            break
-                                        end
-                                    end
-                                    if bHaveTriedToKillEngineer then break end
+                                    iKilled = ConsiderDestroyingLowTechEngineers(toAvailableEngineersByTech[iCurEngiTechLevel][1], 1, toAvailableEngineersByTech[iCurEngiTechLevel])
+                                    if iKilled > 0 then break end
                                 end
                             end
                         end
@@ -18791,14 +18781,14 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         ConsiderActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tWZData, tWZTeamData, iTeam, iPond, iWaterZone, toAvailableEngineersByTech, toAssignedEngineers, true, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist, bMarkAsSpare)
     end
 
-    --Emergency torp launcher if enemy has threat in this zone and we have a naval factory
+    --Emergency torp launcher if enemy has threat in this zone/nearby and we have a naval factory; also get on campaign maps after a while
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we need torpedo launcher, iExistingWaterFactory='..iExistingWaterFactory..'; Enemies in adj WZ='..tostring(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; Is table of LR units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyLongRangeUnits]))) end
-    if not(tWZTeamData[M28Map.subrefWZTimeLastDestroyedForStuckNavy]) and iExistingWaterFactory > 0 and tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyLongRangeUnits]) then
+    if not(tWZTeamData[M28Map.subrefWZTimeLastDestroyedForStuckNavy]) and iExistingWaterFactory > 0 and (tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] == 1 and M28Map.bIsCampaignMap and tWZTeamData[M28Map.subrefWZbCoreBase] and GetGameTimeSeconds() >= 600)) and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftEnemyLongRangeUnits]) then
         --If enemy best DF or IF range is <50 and they dont have hover units, then build torp launcher
         local iOurCombatThreat = 0
         local bEnemyHasLongRangeOrHover = M28Conditions.DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOurCombatThreat)
-        if bDebugMessages == true then LOG(sFunctionRef..': tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])..'; tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]='..(tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0)..'; tWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..(tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])..'; tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]='..(tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0)..'; tWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..(tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)..'; bEnemyHasLongRangeOrHover for this zone='..tostring(bEnemyHasLongRangeOrHover)) end
         if not(bEnemyHasLongRangeOrHover) then
             local iEnemyCombatThreat = (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat='..iEnemyCombatThreat..'; bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)) end
@@ -18807,14 +18797,15 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     local tAdjWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
                     bEnemyHasLongRangeOrHover = M28Conditions.DoesWaterZoneHaveUnitsThatCounterTorpDefence(tAdjWZTeamData, iOurCombatThreat)
                     iEnemyCombatThreat = iEnemyCombatThreat + (tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; subrefbWZOnlyHoverEnemies='..tostring(tAdjWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or false)..'; subrefWZBestEnemyAntiNavyRange='..(tAdjWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 'nil')..'; subrefWZBestEnemyDFRange='..(tAdjWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 'nil')..'; bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)) end
                     if bEnemyHasLongRangeOrHover then break end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build torp launchers, bEnemyHasLongRangeOrHover='..tostring(bEnemyHasLongRangeOrHover)..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat) end
-            if not(bEnemyHasLongRangeOrHover) and iEnemyCombatThreat >= 100 and (tWZTeamData[M28Map.subrefWZTThreatAllyLauncherDefenceTotal] < 7500 or (tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 0) < (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0)) then
+            if not(bEnemyHasLongRangeOrHover) and (iEnemyCombatThreat >= 100 or M28Map.bIsCampaignMap) and (tWZTeamData[M28Map.subrefWZTThreatAllyLauncherDefenceTotal] < 7500 or (tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 0) < (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0)) then
                 --Do we not have significantly more threat than enemy?
                 if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat..'; tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]='..(tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 'nil')..'; tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..(tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 'nil')) end
-                if iEnemyCombatThreat * 3 > iOurCombatThreat or (tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 0) < 3 * (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0)  then
+                if iEnemyCombatThreat * 3 > iOurCombatThreat or (tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 0) < 3 * (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0) or M28Map.bIsCampaignMap then
                     iBPWanted = 20
                     if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
                         iBPWanted = math.max(40, math.min(100, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10))
@@ -18827,12 +18818,21 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                         if iExistingTorpThreat >= 2500 or table.getn(tExistingTorpLauncher) >= 5 then
                             iMinTechWanted = 2
                         end
-
+                        --Ignore part-complete buildings to make sure we keep building them
+                        if iExistingTorpThreat > 0 then
+                            for iTorp, oTorp in tExistingTorpLauncher do
+                                if oTorp:GetFractionComplete() < 1 then
+                                    iExistingTorpThreat = iExistingTorpThreat - M28UnitInfo.GetCombatThreatRating({ oTorp }, false, false, false, true)
+                                end
+                            end
+                        end
+                        if iExistingTorpThreat < 50 then iExistingTorpThreat = 0 end --redundancy for above
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': iExistingTorpThreat='..iExistingTorpThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat) end
-                    if iExistingTorpThreat <= math.min(7500, math.max(3500,  iEnemyCombatThreat * 1.5)) then --redundancy
+                    if iExistingTorpThreat <= math.min(7500, math.max(3500,  iEnemyCombatThreat * 1.5)) and (iExistingTorpThreat == 0 or iEnemyCombatThreat + (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0) > 0.2 * iExistingTorpThreat) then
                         --If we have a naval factory, aim to build the torp launcher near to here
                         local tTargetTorpLauncherPosition = GetStartSearchPositionForTorpLauncherOrNilForDefault(tWZTeamData, tWZData, iWaterZone, iPond)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will build torp launcher, iMinTechWanted='..iMinTechWanted) end
                         if iMinTechWanted >= 2 then
                             HaveActionToAssign(refActionBuildTorpLauncher, iMinTechWanted, iBPWanted, tTargetTorpLauncherPosition)
                         else
@@ -18843,6 +18843,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
     end
+    bDebugMessages = false
 
     --High priority hydro if we have low energy and water zone start
     iCurPriority = iCurPriority + 1
@@ -20985,8 +20986,8 @@ function ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted(oEnginee
 
 end
 
-function ConsiderDestroyingLowTechEngineers(oJustBuilt)
-    --Intended late game where lots of low tech engis in a core base
+function ConsiderDestroyingLowTechEngineers(oJustBuilt, iOptionalMaxNumberToKill, toOptionalEngineersToConsderKilling)
+    --Intended late game where lots of low tech engis in a core base; will kill engineers and returns the number of engineers killed
     local bDebugMessages = false
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDestroyingLowTechEngineers'
@@ -20994,6 +20995,7 @@ function ConsiderDestroyingLowTechEngineers(oJustBuilt)
 
     local aiBrain = oJustBuilt:GetAIBrain()
     local iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer)
+    local iEngineersKilled = 0
     if iCurEngineers >= 100 then
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oJustBuilt:GetPosition())
         if (iLandOrWaterZone or 0) > 0 then
@@ -21010,45 +21012,47 @@ function ConsiderDestroyingLowTechEngineers(oJustBuilt)
                     local iT1AndT2EngineersInZone = table.getn(tT1AndT2EngineersInZone)
                     if iT1AndT2EngineersInZone >= 10 or (iCurEngineers >= 150 and iT1AndT2EngineersInZone >= 4) then
                         local tT3EngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * categories.TECH3, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-
-                        if M28Utilities.IsTableEmpty(tT3EngineersInZone) == false then
-                            local iT3EngineersInZone = table.getn(tT3EngineersInZone)
-                            if iT3EngineersInZone >= 40 then
-                                --Ctrl-K up to 3 engineers
-                                local iEngineersKilled = 0
-                                local tT1Engineers = EntityCategoryFilterDown(categories.TECH1, tT1AndT2EngineersInZone)
-                                local iT1Count = 0
-                                function KillEngineerIfSufficientlyIdle(oEngi)
+                        local iT3EngineersInZone
+                        if M28Utilities.IsTableEmpty(tT3EngineersInZone) == false then iT3EngineersInZone = table.getn(tT3EngineersInZone) end
+                        if (iCurEngineers >= 200 and tT1AndT2EngineersInZone >= 60 and aiBrain[M28Overseer.refbCloseToUnitCap]) or iT3EngineersInZone >= 40 then
+                            local iMaxToKill = (iOptionalMaxNumberToKill or 3)
+                            --Ctrl-K up to 3 engineers
+                            local tT1Engineers = EntityCategoryFilterDown(categories.TECH1, tT1AndT2EngineersInZone)
+                            local iT1Count = 0
+                            function KillEngineerIfSufficientlyIdle(oEngi)
+                                if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                                     if not (oEngi[refbPrimaryBuilder]) and not (oEngi:IsUnitState('Building')) and not (oEngi:IsUnitState('Reclaiming')) and not (oEngi:IsUnitState('Capturing')) and not (oEngi:IsUnitState('Repairing')) then
                                         if bDebugMessages == true then LOG(sFunctionRef .. ': Just given order to kill unit ' .. oEngi.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oEngi) .. ' as have oto many engis in this zone') end
                                         M28Orders.IssueTrackedKillUnit(oEngi)
                                         iEngineersKilled = iEngineersKilled + 1
                                     end
                                 end
-                                if M28Utilities.IsTableEmpty(tT1Engineers) == false then
-                                    for iUnit, oUnit in tT1Engineers do
-                                        if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
-                                            KillEngineerIfSufficientlyIdle(oUnit)
-                                            if iEngineersKilled >= 3 then
-                                                break
-                                            end
+                            end
+                            if M28Utilities.IsTableEmpty(toOptionalEngineersToConsderKilling) == false then
+                                for iUnit, oUnit in toOptionalEngineersToConsderKilling do
+                                    KillEngineerIfSufficientlyIdle(oUnit)
+                                    if iEngineersKilled >= iMaxToKill then
+                                        break
+                                    end
+                                end
+                            elseif M28Utilities.IsTableEmpty(tT1Engineers) == false then
+                                for iUnit, oUnit in tT1Engineers do
+                                    KillEngineerIfSufficientlyIdle(oUnit)
+                                    if iEngineersKilled >= iMaxToKill then
+                                        break
+                                    end
+                                end
+                            end
+                            if iEngineersKilled < iMaxToKill then
+                                local tT2Engineers = EntityCategoryFilterDown(categories.TECH2, tT1AndT2EngineersInZone)
+                                if M28Utilities.IsTableEmpty(tT2Engineers) == false then
+                                    for iUnit, oUnit in tT2Engineers do
+                                        KillEngineerIfSufficientlyIdle(oUnit)
+                                        if iEngineersKilled >= iMaxToKill then
+                                            break
                                         end
                                     end
                                 end
-                                if iEngineersKilled < 3 then
-                                    local tT2Engineers = EntityCategoryFilterDown(categories.TECH2, tT1AndT2EngineersInZone)
-                                    if M28Utilities.IsTableEmpty(tT2Engineers) == false then
-                                        for iUnit, oUnit in tT2Engineers do
-                                            if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
-                                                KillEngineerIfSufficientlyIdle(oUnit)
-                                                if iEngineersKilled >= 3 then
-                                                    break
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-
                             end
                         end
                     end
@@ -21056,6 +21060,7 @@ function ConsiderDestroyingLowTechEngineers(oJustBuilt)
             end
         end
     end
+    return iEngineersKilled
 end
 
 function RecordUnitAsCaptureTarget(oUnit, bOptionalOnlyRecordIfSameUnitIdInCaptureList)
@@ -21583,7 +21588,7 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                         tT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                         if M28Utilities.IsTableEmpty(tT2Arti) == false then
-                            iT2ArtiThreat = M28UnitInfo.GetMassCostOfUnits(tT2Arti, true) --for reference, combat threat will be 60% of mass cost per getcombatthreatrating
+                            iT2ArtiThreat = M28UnitInfo.GetMassCostOfUnits(tT2Arti, true) --for reference, combat threat will be 60% of mass cost per getcombatthreatrating; we also exclude part-complete t2 arti from this value below
                             --If enemy has T2 arti near here, then reduce D2 arti threat by 50% of any Arti that are more than 130 away from the enemy T2 arti
                             local tNearestEnemyArtiPosition
                             if tLZTeamData[M28Map.subrefLZbCoreBase] and (not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and table.getn(tT2Arti) < math.min(10, math.max(4, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 2.5)) then
@@ -21600,7 +21605,9 @@ function GiveOrderForEmergencyT2Arti(HaveActionToAssign, bHaveLowMass, bHaveLowP
                                 end
                             end
                             for iArti, oArti in tT2Arti do
-                                if oArti:GetFractionComplete() == 1 then iT2ArtiCount = iT2ArtiCount + 1 end
+                                if oArti:GetFractionComplete() == 1 then iT2ArtiCount = iT2ArtiCount + 1
+                                else iT2ArtiThreat = iT2ArtiThreat - (oArti[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oArti))
+                                end
                                 if oArti[M28Building.refbUnitWantsShielding] and M28Utilities.IsTableEmpty(oArti[M28Building.reftoShieldsProvidingCoverage]) and (oArti[refiFailedShieldConstructionCount] or 0) <= 1 then
                                     table.insert(toT2ArtiWantingShields, oArti)
                                 elseif M28Utilities.IsTableEmpty(oArti[M28Building.reftoShieldsProvidingCoverage]) == false then

@@ -2207,6 +2207,8 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     end
                 end
             end
+        elseif ScenarioInfo.CybranJanus == 3 and ScenarioInfo.FakeJanus == 6 and ScenarioInfo.M1NETechFound == false and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySubmarine) < 10 then
+            ForkThread(CybranM2GetSubs, iTeam)
             --Cybran mission 4 - play defensively and let human player try and capture the nodes
         elseif ScenarioInfo.M3BaseDamageWarnings and ScenarioInfo.MainFrameIsAlive and not ScenarioInfo.EMPFired and (ScenarioInfo.M3_Base or Scenario.Areas['Aeon_Base_M3']) and not(bPacifistModeActive) then
             --Reset base warnings to help M28 a bit since it can trigger the damage before this objective is even active
@@ -2578,8 +2580,8 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
             end
         end
-            --UEF M1 - Air fac upgrading breaks the mission
-            if ScenarioInfo.AirFactory.UnitId and not(ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit]) and ScenarioInfo.AirFactory:GetBlueprint().General.UpgradesTo and ScenarioInfo.AirFactory:GetAIBrain().M28AI then
+        --UEF M1 - Air fac upgrading breaks the mission
+        if ScenarioInfo.AirFactory.UnitId and not(ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit]) and ScenarioInfo.AirFactory:GetBlueprint().General.UpgradesTo and ScenarioInfo.AirFactory:GetAIBrain().M28AI then
         if bDebugMessages == true then LOG(sFunctionRef..': Flagging not to upgrade unit '..ScenarioInfo.AirFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(ScenarioInfo.AirFactory.UnitId)..' as it may be an objective unit') end
         ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit] = true
         end
@@ -3990,4 +3992,55 @@ function UEFBlackSunComponentCheckForTransport()
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function CybranM2GetSubs(iTeam)
+    local sFunctionRef = 'CybranM2GetSubs'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local oFirstPlayer
+    local oM28Brain
+    for iBrain, oBrain in ArmyBrains do
+        if oBrain.M28AI then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; .BrainType='..(oBrain.BrainType or 'nil')..'; .M28Team='..(oBrain.M28Team or 'nil')..'; Does nickname contain M28='..tostring(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname))..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oFirstPlayer.M28Team='..(oFirstPlayer.M28Team or 'nil')) end
+            if not(oFirstPlayer) and oBrain.BrainType == 'Human' then
+                oFirstPlayer = oBrain
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording as oFirstPlayer') end
+                if oM28Brain then break end
+            end
+            if oBrain.M28AI and oBrain.BrainType == 'AI' and M28Conditions.DoesAINicknameContainM28(oBrain.Nickname) and oBrain.M28Team == oFirstPlayer.M28Team then
+                oM28Brain = oBrain
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording as oM28Brain') end
+                if oFirstPlayer then break end
+            end
+        end
+    end
+    if not(oM28Brain) and oFirstPlayer.M28AI then oM28Brain = oFirstPlayer end
+    if oM28Brain then
+        local refbSubCheckActive = 'M28M2SubCheck'
+        if not(oM28Brain[refbSubCheckActive]) then
+            oM28Brain[refbSubCheckActive] = true
+            local sBlueprint
+
+
+            while oM28Brain:GetCurrentUnits(M28UnitInfo.refCategorySubmarine) < 10 do
+                local toNavalFac = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory, false, false)
+                if M28Utilities.IsTableEmpty(toNavalFac) == false then
+                    for iUnit, oUnit in toNavalFac do
+                        if not(oUnit[M28Factory.refsFactoryNextBlueprintOverride]) then
+                            oUnit[M28Factory.refsFactoryNextBlueprintOverride] =  M28Factory.GetBlueprintThatCanBuildOfCategory(oM28Brain, M28UnitInfo.refCategorySubmarine, oUnit, false, false, false, nil, false, nil, true)
+                        end
+                    end
+                end
+                WaitSeconds(10)
+            end
+            local toNavalFac = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory, false, false)
+            if M28Utilities.IsTableEmpty(toNavalFac) == false then
+                for iUnit, oUnit in toNavalFac do
+                    oUnit[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                end
+            end
+        end
+    end
 end

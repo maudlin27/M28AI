@@ -4189,7 +4189,7 @@ end
 function DoesWaterZoneHaveUnitsThatCounterTorpDefence(tWZTeamData, iOptionalAlliedCumulativeCombatThreatToReturn)
     if iOptionalAlliedCumulativeCombatThreatToReturn then iOptionalAlliedCumulativeCombatThreatToReturn = iOptionalAlliedCumulativeCombatThreatToReturn + (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0) end
     local bEnemyHasLongRangeOrHover = false
-    if tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or (((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 or (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50) and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or math.max((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0), (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)) >= 64)) then
+    if tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or ((((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0) >= 50 and (tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] > 50 or tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] >= 50)) or (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) >= 50) and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or math.max((tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0), (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0)) >= 64)) then
         bEnemyHasLongRangeOrHover = true
     else
         local iEnemyCombatThreat = (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
