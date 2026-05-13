@@ -2034,7 +2034,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 local tAirFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAirFactory, false, true)
                 if M28Utilities.IsTableEmpty(tLandFactories) == false or M28Utilities.IsTableEmpty(tAirFactories) == false then
                     --Consider aborting the loop
-                    if GetGameTimeSeconds() >= 15*60 or iCurMAA >= 14 or iCurAirAA >= 20 or not(ScenarioInfo.M1P1.Active) then
+                    if GetGameTimeSeconds() >= 900 or iCurMAA >= 14 or iCurAirAA >= 20 or not(ScenarioInfo.M1P1.Active) then
                         aiBrain['M28UEFM3MAALoop'] = nil
                         if M28Utilities.IsTableEmpty(tLandFactories) == false then
                             for iFactory, oFactory in tLandFactories do

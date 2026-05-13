@@ -18843,7 +18843,6 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
     end
-    bDebugMessages = false
 
     --High priority hydro if we have low energy and water zone start
     iCurPriority = iCurPriority + 1

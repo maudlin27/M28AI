@@ -499,7 +499,6 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             end
         end
         if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then
-            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) >= 50 then bDebugMessages = true end
             --Engineers - dont build if we have spare engineers at our current LZ
             local iLastTimeOfSpareEngi
             if iFactoryTechLevel >= 3 then iLastTimeOfSpareEngi = (tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][iFactoryTechLevel] or -1000)
@@ -1221,7 +1220,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH2) >= 40 then bDebugMessages = true end
+
 
     local iEngisInZone
     function GetEngiCountInZone()
