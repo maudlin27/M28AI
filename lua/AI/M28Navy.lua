@@ -1840,7 +1840,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                     bIncludeUnit = true
                                     if EntityCategoryContains(M28UnitInfo.refCategorySubmarine - M28UnitInfo.refCategorySeraphimDestroyer - categories.uas0401, oUnit.UnitId) then
                                         table.insert(tAvailableSubmarines, oUnit)
-                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) then
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) and ((oUnit[M28UnitInfo.refiDFRange] or 0) < 10 or not(EntityCategoryContains(M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryFrigate + M28UnitInfo.refCategoryBattleship + M28UnitInfo.refCategoryBattlecruiser))) then
                                         table.insert(tAvailableMAA, oUnit)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to available MAA') end
                                     elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0) and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface + categories.HOVER - M28UnitInfo.refCategoryLandExperimental * M28UnitInfo.refCategoryAmphibious - M28UnitInfo.refCategoryLandCombat * categories.AMPHIBIOUS + M28UnitInfo.refCategorySeraphimDestroyer + categories.uas0401, oUnit.UnitId) then
@@ -1983,7 +1983,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                     bConsiderAdjacentCombat = false
                                     if not(bConsiderAdjacentMAA) then break end
                                 end
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) then
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) and ((oUnit[M28UnitInfo.refiDFRange] or 0) < 10 or not(EntityCategoryContains(M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryFrigate + M28UnitInfo.refCategoryBattleship + M28UnitInfo.refCategoryBattlecruiser))) then
                                 table.insert(tAvailableMAA, oUnit)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Adding unit from adj WZ to available MAA') end
                                 RecordUnitAsReceivingWaterZoneAssignment(oUnit, iWaterZone, iCurWZValue)
