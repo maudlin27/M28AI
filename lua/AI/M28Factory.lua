@@ -299,6 +299,11 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             and (tLZTeamData[M28Map.subrefLZbCoreBase] or M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) > 0 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout) >= 5) then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
         sBPIDToBuild = nil
+        --Naval factories where naval units cant find anywhere to support
+    elseif tLZTeamData[M28Map.refbNoSubSupportPoint] and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, sBPIDToBuild) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySubmarine) >= 10 then
+        sBPIDToBuild = nil
+    elseif tLZTeamData[M28Map.refbNoSurfaceSupportPoint] and (not(EntityCategoryContains(M28UnitInfo.refCategoryBombardment, sBPIDToBuild)) or (GetGameTimeSeconds() - (M28Map.tPondDetails[M28Map.tiPondByWaterZone[oFactory[M28UnitInfo.reftAssignedWaterZoneByTeam][aiBrain.M28Team]]][M28Map.refiCampaignLastBombardmentWeaponFired] or 600) >= 60 and (tLZTeamData[M28Map.refiLastBombardmentSearchRange] or 0) >=  aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 10)) then
+        sBPIDToBuild = nil
     else
         if not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then
             if M28Utilities.bQuietModActive then
@@ -3132,7 +3137,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if math.min(2, (tLZData[M28Map.subrefLZOrWZMexCount] or 0) * 0.75) > tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 then iUnitCountToUpgrade = math.max(15, iUnitCountToUpgrade) + iUnitCountToUpgrade end
                 if tLZData[M28Map.subrefLZOrWZMexCount] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][iFactoryTechLevel] == 0 then iUnitCountToUpgrade = iUnitCountToUpgrade + 10 end
                 --Overflowing mass - upgrade T1 support factory in core base to t2 support fac evne if normal unit count would be much higher
-                if bDebugMessages == true then LOG(sFunctionRef..': Will massively reduce unit count if t1 fac and want to upgrade to support fac, iUnitCountToUpgrade='..iUnitCountToUpgrade..'; Low mass='..tostring(bHaveLowMass)..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Our highest tech='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Energy stored%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Brain mass income='..aiBrain:GetEconomyIncome('MASS')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will massively reduce unit count if t1 fac and want to upgrade to support fac, iUnitCountToUpgrade='..iUnitCountToUpgrade..'; Low mass='..tostring(bHaveLowMass)..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Our highest tech='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Energy stored%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; Mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Brain mass income='..aiBrain:GetEconomyIncome('MASS')..'; T3 mex in zone='..tLZTeamData[M28Map.subrefMexCountByTech][3]) end
                 if tLZTeamData[M28Map.subrefLZFortify] and M28Map.bIsCampaignMap and iUnitCountToUpgrade > 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) then
                     if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
                         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) then
@@ -3212,6 +3217,19 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] and M28Map.iMapSize <= 256 then
                     iUnitCountToUpgrade = iUnitCountToUpgrade + math.max(iUnitCountToUpgrade * 1.25, 20)
                     if bDebugMessages == true then LOG(sFunctionRef..': Significantly increasing units to upgrade as are in t1 spam mode') end
+                elseif iFactoryTechLevel == 1 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4 or (tLZTeamData[M28Map.subrefMexCountByTech][2] == 3 and (tLZTeamData[M28Map.subrefiActiveMexUpgrades] or 0) > 0)) and iUnitCountToUpgrade >= 4 and not(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam]) and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 then
+                    --We have lots of t2 or a t3 mex in zone so want t2 support factory if we dont already ahve one and arent upgrading another factory
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoActiveUpgrades])) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': We have t2 or t3 mexes in the zone so want to upgrade to t2 asap unless we already have t2 factory in this zone') end
+                        local toExistingFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(toExistingFactory) then
+                            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then
+                                iUnitCountToUpgrade = math.min(iUnitCountToUpgrade, 10)
+                            else
+                                iUnitCountToUpgrade = 4
+                            end
+                        end
+                    end
                 end
             end
             if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
@@ -6785,9 +6803,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
 
 
-    if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; Pond='..iPond..'; WZ='..iWaterZone..'; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3)..'; Factory build count='..(oFactory[refiTotalBuildCount] or 'nil'))
-    end
+    if bDebugMessages == true then LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; Pond='..iPond..'; WZ='..iWaterZone..'; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3)..'; Factory build count='..(oFactory[refiTotalBuildCount] or 'nil')..'; refbNoSurfaceSupportPoint='..tostring(tWZTeamData[M28Map.refbNoSurfaceSupportPoint] or false)..'; refbNoSubSupportPoint='..tostring(tWZTeamData[M28Map.refbNoSubSupportPoint] or false)..'; refiCampaignLastBombardmentWeaponFired='..(tWZTeamData[M28Map.refiCampaignLastBombardmentWeaponFired] or 'nil')) end
 
     local bConsiderBuildingShieldOrStealthBoats = true
     --Shield boat needs 10 energy per tick; same for stealth boat; dont want this to account for more than 20% of gross energy; so want 50 gross energy per tick per shield boat for it to be <20%

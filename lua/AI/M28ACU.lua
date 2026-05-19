@@ -1851,182 +1851,182 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     local bInvalidUpgrade
 
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
-    local tiEntriesToRemove = {}
-    if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades] before removing invalid entries='..repru(oACU[reftPreferredUpgrades])) end
-    for iUpgradeWanted, sUpgradeWanted in oACU[reftPreferredUpgrades] do
-        bInvalidUpgrade = false
-        if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
-        bInvalidUpgrade = true
-        oACU[reftPreferredUpgrades] = {}
-        if bDebugMessages == true then LOG(sFunctionRef..': ACU doesnt have sUpgradeWanted='..sUpgradeWanted..' in its blueprint so aborting') end
-        break
-        elseif bCheckForRestrictions then
-        --If we cant get the first upgrade, then cancel all upgrades; otherwise just remove the later upgrade that we cant get
-        if tRestrictedEnhancements[sUpgradeWanted] then
-        if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted '..sUpgradeWanted..' is in the restricted enhancements table so cant get it yet') end
-        bInvalidUpgrade = true
+        local tiEntriesToRemove = {}
+        if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades] before removing invalid entries='..repru(oACU[reftPreferredUpgrades])) end
+        for iUpgradeWanted, sUpgradeWanted in oACU[reftPreferredUpgrades] do
+            bInvalidUpgrade = false
+            if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
+                bInvalidUpgrade = true
+                oACU[reftPreferredUpgrades] = {}
+                if bDebugMessages == true then LOG(sFunctionRef..': ACU doesnt have sUpgradeWanted='..sUpgradeWanted..' in its blueprint so aborting') end
+                break
+            elseif bCheckForRestrictions then
+                --If we cant get the first upgrade, then cancel all upgrades; otherwise just remove the later upgrade that we cant get
+                if tRestrictedEnhancements[sUpgradeWanted] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted '..sUpgradeWanted..' is in the restricted enhancements table so cant get it yet') end
+                    bInvalidUpgrade = true
+                end
+            end
+            if bInvalidUpgrade then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering restricted upgrade='..sUpgradeWanted..'; iUpgradeWanted='..iUpgradeWanted) end
+                if iUpgradeWanted <= 1 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We cant get the first planned upgrade so wont get any further upgrades') end
+                    oACU[reftPreferredUpgrades] = {}
+                    break
+                else
+                    table.insert(tiEntriesToRemove, iUpgradeWanted)
+                end
+            end
         end
+        if M28Utilities.IsTableEmpty(tiEntriesToRemove) == false then
+            local iTotalEntriesToRemove = table.getn(tiEntriesToRemove)
+            for iCurEntry = iTotalEntriesToRemove, 1, -1 do
+                if bDebugMessages == true then LOG(sFunctionRef..': Removing iCurEntry='..iCurEntry..' from preferred upgrades, Upgrade='..(oACU[reftPreferredUpgrades][iCurEntry] or 'nil')) end
+                table.remove(oACU[reftPreferredUpgrades], tiEntriesToRemove[iCurEntry])
+            end
         end
-        if bInvalidUpgrade then
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering restricted upgrade='..sUpgradeWanted..'; iUpgradeWanted='..iUpgradeWanted) end
-    if iUpgradeWanted <= 1 then
-    if bDebugMessages == true then LOG(sFunctionRef..': We cant get the first planned upgrade so wont get any further upgrades') end
-    oACU[reftPreferredUpgrades] = {}
-    break
-    else
-    table.insert(tiEntriesToRemove, iUpgradeWanted)
     end
-    end
-    end
-    if M28Utilities.IsTableEmpty(tiEntriesToRemove) == false then
-    local iTotalEntriesToRemove = table.getn(tiEntriesToRemove)
-    for iCurEntry = iTotalEntriesToRemove, 1, -1 do
-    if bDebugMessages == true then LOG(sFunctionRef..': Removing iCurEntry='..iCurEntry..' from preferred upgrades, Upgrade='..(oACU[reftPreferredUpgrades][iCurEntry] or 'nil')) end
-        table.remove(oACU[reftPreferredUpgrades], tiEntriesToRemove[iCurEntry])
-        end
-        end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of preferred upgrades empty='..tostring(M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]))..'; repru='..repru(oACU[reftPreferredUpgrades])) end
-        if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) and oACU[refiUpgradeCount] == 0 then
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of preferred upgrades empty='..tostring(M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]))..'; repru='..repru(oACU[reftPreferredUpgrades])) end
+    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) and oACU[refiUpgradeCount] == 0 then
         --Find the cheapest upgrade that boosts either rate of fire or range (if didnt start underwater) or that boosts build power (if started underwater)
         if bDebugMessages == true then LOG(sFunctionRef..': Have no preferred upgrades so will try finding a rate of fire or range boost') end
         oACU[reftPreferredUpgrades] = {}
         local iLowestMassCost = 1000000
         local sLowestUpgrade
         if M28Utilities.IsTableEmpty(oBP.Enhancements) == false then
-        for sUpgrade, tUpgrade in oBP.Enhancements do
-        if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Considering sUpgrade=' .. sUpgrade .. '; tUpgrade=' .. reprs(tUpgrade))
+            for sUpgrade, tUpgrade in oBP.Enhancements do
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': Considering sUpgrade=' .. sUpgrade .. '; tUpgrade=' .. reprs(tUpgrade))
+                end
+                if (oACU[refbStartedUnderwater] and (tUpgrade.NewBuildRate or 0) > 10) or (tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire) then
+                    if tUpgrade.BuildCostMass < iLowestMassCost and not (tUpgrade.Prerequisite) and not (tRestrictedEnhancements[sUpgrade]) then
+                        sLowestUpgrade = sUpgrade
+                        iLowestMassCost = tUpgrade.BuildCostMass
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef .. ': Have a new preferred upgrade ' .. sUpgrade .. '; iLowestMassCost=' .. iLowestMassCost)
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then
+                LOG(sFunctionRef .. ': Finished considering the cheapest gun improving upgrade, sLowestUpgrade=' .. (sLowestUpgrade or 'nil')..'; Does ACU have RAS, or is RAS nil='..tostring(oBP.Enhancements['ResourceAllocation'] == nil))
+            end
+            if sLowestUpgrade then
+                oACU[reftPreferredUpgrades] = { sLowestUpgrade }
+                --Further backup - sometimes (e.g. cmapaign) RAS might be available but gun isnt
+            elseif oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Adding in RAS if the upgrade slot is available') end
+                local bSlotAvailable = true
+                if oACU[refiUpgradeCount] > 0 then
+                    local sSlotWanted = oBP.Enhancements['ResourceAllocation'].Slot
+                    for sUpgrade, tUpgrade in oBP.Enhancements do
+                        if tUpgrade.Slot == sSlotWanted and oACU:HasEnhancement(sUpgrade) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Already using slot '..sSlotWanted..' for the upgrade '..sUpgrade) end
+                            bSlotAvailable = false
+                            break
+                        end
+                    end
+                end
+                if bSlotAvailable then
+                    oACU[reftPreferredUpgrades] = { 'ResourceAllocation' }
+                    if oBP.Enhancements['ResourceAllocationAdvanced'] and not (tRestrictedEnhancements['ResourceAllocationAdvanced']) then
+                        table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocationAdvanced')
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding in RAS advanced as well') end
+                    end
+                end
+                --LOUD support where ACU upgrades dont show as improving max radius
+            else
+                local tsOtherUpgradeNames = {
+                'EXRipperBooster', --Cybran
+                'EXZephyrBooster', --UEF
+                'EXChronotronBooster', --Seraphim
+                'EXDisruptorrBooster', --Aeon
+                }
+                for iPotentialUpgrade, sPotentialUpgrade in tsOtherUpgradeNames do
+                    if oBP.Enhancements[sPotentialUpgrade] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Found backup gun upgrade so will use it, sPotentialUpgrade='..sPotentialUpgrade) end
+                        oACU[reftPreferredUpgrades] = { sPotentialUpgrade}
+                        break
+                    end
+                end
+            end
+
+            --Add support for (blackops?) ACU upgrades, e.g. based on LOUD
+            local tsModUpgradesToConsider = {
+                --Shield (UEF and Aeon)
+                'EXShieldBubble', --UEF and Aeon shield (blueprints have the same reference)
+
+                --RH slot:
+                'EXL1Lambda', --Seraphim lambda field - Destroys some incoming projectiles (so a defensive buff)
+                'EXL2Lambda', --Seraphim lambda field that redirects the projectiles
+
+                --LH slot:
+                'EXCombatEngineering', --Gives HP buff and slight regen, although fairly expensive
+
+                --Other weapons (that would replace the main gun so have held off getting)
+                --[['EXMasor', --Cybran laser (cheap version)
+                'EXEMPArray', --Cybran EMP weapon
+                'EXGattlingEnergyCannon', --UEF Gatling weapon
+                'EXRapidCannon', --Seraphim gatling weapon
+                'EXStormCannon', --Seraphim storm cannon weapon
+                'EXBeamPhason', --Aeon laser (cheap version)--]]
+            }
+            for iPotentialUpgrade, sPotentialUpgrade in  tsModUpgradesToConsider do
+                if oBP.Enhancements[sPotentialUpgrade] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Blackops ACU upgrades - adding upgrade '..sPotentialUpgrade..' to ACU owned by player '..oACU:GetAIBrain().Nickname) end
+                    table.insert(oACU[reftPreferredUpgrades], sPotentialUpgrade)
+                end
+            end
         end
-        if (oACU[refbStartedUnderwater] and (tUpgrade.NewBuildRate or 0) > 10) or (tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire) then
-        if tUpgrade.BuildCostMass < iLowestMassCost and not (tUpgrade.Prerequisite) and not (tRestrictedEnhancements[sUpgrade]) then
-        sLowestUpgrade = sUpgrade
-    iLowestMassCost = tUpgrade.BuildCostMass
-    if bDebugMessages == true then
-    LOG(sFunctionRef .. ': Have a new preferred upgrade ' .. sUpgrade .. '; iLowestMassCost=' .. iLowestMassCost)
-    end
-    end
-    end
-    end
-    if bDebugMessages == true then
-    LOG(sFunctionRef .. ': Finished considering the cheapest gun improving upgrade, sLowestUpgrade=' .. (sLowestUpgrade or 'nil')..'; Does ACU have RAS, or is RAS nil='..tostring(oBP.Enhancements['ResourceAllocation'] == nil))
-    end
-    if sLowestUpgrade then
-    oACU[reftPreferredUpgrades] = { sLowestUpgrade }
-    --Further backup - sometimes (e.g. cmapaign) RAS might be available but gun isnt
-    elseif oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
-    if bDebugMessages == true then LOG(sFunctionRef..': Adding in RAS if the upgrade slot is available') end
-    local bSlotAvailable = true
-    if oACU[refiUpgradeCount] > 0 then
-    local sSlotWanted = oBP.Enhancements['ResourceAllocation'].Slot
-    for sUpgrade, tUpgrade in oBP.Enhancements do
-    if tUpgrade.Slot == sSlotWanted and oACU:HasEnhancement(sUpgrade) then
-    if bDebugMessages == true then LOG(sFunctionRef..': Already using slot '..sSlotWanted..' for the upgrade '..sUpgrade) end
-    bSlotAvailable = false
-    break
-    end
-    end
-    end
-    if bSlotAvailable then
-    oACU[reftPreferredUpgrades] = { 'ResourceAllocation' }
-        if oBP.Enhancements['ResourceAllocationAdvanced'] and not (tRestrictedEnhancements['ResourceAllocationAdvanced']) then
-    table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocationAdvanced')
-    if bDebugMessages == true then LOG(sFunctionRef..': Adding in RAS advanced as well') end
-    end
-    end
-    --LOUD support where ACU upgrades dont show as improving max radius
     else
-    local tsOtherUpgradeNames = {
-    'EXRipperBooster', --Cybran
-    'EXZephyrBooster', --UEF
-    'EXChronotronBooster', --Seraphim
-    'EXDisruptorrBooster', --Aeon
-    }
-    for iPotentialUpgrade, sPotentialUpgrade in tsOtherUpgradeNames do
-    if oBP.Enhancements[sPotentialUpgrade] then
-    if bDebugMessages == true then LOG(sFunctionRef..': Found backup gun upgrade so will use it, sPotentialUpgrade='..sPotentialUpgrade) end
-    oACU[reftPreferredUpgrades] = { sPotentialUpgrade}
-        break
-        end
-        end
-        end
-
-        --Add support for (blackops?) ACU upgrades, e.g. based on LOUD
-        local tsModUpgradesToConsider = {
-        --Shield (UEF and Aeon)
-        'EXShieldBubble', --UEF and Aeon shield (blueprints have the same reference)
-
-        --RH slot:
-        'EXL1Lambda', --Seraphim lambda field - Destroys some incoming projectiles (so a defensive buff)
-        'EXL2Lambda', --Seraphim lambda field that redirects the projectiles
-
-        --LH slot:
-        'EXCombatEngineering', --Gives HP buff and slight regen, although fairly expensive
-
-        --Other weapons (that would replace the main gun so have held off getting)
-        --[['EXMasor', --Cybran laser (cheap version)
-        'EXEMPArray', --Cybran EMP weapon
-        'EXGattlingEnergyCannon', --UEF Gatling weapon
-        'EXRapidCannon', --Seraphim gatling weapon
-        'EXStormCannon', --Seraphim storm cannon weapon
-        'EXBeamPhason', --Aeon laser (cheap version)--]]
-        }
-        for iPotentialUpgrade, sPotentialUpgrade in  tsModUpgradesToConsider do
-        if oBP.Enhancements[sPotentialUpgrade] then
-        if bDebugMessages == true then LOG(sFunctionRef..': Blackops ACU upgrades - adding upgrade '..sPotentialUpgrade..' to ACU owned by player '..oACU:GetAIBrain().Nickname) end
-        table.insert(oACU[reftPreferredUpgrades], sPotentialUpgrade)
-        end
-        end
-        end
-        else
         --If can get RAS, and it is cheap, then make it the first upgrade to get
         if oACU[refiUpgradeCount] == 0 and (oBP.Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and GetGameTimeSeconds() <= 60 and not(oACU[reftPreferredUpgrades][1] == 'ResourceAllocation') then
-    table.insert(oACU[reftPreferredUpgrades], 1, 'ResourceAllocation')
-    --Remove the other RAS
-    for iUpgrade, sUpgrade in oACU[reftPreferredUpgrades] do
-    if sUpgrade == 'ResourceAllocation' and iUpgrade > 1 then
-    table.remove(oACU[reftPreferredUpgrades], iUpgrade)
-    break
-    end
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': The first upgrade entry should be RAS upgrade because of how cheap it is') end
-    end
+            table.insert(oACU[reftPreferredUpgrades], 1, 'ResourceAllocation')
+            --Remove the other RAS
+            for iUpgrade, sUpgrade in oACU[reftPreferredUpgrades] do
+                if sUpgrade == 'ResourceAllocation' and iUpgrade > 1 then
+                table.remove(oACU[reftPreferredUpgrades], iUpgrade)
+                break
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': The first upgrade entry should be RAS upgrade because of how cheap it is') end
+        end
     end
     --Campaign specific - add RAS upgrade if we only have 1 upgrade
     if bDebugMessages == true then
-    LOG(sFunctionRef .. ': Campaign specific - considering adding RAS upgrade; is preferred upgrades nil=' .. tostring(oACU[reftPreferredUpgrades]))
-    if oACU[reftPreferredUpgrades] and oACU[refiUpgradeCount] == 0 then
-    LOG(sFunctionRef .. ': Upgrade size=' .. table.getn(oACU[reftPreferredUpgrades])..'; repru='..repru(oACU[reftPreferredUpgrades]))
-    end
+        LOG(sFunctionRef .. ': Campaign specific - considering adding RAS upgrade; is preferred upgrades nil=' .. tostring(oACU[reftPreferredUpgrades]))
+        if oACU[reftPreferredUpgrades] and oACU[refiUpgradeCount] == 0 then
+            LOG(sFunctionRef .. ': Upgrade size=' .. table.getn(oACU[reftPreferredUpgrades])..'; repru='..repru(oACU[reftPreferredUpgrades]))
+        end
     end
     if (oACU[refiUpgradeCount] or 0) > 0 and oACU[reftPreferredUpgrades] and table.getn(oACU[reftPreferredUpgrades]) <= 2 and (EntityCategoryContains(categories.AEON, oACU.UnitId) or table.getn(oACU[reftPreferredUpgrades]) <= 1) and oBP.Enhancements['ResourceAllocation'] and not (tRestrictedEnhancements['ResourceAllocation']) then
-    local bSlotAvailable = true
-    if oACU[refiUpgradeCount] > 0 then
-    local sSlotWanted = oBP.Enhancements['ResourceAllocation'].Slot
-    for sUpgrade, tUpgrade in oBP.Enhancements do
-    if tUpgrade.Slot == sSlotWanted and oACU:HasEnhancement(sUpgrade) then
-    if bDebugMessages == true then LOG(sFunctionRef..': Already using slot '..sSlotWanted..' for the upgrade '..sUpgrade) end
-    bSlotAvailable = false
-    break
-    end
-    end
-    end
-    if bSlotAvailable or (M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) == 1 and not(oACU:HasEnhancement('ShieldHeavy')) and M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs] and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] <= 1000 and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar]) and M28Map.tAllPlateaus[oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][1]][M28Map.subrefPlateauLandZones][oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][2]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.refbBaseInSafePosition]) then
-    table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocation')
-    if bDebugMessages == true then LOG(sFunctionRef..': Adding RAS to table of preferred upgrades') end
-    if oBP.Enhancements['ResourceAllocationAdvanced'] and not (tRestrictedEnhancements['ResourceAllocationAdvanced']) then
-    table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocationAdvanced')
-    if bDebugMessages == true then LOG(sFunctionRef..': Adding in RAS advanced as well') end
-    end
-    end
+        local bSlotAvailable = true
+        if oACU[refiUpgradeCount] > 0 then
+            local sSlotWanted = oBP.Enhancements['ResourceAllocation'].Slot
+            for sUpgrade, tUpgrade in oBP.Enhancements do
+                if tUpgrade.Slot == sSlotWanted and oACU:HasEnhancement(sUpgrade) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Already using slot '..sSlotWanted..' for the upgrade '..sUpgrade) end
+                    bSlotAvailable = false
+                    break
+                end
+            end
+        end
+        if bSlotAvailable or (M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) == 1 and not(oACU:HasEnhancement('ShieldHeavy')) and M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs] and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] <= 1000 and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar]) and M28Map.tAllPlateaus[oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][1]][M28Map.subrefPlateauLandZones][oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][2]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.refbBaseInSafePosition]) then
+            table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocation')
+            if bDebugMessages == true then LOG(sFunctionRef..': Adding RAS to table of preferred upgrades') end
+            if oBP.Enhancements['ResourceAllocationAdvanced'] and not (tRestrictedEnhancements['ResourceAllocationAdvanced']) then
+                table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocationAdvanced')
+                if bDebugMessages == true then LOG(sFunctionRef..': Adding in RAS advanced as well') end
+            end
+        end
     end
 
     --Remove any upgrades that we already have
     RemovePreferredUpgradesThatWeAlreadyHave(oACU, oBP)
 
     if bDebugMessages == true then
-    LOG(sFunctionRef .. ': End of code, oACU[reftPreferredUpgrades] after removing upgrades we already have=' .. repru(oACU[reftPreferredUpgrades]))
-        end
+        LOG(sFunctionRef .. ': End of code, oACU[reftPreferredUpgrades] after removing upgrades we already have=' .. repru(oACU[reftPreferredUpgrades]))
+    end
 end
 
 function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, bIgnoreEcoCondition)
@@ -2289,6 +2289,19 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
                 LOG(sFunctionRef..': End of code, sUpgradeWanted='..(sUpgradeWanted or 'nil'))
                 if sUpgradeWanted then
                     LOG(sFunctionRef..': Does ACU have this enhancement='..tostring(oACU:HasEnhancement(sUpgradeWanted)))
+                    LOG(sFunctionRef..': Is this restricted='..tostring(import("/lua/enhancementcommon.lua").GetRestricted()[sUpgradeWanted]))
+                end
+            end
+        end
+    end
+    --Redudnancy for missions where they add enhancement restrictions after we have chosen our upgrade path
+    if sUpgradeWanted and import("/lua/enhancementcommon.lua").GetRestricted()[sUpgradeWanted] then
+        sUpgradeWanted = nil
+        if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
+            local tRestrictions = import("/lua/enhancementcommon.lua").GetRestricted()
+            for iCurUpgradeWanted = table.getn(oACU[reftPreferredUpgrades]), 1, -1 do
+                if tRestrictions[oACU[reftPreferredUpgrades]] then
+                    table.remove(oACU[reftPreferredUpgrades], iCurUpgradeWanted)
                 end
             end
         end
@@ -3259,33 +3272,29 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
 
     end
     --First row - dangerous for ACUs related conditions
-    if bDebugMessages == true then LOG(sFunctionRef..': Condition1 (dangerousforACUs): M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])..'; Cond1a='..tostring((GetGameTimeSeconds() >= 1080 and (GetGameTimeSeconds() >= 1200 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])))..';Cond1b='..tostring( M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0)..'; Cond1c='..tostring((M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and GetGameTimeSeconds() >= 300 and (((oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2))  or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 or (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) >= 3 or ((M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0) >= 5 and M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam) * 1.25 < (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) +  (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0)))))..'; cond1d='..tostring(M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9)..'; cond1e='..tostring(M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9)..'; cond1f='..tostring((tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 150 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])))..'; cond1c broken out in more detail:refiOurHighestFactoryTechLevel='..oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel]..'; Moddist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; T3 mexes='..M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3]..';T2 mexes='..M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2]..'; Enemy T2+T3 mexes='..M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam)..'; Our fac and enemy fac or our LC t3='..tostring(oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2))..'; Dist to base='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])..'; Air snipe condition='..tostring(((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(500, 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)))
-            and (not(M28Map.bIsCampaignMap) or not((tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] > 0 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9)))
-            and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or (not(M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1200 or M28Team.iPlayersAtGameStart <= 4 or M28Conditions.GetHighestAirToGroundThreatForIndividualEnemyBrain(iTeam) > 400))
-            and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and (M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 180 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75) and (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.55 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and M28Map.iMapSize >= 1000))) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.95 or oACU[refiUpgradeCount] <= 1 or M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 0) > math.max(100, (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 2.5, M28Conditions.GetFriendlyMAAInThisAndAdjacentLandZones(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iTeam))))
-            and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or GetGameTimeSeconds() >= 1080 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 3000 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.9 or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.6 or iPlateauOrZero == 0 or
-            M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * (0.35 + math.min(math.max(-0.15,tLZOrWZTeamData[M28Map.refiModDistancePercent] - 0.4), 0.2)) >= M28Conditions.GetFriendlyMAAInThisAndAdjacentLandZones(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iTeam))
-    ))) end
-    if (M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and
-            ((GetGameTimeSeconds() >= 1080 and (GetGameTimeSeconds() >= 1800 or (GetGameTimeSeconds() >= 1380 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] == 0) or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])) --1a
-                    or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 --1b
-                    or (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and GetGameTimeSeconds() >= 300 and (oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 3 or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 or (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) >= 3 or ((M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0) >= 5 and M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam) * 1.25 < (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) +  (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0)))) --1c
-                    or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false --1d
-                    or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9 --1e
-                    or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 150 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]))) --1f
-            --Exception to dangerous for ACUs - we have 2+ M28 on team, fullshare, have an ACU threat of at least 3.5k (e.g. Sera ACU with 3 upgrades is 3.9k), mod dist is <0.7, and this ACU is closer to enemy base than any other ACU (i.e. have 1 ACU that will be more aggressive)
-            and not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) and not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) and GetGameTimeSeconds() <= 1200 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and oACU[refiUpgradeCount] >= 2 and (M28UnitInfo.GetCombatThreatRating({ oACU}, false) or 0) >= 3500 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= 250 and M28Conditions.IsFurthestACUToFriendlyBase(oACU, tLZOrWZTeamData, iTeam)))
-        --Rows 2+ - air snipe related conditions (note the log row references treat the above and the first one below as part of the same row)
-        or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4
-        or ((tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= math.max(400, math.min(tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA], 1500)) and (not(M28Map.bIsCampaignMap) or not((tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] > 0 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9))))
-        --Is enemy planning a potential air snipe and we are exposed?
-        or ((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(500, 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)))
+    if bDebugMessages == true then LOG(sFunctionRef..': Condition1 (dangerousforACUs): M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])..'; Cond1a='..tostring((GetGameTimeSeconds() >= 1080 and (GetGameTimeSeconds() >= 1200 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])))..';Cond1b='..tostring( M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0)..'; Cond1c='..tostring((M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and GetGameTimeSeconds() >= 300 and (((oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2))  or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 or (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) >= 3 or ((M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0) >= 5 and M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam) * 1.25 < (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) +  (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0)))))..'; cond1d='..tostring(M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9)..'; cond1e='..tostring(M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9)..'; cond1f='..tostring((tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 150 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])))..'; cond1c broken out in more detail:refiOurHighestFactoryTechLevel='..oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel]..'; Moddist%='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; T3 mexes='..M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3]..';T2 mexes='..M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2]..'; Enemy T2+T3 mexes='..M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam)..'; Our fac and enemy fac or our LC t3='..tostring(oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2))..'; Dist to base='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])..'; Air snipe condition='..tostring(((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(500, 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA] or 0))..'; High upgrade ACU new row 1 cond for everything='..tostring((M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or oACU[refiUpgradeCount] < 3 or (oACU[refiUpgradeCount] == 3 and EntityCategoryContains(categories.AEON, oACU.UnitId)) or not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.95 or (M28UnitInfo.GetCombatThreatRating({ oACU}, false) or 0) <= 3000 or tLZOrWZTeamData[M28Map.refiModDistancePercent] > 0.4 or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) > 100 + 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and ((tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > (tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0)))))))) end
+    --Heavily upgraded ACU with a team with enemies nearby that we could target - be more aggressive
+    if (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or oACU[refiUpgradeCount] < 3 or (oACU[refiUpgradeCount] == 3 and EntityCategoryContains(categories.AEON, oACU.UnitId)) or (not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.95 or (M28UnitInfo.GetCombatThreatRating({ oACU}, false) or 0) <= 2300 or tLZOrWZTeamData[M28Map.refiModDistancePercent] > 0.4 or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) > 100 + 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or ((tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > (tLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0))) and
+            ((M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and
+                ((GetGameTimeSeconds() >= 1080 and (GetGameTimeSeconds() >= 1800 or (GetGameTimeSeconds() >= 1380 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] == 0) or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])) --1a
+                        or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 --1b
+                        or (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] and GetGameTimeSeconds() >= 300 and (oACU:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 3 or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 or (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) >= 3 or ((M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0) >= 5 and M28Conditions.GetHighestOtherTeamT2AndT3MexCount(iTeam) * 1.25 < (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] or 0) +  (M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][2] or 0)))) --1c
+                        or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false --1d
+                        or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9 --1e
+                        or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 150 + 50 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]))) --1f
+                --Exception to dangerous for ACUs - we have 2+ M28 on team, fullshare, have an ACU threat of at least 3.5k (e.g. Sera ACU with 3 upgrades is 3.9k), mod dist is <0.7, and this ACU is closer to enemy base than any other ACU (i.e. have 1 ACU that will be more aggressive)
+                and not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) and not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) and GetGameTimeSeconds() <= 1200 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and oACU[refiUpgradeCount] >= 2 and (M28UnitInfo.GetCombatThreatRating({ oACU}, false) or 0) >= 3500 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= 250 and M28Conditions.IsFurthestACUToFriendlyBase(oACU, tLZOrWZTeamData, iTeam)))
+            --Rows 2+ - air snipe related conditions (note the log row references treat the above and the first one below as part of the same row)
+            or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4
+            or ((tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= math.max(400, math.min(tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA], 1500)) and (not(M28Map.bIsCampaignMap) or not((tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] > 0 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9))))
+            --Is enemy planning a potential air snipe and we are exposed?
+            or ((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(500, 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)))
                 and (not(M28Map.bIsCampaignMap) or not((tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] > 0 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9)))
                 and (M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or (not(M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1200 or M28Team.iPlayersAtGameStart <= 4 or M28Conditions.GetHighestAirToGroundThreatForIndividualEnemyBrain(iTeam) > 400))
                 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and (M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 180 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75) and (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.55 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and M28Map.iMapSize >= 1000))) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.95 or oACU[refiUpgradeCount] <= 1 or M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 0) > math.max(100, (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 2.5, M28Conditions.GetFriendlyMAAInThisAndAdjacentLandZones(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iTeam))))
                 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or GetGameTimeSeconds() >= 1080 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 3000 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.9 or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.6 or iPlateauOrZero == 0 or
-                M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * (0.35 + math.min(math.max(-0.15,tLZOrWZTeamData[M28Map.refiModDistancePercent] - 0.4), 0.2)) >= M28Conditions.GetFriendlyMAAInThisAndAdjacentLandZones(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iTeam))
-        ) then
+                M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * (0.35 + math.min(math.max(-0.15,tLZOrWZTeamData[M28Map.refiModDistancePercent] - 0.4), 0.2)) >= M28Conditions.GetFriendlyMAAInThisAndAdjacentLandZones(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iTeam)))
+            ) then
         if bDebugMessages == true then LOG(sFunctionRef..': Is dangerous for ACU or low health or large enemy air to ground threat so returning to base; First condition row='..tostring(((M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] and (GetGameTimeSeconds() >= 1080 or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.35 or M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.9 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.25 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 175))) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 or (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= 400) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 or (tLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) >= 400)..'; Eception to first row condition='..tostring(not(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) and not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) and GetGameTimeSeconds() <= 1200 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and oACU[refiUpgradeCount] >= 2 and (M28UnitInfo.GetCombatThreatRating({ oACU}, false) or 0) >= 3500 and M28Utilities.GetDistanceBetweenPositions(tLZOrWZData[M28Map.subrefMidpoint], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= 250))..'; Is furthest ACU from friendly base='..tostring(M28Conditions.IsFurthestACUToFriendlyBase(oACU, tLZOrWZTeamData, iTeam))..'; 3rd row condition='..tostring((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(500, 500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatAllyMAA] or 0))))..'; 4th row condition='..tostring((M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or (not(M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1200 or M28Team.iPlayersAtGameStart <= 4 or M28Conditions.GetHighestAirToGroundThreatForIndividualEnemyBrain(iTeam) > 400))))..'; 5th row condition='..tostring((M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and (M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) >= 180 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75) and (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.55 or (tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.45 and M28Map.iMapSize >= 1000))) or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.95 or oACU[refiUpgradeCount] <= 1 or M28Conditions.GetNearbyEnemyAirToGroundThreat(tLZOrWZData, tLZOrWZTeamData, iTeam, 175, 0) > math.max(100, (tLZOrWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 2.5)))..'; MAA in this and adj zone='..M28Conditions.GetFriendlyMAAInThisAndAdjacentLandZones(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iTeam)..'; Total enemy air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Mod dist='..tLZOrWZTeamData[M28Map.refiModDistancePercent]..'; Enemy air to ground factor for check='..(0.35 + math.min(math.max(-0.15,tLZOrWZTeamData[M28Map.refiModDistancePercent] - 0.4), 0.2))..'; Row 4='..tostring((M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or GetGameTimeSeconds() >= 1080 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 3000 or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.9 or tLZOrWZTeamData[M28Map.refiModDistancePercent] >= 0.6 or iPlateauOrZero == 0))..'; En land tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; En air tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech]..'; ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Plateau='..iPlateauOrZero..'; Is table of enemy land exp empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))) end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
@@ -3920,6 +3929,8 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     end
                     local bWantKitingRetreat = false
                     local iEnemyT1ArtiAndDFThreatCloseToOurRange = 0
+                    local bEnemyHasLongerRangedUnits
+                    local iEnemyThreatThresholdForDetailedCheck = 1750 + oACU[refiUpgradeCount] * 750
 
                     if iStraightLineDist + iMaxDistToBeInRange <= oACU[M28UnitInfo.refiDFRange] and (iOurACUHealthPercent <= 0.75 or iNearbyMobileEnemyDFThreat >= 250 or (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 150) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to do a kiting retreat, iStraightLineDist='..iStraightLineDist..'; iMaxDistToBeInRange='..iMaxDistToBeInRange..'; Our DF range='..(oACU[M28UnitInfo.refiDFRange] or 'nil')..'; ACU health%='..(iOurACUHealthPercent or 'nil')..'; iNearbyMobileEnemyDFThreat='..iNearbyMobileEnemyDFThreat..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')) end
@@ -3934,7 +3945,6 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                         if iACUInZone > 1 then
                             iAdjacentThreatThreshold = iAdjacentThreatThreshold * (1 + (iACUInZone -1) * 0.6)
                         end
-                        local iEnemyThreatThresholdForDetailedCheck = 1750 + oACU[refiUpgradeCount] * 750
 
                         if iOurACUHealthPercent >= 0.95 then
                             iEnemyThreatThresholdForDetailedCheck = iEnemyThreatThresholdForDetailedCheck + 500 + 250 * oACU[refiUpgradeCount]
@@ -3953,7 +3963,6 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
 
                             if M28Map.iMapSize >= 1000 or tLZTeamData[M28Map.refiModDistancePercent] >= 0.5 then iLongEnemyRangeThreshold = 80 end
                             local iEnemyMobileThreatSlightlyFurtherAway = 0
-                            local bEnemyHasLongerRangedUnits = false
 
                             function AddNearbyCombatThreat(tCurLZTeamData)
                                 if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]) == false then
@@ -4010,9 +4019,6 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                                 bWantKitingRetreat = false
                                 if bDebugMessages == true then LOG(sFunctionRef..': We have high health and are heavily upgraded so want to press a bit more either due to enemy threat not being massive, or because neemy threat includes PD which we could always run from') end
                                 --if shot is blocked for the closest enemy unit then dont kite
-                            elseif bEnemyHasLongerRangedUnits and iEnemyT1ArtiAndDFThreatCloseToOurRange <= iEnemyThreatThresholdForDetailedCheck * 0.5 and M28Logic.IsShotBlocked(oACU, oEnemyToTarget, false, nil) then
-                                bWantKitingRetreat = false
-                                if bDebugMessages == true then LOG(sFunctionRef..': Our shot is blocked so dont want to kite enemy') end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyT1ArtiAndDFThreatCloseToOurRange='..iEnemyT1ArtiAndDFThreatCloseToOurRange..'; iEnemyMobileThreatSlightlyFurtherAway='..iEnemyMobileThreatSlightlyFurtherAway..'; iEnemyT1PDInRangeOfUs='..iEnemyT1PDInRangeOfUs..'; iEnemyNearbyT2PlusPDThreat='..iEnemyNearbyT2PlusPDThreat..'; iEnemyFurtherAwayLRPDThreat='..iEnemyFurtherAwayLRPDThreat..'; bEnemyHasLongerRangedUnits='..tostring(bEnemyHasLongerRangedUnits)..'; Is shot blocked='..tostring(M28Logic.IsShotBlocked(oACU, oEnemyToTarget, false, nil))) end
                         end
@@ -4159,6 +4165,15 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                                 if bDebugMessages == true then LOG(sFunctionRef..': We are in range of an enemy ACU that we outrange, so want to ignore kiting retreat and go for the kill') end
                                 bWantKitingRetreat = false
                             end
+                        end
+                    end
+
+                    --Shot blocked override
+                    if bWantKitingRetreat and ((bEnemyHasLongerRangedUnits and iEnemyT1ArtiAndDFThreatCloseToOurRange <= iEnemyThreatThresholdForDetailedCheck * 0.5)
+                            or (oACU[refiUpgradeCount] >= 2 and iOurACUHealthPercent >= 0.95 and (oACU[refiUpgradeCount] >= 3 or tLZTeamData[M28Map.refiModDistancePercent] <= 0.4 or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 100 + M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 50))) then
+                        if M28Logic.IsShotBlocked(oACU, oEnemyToTarget, false, nil) then
+                            bWantKitingRetreat = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Our shot is blocked so dont want to kite enemy') end
                         end
                     end
 
@@ -5494,6 +5509,7 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                     if bDebugMessages == true then LOG(sFunctionRef..': No naval threats close enough to attack so will consider nearby reclaim') end
                     if not(ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true)) then
                         local sUpgradeToGet, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, nil, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero)
+
                         if sUpgradeToGet and (bIgnoreOtherUpgradeConditions or (not(M28Conditions.HaveLowMass(aiBrain)) and not(M28Conditions.HaveLowPower(aiBrain)))) then
                             --Are we safe to get the upgrade here? if not then retreat
                             if bIgnoreOtherUpgradeConditions or M28Conditions.SafeToUpgradeUnit(oACU) then
@@ -7051,7 +7067,7 @@ function GetACUOrder(aiBrain, oACU)
                                     M28Orders.IssueTrackedAttackMove(oACU, tRallyPoint, 5, false, 'RunARP')
                                 else
                                     --if not(ACUStuckAndGivenIntermediateMovePoint(oACU, tRallyPoint)) then --Function didnt actually help ACU get unstuck in one replay where it got stuck, but might in other scenario
-                                        M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'RunRP')
+                                    M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'RunRP')
                                     --end
 
                                 end
@@ -8022,6 +8038,7 @@ function HaveActionForACUAsEngineer(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateau
                             else
                                 sUpgradeWanted, bIgnoreOtherUpgradeConditions = GetACUUpgradeWanted(oACU, false, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, false)
                             end
+
                             if sUpgradeWanted then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to get T3 on ACU') end
                                 bGivenOrder = true

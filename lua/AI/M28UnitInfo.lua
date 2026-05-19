@@ -123,6 +123,7 @@ refiTimeLastCanceledUpgrade = 'M28CancUpT' --time of last cancelling upgrade
 refiDistToEnemyBaseWhenLastCanceledUpgrade = 'M28CancUpD' --Dist to closest enemy base when last canceled upgrade
 reftiWallAdjacentLandZonesRecorded = 'M28UWlAZ' --if a wall is near anotherl and zone it records that other land zone here
 refbHostileImmobileCivilian = 'M28HsImC' --true if when unit is detected it appears to be immobile and owned by a hostile civilian (so we are less cautious with engineers around it)
+refbTreatAmphibiousUnitAsSubmarine = 'M28NvC' --true if want to use an amphibious or hover unit as though it is a naval combat unit
 
     --Unit micro related
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI
