@@ -625,7 +625,6 @@ function SafeToUpgradeUnit(oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SafeToUpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 120 then --have al ower 60s timer later on which just flags the zone as safe but does other checks after that
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
@@ -4771,5 +4770,22 @@ function IsAirMoveLocationSafeToIdle(tMoveLocation, iTeam, bRequireCoreBase)
     local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tMoveLocation, true, iTeam)
     if (not(bRequireCoreBase) or tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeDFThreat] or 0) == 0 and (tLZOrWZTeamData[M28Map.subrefiNearbyEnemyLongRangeIFThreat] or 0) == 0 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
         return true
+    end
+end
+
+function CanTravelToDestinationWithinMapBounds(tStart, tEnd, sPathing, bDrawPathing)
+    if (M28Map.rMapPlayableArea[3] < M28Map.rMapPotentialPlayableArea[3] or M28Map.rMapPlayableArea[4] < M28Map.rMapPotentialPlayableArea[4]) then
+        local tFullPath, iPathSize, iDistance = NavUtils.PathTo((sPathing or 'Land'), tStart, tEnd, nil)
+        if M28Utilities.IsTableEmpty(tFullPath) == false then
+            if bDrawPathing then M28Utilities.DrawPath(tFullPath) end
+            for iEntry, tPosition in tFullPath do
+                if not(IsLocationInPlayableArea(tPosition)) then
+                    return nil
+                end
+            end
+            return true
+        else
+            return nil
+        end
     end
 end

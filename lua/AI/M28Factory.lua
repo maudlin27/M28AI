@@ -299,6 +299,11 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             and (tLZTeamData[M28Map.subrefLZbCoreBase] or M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryLandScout) > 0 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout) >= 5) then
         if bDebugMessages == true then LOG(sFunctionRef..': Unit is on blacklist so dont want to build') end
         sBPIDToBuild = nil
+        --Naval factories where naval units cant find anywhere to support
+    elseif tLZTeamData[M28Map.refbNoSubSupportPoint] and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, sBPIDToBuild) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySubmarine) >= 10 then
+        sBPIDToBuild = nil
+    elseif tLZTeamData[M28Map.refbNoSurfaceSupportPoint] and (not(EntityCategoryContains(M28UnitInfo.refCategoryBombardment, sBPIDToBuild)) or (GetGameTimeSeconds() - (M28Map.tPondDetails[M28Map.tiPondByWaterZone[oFactory[M28UnitInfo.reftAssignedWaterZoneByTeam][aiBrain.M28Team]]][M28Map.refiCampaignLastBombardmentWeaponFired] or 600) >= 60 and (tLZTeamData[M28Map.refiLastBombardmentSearchRange] or 0) >=  aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 10)) then
+        sBPIDToBuild = nil
     else
         if not(ScenarioInfo.Options.M28PrioritiseBPs == 2) then
             if M28Utilities.bQuietModActive then
@@ -6785,9 +6790,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
 
 
-    if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; Pond='..iPond..'; WZ='..iWaterZone..'; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3)..'; Factory build count='..(oFactory[refiTotalBuildCount] or 'nil'))
-    end
+    if bDebugMessages == true then LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; Pond='..iPond..'; WZ='..iWaterZone..'; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3)..'; Factory build count='..(oFactory[refiTotalBuildCount] or 'nil')..'; refbNoSurfaceSupportPoint='..tostring(tWZTeamData[M28Map.refbNoSurfaceSupportPoint] or false)..'; refbNoSubSupportPoint='..tostring(tWZTeamData[M28Map.refbNoSubSupportPoint] or false)..'; refiCampaignLastBombardmentWeaponFired='..(tWZTeamData[M28Map.refiCampaignLastBombardmentWeaponFired] or 'nil')) end
 
     local bConsiderBuildingShieldOrStealthBoats = true
     --Shield boat needs 10 energy per tick; same for stealth boat; dont want this to account for more than 20% of gross energy; so want 50 gross energy per tick per shield boat for it to be <20%

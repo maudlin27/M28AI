@@ -1704,6 +1704,14 @@ function OnWeaponFired(oWeapon)
                         --TML and nuke - consider launching missile if have any remaining
                         ForkThread(M28Building.JustFiredMissile, oUnit)
                     end
+
+                    --Naval bombardment units in campaign that cant path through a pond
+                    if M28Map.bIsCampaignMap and oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][oUnit:GetAIBrain().M28Team] and EntityCategoryContains(M28UnitInfo.refCategoryBombardment, oUnit.UnitId) then
+                        local iTeam = oUnit:GetAIBrain().M28Team
+                        local iWZ = oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]
+                        local iPond = M28Map.tiPondByWaterZone[iWZ]
+                        M28Map.tPondDetails[iPond][M28Map.refiCampaignLastBombardmentWeaponFired] = GetGameTimeSeconds()
+                    end
                 end
 
                 --T2 bombers - call OnBombFired event (doesnt fire properly normally since it fires missiles)
@@ -3305,6 +3313,7 @@ function OnReclaimFinished(oEngineer, oReclaim)
                 for iEngineer, oEngineer in tEngineersToClear do
                     M28Orders.IssueTrackedClearCommands(oEngineer)
                 end
+                --end
             end
         end
 
