@@ -1364,7 +1364,7 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
             --Check we have 1 T2 power per M28 player
             local iT2PowerEquivalent = 0
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                iT2PowerEquivalent = oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH2) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH3) * 4
+                iT2PowerEquivalent = iT2PowerEquivalent + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH2) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH3) * 4
             end
             if iT2PowerEquivalent >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.65 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] then
                 if iT2PowerEquivalent >= 2 then M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] = false end --If game is late enough that we have built multiple t2 pgens then should start ecoing
@@ -1379,7 +1379,7 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
         if not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
             local iT3PowerEquivalent = 0
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                iT3PowerEquivalent = oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH3)
+                iT3PowerEquivalent = iT3PowerEquivalent + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower * categories.TECH3)
             end
             if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * 0.65 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier] and (iT3PowerEquivalent >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2000 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultiplier]) then
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
