@@ -16419,8 +16419,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --For now only do land zone not water zone given water zone includes torp bombers
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-            iNearbyEnemyAirToGroundThreat = iNearbyEnemyAirToGroundThreat + tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
-            if tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then bAdjacentToCoreZone = true end
+            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+            iNearbyEnemyAirToGroundThreat = iNearbyEnemyAirToGroundThreat + tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat]
+            if tAdjLZTeamData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then bAdjacentToCoreZone = true end
         end
     end
 
@@ -17118,24 +17119,32 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             if bDebugMessages == true then LOG(sFunctionRef..': bHaveFixedAA='..tostring(bHaveFixedAA)..'; Enemy air to ground threat='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Ally groundAA threat='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]) end
             if not(bHaveFixedAA) or iNearbyEnemyAirToGroundThreat > tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] then
                 iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
-                if iNearbyEnemyAirToGroundThreat > 0 then iBPWanted = iBPWanted * 2 end
+                if iNearbyEnemyAirToGroundThreat > 0 then
+                    iBPWanted = iBPWanted * 2
+                    if bDebugMessages == true then LOG(sFunctionRef..': Doubling base BP wanted as enemy has nearby air threat') end
+                end
+
                 if not(bHaveLowPower) then
-                    if not(bHaveLowMass) then iBPWanted = iBPWanted * 4
-                    else iBPWanted = iBPWanted * 2
+                    if not(bHaveLowMass) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont have low power or mass so quadrupling BP wanted') end
+                        iBPWanted = iBPWanted * 4
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont have low power but have low mass so only doubling bp wanted') end
+                        iBPWanted = iBPWanted * 2
                     end
                 end
-                local bIncreaseBPWanted = false
-                local iT2PlusMex = 0
-                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefMexCountByTech]) == false then
-                    for iTech, iCount in tLZTeamData[M28Map.subrefMexCountByTech] do
-                        if iTech > 1 then iT2PlusMex = iT2PlusMex + iCount end
+                --Minimum of 30 build power if we have t2+ mexes
+                if iBPWanted < 30 and (tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have T2 mexes so want at least 30 BP, or at least 20 if only 1 t2 mex') end
+                    if tLZTeamData[M28Map.subrefMexCountByTech][2] == 1 and tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 then iBPWanted = math.max(iBPWanted, 20)
+                    else iBPWanted = 30
                     end
                 end
-                if iT2PlusMex > 0 then  bIncreaseBPWanted = true end
+
                 if bEngineersRecentlyRunFromEnemy then iBPWanted = iBPWanted * 0.5 end
                 --HaveActionToAssign(iActionToAssign, iMinTechLevelWanted,                                          iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting)
                 HaveActionToAssign(refActionBuildAA, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted     , nil,              true)
-                if bDebugMessages == true then LOG(sFunctionRef..': Minor Zone AA builder if no fixed AA: iBPWanted='..iBPWanted..'; iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; subrefiAlliedGroundAAThreat='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]..'; iT2PlusMex='..iT2PlusMex..'; bIncreaseBPWanted='..tostring(bIncreaseBPWanted)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Minor Zone AA builder if no fixed AA: iBPWanted='..iBPWanted..'; iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; subrefiAlliedGroundAAThreat='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]) end
             end
         end
     end
@@ -17829,7 +17838,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(400, tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] * 2) and (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.5) then
         local iGroundAAWanted = 150 * (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 4)
         if bHaveLowMass then iGroundAAWanted = iGroundAAWanted * 0.5 end
-        local iNearbyEnemyAirToGroundThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
+        local iApproachingEnemyAirToGroundThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
         M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData)
         for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
             if tSubtable[M28Map.subrefiDistance] >= 200 then break end
@@ -17839,8 +17848,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             else
                 tAltLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tSubtable[M28Map.subrefiLandOrWaterZoneRef]]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefWZTeamData][iTeam]
             end
-            iNearbyEnemyAirToGroundThreat = iNearbyEnemyAirToGroundThreat + (tAltLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)
+            iApproachingEnemyAirToGroundThreat = iApproachingEnemyAirToGroundThreat + (tAltLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)
         end
+        iNearbyEnemyAirToGroundThreat = math.max(iNearbyEnemyAirToGroundThreat, iApproachingEnemyAirToGroundThreat)
         if bHaveLowMass then iGroundAAWanted = math.max(iGroundAAWanted,  iNearbyEnemyAirToGroundThreat * 0.4)
         else iGroundAAWanted = math.max(iGroundAAWanted, iNearbyEnemyAirToGroundThreat * 0.8)
         end
