@@ -1704,6 +1704,14 @@ function OnWeaponFired(oWeapon)
                         --TML and nuke - consider launching missile if have any remaining
                         ForkThread(M28Building.JustFiredMissile, oUnit)
                     end
+
+                    --Naval bombardment units in campaign that cant path through a pond
+                    if M28Map.bIsCampaignMap and oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][oUnit:GetAIBrain().M28Team] and EntityCategoryContains(M28UnitInfo.refCategoryBombardment, oUnit.UnitId) then
+                        local iTeam = oUnit:GetAIBrain().M28Team
+                        local iWZ = oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]
+                        local iPond = M28Map.tiPondByWaterZone[iWZ]
+                        M28Map.tPondDetails[iPond][M28Map.refiCampaignLastBombardmentWeaponFired] = GetGameTimeSeconds()
+                    end
                 end
 
                 --T2 bombers - call OnBombFired event (doesnt fire properly normally since it fires missiles)
@@ -3232,7 +3240,14 @@ function OnReclaimFinished(oEngineer, oReclaim)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just finished reclaiming, gametime='..GetGameTimeSeconds()) end
+
+
+        if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just finished reclaiming; gametime='..GetGameTimeSeconds())
+            if not(oEngineer.Dead) then
+                local oFocusObject = oEngineer:GetFocusUnit()
+                LOG(sFunctionRef..': unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; oFocusObject='..(oFocusObject.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocusObject) or 'nil'))
+            end
+        end
         if oReclaim and oReclaim.CachePosition then
             --LOG('OnReclaimFinished temp log - remove once confirmed this works - about to update reclaim data near location='..repru(oReclaim.CachePosition))
             ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, oReclaim.CachePosition, 0)
@@ -3284,7 +3299,12 @@ function OnReclaimFinished(oEngineer, oReclaim)
                     end
                 end
             elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': about to cancel reclaiming oReclaim if it doesnt exist, IsDestroyed='..tostring(IsDestroyed(oReclaim))..'; is oReclaim.GetHealth nil='..tostring(oReclaim.GetHealth == nil)) end
                 local tEngineersToClear = {}
+                --Stop engineers 'stop-starting' reclaim order - drafted below in v297 but found different cause of the issue so left in for now as presuming wanted to have all reclaiming units stop and reassess orders in case they all want to e.g. retreat
+                --[[if not(IsDestroyed(oReclaim)) and ((oReclaim.GetHealth and oReclaim:GetHealth() > 0) or not(oReclaim.GetHealth)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Wont clear other engineers') end
+                else--]]
                 for iEngineer, oEngineer in oReclaim[M28Engineer.reftUnitsReclaimingUs] do
                     if M28UnitInfo.IsUnitValid(oEngineer) then
                         table.insert(tEngineersToClear, oEngineer)
@@ -3293,6 +3313,7 @@ function OnReclaimFinished(oEngineer, oReclaim)
                 for iEngineer, oEngineer in tEngineersToClear do
                     M28Orders.IssueTrackedClearCommands(oEngineer)
                 end
+                --end
             end
         end
 
@@ -4147,7 +4168,14 @@ function DeathTriggerAdded(oUnit)
             if not(oUnit.Dead) then
                 local rTargetRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
                 local tTargetMidpoint = {(rTargetRect['x0'] + rTargetRect['x1'])*0.5 , 0, (rTargetRect['y0'] + rTargetRect['y1'])*0.5}
-                ForkThread(M28Overseer.UEFMissionSendTruckToTarget, {oUnit}, tTargetMidpoint, ScenarioInfo.M3P2)
+                ForkThread(M28Overseer.UEFMissionSendTruckToTarget, {oUnit}, tTargetMidpoint, 'M3P2')
+            end
+            --Cybran M3 - only a few trucks get picked up by main logic
+        elseif oUnit.UnitId == 'urc0001' and ScenarioInfo.M2BrackmanTrucksCreated and ScenarioInfo.M2BrackmanTrucksDestroyed and ScenarioInfo.M2P2Complete and ScenarioInfo.M2P1Complete and not(ScenarioInfo.M2P3Complete) then
+            if not(oUnit[M28Overseer.refbCampaignSpecialLoopActive]) then
+                local rTargetRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('M2_Gate_Delete_Area')
+                local tTargetMidpoint = {(rTargetRect['x0'] + rTargetRect['x1'])*0.5 , 0, (rTargetRect['y0'] + rTargetRect['y1'])*0.5}
+                ForkThread(M28Overseer.UEFMissionSendTruckToTarget, {oUnit}, tTargetMidpoint, 'M2P3Obj', 600)
             end
         end
     end
