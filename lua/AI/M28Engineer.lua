@@ -4885,7 +4885,9 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                     if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oNearestReclaimableEnemy.UnitId) and iNearestReclaimableEnemy <= iDistanceUntilInRange then
                                                         M28Orders.IssueTrackedCapture(oEngineer, oNearestReclaimableEnemy, false, 'CapT1Mx', false)
                                                     else
-                                                        M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE', false, iNearestReclaimableEnemy < iDistanceUntilInRange)
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and reclaim oNearestReclaimableEnemy='..oNearestReclaimableEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy)) end
+                                                        --IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder, bForceReissueOfOrderSubjectToMicro)
+                                                        M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE', false, (iNearestReclaimableEnemy < iDistanceUntilInRange and (not(oEngineer:IsUnitState('Reclaiming')) or not(oNearestReclaimableEnemy == oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]))))
                                                     end
                                                 end
 
@@ -4895,6 +4897,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
 
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to monitor reclaim distance, iDistanceUntilInRange='..iDistanceUntilInRange..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; Speed of us and them='..(oEnemyBP.Physics.MaxSpeed or 0) + oEngineer:GetBlueprint().Physics.MaxSpeed) end
                                                 if iNearestReclaimableEnemy > iDistanceUntilInRange and iNearestReclaimableEnemy - iDistanceUntilInRange <= (oEnemyBP.Physics.MaxSpeed or 0) + oEngineer:GetBlueprint().Physics.MaxSpeed + 0.2 then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will monitor to reissue order') end
                                                     ForkThread(MonitorToReissueReclaimOrder, oEngineer, oNearestReclaimableEnemy, iDistanceUntilInRange, 9)
                                                 end
                                             end
@@ -4925,11 +4928,14 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                         end
                                                     end
                                                 end
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Not close enough to reclaim enemy, and not a core LZ, iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; iClosestDistUntilInRangeOfMobileEnemy='..iClosestDistUntilInRangeOfMobileEnemy..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Not close enough to reclaim enemy, and not a core LZ, iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; iClosestDistUntilInRangeOfMobileEnemy='..iClosestDistUntilInRangeOfMobileEnemy..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies..'; Is engi reclaiming='..tostring(oEngineer:IsUnitState('Reclaiming'))..'; oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]='..(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) or 'nil')..'; is this valid='..tostring(M28UnitInfo.IsUnitValid(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]))) end
                                                 if (iClosestDistUntilInRangeOfStaticEnemy < 8 or iClosestDistUntilInRangeOfMobileEnemy <= iThresholdToRunFromMobileEnemies) and (not(tLZTeamData[M28Map.subrefLZbCoreBase]) or iClosestDistUntilInRangeOfStaticEnemy < 4 or iClosestDistUntilInRangeOfMobileEnemy < 8) then
                                                     --Dont run if we are building a land factory and have a friendly combat threat in the zone or factory is near-complete
                                                     if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 40 and (oEngineer:IsUnitState('Building') or oEngineer:IsUnitState('Reclaiming')) and (oEngineer:GetWorkProgress() >= 0.75 or (oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryPD, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]))) then
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Want to risk engineer sticking around to try and complete its building') end
+                                                        --Dont run if we are reclaiming and we arent actually in range of the enemy unit or are reclaiming an enemy combat unit or engineer
+                                                    elseif oEngineer:IsUnitState('Reclaiming') and ((iClosestDistUntilInRangeOfMobileEnemy > 3 and iClosestDistUntilInRangeOfStaticEnemy > 1) or (oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].UnitId and not(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].Dead) and ((oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget][M28UnitInfo.refiCombatRange] or 0) > 0 or EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].UnitId) or (oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget].GetHealth and M28UnitInfo.GetUnitHealthPercent(oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) <= 0.3)))) then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': want to keep reclaiming instead of running') end
                                                     else
                                                         local tPositionToRunFrom
                                                         if oNearestEnemy then tPositionToRunFrom = oNearestEnemy:GetPosition()
@@ -5111,6 +5117,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                         end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': bEngiIsUnavailable='..tostring(bEngiIsUnavailable)) end
                 if bEngiIsUnavailable then
                     table.insert(toAssignedEngineers, oEngineer)
                 else

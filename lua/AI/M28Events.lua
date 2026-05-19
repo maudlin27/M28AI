@@ -3232,7 +3232,14 @@ function OnReclaimFinished(oEngineer, oReclaim)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just finished reclaiming, gametime='..GetGameTimeSeconds()) end
+
+
+        if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just finished reclaiming; gametime='..GetGameTimeSeconds())
+            if not(oEngineer.Dead) then
+                local oFocusObject = oEngineer:GetFocusUnit()
+                LOG(sFunctionRef..': unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; oFocusObject='..(oFocusObject.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocusObject) or 'nil'))
+            end
+        end
         if oReclaim and oReclaim.CachePosition then
             --LOG('OnReclaimFinished temp log - remove once confirmed this works - about to update reclaim data near location='..repru(oReclaim.CachePosition))
             ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, oReclaim.CachePosition, 0)
@@ -3284,7 +3291,12 @@ function OnReclaimFinished(oEngineer, oReclaim)
                     end
                 end
             elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': about to cancel reclaiming oReclaim if it doesnt exist, IsDestroyed='..tostring(IsDestroyed(oReclaim))..'; is oReclaim.GetHealth nil='..tostring(oReclaim.GetHealth == nil)) end
                 local tEngineersToClear = {}
+                --Stop engineers 'stop-starting' reclaim order - drafted below in v297 but found different cause of the issue so left in for now as presuming wanted to have all reclaiming units stop and reassess orders in case they all want to e.g. retreat
+                --[[if not(IsDestroyed(oReclaim)) and ((oReclaim.GetHealth and oReclaim:GetHealth() > 0) or not(oReclaim.GetHealth)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Wont clear other engineers') end
+                else--]]
                 for iEngineer, oEngineer in oReclaim[M28Engineer.reftUnitsReclaimingUs] do
                     if M28UnitInfo.IsUnitValid(oEngineer) then
                         table.insert(tEngineersToClear, oEngineer)
