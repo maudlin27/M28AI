@@ -4147,7 +4147,14 @@ function DeathTriggerAdded(oUnit)
             if not(oUnit.Dead) then
                 local rTargetRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
                 local tTargetMidpoint = {(rTargetRect['x0'] + rTargetRect['x1'])*0.5 , 0, (rTargetRect['y0'] + rTargetRect['y1'])*0.5}
-                ForkThread(M28Overseer.UEFMissionSendTruckToTarget, {oUnit}, tTargetMidpoint, ScenarioInfo.M3P2)
+                ForkThread(M28Overseer.UEFMissionSendTruckToTarget, {oUnit}, tTargetMidpoint, 'M3P2')
+            end
+            --Cybran M3 - only a few trucks get picked up by main logic
+        elseif oUnit.UnitId == 'urc0001' and ScenarioInfo.M2BrackmanTrucksCreated and ScenarioInfo.M2BrackmanTrucksDestroyed and ScenarioInfo.M2P2Complete and ScenarioInfo.M2P1Complete and not(ScenarioInfo.M2P3Complete) then
+            if not(oUnit[M28Overseer.refbCampaignSpecialLoopActive]) then
+                local rTargetRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('M2_Gate_Delete_Area')
+                local tTargetMidpoint = {(rTargetRect['x0'] + rTargetRect['x1'])*0.5 , 0, (rTargetRect['y0'] + rTargetRect['y1'])*0.5}
+                ForkThread(M28Overseer.UEFMissionSendTruckToTarget, {oUnit}, tTargetMidpoint, 'M2P3Obj', 600)
             end
         end
     end
