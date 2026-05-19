@@ -9925,7 +9925,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': About to check if want to lower tech level wanted, bAlreadyHaveTechLevelWanted='..tostring(bAlreadyHaveTechLevelWanted)..'; iMinTechWanted='..iMinTechWanted..'; Is campaign map='..tostring(M28Map.bIsCampaignMap)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to check if want to lower tech level wanted, bAlreadyHaveTechLevelWanted='..tostring(bAlreadyHaveTechLevelWanted)..'; iMinTechWanted='..iMinTechWanted..'; Is campaign map='..tostring(M28Map.bIsCampaignMap)..'; iActionToAssign='..iActionToAssign) end
         if bAlreadyHaveTechLevelWanted and not(bDontUseLowerTechEngineersToAssist) then iMinTechWanted = 1
             --Campaign - might have T3 air fac but not be able to build T3 engineers
         elseif iMinTechWanted > 1 and (M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) and (iActionToAssign == refActionBuildLandFactory or iActionToAssign == refActionBuildAirFactory or iActionToAssign == refActionBuildPower or iActionToAssign == refActionBuildSecondLandFactory or iActionToAssign == refActionBuildSecondAirFactory) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
@@ -17101,8 +17101,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
 
     --AA if enemy has air to ground threat
-    if bDebugMessages == true then LOG(sFunctionRef..': High priority AA builder: iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; enemy air to ground threat='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Enemy AirAA threat='..tLZTeamData[M28Map.refiEnemyAirAAThreat]) end
     iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': High priority AA builder: iCurPriority='..iCurPriority..'; iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; enemy air to ground threat='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Enemy AirAA threat='..tLZTeamData[M28Map.refiEnemyAirAAThreat]) end
     if (iNearbyEnemyAirToGroundThreat > 0 or tLZTeamData[M28Map.refiEnemyAirAAThreat] >= 500) and (not(bTeammateHasBuiltHere) or iNearbyEnemyAirToGroundThreat >= 1000) then
         --Do we already have fixed AA in this LZ?
         if not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) or M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround] >= 200 or tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] == 0 then
@@ -17117,7 +17117,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': bHaveFixedAA='..tostring(bHaveFixedAA)..'; Enemy air to ground threat='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Ally groundAA threat='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]) end
-            if not(bHaveFixedAA) or iNearbyEnemyAirToGroundThreat > tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] then
+            if not(bHaveFixedAA) or iNearbyEnemyAirToGroundThreat > tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and math.min(iNearbyEnemyAirToGroundThreat * 4, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) > tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]) then
                 iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
                 if iNearbyEnemyAirToGroundThreat > 0 then
                     iBPWanted = iBPWanted * 2
@@ -17142,9 +17142,31 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 end
 
                 if bEngineersRecentlyRunFromEnemy then iBPWanted = iBPWanted * 0.5 end
+                local iTechLevelWanted = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+                --If we have no engis of that tech level in this or adjacent zone then lower requirement if there is nearby enemy air threat
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking tech level if not adjacent to core zone, subrefiHighestFriendlyFactoryTech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; bAdjacentToCoreZone='..tostring(bAdjacentToCoreZone)) end
+                if iNearbyEnemyAirToGroundThreat > 0 and iTechLevelWanted > 1 then
+                    if M28Utilities.IsTableEmpty(toAvailableEngineersByTech[iTechLevelWanted]) and (not(bAdjacentToCoreZone) or aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < iTechLevelWanted or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) then
+                        local iHighestTechActuallyAvailable = 1
+                        if iTechLevelWanted == 3 and M28Utilities.IsTableEmpty(toAvailableEngineersByTech[2]) == false then iHighestTechActuallyAvailable = 2 end
+                        local iCurEngiTech
+                        if M28Utilities.IsTableEmpty(toAssignedEngineers) == false then
+                            for iEngi, oEngi in toAssignedEngineers do
+                                iCurEngiTech = M28UnitInfo.GetUnitTechLevel(oEngi)
+                                if iCurEngiTech > iHighestTechActuallyAvailable then
+                                    iHighestTechActuallyAvailable = iCurEngiTech
+                                    if iHighestTechActuallyAvailable >= 3 then break end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iHighestTechActuallyAvailable='..iHighestTechActuallyAvailable) end
+                        iTechLevelWanted = iHighestTechActuallyAvailable
+                    end
+                end
+
                 --HaveActionToAssign(iActionToAssign, iMinTechLevelWanted,                                          iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting)
-                HaveActionToAssign(refActionBuildAA, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted     , nil,              true)
-                if bDebugMessages == true then LOG(sFunctionRef..': Minor Zone AA builder if no fixed AA: iBPWanted='..iBPWanted..'; iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; subrefiAlliedGroundAAThreat='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]) end
+                HaveActionToAssign(refActionBuildAA, iTechLevelWanted, iBPWanted     , nil,              true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Minor Zone AA builder if no fixed AA: iBPWanted='..iBPWanted..'; iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; subrefiAlliedGroundAAThreat='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]..'; iTechLevelWanted='..iTechLevelWanted) end
             end
         end
     end
