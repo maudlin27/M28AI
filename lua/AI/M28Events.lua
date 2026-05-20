@@ -4189,7 +4189,7 @@ end
 function ObjectiveAdded(oObjective, Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'ObjectiveAdded'
-        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete, M28Utilities.bM28AIInGame='..tostring(M28Utilities.bM28AIInGame or false)) end
         --Wait until map setup complete
@@ -4335,6 +4335,27 @@ function ObjectiveAdded(oObjective, Type, Complete, Title, Description, ActionIm
                                         end
                                     end
                                 end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': If we have a single allied unit, so might be an objective to defend it, size of target.Units='..table.getn(Target.Units)) end
+                    if table.getn(Target.Units) == 1 then
+                        --Flag to fortify the zone (e.g. cover cases like Cybran Mission 4)
+                        if M28UnitInfo.IsUnitValid(Target.Units[1]) then
+                            local oUnit = Target.Units[1]
+                            local iTeam
+                            for iBrain, oBrain in ArmyBrains do
+                                if oBrain.M28AI and not(M28Conditions.IsCivilianBrain(oBrain)) then
+                                    iTeam = oBrain.M28Team
+                                    if not(oBrain.CampaignAI) then
+                                        break
+                                    end
+                                end
+                            end
+                            local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                            if tUnitLZTeamData then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will record we want to fortify this LZ') end
+                                tUnitLZTeamData[M28Map.subrefLZFortify] = true
                             end
                         end
                     end

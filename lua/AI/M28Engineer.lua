@@ -16618,7 +16618,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
     local bExistingFactoryIsComplete = false
-
     if bDebugMessages == true then LOG(sFunctionRef..': About to determine factories wanted, tLZTeamData[M28Map.subrefLZCoreExpansion]='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; bAdjacentToCoreZone='..tostring(bAdjacentToCoreZone or false)..'; bHaveLowMass='..tostring(bHaveLowMass or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
     if tLZTeamData[M28Map.subrefLZCoreExpansion] or tLZTeamData[M28Map.subrefLZFortify] then
         if not(bTeammateHasBuiltHere) and (tLZTeamData[M28Map.subrefLZCoreExpansion] or (not(bHaveLowMass) and (bAdjacentToCoreZone and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 750) or (M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam) and ((bAdjacentToCoreZone and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.75 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or tLZData[M28Map.subrefLZOrWZMexCount] >= 4) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.3))) then
@@ -16756,7 +16755,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         iFactoriesWanted = 1
     end
     if bEngineersRecentlyRunFromEnemy and iFactoriesWanted > 1 then iFactoriesWanted = 1 end
-
     --TMD if we have recently lost a building to enemy TML - have 1 engineer assigned as top priority (will assign more later on)
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': highest priority TMD builder, is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; Enemy combat total='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Time since subrefiTimeOfLastBuildingDeathToTML='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] or 0)) end
@@ -16980,11 +16978,10 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     end
     --Paragon - always want at least 1 factory in every minor LZ
     if aiBrain[M28Economy.refbBuiltParagon] and not(bTeammateHasBuiltHere) and iFactoriesWanted <= 0 and tLZData[M28Map.subrefLZTotalSegmentCount] >= 20 and (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) >= 1 then iFactoriesWanted = math.max(iFactoriesWanted, 1) end
-
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': iExistingFactory='..GetExistingFactoryNumber()..'; iFactoriesWanted='..iFactoriesWanted..'; P'..iPlateau..'Z'..iLandZone..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; Signif mass reclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': iExistingFactory='..GetExistingFactoryNumber()..'; iFactoriesWanted='..iFactoriesWanted..'; P'..iPlateau..'Z'..iLandZone..'; Mod dist='..tLZTeamData[M28Map.refiModDistancePercent]..'; Signif mass reclaim='..tLZData[M28Map.subrefTotalSignificantMassReclaim]..'; iCurPriority='..iCurPriority..';  Time='..GetGameTimeSeconds()) end
     --If we have dropped here recently, and mod dist is high, then prioritise getting reclaim over land fac as enemy will likely kill us soon
-    if GetExistingFactoryNumber() < iFactoriesWanted and (tLZTeamData[M28Map.refiModDistancePercent] <= 0.75 or tLZData[M28Map.subrefTotalSignificantMassReclaim] < 250 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.75) then
+    if GetExistingFactoryNumber() < iFactoriesWanted and (tLZTeamData[M28Map.refiModDistancePercent] <= 0.75 or tLZData[M28Map.subrefTotalSignificantMassReclaim] < 250 or aiBrain:GetEconomyStoredRatio('MASS') >= 0.75 or (tLZTeamData[M28Map.subrefLZFortify] and GetExistingFactoryNumber() == 0)) then
         iBPWanted = 10
         if bExistingFactoryIsComplete and bHaveLowMass then iBPWanted = 5 end
         --If we have dropped engineerz in this zone then prioritise the first land fac more
@@ -17205,9 +17202,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             --end
         end
     end
-
     --Fortify zone (if flagged to fortify)
     iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to fortify LZ or if we are turtle AI with mexes, iCurPriority='..iCurPriority..'; subrefLZFortify='..tostring((tLZTeamData[M28Map.subrefLZFortify] or false))..'; refbPrioritiseDefence='..tostring(aiBrain[M28Overseer.refbPrioritiseDefence] or false)..'; subrefMexCountByTech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
     if (tLZTeamData[M28Map.subrefLZFortify] or (aiBrain[M28Overseer.refbPrioritiseDefence] and (tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][1] >= 3))) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 then
         local bHaveSufficientTech = false
         local tT2PlusFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
