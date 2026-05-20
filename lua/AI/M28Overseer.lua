@@ -851,10 +851,20 @@ function CheckUnitCap(aiBrain)
         --end
         local iCurUnits = GetArmyUnitCostTotal(aiBrain:GetArmyIndex()) --aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
         local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
-        local iThreshold = math.min(30, math.max(math.ceil(iUnitCap * 0.02), 10, iCurFactories * 0.5))
+        local iThreshold = math.min(25, math.max(math.ceil(iUnitCap * 0.02), 10, iCurFactories * 0.5))
+        if bUnitRestrictionsArePresent then
+            if aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 then
+                if aiBrain[M28Economy.refiOurHighestFactoryTechLevel] == 1 then iThreshold = iThreshold * 0.4
+                else
+                    iThreshold = iThreshold * 0.6
+                end
+            elseif M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 then iThreshold = iThreshold * 0.7
+            end
+        elseif M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 then iThreshold = iThreshold * 0.8
+        end
         local iCurUnitsDestroyed = 0
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; iCurUnits='..iCurUnits..'; iUnitCap='..iUnitCap..'; iThreshold='..iThreshold) end
-        if iCurUnits > (iUnitCap - iThreshold * 5) then
+        if iCurUnits > (iUnitCap - iThreshold * 4) then --changed from *5 to *4 in v299
             aiBrain[refbCloseToUnitCap] = true
             M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap] = GetGameTimeSeconds()
             local iMaxToDestroy = math.max(5, math.ceil(iUnitCap * 0.01), math.max(20, iCurFactories) - (iUnitCap - iCurUnits))

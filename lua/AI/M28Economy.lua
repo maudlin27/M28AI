@@ -1039,9 +1039,9 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptio
                         if M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 2 then
                             local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
                             if iUnitTechLevel > 1 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] or 0) >= iEnergyGen * 0.2 then
-                                iTimeToWait = math.max(6, math.min(30, M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] / math.max(0.1, M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored])))
+                                iTimeToWait = math.max(6, math.min(30, (M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] or 1) / math.max(0.1, (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] or 1))))
                             end
-                            if iTimeToWait < 10 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] or 0) >= iEnergyGen * 0.1 and (M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < -1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < -M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4)) then
+                            if iTimeToWait < 10 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] or 0) >= iEnergyGen * 0.1 and (M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 or ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] or 0) < -1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < -M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] <= 0.4)) then
                                 iTimeToWait = 10
                             end
                         end
@@ -3411,7 +3411,7 @@ function ConsiderFutureMexUpgrade(oMex, iOverrideSecondsToWait)
                     if iMexTechLevel == 3 or
                             bUpgradeDueToHowLongHadMex or
                             tLZOrWZData[M28Map.subrefLZOrWZMexCount] >= 3 or
-                            (iPlateauOrZero > 0 and tLZOrWZData[M28Map.subrefLZOrWZMexCount] >= math.max(2, M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauTotalMexCount] * 0.5)) or
+                            (iPlateauOrZero > 0 and tLZOrWZData[M28Map.subrefLZOrWZMexCount] >= math.max(2,(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauTotalMexCount] or 0) * 0.5)) or
                             (iPlateauOrZero > 0 and tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.25 and (not(M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes])) or table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) < math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / (2 * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] * M28UnitInfo.GetUnitTechLevel(oMex))))) then
                         --Do we have any active mex upgrades?
                         if bDebugMessages == true then LOG(sFunctionRef..': active mex upgrades='..(tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] or 0)..'; Stalling mass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Is team table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))..'; Gross mass for brain='..aiBrain[refiGrossMassBaseIncome])
