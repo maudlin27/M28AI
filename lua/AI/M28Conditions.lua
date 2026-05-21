@@ -4792,8 +4792,8 @@ end
 
 
 function IsZoneAPacifistZone(iPlateauOrZero, iLandOrWaterZone)
-    if M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau[iPlateauOrZero]) == false then
-        for iEntry, iPacifistZone in tiPacifistZonesByPlateau[iPlateauOrZero] do
+    if M28Utilities.IsTableEmpty(M28Overseer.tiPacifistZonesByPlateau[iPlateauOrZero]) == false then
+        for iEntry, iPacifistZone in M28Overseer.tiPacifistZonesByPlateau[iPlateauOrZero] do
             if iPacifistZone == iLandOrWaterZone then return true end
         end
     end
