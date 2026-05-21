@@ -2033,8 +2033,10 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
 
         local bConsiderAdjacentCombat = false
         local bConsiderAdjacentMAA = false
-        if iCurCombatThreat < tWZTeamData[M28Map.subrefWZCombatThreatWanted] then bConsiderAdjacentCombat = true end
-        if iCurMAAThreat < tWZTeamData[M28Map.subrefWZMAAThreatWanted] then bConsiderAdjacentMAA = true end
+        if not(tWZData[M28Map.subrefbPacifistArea]) then
+            if iCurCombatThreat < tWZTeamData[M28Map.subrefWZCombatThreatWanted] then bConsiderAdjacentCombat = true end
+            if iCurMAAThreat < tWZTeamData[M28Map.subrefWZMAAThreatWanted] then bConsiderAdjacentMAA = true end
+        end
 
 
         --Add adjacent combat units if the water zone is lower priority than us and the adjacent WZ doesnt have combat units of a significant threat in it
@@ -2090,11 +2092,54 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tAvailableSubmarines) == false or M28Utilities.IsTableEmpty(tMissileShips) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': About to manage combat units in the WZ, time='..GetGameTimeSeconds()) end
             if tWZData[M28Map.subrefbPacifistArea] then
+                function RemoveUnitsThatWantToContinueCurrentOrders(tUnitTable)
+                    --Allow units 10 seconds to temporarily travel along a pacifist zone if targeting something not in a pacifist zone
+                    local bRemoveCurUnit
+                    local iOrderPlateauOrZero, iOrderZone
+                    for iCurEntry = table.getn(tUnitTable), 1, -1 do
+                        local oUnit = tUnitTable[iCurEntry]
+                        M28Orders.UpdateRecordedOrders(oUnit)
+                        local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
+                        bRemoveCurUnit = false
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to leave unit in pacifist zone to continue orders, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; refiLastPacifistTemporaryDelay='..(oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay] or 'nil')..'; is tLastOrder nil='..tostring(tLastOrder == nil)) end
+                        if tLastOrder then
+                            if not(oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay]) or GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay] < 10 then
+                                if tLastOrder[M28Orders.subrefoOrderUnitTarget] then
+                                    --Is unit target in a pacifist zone?
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Targeting enemy unit '..tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget])..'; reftAssignedWaterZoneByTeam='..(tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] or 'nil')..'; reftAssignedPlateauAndLandZoneByTeam='..repru(tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam])) end
+                                    if tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] and not(M28Conditions.IsZoneAPacifistZone(0, tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam])) then
+                                        bRemoveCurUnit = true
+                                    elseif tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] and not(M28Conditions.IsZoneAPacifistZone(tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1], tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2])) then
+                                        bRemoveCurUnit = true
+                                    end
+                                elseif tLastOrder[M28Orders.subreftOrderPosition] then
+                                    --Is order position in pacifist zone?
+                                    iOrderPlateauOrZero, iOrderZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLastOrder[M28Orders.subreftOrderPosition])
+                                    if not(M28Conditions.IsZoneAPacifistZone(iOrderPlateauOrZero, iOrderZone)) then
+                                        bRemoveCurUnit = true
+                                    end
+                                end
+                            end
+                        end
+                        if bRemoveCurUnit then
+                            if not(oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay]) then oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay] = GetGameTimeSeconds() end
+                            table.remove(tUnitTable, iCurEntry)
+                        else
+                            oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay] = nil
+                        end
+                    end
+                end
                 if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
-                    RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits)
+                    RemoveUnitsThatWantToContinueCurrentOrders(tAvailableCombatUnits)
+                    if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
+                        RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits)
+                    end
                 end
                 if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
-                    RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableSubmarines)
+                    RemoveUnitsThatWantToContinueCurrentOrders(tAvailableSubmarines)
+                    if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
+                        RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableSubmarines)
+                    end
                 end
             else
                 --ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ, tMissileShips)
@@ -3568,7 +3613,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if iWaterZone == 16 and GetGameTimeSeconds() >= 50*60 then bDebugMessages = true end
     if tWZTeamData[M28Map.subreftiLandZoneTargetedByOurCombat] then M28Land.RecordDFLandZoneTarget(tWZTeamData, NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint]), iWaterZone, iTeam, nil, nil, nil) end
     if tWZTeamData[M28Map.subreftiWaterZoneTargetedByOurSurfaceCombat] then RecordWaterZoneTarget(tWZTeamData, iWaterZone, iTeam, false, nil) end
     if tWZTeamData[M28Map.subreftiWaterZoneTargetedByOurSubmersibleCombat] then RecordWaterZoneTarget(tWZTeamData, iWaterZone, iTeam, true, nil) end
@@ -7383,7 +7428,9 @@ function GetNearestEnemyUnitsAndUpdateUnitTables(iPond, iWaterZone, tWZData, tWZ
 
         --This records the closest unit for surface; and separately hover; units.  It gets reset for each new (adjacent) zone being considered so we end up including the closest in every adj zone.  The main zone includes slighlty more than this
         if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDealingWithAdjZone='..tostring(bDealingWithAdjZone or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bOnlyConsiderDoublyAdjacentZones='..tostring(bOnlyConsiderDoublyAdjacentZones or false)..'; Unit mass cost='..(oUnit[M28UnitInfo.refiUnitMassCost] or 'nil')) end
-        if not(oUnit.Dead) and (not(bOnlyConsiderDoublyAdjacentZones) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 250) then
+        if not(oUnit.Dead) and (not(bOnlyConsiderDoublyAdjacentZones) or (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) >= 250)
+        --Ignore units in pacifist zones
+        and (not(M28Overseer.bPacifistModeActive) or oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone or not(M28Overseer.tiPacifistZonesByPlateau[oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]])) then
             if bDebugMessages == true then LOG(sFunctionRef..': Is this a campaign map='..tostring(M28Map.bIsCampaignMap)..'; Is unit in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))) end
             if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()) then
                 --Changed in v229 to use actual position, since the 'updatnearestunit' logic goes off this; meaning if we refer to the last known position here we can end up in the scenario where say a destroyer infront of a cruiser is spotted; we retreat; they both advance; and we think only the cruiser has advanced (due to firing), when a player would recognise they would likely advance together

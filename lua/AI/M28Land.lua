@@ -11956,7 +11956,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         local iCurUnitThreat
         if bDebugMessages == true then LOG(sFunctionRef..': Will consider including adjacent combat units for LZ '..iLandZone..' with iCurLZValue='..iCurLZValue..'; is table of adjacent LZs empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))..'; bConsiderAdjacentIndirect='..tostring(bConsiderAdjacentIndirect)..'; bConsiderAdjacentDF='..tostring(bConsiderAdjacentDF)..'; bConsiderAdjacentMAA='..tostring(bConsiderAdjacentMAA or false)) end
         local bConsiderGivingOrdersToUnits
-        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false and not(tLZData[M28Map.subrefbPacifistArea]) then
             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                 local tAltLZTeam = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                 if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; Base LZ='..iLandZone..'; iAdjLZ='..iAdjLZ..'; LZTValue='..repru(tAltLZTeam[M28Map.subrefLZTValue])..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tAltLZTeam[M28Map.subreftoLZOrWZAlliedUnits]))) end
