@@ -853,8 +853,8 @@ function CheckUnitCap(aiBrain)
         local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
         local iThreshold = math.min(25, math.max(math.ceil(iUnitCap * 0.02), 10, iCurFactories * 0.5))
         if bUnitRestrictionsArePresent then
-            if aiBrain[refiOurHighestFactoryTechLevel] < 3 then
-                if aiBrain[refiOurHighestFactoryTechLevel] == 1 then iThreshold = iThreshold * 0.4
+            if aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 then
+                if aiBrain[M28Economy.refiOurHighestFactoryTechLevel] == 1 then iThreshold = iThreshold * 0.4
                 else
                     iThreshold = iThreshold * 0.6
                 end
