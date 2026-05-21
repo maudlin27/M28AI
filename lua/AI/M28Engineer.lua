@@ -5259,7 +5259,7 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
         --Unit cap - dont build T1 if near cap, and only build experimentals if very near cap
         if aiBrain[M28Overseer.refbCloseToUnitCap] then
             if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit cap, wont build T1 units, does category to build contain only T1 and not HQ or mex='..tostring(M28Utilities.DoesCategoryContainCategory(categories.TECH1, iCategoryToBuild, true))..'; Does it contain HQ or T3 or experimental='..tostring(M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryAllHQFactories + categories.TECH3 + categories.EXPERIMENTAL + M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPower * categories.TECH2, iCategoryToBuild))) end
-            if M28Utilities.DoesCategoryContainCategory(categories.TECH1  - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex, iCategoryToBuild, true) and not(M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryAllHQFactories + categories.TECH3 + categories.EXPERIMENTAL + M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPower * categories.TECH2, iCategoryToBuild)) then
+            if M28Utilities.DoesCategoryContainCategory(categories.TECH1  - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex, iCategoryToBuild, true) and not(M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryAllHQFactories + categories.TECH3 + categories.EXPERIMENTAL + M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPower * categories.TECH2, iCategoryToBuild)) and (not(tLZOrWZTeamData[M28Map.subrefLZFortify]) or (not(iActionToAssign == refActionBuildT1Radar) and not(iActionToAssign == refActionBuildT2Radar))) then
                 iCategoryToBuild = nil
             elseif aiBrain[M28Overseer.refiExpectedRemainingCap] < 15 then
                 if not(M28Utilities.DoesCategoryContainCategory(categories.TECH3 + categories.EXPERIMENTAL + M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPower * categories.TECH2, iCategoryToBuild)) then
@@ -16856,10 +16856,14 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                         then
                             --Get T1 radar in priority to T2 PD if we already have T2 PD but no radar
                             if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to get t1 radar instead of t2 pd, bHaveLRPDThreat='..tostring(bHaveLRPDThreat)..'; Stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Radar coverage='..tLZTeamData[M28Map.refiRadarCoverage]..'; Want land scout='..tostring(tLZTeamData[M28Map.refbWantLandScout])..'; iExistingStructureThreat='..iExistingStructureThreat..'; Enemy combat='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)) end
+                            local bTryingToBuildT1Radar = false
                             if bHaveLRPDThreat and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiRadarCoverage] <= math.min(50, math.max(40, M28UnitInfo.iT1RadarSize - 50)) and (tLZTeamData[M28Map.refbWantLandScout] or ((tLZTeamData[M28Map.refiRadarCoverage] == 0 or iExistingStructureThreat >= 2000) and iExistingStructureThreat >= 1000 and iExistingStructureThreat >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0))) and iExistingStructureThreat * 1.5 >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': will get t1 radar') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': will get t1 radar (or T2 if close to unit cap and can build t2), iBPWanted='..iBPWanted) end
                                 HaveActionToAssign(refActionBuildT1Radar, 1, iBPWanted)
-                            else
+                                bTryingToBuildT1Radar = true
+                            end
+                            --If close to unit cap we might not build the radar
+                            if not(bTryingToBuildT1Radar) or aiBrain[M28Overseer.refbCloseToUnitCap] then
                                 local tPDStartPoint
                                 if iExistingStructureThreat <= 800 then tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
                                 else
@@ -17231,17 +17235,25 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 tPointForPDConstruction = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 40, true, false, M28Map.bIsCampaignMap)
             end
             local iCurPDThreat = GetPDThreatAboveRangeThresholdAlongPath(iPlateau, iLandZone, tLZData, tLZTeamData, iTeam, 40, tPointForPDConstruction)
-            if bDebugMessages == true then LOG(sFunctionRef..': Want PD for a zone that we want to fortify, iCurPDThreat='..(iCurPDThreat or 'nil')..'; Have sufficient tech='..tostring(bHaveSufficientTech)..'; tPointForPDConstruction='..repru(tPointForPDConstruction)..'; Midpoint of zone='..repru(tLZData[M28Map.subrefMidpoint])) end
-            if (iCurPDThreat <= 2100 and tLZTeamData[M28Map.subrefLZFortify]) or (aiBrain[M28Overseer.refbPrioritiseDefence] and iCurPDThreat <= 3000 and (iCurPDThreat <= 400 * aiBrain[M28Economy.refiOurHighestLandFactoryTech] or iCurPDThreat <= 400 * (tLZTeamData[M28Map.subrefMexCountByTech][2] + (tLZTeamData[M28Map.subrefMexCountByTech][3] * 2)))) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want PD for a zone that we want to fortify, iCurPDThreat='..(iCurPDThreat or 'nil')..'; Have sufficient tech='..tostring(bHaveSufficientTech)..'; tPointForPDConstruction='..repru(tPointForPDConstruction)..'; Midpoint of zone='..repru(tLZData[M28Map.subrefMidpoint])..'; subrefLZFortify='..tostring(tLZTeamData[M28Map.subrefLZFortify])) end
+            if (iCurPDThreat <= 2100 and tLZTeamData[M28Map.subrefLZFortify]) or (aiBrain[M28Overseer.refbPrioritiseDefence] and iCurPDThreat <= 3000 and (iCurPDThreat <= 400 * aiBrain[M28Economy.refiOurHighestLandFactoryTech] or iCurPDThreat <= 400 * (tLZTeamData[M28Map.subrefMexCountByTech][2] + (tLZTeamData[M28Map.subrefMexCountByTech][3] * 2))))
+                    or (tLZTeamData[M28Map.subrefLZFortify] and iCurPDThreat <= 4000 and GetExistingFactoryNumber() >= 1 and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false or tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZOrWZMexCount]))
+            then
                 iBPWanted = 40
                 if not(bHaveLowMass) and not(M28Conditions.HaveLowPower(iTeam)) then iBPWanted = 80 end
 
                 --Get T1 radar in priority to T2 PD if we already have T2 PD but no radar
                 if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.refiRadarCoverage] <= 40 and tLZTeamData[M28Map.refbWantLandScout] and iCurPDThreat * 1.5 >= (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) then
                     HaveActionToAssign(refActionBuildT1Radar, 1, iBPWanted)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have t2 pd but no t1 radar so will get t1 radar') end
+                    --Get groundAA for a fortify zone if already have good PD threat
                 else
-
                     local iPDTechLevelWanted = 2
+                    --Also get AA
+                    if iCurPDThreat > 2100 and tLZTeamData[M28Map.subrefLZFortify] and tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < 800 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want some fixed AA to fortify zone') end
+                        HaveActionToAssign(refActionBuildAA, iPDTechLevelWanted, iBPWanted)
+                    end
                     HaveActionToAssign(refActionBuildEmergencyPD, iPDTechLevelWanted, iBPWanted, tPointForPDConstruction)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will build PD to fortify zone, iPDTechLevelWanted='..iPDTechLevelWanted..'; iBPWanted='..iBPWanted) end
                 end
