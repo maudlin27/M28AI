@@ -217,7 +217,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subreftoUnitsToCapture = 'UnitsToCap' --AGAINST ZONEData not TEAMZoneData
         subreftoUnitsToRepair = 'UnitsToRep' --AGAINST ZONEData not TEAMZoneData
         --Mission objective specific - disable targeting logic
-        subrefbPacifistArea = 'PacAre' --true if this is a pacificst area
+        subrefbPacifistArea = 'PacAre' --Against LZ or WZ data (not team data), true if this is a pacificst area
 
         --Land zone subteam data (update M28Teams.TeamInitialisation function to include varaibles here so dont have to check if they exist each time)
         subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone

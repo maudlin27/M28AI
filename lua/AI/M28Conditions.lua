@@ -4799,3 +4799,19 @@ function IsZoneAPacifistZone(iPlateauOrZero, iLandOrWaterZone)
     end
     return false
 end
+
+function IsLocationInAPacifistZone(tLocation)
+    local iPlateauOrZero, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLocation)
+    return IsZoneAPacifistZone(iPlateauOrZero, iZone)
+end
+
+function IsCloseToPacifistUnit(tPosition, iDistThreshold)
+    if M28Overseer.toPacifistUnits[1] then
+        for iUnit, oUnit in M28Overseer.toPacifistUnits do
+            if not(oUnit.Dead) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tPosition) <= iDistThreshold then
+                return true
+            end
+        end
+    end
+    return false
+end

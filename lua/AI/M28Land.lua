@@ -10676,16 +10676,18 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             local iDistOfClosestNoMMLIntercept = iClosestUnit - 10 --no point moving to an adjacent zone unless it is noticeably closer to the firebase than this zone
                             local iDistOfClosestWithMMLIntercept = iClosestUnit - 10 --no point moving to an adjacent zone unless it is noticeably closer to the firebase than this zone
                             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                                local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
-                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oNearestFirebaseUnit:GetPosition(), tAdjLZData[M28Map.subrefMidpoint])
-                                if iCurDist <= iDistOfClosestNoMMLIntercept or iCurDist <= iDistOfClosestWithMMLIntercept then
-                                    local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
-                                    if GetGameTimeSeconds() - (tAdjLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 then
-                                        iDistOfClosestWithMMLIntercept = iCurDist
-                                        iClosestZoneWithMMLIntercepts = iAdjLZ
-                                    elseif iCurDist <= iDistOfClosestNoMMLIntercept and tLZTeamData[M28Map.subrefbLZWantsIndirectSupport] then
-                                        iDistOfClosestNoMMLIntercept = iCurDist
-                                        iClosestZoneWithNoMMLIntercepts = iAdjLZ
+                                if not(M28Overseer.bPacifistModeActive) or not(M28Conditions.IsZoneAPacifistZone(iPlateau, iAdjLZ)) then
+                                    local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oNearestFirebaseUnit:GetPosition(), tAdjLZData[M28Map.subrefMidpoint])
+                                    if iCurDist <= iDistOfClosestNoMMLIntercept or iCurDist <= iDistOfClosestWithMMLIntercept then
+                                        local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                        if GetGameTimeSeconds() - (tAdjLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMDOrShield] or -100) <= 30 then
+                                            iDistOfClosestWithMMLIntercept = iCurDist
+                                            iClosestZoneWithMMLIntercepts = iAdjLZ
+                                        elseif iCurDist <= iDistOfClosestNoMMLIntercept and tLZTeamData[M28Map.subrefbLZWantsIndirectSupport] then
+                                            iDistOfClosestNoMMLIntercept = iCurDist
+                                            iClosestZoneWithNoMMLIntercepts = iAdjLZ
+                                        end
                                     end
                                 end
                             end
@@ -10703,22 +10705,24 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether iLandZone '..iLandZone..' wants to support adjacent LZ iAdjLZ='..iAdjLZ..'; Does it want DF support='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsDFSupport])..'; Does it want indirect support='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport])..'; tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ]='..tostring(tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ] or false)) end
                     if (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefMidpoint])) then
-                        if not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
-                            if tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ] and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefThreatEnemyStructureTotalMass] < iEnemyStructureThresholdForNegligibleEnemies then
-                                --Do nothing - dont want to support as we shouldve already sent units to deal with any enemies as part of above logic
-                            else
-                                iIndirectLZToSupport = iAdjLZ
-                                if iDFLZToSupport or M28Utilities.IsTableEmpty(tDFUnits) then break end
+                        if not(M28Overseer.bPacifistModeActive) or not(M28Conditions.IsZoneAPacifistZone(iPlateau, iAdjLZ)) then
+                            if not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
+                                if tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ] and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefThreatEnemyStructureTotalMass] < iEnemyStructureThresholdForNegligibleEnemies then
+                                    --Do nothing - dont want to support as we shouldve already sent units to deal with any enemies as part of above logic
+                                else
+                                    iIndirectLZToSupport = iAdjLZ
+                                    if iDFLZToSupport or M28Utilities.IsTableEmpty(tDFUnits) then break end
+                                end
                             end
-                        end
-                        if not(iDFLZToSupport) and (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsDFSupport]) then
-                            if tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ] then
-                                --Do nothing - dont want to support as we shouldve already sent units to deal with any enemies as part of above logic
-                                if bDebugMessages == true then LOG(sFunctionRef..': Want to ignore this zone as shouldve already sent enough units to deal with the threat') end
-                            else
-                                if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ '..iAdjLZ..' wants DF support so will support here') end
-                                iDFLZToSupport = iAdjLZ
-                                if  iIndirectLZToSupport then break end
+                            if not(iDFLZToSupport) and (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsDFSupport]) then
+                                if tbAdjacentZoneEnemiesToIgnoreByZone[iAdjLZ] then
+                                    --Do nothing - dont want to support as we shouldve already sent units to deal with any enemies as part of above logic
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to ignore this zone as shouldve already sent enough units to deal with the threat') end
+                                else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ '..iAdjLZ..' wants DF support so will support here') end
+                                    iDFLZToSupport = iAdjLZ
+                                    if  iIndirectLZToSupport then break end
+                                end
                             end
                         end
                     end
@@ -11040,24 +11044,26 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local bDontCheckPathability = not(M28Map.bIsCampaignMap) or (M28Map.rMapPotentialPlayableArea[3] <= M28Map.rMapPlayableArea[3] and M28Map.rMapPotentialPlayableArea[4] <= M28Map.rMapPlayableArea[4] and M28Map.rMapPotentialPlayableArea[1] >= M28Map.rMapPlayableArea[1] and M28Map.rMapPotentialPlayableArea[2] >= M28Map.rMapPlayableArea[2])
                     for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                         local tCurLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefLZNumber]]
-                        local tCurZoneTeamData =tCurLZData[M28Map.subrefLZTeamData][iTeam]
-                        if M28Utilities.IsTableEmpty(tCurZoneTeamData[M28Map.subrefTEnemyUnits]) == false then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering sending remaining land units to LZ='..tSubtable[M28Map.subrefLZNumber]..'; travel path in playable area='..tostring((M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) and M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tCurLZData[M28Map.subrefMidpoint], M28Map.refPathingTypeLand)))) end
-                            if bDontCheckPathability or (M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) and M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tCurLZData[M28Map.subrefMidpoint], M28Map.refPathingTypeLand)) then
-                                if not(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurCombat]) then --Only record if we havent already recorded above (or else we will end up overriding cur zone target); not sure if such a scenario could arise but best to be safe
-                                    RecordDFLandZoneTarget(tLZTeamData, iPlateau, iLandZone, iTeam, tSubtable[M28Map.subrefLZNumber], M28Map.subrefiLZOrWZTMovingToOtherZone)
-                                end
-                                for iUnit, oUnit in tRemainingLandUnits do
-                                    if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
-                                        oUnit[refiCurrentAssignmentValue] = 0
-                                    else
-                                        if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                            M28Orders.IssueTrackedMove(oUnit, tCurLZData[M28Map.subrefMidpoint], 6, false, 'BkMvLZ'..tSubtable[M28Map.subrefLZNumber]..';'..iLandZone)
+                        if not(M28Overseer.bPacifistModeActive) or not(M28Conditions.IsZoneAPacifistZone(iPlateau, tSubtable[M28Map.subrefLZNumber])) then
+                            local tCurZoneTeamData =tCurLZData[M28Map.subrefLZTeamData][iTeam]
+                            if M28Utilities.IsTableEmpty(tCurZoneTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering sending remaining land units to LZ='..tSubtable[M28Map.subrefLZNumber]..'; travel path in playable area='..tostring((M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) and M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tCurLZData[M28Map.subrefMidpoint], M28Map.refPathingTypeLand)))) end
+                                if bDontCheckPathability or (M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) and M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tCurLZData[M28Map.subrefMidpoint], M28Map.refPathingTypeLand)) then
+                                    if not(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurCombat]) then --Only record if we havent already recorded above (or else we will end up overriding cur zone target); not sure if such a scenario could arise but best to be safe
+                                        RecordDFLandZoneTarget(tLZTeamData, iPlateau, iLandZone, iTeam, tSubtable[M28Map.subrefLZNumber], M28Map.subrefiLZOrWZTMovingToOtherZone)
+                                    end
+                                    for iUnit, oUnit in tRemainingLandUnits do
+                                        if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
+                                            oUnit[refiCurrentAssignmentValue] = 0
+                                        else
+                                            if not(IgnoreOrderDueToStuckUnit(oUnit)) then
+                                                M28Orders.IssueTrackedMove(oUnit, tCurLZData[M28Map.subrefMidpoint], 6, false, 'BkMvLZ'..tSubtable[M28Map.subrefLZNumber]..';'..iLandZone)
+                                            end
                                         end
                                     end
+                                    tRemainingLandUnits = nil
+                                    break
                                 end
-                                tRemainingLandUnits = nil
-                                break
                             end
                         end
                     end
@@ -11123,14 +11129,16 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         if tWZTeamData[M28Map.subrefbWZWantsSupport] and (bHaveAntiNavy or not(tWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies])) and (bHaveHover or not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])) and NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, tWZData[M28Map.subrefMidpoint]) == iAmphibiousLabelWanted then
                                             --Check in playable area
                                             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
-                                                iCurWZDist = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])
-                                                if bDebugMessages == true then
-                                                    LOG(sFunctionRef..': iCurWZDist='..iCurWZDist..'; iClosestWZToSupport='..iClosestWZToSupport..'; CanTravelToDestinationWithinMapBounds='..tostring(M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tWZData[M28Map.subrefMidpoint], M28Map.refPathingTypeAmphibious) or false)..'; tLZData[M28Map.subrefMidpoint]='..repru(tLZData[M28Map.subrefMidpoint])..'; tWZData[M28Map.subrefMidpoint]='..repru(tWZData[M28Map.subrefMidpoint]))
-                                                end
-                                                if iCurWZDist < iClosestWZToSupport then
-                                                    if bDontCheckPlayableArea or M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tWZData[M28Map.subrefMidpoint], M28Map.refPathingTypeAmphibious) then
-                                                        iClosestWZToSupport = iCurWZDist
-                                                        iWZToSupport = iWZ
+                                                if not(M28Overseer.bPacifistModeActive) or not(M28Conditions.IsZoneAPacifistZone(0, iWZ)) then
+                                                    iCurWZDist = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])
+                                                    if bDebugMessages == true then
+                                                        LOG(sFunctionRef..': iCurWZDist='..iCurWZDist..'; iClosestWZToSupport='..iClosestWZToSupport..'; CanTravelToDestinationWithinMapBounds='..tostring(M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tWZData[M28Map.subrefMidpoint], M28Map.refPathingTypeAmphibious) or false)..'; tLZData[M28Map.subrefMidpoint]='..repru(tLZData[M28Map.subrefMidpoint])..'; tWZData[M28Map.subrefMidpoint]='..repru(tWZData[M28Map.subrefMidpoint]))
+                                                    end
+                                                    if iCurWZDist < iClosestWZToSupport then
+                                                        if bDontCheckPlayableArea or M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tWZData[M28Map.subrefMidpoint], M28Map.refPathingTypeAmphibious) then
+                                                            iClosestWZToSupport = iCurWZDist
+                                                            iWZToSupport = iWZ
+                                                        end
                                                     end
                                                 end
                                             end

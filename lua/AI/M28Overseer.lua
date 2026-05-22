@@ -44,6 +44,7 @@ bActiveMissionChecker = false --true if are actively checking for mission object
 bPacifistModeActive = false --true if we have set certain zones to never be attacked (e.g. Cybran mission 4)
 bHaveDisabledGunshipWeaponsForPacifism = false --true if we have disabled gunship weapons due to pacifism
 tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zone flagged as pacificst
+toPacifistUnits = {} --table of units in the main base
 bBeginSessionTriggered = false
 bCheckForPrecreatedUnitsActive = false
 iMassFabRatio = 1 --e.g. some mods can improve mass fab resources given
@@ -2261,6 +2262,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 bPacifistModeActive = true
 
                 tiPacifistZonesByPlateau = {}
+                toPacifistUnits = {}
                 local tbHasPlateauAndZoneBeenRecorded = {}
                 local iCurPlateauOrZero, iCurLandOrWaterZone
                 for iUnit, oUnit in ScenarioInfo.M3_Base do
@@ -2271,6 +2273,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                         if not(tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero]) then tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero] = {} end
                         tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero][iCurLandOrWaterZone] = true
                     end
+                    table.insert(toPacifistUnits, oUnit)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished recording the plateaus and zones that units in M3_Base are in, repru of tiPacifistZonesByPlateau='..repru(tiPacifistZonesByPlateau)) end
                 if M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
