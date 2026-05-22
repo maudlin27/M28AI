@@ -45,6 +45,7 @@ bPacifistModeActive = false --true if we have set certain zones to never be atta
 bHaveDisabledGunshipWeaponsForPacifism = false --true if we have disabled gunship weapons due to pacifism
 tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zone flagged as pacificst
 toPacifistUnits = {} --table of units in the main base
+tAveragePacifistLocation = {} --Average location of all pacifist units when first setting up logic
 bBeginSessionTriggered = false
 bCheckForPrecreatedUnitsActive = false
 iMassFabRatio = 1 --e.g. some mods can improve mass fab resources given
@@ -2370,6 +2371,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                         end
                     end
                 end
+                tAveragePacifistLocation = M28Utilities.GetAverageOfUnitPositions(toPacifistUnits)
             end
         elseif bPacifistModeActive and ScenarioInfo.EMPFired and M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
             --Disable pacifist flag

@@ -1873,7 +1873,7 @@ function RecordEnemyT2ArtiAgainstNearbyZones(iTeam, oUnit, bUnitIsDead)
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()..'; Is tTeamData[iTeam][reftoEnemyT2Arti] empty='..M28Utiliites.IsTableEmpty(tTeamData[iTeam][reftoEnemyT2Arti])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()..'; Is tTeamData[iTeam][reftoEnemyT2Arti] empty='..M28Utilities.IsTableEmpty(tTeamData[iTeam][reftoEnemyT2Arti])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

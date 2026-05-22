@@ -2101,25 +2101,42 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                         M28Orders.UpdateRecordedOrders(oUnit)
                         local tLastOrder = oUnit[M28Orders.reftiLastOrders][1]
                         bRemoveCurUnit = false
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to leave unit in pacifist zone to continue orders, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; refiLastPacifistTemporaryDelay='..(oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay] or 'nil')..'; is tLastOrder nil='..tostring(tLastOrder == nil)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to leave unit in pacifist zone to continue orders, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; refiLastPacifistTemporaryDelay='..(oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay] or 'nil')..'; is tLastOrder nil='..tostring(tLastOrder == nil)..'; Unit dist to pacifist locaiton='..M28Utilities.GetDistanceBetweenPositions(M28Overseer.tAveragePacifistLocation, oUnit:GetPosition())..'; Angle to average pacifist location='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Overseer.tAveragePacifistLocation)..'; Angle to last order position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), (tLastOrder[M28Orders.subreftOrderPosition] or {0,0,0}))) end
                         if tLastOrder then
-                            if not(oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay]) or (oUnit[M28UnitInfo.refiAntiNavyRange] > 0 and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) or GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay] < 20 then
+                            if not(oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay]) or (oUnit[M28UnitInfo.refiAntiNavyRange] > 0 and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) or GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay] < 20
+                            or (M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Overseer.tAveragePacifistLocation) >= 175 and ((tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], M28Overseer.tAveragePacifistLocation) >= 175 and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Overseer.tAveragePacifistLocation), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])) >= 40) or (M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), M28Overseer.tAveragePacifistLocation) >= 175 and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Overseer.tAveragePacifistLocation), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition())) >= 40)))
+                            then
                                 if tLastOrder[M28Orders.subrefoOrderUnitTarget] then
                                     --Is unit target in a pacifist zone?
                                     if bDebugMessages == true then LOG(sFunctionRef..': Targeting enemy unit '..tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget])..'; reftAssignedWaterZoneByTeam='..(tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] or 'nil')..'; reftAssignedPlateauAndLandZoneByTeam='..repru(tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam])) end
-                                    if tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] and not(M28Conditions.IsZoneAPacifistZone(0, tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam])) then
-                                        bRemoveCurUnit = true
+                                    if tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] then
+                                        if not(M28Conditions.IsZoneAPacifistZone(0, tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam])) then
+                                            bRemoveCurUnit = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit will be left alone to continue orders1') end
+                                        elseif not(M28Conditions.IsCloseToPacifistUnit(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition())) then
+                                            bRemoveCurUnit = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit will be left alone to continue orders2') end
+                                        end
                                     elseif tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] and not(M28Conditions.IsZoneAPacifistZone(tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1], tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2])) then
                                         bRemoveCurUnit = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit will be left alone to continue orders3') end
                                     end
-                                elseif tLastOrder[M28Orders.subreftOrderPosition] then
+                                elseif tLastOrder[M28Orders.subreftOrderPosition][1] then
                                     --Is order position in pacifist zone?
                                     iOrderPlateauOrZero, iOrderZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLastOrder[M28Orders.subreftOrderPosition])
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit order position='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; iOrderPlateauOrZero='..(iOrderPlateauOrZero or 'nil')..'; iOrderZone='..(iOrderZone or 'nil')..'; Is in pacifist zone='..tostring(M28Conditions.IsZoneAPacifistZone(iOrderPlateauOrZero, iOrderZone))..'; IsCloseToPacifistUnit='..tostring(M28Conditions.IsCloseToPacifistUnit(tLastOrder[M28Orders.subreftOrderPosition]))) end
                                     if not(M28Conditions.IsZoneAPacifistZone(iOrderPlateauOrZero, iOrderZone)) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit will be left alone to continue orders4') end
+                                        bRemoveCurUnit = true
+                                    elseif iOrderPlateauOrZero == 0 and not(M28Conditions.IsCloseToPacifistUnit(tLastOrder[M28Orders.subreftOrderPosition])) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit will be left alone to continue orders5') end
                                         bRemoveCurUnit = true
                                     end
+                                elseif bDebugMessages == true then LOG(sFunctionRef..': Unit doesnt seem to have a recognised order, reprs of tLastOrder='..reprs(tLastOrder))
                                 end
+                            elseif bDebugMessages == true then LOG(sFunctionRef..': Want unit to retreat to avoid going near pacifist zone')
                             end
+                        elseif bDebugMessages == true then LOG(sFunctionRef..': Unit lacks valid last order so will retreat')
                         end
                         if bRemoveCurUnit then
                             if not(oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay]) then oUnit[M28UnitInfo.refiLastPacifistTemporaryDelay] = GetGameTimeSeconds() end
