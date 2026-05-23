@@ -265,7 +265,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastM28PlayerDefeat = 'M28TLstDth' --Gametimeseconds of the last M28 player defat (used to check if shield cycling should be paused)
     tPotentiallyActiveGETemplates = 'M28TGETA' --when a gameender template is created, it gets added to this table, to allow quick referencing of other templates
     reftiCoreZonesByPlateau = 'M28CZBPl' --[x] = plateau ref, [y] = LZ ref, returns true
-    reftiFortifyZonesByPlateau = 'M28CZBFPl' --[x] = plateau ref, [y] = LZ ref, returns true
+    reftiFortifyZonesByPlateau = 'M28CZBFPl' --[x] = plateau or zero ref (zero for WZ), [y] = LZ ref, returns true
     reftEnemyShieldsFailedToArti = 'M28SFlArt' --[x] = 1,2,3...x; returns the fixed shield unit
     reftoVulnerableFatboys = 'M28FatB' --[x] = 1,2,3; returns the fatboy unit; fatboy gets recorded when it gets low on shields
     refbActiveVulnerableFatboyMonitor = 'M28FatVMon' --true if have active thread for the team for vulnerable fatboys
@@ -1873,7 +1873,7 @@ function RecordEnemyT2ArtiAgainstNearbyZones(iTeam, oUnit, bUnitIsDead)
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()..'; Is tTeamData[iTeam][reftoEnemyT2Arti] empty='..M28Utiliites.IsTableEmpty(tTeamData[iTeam][reftoEnemyT2Arti])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()..'; Is tTeamData[iTeam][reftoEnemyT2Arti] empty='..M28Utilities.IsTableEmpty(tTeamData[iTeam][reftoEnemyT2Arti])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

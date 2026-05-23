@@ -44,6 +44,8 @@ bActiveMissionChecker = false --true if are actively checking for mission object
 bPacifistModeActive = false --true if we have set certain zones to never be attacked (e.g. Cybran mission 4)
 bHaveDisabledGunshipWeaponsForPacifism = false --true if we have disabled gunship weapons due to pacifism
 tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zone flagged as pacificst
+toPacifistUnits = {} --table of units in the main base
+tAveragePacifistLocation = {} --Average location of all pacifist units when first setting up logic
 bBeginSessionTriggered = false
 bCheckForPrecreatedUnitsActive = false
 iMassFabRatio = 1 --e.g. some mods can improve mass fab resources given
@@ -851,10 +853,20 @@ function CheckUnitCap(aiBrain)
         --end
         local iCurUnits = GetArmyUnitCostTotal(aiBrain:GetArmyIndex()) --aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
         local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
-        local iThreshold = math.min(30, math.max(math.ceil(iUnitCap * 0.02), 10, iCurFactories * 0.5))
+        local iThreshold = math.min(25, math.max(math.ceil(iUnitCap * 0.02), 10, iCurFactories * 0.5))
+        if bUnitRestrictionsArePresent then
+            if aiBrain[M28Economy.refiOurHighestFactoryTechLevel] < 3 then
+                if aiBrain[M28Economy.refiOurHighestFactoryTechLevel] == 1 then iThreshold = iThreshold * 0.4
+                else
+                    iThreshold = iThreshold * 0.6
+                end
+            elseif M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 then iThreshold = iThreshold * 0.7
+            end
+        elseif M28Team.tTeamData[aiBrain.M28Team][M28Team.refiConstructedExperimentalCount] == 0 then iThreshold = iThreshold * 0.8
+        end
         local iCurUnitsDestroyed = 0
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; iCurUnits='..iCurUnits..'; iUnitCap='..iUnitCap..'; iThreshold='..iThreshold) end
-        if iCurUnits > (iUnitCap - iThreshold * 5) then
+        if iCurUnits > (iUnitCap - iThreshold * 4) then --changed from *5 to *4 in v299
             aiBrain[refbCloseToUnitCap] = true
             M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap] = GetGameTimeSeconds()
             local iMaxToDestroy = math.max(5, math.ceil(iUnitCap * 0.01), math.max(20, iCurFactories) - (iUnitCap - iCurUnits))
@@ -2251,6 +2263,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 bPacifistModeActive = true
 
                 tiPacifistZonesByPlateau = {}
+                toPacifistUnits = {}
                 local tbHasPlateauAndZoneBeenRecorded = {}
                 local iCurPlateauOrZero, iCurLandOrWaterZone
                 for iUnit, oUnit in ScenarioInfo.M3_Base do
@@ -2261,6 +2274,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                         if not(tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero]) then tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero] = {} end
                         tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero][iCurLandOrWaterZone] = true
                     end
+                    table.insert(toPacifistUnits, oUnit)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished recording the plateaus and zones that units in M3_Base are in, repru of tiPacifistZonesByPlateau='..repru(tiPacifistZonesByPlateau)) end
                 if M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
@@ -2357,6 +2371,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                         end
                     end
                 end
+                tAveragePacifistLocation = M28Utilities.GetAverageOfUnitPositions(toPacifistUnits)
             end
         elseif bPacifistModeActive and ScenarioInfo.EMPFired and M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
             --Disable pacifist flag

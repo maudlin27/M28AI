@@ -4789,3 +4789,30 @@ function CanTravelToDestinationWithinMapBounds(tStart, tEnd, sPathing, bDrawPath
         end
     end
 end
+
+
+function IsZoneAPacifistZone(iPlateauOrZero, iLandOrWaterZone)
+    if M28Utilities.IsTableEmpty(M28Overseer.tiPacifistZonesByPlateau[iPlateauOrZero]) == false then
+        for iEntry, iPacifistZone in M28Overseer.tiPacifistZonesByPlateau[iPlateauOrZero] do
+            if iPacifistZone == iLandOrWaterZone then return true end
+        end
+    end
+    return false
+end
+
+function IsLocationInAPacifistZone(tLocation)
+    local iPlateauOrZero, iZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLocation)
+    return IsZoneAPacifistZone(iPlateauOrZero, iZone)
+end
+
+function IsCloseToPacifistUnit(tPosition, iOptionalDistThreshold)
+    if M28Overseer.toPacifistUnits[1] then
+        for iUnit, oUnit in M28Overseer.toPacifistUnits do
+            if not(oUnit.Dead) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tPosition) <= (iOptionalDistThreshold or 120) then
+                return true
+            end
+        end
+    end
+    return false
+end
+

@@ -124,6 +124,7 @@ refiDistToEnemyBaseWhenLastCanceledUpgrade = 'M28CancUpD' --Dist to closest enem
 reftiWallAdjacentLandZonesRecorded = 'M28UWlAZ' --if a wall is near anotherl and zone it records that other land zone here
 refbHostileImmobileCivilian = 'M28HsImC' --true if when unit is detected it appears to be immobile and owned by a hostile civilian (so we are less cautious with engineers around it)
 refbTreatAmphibiousUnitAsSubmarine = 'M28NvC' --true if want to use an amphibious or hover unit as though it is a naval combat unit
+refiLastPacifistTemporaryDelay = 'M28Pcf' --Gametimeseconds we last decided to ignore the fact this unit was in a pacifist zone and let it continue its current orders
 
     --Unit micro related
 refbEasyBrain = 'M28UEasAI' --True if the aiBrian owner is an M28Easy AI
@@ -181,7 +182,7 @@ refWeaponPriorityTeleSnipeExclACU = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLER
 refWeaponPriorityT2Arti = {'ARTILLERY EXPERIMENTAL', 'ARTILLERY STRUCTURE, SNIPER', 'SHIELD STRUCTURE', 'CRUISER, ANTISHIELD', 'INDIRECTFIRE', 'SHIELD', 'VOLATILE', 'TECH3 STRUCTURE', 'TECH3 MOBILE', 'ALLUNITS'}
 refWeaponPriorityFatboy = {'ARTILLERY EXPERIMENTAL', 'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'ARTILLERY STRUCTURE, SNIPER', 'SHIELD STRUCTURE', 'EXPERIMENTAL', 'MOBILE SHIELD, MOBILE ARTILLERY TECH3', 'MOBILE NAVAL TECH3, MOBILE NAVAL TECH2', 'MOBILE DIRECTFIRE TECH3', 'MOBILE ANTIAIR TECH3', 'VOLATILE', 'TECH3', 'TECH2', 'ALLUNITS'}
 refWeaponPriorityMegalith = {'ARTILLERY EXPERIMENTAL', 'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'ARTILLERY STRUCTURE, SNIPER', 'SHIELD STRUCTURE', 'EXPERIMENTAL', 'TECH3 STRUCTURE DEFENSE DIRECTFIRE', 'MOBILE SHIELD', 'SUBMERSIBLE', 'MOBILE ANTINAVY', 'MOBILE DIRECTFIRE TECH3', 'MOBILE ANTIAIR TECH3', 'VOLATILE', 'TECH3', 'TECH2', 'ALLUNITS'}
-refWeaponPriorityACU = {'DIRECTFIRE TECH1 MOBILE, INDIRECTFIRE TECH1 MOBILE', 'DIRECTFIRE, INDIRECTFIRE MOBILE', 'MOBILE', 'ALLUNITS'}
+refWeaponPriorityACU = {'DIRECTFIRE TECH1 MOBILE LAND, INDIRECTFIRE TECH1 MOBILE', 'DIRECTFIRE, INDIRECTFIRE MOBILE', 'MOBILE', 'ALLUNITS'}
 refWeaponPriorityACUSnipe = {'COMMAND', 'DIRECTFIRE TECH1 MOBILE, INDIRECTFIRE TECH1 MOBILE', 'DIRECTFIRE, INDIRECTFIRE MOBILE', 'MOBILE', 'ALLUNITS'}
 refWeaponPriorityExpSnipeACU = {'COMMAND', 'SHIELD STRUCTURE', 'SHIELD MOBILE', 'DIRECTFIRE', 'ALLUNITS'}
 refbUsingDefaultWeaponPriority = 'M28UDfW' --true if using default weapon priroity (for unit with multiple options - e.g. gunships)
