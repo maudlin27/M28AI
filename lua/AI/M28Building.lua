@@ -1343,6 +1343,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
     if bGetClosestUnitToOurBase then tBaseForDistanceCheck = tLZTeamData[M28Map.reftClosestFriendlyBase]
     else tBaseForDistanceCheck = tLZTeamData[M28Map.reftClosestEnemyBase]
     end
+    local bInRangeOfT2Arti
     if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through iUnitsWantingTMD, iUnitsWantingTMD='..iUnitsWantingTMD..'; is iOptionalCategoryWanted nil='..tostring(iOptionalCategoryWanted == nil)) end
     for iEntry = iUnitsWantingTMD, 1, -1 do
         if not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])) then
@@ -1352,8 +1353,22 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
                 iCurDist = M28Utilities.GetDistanceBetweenPositions(tBaseForDistanceCheck, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])..' is the closest, iCurDist='..iCurDist..'; iCLosestDist='..iClosestDist..'; refbUnitWantsMoreTMD='..tostring(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry][refbUnitWantsMoreTMD])) end
                 if iCurDist < iClosestDist then
-                    iClosestDist = iCurDist
-                    oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
+                    --Check we arent trying to cover a unit that has enemy arti in range (as we will try and build TMD away from T2 arti)
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                        bInRangeOfT2Arti = false
+                        for iArti, oArti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                            if not(oArti.Dead) and M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition()) <= oArti[M28UnitInfo.refiCombatRange] + 2 then
+                                bInRangeOfT2Arti = true
+                                break
+                            end
+                        end
+                    end
+                    if bInRangeOfT2Arti then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Wont try building TMD afterall as enemy has t2 arti in range') end
+                    else
+                        iClosestDist = iCurDist
+                        oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
+                    end
                 end
 
             end
@@ -1363,7 +1378,6 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
     if bDebugMessages == true then LOG(sFunctionRef..': If dont have a unit to cover with TMD and TMD has intercepted enemy missile recently then build TMD to cover TMD, oClosestUnit='..(oClosestUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnit) or 'nil')..'; tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile]='..(tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] or 'nil')..'; iExistingValidTMD='..iExistingValidTMD) end
     if not(oClosestUnit) and tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] and iExistingValidTMD > 0 and iExistingValidTMD <= 10 and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] <= 60 then
         --Consider doubling up on TMD by having a TMD request TMD if it has fired recently
-        local oClosestTMDFiredRecently
         local iCurLaunchers, iCurTMD
         for iTMD, oTMD in tExistingTMD do
             if oTMD[refiTimeTMDHitMissile] and GetGameTimeSeconds() - oTMD[refiTimeTMDHitMissile] <= 60 and M28Conditions.IsTableOfUnitsStillValid(oTMD[toLaunchersIntercepted]) then

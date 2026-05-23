@@ -4156,7 +4156,11 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                         end
                     end
                     --If against stealthed ACU that is in our range then move towards it instead of attackmove
-                    if bDebugMessages == true then if oClosestACU then LOG(sFunctionRef..': Checking if dealing with stealtehd ACU we want to be closer to, oClosestACU[refiUpgradeCount]='..(oClosestACU[refiUpgradeCount] or 'nil')..'; IsCybran='..tostring(EntityCategoryContains(categories.CYBRAN, oClosestACU.UnitId))..'; Has stealth or nano='..tostring((oClosestACU:HasEnhancement('StealthGenerator') or oClosestACU:HasEnhancement('FAF_SelfRepairSystem')))..'; refiOmniCoverage='.. (tLZTeamData[M28Map.refiOmniCoverage] or 0)..'; VisionRadius='..(oACU:GetBlueprint().Intel.VisionRadius or 26)..'; iOurACUHealthPercent='..iOurACUHealthPercent) end else LOG(sFunctionRef..': oClosestACU is nil') end
+                    if bDebugMessages == true then
+                        if oClosestACU then LOG(sFunctionRef..': Checking if dealing with stealtehd ACU we want to be closer to, oClosestACU[refiUpgradeCount]='..(oClosestACU[refiUpgradeCount] or 'nil')..'; IsCybran='..tostring(EntityCategoryContains(categories.CYBRAN, oClosestACU.UnitId))..'; Has stealth or nano='..tostring((oClosestACU:HasEnhancement('StealthGenerator') or oClosestACU:HasEnhancement('FAF_SelfRepairSystem')))..'; refiOmniCoverage='.. (tLZTeamData[M28Map.refiOmniCoverage] or 0)..'; VisionRadius='..(oACU:GetBlueprint().Intel.VisionRadius or 26)..'; iOurACUHealthPercent='..iOurACUHealthPercent)
+                        else LOG(sFunctionRef..': oClosestACU is nil')
+                        end
+                    end
                     if oClosestACU and iClosestACU <= oACU[M28UnitInfo.refiDFRange] and iClosestACU > oACU[M28UnitInfo.refiDFRange] - math.max(8, iMaxDistToBeInRange) and oClosestACU[refiUpgradeCount] > 0 and EntityCategoryContains(categories.CYBRAN, oClosestACU.UnitId) and (oClosestACU:HasEnhancement('StealthGenerator') or oClosestACU:HasEnhancement('FAF_SelfRepairSystem')) and (tLZTeamData[M28Map.refiOmniCoverage] or 0) < 50
                             and iClosestACU >= (oACU:GetBlueprint().Intel.VisionRadius or 26) - 6 and iOurACUHealthPercent >= 0.6 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Up against cybran acu with stealth so want to stay close to it so we can keep firing') end

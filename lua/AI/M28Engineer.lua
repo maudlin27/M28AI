@@ -1813,7 +1813,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
 
     if not(tLocationToBuildTowards) then
         --Build towards the midpoing except for certain unit categories
-        if not(EntityCategoryContains(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild)) then
+        if not(EntityCategoryContains(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild)) then
             if (iLandZone or 0) > 0 and iPlateau > 0 then
                 if tArtiAndOtherPositionsToBuildAwayFrom then
                     tLocationToBuildTowards = nil
@@ -12441,6 +12441,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --TMD if we have recently lost a building to enemy TML - have 1 engineer assigned as top priority (will assign more later on)
     iCurPriority = iCurPriority + 1
+
     if bDebugMessages == true then LOG(sFunctionRef..': highest priority TMD builder, is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; Enemy combat total='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Time since subrefiTimeOfLastBuildingDeathToTML='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] or 0)) end
     if tLZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] <= 90 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] < tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] then
         local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone)
