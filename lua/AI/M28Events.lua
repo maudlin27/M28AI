@@ -285,6 +285,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, iTeam)
                                 if tLZOrWZTeamData then tLZOrWZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] = GetGameTimeSeconds() end
                             end
+
                         end
 
                         --M28 specific killer logic
@@ -371,7 +372,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     end
                 end
                 --Consider message if this was a significant unit
-                if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryAllHQFactories * categories.TECH3, oUnitKilled.UnitId) then
                     if oUnitKilled:GetFractionComplete() == 1 or (EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) and oUnitKilled:GetFractionComplete() >= 0.6) then
                         local bConsideredNormalMessage = false
                         --Send distress message
