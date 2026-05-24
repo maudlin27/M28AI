@@ -13690,9 +13690,11 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Power stalling and either gross power significantly lower than gross mass, or we are completely stalling E
     iCurPriority = iCurPriority + 1
-    if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] then
+    if bDebugMessages == true then LOG(sFunctionRef..': Stalling power high priority power builder, subrefbTeamIsStallingEnergy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bHaveLowPower='..tostring(bHaveLowPower)..'; subrefiTeamAverageEnergyPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
+    if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] and (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or (true and GetGameTimeSeconds() >= 50*60 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < 0.8 and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 13 >= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]))) then
         iBPWanted = math.min(300, aiBrain[M28Economy.refiGrossMassBaseIncome] * 10)
         HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, iBPWanted)
+        if bDebugMessages == true then LOG(sFunctionRef..': Will try and get more power, iMinTechLevelForPower='..iMinTechLevelForPower..'; iBPWanted='..iBPWanted) end
     end
 
     --1st experimental - Enemy has land experimental and we dont have one of our own yet (and havent completed one before), unless enemy has a fatboy (in which case we want to focus more on getting t2 arti)
