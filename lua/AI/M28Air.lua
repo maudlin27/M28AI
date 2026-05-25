@@ -6080,14 +6080,40 @@ function ManageBombers(iTeam, iAirSubteam)
             iStartZoneToUse = iRallyLZOrWZ
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished determining start plateau and zone to use, either based on front bomber or rally, iStartPlateauToUse='..iStartPlateauToUse..'; iStartZoneToUse='..iStartZoneToUse..'; iRallyPlateauOrZero='..iRallyPlateauOrZero..'; iRallyLZOrWZ='..iRallyLZOrWZ..'; oFrontBomber='..(oFrontBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFrontBomber) or 'nil')..'; Last time bomb fired='..GetGameTimeSeconds() - (oFrontBomber[M28UnitInfo.refiLastBombFired] or 0)..'; Strike damage assignment='..(oFrontBomber[refoStrikeDamageAssigned].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFrontBomber[refoStrikeDamageAssigned]) or 'nil')) end
-        --GetAirThreatLevel(tUnits,      bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
-        iOurBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false,      false,          false,              true,                   false,              false)
         local aiBrain
         for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
             aiBrain = oBrain
             break
         end
         local iTeam = aiBrain.M28Team
+        --GetAirThreatLevel(tUnits,      bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
+        iOurBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false,      false,          false,              true,                   false,              false)
+        local iAvailableAndInCombatBombers = table.getn(tAvailableBombers)
+        --If we have incombat bombers then increase our threat and available bombers for these
+        if true and GetGameTimeSeconds() >= 125*60 and iAvailableAndInCombatBombers > 0 and M28Utilities.IsTableEmpty(tUnavailableUnits) == false then
+            local tInCombatBombers = {}
+            local iDistThreshold = 100
+            for iBomber, oBomber in tUnavailableUnits do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if oBomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' has recently fired or is attackign something nearby, refbSpecialMicroActive='..tostring(oBomber[M28UnitInfo.refbSpecialMicroActive] or false)) end
+                if (oBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oBomber[M28UnitInfo.refiLastBombFired] <= 12)
+                        or oBomber[M28UnitInfo.refbSpecialMicroActive]  then
+                    table.insert(tInCombatBombers, oBomber)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have recently fired a bomb or have special micro active') end
+                else
+                    local tLastOrder = oBomber[M28Orders.reftiLastOrders][1]
+                    if (tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId and not(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel) and ((not(tLastOrder[M28Orders.subrefoOrderUnitTarget].Dead) and M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()) <= iDistThreshold) or (tLastOrder[M28Orders.subrefoOrderUnitTarget].Dead and tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftLastKnownPositionByTeam][iTeam] and M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tLastOrder[M28Orders.subrefoOrderUnitTarget][M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= iDistThreshold)))
+                            or ((tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveMove or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack) and tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition]) <= iDistThreshold) then
+                        table.insert(tInCombatBombers, oBomber)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Are attacking a target that is close to it') end
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tInCombatBombers) == false then
+                    if bDebugMessages == true then LOG(sFunctionRef..': iAvailableAndInCombatBombers before adding in combat='..iAvailableAndInCombatBombers..'; size of tInCombatBombers='..table.getn(tInCombatBombers)..'; iOurBomberThreat before in combat='..iOurBomberThreat..'; threat of in combat='..M28UnitInfo.GetAirThreatLevel(tInCombatBombers, false,      false,          false,              true,                   false,              false)) end
+                    iAvailableAndInCombatBombers = iAvailableAndInCombatBombers + table.getn(tInCombatBombers)
+                    iOurBomberThreat = iOurBomberThreat + M28UnitInfo.GetAirThreatLevel(tInCombatBombers, false,      false,          false,              true,                   false,              false)
+                end
+            end
+        end
 
         local iSearchSize = 300
         if M28Map.iMapSize > 512 then
@@ -6097,12 +6123,12 @@ function ManageBombers(iTeam, iAirSubteam)
                 iSearchSize = 450
             end
         end
-        local iAvailableBombers = table.getn(tAvailableBombers)
-        if iAvailableBombers >= 8 then iSearchSize = iSearchSize * 1.5 end
+
+        if iAvailableAndInCombatBombers >= 8 then iSearchSize = iSearchSize * 1.5 end
         if M28Map.bIsCampaignMap then
             iSearchSize = math.max(M28Map.iMapSize, iSearchSize * 1.5)
         end
-        if iAvailableBombers >= 20 and (iAvailableBombers >= 50 or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3))) then
+        if iAvailableAndInCombatBombers >= 20 and (iAvailableAndInCombatBombers >= 50 or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3))) then
             iSearchSize = iSearchSize * 2
         elseif M28Map.bIsCampaignMap and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iSearchSize = iSearchSize * 1.5
         end
@@ -6242,9 +6268,9 @@ function ManageBombers(iTeam, iAirSubteam)
                     if bDebugMessages == true then LOG(sFunctionRef..': We have t3 bombers so increasing iMaxEnemyGroundAAThreat by 7-10% based onif have air control, iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
                 end
                 --If have large number of available bombers then increase
-                if iAvailableBombers >= 20 then
-                    iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * (1.1 + math.min(0.6, 0.4 * iAvailableBombers / 50))
-                    if bDebugMessages == true then LOG(sFunctionRef..': Lots of available bombers so increasing threat further, iAvailableBombers='..iAvailableBombers..'; iMaxEnemyGroundAAThreat post increase='..iMaxEnemyGroundAAThreat) end
+                if iAvailableAndInCombatBombers >= 20 then
+                    iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * (1.1 + math.min(0.6, 0.4 * iAvailableAndInCombatBombers / 50))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Lots of available bombers so increasing threat further, iAvailableAndInCombatBombers='..iAvailableAndInCombatBombers..'; iMaxEnemyGroundAAThreat post increase='..iMaxEnemyGroundAAThreat) end
                 end
 
                 local bConsiderHigherTechUnitsFirst = false
@@ -6342,8 +6368,8 @@ function ManageBombers(iTeam, iAirSubteam)
                     end
                     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
                         --If have air control and lots of bombers available consider further away targets; also consider if rally point is outside the playable area
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; Do we have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; iAvailableBombers='..(iAvailableBombers or 'nil')..'; iOurBomberThreat='..(iOurBomberThreat or 'nil')..'; iMaxEnemyGroundAAThreat before adjusting if dont have lots of bombers='..iMaxEnemyGroundAAThreat..'; iSearchSize='..iSearchSize..'; Time='..GetGameTimeSeconds()) end
-                        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] or M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAvailableBombers >= 8 and (iAvailableBombers >= 60 or iOurBomberThreat >= 25000 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or (M28Map.bIsCampaignMap and iAvailableBombers >= 12 and (iAvailableBombers >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap])))) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; Do we have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; iAvailableAndInCombatBombers='..(iAvailableAndInCombatBombers or 'nil')..'; iOurBomberThreat='..(iOurBomberThreat or 'nil')..'; iMaxEnemyGroundAAThreat before adjusting if dont have lots of bombers='..iMaxEnemyGroundAAThreat..'; iSearchSize='..iSearchSize..'; Time='..GetGameTimeSeconds()) end
+                        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] or M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAvailableAndInCombatBombers >= 8 and (iAvailableAndInCombatBombers >= 60 or iOurBomberThreat >= 25000 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or (M28Map.bIsCampaignMap and iAvailableAndInCombatBombers >= 12 and (iAvailableAndInCombatBombers >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap])))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': We have lots of available bombers and air control, or want to be suicidal due to campaign map') end
                         else
                             iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat / 1.5
@@ -6584,7 +6610,6 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
     local tiWZWithTooMuchAA = {}
     local tiAnglesFromRallyOfWZWithTooMuchAA = {}
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
-
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
         local tEnemyTargets = {}
         local tbAdjacentWaterZonesConsidered = {}
