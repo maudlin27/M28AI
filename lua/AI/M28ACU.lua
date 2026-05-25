@@ -1536,7 +1536,7 @@ end
 function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     --Records the order of upgrades we will want for the ACU
     local sFunctionRef = 'GetUpgradePathForACU'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -1852,7 +1852,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
 
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
         local tiEntriesToRemove = {}
-        if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades] before removing invalid entries='..repru(oACU[reftPreferredUpgrades])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': oACU[reftPreferredUpgrades] before removing invalid entries='..repru(oACU[reftPreferredUpgrades])..'; bCheckForRestrictions='..tostring(bCheckForRestrictions)..'; tRestrictedEnhancements='..repru(tRestrictedEnhancements)) end
         for iUpgradeWanted, sUpgradeWanted in oACU[reftPreferredUpgrades] do
             bInvalidUpgrade = false
             if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
@@ -1865,6 +1865,10 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 if tRestrictedEnhancements[sUpgradeWanted] then
                     if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted '..sUpgradeWanted..' is in the restricted enhancements table so cant get it yet') end
                     bInvalidUpgrade = true
+                elseif true and GetGameTimeSeconds() >= 140*60 and oBP.Enhancements[sUpgradeWanted].Prerequisite and tRestrictedEnhancements[oBP.Enhancements[sUpgradeWanted].Prerequisite] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Upgrade has a preqrequisite that is restricted, so adding upgrade to the restricted list') end
+                    bInvalidUpgrade = true
+                    tRestrictedEnhancements[sUpgradeWanted] = true
                 end
             end
             if bInvalidUpgrade then
@@ -1943,7 +1947,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 'EXDisruptorrBooster', --Aeon
                 }
                 for iPotentialUpgrade, sPotentialUpgrade in tsOtherUpgradeNames do
-                    if oBP.Enhancements[sPotentialUpgrade] then
+                    if oBP.Enhancements[sPotentialUpgrade] and not(tRestrictedEnhancements[sPotentialUpgrade]) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Found backup gun upgrade so will use it, sPotentialUpgrade='..sPotentialUpgrade) end
                         oACU[reftPreferredUpgrades] = { sPotentialUpgrade}
                         break
@@ -1972,7 +1976,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 'EXBeamPhason', --Aeon laser (cheap version)--]]
             }
             for iPotentialUpgrade, sPotentialUpgrade in  tsModUpgradesToConsider do
-                if oBP.Enhancements[sPotentialUpgrade] then
+                if oBP.Enhancements[sPotentialUpgrade] and not(tRestrictedEnhancements[sPotentialUpgrade]) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Blackops ACU upgrades - adding upgrade '..sPotentialUpgrade..' to ACU owned by player '..oACU:GetAIBrain().Nickname) end
                     table.insert(oACU[reftPreferredUpgrades], sPotentialUpgrade)
                 end
@@ -1980,22 +1984,22 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         end
     else
         --If can get RAS, and it is cheap, then make it the first upgrade to get
-        if oACU[refiUpgradeCount] == 0 and (oBP.Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and GetGameTimeSeconds() <= 60 and not(oACU[reftPreferredUpgrades][1] == 'ResourceAllocation') then
+        if oACU[refiUpgradeCount] == 0 and (oBP.Enhancements.ResourceAllocation.BuildCostMass or 10000) <= 100 and GetGameTimeSeconds() <= 60 and not(oACU[reftPreferredUpgrades][1] == 'ResourceAllocation') and not(tRestrictedEnhancements['ResourceAllocation']) then
             table.insert(oACU[reftPreferredUpgrades], 1, 'ResourceAllocation')
             --Remove the other RAS
             for iUpgrade, sUpgrade in oACU[reftPreferredUpgrades] do
                 if sUpgrade == 'ResourceAllocation' and iUpgrade > 1 then
-                table.remove(oACU[reftPreferredUpgrades], iUpgrade)
-                break
+                    table.remove(oACU[reftPreferredUpgrades], iUpgrade)
+                    break
+                end
             end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': The first upgrade entry should be RAS upgrade because of how cheap it is') end
+            if bDebugMessages == true then LOG(sFunctionRef..': The first upgrade entry should be RAS upgrade because of how cheap it is') end
         end
     end
     --Campaign specific - add RAS upgrade if we only have 1 upgrade
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Campaign specific - considering adding RAS upgrade; is preferred upgrades nil=' .. tostring(oACU[reftPreferredUpgrades]))
-        if oACU[reftPreferredUpgrades] and oACU[refiUpgradeCount] == 0 then
+        if oACU[reftPreferredUpgrades] and oACU[refiUpgradeCount] == 0 and not(tRestrictedEnhancements['ResourceAllocation']) then
             LOG(sFunctionRef .. ': Upgrade size=' .. table.getn(oACU[reftPreferredUpgrades])..'; repru='..repru(oACU[reftPreferredUpgrades]))
         end
     end
@@ -2011,7 +2015,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 end
             end
         end
-        if bSlotAvailable or (M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) == 1 and not(oACU:HasEnhancement('ShieldHeavy')) and M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs] and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] <= 1000 and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar]) and M28Map.tAllPlateaus[oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][1]][M28Map.subrefPlateauLandZones][oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][2]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.refbBaseInSafePosition]) then
+        if not(tRestrictedEnhancements['ResourceAllocation']) and (bSlotAvailable or (M28UnitInfo.GetUnitHealthAndShieldPercent(oACU) == 1 and not(oACU:HasEnhancement('ShieldHeavy')) and M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs] and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] <= 1000 and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbAssassinationOrSimilar]) and M28Map.tAllPlateaus[oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][1]][M28Map.subrefPlateauLandZones][oACU[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][2]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.refbBaseInSafePosition])) then
             table.insert(oACU[reftPreferredUpgrades], 'ResourceAllocation')
             if bDebugMessages == true then LOG(sFunctionRef..': Adding RAS to table of preferred upgrades') end
             if oBP.Enhancements['ResourceAllocationAdvanced'] and not (tRestrictedEnhancements['ResourceAllocationAdvanced']) then
