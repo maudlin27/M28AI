@@ -2052,6 +2052,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             LOG(sFunctionRef..': Sera M3 logs, Is M4P3 active='..tostring(ScenarioInfo.M4P3.Active)..'; Is target category urc1901='..tostring(Target.Requirements[1].Category == categories.urc1901)..'; Target.Area='..(Target.Requirements[1].Area or 'nil')..'; reprs of ScenarioInfo.M2P2='..reprs(ScenarioInfo.M2P2)..'; reprs of Target='..reprs(Target))
             LOG(sFunctionRef..': Aeon M5 check, if ScenarioInfo.M2P1Obj.Active='..tostring(ScenarioInfo.M2P1Obj.Active or false)..'; ScenarioInfo.Ariel==nil='..tostring(ScenarioInfo.Ariel == nil)..'; Colonies is nil='..tostring(ScenarioInfo.Colonies == nil)..'; tbSpecialCodeForMission[21]='..tostring(tbSpecialCodeForMission[21] or false))
             LOG(sFunctionRef..': UEF M6 check, ScenarioInfo.Component='..(ScenarioInfo.Component or 'nil')..'; ScenarioInfo.BlackSun='..(ScenarioInfo.BlackSun or 'nil')..'; is ScenarioInfo.BlackSunComponent valid='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunComponent))..'; is it nil='..tostring(ScenarioInfo.BlackSunComponent == nil)..'; ScenarioInfo.M1P2.Active='..tostring(ScenarioInfo.M1P2.Active))
+            LOG(sFunctionRef..': Cybran M5 check, ScenarioInfo.FauxUEF='..ScenarioInfo.FauxUEF..'; Hex5='..ScenarioInfo.Hex5..'; M1P1Complete='..tostring(ScenarioInfo.M1P1Complete)..'; M2P2Complete='..tostring(ScenarioInfo.M2P2Complete))
         end
         --UEF Mission 2 - if player 1 has M28AI logic active, then try and move units to the area for civilians
         if Target.Area == 'Civilian_Area' and ScenarioInfo.M2P1.Active and ScenarioInfo.AllyResearch == 3 and ScenarioInfo.AllyCivilian == 4 and ScenarioInfo.CivilianFacilityReinforcedObjectiveComplete == false then
@@ -2144,22 +2145,8 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             end
             --UEF Mission 5 - send ACU to gateway
         elseif ScenarioInfo.M3P3.Active and Scenario.Areas['CDR_Gate_Area'] and ScenarioInfo.PlayerCDRs and ScenarioInfo.City then
-            --local rRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
-            local tRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
-            local rRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
-            if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)..'; AreaToRect='..repru(import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area'))) end
-            if rRect then
-                local tMidpoint = {(rRect[1] + rRect[3])*0.5, 0, (rRect[2] + rRect[4])*0.5}
-                tMidpoint[2] = GetTerrainHeight(tMidpoint[1], tMidpoint[3])
-                for iUnit, oUnit in ScenarioInfo.PlayerCDRs do
-                    if M28UnitInfo.IsUnitValid(oUnit) then
-                        LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
-                        if oUnit:GetAIBrain().M28AI and not(oUnit:GetAIBrain().CampaignAI) then
-                            oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
-                        end
-                    end
-                end
-            end
+            SendACUsToCampaignObjective('CDR_Gate_Area')
+
             --UEF M5 - sending trucks - refer to DeathTriggerAdded
 
             --UEF M5 - build SMD and protect research facilities with heavy shields
@@ -2241,7 +2228,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             end
             --Cybran mission 2 - get subs as first naval units (to defend from off-map frigates)
         elseif ScenarioInfo.CybranJanus == 3 and ScenarioInfo.FakeJanus == 6 and ScenarioInfo.M1NETechFound == false and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySubmarine) < 10 then
-            ForkThread(CybranM2GetSubs, iTeam)
+            ForkThread(GetSubsInCampaignMission, iTeam, 10)
             --Cybran mission 3 - monitor for trucks and send to the gate
             --NOTE: Also see DeathTriggerAdded
         elseif ScenarioInfo.M2BrackmanTrucksCreated and ScenarioInfo.M2BrackmanTrucksDestroyed and ScenarioInfo.M2P2Complete and ScenarioInfo.M2P1Complete and not(ScenarioInfo.M2P3Complete) and (Target.Units or M28Utilities.IsTableEmpty(ScenarioInfo.EscapeConvoy) == false) then
@@ -2373,6 +2360,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
                 tAveragePacifistLocation = M28Utilities.GetAverageOfUnitPositions(toPacifistUnits)
             end
+        --Cybran mission 4 - disable pacifist flag once emp fired
         elseif bPacifistModeActive and ScenarioInfo.EMPFired and M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
             --Disable pacifist flag
             if bDebugMessages == true then LOG(sFunctionRef..': EMP has been fired so will disable pacifist flag for all recorded zones, tiPacifistZonesByPlateau='..repru(tiPacifistZonesByPlateau)) end
@@ -2388,6 +2376,13 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     tLZOrWZData[M28Map.subrefbPacifistArea] = false
                 end
             end
+        --Cybran mission 5 - get subs near start to help vs enemy UEF destroyer
+        elseif ScenarioInfo.FauxUEF == 4 and ScenarioInfo.Hex5 == 3 and not(ScenarioInfo.M1P1Complete) then
+            ForkThread(GetSubsInCampaignMission, iTeam, 10)
+        --Cybran mission 5 - send ACU to get codes from Hex5
+        elseif ScenarioInfo.FauxUEF == 4 and ScenarioInfo.Hex5 == 3 and not(ScenarioInfo.M2P2Complete) and ScenarioInfo.M2P1Complete == true then
+            SendACUsToCampaignObjective('M2_Hex5ObjectiveMarker')
+
             --Cybran mission 6 - activate black sun (below is as a redundancy but doesnt actually trigger - are reliant on the oncapture event instead)
         elseif ScenarioInfo.M3P2.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) and ScenarioInfo.BlackSunWeapon:GetAIBrain().M28AI and ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionCybran then
             if bDebugMessages == true then LOG(sFunctionRef..': Want to fire black sun to complete cybran campaign - will fire in a bit') end
@@ -4047,8 +4042,8 @@ function UEFBlackSunComponentCheckForTransport()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function CybranM2GetSubs(iTeam)
-    local sFunctionRef = 'CybranM2GetSubs'
+function GetSubsInCampaignMission(iTeam, iSubsWanted)
+    local sFunctionRef = 'GetSubsInCampaignMission'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -4074,10 +4069,10 @@ function CybranM2GetSubs(iTeam)
         local refbSubCheckActive = 'M28M2SubCheck'
         if not(oM28Brain[refbSubCheckActive]) then
             oM28Brain[refbSubCheckActive] = true
-            local sBlueprint
+            local iLifetimeCountThreshold = iSubsWanted * 2
 
 
-            while oM28Brain:GetCurrentUnits(M28UnitInfo.refCategorySubmarine) < 10 do
+            while oM28Brain:GetCurrentUnits(M28UnitInfo.refCategorySubmarine) < iSubsWanted and M28Conditions.GetLifetimeBuildCount(oM28Brain, M28UnitInfo.refCategorySubmarine) < iLifetimeCountThreshold do
                 local toNavalFac = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory, false, false)
                 if M28Utilities.IsTableEmpty(toNavalFac) == false then
                     for iUnit, oUnit in toNavalFac do
@@ -4096,4 +4091,56 @@ function CybranM2GetSubs(iTeam)
             end
         end
     end
+end
+
+function SendACUsToCampaignObjective(sArea)
+    local sFunctionRef = 'SendACUsToCampaignObjective'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tRect = import("/lua/sim/scenarioutilities.lua").AreaToRect(sArea)
+    local rRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
+    if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)..'; AreaToRect='..repru(import("/lua/sim/scenarioutilities.lua").AreaToRect(sArea))) end
+    if rRect then
+        local tMidpoint = {(rRect[1] + rRect[3])*0.5, 0, (rRect[2] + rRect[4])*0.5}
+        tMidpoint[2] = GetTerrainHeight(tMidpoint[1], tMidpoint[3])
+        local tM28ACUs = ScenarioInfo.PlayerCDRs
+        if M28Utilities.IsTableEmpty(tM28ACUs) then
+            local oFirstPlayer
+            local oM28Brain
+            for iBrain, oBrain in ArmyBrains do
+                if oBrain.M28AI then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; .BrainType='..(oBrain.BrainType or 'nil')..'; .M28Team='..(oBrain.M28Team or 'nil')..'; Does nickname contain M28='..tostring(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname))..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oFirstPlayer.M28Team='..(oFirstPlayer.M28Team or 'nil')) end
+                    if not(oFirstPlayer) and oBrain.BrainType == 'Human' then
+                        oFirstPlayer = oBrain
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording as oFirstPlayer') end
+                        if oM28Brain then break end
+                    end
+                    if oBrain.M28AI and oBrain.BrainType == 'AI' and M28Conditions.DoesAINicknameContainM28(oBrain.Nickname) and oBrain.M28Team == oFirstPlayer.M28Team then
+                        oM28Brain = oBrain
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording as oM28Brain') end
+                        if oFirstPlayer then break end
+                    end
+                end
+            end
+            if not(oM28Brain) and oFirstPlayer.M28AI then oM28Brain = oFirstPlayer end
+            if bDebugMessages == true then LOG(sFunctionRef..': oM28Brain='..(oM28Brain.Nickname or 'nil')) end
+            if oM28Brain then
+                tM28ACUs = M28Team.tTeamData[oM28Brain.M28Team][M28Team.reftM28ACUs]
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is tM28ACUs empty='..tostring(M28Utilities.IsTableEmpty(tM28ACUs))) end
+        if M28Utilities.IsTableEmpty(tM28ACUs) == false then
+            for iUnit, oUnit in tM28ACUs do
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
+                    if oUnit:GetAIBrain().M28AI and not(oUnit:GetAIBrain().CampaignAI) then
+                        oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
+                    end
+                end
+            end
+        end
+
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
