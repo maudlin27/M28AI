@@ -2391,10 +2391,12 @@ function OnConstructed(oEngineer, oJustBuilt)
                 --If a building has just build a building, then make sure all M28 are aware of it (since a player would be able to infer this)
                 if EntityCategoryContains(categories.STRUCTURE - categories.ENGINEER, oEngineer.UnitId) then
                     local tTeamsUpdated = {}
-                    for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
-                        if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
-                            tTeamsUpdated[oBrain.M28Team] = true
-                            M28Team.AssignUnitToLandZoneOrPond(oBrain, oJustBuilt, false, false, true)
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains]) == false then
+                        for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
+                            if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                                tTeamsUpdated[oBrain.M28Team] = true
+                                M28Team.AssignUnitToLandZoneOrPond(oBrain, oJustBuilt, false, false, true)
+                            end
                         end
                     end
                     --Mex built by engineer - special case where player would be able to infer a mex has been built after a while
