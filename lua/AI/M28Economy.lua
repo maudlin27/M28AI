@@ -785,7 +785,7 @@ function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
             local iStorageSize = M28UnitInfo.GetBuildingSize(oStorage.UnitId)
             --Adjust for AIx
             if aiBrain.CheatEnabled then
-                iAIxMod = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+                iAIxMod = (aiBrain[refiBrainResourceMultiplier] or tonumber(ScenarioInfo.Options.CheatMult or 1.5))
             end
             oStorage[refiStorageMassAdjacencyBonus] = 0
             --Get all adjacent mexes
@@ -1028,7 +1028,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptio
 
                     --Adjust for AIx
                     if aiBrain.CheatEnabled then
-                        local iAIxMod = iOptionalResourceModAdjustmentOverride or tonumber(ScenarioInfo.Options.CheatMult or tostring(1.5))
+                        local iAIxMod = iOptionalResourceModAdjustmentOverride or aiBrain[refiBrainResourceMultiplier] or tonumber(ScenarioInfo.Options.CheatMult or tostring(1.5))
                         iMassGen = iMassGen * iAIxMod
                         iEnergyGen = iEnergyGen * iAIxMod
                     end
@@ -2627,7 +2627,7 @@ function ManageEnergyStalls(iTeam)
                                                 end
                                             elseif bConsideringFactory then
                                                 --Primary factions - if dealing with T1 (or T2 with lots of E) and is a primary factory, then dont pause, as too big a risk we pause an expansion and lose the whole expansion
-                                                if (oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or oBrain[refiGrossEnergyBaseIncome] >= 300 or (oBrain[refiGrossEnergyBaseIncome] >= 150 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, oUnit.UnitId)) or (oBrain[refiGrossEnergyBaseIncome] >= 100 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oUnit.UnitId))) and oBrain[refiGrossEnergyBaseIncome] >= 30 and (oBrain[refiGrossEnergyBaseIncome] >= 150 or (oBrain[refiGrossEnergyBaseIncome] >= 80 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, oUnit.UnitId)) or EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oUnit.UnitId)) and (oBrain[refiGrossEnergyBaseIncome] >= 300 or not(oUnit:IsUnitState('Upgrading')) or bDontPauseUpgradingT1LandOrT2Land or (oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] and oBrain[refiGrossEnergyBaseIncome] >= 85 and EntityCategoryContains(categories.TECH1, oUnit.UnitId))) then
+                                                if (oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] or oBrain[refiGrossEnergyBaseIncome] >= 300 or (oBrain[refiGrossEnergyBaseIncome] >= 150 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3, oUnit.UnitId)) or (oBrain[refiGrossEnergyBaseIncome] >= 100 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oUnit.UnitId))) and (oBrain[refiGrossEnergyBaseIncome] >= 30 or oBrain[refiGrossEnergyBaseIncome] * oBrain[refiBrainBuildRateMultiplier] >= 30) and (oBrain[refiGrossEnergyBaseIncome] >= 150 or (oBrain[refiGrossEnergyBaseIncome] >= 80 * oBrain[refiBrainBuildRateMultiplier] and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory - categories.TECH3 + M28UnitInfo.refCategoryNavalFactory * categories.TECH1, oUnit.UnitId)) or EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, oUnit.UnitId)) and (oBrain[refiGrossEnergyBaseIncome] >= 300 or not(oUnit:IsUnitState('Upgrading')) or bDontPauseUpgradingT1LandOrT2Land or (oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] and oBrain[refiGrossEnergyBaseIncome] >= 85 * oBrain[refiBrainBuildRateMultiplier] and EntityCategoryContains(categories.TECH1, oUnit.UnitId))) then
                                                     bApplyActionToUnit = false
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Primary fac for island/pond so wont pause') end
                                                     --Dont want to pause an HQ upgrade since it will give us better power, unless we already have access to that tech for the factory brain owner
@@ -3950,7 +3950,7 @@ end
 
 function ConsiderChangingCoreBase(aiBrain, iOriginalPlateau, iOriginalZone)
     --Assumed has been called after our air fac was destroyed, suggesting core base is in trouble
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderChangingCoreBase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

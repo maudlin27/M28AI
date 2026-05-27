@@ -6090,7 +6090,7 @@ function ManageBombers(iTeam, iAirSubteam)
         iOurBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false,      false,          false,              true,                   false,              false)
         local iAvailableAndInCombatBombers = table.getn(tAvailableBombers)
         --If we have incombat bombers then increase our threat and available bombers for these
-        if true and GetGameTimeSeconds() >= 125*60 and iAvailableAndInCombatBombers > 0 and M28Utilities.IsTableEmpty(tUnavailableUnits) == false then
+        if iAvailableAndInCombatBombers > 0 and M28Utilities.IsTableEmpty(tUnavailableUnits) == false then
             local tInCombatBombers = {}
             local iDistThreshold = 100
             for iBomber, oBomber in tUnavailableUnits do
