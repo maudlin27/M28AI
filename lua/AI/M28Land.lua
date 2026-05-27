@@ -4269,6 +4269,7 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrP
         local iBackupDist = 0
         local iMaxAngleDifference = iMaxAngleDifForMovingBackwardsOverride or 35
         local bValidTowardsLocation = false
+        local bContinue = true
         if oUnit[M28UnitInfo.refbCanKite] then
             iBackupDist = (oUnit:GetBlueprint().Physics.BackUpDistance or 0)
         end
@@ -4352,7 +4353,9 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrP
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                         if bDebugMessages == true then LOG(sFunctionRef..': Speed after waiting 1 tick='..M28UnitInfo.GetUnitSpeed(oUnit)..'; iTotalTimeWaited in ticks='..iTotalTimeWaited) end
                     end
-                    if not(M28UnitInfo.IsUnitValid(oUnit)) then M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) return nil end
+                    if not(M28UnitInfo.IsUnitValid(oUnit)) then
+                        bContinue = false
+                    end
 
 
                     --Ticks to wait:
@@ -4361,50 +4364,52 @@ function BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrP
                     --Therefore will try waiting 1 tick until speed is sub-1 (speed being total velocity * 10); when did this, with a speed threshold of 1, it failed with fatboy; speed of 0.73837280273438 was ok
 
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': tPotentialMoveLocation='..repru(tPotentialMoveLocation)..'; Unit position='..repru(oUnit:GetPosition())..'; iDistToMove='..(iDistToMove or 'nil')..'; Dist to potential move location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tPotentialMoveLocation)..'; bStopFirst='..tostring(bStopFirst)..'; iUnitSpeed='..iUnitSpeed) end
-                M28Orders.IssueTrackedMove(oUnit, tPotentialMoveLocation, math.min(iDistToMove * 0.2, 5), false, sOrderDesc..'T', false)
-                --Check if we are being blocked - decided to leave out in the end as not convinced it was actually helping significantly (ignore for water)
-                if iDistToMove > 2 and iTicksPerLandCycle <= 15 and M28Map.GetLandZoneFromPosition(oUnit:GetPosition()) then
-                    local tViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(),iAngleActuallyMoving, 0.5)
-                    if tViaPoint then
-                        local rRectToSearch = M28Utilities.GetRectAroundLocation(tViaPoint, 0.5)
-                        local tBlockingUnits = M28Utilities.GetUnitsInRect(rRectToSearch)
-                        if M28Utilities.IsTableEmpty(tBlockingUnits) == false then
-                            local iTeam = oUnit:GetAIBrain().M28Team
-                            local iMassThreshold = oUnit[M28UnitInfo.refiUnitMassCost] * 3
-                            local tBlockingViaPoint
-                            for iBlockingUnit, oBlockingUnit in tBlockingUnits do
-                                if not(oBlockingUnit == oUnit) and M28UnitInfo.IsUnitValid(oBlockingUnit) and (oBlockingUnit[M28UnitInfo.refiUnitMassCost] or iMassThreshold) < iMassThreshold and not(oBlockingUnit[M28UnitInfo.refbSpecialMicroActive]) then
-                                    local oBrain = oBlockingUnit:GetAIBrain()
-                                    if oBrain.M28AI and oBrain.M28Team == iTeam then
-                                        --Move this unit the same direction
-                                        if not(tBlockingViaPoint) then
-                                            tBlockingViaPoint = M28Utilities.MoveInDirection(oBlockingUnit:GetPosition(),iAngleActuallyMoving, iDistToMove + 1)
+                if bContinue then
+                    if bDebugMessages == true then LOG(sFunctionRef..': tPotentialMoveLocation='..repru(tPotentialMoveLocation)..'; Unit position='..repru(oUnit:GetPosition())..'; iDistToMove='..(iDistToMove or 'nil')..'; Dist to potential move location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tPotentialMoveLocation)..'; bStopFirst='..tostring(bStopFirst)..'; iUnitSpeed='..iUnitSpeed) end
+                    M28Orders.IssueTrackedMove(oUnit, tPotentialMoveLocation, math.min(iDistToMove * 0.2, 5), false, sOrderDesc..'T', false)
+                    --Check if we are being blocked - decided to leave out in the end as not convinced it was actually helping significantly (ignore for water)
+                    if iDistToMove > 2 and iTicksPerLandCycle <= 15 and M28Map.GetLandZoneFromPosition(oUnit:GetPosition()) then
+                        local tViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(),iAngleActuallyMoving, 0.5)
+                        if tViaPoint then
+                            local rRectToSearch = M28Utilities.GetRectAroundLocation(tViaPoint, 0.5)
+                            local tBlockingUnits = M28Utilities.GetUnitsInRect(rRectToSearch)
+                            if M28Utilities.IsTableEmpty(tBlockingUnits) == false then
+                                local iTeam = oUnit:GetAIBrain().M28Team
+                                local iMassThreshold = oUnit[M28UnitInfo.refiUnitMassCost] * 3
+                                local tBlockingViaPoint
+                                for iBlockingUnit, oBlockingUnit in tBlockingUnits do
+                                    if not(oBlockingUnit == oUnit) and M28UnitInfo.IsUnitValid(oBlockingUnit) and (oBlockingUnit[M28UnitInfo.refiUnitMassCost] or iMassThreshold) < iMassThreshold and not(oBlockingUnit[M28UnitInfo.refbSpecialMicroActive]) then
+                                        local oBrain = oBlockingUnit:GetAIBrain()
+                                        if oBrain.M28AI and oBrain.M28Team == iTeam then
+                                            --Move this unit the same direction
+                                            if not(tBlockingViaPoint) then
+                                                tBlockingViaPoint = M28Utilities.MoveInDirection(oBlockingUnit:GetPosition(),iAngleActuallyMoving, iDistToMove + 1)
+                                            end
+                                            M28Orders.IssueTrackedMove(oBlockingUnit, tBlockingViaPoint, 1, false, sOrderDesc..'Bl', false)
+                                            M28Micro.TrackTemporaryUnitMicro(oBlockingUnit, 0.5, nil, true)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will also retreat blocking unit '..oBlockingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBlockingUnit)) end
                                         end
-                                        M28Orders.IssueTrackedMove(oBlockingUnit, tBlockingViaPoint, 1, false, sOrderDesc..'Bl', false)
-                                        M28Micro.TrackTemporaryUnitMicro(oBlockingUnit, 0.5, nil, true)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will also retreat blocking unit '..oBlockingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBlockingUnit)) end
                                     end
                                 end
                             end
                         end
                     end
-                end
-                if iUnitSpeed * iTicksPerLandCycle * 0.1 > iDistToMove * 0.75 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Want to issue an interim move order after the first, will first wait '..math.ceil(iTicksPerLandCycle * 0.5)..' ticks') end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    WaitTicks(math.ceil(iTicksPerLandCycle * 0.5))
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, will issue interim order now for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                    if M28UnitInfo.IsUnitValid(oUnit) then
+                    if iUnitSpeed * iTicksPerLandCycle * 0.1 > iDistToMove * 0.75 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to issue an interim move order after the first, will first wait '..math.ceil(iTicksPerLandCycle * 0.5)..' ticks') end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrPondRef, sOrderDesc, bAmphibiousAndUsingPlateauRef, iDefaultDistOverride, iMaxAngleDifForMovingBackwardsOverride, bUsingPondRef)
+                        WaitTicks(math.ceil(iTicksPerLandCycle * 0.5))
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, will issue interim order now for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            BackupUnitTowardsRallyIfAvailable(oUnit, tRallyPoint, iIslandPlateauOrPondRef, sOrderDesc, bAmphibiousAndUsingPlateauRef, iDefaultDistOverride, iMaxAngleDifForMovingBackwardsOverride, bUsingPondRef)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        end
                     end
                 end
             end
         end
-        if not(bValidTowardsLocation) then
+        if bContinue and not(bValidTowardsLocation) then
             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 5, false, sOrderDesc..'R', false)
         end
     end
@@ -4457,7 +4462,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 28*60 and iLandZone == 25 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryDestroyer, tAvailableCombatUnits)) == false then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileIndirectByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange])..'; subrefLZThreatAllyMobileDFByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Enemy mobile DF='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Threat of tAvailableCombatUnits='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, false, false)..'; subrefiAvailableMobileShieldThreat='..(tLZTeamData[M28Map.subrefiAvailableMobileShieldThreat] or 0)..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]..'; Time='..GetGameTimeSeconds())
@@ -6755,6 +6760,21 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false and iNearestEnemyZone == iLandZone then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have friendly ACU in this zone which enemy is in, so will actually stick to being scenario 1') end
                                     bAreInScenario1 = true
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': bAreInScenario1 before checking for short range nearest enemy='..tostring(bAreInScenario1)..'; refiCombatRange of nearest enemy='.. oNearestEnemyToFriendlyBase[M28UnitInfo.refiCombatRange]) end
+                                if not(bAreInScenario1) and oNearestEnemyToFriendlyBase[M28UnitInfo.refiCombatRange] <= 18 then
+                                    --Good chance we can get visual on the nearest enemy, check if are other enemies that are close to it who do have a decent combat range, and which we cant see
+                                    bAreInScenario1 = true
+                                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                        for iEnemy, oEnemy in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                                            if not(oEnemy == oNearestEnemyToFriendlyBase) and (oEnemy[M28UnitInfo.refiDFRange] or 0) >= 15 and M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) - oEnemy[M28UnitInfo.refiDFRange] <= -10 and not(M28UnitInfo.CanSeeUnit(aiBrain, oEnemy)) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Dist to nearestenemytofriendlybase='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition())..'; so since cant see nearest enemy will exit scenario 1') end
+                                                bAreInScenario1 = false
+                                                break
+                                            end
+                                        end
+                                    end
+
                                 end
                             end
                         end
