@@ -3135,6 +3135,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                         end
                     end
 
+                    --M28Active cybran destroyers amphibious toggle
+                    if oJustBuilt.M28Active and oJustBuilt.UnitId == 'urs0201' and not(M28UnitInfo.bDontConsiderCombinedArmy) and oJustBuilt:GetAIBrain().BrainType == 'Human' then
+                        M28UnitInfo.EnableLandWalkingForDestroyerOwnedByPlayer(oJustBuilt)
+                    end
+
                     --Mobile land units - give a micro move order so they dont block the factory
                     if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oJustBuilt.UnitId) then
                         ForkThread(M28Micro.MoveAwayFromFactory, oJustBuilt, oEngineer)
@@ -3621,10 +3626,16 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Enabled M28AI logic for the unit') end
                                     oUnit.M28Active = true
                                     oUnit:UpdateStat('M28Active', 1)
+                                    if oUnit.UnitId == 'urs0201' then
+                                        M28UnitInfo.EnableLandWalkingForDestroyerOwnedByPlayer(oUnit) --for AI it seems to automatically move on land, for players it doesnt
+                                    end
                                 end
                             elseif oUnit:GetFractionComplete() == 1 and oUnit.Parent and oUnit.Parent.M28Active and not(oUnit.M28Active) and oUnit:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then --e.g. novax will create a 100% complete unit
                                 oUnit.M28Active = true
                                 oUnit:UpdateStat('M28Active', 1)
+                                if oUnit.UnitId == 'urs0201' then
+                                    M28UnitInfo.EnableLandWalkingForDestroyerOwnedByPlayer(oUnit) --for AI it seems to automatically move on land, for players it doesnt
+                                end
                             else
                                 oUnit:UpdateStat('M28Active', 0)
                             end
@@ -3901,6 +3912,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                 ForkThread(M28Building.QuantumOpticsManager, aiBrain, oUnit)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Setting weapon priority for submarinte='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                             M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPrioritySub, false) --Dont want to check if can attack ground
 
                             --1st T3 Engineer - check building construction options

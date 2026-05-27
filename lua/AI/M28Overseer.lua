@@ -703,21 +703,34 @@ end
 
 
 function TestCustom(aiBrain)
-    WaitSeconds(300)
-
-    --Check SMD missile count
-    while true do
-        local tFriendlySMD = aiBrain:GetListOfUnits(M28UnitInfo.refCategorySMD)
-        if M28Utilities.IsTableEmpty(tFriendlySMD) == false then
-            for iSMD, oSMD in tFriendlySMD do
-                LOG('oSMD='..oSMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSMD)..'; GetNukeSiloAmmoCount is nil='..tostring(oSMD.GetNukeSiloAmmoCount or false)..'; GetTacticalSiloAmmoCount is nil='..tostring(oSMD.GetTacticalSiloAmmoCount or false))
-                if oSMD.GetNukeSiloAmmoCount then LOG('GetNukeSiloAmmoCount='..oSMD:GetNukeSiloAmmoCount()) end
-                if oSMD.GetTacticalSiloAmmoCount then LOG('GetTacticalSiloAmmoCount='..oSMD:GetTacticalSiloAmmoCount()) end
+    --[[while true do
+        local toDestroyers = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryDestroyer, false, true)
+        if M28Utilities.IsTableEmpty(toDestroyers) == false then
+            local oDestroyerToUse
+            for iDestroyer, oDestroyer in toDestroyers do
+                if oDestroyer:GetFractionComplete() == 1 then
+                    oDestroyerToUse = oDestroyer
+                    break
+                end
             end
+            local tTarget = M28Map.tAllPlateaus[113][M28Map.subrefPlateauLandZones][14][M28Map.subrefMidpoint]
+            M28UnitInfo.EnableLandWalkingForDestroyerOwnedByPlayer(oDestroyerToUse)
+            while M28UnitInfo.IsUnitValid(oDestroyerToUse) do
+                M28Orders.IssueTrackedAttackMove(oDestroyerToUse, tTarget, 5, false, 'Custom', true)
+                oDestroyerToUse[M28UnitInfo.refbSpecialMicroActive] = true
+                oDestroyerToUse[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+                oDestroyerToUse[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 11
+                WaitSeconds(10)
+                if M28UnitInfo.GetUnitSpeed(oDestroyerToUse) <= 0.2 and oDestroyerToUse.Layer ~= 'Land' and oDestroyerToUse.ForceAltFootprint then
+                    oDestroyerToUse:ForceAltFootprint(true)
+                    LOG('TEMPCODE forced alt footprint')
+                end
+            end
+            WaitSeconds(20)
+        else
+            WaitSeconds(20)
         end
-        WaitSeconds(10)
-    end
-
+    end--]]
 
     --[[
     local oBrain
