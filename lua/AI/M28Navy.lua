@@ -1706,6 +1706,10 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                         if bDebugMessages == true then LOG(sFunctionRef..': Sending exp to consolidate, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
                                         oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                         M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NAECons'..iWaterZone)
+                                        if not(tWZTeamData[M28Map.subreftoAmphibiousConsolInWater]) then
+                                            tWZTeamData[M28Map.subreftoAmphibiousConsolInWater] = {}
+                                            tWZTeamData[M28Map.subreftAmphibiousConsolWaterRally] = {tAmphibiousRallyPoint[1], tAmphibiousRallyPoint[2], tAmphibiousRallyPoint[3]}
+                                        end
                                         table.insert(tWZTeamData[M28Map.subreftoAmphibiousConsolInWater], oUnit)
                                     end
                                 end
@@ -1714,6 +1718,10 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                 if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
                                 oUnit[M28UnitInfo.refiTimeLastTriedRetreating] = iCurTime
                                 M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NACons'..iWaterZone)
+                                if not(tWZTeamData[M28Map.subreftoAmphibiousConsolInWater]) then
+                                    tWZTeamData[M28Map.subreftoAmphibiousConsolInWater] = {}
+                                    tWZTeamData[M28Map.subreftAmphibiousConsolWaterRally] = {tAmphibiousRallyPoint[1], tAmphibiousRallyPoint[2], tAmphibiousRallyPoint[3]}
+                                end
                                 table.insert(tWZTeamData[M28Map.subreftoAmphibiousConsolInWater], oUnit)
                             end
                         else
