@@ -13691,7 +13691,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Power stalling and either gross power significantly lower than gross mass, or we are completely stalling E
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Stalling power high priority power builder, subrefbTeamIsStallingEnergy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bHaveLowPower='..tostring(bHaveLowPower)..'; subrefiTeamAverageEnergyPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]) end
-    if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] and (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or (true and GetGameTimeSeconds() >= 50*60 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < 0.8 and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 13 >= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]))) then
+    if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] and (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] < 0.8 and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 13 >= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]))) then
         iBPWanted = math.min(300, aiBrain[M28Economy.refiGrossMassBaseIncome] * 10)
         HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, iBPWanted)
         if bDebugMessages == true then LOG(sFunctionRef..': Will try and get more power, iMinTechLevelForPower='..iMinTechLevelForPower..'; iBPWanted='..iBPWanted) end
@@ -15935,7 +15935,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                 if oBrain.CheatEnabled then
-                    iHighestCheatModifier = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+                    iHighestCheatModifier = oBrain[M28Economy.refiBrainResourceMultiplier] or tonumber(ScenarioInfo.Options.CheatMult or 1.5)
                     break
                 end
             end
@@ -16278,8 +16278,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if iIdleEngineers >= 8 then
                 local iKilled
                 for iCurEngiTechLevel = 1, 3 do
-                    iKilled = ConsiderDestroyingLowTechEngineers(toAvailableEngineersByTech[iCurEngiTechLevel][1], 1, toAvailableEngineersByTech[iCurEngiTechLevel])
-                    if iKilled > 0 then break end
+                    if toAvailableEngineersByTech[iCurEngiTechLevel][1] then
+                        iKilled = ConsiderDestroyingLowTechEngineers(toAvailableEngineersByTech[iCurEngiTechLevel][1], 1, toAvailableEngineersByTech[iCurEngiTechLevel])
+                        if iKilled > 0 then break end
+                    end
                 end
             end
         end
@@ -17166,10 +17168,14 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                         iTechLevelWanted = iHighestTechActuallyAvailable
                     end
                 end
-
-                --HaveActionToAssign(iActionToAssign, iMinTechLevelWanted,                                          iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting)
-                HaveActionToAssign(refActionBuildAA, iTechLevelWanted, iBPWanted     , nil,              true)
-                if bDebugMessages == true then LOG(sFunctionRef..': Minor Zone AA builder if no fixed AA: iBPWanted='..iBPWanted..'; iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; subrefiAlliedGroundAAThreat='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]..'; iTechLevelWanted='..iTechLevelWanted) end
+                --If we are only building because we lack a SAM, but we dont have engineers avialable for it, then dont keep building T1-T2 fixed AA
+                if iTechLevelWanted < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < iTechLevelWanted * iTechLevelWanted * 1000 and iNearbyEnemyAirToGroundThreat * 2 < tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We lack t3 engis for sam so wont build any more AA') end
+                else
+                    --HaveActionToAssign(iActionToAssign, iMinTechLevelWanted,                                          iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting)
+                    HaveActionToAssign(refActionBuildAA, iTechLevelWanted, iBPWanted     , nil,              true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Minor Zone AA builder if no fixed AA: iBPWanted='..iBPWanted..'; iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; subrefiAlliedGroundAAThreat='..tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]..'; iTechLevelWanted='..iTechLevelWanted) end
+                end
             end
         end
     end
@@ -18927,15 +18933,24 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
         if bDebugMessages == true then LOG(sFunctionRef..': iAdjacentEnemyAirToGroundThreat='..iAdjacentEnemyAirToGroundThreat) end
         if (not(tWZTeamData[M28Map.subrefWZTimeLastDestroyedForStuckNavy]) or tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] <= 4000) and iAdjacentEnemyAirToGroundThreat * 1.5 > (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) or (iAdjacentEnemyAirToGroundThreat * 3 > (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= 200) then
-
-            iBPWanted = 25
-            if (not (bHaveLowMass) and not (bHaveLowPower)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 1) >= 2) then
-                iBPWanted = 50
+            --If we have blueprint override for naval fac, and already have AA, then assist naval fac instead (for campaign missions where enemy can s tart with large air to ground threat like cybran mission 5)
+            if oFirstWaterFactory and oFirstWaterFactory[M28Factory.refsFactoryNextBlueprintOverride] and (M28Map.bIsCampaignMap or EntityCategoryContains(categories.TECH1, oFirstWaterFactory.UnitId)) and tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] >= math.max(150, tWZTeamData[M28Map.refiEnemyAirToGroundThreat] * 2) then
+                iBPWanted = 20
+                HaveActionToAssign(refActionAssistNavalFactory, 1, iBPWanted, oFirstWaterFactory)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will assist naval factory as top priority as it has blueprint overrides') end
+                iBPWanted = 5
+                local iTechLevelWanted = math.max(1, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 1) - 1)
+                HaveActionToAssign(refActionBuildAA, iTechLevelWanted, iBPWanted)
+            else
+                iBPWanted = 25
+                if (not (bHaveLowMass) and not (bHaveLowPower)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 1) >= 2) then
+                    iBPWanted = 50
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try and build AA for water zone') end
+                local iTechLevelWanted = math.max(1, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 1) - 1)
+                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 2 and (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) - (tWZTeamData[M28Map.subrefWZThreatAlliedMAA] or 0) >= 2000 then iTechLevelWanted = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] end
+                HaveActionToAssign(refActionBuildAA, iTechLevelWanted, iBPWanted)
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Will try and build AA for water zone') end
-            local iTechLevelWanted = math.max(1, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 1) - 1)
-            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 2 and (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) - (tWZTeamData[M28Map.subrefWZThreatAlliedMAA] or 0) >= 2000 then iTechLevelWanted = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] end
-            HaveActionToAssign(refActionBuildAA, iTechLevelWanted, iBPWanted)
         end
     end
 
@@ -21067,9 +21082,8 @@ function ConsiderDestroyingLowTechEngineers(oJustBuilt, iOptionalMaxNumberToKill
                             local iMaxToKill = (iOptionalMaxNumberToKill or 3)
                             --Ctrl-K up to 3 engineers
                             local tT1Engineers = EntityCategoryFilterDown(categories.TECH1, tT1AndT2EngineersInZone)
-                            local iT1Count = 0
                             function KillEngineerIfSufficientlyIdle(oEngi)
-                                if (not(oUnit[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                                if (not(oEngi[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
                                     if not (oEngi[refbPrimaryBuilder]) and not (oEngi:IsUnitState('Building')) and not (oEngi:IsUnitState('Reclaiming')) and not (oEngi:IsUnitState('Capturing')) and not (oEngi:IsUnitState('Repairing')) then
                                         if bDebugMessages == true then LOG(sFunctionRef .. ': Just given order to kill unit ' .. oEngi.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oEngi) .. ' as have oto many engis in this zone') end
                                         M28Orders.IssueTrackedKillUnit(oEngi)
