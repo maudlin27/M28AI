@@ -3332,9 +3332,11 @@ end
 function OnCreateWreck(tPosition, iMass, iEnergy, oOptionalWreck)
     --Dont check if M28brains are in game yet as can be called at start of game before we have recorded any aiBrain
     if M28Utilities.bM28AIInGame then
+        local bContinue = true
         if oOptionalWreck then iMass = (oOptionalWreck.MaxMassReclaim or iMass) end --issue where iMass shows as being 1 when this is called in some cases
         if not(M28Map.bReclaimManagerActive) then
-            if GetGameTimeSeconds() >= 20 then return nil
+            if GetGameTimeSeconds() >= 20 then
+                bContinue = false
             else
                 local iWaitCount = 0
                 while not(M28Map.bReclaimManagerActive) do
@@ -3344,22 +3346,24 @@ function OnCreateWreck(tPosition, iMass, iEnergy, oOptionalWreck)
                 end
             end
         end
-        --High value wrecks (experimentals) - activate special engi logic
-        --LOG('TEMPCODE wreck created, iMass='..(iMass or 'nil')..'; oOptionalWreck.MaxMassReclaim='..(oOptionalWreck.MaxMassReclaim or 'nil'))
-        if iMass >= 8000 and oOptionalWreck then
-            for iCurTeam = 1, M28Team.iTotalTeamCount do
-                if M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
-                    --LOG('TEMPCODE Starting high value reclaim order for team '..iCurTeam)
-                    ForkThread(M28Engineer.HighValueReclaimOrder, iCurTeam, oOptionalWreck, tPosition)
+        if bContinue then
+            --High value wrecks (experimentals) - activate special engi logic
+            --LOG('TEMPCODE wreck created, iMass='..(iMass or 'nil')..'; oOptionalWreck.MaxMassReclaim='..(oOptionalWreck.MaxMassReclaim or 'nil'))
+            if iMass >= 8000 and oOptionalWreck then
+                for iCurTeam = 1, M28Team.iTotalTeamCount do
+                    if M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                        --LOG('TEMPCODE Starting high value reclaim order for team '..iCurTeam)
+                        ForkThread(M28Engineer.HighValueReclaimOrder, iCurTeam, oOptionalWreck, tPosition)
+                    end
                 end
             end
+            --[[if iMass >= 35 then
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPosition)
+                local iReclaimSegmentX, iReclaimSegmentZ = M28Map.GetReclaimSegmentsFromLocation(tPosition)
+                LOG('OnCreateWreck: Time='..GetGameTimeSeconds()..'; iMass='..iMass..'; tPosition='..repru(tPosition)..'; will record we want to update reclaim at this location, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iReclaimSegmentX='..iReclaimSegmentX..'; iReclaimSegmentZ='..iReclaimSegmentZ)
+            end--]]
+            ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, tPosition, 0)
         end
-        --[[if iMass >= 35 then
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPosition)
-            local iReclaimSegmentX, iReclaimSegmentZ = M28Map.GetReclaimSegmentsFromLocation(tPosition)
-            LOG('OnCreateWreck: Time='..GetGameTimeSeconds()..'; iMass='..iMass..'; tPosition='..repru(tPosition)..'; will record we want to update reclaim at this location, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iReclaimSegmentX='..iReclaimSegmentX..'; iReclaimSegmentZ='..iReclaimSegmentZ)
-        end--]]
-        ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, tPosition, 0)
     end
 end
 

@@ -1523,7 +1523,7 @@ function ForkedUnitCaptureStatusCheck(oUnit, tUnitLZData)
 end
 
 function OverseerManager(aiBrain)
-    --ForkThread(DebugCheckProfiling, true) --true if want to only give tick count (to help figure out which tick happens just before the issue)
+    ForkThread(DebugCheckProfiling, false) --true if want to only give tick count (to help figure out which tick happens just before the issue)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OverseerManager'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -3299,7 +3299,7 @@ function GlobalOverseer()
     M28Air.iExtraTicksToWaitBetweenAirCycles = math.max(0,tonumber((ScenarioInfo.Options.M28TimeBetweenOrders or 1))*10+1 - 11)
     M28Navy.iTicksPerNavyCycle = math.min(40, M28Land.iTicksPerLandCycle) --want to cap at 40 as bombardment logic considers if we have been bombarding in the last 4s
 
-    --ForkThread(DebugCheckProfiling) = true --will  output cur tick each log
+    --ForkThread(DebugCheckProfiling, true) --will  output cur tick each log
     while M28Utilities.bM28AIInGame do
         iCurSlowCycle = iCurSlowCycle + 1
         if iCurSlowCycle >= iSlowCycleThreshold then
@@ -3315,7 +3315,7 @@ end
 function DebugCheckProfiling(bJustShowTickCount)
     M28Utilities.ErrorHandler('Debug check profiling is enabled')
     local sFunctionRef = 'DebugCheckProfiling'
-    local iTimeInSecondsToStartDetailedDebug = 2278.4 --set to high number if first want to figure out the tick where this happens
+    local iTimeInSecondsToStartDetailedDebug = 1682.3 --set to high number if first want to figure out the tick where this happens
     local bSetHook = false --Used for debugging
     if not(bDebugTickCheckerActive) then
         bDebugTickCheckerActive = true
