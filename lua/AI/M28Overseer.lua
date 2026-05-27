@@ -2098,6 +2098,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                         for iFactory, oFactory in tLandFactories do
                             if (oFactory[M28Factory.refiTotalBuildCount] or 0) > 0 and (iCurMAA <= 8 or (oFactory[M28Factory.refsLastBlueprintBuilt] and not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oFactory[M28Factory.refsLastBlueprintBuilt])))) and (oFactory[M28Factory.refiTotalBuildCount] >= 5 or M28UnitInfo.GetUnitLifetimeCount(oFactory) > 1 or (M28UnitInfo.GetUnitTechLevel(oFactory) >= 2 and oFactory[M28Factory.refiTotalBuildCount] >= 2)) then
                                 oFactory[M28Factory.refsFactoryNextBlueprintOverride] = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryMAA, oFactory, false, false, false, nil, false, nil, true)
+                                if M28UnitInfo.GetUnitLifetimeCount(oFactory) == 1 then oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond] = true end
                             else
                                 oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
                             end
@@ -2109,6 +2110,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                             if (oFactory[M28Factory.refiTotalBuildCount] or 0) >= 2 and (oFactory[M28Factory.refsLastBlueprintBuilt] and (iCurAirAA < 3 or not(EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oFactory[M28Factory.refsLastBlueprintBuilt]))))
                                     and (iCurAirAA < 5 or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) then
                                 oFactory[M28Factory.refsFactoryNextBlueprintOverride] = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirAA, oFactory, false, false, false, nil, false, nil, true)
+                                if M28UnitInfo.GetUnitLifetimeCount(oFactory) == 1 then oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond] = true end
                             else
                                 oFactory[M28Factory.refsFactoryNextBlueprintOverride] = nil
                             end
@@ -3540,6 +3542,7 @@ function UEFMission2ReinforceCivilianTracker()
                                 if NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == iTargetIsland then
                                     --Get most expensive unit matching the category wanted
                                     oFactory[M28Factory.refsFactoryNextBlueprintOverride] = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToSearch, oFactory, false, false, false, nil, false, nil, true)
+                                    if M28UnitInfo.GetUnitLifetimeCount(oFactory) == 1 then oFactory[M28Factory.refbPrimaryFactoryForIslandOrPond] = true end
                                 end
                             end
                         end
@@ -4091,6 +4094,7 @@ function GetSubsInCampaignMission(iTeam, iSubsWanted)
                     for iUnit, oUnit in toNavalFac do
                         if not(oUnit[M28Factory.refsFactoryNextBlueprintOverride]) then
                             oUnit[M28Factory.refsFactoryNextBlueprintOverride] =  M28Factory.GetBlueprintThatCanBuildOfCategory(oM28Brain, M28UnitInfo.refCategorySubmarine, oUnit, false, false, false, nil, false, nil, true)
+                            if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 then oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true end
                         end
                     end
                 end
@@ -4108,7 +4112,7 @@ end
 
 function SendACUsToCampaignObjective(sArea)
     local sFunctionRef = 'SendACUsToCampaignObjective'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tRect = import("/lua/sim/scenarioutilities.lua").AreaToRect(sArea)
