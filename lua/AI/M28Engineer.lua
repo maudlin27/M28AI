@@ -21051,69 +21051,70 @@ function ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted(oEnginee
 
 end
 
-function ConsiderDestroyingLowTechEngineers(oJustBuilt, iOptionalMaxNumberToKill, toOptionalEngineersToConsderKilling)
+function ConsiderDestroyingLowTechEngineers(oJustBuilt, iOptionalMaxNumberToKill, toOptionalEngineersToConsderKilling, bDontReturnNumberKilled)
     --Intended late game where lots of low tech engis in a core base; will kill engineers and returns the number of engineers killed
     local bDebugMessages = false
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDestroyingLowTechEngineers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    local aiBrain = oJustBuilt:GetAIBrain()
-    local iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer)
-    local iEngineersKilled = 0
-    if iCurEngineers >= 100 then
-        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oJustBuilt:GetPosition())
-        if (iLandOrWaterZone or 0) > 0 then
-            local tLZOrWZTeamData
-            local iTeam = aiBrain.M28Team
-            if iPlateauOrZero == 0 then
-                tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
-            else
-                tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
-            end
-            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
-                local tT1AndT2EngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * categories.TECH1 + M28UnitInfo.refCategoryEngineer * categories.TECH2, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                if M28Utilities.IsTableEmpty(tT1AndT2EngineersInZone) == false then
-                    local iT1AndT2EngineersInZone = table.getn(tT1AndT2EngineersInZone)
-                    if iT1AndT2EngineersInZone >= 10 or (iCurEngineers >= 150 and iT1AndT2EngineersInZone >= 4) then
-                        local tT3EngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * categories.TECH3, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
-                        local iT3EngineersInZone
-                        if M28Utilities.IsTableEmpty(tT3EngineersInZone) == false then iT3EngineersInZone = table.getn(tT3EngineersInZone) end
-                        if (iCurEngineers >= 200 and tT1AndT2EngineersInZone >= 60 and aiBrain[M28Overseer.refbCloseToUnitCap]) or iT3EngineersInZone >= 40 then
-                            local iMaxToKill = (iOptionalMaxNumberToKill or 3)
-                            --Ctrl-K up to 3 engineers
-                            local tT1Engineers = EntityCategoryFilterDown(categories.TECH1, tT1AndT2EngineersInZone)
-                            function KillEngineerIfSufficientlyIdle(oEngi)
-                                if (not(oEngi[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
-                                    if not (oEngi[refbPrimaryBuilder]) and not (oEngi:IsUnitState('Building')) and not (oEngi:IsUnitState('Reclaiming')) and not (oEngi:IsUnitState('Capturing')) and not (oEngi:IsUnitState('Repairing')) then
-                                        if bDebugMessages == true then LOG(sFunctionRef .. ': Just given order to kill unit ' .. oEngi.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oEngi) .. ' as have oto many engis in this zone') end
-                                        M28Orders.IssueTrackedKillUnit(oEngi)
-                                        iEngineersKilled = iEngineersKilled + 1
+    if not(oJustBuilt.Dead) then
+        local aiBrain = oJustBuilt:GetAIBrain()
+        local iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer)
+        local iEngineersKilled = 0
+        if iCurEngineers >= 100 then
+            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oJustBuilt:GetPosition())
+            if (iLandOrWaterZone or 0) > 0 then
+                local tLZOrWZTeamData
+                local iTeam = aiBrain.M28Team
+                if iPlateauOrZero == 0 then
+                    tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+                else
+                    tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                end
+                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                    local tT1AndT2EngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * categories.TECH1 + M28UnitInfo.refCategoryEngineer * categories.TECH2, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tT1AndT2EngineersInZone) == false then
+                        local iT1AndT2EngineersInZone = table.getn(tT1AndT2EngineersInZone)
+                        if iT1AndT2EngineersInZone >= 10 or (iCurEngineers >= 150 and iT1AndT2EngineersInZone >= 4) then
+                            local tT3EngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * categories.TECH3, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            local iT3EngineersInZone
+                            if M28Utilities.IsTableEmpty(tT3EngineersInZone) == false then iT3EngineersInZone = table.getn(tT3EngineersInZone) end
+                            if (iCurEngineers >= 200 and tT1AndT2EngineersInZone >= 60 and aiBrain[M28Overseer.refbCloseToUnitCap]) or iT3EngineersInZone >= 40 then
+                                local iMaxToKill = (iOptionalMaxNumberToKill or 3)
+                                --Ctrl-K up to 3 engineers
+                                local tT1Engineers = EntityCategoryFilterDown(categories.TECH1, tT1AndT2EngineersInZone)
+                                function KillEngineerIfSufficientlyIdle(oEngi)
+                                    if (not(oEngi[M28UnitInfo.refbCampaignTriggerAdded]) or not(M28Map.bIsCampaignMap)) then
+                                        if not (oEngi[refbPrimaryBuilder]) and not (oEngi:IsUnitState('Building')) and not (oEngi:IsUnitState('Reclaiming')) and not (oEngi:IsUnitState('Capturing')) and not (oEngi:IsUnitState('Repairing')) then
+                                            if bDebugMessages == true then LOG(sFunctionRef .. ': Just given order to kill unit ' .. oEngi.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oEngi) .. ' as have oto many engis in this zone') end
+                                            M28Orders.IssueTrackedKillUnit(oEngi)
+                                            iEngineersKilled = iEngineersKilled + 1
+                                        end
                                     end
                                 end
-                            end
-                            if M28Utilities.IsTableEmpty(toOptionalEngineersToConsderKilling) == false then
-                                for iUnit, oUnit in toOptionalEngineersToConsderKilling do
-                                    KillEngineerIfSufficientlyIdle(oUnit)
-                                    if iEngineersKilled >= iMaxToKill then
-                                        break
-                                    end
-                                end
-                            elseif M28Utilities.IsTableEmpty(tT1Engineers) == false then
-                                for iUnit, oUnit in tT1Engineers do
-                                    KillEngineerIfSufficientlyIdle(oUnit)
-                                    if iEngineersKilled >= iMaxToKill then
-                                        break
-                                    end
-                                end
-                            end
-                            if iEngineersKilled < iMaxToKill then
-                                local tT2Engineers = EntityCategoryFilterDown(categories.TECH2, tT1AndT2EngineersInZone)
-                                if M28Utilities.IsTableEmpty(tT2Engineers) == false then
-                                    for iUnit, oUnit in tT2Engineers do
+                                if M28Utilities.IsTableEmpty(toOptionalEngineersToConsderKilling) == false then
+                                    for iUnit, oUnit in toOptionalEngineersToConsderKilling do
                                         KillEngineerIfSufficientlyIdle(oUnit)
                                         if iEngineersKilled >= iMaxToKill then
                                             break
+                                        end
+                                    end
+                                elseif M28Utilities.IsTableEmpty(tT1Engineers) == false then
+                                    for iUnit, oUnit in tT1Engineers do
+                                        KillEngineerIfSufficientlyIdle(oUnit)
+                                        if iEngineersKilled >= iMaxToKill then
+                                            break
+                                        end
+                                    end
+                                end
+                                if iEngineersKilled < iMaxToKill then
+                                    local tT2Engineers = EntityCategoryFilterDown(categories.TECH2, tT1AndT2EngineersInZone)
+                                    if M28Utilities.IsTableEmpty(tT2Engineers) == false then
+                                        for iUnit, oUnit in tT2Engineers do
+                                            KillEngineerIfSufficientlyIdle(oUnit)
+                                            if iEngineersKilled >= iMaxToKill then
+                                                break
+                                            end
                                         end
                                     end
                                 end
@@ -21123,8 +21124,16 @@ function ConsiderDestroyingLowTechEngineers(oJustBuilt, iOptionalMaxNumberToKill
                 end
             end
         end
+        if not(bDontReturnNumberKilled) then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return iEngineersKilled
+        end
+    else
+        if not(bDontReturnNumberKilled) then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return 0
+        end
     end
-    return iEngineersKilled
 end
 
 function RecordUnitAsCaptureTarget(oUnit, bOptionalOnlyRecordIfSameUnitIdInCaptureList)

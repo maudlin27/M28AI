@@ -1523,7 +1523,7 @@ function ForkedUnitCaptureStatusCheck(oUnit, tUnitLZData)
 end
 
 function OverseerManager(aiBrain)
-    ForkThread(DebugCheckProfiling, false) --true if want to only give tick count (to help figure out which tick happens just before the issue)
+    --ForkThread(DebugCheckProfiling, true) --true if want to only give tick count (to help figure out which tick happens just before the issue)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OverseerManager'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -3315,7 +3315,7 @@ end
 function DebugCheckProfiling(bJustShowTickCount)
     M28Utilities.ErrorHandler('Debug check profiling is enabled')
     local sFunctionRef = 'DebugCheckProfiling'
-    local iTimeInSecondsToStartDetailedDebug = 1682.3 --set to high number if first want to figure out the tick where this happens
+    local iTimeInSecondsToStartDetailedDebug = 103400.8 --set to high number if first want to figure out the tick where this happens
     local bSetHook = false --Used for debugging
     if not(bDebugTickCheckerActive) then
         bDebugTickCheckerActive = true

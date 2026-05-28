@@ -2926,7 +2926,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                         end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, oJustBuilt.UnitId) then
                         --Late game - destroy lower tech engineers to help with pathing (up to 2 for every T3 engi built)
-                        ForkThread(M28Engineer.ConsiderDestroyingLowTechEngineers, oJustBuilt)
+                        --ConsiderDestroyingLowTechEngineers(oJustBuilt, iOptionalMaxNumberToKill, toOptionalEngineersToConsderKilling, bDontReturnNumberKilled)
+                        ForkThread(M28Engineer.ConsiderDestroyingLowTechEngineers, oJustBuilt, nil, nil, true)
                         --Moved below to 'oncreate'
                         --First engineer (for if want to check if can build certain modded units) - have done LC<=5 in case the first few engineers we try building die
                         --[[if M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) <= 5 then
