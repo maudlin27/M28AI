@@ -3283,12 +3283,21 @@ function OnReclaimFinished(oEngineer, oReclaim)
                         --Do we have unclaimed mexes in this zone?
                         if tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] then iMinReclaimValue = iMinReclaimValue * 2 end
                         local bWantEnergy = M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone)
-                        if bWantEnergy and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and (M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.5 or oEngineer:GetAIBrain():GetEconomyStored('ENERGY') >= 2000 or oEngineer:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 50) then
-                            iMinReclaimValue = 150 --only want a tree group
+                        if bWantEnergy then
+                            if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and (M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.5 or oEngineer:GetAIBrain():GetEconomyStored('ENERGY') >= 2000 or oEngineer:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 50) then
+                                iMinReclaimValue = 150 --only want a tree group
+                            elseif not(EntityCategoryContains(categories.COMMAND, oEngineer.UnitId)) then
+                                iMinReclaimValue = 12
+                            end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Just finished reclaiming, will check for high value reclaim near engi, P'..iPlateau..'Z'..iLandZone..'; iMinReclaimValue='..iMinReclaimValue..'; Dist from engi to LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])..'; Engi pos='..repru(oEngineer:GetPosition())..'; LZ midpoint='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])) end
+                        if not(EntityCategoryContains(categories.COMMAND, oEngineer.UnitId)) and oEngineer[M28Engineer.refiLastReclaimTargetValue] then
+                            if (oEngineer[M28Engineer.refiSequentialReclaimCount] or 0) <= 6 or oEngineer[M28Engineer.refiLastReclaimTargetValue] >= 20 then
+                                iMinReclaimValue = math.min(iMinReclaimValue, (oEngineer[M28Engineer.refiLastReclaimTargetValue] or 0))
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Just finished reclaiming, will check for high value reclaim near engi, P'..iPlateau..'Z'..iLandZone..'; iMinReclaimValue='..iMinReclaimValue..'; Dist from engi to LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])..'; Engi pos='..repru(oEngineer:GetPosition())..'; LZ midpoint='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])..'; bWantEnergy='..tostring(bWantEnergy)) end
                         --GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass,                   bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone)
-                        M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil,              tLZTeamData,        iPlateau,   iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), true, iMinReclaimValue)--(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or GetGameTimeSeconds() <= 300 or GetUnitLifetimeCount(oEngineer) <= 5 or M28UnitInfo.GetUnitTechLevel(oEngineer) >= 3), iMinReclaimValue)
+                        M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil,              tLZTeamData,        iPlateau,   iLandZone, bWantEnergy, true, iMinReclaimValue)--(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or GetGameTimeSeconds() <= 300 or GetUnitLifetimeCount(oEngineer) <= 5 or M28UnitInfo.GetUnitTechLevel(oEngineer) >= 3), iMinReclaimValue)
                     end
                 end
             elseif EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
