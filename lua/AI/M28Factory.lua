@@ -4423,7 +4423,7 @@ function IsFactoryReadyToBuild(oFactory)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
                 --backup for scenarios where dont want to wait - if high mass and energy and AIx
-            elseif aiBrain.CheatEnabled and tonumber(ScenarioInfo.Options.CheatMult or 1.5) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] > (M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0) * 1.25 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 15 then
+            elseif aiBrain.CheatEnabled and (aiBrain[M28Economy.refiBrainResourceMultiplier] or tonumber(ScenarioInfo.Options.CheatMult or 1.5)) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] > (M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0) * 1.25 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 15 then
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
             end
@@ -4613,8 +4613,8 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                     end
                 end
                 if M28UnitInfo.IsUnitValid(oFactory) == false then
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return nil
+                    bProceed = false
+                    break
                 end
                 bProceed = IsFactoryReadyToBuild(oFactory)
                 if oFactory:GetWorkProgress() > iWorkProgressStart then
@@ -4822,7 +4822,9 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
             end
         end
     end
-    oFactory['M28BuilderCheckActive'] = false
+    if not(oFactory.Dead) and oFactory then
+        oFactory['M28BuilderCheckActive'] = false
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

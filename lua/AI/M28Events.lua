@@ -285,6 +285,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                 local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnitKilled:GetPosition(), true, iTeam)
                                 if tLZOrWZTeamData then tLZOrWZTeamData[M28Map.subrefiTimeOfLastBuildingDeathToTML] = GetGameTimeSeconds() end
                             end
+
                         end
 
                         --M28 specific killer logic
@@ -371,7 +372,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     end
                 end
                 --Consider message if this was a significant unit
-                if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryAllHQFactories * categories.TECH3, oUnitKilled.UnitId) then
                     if oUnitKilled:GetFractionComplete() == 1 or (EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId) and oUnitKilled:GetFractionComplete() >= 0.6) then
                         local bConsideredNormalMessage = false
                         --Send distress message
@@ -2390,10 +2391,12 @@ function OnConstructed(oEngineer, oJustBuilt)
                 --If a building has just build a building, then make sure all M28 are aware of it (since a player would be able to infer this)
                 if EntityCategoryContains(categories.STRUCTURE - categories.ENGINEER, oEngineer.UnitId) then
                     local tTeamsUpdated = {}
-                    for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
-                        if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
-                            tTeamsUpdated[oBrain.M28Team] = true
-                            M28Team.AssignUnitToLandZoneOrPond(oBrain, oJustBuilt, false, false, true)
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains]) == false then
+                        for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
+                            if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                                tTeamsUpdated[oBrain.M28Team] = true
+                                M28Team.AssignUnitToLandZoneOrPond(oBrain, oJustBuilt, false, false, true)
+                            end
                         end
                     end
                     --Mex built by engineer - special case where player would be able to infer a mex has been built after a while
@@ -2923,7 +2926,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                         end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, oJustBuilt.UnitId) then
                         --Late game - destroy lower tech engineers to help with pathing (up to 2 for every T3 engi built)
-                        ForkThread(M28Engineer.ConsiderDestroyingLowTechEngineers, oJustBuilt)
+                        --ConsiderDestroyingLowTechEngineers(oJustBuilt, iOptionalMaxNumberToKill, toOptionalEngineersToConsderKilling, bDontReturnNumberKilled)
+                        ForkThread(M28Engineer.ConsiderDestroyingLowTechEngineers, oJustBuilt, nil, nil, true)
                         --Moved below to 'oncreate'
                         --First engineer (for if want to check if can build certain modded units) - have done LC<=5 in case the first few engineers we try building die
                         --[[if M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) <= 5 then
@@ -3134,6 +3138,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                         end
                     end
 
+                    --M28Active cybran destroyers amphibious toggle
+                    if oJustBuilt.M28Active and oJustBuilt.UnitId == 'urs0201' and not(M28UnitInfo.bDontConsiderCombinedArmy) and oJustBuilt:GetAIBrain().BrainType == 'Human' then
+                        M28UnitInfo.EnableLandWalkingForDestroyerOwnedByPlayer(oJustBuilt)
+                    end
+
                     --Mobile land units - give a micro move order so they dont block the factory
                     if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oJustBuilt.UnitId) then
                         ForkThread(M28Micro.MoveAwayFromFactory, oJustBuilt, oEngineer)
@@ -3274,12 +3283,21 @@ function OnReclaimFinished(oEngineer, oReclaim)
                         --Do we have unclaimed mexes in this zone?
                         if tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] then iMinReclaimValue = iMinReclaimValue * 2 end
                         local bWantEnergy = M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone)
-                        if bWantEnergy and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and (M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.5 or oEngineer:GetAIBrain():GetEconomyStored('ENERGY') >= 2000 or oEngineer:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 50) then
-                            iMinReclaimValue = 150 --only want a tree group
+                        if bWantEnergy then
+                            if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and (M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.5 or oEngineer:GetAIBrain():GetEconomyStored('ENERGY') >= 2000 or oEngineer:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 50) then
+                                iMinReclaimValue = 150 --only want a tree group
+                            elseif not(EntityCategoryContains(categories.COMMAND, oEngineer.UnitId)) then
+                                iMinReclaimValue = 12
+                            end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Just finished reclaiming, will check for high value reclaim near engi, P'..iPlateau..'Z'..iLandZone..'; iMinReclaimValue='..iMinReclaimValue..'; Dist from engi to LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])..'; Engi pos='..repru(oEngineer:GetPosition())..'; LZ midpoint='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])) end
+                        if not(EntityCategoryContains(categories.COMMAND, oEngineer.UnitId)) and oEngineer[M28Engineer.refiLastReclaimTargetValue] then
+                            if (oEngineer[M28Engineer.refiSequentialReclaimCount] or 0) <= 6 or oEngineer[M28Engineer.refiLastReclaimTargetValue] >= 20 then
+                                iMinReclaimValue = math.min(iMinReclaimValue, (oEngineer[M28Engineer.refiLastReclaimTargetValue] or 0))
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Just finished reclaiming, will check for high value reclaim near engi, P'..iPlateau..'Z'..iLandZone..'; iMinReclaimValue='..iMinReclaimValue..'; Dist from engi to LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])..'; Engi pos='..repru(oEngineer:GetPosition())..'; LZ midpoint='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])..'; bWantEnergy='..tostring(bWantEnergy)) end
                         --GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTeamData, iPlateauOrPond, iLandOrWaterZone, bWantEnergyNotMass,                   bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride, bIsWaterZone)
-                        M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil,              tLZTeamData,        iPlateau,   iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), true, iMinReclaimValue)--(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or GetGameTimeSeconds() <= 300 or GetUnitLifetimeCount(oEngineer) <= 5 or M28UnitInfo.GetUnitTechLevel(oEngineer) >= 3), iMinReclaimValue)
+                        M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil,              tLZTeamData,        iPlateau,   iLandZone, bWantEnergy, true, iMinReclaimValue)--(tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or GetGameTimeSeconds() <= 300 or GetUnitLifetimeCount(oEngineer) <= 5 or M28UnitInfo.GetUnitTechLevel(oEngineer) >= 3), iMinReclaimValue)
                     end
                 end
             elseif EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
@@ -3324,9 +3342,11 @@ end
 function OnCreateWreck(tPosition, iMass, iEnergy, oOptionalWreck)
     --Dont check if M28brains are in game yet as can be called at start of game before we have recorded any aiBrain
     if M28Utilities.bM28AIInGame then
+        local bContinue = true
         if oOptionalWreck then iMass = (oOptionalWreck.MaxMassReclaim or iMass) end --issue where iMass shows as being 1 when this is called in some cases
         if not(M28Map.bReclaimManagerActive) then
-            if GetGameTimeSeconds() >= 20 then return nil
+            if GetGameTimeSeconds() >= 20 then
+                bContinue = false
             else
                 local iWaitCount = 0
                 while not(M28Map.bReclaimManagerActive) do
@@ -3336,22 +3356,24 @@ function OnCreateWreck(tPosition, iMass, iEnergy, oOptionalWreck)
                 end
             end
         end
-        --High value wrecks (experimentals) - activate special engi logic
-        --LOG('TEMPCODE wreck created, iMass='..(iMass or 'nil')..'; oOptionalWreck.MaxMassReclaim='..(oOptionalWreck.MaxMassReclaim or 'nil'))
-        if iMass >= 8000 and oOptionalWreck then
-            for iCurTeam = 1, M28Team.iTotalTeamCount do
-                if M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
-                    --LOG('TEMPCODE Starting high value reclaim order for team '..iCurTeam)
-                    ForkThread(M28Engineer.HighValueReclaimOrder, iCurTeam, oOptionalWreck, tPosition)
+        if bContinue then
+            --High value wrecks (experimentals) - activate special engi logic
+            --LOG('TEMPCODE wreck created, iMass='..(iMass or 'nil')..'; oOptionalWreck.MaxMassReclaim='..(oOptionalWreck.MaxMassReclaim or 'nil'))
+            if iMass >= 8000 and oOptionalWreck then
+                for iCurTeam = 1, M28Team.iTotalTeamCount do
+                    if M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                        --LOG('TEMPCODE Starting high value reclaim order for team '..iCurTeam)
+                        ForkThread(M28Engineer.HighValueReclaimOrder, iCurTeam, oOptionalWreck, tPosition)
+                    end
                 end
             end
+            --[[if iMass >= 35 then
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPosition)
+                local iReclaimSegmentX, iReclaimSegmentZ = M28Map.GetReclaimSegmentsFromLocation(tPosition)
+                LOG('OnCreateWreck: Time='..GetGameTimeSeconds()..'; iMass='..iMass..'; tPosition='..repru(tPosition)..'; will record we want to update reclaim at this location, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iReclaimSegmentX='..iReclaimSegmentX..'; iReclaimSegmentZ='..iReclaimSegmentZ)
+            end--]]
+            ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, tPosition, 0)
         end
-        --[[if iMass >= 35 then
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPosition)
-            local iReclaimSegmentX, iReclaimSegmentZ = M28Map.GetReclaimSegmentsFromLocation(tPosition)
-            LOG('OnCreateWreck: Time='..GetGameTimeSeconds()..'; iMass='..iMass..'; tPosition='..repru(tPosition)..'; will record we want to update reclaim at this location, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iReclaimSegmentX='..iReclaimSegmentX..'; iReclaimSegmentZ='..iReclaimSegmentZ)
-        end--]]
-        ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, tPosition, 0)
     end
 end
 
@@ -3620,10 +3642,16 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Enabled M28AI logic for the unit') end
                                     oUnit.M28Active = true
                                     oUnit:UpdateStat('M28Active', 1)
+                                    if oUnit.UnitId == 'urs0201' then
+                                        M28UnitInfo.EnableLandWalkingForDestroyerOwnedByPlayer(oUnit) --for AI it seems to automatically move on land, for players it doesnt
+                                    end
                                 end
                             elseif oUnit:GetFractionComplete() == 1 and oUnit.Parent and oUnit.Parent.M28Active and not(oUnit.M28Active) and oUnit:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then --e.g. novax will create a 100% complete unit
                                 oUnit.M28Active = true
                                 oUnit:UpdateStat('M28Active', 1)
+                                if oUnit.UnitId == 'urs0201' then
+                                    M28UnitInfo.EnableLandWalkingForDestroyerOwnedByPlayer(oUnit) --for AI it seems to automatically move on land, for players it doesnt
+                                end
                             else
                                 oUnit:UpdateStat('M28Active', 0)
                             end
@@ -3900,6 +3928,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                 ForkThread(M28Building.QuantumOpticsManager, aiBrain, oUnit)
                             end
                         elseif EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Setting weapon priority for submarinte='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                             M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPrioritySub, false) --Dont want to check if can attack ground
 
                             --1st T3 Engineer - check building construction options

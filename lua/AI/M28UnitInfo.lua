@@ -392,7 +392,7 @@ refCategoryAllAmphibiousAndNavy = categories.NAVAL + categories.AMPHIBIOUS + cat
 refCategoryNavyThatCanBeTorpedoed = categories.NAVAL + categories.AMPHIBIOUS + categories.STRUCTURE + categories.COMMAND + refCategoryEngineer - categories.HOVER --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures; Hover units cant be targeted
 refCategoryTorpedoLandAndNavy = refCategoryAntiNavy * categories.LAND + refCategoryAntiNavy * categories.NAVAL + categories.OVERLAYANTINAVY * categories.LAND + refCategoryAntiNavy * categories.STRUCTURE --If removing overlayantinavy then think up better solution for fatboy/experimentals so they dont run when in water
 refCategoryMissileShip = categories.NAVAL * categories.SILO + categories.BATTLESHIP * categories.INDIRECTFIRE - categories.BATTLESHIP * categories.SERAPHIM + categories.SERAPHIM * categories.CRUISER * categories.INDIRECTFIRE + categories.SERAPHIM * categories.CARRIER * categories.OVERLAYINDIRECTFIRE * categories.TECH3  --i.e. UEF+Sera cruisers, and nukesubs
-refCategorySubmarine = categories.NAVAL * categories.SUBMERSIBLE * refCategoryAntiNavy
+refCategorySubmarine = categories.NAVAL * categories.SUBMERSIBLE * refCategoryAntiNavy - categories.BATTLESHIP
 if categories.brs0305 then refCategorySubmarine = refCategorySubmarine + categories.brs0305 end
 refCategoryCooper = categories.NAVAL * refCategoryAntiNavy * categories.TECH2 - categories.SUBMERSIBLE - categories.DESTROYER
 refCategoryShieldBoat = categories.NAVAL * categories.SHIELD + categories.HOVER * categories.SHIELD --Includes mobile land shields that can hover
@@ -832,6 +832,9 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     iMassMod = 0.95
                                 elseif EntityCategoryContains(refCategoryFrigate * categories.CYBRAN, oUnit.UnitId) then
                                     iMassMod = 1.05
+                                elseif EntityCategoryContains(refCategorySubmarine, oUnit.UnitId) then
+                                    --Submarines with a deck gun
+                                    iMassMod = 0
                                 elseif oUnit.UnitId == 'url0402' then --Monkeylord - not great in a close up fight
                                     iMassMod = 0.9
                                 elseif oUnit.UnitId == 'ual0201' then --Aurora - has a good range but much weaker in close up combat
@@ -2255,11 +2258,13 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                             end
                         elseif oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water' then
                             oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        elseif oCurWeapon.Label == 'DepthCharge' then --loud weapon
+                            oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                         else
                             M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                             --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
                             --LOG('reprs of oCurWeapon='..reprs(oCurWeapon))
-                        end
+                            end
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category '..oCurWeapon.RangeCategory..' for unit '..oUnit.UnitId)
                     end
@@ -3452,5 +3457,14 @@ function AdjustThreatThresholdsForConstructedExperimental(iConstructedCount)
             iLandThreatJustConsiderHealthThreshold = 400 + (iConstructedCount - 2) * 500 / 8
             iLandThreatIgnoreHealthThreshold = 100 + (iConstructedCount - 2) * 500 / 8
         end
+    end
+end
+
+function EnableLandWalkingForDestroyerOwnedByPlayer(oUnit)
+    if not(bDontConsiderCombinedArmy) and oUnit.M28Active and oUnit.OnScriptBitSet and oUnit:GetAIBrain().BrainType == 'Human' then
+        oUnit:SetScriptBit('RULEUTC_WeaponToggle', false)
+        --oUnit:OnScriptBitSet(1) --this doesnt seem to do anything, not sure why/how to toggle amphibious mode on player owned cybran destroyers
+        LOG('TEMPCODE attempted to toggle amphibious mode')
+        --Disabling would expect to be oUnit:OnScriptBitClear(1)
     end
 end

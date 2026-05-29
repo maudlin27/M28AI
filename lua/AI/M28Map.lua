@@ -4224,165 +4224,164 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBa
     end
     if bOnlyCheckIfEnemyBaseToIgnore and M28Utilities.IsTableEmpty(toIgnoredEnemyBrains) and bNearestEnemyBaseLZSetupComplete then
         if bDebugMessages == true then LOG(sFunctionRef..': Will abort as no brains to ignore') end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return nil
-    end
+    else
 
-    function IsInPlayableArea(tLocation)
-        if tLocation[1] >= rMapPlayableArea[1] and tLocation[1] <= rMapPlayableArea[3] and tLocation[2] >= rMapPlayableArea[2] and tLocation[4] <= rMapPlayableArea[4] then
-            return true
-        end
-        return false
-    end
-    local oFirstIgnoredBrain
-    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
-        if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Land result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)..'; IsDefeated='..tostring(oBrain:IsDefeated())) end
-        --Campaign specific - ignore any start positions other than M28 (prevoiusly would allow any on valid land zones, but led to too many issues due to poor placement of these in some campaign maps)
-        --Old logic: if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
-        if not(bIsCampaignMap) or oBrain.M28AI then
-            if not(oBrain.M28IsDefeated) then
-                bIgnoreThisBase = false
-                if bOnlyCheckIfFriendlyBaseToIgnore and oBrain:IsDefeated() and GetGameTimeSeconds() >= 150 then
-                    local tBrainLZData, tBrainLZTeamData = GetLandOrWaterZoneData(GetPlayerStartPosition(oBrain), true, iTeam)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Factories in start position='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tBrainLZTeamData, M28UnitInfo.refCategoryFactory)) end
-
-                    if M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tBrainLZTeamData, M28UnitInfo.refCategoryFactory) == 0 then
-                        bIgnoreThisBase = true
-                    end
-                end
-                if not(bIgnoreThisBase) then
-                    iFriendlyBrainCount = iFriendlyBrainCount + 1
-                    tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
-                    tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
-                else
-                    if not(oFirstIgnoredBrain) then oFirstIgnoredBrain = oBrain end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will ignore this player base') end
-                end
+        function IsInPlayableArea(tLocation)
+            if tLocation[1] >= rMapPlayableArea[1] and tLocation[1] <= rMapPlayableArea[3] and tLocation[2] >= rMapPlayableArea[2] and tLocation[4] <= rMapPlayableArea[4] then
+                return true
             end
+            return false
         end
-    end
-    if oFirstIgnoredBrain and iFriendlyBrainCount == 0 then --redundancy
-        iFriendlyBrainCount = iFriendlyBrainCount + 1
-        tAllyBases[oFirstIgnoredBrain:GetArmyIndex()] = GetPlayerStartPosition(oFirstIgnoredBrain)
-        tBrainsByIndex[oFirstIgnoredBrain:GetArmyIndex()] = oFirstIgnoredBrain
-    end
+        local oFirstIgnoredBrain
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Land result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)..'; oBrain.M28IsDefeated='..tostring(oBrain.M28IsDefeated or false)..'; IsDefeated='..tostring(oBrain:IsDefeated())) end
+            --Campaign specific - ignore any start positions other than M28 (prevoiusly would allow any on valid land zones, but led to too many issues due to poor placement of these in some campaign maps)
+            --Old logic: if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
+            if not(bIsCampaignMap) or oBrain.M28AI then
+                if not(oBrain.M28IsDefeated) then
+                    bIgnoreThisBase = false
+                    if bOnlyCheckIfFriendlyBaseToIgnore and oBrain:IsDefeated() and GetGameTimeSeconds() >= 150 then
+                        local tBrainLZData, tBrainLZTeamData = GetLandOrWaterZoneData(GetPlayerStartPosition(oBrain), true, iTeam)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Factories in start position='..M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tBrainLZTeamData, M28UnitInfo.refCategoryFactory)) end
 
-    if M28Utilities.IsTableEmpty(tEnemyBases) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Backup logic - will get the first active brain on the enemy team as the enmy base location') end
-        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-        if aiBrain then
-            table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
-        end
-    elseif M28Utilities.IsTableEmpty(toIgnoredEnemyBrains) == false then
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            if bDebugMessages == true then LOG(sFunctionRef..': Updated primary enemy base location for brain '..oBrain.Nickname..'; Enemy base before update='..repru(GetPrimaryEnemyBaseLocation(oBrain))) end
-            UpdateNewPrimaryBaseLocation(oBrain, true)
-            if bDebugMessages == true then LOG(sFunctionRef..': Updated primary enemy base location for brain '..oBrain.Nickname..'; Enemy base after update='..repru(GetPrimaryEnemyBaseLocation(oBrain))) end
-        end
-    end
-
-    local iCurBrainDist
-    local iClosestBrainDist
-    local iClosestBrainRef, iClosestM28BrainRef, iClosestM28BrainDist
-
-    for iPlateau, tPlateauSubtable in tAllPlateaus do
-        for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
-            iClosestBrainDist = 100000
-            iClosestM28BrainDist = 100000
-            for iBrain, tStartPoint in tAllyBases do
-                if tBrainsByIndex[iBrain] then
-                    iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tStartPoint)
-                    if iCurBrainDist < iClosestBrainDist then
-                        iClosestBrainRef = iBrain
-                        iClosestBrainDist = iCurBrainDist
+                        if M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tBrainLZTeamData, M28UnitInfo.refCategoryFactory) == 0 then
+                            bIgnoreThisBase = true
+                        end
                     end
-                    if tBrainsByIndex[iBrain].M28AI and iCurBrainDist < iClosestM28BrainDist then
-                        iClosestM28BrainDist = iCurBrainDist
-                        iClosestM28BrainRef = iBrain
+                    if not(bIgnoreThisBase) then
+                        iFriendlyBrainCount = iFriendlyBrainCount + 1
+                        tAllyBases[oBrain:GetArmyIndex()] = GetPlayerStartPosition(oBrain)
+                        tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+                    else
+                        if not(oFirstIgnoredBrain) then oFirstIgnoredBrain = oBrain end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will ignore this player base') end
                     end
                 end
             end
-            if iClosestBrainRef then
-                local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
-                tLZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
-                tLZTeamData[reftiClosestFriendlyM28BrainIndex] = (iClosestM28BrainRef or iClosestBrainRef)
-                tLZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
-                tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefMidpoint], false) /  math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZTeamData[reftClosestEnemyBase]))
-                if bDebugMessages == true then LOG(sFunctionRef..': Have recorded closest enemy base for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; tLZTeamData[reftClosestFriendlyBase]='..repru(tLZTeamData[reftClosestFriendlyBase])..'; repru(tLZTeamData[reftClosestEnemyBase])='..repru(tLZTeamData[reftClosestEnemyBase])..'; iClosestBrainRef='..iClosestBrainRef..'; tBrainsByIndex[iClosestBrainRef].Nickname='..tBrainsByIndex[iClosestBrainRef].Nickname..'; aiBrain[reftPrimaryEnemyBaseLocation] for this brain='..repru(tBrainsByIndex[iClosestBrainRef][reftPrimaryEnemyBaseLocation])..'; iClosestBrainDist='..iClosestBrainDist) end
+        end
+        if oFirstIgnoredBrain and iFriendlyBrainCount == 0 then --redundancy
+            iFriendlyBrainCount = iFriendlyBrainCount + 1
+            tAllyBases[oFirstIgnoredBrain:GetArmyIndex()] = GetPlayerStartPosition(oFirstIgnoredBrain)
+            tBrainsByIndex[oFirstIgnoredBrain:GetArmyIndex()] = oFirstIgnoredBrain
+        end
+
+        if M28Utilities.IsTableEmpty(tEnemyBases) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Backup logic - will get the first active brain on the enemy team as the enmy base location') end
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+            if aiBrain then
+                table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
+            end
+        elseif M28Utilities.IsTableEmpty(toIgnoredEnemyBrains) == false then
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Updated primary enemy base location for brain '..oBrain.Nickname..'; Enemy base before update='..repru(GetPrimaryEnemyBaseLocation(oBrain))) end
+                UpdateNewPrimaryBaseLocation(oBrain, true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Updated primary enemy base location for brain '..oBrain.Nickname..'; Enemy base after update='..repru(GetPrimaryEnemyBaseLocation(oBrain))) end
             end
         end
-    end
 
-    --Record any ally bases which are in 'eco/air' slots (no enemy that is closer to them than another ally)
-    if iFriendlyBrainCount > 1 then
-        if M28Utilities.IsTableEmpty(tEnemyBases) == false then
-            local iMaxDistToBaseWanted
-            local iCurFriendlyDistToBase
-            local bHaveCloserTeammate = false
-            local bHaveDangerousEnemyBase = false
-            for iBaseFriendlyBase, tBaseFriendlyBase in tAllyBases do
-                if bDebugMessages == true then
-                    LOG(sFunctionRef..': About to check if we have any friendl ybases that are closer to every enemy base than this, iBaseFriendlyBase='..iBaseFriendlyBase..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)..'; Size of tEnemyBases='..table.getn(tEnemyBases))
-                    local iPlateau, iZone = GetClosestPlateauOrZeroAndZoneToPosition(tBaseFriendlyBase)
-                    LOG(sFunctionRef..': iPlateau='..(iPlateau or 'nil')..'; iZone='..(iZone or 'nil'))
+        local iCurBrainDist
+        local iClosestBrainDist
+        local iClosestBrainRef, iClosestM28BrainRef, iClosestM28BrainDist
+
+        for iPlateau, tPlateauSubtable in tAllPlateaus do
+            for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                iClosestBrainDist = 100000
+                iClosestM28BrainDist = 100000
+                for iBrain, tStartPoint in tAllyBases do
+                    if tBrainsByIndex[iBrain] then
+                        iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tStartPoint)
+                        if iCurBrainDist < iClosestBrainDist then
+                            iClosestBrainRef = iBrain
+                            iClosestBrainDist = iCurBrainDist
+                        end
+                        if tBrainsByIndex[iBrain].M28AI and iCurBrainDist < iClosestM28BrainDist then
+                            iClosestM28BrainDist = iCurBrainDist
+                            iClosestM28BrainRef = iBrain
+                        end
+                    end
                 end
-                bHaveDangerousEnemyBase = false
-                for iEntry, tEnemyBase in tEnemyBases do
-                    bHaveCloserTeammate = false
-                    iMaxDistToBaseWanted = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tBaseFriendlyBase) - 10
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to consider whether we have a friendly base protecting iBaseFriendlyBase '..iBaseFriendlyBase..' from the enemy base iEntry='..iEntry..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted) end
-                    for iFriendlyBase, tCurFriendlyBase in tAllyBases do
-                        if not(iBaseFriendlyBase == iFriendlyBase) then
-                            iCurFriendlyDistToBase = M28Utilities.GetDistanceBetweenPositions(tEnemyBase,  tCurFriendlyBase)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have a friendly brain closer to enemy than us for the enemy base with iEntry='..iEntry..', considering iFriendlyBase='..iFriendlyBase..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted..'; iCurFriendlyDistToBase='..iCurFriendlyDistToBase) end
-                            if iCurFriendlyDistToBase <= iMaxDistToBaseWanted then
-                                local iAngleDif = M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(tEnemyBase, tCurFriendlyBase), M28Utilities.GetAngleFromAToB(tEnemyBase, tBaseFriendlyBase))
-                                if bDebugMessages == true then LOG(sFunctionRef..': Closer teammate dist='..iCurFriendlyDistToBase..'; Angle from enemy to cur teammate base='..M28Utilities.GetAngleFromAToB(tEnemyBase, tCurFriendlyBase)..'; Angle from enemy to base friendly base='..M28Utilities.GetAngleFromAToB(tEnemyBase, tBaseFriendlyBase)..'; iAngleDif='..iAngleDif..'; iMaxDistToBaseWanted - iCurFriendlyDistToBase='..(iMaxDistToBaseWanted - iCurFriendlyDistToBase)..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted..'; Angle from base friendl yto cur friendly='..M28Utilities.GetAngleFromAToB(tBaseFriendlyBase, tCurFriendlyBase)..'; Angle from base friendly to enemy='..M28Utilities.GetAngleFromAToB(tBaseFriendlyBase, tEnemyBase)..'; Dist from base friendly to cur firendly='..M28Utilities.GetDistanceBetweenPositions(tBaseFriendlyBase, tCurFriendlyBase)) end
-                                if iAngleDif <= 50 and (iAngleDif <= 30 or (iMaxDistToBaseWanted - iCurFriendlyDistToBase >= math.max(100, iMaxDistToBaseWanted*0.25) and (iAngleDif <= 40 or iMaxDistToBaseWanted - iCurFriendlyDistToBase >= math.max(150, iMaxDistToBaseWanted*0.5)))) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': We have a closer teammate for this enemy base with iEntry='..iEntry) end
-                                    if bDebugMessages == true and M28Utilities.GetDistanceBetweenPositions(tBaseFriendlyBase, {718.5, 25.416015625, 232.5}) <= 5 then
-                                        --Draw line from enemy base to the friendly base
-                                        ForkThread(M28Utilities.ForkedDrawLine,tEnemyBase, tCurFriendlyBase, 1)
-                                        ForkThread(M28Utilities.ForkedDrawLine,tEnemyBase, tBaseFriendlyBase, 3)
+                if iClosestBrainRef then
+                    local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
+                    tLZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
+                    tLZTeamData[reftiClosestFriendlyM28BrainIndex] = (iClosestM28BrainRef or iClosestBrainRef)
+                    tLZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
+                    tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefMidpoint], false) /  math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZTeamData[reftClosestEnemyBase]))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have recorded closest enemy base for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; tLZTeamData[reftClosestFriendlyBase]='..repru(tLZTeamData[reftClosestFriendlyBase])..'; repru(tLZTeamData[reftClosestEnemyBase])='..repru(tLZTeamData[reftClosestEnemyBase])..'; iClosestBrainRef='..iClosestBrainRef..'; tBrainsByIndex[iClosestBrainRef].Nickname='..tBrainsByIndex[iClosestBrainRef].Nickname..'; aiBrain[reftPrimaryEnemyBaseLocation] for this brain='..repru(tBrainsByIndex[iClosestBrainRef][reftPrimaryEnemyBaseLocation])..'; iClosestBrainDist='..iClosestBrainDist) end
+                end
+            end
+        end
+
+        --Record any ally bases which are in 'eco/air' slots (no enemy that is closer to them than another ally)
+        if iFriendlyBrainCount > 1 then
+            if M28Utilities.IsTableEmpty(tEnemyBases) == false then
+                local iMaxDistToBaseWanted
+                local iCurFriendlyDistToBase
+                local bHaveCloserTeammate = false
+                local bHaveDangerousEnemyBase = false
+                for iBaseFriendlyBase, tBaseFriendlyBase in tAllyBases do
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': About to check if we have any friendl ybases that are closer to every enemy base than this, iBaseFriendlyBase='..iBaseFriendlyBase..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)..'; Size of tEnemyBases='..table.getn(tEnemyBases))
+                        local iPlateau, iZone = GetClosestPlateauOrZeroAndZoneToPosition(tBaseFriendlyBase)
+                        LOG(sFunctionRef..': iPlateau='..(iPlateau or 'nil')..'; iZone='..(iZone or 'nil'))
+                    end
+                    bHaveDangerousEnemyBase = false
+                    for iEntry, tEnemyBase in tEnemyBases do
+                        bHaveCloserTeammate = false
+                        iMaxDistToBaseWanted = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tBaseFriendlyBase) - 10
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to consider whether we have a friendly base protecting iBaseFriendlyBase '..iBaseFriendlyBase..' from the enemy base iEntry='..iEntry..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted) end
+                        for iFriendlyBase, tCurFriendlyBase in tAllyBases do
+                            if not(iBaseFriendlyBase == iFriendlyBase) then
+                                iCurFriendlyDistToBase = M28Utilities.GetDistanceBetweenPositions(tEnemyBase,  tCurFriendlyBase)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have a friendly brain closer to enemy than us for the enemy base with iEntry='..iEntry..', considering iFriendlyBase='..iFriendlyBase..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted..'; iCurFriendlyDistToBase='..iCurFriendlyDistToBase) end
+                                if iCurFriendlyDistToBase <= iMaxDistToBaseWanted then
+                                    local iAngleDif = M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(tEnemyBase, tCurFriendlyBase), M28Utilities.GetAngleFromAToB(tEnemyBase, tBaseFriendlyBase))
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Closer teammate dist='..iCurFriendlyDistToBase..'; Angle from enemy to cur teammate base='..M28Utilities.GetAngleFromAToB(tEnemyBase, tCurFriendlyBase)..'; Angle from enemy to base friendly base='..M28Utilities.GetAngleFromAToB(tEnemyBase, tBaseFriendlyBase)..'; iAngleDif='..iAngleDif..'; iMaxDistToBaseWanted - iCurFriendlyDistToBase='..(iMaxDistToBaseWanted - iCurFriendlyDistToBase)..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted..'; Angle from base friendl yto cur friendly='..M28Utilities.GetAngleFromAToB(tBaseFriendlyBase, tCurFriendlyBase)..'; Angle from base friendly to enemy='..M28Utilities.GetAngleFromAToB(tBaseFriendlyBase, tEnemyBase)..'; Dist from base friendly to cur firendly='..M28Utilities.GetDistanceBetweenPositions(tBaseFriendlyBase, tCurFriendlyBase)) end
+                                    if iAngleDif <= 50 and (iAngleDif <= 30 or (iMaxDistToBaseWanted - iCurFriendlyDistToBase >= math.max(100, iMaxDistToBaseWanted*0.25) and (iAngleDif <= 40 or iMaxDistToBaseWanted - iCurFriendlyDistToBase >= math.max(150, iMaxDistToBaseWanted*0.5)))) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': We have a closer teammate for this enemy base with iEntry='..iEntry) end
+                                        if bDebugMessages == true and M28Utilities.GetDistanceBetweenPositions(tBaseFriendlyBase, {718.5, 25.416015625, 232.5}) <= 5 then
+                                            --Draw line from enemy base to the friendly base
+                                            ForkThread(M28Utilities.ForkedDrawLine,tEnemyBase, tCurFriendlyBase, 1)
+                                            ForkThread(M28Utilities.ForkedDrawLine,tEnemyBase, tBaseFriendlyBase, 3)
+                                        end
+                                        bHaveCloserTeammate = true
+                                        break
+                                    elseif bDebugMessages == true then LOG(sFunctionRef..': Angle dif not sufficient to treat as a safe base')
                                     end
-                                    bHaveCloserTeammate = true
-                                    break
-                                elseif bDebugMessages == true then LOG(sFunctionRef..': Angle dif not sufficient to treat as a safe base')
                                 end
                             end
                         end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finishing considering enemy base iEntry'..iEntry..' for the friendly base iBaseFriendlyBase='..iBaseFriendlyBase..'; bHaveCloserTeammate='..tostring(bHaveCloserTeammate or false)) end
-                    if not(bHaveCloserTeammate) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': We dont have a friendly base protecting us from this enemy so will abort loop') end
-                        bHaveDangerousEnemyBase = true
-                        break
-                    end
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished cehcking if have closer teammate than us to each enemy base, iBaseFriendlyBase='..iBaseFriendlyBase..'; bHaveCloserTeammate='..tostring(bHaveCloserTeammate)..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)..'; iTeam='..(iTeam or 'nil')..'; bHaveDangerousEnemyBase='..tostring(bHaveDangerousEnemyBase or false)) end
-                if bHaveCloserTeammate and not(bHaveDangerousEnemyBase) then
-                    local tBaseLZOrWZData, tBaseLZOrWZTeamData = GetLandOrWaterZoneData(tBaseFriendlyBase, true, iTeam)
-                    if tBaseLZOrWZData and not(tBaseLZOrWZTeamData) then
-                        local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tBaseFriendlyBase)
-                        if iPlateauOrZero == 0 then --we havent have called WaterZoneTeamInitialisation yet (as of v32)
-                            if not(tBaseLZOrWZData[subrefWZTeamData]) then tBaseLZOrWZData[subrefWZTeamData] = {} end
-                            if not(tBaseLZOrWZData[subrefWZTeamData][iTeam]) then tBaseLZOrWZData[subrefWZTeamData][iTeam] = {} end
-                            tBaseLZOrWZTeamData = tBaseLZOrWZData[subrefWZTeamData][iTeam]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finishing considering enemy base iEntry'..iEntry..' for the friendly base iBaseFriendlyBase='..iBaseFriendlyBase..'; bHaveCloserTeammate='..tostring(bHaveCloserTeammate or false)) end
+                        if not(bHaveCloserTeammate) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We dont have a friendly base protecting us from this enemy so will abort loop') end
+                            bHaveDangerousEnemyBase = true
+                            break
                         end
                     end
-                    if bDebugMessages == true then
-                        local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tBaseFriendlyBase)
-                        LOG(sFunctionRef..': Recording base as being safe, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is tBaseLZOrWZData empty='..tostring(M28Utilities.IsTableEmpty(tBaseLZOrWZData))..'; Is team data empty='..tostring(M28Utilities.IsTableEmpty(tBaseLZOrWZTeamData)))
-                        if iPlateauOrZero == 0 then
-                            LOG(sFunctionRef..': Pond='..(tiPondByWaterZone[iLandOrWaterZone] or 'nil'))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished cehcking if have closer teammate than us to each enemy base, iBaseFriendlyBase='..iBaseFriendlyBase..'; bHaveCloserTeammate='..tostring(bHaveCloserTeammate)..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)..'; iTeam='..(iTeam or 'nil')..'; bHaveDangerousEnemyBase='..tostring(bHaveDangerousEnemyBase or false)) end
+                    if bHaveCloserTeammate and not(bHaveDangerousEnemyBase) then
+                        local tBaseLZOrWZData, tBaseLZOrWZTeamData = GetLandOrWaterZoneData(tBaseFriendlyBase, true, iTeam)
+                        if tBaseLZOrWZData and not(tBaseLZOrWZTeamData) then
+                            local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tBaseFriendlyBase)
+                            if iPlateauOrZero == 0 then --we havent have called WaterZoneTeamInitialisation yet (as of v32)
+                                if not(tBaseLZOrWZData[subrefWZTeamData]) then tBaseLZOrWZData[subrefWZTeamData] = {} end
+                                if not(tBaseLZOrWZData[subrefWZTeamData][iTeam]) then tBaseLZOrWZData[subrefWZTeamData][iTeam] = {} end
+                                tBaseLZOrWZTeamData = tBaseLZOrWZData[subrefWZTeamData][iTeam]
+                            end
                         end
+                        if bDebugMessages == true then
+                            local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tBaseFriendlyBase)
+                            LOG(sFunctionRef..': Recording base as being safe, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is tBaseLZOrWZData empty='..tostring(M28Utilities.IsTableEmpty(tBaseLZOrWZData))..'; Is team data empty='..tostring(M28Utilities.IsTableEmpty(tBaseLZOrWZTeamData)))
+                            if iPlateauOrZero == 0 then
+                                LOG(sFunctionRef..': Pond='..(tiPondByWaterZone[iLandOrWaterZone] or 'nil'))
+                            end
+                        end
+                        tBaseLZOrWZTeamData[refbBaseInSafePosition] = true
                     end
-                    tBaseLZOrWZTeamData[refbBaseInSafePosition] = true
                 end
             end
         end
+        bNearestEnemyBaseLZSetupComplete = true
     end
-    bNearestEnemyBaseLZSetupComplete = true
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -6894,52 +6893,54 @@ function CreateWaterZones()
     function ConsiderUnassignedSegment(iCurSegmentX, iCurSegmentZ)
         if not(tbConsideredOverride[iCurSegmentX]) then
             tbConsideredOverride[iCurSegmentX] = {}
-        elseif tbConsideredOverride[iCurSegmentX][iCurSegmentZ] then
-            return nil
         end
-        tbConsideredOverride[iCurSegmentX][iCurSegmentZ] = true
-        bFoundWZToAddTo = false
-        local tSegmentPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
-        iCurPond = NavUtils.GetTerrainLabel('Water', tSegmentPosition)
-        if (iCurPond or 0) > 0 then
-            if bDebugMessages == true then LOG(sFunctionRef..': Have a segment that doesnt have a water zone or land zone assigned and has water pathing, iCurSegmentX='..iCurSegmentX..'Z='..iCurSegmentZ) end
-            --If it's likely that the no. of segments this new zone will cover are at least 12 in size then create a new zone, otherwise assign to nearest zone
-            if not(tLandZoneBySegment[iCurSegmentX + iMaxSegmentAdjust][iCurSegmentZ]) and not(tWaterZoneBySegment[iCurSegmentX + iMaxSegmentAdjust][iCurSegmentZ])
-                    and not(tLandZoneBySegment[iCurSegmentX + iMaxSegmentAdjust][iCurSegmentZ + iMaxSegmentAdjust]) and not(tWaterZoneBySegment[iCurSegmentX + iMaxSegmentAdjust][iCurSegmentZ + iMaxSegmentAdjust])
-                    and not(tLandZoneBySegment[iCurSegmentX + iMidSearchSize][iCurSegmentZ + iMidSearchSize]) and not(tWaterZoneBySegment[iCurSegmentX + iMidSearchSize][iCurSegmentZ + iMidSearchSize])
-                    and not(tLandZoneBySegment[iCurSegmentX + iMidSearchSize][iCurSegmentZ]) and not(tWaterZoneBySegment[iCurSegmentX + iMidSearchSize][iCurSegmentZ])
-            then
+        if tbConsideredOverride[iCurSegmentX][iCurSegmentZ] then
+            --Already considered
+        else
+            tbConsideredOverride[iCurSegmentX][iCurSegmentZ] = true
+            bFoundWZToAddTo = false
+            local tSegmentPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+            iCurPond = NavUtils.GetTerrainLabel('Water', tSegmentPosition)
+            if (iCurPond or 0) > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have a segment that doesnt have a water zone or land zone assigned and has water pathing, iCurSegmentX='..iCurSegmentX..'Z='..iCurSegmentZ) end
+                --If it's likely that the no. of segments this new zone will cover are at least 12 in size then create a new zone, otherwise assign to nearest zone
+                if not(tLandZoneBySegment[iCurSegmentX + iMaxSegmentAdjust][iCurSegmentZ]) and not(tWaterZoneBySegment[iCurSegmentX + iMaxSegmentAdjust][iCurSegmentZ])
+                        and not(tLandZoneBySegment[iCurSegmentX + iMaxSegmentAdjust][iCurSegmentZ + iMaxSegmentAdjust]) and not(tWaterZoneBySegment[iCurSegmentX + iMaxSegmentAdjust][iCurSegmentZ + iMaxSegmentAdjust])
+                        and not(tLandZoneBySegment[iCurSegmentX + iMidSearchSize][iCurSegmentZ + iMidSearchSize]) and not(tWaterZoneBySegment[iCurSegmentX + iMidSearchSize][iCurSegmentZ + iMidSearchSize])
+                        and not(tLandZoneBySegment[iCurSegmentX + iMidSearchSize][iCurSegmentZ]) and not(tWaterZoneBySegment[iCurSegmentX + iMidSearchSize][iCurSegmentZ])
+                then
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Dont have a land or water zone nearby when searching with iMaxSegmentAdjust='..iMaxSegmentAdjust..' so will record a new water zone here, iTotalWaterZoneCount before recording (so will be 1 plus this)='..iTotalWaterZoneCount) end
-                RecordWaterZoneAtPosition(tSegmentPosition)
-                table.insert(tBaseWaterStartPositionTable, {iCurSegmentX, iCurSegmentZ, tSegmentPosition, iTotalWaterZoneCount})
-                CycleThroughBaseTableAndRecordNearbyAreaAsSameWaterZone(tBaseWaterStartPositionTable, iMaxSegmentSearchDistance) --done x2 so we keep searching (e.g. for narrow water paths where we didnt have an interval Water nearby) - in most cases would expect to stop much sooner than this
-                tBaseWaterStartPositionTable = {}
-            else
-                --Search for a nearby WZ to add to
-                for iAdjustBase = 3, 1, -1 do
-                    --Start with the highest X and Z and move down, since we are moving from the lowest up with the main cycle (so if dont do this will always pick the left/top zone in priority) - still will pick left/top most of the time but at least when start reaching other zones will change a bit sooner
-                    for iNearbyCurSegmentX = math.min(iMaxLandSegmentX, iCurSegmentX + iAdjustBase), math.max(1, iCurSegmentX - iAdjustBase), -1 do
-                        for iNearbyCurSegmentZ = math.min(iMaxLandSegmentZ, iCurSegmentZ + iAdjustBase), math.max(1, iCurSegmentZ - iAdjustBase), -1 do
-                            if tWaterZoneBySegment[iNearbyCurSegmentX][iNearbyCurSegmentZ] then
-                                if iCurPond == NavUtils.GetTerrainLabel('Water', GetPositionFromPathingSegments(iNearbyCurSegmentX, iNearbyCurSegmentZ)) then
-                                    bFoundWZToAddTo = true
-                                    AddSegmentToWaterZone(iCurPond, tWaterZoneBySegment[iNearbyCurSegmentX][iNearbyCurSegmentZ], iCurSegmentX, iCurSegmentZ)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a nearby water zone to this already='..tWaterZoneBySegment[iNearbyCurSegmentX][iNearbyCurSegmentZ]..' so will add to here') end
-                                    break
-                                end
-                            end
-                        end
-                        if bFoundWZToAddTo then break end
-                    end
-                    if bFoundWZToAddTo then break end
-                end
-                if not(bFoundWZToAddTo) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Didnt find a nearby entry so will record a new zone after all') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont have a land or water zone nearby when searching with iMaxSegmentAdjust='..iMaxSegmentAdjust..' so will record a new water zone here, iTotalWaterZoneCount before recording (so will be 1 plus this)='..iTotalWaterZoneCount) end
                     RecordWaterZoneAtPosition(tSegmentPosition)
                     table.insert(tBaseWaterStartPositionTable, {iCurSegmentX, iCurSegmentZ, tSegmentPosition, iTotalWaterZoneCount})
                     CycleThroughBaseTableAndRecordNearbyAreaAsSameWaterZone(tBaseWaterStartPositionTable, iMaxSegmentSearchDistance) --done x2 so we keep searching (e.g. for narrow water paths where we didnt have an interval Water nearby) - in most cases would expect to stop much sooner than this
                     tBaseWaterStartPositionTable = {}
+                else
+                    --Search for a nearby WZ to add to
+                    for iAdjustBase = 3, 1, -1 do
+                        --Start with the highest X and Z and move down, since we are moving from the lowest up with the main cycle (so if dont do this will always pick the left/top zone in priority) - still will pick left/top most of the time but at least when start reaching other zones will change a bit sooner
+                        for iNearbyCurSegmentX = math.min(iMaxLandSegmentX, iCurSegmentX + iAdjustBase), math.max(1, iCurSegmentX - iAdjustBase), -1 do
+                            for iNearbyCurSegmentZ = math.min(iMaxLandSegmentZ, iCurSegmentZ + iAdjustBase), math.max(1, iCurSegmentZ - iAdjustBase), -1 do
+                                if tWaterZoneBySegment[iNearbyCurSegmentX][iNearbyCurSegmentZ] then
+                                    if iCurPond == NavUtils.GetTerrainLabel('Water', GetPositionFromPathingSegments(iNearbyCurSegmentX, iNearbyCurSegmentZ)) then
+                                        bFoundWZToAddTo = true
+                                        AddSegmentToWaterZone(iCurPond, tWaterZoneBySegment[iNearbyCurSegmentX][iNearbyCurSegmentZ], iCurSegmentX, iCurSegmentZ)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have a nearby water zone to this already='..tWaterZoneBySegment[iNearbyCurSegmentX][iNearbyCurSegmentZ]..' so will add to here') end
+                                        break
+                                    end
+                                end
+                            end
+                            if bFoundWZToAddTo then break end
+                        end
+                        if bFoundWZToAddTo then break end
+                    end
+                    if not(bFoundWZToAddTo) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Didnt find a nearby entry so will record a new zone after all') end
+                        RecordWaterZoneAtPosition(tSegmentPosition)
+                        table.insert(tBaseWaterStartPositionTable, {iCurSegmentX, iCurSegmentZ, tSegmentPosition, iTotalWaterZoneCount})
+                        CycleThroughBaseTableAndRecordNearbyAreaAsSameWaterZone(tBaseWaterStartPositionTable, iMaxSegmentSearchDistance) --done x2 so we keep searching (e.g. for narrow water paths where we didnt have an interval Water nearby) - in most cases would expect to stop much sooner than this
+                        tBaseWaterStartPositionTable = {}
+                    end
                 end
             end
         end
@@ -6995,20 +6996,37 @@ function CreateWaterZones()
         function ConsiderUnassignedPondSegment(iBaseSegmentX, iBaseSegmentZ)
             if not(tbConsideredPondSegmentOverride[iBaseSegmentX]) then
                 tbConsideredPondSegmentOverride[iBaseSegmentX] = {}
-            elseif tbConsideredPondSegmentOverride[iBaseSegmentX][iBaseSegmentZ] then
-                return nil
             end
-            tbConsideredPondSegmentOverride[iBaseSegmentX][iBaseSegmentZ] = true
-            --search for nearby zone to be a part of; if have none, then add to existing zone for the pond
-            iNewWaterZone = nil
-            iCurPond = tPondBySegment[iBaseSegmentX][iBaseSegmentZ]
-            if bDebugMessages == true then LOG(sFunctionRef..': Have segment inconsistency between ponds and water zones, iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ) end
-            local tiWZCount = {}
-            local bFoundMatch = false
-            for iAdjustBase = 1, iMaxAdjust do
-                for iCurSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, 1 do
-                    for iCurSegmentZ = iBaseSegmentZ - iAdjustBase, iBaseSegmentZ + iAdjustBase, iAdjustBase * 2 do
-                        if not(iCurSegmentX == iBaseSegmentX and iCurSegmentZ == iBaseSegmentZ) then
+            if tbConsideredPondSegmentOverride[iBaseSegmentX][iBaseSegmentZ] then
+                --Already considered
+            else
+                tbConsideredPondSegmentOverride[iBaseSegmentX][iBaseSegmentZ] = true
+                --search for nearby zone to be a part of; if have none, then add to existing zone for the pond
+                iNewWaterZone = nil
+                iCurPond = tPondBySegment[iBaseSegmentX][iBaseSegmentZ]
+                if bDebugMessages == true then LOG(sFunctionRef..': Have segment inconsistency between ponds and water zones, iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ) end
+                local tiWZCount = {}
+                local bFoundMatch = false
+                for iAdjustBase = 1, iMaxAdjust do
+                    for iCurSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, 1 do
+                        for iCurSegmentZ = iBaseSegmentZ - iAdjustBase, iBaseSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                            if not(iCurSegmentX == iBaseSegmentX and iCurSegmentZ == iBaseSegmentZ) then
+                                if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                    if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] and tPondBySegment[iCurSegmentX][iCurSegmentZ] == iCurPond then
+                                        bFoundMatch = true
+                                        tiWZCount[tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]] = (tiWZCount[tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]] or 0) + 1
+                                        --iNewWaterZone = tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                        --break
+                                    end
+                                end
+                            end
+                        end
+                        --if iNewWaterZone then break end
+                    end
+                    --if iNewWaterZone then break end
+                    --Then do the left and right row (excl corners which ahve already done per the above)
+                    for iCurSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, iAdjustBase * 2 do
+                        for iCurSegmentZ = iBaseSegmentZ - iAdjustBase + 1, iBaseSegmentZ + iAdjustBase - 1, 1 do
                             if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
                                 if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] and tPondBySegment[iCurSegmentX][iCurSegmentZ] == iCurPond then
                                     bFoundMatch = true
@@ -7018,41 +7036,26 @@ function CreateWaterZones()
                                 end
                             end
                         end
+                        --if iNewWaterZone then break end
                     end
-                    --if iNewWaterZone then break end
+                    if bFoundMatch then break end
                 end
-                --if iNewWaterZone then break end
-                --Then do the left and right row (excl corners which ahve already done per the above)
-                for iCurSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, iAdjustBase * 2 do
-                    for iCurSegmentZ = iBaseSegmentZ - iAdjustBase + 1, iBaseSegmentZ + iAdjustBase - 1, 1 do
-                        if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
-                            if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] and tPondBySegment[iCurSegmentX][iCurSegmentZ] == iCurPond then
-                                bFoundMatch = true
-                                tiWZCount[tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]] = (tiWZCount[tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]] or 0) + 1
-                                --iNewWaterZone = tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
-                                --break
-                            end
+                if bFoundMatch then
+                    --Pick the water zone with the most matches
+                    local iHighestMatchCount = 0
+                    for iWZEntry, iMatches in tiWZCount do
+                        if iMatches > iHighestMatchCount then
+                            iNewWaterZone = iWZEntry
+                            iHighestMatchCount = iMatches
                         end
                     end
-                    --if iNewWaterZone then break end
                 end
-                if bFoundMatch then break end
-            end
-            if bFoundMatch then
-                --Pick the water zone with the most matches
-                local iHighestMatchCount = 0
-                for iWZEntry, iMatches in tiWZCount do
-                    if iMatches > iHighestMatchCount then
-                        iNewWaterZone = iWZEntry
-                        iHighestMatchCount = iMatches
-                    end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finisihed searching for nearby water zones in the same pond, iNewWaterZone='..(iNewWaterZone or 'nil')..'; tiWZCount='..repru(tiWZCount)) end
+                if iNewWaterZone then
+                    AddSegmentToWaterZone(iCurPond, iNewWaterZone, iBaseSegmentX, iBaseSegmentZ)
+                else
+                    RecordWaterZoneAtPosition(GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))
                 end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finisihed searching for nearby water zones in the same pond, iNewWaterZone='..(iNewWaterZone or 'nil')..'; tiWZCount='..repru(tiWZCount)) end
-            if iNewWaterZone then
-                AddSegmentToWaterZone(iCurPond, iNewWaterZone, iBaseSegmentX, iBaseSegmentZ)
-            else
-                RecordWaterZoneAtPosition(GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))
             end
         end
 

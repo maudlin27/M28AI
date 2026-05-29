@@ -1343,6 +1343,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
     if bGetClosestUnitToOurBase then tBaseForDistanceCheck = tLZTeamData[M28Map.reftClosestFriendlyBase]
     else tBaseForDistanceCheck = tLZTeamData[M28Map.reftClosestEnemyBase]
     end
+    local bInRangeOfT2Arti
     if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through iUnitsWantingTMD, iUnitsWantingTMD='..iUnitsWantingTMD..'; is iOptionalCategoryWanted nil='..tostring(iOptionalCategoryWanted == nil)) end
     for iEntry = iUnitsWantingTMD, 1, -1 do
         if not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])) then
@@ -1352,8 +1353,22 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
                 iCurDist = M28Utilities.GetDistanceBetweenPositions(tBaseForDistanceCheck, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])..' is the closest, iCurDist='..iCurDist..'; iCLosestDist='..iClosestDist..'; refbUnitWantsMoreTMD='..tostring(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry][refbUnitWantsMoreTMD])) end
                 if iCurDist < iClosestDist then
-                    iClosestDist = iCurDist
-                    oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
+                    --Check we arent trying to cover a unit that has enemy arti in range (as we will try and build TMD away from T2 arti)
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                        bInRangeOfT2Arti = false
+                        for iArti, oArti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                            if not(oArti.Dead) and M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition()) <= oArti[M28UnitInfo.refiCombatRange] + 2 then
+                                bInRangeOfT2Arti = true
+                                break
+                            end
+                        end
+                    end
+                    if bInRangeOfT2Arti then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Wont try building TMD afterall as enemy has t2 arti in range') end
+                    else
+                        iClosestDist = iCurDist
+                        oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
+                    end
                 end
 
             end
@@ -1363,7 +1378,6 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
     if bDebugMessages == true then LOG(sFunctionRef..': If dont have a unit to cover with TMD and TMD has intercepted enemy missile recently then build TMD to cover TMD, oClosestUnit='..(oClosestUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnit) or 'nil')..'; tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile]='..(tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] or 'nil')..'; iExistingValidTMD='..iExistingValidTMD) end
     if not(oClosestUnit) and tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] and iExistingValidTMD > 0 and iExistingValidTMD <= 10 and GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeFriendlyTMDHitEnemyMissile] <= 60 then
         --Consider doubling up on TMD by having a TMD request TMD if it has fired recently
-        local oClosestTMDFiredRecently
         local iCurLaunchers, iCurTMD
         for iTMD, oTMD in tExistingTMD do
             if oTMD[refiTimeTMDHitMissile] and GetGameTimeSeconds() - oTMD[refiTimeTMDHitMissile] <= 60 and M28Conditions.IsTableOfUnitsStillValid(oTMD[toLaunchersIntercepted]) then
@@ -2127,38 +2141,40 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             if M28Utilities.bFAFActive or M28Utilities.bSteamActive and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
                                 local tACUsInRange = {}
                                 local iCurDist
-                                for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
-                                    if M28UnitInfo.IsUnitValid(oACU) and ((oACU[refiTMLShotsFired] or 0) <= 2 or ((oACU[refiTMLShotsHit] or 0) > 0 and oACU[refiTMLShotsHit] / oACU[refiTMLShotsFired] >= 0.33))  then
-                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oLauncher:GetPosition())
-                                        if iCurDist <= iTMLRange then
-                                            --Track ACU positions
-                                            ForkThread(MonitorUnitRecentPositions, oACU)
-                                            --Is enemy ACU stationery?
-                                            if oACU[M28UnitInfo.reftRecentUnitPositions][2] then
-                                                --Is ACU stationery, and hasnt moved from when we last had intel of their position?
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oACU owned by brain ='..oACU:GetAIBrain().Nickname..'; Dist to recent position2='..M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][2], oACU:GetPosition())..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Dist to last known position='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iCurDist='..iCurDist..'; Shots fired='..(oACU[refiTMLShotsFired] or 0)..'; refiTMLShotsHit='..(oACU[refiTMLShotsHit] or 0)..'; Dist to position 4='..M28Utilities.GetDistanceBetweenPositions((oACU[M28UnitInfo.reftRecentUnitPositions][4] or {0,0,0}), oACU:GetPosition())) end
-                                                if oACU:GetHealth() <= 18000 and (not(oACU.MyShield.GetHealth) or oACU.MyShield:GetHealth() <= 3000) and M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][2], oACU:GetPosition()) <= 0.1 and not(oACU:IsUnitState('Moving')) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 2 then
-                                                    --Check ACU doesnt have very high health or shield
-                                                    if iCurDist <= 150 then iSecondsToWaitIfNoTarget = 1 elseif iCurDist <= 180 then iSecondsToWaitIfNoTarget = 2 else iSecondsToWaitIfNoTarget = 3 end
-                                                    if iCurDist <= 60 or (oACU[refiTMLShotsFired] or 0) == 0 or (oACU[M28UnitInfo.reftRecentUnitPositions][4] and M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][4], oACU:GetPosition()) <= 0.1) then
-                                                        --Is there TMD protecting the ACU from us?
-                                                        local tACULZData, tACULZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), false, iTeam)
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of TMD in ACU LZ empty='..tostring(M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]))) end
-                                                        if M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]) then
+                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+                                    for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+                                        if M28UnitInfo.IsUnitValid(oACU) and ((oACU[refiTMLShotsFired] or 0) <= 2 or ((oACU[refiTMLShotsHit] or 0) > 0 and oACU[refiTMLShotsHit] / oACU[refiTMLShotsFired] >= 0.33))  then
+                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oLauncher:GetPosition())
+                                            if iCurDist <= iTMLRange then
+                                                --Track ACU positions
+                                                ForkThread(MonitorUnitRecentPositions, oACU)
+                                                --Is enemy ACU stationery?
+                                                if oACU[M28UnitInfo.reftRecentUnitPositions][2] then
+                                                    --Is ACU stationery, and hasnt moved from when we last had intel of their position?
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oACU owned by brain ='..oACU:GetAIBrain().Nickname..'; Dist to recent position2='..M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][2], oACU:GetPosition())..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Dist to last known position='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iCurDist='..iCurDist..'; Shots fired='..(oACU[refiTMLShotsFired] or 0)..'; refiTMLShotsHit='..(oACU[refiTMLShotsHit] or 0)..'; Dist to position 4='..M28Utilities.GetDistanceBetweenPositions((oACU[M28UnitInfo.reftRecentUnitPositions][4] or {0,0,0}), oACU:GetPosition())) end
+                                                    if oACU:GetHealth() <= 18000 and (not(oACU.MyShield.GetHealth) or oACU.MyShield:GetHealth() <= 3000) and M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][2], oACU:GetPosition()) <= 0.1 and not(oACU:IsUnitState('Moving')) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 2 then
+                                                        --Check ACU doesnt have very high health or shield
+                                                        if iCurDist <= 150 then iSecondsToWaitIfNoTarget = 1 elseif iCurDist <= 180 then iSecondsToWaitIfNoTarget = 2 else iSecondsToWaitIfNoTarget = 3 end
+                                                        if iCurDist <= 60 or (oACU[refiTMLShotsFired] or 0) == 0 or (oACU[M28UnitInfo.reftRecentUnitPositions][4] and M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][4], oACU:GetPosition()) <= 0.1) then
+                                                            --Is there TMD protecting the ACU from us?
+                                                            local tACULZData, tACULZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), false, iTeam)
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of TMD in ACU LZ empty='..tostring(M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]))) end
+                                                            if M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]) then
 
-                                                            local tNearbyTMD = oACU:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oACU:GetPosition(), iTMLMissileRange + 30, 'Ally')
-                                                            local bProtectedByTMD = false
-                                                            if M28Utilities.IsTableEmpty(tNearbyTMD) == false then
-                                                                for iTMD, oTMD in tNearbyTMD do
-                                                                    if IsTMDProtectingUnitFromTML(oTMD, oACU, oLauncher) then
-                                                                        bProtectedByTMD = true
-                                                                        break
+                                                                local tNearbyTMD = oACU:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oACU:GetPosition(), iTMLMissileRange + 30, 'Ally')
+                                                                local bProtectedByTMD = false
+                                                                if M28Utilities.IsTableEmpty(tNearbyTMD) == false then
+                                                                    for iTMD, oTMD in tNearbyTMD do
+                                                                        if IsTMDProtectingUnitFromTML(oTMD, oACU, oLauncher) then
+                                                                            bProtectedByTMD = true
+                                                                            break
+                                                                        end
                                                                     end
                                                                 end
-                                                            end
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby TMD empty='..tostring(M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]))..'; bProtectedByTMD='..tostring(bProtectedByTMD)) end
-                                                            if not(bProtectedByTMD) then
-                                                                table.insert(tACUsInRange, oACU)
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby TMD empty='..tostring(M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]))..'; bProtectedByTMD='..tostring(bProtectedByTMD)) end
+                                                                if not(bProtectedByTMD) then
+                                                                    table.insert(tACUsInRange, oACU)
+                                                                end
                                                             end
                                                         end
                                                     end

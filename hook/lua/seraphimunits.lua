@@ -23,5 +23,124 @@ if M28OldUnit then
             if M28OldUnit.OnCreate then ForkThread(M28Events.OnCreate, self) end
         end,
 
+
+        --v301 - copied these as well as noticed reclaim callback not working on sera engineer so guessing none of the callbacks work for engineers
+        OnKilled = function(self, instigator, type, overkillRatio) --NOTE: For some reason this doesnt run a lot of the time; onkilledunit is more reliable
+            M28Events.OnKilled(self, instigator, type, overkillRatio)
+            if M28OldUnit.OnKilled then M28OldUnit.OnKilled(self, instigator, type, overkillRatio) end
+        end,
+        OnReclaimed = function(self, reclaimer)
+            M28Events.OnKilled(self, reclaimer)
+            if M28OldUnit.OnReclaimed then M28OldUnit.OnReclaimed(self, reclaimer) end
+        end,
+        OnDecayed = function(self)
+            --LOG('OnDecayed: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
+            M28Events.OnUnitDeath(self)
+            if M28OldUnit.OnDecayed then M28OldUnit.OnDecayed(self) end
+        end,
+        OnKilledUnit = function(self, unitKilled, massKilled)
+            M28Events.OnKilled(unitKilled, self)
+            if M28OldUnit.OnKilledUnit then M28OldUnit.OnKilledUnit(self, unitKilled, massKilled) end
+        end,
+        OnDestroy = function(self)
+            M28Events.OnUnitDeath(self) --Any custom code we want to run
+            if M28OldUnit.OnDestroy then M28OldUnit.OnDestroy(self) end --Normal code end
+        end,
+        OnDamage = function(self, instigator, amount, vector, damageType)
+            if M28OldUnit.OnDamage then M28OldUnit.OnDamage(self, instigator, amount, vector, damageType) end
+            M28Events.OnDamaged(self, instigator) --Want this after just incase our code messes things up
+        end,
+        OnSiloBuildEnd = function(self, weapon)
+            --LOG('OnSiloBuildEnd triggered')
+            if M28OldUnit.OnMissileBuilt then M28OldUnit.OnSiloBuildEnd(self, weapon) end
+            M28Events.OnMissileBuilt(self, weapon)
+        end,
+        OnStartReclaim = function(self, target)
+            ForkThread(M28Events.OnReclaimStarted, self, target)
+            if M28OldUnit.OnStartReclaim then return M28OldUnit.OnStartReclaim(self, target) end
+        end,
+        OnStopReclaim = function(self, target)
+            ForkThread(M28Events.OnReclaimFinished, self, target)
+            if M28OldUnit.OnStopReclaim then return M28OldUnit.OnStopReclaim(self, target) end
+        end,
+        OnAttachedToTransport = function(self, transport, bone)
+            ForkThread(M28Events.OnTransportLoad, self, transport, bone)
+            if M28OldUnit.OnAttachedToTransport then return M28OldUnit.OnAttachedToTransport(self, transport, bone) end
+        end,
+        OnDetachedFromTransport = function(self, transport, bone)
+            ForkThread(M28Events.OnTransportUnload, self, transport, bone)
+            if M28OldUnit.OnDetachedFromTransport then return M28OldUnit.OnDetachedFromTransport(self, transport, bone) end
+        end,
+        OnTransportDetach = function(self, attachBone, detachedUnit)
+            M28OldUnit.OnTransportDetach(self, attachBone, detachedUnit)
+            if not(M28OldUnit.OnDetachedFromTransport) then
+                ForkThread(M28Events.OnTransportUnload, detachedUnit, self, attachBone)
+            end
+        end,
+        OnDetectedBy = function(self, index)
+            ForkThread(M28Events.OnDetectedBy, self, index)
+            if M28OldUnit.OnDetectedBy then return M28OldUnit.OnDetectedBy(self, index) end
+        end,
+        CreateEnhancement = function(self, enh)
+            ForkThread(M28Events.OnEnhancementComplete, self, enh)
+            if M28OldUnit.CreateEnhancement then return M28OldUnit.CreateEnhancement(self, enh) end
+        end,
+        OnMissileImpactTerrain = function(self, target, position)
+            ForkThread(M28Events.OnMissileImpactTerrain, self, target, position)
+            if M28OldUnit.OnMissileImpactTerrain then return M28OldUnit.OnMissileImpactTerrain(self, target, position) end
+        end,
+        OnMissileIntercepted = function(self, target, defense, position, projectile)
+            --LOG('OnMissileIntercepted triggered')
+            if M28OldUnit.OnMissileIntercepted then M28OldUnit.OnMissileIntercepted(self, target, defense, position, projectile) end
+            M28Events.OnMissileIntercepted(self, target, defense, position, projectile) --Cant do via forked thread if want to reference projectile values, so wont do as return, and wont do as forked thread
+        end,
+        OnTeleportUnit = function(self, teleporter, location, orientation)
+            ForkThread(M28Events.OnTeleportComplete, self, teleporter, location, orientation)
+            if M28OldUnit.OnTeleportUnit then return M28OldUnit.OnTeleportUnit(self, teleporter, location, orientation) end
+        end,
+        --function(self, teleporter, bp, location, teledistance, teleRange, orientation, telecostpaid)
+        InitiateTeleportThread = function(self, teleporter, ...) --LOUD uses different variables
+            ForkThread(M28Events.OnStartTeleport, self, teleporter, unpack(arg))
+            if M28OldUnit.InitiateTeleportThread then return M28OldUnit.InitiateTeleportThread(self, teleporter, unpack(arg)) end
+        end,
+        --LOUD specific
+        OnShieldIsCharging = function(self)
+            ForkThread(M28Events.ShieldRechargeStarted, self)
+            if M28OldUnit.OnShieldIsCharging then return M28OldUnit.OnShieldIsCharging(self) end
+        end,
+        OnShieldEnabled = function(self)
+            ForkThread(M28Events.ShieldEnabled, self)
+            if M28OldUnit.OnShieldEnabled then return M28OldUnit.OnShieldEnabled(self) end
+        end,
+        OnShieldDisabled = function(self)
+            ForkThread(M28Events.ShieldDisabled, self)
+            if M28OldUnit.OnShieldDisabled then return M28OldUnit.OnShieldDisabled(self) end
+        end,
+        UpdateStat = function(self, key, value)
+            --LOG('Running UpdateStat, is M28OldUnit.UpdateStat nil='..tostring(M28OldUnit.UpdateStat == nil))
+            if M28OldUnit.UpdateStat then M28OldUnit.UpdateStat(self, key, value)
+            else
+                --Copied from FAF unit.lua as at 2024-08-26; copyright at top of file at that time is reproduced below:
+                -----------------------------------------------------------------
+                -- File      : /lua/unit.lua
+                -- Authors   : John Comes, David Tomandl, Gordon Duclos
+                -- Summary   : The Unit lua module
+                -- Copyright © 2005 Gas Powered Games, Inc.  All rights reserved.
+                -----------------------------------------------------------------
+
+                -- With thanks to 4z0t the `SetStat` function no longer hard-crashes when the value doesn't exist. Instead, it returns 'true'
+                -- when the stat doesn't exist. If it doesn't exist then we can use `GetStat` to initialize it. This makes no sense, therefore
+                -- we have this new function to hide the magic
+                local cUnit = moho.unit_methods
+                --M28 note - will always run GetStat to be safe due to crashes in LOUD presumably as the 4z0t reference above means a change was made elsewhere to what SetStat does
+                --local needsSetup = cUnit.SetStat(self, key, value)
+                --if needsSetup then
+                cUnit.GetStat(self, key, value)
+                cUnit.SetStat(self, key, value)
+                --end
+                --LOG('Finished setstat, key='..key..'; value='..value..'; self.UnitId='..(self.UnitId or 'nil'))
+            end
+        end,
+
     }
 end
