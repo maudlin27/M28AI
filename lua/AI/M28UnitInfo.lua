@@ -2258,11 +2258,13 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                             end
                         elseif oCurWeapon.FireTargetLayerCapsTable.Water == 'Land|Water' then
                             oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        elseif oCurWeapon.Label == 'DepthCharge' then --loud weapon
+                            oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                         else
                             M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil')..'; Weapon label='..(oCurWeapon.Label or 'nil'))
                             --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
                             --LOG('reprs of oCurWeapon='..reprs(oCurWeapon))
-                        end
+                            end
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category '..oCurWeapon.RangeCategory..' for unit '..oUnit.UnitId)
                     end
