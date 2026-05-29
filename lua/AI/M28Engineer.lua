@@ -6171,6 +6171,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
 
                 if bForceUsAnyValueReclaim then
                     tNearbyReclaim = {oNearestAnyValueReclaim}
+                    tTargetPos = oEngineer:GetPosition()
                 else
                     --Get reclaim in the segment
 
