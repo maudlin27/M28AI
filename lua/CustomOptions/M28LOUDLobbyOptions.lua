@@ -1121,24 +1121,29 @@ LobbyGlobalOptions = {
         bUseKeyAsValueInScenarioInfo = true,
         values = {
             {
-                text = 'Yes',
+                text = 'Yes (toggle)',
                 help = 'Enable combined armies',
                 key = 1,
             },
             {
-                text = 'No',
+                text = 'No (disabled)',
                 help = 'Disable combined armies',
                 key = 2,
             },
             {
-                text = 'MOBA (all non-ACU units)',
+                text = 'MOBA (non-ACU AI)',
                 help = 'MOBA mode - AI controls everything except your ACU',
                 key = 3,
             },
             {
+                text = 'Sim City (mobile non-engineers AI)',
+                help = 'Sim city mode - AI controls all mobile non-engineer units',
+                key = 4,
+            },
+            {
                 text = 'No (hide button)',
                 help = 'Disable combined armies, and dont show the UI button in-game',
-                key = 4,
+                key = 5,
             },
         },
     },
