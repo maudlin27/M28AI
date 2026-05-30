@@ -3324,8 +3324,8 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam, bDontRele
 
         if bWantMoreAirStaging then M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] = GetGameTimeSeconds() end
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
-        if bDebugMessages == true then LOG(sFunctionRef..': Flagged that we want air staging for units on team '..iTeam..' at time '..GetGameTimeSeconds()..' unless we only have low health exp, bWantMoreAirStaging='..tostring(bWantMoreAirStaging)..'; tRallyPoint='..repru(tRallyPoint)..'; Plateau label='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tRallyPoint) or 'nil')..'; reftClosestFriendlyBase to rally point='..repru(tRallyLZTeamData[M28Map.reftClosestFriendlyBase])) end
         local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
+        if bDebugMessages == true then LOG(sFunctionRef..': Flagged that we want air staging for units on team '..iTeam..' at time '..GetGameTimeSeconds()..' unless we only have low health exp, bWantMoreAirStaging='..tostring(bWantMoreAirStaging)..'; tRallyPoint='..repru(tRallyPoint)..'; Plateau label='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tRallyPoint) or 'nil')..'; LandZone='..(M28Map.GetLandZoneFromPosition(tRallyPoint) or 'nil')..'; reftClosestFriendlyBase to rally point='..repru(tRallyLZTeamData[M28Map.reftClosestFriendlyBase])) end
         local tRefuelBase
         if tRallyLZTeamData[M28Map.reftClosestFriendlyBase] and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tRallyLZTeamData[M28Map.reftClosestFriendlyBase])) then tRefuelBase = tRallyLZTeamData[M28Map.reftClosestFriendlyBase] else tRefuelBase = tRallyPoint end
         local iDistToReissueOrder = 10 --If the target location is safe then this is increased so that air units idle on hte ground to save fuel

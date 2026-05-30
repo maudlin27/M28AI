@@ -316,6 +316,11 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
                 if string.find(tModData.name, 'Flying engineers') then
                     bFlyingEngineers = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Have flying engineers mod enabled so will adjust engineer categories') end
+                elseif tModData.name == 'AI Wave Survival' then
+                    --check for game setting that means M28 can give orders
+                    if not(ScenarioInfo.Options.WaveStyle == 'AI/Human Controlled') then
+                        sIncompatibleMessage = sIncompatibleMessage .. ' M28 is expected to be more challenging if you set the Wave Style to "AI/Human Controlled"'
+                    end
                 end
             end
         elseif tModIsOk[tModData.name] then
