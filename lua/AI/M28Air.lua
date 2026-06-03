@@ -6999,7 +6999,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                                 --Clear enemy targets (incase e.g. we have decided not to attack some of them because we have enough threat assigned already or outside playable area)
                                 tEnemyTargets = {}
                                 --Consider attacking the nearest enemy AA unit in the zone if it is exposed, or if there is no nearby AA unit the nearest non-hover unit
-                            elseif bDoDetailedCheck and tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] <= 10000 and (iAAThreatThreshold < 400 or tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] < iAAThreatThreshold * 0.8) then
+                            elseif bDoDetailedCheck and tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] <= 10000 and tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] + (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) < iAAThreatThreshold * 0.8 and ((tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) == 0 or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
                                 local oClosestAAUnit, iCurDist
                                 local oClosestNonAAUnit
                                 local iClosestAAUnit = 10000
