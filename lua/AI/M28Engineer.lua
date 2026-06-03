@@ -10902,7 +10902,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
     local sFunctionRef = 'GetBPToAssignToSMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    
+
 
     local iBPWanted = 0
     local bAssistSMD = false
@@ -10910,7 +10910,8 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
     local oUnderConstructionShield
     --Does this LZ have enough value?
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want SMD for iPlateau '..iPlateau..'; iLandZone '..iLandZone..'; LZ building vlaue='..(tLZTeamData[M28Map.subrefLZSValue] or 'nil')..'; M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap)..'; Is ScenarioInfo.CzarEngineer nil='..tostring(ScenarioInfo.CzarEngineer == nil)..'; ScenarioInfo.M1P1.Active='..tostring(ScenarioInfo.M1P1.Active or false)..'; ScenarioInfo.Czar is nil='..tostring(ScenarioInfo.Czar == nil)..'; ScenarioInfo.CzarFullyBuilt='..tostring(ScenarioInfo.CzarFullyBuilt or false)..'; ScenarioInfo.ControlCenter is nil='..tostring(ScenarioInfo.ControlCenter == nil)..'; Are we a cybran brain? army index='..ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetFactionIndex()) end
-    if tLZTeamData[M28Map.subrefLZSValue] >= 11000 or (tLZTeamData[M28Map.reftObjectiveLocation] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategorySMD, tLZTeamData[M28Map.reftObjectiveLocation][M28Map.subrefiObjCategoryToBuild]) and M28Conditions.DoWeWantToBuildObjectiveCategory(tLZTeamData[M28Map.reftObjectiveLocation])) or (tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] <= 360) then
+    local bObjectiveCategory = (tLZTeamData[M28Map.reftObjectiveLocation] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategorySMD, tLZTeamData[M28Map.reftObjectiveLocation][M28Map.subrefiObjCategoryToBuild]) and M28Conditions.DoWeWantToBuildObjectiveCategory(tLZTeamData[M28Map.reftObjectiveLocation]))
+    if tLZTeamData[M28Map.subrefLZSValue] >= 11000 or bObjectiveCategory or (tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] <= 360) then
         --Special case for Cybran M6 - early on want to risk not getting SMD so can improve eco to deal with czar
         if M28Map.bIsCampaignMap and ScenarioInfo.ControlCenter and (ScenarioInfo.CzarEngineer or ScenarioInfo.Czar or (GetGameTimeSeconds() <= 250 and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]].GetFactionIndex and ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]:GetFactionIndex() == M28UnitInfo.refFactionCybran)) and not(ScenarioInfo.CzarFullyBuilt) and GetGameTimeSeconds() <= 1200 and (ScenarioInfo.M1P1.Active or GetGameTimeSeconds() <= 250) then
             if bDebugMessages == true then LOG(sFunctionRef..': Want to hold off on getting SMD for now as want to save up to fight the czar') end
@@ -11018,8 +11019,10 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
                 if iEnemyNukes <= 5 then iSMDWanted = math.min(iSMDWanted, 3) end
             end
             --Cap amount of SMD, in turn depending on enemy nuke size
-            if iEnemyNukes >= 5 and tLZTeamData[M28Map.subrefLZSValue] >= 12000 * iEnemyNukes then iSMDWanted = math.min(8, iSMDWanted)
-            else iSMDWanted = math.min(4, iSMDWanted)
+            if not(bObjectiveCategory) then
+                if iEnemyNukes >= 5 and tLZTeamData[M28Map.subrefLZSValue] >= 12000 * iEnemyNukes then iSMDWanted = math.min(8, iSMDWanted)
+                else iSMDWanted = math.min(4, iSMDWanted)
+                end
             end
 
             if iEnemyNukes == 0 then
@@ -11033,7 +11036,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
                 end
             end
 
-            if iSMDWanted <= 0 and ((tLZTeamData[M28Map.reftObjectiveLocation] and M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategorySMD, tLZTeamData[M28Map.reftObjectiveLocation][M28Map.subrefiObjCategoryToBuild]) and M28Conditions.DoWeWantToBuildObjectiveCategory(tLZTeamData[M28Map.reftObjectiveLocation])) or (tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] <= 360)) then iSMDWanted = 1 end
+            if iSMDWanted <= 0 and (bObjectiveCategory or (tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] <= 360)) then iSMDWanted = 1 end
             if bDebugMessages == true then LOG(sFunctionRef..': iSMDsWeHave='..iSMDsWeHave..'; iSMDWanted='..iSMDWanted..'; iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
             if iSMDsWeHave < iSMDWanted or (iSMDsWithNoMissiles > 0 and iEnemyNormalNukes > 0 and iSMDWanted <= 1) then
                 if bHaveLowMass or iSMDsWeHave > 0 then iBPWanted = 150
@@ -18948,6 +18951,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     if bDebugMessages == true then LOG(sFunctionRef..': High priority AA builder, iExistingWaterFactory='..iExistingWaterFactory..'; Enemy air to ground threat='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Allied AA threat='..(tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 'nil')) end
     if iExistingWaterFactory > 0 then
         local iAdjacentEnemyAirToGroundThreat = (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)
+        local iAdjacentAlliedCombatThreat = (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)
         M28Air.RecordOtherLandAndWaterZonesByDistance(tWZData)
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
             for iEntry, tSubtable in tWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
@@ -18955,16 +18959,24 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     break
                 end
                 if tSubtable[M28Map.subrefbIsWaterZone] then
-                    iAdjacentEnemyAirToGroundThreat = iAdjacentEnemyAirToGroundThreat + (M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat] or 0)
+                    if not(tSubtable[M28Map.subrefiLandOrWaterZoneRef] == iWaterZone) then
+                        local tAdjWZTeamData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefWZTeamData][iTeam]
+                        iAdjacentEnemyAirToGroundThreat = iAdjacentEnemyAirToGroundThreat + (tAdjWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)
+                        iAdjacentAlliedCombatThreat = iAdjacentAlliedCombatThreat + (tAdjWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; subrefWZTThreatAllyCombatTotal='..(tAdjWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 0)) end
+                    end
                 else
                     iAdjacentEnemyAirToGroundThreat = iAdjacentEnemyAirToGroundThreat + (M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][tSubtable[M28Map.subrefiLandOrWaterZoneRef]][M28Map.subrefLZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat] or 0)
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': iAdjacentEnemyAirToGroundThreat='..iAdjacentEnemyAirToGroundThreat) end
+        if bDebugMessages == true then LOG(sFunctionRef..': iAdjacentEnemyAirToGroundThreat='..iAdjacentEnemyAirToGroundThreat..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; subrefbDangerousEnemiesInAdjacentWZ='..tostring(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; subrefLZOrWZThreatAllyGroundAA='..tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]..'; subrefWZTThreatAllyCombatTotal='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]..'; refiEnemyAirToGroundThreat='..tWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Last fac assisted build count='..(tWZTeamData[M28Map.refoLastNavalFacAssisted][M28Factory.refiTotalBuildCount] or 'nil')) end
         if (not(tWZTeamData[M28Map.subrefWZTimeLastDestroyedForStuckNavy]) or tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] <= 4000) and iAdjacentEnemyAirToGroundThreat * 1.5 > (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) or (iAdjacentEnemyAirToGroundThreat * 3 > (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= 200) then
-            --If we have blueprint override for naval fac, and already have AA, then assist naval fac instead (for campaign missions where enemy can s tart with large air to ground threat like cybran mission 5)
-            if oFirstWaterFactory and oFirstWaterFactory[M28Factory.refsFactoryNextBlueprintOverride] and (M28Map.bIsCampaignMap or EntityCategoryContains(categories.TECH1, oFirstWaterFactory.UnitId)) and tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] >= math.max(150, tWZTeamData[M28Map.refiEnemyAirToGroundThreat] * 2) then
+            --If we havent got much of a naval force, enemies are nearby, then dont build enough SAMs to handle enemy air as it will just die to enemy navy
+            if tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] and (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) >= 2500 and tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] > tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] and tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] > iAdjacentAlliedCombatThreat * 0.8 and tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] > (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) and (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] >= 6000 or tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] >= iAdjacentEnemyAirToGroundThreat * 0.4 or not(tWZTeamData[M28Map.refoLastNavalFacAssisted]) or tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] > (tWZTeamData[M28Map.refoLastNavalFacAssisted][M28Factory.refiTotalBuildCount] or 0) * 1000) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Wont build AA afterall as worried it will die to enemy navy') end
+                --If we have blueprint override for naval fac, and already have AA, then assist naval fac instead (for campaign missions where enemy can s tart with large air to ground threat like cybran mission 5)
+            elseif oFirstWaterFactory and oFirstWaterFactory[M28Factory.refsFactoryNextBlueprintOverride] and (M28Map.bIsCampaignMap or EntityCategoryContains(categories.TECH1, oFirstWaterFactory.UnitId)) and tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] >= math.max(150, tWZTeamData[M28Map.refiEnemyAirToGroundThreat] * 2) then
                 iBPWanted = 20
                 HaveActionToAssign(refActionAssistNavalFactory, 1, iBPWanted, oFirstWaterFactory)
                 if bDebugMessages == true then LOG(sFunctionRef..': Will assist naval factory as top priority as it has blueprint overrides') end
@@ -18983,6 +18995,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
     end
+    bDebugMessages = false
 
     --Higih priority mex if we have water zone start
     iCurPriority = iCurPriority + 1
@@ -19219,7 +19232,8 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
 
     --Emergency AA (slightly lower priority than above)
     iCurPriority = iCurPriority + 1
-    if (not(tWZTeamData[M28Map.subrefWZTimeLastDestroyedForStuckNavy]) or tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] <= 4000) and (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 0.25 and (tWZTeamData[M28Map.subrefWZbCoreBase] or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
+    if (not(tWZTeamData[M28Map.subrefWZTimeLastDestroyedForStuckNavy]) or tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] <= 4000) and (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 0.25 and (tWZTeamData[M28Map.subrefWZbCoreBase] or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) and
+        (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 0.6 or not(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) or tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] < 800 * aiBrain[M28Economy.refiOurHighestNavalFactoryTech] * aiBrain[M28Economy.refiOurHighestNavalFactoryTech]) then
         iBPWanted = 25
         if not (bHaveLowMass) and not (bHaveLowPower) then
             iBPWanted = 50

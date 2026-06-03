@@ -6782,7 +6782,7 @@ end
 
 function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForNavalFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -6805,7 +6805,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; Pond='..iPond..'; WZ='..iWaterZone..'; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3)..'; Factory build count='..(oFactory[refiTotalBuildCount] or 'nil')..'; refbNoSurfaceSupportPoint='..tostring(tWZTeamData[M28Map.refbNoSurfaceSupportPoint] or false)..'; refbNoSubSupportPoint='..tostring(tWZTeamData[M28Map.refbNoSubSupportPoint] or false)..'; refiCampaignLastBombardmentWeaponFired='..(tWZTeamData[M28Map.refiCampaignLastBombardmentWeaponFired] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; Pond='..iPond..'; WZ='..iWaterZone..'; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Cur T1 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH1)..'; T2 surface navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH2)..'; T3 navy='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3)..'; Factory build count='..(oFactory[refiTotalBuildCount] or 'nil')..'; refbNoSurfaceSupportPoint='..tostring(tWZTeamData[M28Map.refbNoSurfaceSupportPoint] or false)..'; refbNoSubSupportPoint='..tostring(tWZTeamData[M28Map.refbNoSubSupportPoint] or false)..'; refiCampaignLastBombardmentWeaponFired='..(tWZTeamData[M28Map.refiCampaignLastBombardmentWeaponFired] or 'nil')..'; refiTimeLastRunFromEnemyAir='..(tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] or 'nil')) end
 
     local bConsiderBuildingShieldOrStealthBoats = true
     --Shield boat needs 10 energy per tick; same for stealth boat; dont want this to account for more than 20% of gross energy; so want 50 gross energy per tick per shield boat for it to be <20%
@@ -7022,7 +7022,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         LOG(sFunctionRef .. ': Considering immediate needs for cur WZ that are in, tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]=' .. tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] .. '; tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface]=' .. tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] .. '; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]=' .. tWZTeamData[M28Map.refiEnemyAirToGroundThreat] .. '; tWZTeamData[M28Map.refbWZWantsMobileShield]=' .. tostring(tWZTeamData[M28Map.refbWZWantsMobileShield]) .. '; tWZTeamData[M28Map.refbWZWantsMobileStealth]=' .. tostring(tWZTeamData[M28Map.refbWZWantsMobileStealth])..'; tWZTeamData[M28Map.subrefLZThreatAllyMAA]='..tWZTeamData[M28Map.subrefLZThreatAllyMAA]..'; refiTimeLastRunFromEnemyAir='..GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] or 0))
     end
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > 0 then
+    if tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > (tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] or 0) * 0.25 then
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Immediate threat - want antinavy')
         end
@@ -7035,15 +7035,26 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] > 0 then
         --Get frigates instead of subs, because subs die easily to ground-fire from frigates, and its possible enemy has hover units
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Immediate threat - want frigate')
+            LOG(sFunctionRef .. ': Immediate threat - want frigate (or dstro if t3 naval fac and already have some combat) or sub if enemy lacks antinavy')
+        end
+        --get subs if enemy lacks antinavy
+        if tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] == 0 and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) and ConsiderBuildingCategory(M28UnitInfo.refCategorySubmarine - categories.TECH3) then return sBPIDToBuild
+            --get battleship in campaign if lack any
+        elseif iFactoryTechLevel >= 3 and tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= 800 and oFactory[refiTotalBuildCount] >= 5 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDestroyer) >= 3 and aiBrain:GetCurrentUnits(iCombatCategory) == 0 and ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild
+        elseif iFactoryTechLevel >= 3 and tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= 800 and oFactory[refiTotalBuildCount] >= 5 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFrigate) >= 3 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryDestroyer) then return sBPIDToBuild end
         end
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryFrigate) then
             return sBPIDToBuild
-        end --Want frigate as enemy is close
+            end --Want frigate as enemy is close
     end
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.min(2500, tWZTeamData[M28Map.subrefLZThreatAllyMAA] * 0.35) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Enemy air to ground threat in this zone? refiEnemyAirToGroundThreat='..tWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; subrefLZThreatAllyMAA='..tWZTeamData[M28Map.subrefLZThreatAllyMAA]..'; subrefLZOrWZThreatAllyGroundAA='..tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]) end
+    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.min(2500, tWZTeamData[M28Map.subrefLZThreatAllyMAA] * 0.35)
+    --Early in campaign we might overbuild, e.g. cybran M6
+    and (not(M28Map.bIsCampaignMap) or iFactoryTechLevel < 3 or aiBrain:GetCurrentUnits(iCombatCategory) >= 3 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)) then
+
         if EntityCategoryContains(categories.AEON, oFactory.UnitId) or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.max(100, (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 0.5) then
             if bDebugMessages == true then LOG(sFunctionRef .. ': Immediate threat - want AA') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
@@ -7315,8 +7326,13 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
                 --AA ratio basic value (note we also have a similar AA type test later on, this one is on global values though
                 if not(bHaveWantedAA) and ((tOtherWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] and GetGameTimeSeconds() - tOtherWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] <= 60 and (GetGameTimeSeconds() - tOtherWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] <= 20 or iOurCumulativeCombatThreat * iMinAARatioWanted * 2 > iOurCumulativeAAThreat)) or (iOurCumulativeCombatThreat >= 4000 and (tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or iOurCumulativeCombatThreat >= 6000*iFactoryTechLevel) and iOurCumulativeCombatThreat * iMinAARatioWanted > iOurCumulativeAAThreat)) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Want AA to maintain basic ratio to combat threat, iOurCumulativeCombatThreat='..iOurCumulativeCombatThreat..'; iOurCumulativeAAThreat='..iOurCumulativeAAThreat) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want AA to maintain basic ratio to combat threat, iOurCumulativeCombatThreat='..iOurCumulativeCombatThreat..'; iOurCumulativeAAThreat='..iOurCumulativeAAThreat..'; refbHaveAirControl='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl])..'; refiEnemyAirToGroundThreat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; tiMAAThresholdByTech[iFactoryTechLevel]='..tiMAAThresholdByTech[iFactoryTechLevel]) end
                     bHaveWantedAA = true
+                    --Normally would wait to see if we want an antinavy unit, but if have run from enemy air then try getting AA now as a priority if our overall AA threat levels could be better
+                    if iOurCumulativeAAThreat < iOurCumulativeCombatThreat and not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) and tOtherWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] and GetGameTimeSeconds() - tOtherWZTeamData[M28Map.refiTimeLastRunFromEnemyAir] <= 60 and iOurCumulativeAAThreat < math.max(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 2, tiMAAThresholdByTech[iFactoryTechLevel] * 3) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try getting AA now') end
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
+                    end
                 end
 
                 if tOtherWZTeamData[M28Map.subrefbWZWantsSupport] then
