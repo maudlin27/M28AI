@@ -3464,7 +3464,6 @@ function EnableLandWalkingForDestroyerOwnedByPlayer(oUnit)
     if not(bDontConsiderCombinedArmy) and oUnit.M28Active and oUnit.OnScriptBitSet and oUnit:GetAIBrain().BrainType == 'Human' then
         oUnit:SetScriptBit('RULEUTC_WeaponToggle', false)
         --oUnit:OnScriptBitSet(1) --this doesnt seem to do anything, not sure why/how to toggle amphibious mode on player owned cybran destroyers
-        LOG('TEMPCODE attempted to toggle amphibious mode')
         --Disabling would expect to be oUnit:OnScriptBitClear(1)
     end
 end
