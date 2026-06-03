@@ -5941,6 +5941,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
             --Include long range DF enemies that arent in an adjacent zone into skirmisher enemies
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats]) == false then
+                local bUpdateNearestEnemy = false
+                if not(oNearestEnemyToFriendlyBase) then bUpdateNearestEnemy = true end
                 for iLREnemy, oLREnemy in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if should add oLREnemy to skirmisher enemies, oLREnemy='..oLREnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLREnemy)..'; Cur assigned P='..oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]..'Z'..oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]) end
                     if not(tbCurOrAdjacentZones[oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]]) or not(oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau) then
@@ -5949,8 +5951,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                     --If enemy is close to nearestenemytofriendlybase then also update enemy range
                     if oLREnemy[M28UnitInfo.refiDFRange] > iEnemyBestDFRange then
-                        if not(oNearestEnemyToFriendlyBase) or (M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) - oLREnemy[M28UnitInfo.refiDFRange] <= -10 or M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 50) then
+                        if bUpdateNearestEnemy or (oNearestEnemyToFriendlyBase and (M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) - oLREnemy[M28UnitInfo.refiDFRange] <= -10 or M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 50)) then
                             iEnemyBestDFRange = oLREnemy[M28UnitInfo.refiDFRange]
+                            if bUpdateNearestEnemy and oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+                                if iCurDist < iClosestDist then
+                                    iClosestDist = iCurDist
+                                    oNearestEnemyToFriendlyBase = oLREnemy
+                                end
+                            end
                             if bDebugMessages == true then LOG(sFunctionRef..': Increasing iEnemyBestDFRange to reflect LR enemy DF unit') end
                         end
                     end
@@ -5993,6 +6002,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if not(oNearestEnemyToFriendlyBase) and bSuicideIntoFatboyOrACU and oClosestFatboyOrACUInIslandToSuicideInto then oNearestEnemyToFriendlyBase = oClosestFatboyOrACUInIslandToSuicideInto end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished checking adjacent water zones for enemy units, iClosestDist='..iClosestDist..'; oNearestEnemyToFriendlyBase='..(oNearestEnemyToFriendlyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToFriendlyBase) or 'nil')) end
             end
+
             if not(oNearestEnemyToFriendlyBase) and M28Utilities.IsTableEmpty(tUnitsNearFatboyInFurtherAwayZones) == false then
                 for iUnit, oUnit in tUnitsNearFatboyInFurtherAwayZones do
                     --Do based on dist to this midpoint instead of closest friendly base since not dealing with units in this zone
@@ -6012,8 +6022,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
             --Update enemy best DF range to reflect closest unit (which might be a DF unit)
             if (oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 0) >= 10 then
-                iEnemyBestDFRange = math.max(iEnemyBestDFRange, oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange])
-                if bDebugMessages == true then LOG(sFunctionRef..': Updated iEnemyBestDFRange for oNearestEnemyToFriendlyBase, oNearestEnemyToFriendlyBase DF range='..(oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 'nil')) end
+                if oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] > iEnemyBestDFRange then
+                    iEnemyBestDFRange = oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange]
+                    --If this is in a different zone then get the best enemy ranges from that zone
+                    if not(oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
+                        local tNearestEnemyLZTeamData = M28Map.tAllPlateaus[oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][M28Map.subrefPlateauLandZones][oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam]
+                        iEnemyBestMobileDFRange = math.max(iEnemyBestMobileDFRange, tNearestEnemyLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange])
+                        iEnemyBestStructureDFRange = math.max(iEnemyBestStructureDFRange, tNearestEnemyLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange])
+                    end
+                end
                 if EntityCategoryContains(categories.MOBILE, oNearestEnemyToFriendlyBase.UnitId) then
                     iEnemyBestMobileDFRange = math.max(iEnemyBestMobileDFRange, oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange])
                     if oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
@@ -6023,6 +6040,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                 else iEnemyBestStructureDFRange = math.max(iEnemyBestStructureDFRange, oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange])
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Updated iEnemyBestDFRange for oNearestEnemyToFriendlyBase, oNearestEnemyToFriendlyBase DF range='..(oNearestEnemyToFriendlyBase[M28UnitInfo.refiDFRange] or 'nil')..'; iEnemyBestStructureDFRange='..iEnemyBestStructureDFRange..'; iEnemyBestMobileDFRange='..iEnemyBestMobileDFRange) end
             end
 
             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for nearest enemy unit, is it valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToFriendlyBase))..'; Zone it is assigned to='..(oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')..'; Is table of enemy units in this zone empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))) end
@@ -6400,6 +6418,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 iEnemyCombatThreat = iEnemyCombatThreat + GetCombatThreatFromAdjacentZone(M28Map.tAllPlateaus[tPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndZone[2]][M28Map.subrefLZTeamData][iTeam], bAdjustStructureThreat)
                             end
                         end
+                    end
+                    --If not considered the zone the nearest enemy is in then update for this
+                    if oNearestEnemyToFriendlyBase and not(tbZonesConsidered[oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]]) and oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Increasing enemy combat threat as nearest enemy isnt in a zone we have considered, iEnemyCombatThreat before adjustment='..iEnemyCombatThreat) end
+                        if not(tbZonesConsidered) then tbZonesConsidered = {} end
+                        tbZonesConsidered[oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]] = true
+                        iEnemyCombatThreat = iEnemyCombatThreat + GetCombatThreatFromAdjacentZone(M28Map.tAllPlateaus[oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]][M28Map.subrefPlateauLandZones][oNearestEnemyToFriendlyBase[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]][M28Map.subrefLZTeamData][iTeam], false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat after adjustment='..iEnemyCombatThreat) end
                     end
                 end
             end
@@ -12033,7 +12059,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                                     --Units to not consider from adjacent zones - SACUs, skirmishers, combat scouts, and long ranged units
                                 elseif oUnit[M28UnitInfo.refiSACUWaterZoneTarget] or ((oUnit[M28UnitInfo.refiDFRange] or 0) >= 10 and (oUnit[M28UnitInfo.refiDFRange] >= 64 or oUnit[M28UnitInfo.refbScoutCombatOverride] or (oUnit[M28UnitInfo.refiDFRange] >= 34 and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) or (M28UnitInfo.GetUnitLifetimeCount(oUnit) <= 5 and EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, oUnit.UnitId)))) then
                                     --Dont want long ranged DF units to receive orders from an adjacent zone as we risk them not taking into account all nearby enemies
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Skirmisher, combat scout or LR DF unit so only want it assigned to the zone it is in, Cur LZ assigned='..oUnit[refiCurrentAssignmentPlateauAndLZ][2]..'; iLandZone='..iLandZone..'; if are the same will clear assignment value') end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Skirmisher, combat scout or LR DF unit so only want it assigned to the zone it is in, Cur LZ assigned='..(oUnit[refiCurrentAssignmentPlateauAndLZ][2] or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; if are the same will clear assignment value') end
                                     if oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone then
                                         oUnit[refiCurrentAssignmentValue] = -1
                                     end

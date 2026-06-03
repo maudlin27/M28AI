@@ -357,24 +357,29 @@ AIOpts = {
         value_help = "Allow M28 to take control of certain units?",
         values = {
             { --By having values in table like this, it means that FAF will record the key in ScenarioInfo.Options (not the text)
-                text = 'Yes',
+                text = 'Yes (toggle for all units)',
                 help = 'Enable combined armies (also makes M28 coordinate better with your own units)',
                 key = 1,
             },
             {
-                text = 'No',
+                text = 'No (option disabled)',
                 help = 'Disable combined armies',
                 key = 2,
             },
             {
-                text = 'MOBA (all non-ACU units)',
+                text = 'MOBA (M28 has non-ACUs)',
                 help = 'MOBA mode - AI controls everything except your ACU',
                 key = 3,
             },
             {
+                text = 'Sim City (M28 has mobile non-engineers)',
+                help = 'Sim city mode - AI controls all mobile non-engineer units',
+                key = 4,
+            },
+            {
                 text = 'No (hide button)',
                 help = 'Disable combined armies, and dont show the UI button in-game',
-                key = 4,
+                key = 5,
             },
         },
     },

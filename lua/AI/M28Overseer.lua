@@ -316,6 +316,11 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
                 if string.find(tModData.name, 'Flying engineers') then
                     bFlyingEngineers = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Have flying engineers mod enabled so will adjust engineer categories') end
+                elseif tModData.name == 'AI Wave Survival' then
+                    --check for game setting that means M28 can give orders
+                    if not(ScenarioInfo.Options.WaveStyle == 'AI/Human Controlled') then
+                        sIncompatibleMessage = sIncompatibleMessage .. ' M28 is expected to be more challenging if you set the Wave Style to "AI/Human Controlled"'
+                    end
                 end
             end
         elseif tModIsOk[tModData.name] then
@@ -2065,7 +2070,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             LOG(sFunctionRef..': Sera M3 logs, Is M4P3 active='..tostring(ScenarioInfo.M4P3.Active)..'; Is target category urc1901='..tostring(Target.Requirements[1].Category == categories.urc1901)..'; Target.Area='..(Target.Requirements[1].Area or 'nil')..'; reprs of ScenarioInfo.M2P2='..reprs(ScenarioInfo.M2P2)..'; reprs of Target='..reprs(Target))
             LOG(sFunctionRef..': Aeon M5 check, if ScenarioInfo.M2P1Obj.Active='..tostring(ScenarioInfo.M2P1Obj.Active or false)..'; ScenarioInfo.Ariel==nil='..tostring(ScenarioInfo.Ariel == nil)..'; Colonies is nil='..tostring(ScenarioInfo.Colonies == nil)..'; tbSpecialCodeForMission[21]='..tostring(tbSpecialCodeForMission[21] or false))
             LOG(sFunctionRef..': UEF M6 check, ScenarioInfo.Component='..(ScenarioInfo.Component or 'nil')..'; ScenarioInfo.BlackSun='..(ScenarioInfo.BlackSun or 'nil')..'; is ScenarioInfo.BlackSunComponent valid='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunComponent))..'; is it nil='..tostring(ScenarioInfo.BlackSunComponent == nil)..'; ScenarioInfo.M1P2.Active='..tostring(ScenarioInfo.M1P2.Active))
-            LOG(sFunctionRef..': Cybran M5 check, ScenarioInfo.FauxUEF='..ScenarioInfo.FauxUEF..'; Hex5='..ScenarioInfo.Hex5..'; M1P1Complete='..tostring(ScenarioInfo.M1P1Complete)..'; M2P2Complete='..tostring(ScenarioInfo.M2P2Complete))
+            LOG(sFunctionRef..': Cybran M5 check, ScenarioInfo.FauxUEF='..(ScenarioInfo.FauxUEF or 'nil')..'; Hex5='..(ScenarioInfo.Hex5 or 'nil')..'; M1P1Complete='..tostring(ScenarioInfo.M1P1Complete or false)..'; M2P2Complete='..tostring(ScenarioInfo.M2P2Complete or false))
         end
         --UEF Mission 2 - if player 1 has M28AI logic active, then try and move units to the area for civilians
         if Target.Area == 'Civilian_Area' and ScenarioInfo.M2P1.Active and ScenarioInfo.AllyResearch == 3 and ScenarioInfo.AllyCivilian == 4 and ScenarioInfo.CivilianFacilityReinforcedObjectiveComplete == false then
@@ -2243,7 +2248,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             end
             --Cybran mission 2 - get subs as first naval units (to defend from off-map frigates)
         elseif ScenarioInfo.CybranJanus == 3 and ScenarioInfo.FakeJanus == 6 and ScenarioInfo.M1NETechFound == false and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategorySubmarine) < 10 then
-            ForkThread(GetSubsInCampaignMission, iTeam, 10)
+            ForkThread(GetSpecificNavalCategoryInCampaignMission, iTeam, 10, M28UnitInfo.refCategorySubmarine)
             --Cybran mission 3 - monitor for trucks and send to the gate
             --NOTE: Also see DeathTriggerAdded
         elseif ScenarioInfo.M2BrackmanTrucksCreated and ScenarioInfo.M2BrackmanTrucksDestroyed and ScenarioInfo.M2P2Complete and ScenarioInfo.M2P1Complete and not(ScenarioInfo.M2P3Complete) and (Target.Units or M28Utilities.IsTableEmpty(ScenarioInfo.EscapeConvoy) == false) then
@@ -2375,7 +2380,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
                 tAveragePacifistLocation = M28Utilities.GetAverageOfUnitPositions(toPacifistUnits)
             end
-        --Cybran mission 4 - disable pacifist flag once emp fired
+            --Cybran mission 4 - disable pacifist flag once emp fired
         elseif bPacifistModeActive and ScenarioInfo.EMPFired and M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
             --Disable pacifist flag
             if bDebugMessages == true then LOG(sFunctionRef..': EMP has been fired so will disable pacifist flag for all recorded zones, tiPacifistZonesByPlateau='..repru(tiPacifistZonesByPlateau)) end
@@ -2391,19 +2396,19 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     tLZOrWZData[M28Map.subrefbPacifistArea] = false
                 end
             end
-        --Cybran mission 5 - get subs near start to help vs enemy UEF destroyer
+            --Cybran mission 5 - get subs near start to help vs enemy UEF destroyer
         elseif ScenarioInfo.FauxUEF == 4 and ScenarioInfo.Hex5 == 3 and not(ScenarioInfo.M1P1Complete) then
-            ForkThread(GetSubsInCampaignMission, iTeam, 10)
-        --Cybran mission 5 - send ACU to get codes from Hex5
+            ForkThread(GetSpecificNavalCategoryInCampaignMission, iTeam, 10, M28UnitInfo.refCategorySubmarine)
+            --Cybran mission 5 - send ACU to get codes from Hex5
         elseif ScenarioInfo.FauxUEF == 4 and ScenarioInfo.Hex5 == 3 and not(ScenarioInfo.M2P2Complete) and ScenarioInfo.M2P1Complete == true then
             SendACUsToCampaignObjective('M2_Hex5ObjectiveMarker')
-
             --Cybran mission 6 - activate black sun (below is as a redundancy but doesnt actually trigger - are reliant on the oncapture event instead)
         elseif ScenarioInfo.M3P2.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) and ScenarioInfo.BlackSunWeapon:GetAIBrain().M28AI and ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionCybran then
-            if bDebugMessages == true then LOG(sFunctionRef..': Want to fire black sun to complete cybran campaign - will fire in a bit') end
+            if bDebugMessages == true then LOG(sFunctionRef..' Cybran M6 Want to fire black sun to complete cybran campaign - will fire in a bit') end
             ForkThread(DelayedCybranFireBlackSun, ScenarioInfo.BlackSunWeapon:GetAIBrain())
             --Cybran mission 6 - kill Czar
         elseif ScenarioInfo.ControlCenter and ScenarioInfo.Czar and M28Utilities.IsTableEmpty(ScenarioInfo.Czar) == false and ScenarioInfo.M1P1.Active then
+            if bDebugMessages == true then LOG(sFunctionRef..': Cybran M6 Want to focus on killing czar') end
             function DelayedRecordingOfCzar(tUnits)
                 WaitSeconds(15)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, time='..GetGameTimeSeconds()..' is table of units empty='..tostring(M28Utilities.IsTableEmpty(tUnits))) end
@@ -2435,7 +2440,33 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             else tUnits = ScenarioInfo.Czar
             end
             ForkThread(DelayedRecordingOfCzar, tUnits)
-            --Cybran M6 - fire black sun if it is owned by M28 and we are on the objective to fire it
+            --Cybran M6 - send ACU to quantum gateway to download virus, and flag to build more SMD
+        elseif ScenarioInfo.M2P2.Active and ScenarioInfo.Aeon == 2 and ScenarioInfo.UEF == 3 and ScenarioInfo.BlackSun == 4 and ScenarioInfo.Cybran == 5 and ScenarioInfo.Player1CDR and EntityCategoryContains(categories.CYBRAN, ScenarioInfo.Player1CDR.UnitId) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Cybran M6 Will send ACU to gateway and record we want more SMD') end
+            ForkThread(CybranM6SendCampaignACUToNearestGateway)
+            --Record we want more SMD
+            local oM28Brain = GetM28BrainForCampaignObjective()
+            if oM28Brain then
+                local tStart = M28Map.GetPlayerStartPosition(oM28Brain)
+                if tStart then
+                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStart)
+                    if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
+                        local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                        tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tStart[1], GetSurfaceHeight(tStart[1], tStart[3]), tStart[3]}, [M28Map.subrefiObjCategoryToBuild] = M28UnitInfo.refCategorySMD, [M28Map.subrefiObjLocationSize] = 80, [M28Map.subrefiNumberWanted] = 7}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording we want 7 SMD for P'..iPlateauOrZero..'Z'..iLandOrWaterZone) end
+                    end
+                end
+            end
+
+            --Cybran M6 - periodically suicide an engineer to capture control centrue (as constant enemy attacks mean it is almost impossible for M28 to get all reclaim and finish building things it wants before capturing)
+        elseif ScenarioInfo.M2P3.Active and ScenarioInfo.ControlCenter and ScenarioInfo.Player1CDR and EntityCategoryContains(categories.CYBRAN, ScenarioInfo.Player1CDR.UnitId) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Cybran M6 WIll periodically send an engineer to capture the control centre') end
+            ForkThread(PeriodicallySendEngineerToCaptureTarget, ScenarioInfo.ControlCenter)
+            --Cybran M6 start - get battleships
+        elseif ScenarioInfo.Player1CDR and EntityCategoryContains(categories.CYBRAN, ScenarioInfo.Player1CDR.UnitId) and ScenarioInfo.BlackSun == 4 and ScenarioInfo.Aeon == 2 and ScenarioInfo.UEF == 3 and not(ScenarioInfo.M1P1Complete) and GetGameTimeSeconds() <= 300 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Cybran M6, M1P1complete='..tostring(ScenarioInfo.M1P1Complete or false)..'; will try to get battleships') end
+            ForkThread(GetSpecificNavalCategoryInCampaignMission, iTeam, 1, M28UnitInfo.refCategoryNavalAA * categories.TECH3, 2, M28UnitInfo.refCategoryBattleship)
+            --Aeon Mission 1 workaround for bug in mission preventing it from ending
         elseif ScenarioInfo.M7_FauxUEFCommanderUnit then
             ForkThread(M1AeonEndMissionBackupMonitor)
         elseif ScenarioInfo.M1P1Obj.Active and Target.MarkArea and Target.Requirements and Target.Category == categories.uab4301 then --Aeon mission 5 - build UEF T3 shield
@@ -2490,6 +2521,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     end
                 end
             end
+
             --Aeon Mission 5 - build SMD
         elseif ScenarioInfo.M1P2Obj.Active and Target.MarkArea and Target.Category == categories.uab4302 and Target.Areas then
             local ScenarioUtilities = import("/lua/sim/scenarioutilities.lua")
@@ -2510,24 +2542,18 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
 
                 end
             end
-        elseif ScenarioInfo.M4P3.Active and Target.Requirements[1].Category == categories.urc1901 and Target.Requirements[1].Area then --Seraphim M3 - protect QAI mainframe (as objective currently has strange way of doing this where it tracks the area rather htan the unit)
-
-            local ScenarioUtilities = import("/lua/sim/scenarioutilities.lua")
-            local tRect = ScenarioUtilities.AreaToRect(Target.Requirements[1].Area)
-            local tBaseAreaForRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
-            if bDebugMessages == true then LOG(sFunctionRef..': Will add QAI mainframe as a priority defence target, tRect='..repru(tRect)..';tBaseAreaForRect='..repru(tBaseAreaForRect)..'; Target.Requirements[1].Area='..(Target.Requirements[1].Area or 'nil')) end
-            local tUnitsInRect = GetUnitsInRect(tRect)
-            if bDebugMessages == true then LOG(sFunctionRef..': Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))) end
-            if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
-                local tQAIMainframes = EntityCategoryFilterDown(Target.Requirements[1].Category, tUnitsInRect)
-                if bDebugMessages == true then LOG(sFunctionRef..': Is tQAIMainframes empty='..tostring(M28Utilities.IsTableEmpty(tQAIMainframes))) end
-                if M28Utilities.IsTableEmpty(tQAIMainframes) == false then
-                    for iUnit, oUnit in tQAIMainframes do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as a priority air defence target') end
-                        M28Air.AddPriorityAirDefenceTarget(oUnit)
-                    end
-                end
-            end
+            --SC Aeon M5 - UEF changing sides
+        elseif ScenarioInfo.M2P1Obj.Active and ScenarioInfo.Ariel and ScenarioInfo.Colonies and not(tbSpecialCodeForMission[21]) then
+            tbSpecialCodeForMission[21] = true
+            --Have had a change in factions, update all unit tables
+            if bDebugMessages == true then LOG(sFunctionRef..': Will update recorded units following uef alliance changes so arti is detected, changing sides, Time='..GetGameTimeSeconds()) end
+            ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
+            --FA M2 Dawn - update enemy unit tables after brief delay
+        elseif ScenarioInfo.QAICommander and ScenarioInfo.M4P1.Active and not(tbSpecialCodeForMission[41]) then
+            tbSpecialCodeForMission[41] = true
+            --Have had a change in factions, update all unit tables
+            if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.OrderAlly='..tostring(ScenarioInfo.OrderAlly or false)..'; Time='..GetGameTimeSeconds()) end
+            ForkThread(UpdateAllRecordedUnitsFollowingTeamChange, ScenarioInfo.OrderAlly)
             --Dawn (FA Mission 2) - add redundancy so upgraidng facotires doesnt break the objective - solved via callback appraoch instead
             --[[elseif M28Utilities.IsTableEmpty(ScenarioInfo.M1P1Units) == false and not(ScenarioInfo.M1P2.Active) and ScenarioInfo.M1P1.Active then
                 --Monitor the M1P1 units and remove any that become obsolete
@@ -2558,24 +2584,32 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                         ScenarioInfo.M1P1:ManualResult(true)
                     end
                 end--]]
-            --Dawn - update enemy unit tables after brief delay
-        elseif ScenarioInfo.QAICommander and ScenarioInfo.M4P1.Active and not(tbSpecialCodeForMission[41]) then
-            tbSpecialCodeForMission[41] = true
-            --Have had a change in factions, update all unit tables
-            if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.OrderAlly='..tostring(ScenarioInfo.OrderAlly or false)..'; Time='..GetGameTimeSeconds()) end
-            ForkThread(UpdateAllRecordedUnitsFollowingTeamChange, ScenarioInfo.OrderAlly)
             --FA M6 - Fletcher changing sides
         elseif ScenarioInfo.M2P1.Active and ScenarioInfo.FletcherACU and not(tbSpecialCodeForMission[21]) then
             tbSpecialCodeForMission[21] = true
             --Have had a change in factions, update all unit tables
             if bDebugMessages == true then LOG(sFunctionRef..': Will update recorded units following fletcher changing sides, Time='..GetGameTimeSeconds()) end
             ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
-            --SC Aeon M5 - UEF changing sides
-        elseif ScenarioInfo.M2P1Obj.Active and ScenarioInfo.Ariel and ScenarioInfo.Colonies and not(tbSpecialCodeForMission[21]) then
-            tbSpecialCodeForMission[21] = true
-            --Have had a change in factions, update all unit tables
-            if bDebugMessages == true then LOG(sFunctionRef..': Will update recorded units following uef alliance changes so arti is detected, changing sides, Time='..GetGameTimeSeconds()) end
-            ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
+            --Seraphim M3 - protect QAI mainframe (as objective currently has strange way of doing this where it tracks the area rather htan the unit)
+        elseif ScenarioInfo.M4P3.Active and Target.Requirements[1].Category == categories.urc1901 and Target.Requirements[1].Area then
+
+            local ScenarioUtilities = import("/lua/sim/scenarioutilities.lua")
+            local tRect = ScenarioUtilities.AreaToRect(Target.Requirements[1].Area)
+            local tBaseAreaForRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
+            if bDebugMessages == true then LOG(sFunctionRef..': Will add QAI mainframe as a priority defence target, tRect='..repru(tRect)..';tBaseAreaForRect='..repru(tBaseAreaForRect)..'; Target.Requirements[1].Area='..(Target.Requirements[1].Area or 'nil')) end
+            local tUnitsInRect = GetUnitsInRect(tRect)
+            if bDebugMessages == true then LOG(sFunctionRef..': Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))) end
+            if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                local tQAIMainframes = EntityCategoryFilterDown(Target.Requirements[1].Category, tUnitsInRect)
+                if bDebugMessages == true then LOG(sFunctionRef..': Is tQAIMainframes empty='..tostring(M28Utilities.IsTableEmpty(tQAIMainframes))) end
+                if M28Utilities.IsTableEmpty(tQAIMainframes) == false then
+                    for iUnit, oUnit in tQAIMainframes do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as a priority air defence target') end
+                        M28Air.AddPriorityAirDefenceTarget(oUnit)
+                    end
+                end
+            end
+
             --Operation trident - dont reclaim the civilians
         elseif ScenarioInfo.M1CivilianCity and M28Utilities.IsTableEmpty(ScenarioInfo.M1CivilianCity) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': Will flag every unit in civilian city to not be a reclaim target, Time='..GetGameTimeSeconds()) end
@@ -2637,7 +2671,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
         if ScenarioInfo.AirFactory.UnitId and not(ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit]) and ScenarioInfo.AirFactory:GetBlueprint().General.UpgradesTo and ScenarioInfo.AirFactory:GetAIBrain().M28AI then
         if bDebugMessages == true then LOG(sFunctionRef..': Flagging not to upgrade unit '..ScenarioInfo.AirFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(ScenarioInfo.AirFactory.UnitId)..' as it may be an objective unit') end
         ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit] = true
-        end
+            end
     else
         if bDebugMessages == true then LOG(sFunctionRef..': No active M28 brains so aborting') end
     end
@@ -3355,7 +3389,7 @@ function SetM28ActiveFlag()
     local sFunctionRef = 'SetM28ActiveFlag'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.Options.M28CombinedArmy='..(ScenarioInfo.Options.M28CombinedArmy or 'nil')..'; Time='..GetGameTimeSeconds()) end
-    if not(M28Orders.bDontConsiderCombinedArmy == false) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 2) and not(ScenarioInfo.Options.M28CombinedArmy == 4) then
+    if not(M28Orders.bDontConsiderCombinedArmy == false) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 2) and not(ScenarioInfo.Options.M28CombinedArmy == 5) then
         M28Orders.bDontConsiderCombinedArmy = false
         M28UnitInfo.bDontConsiderCombinedArmy = false
         --Go through every human brain and treat it as an M28AI brain
@@ -3447,23 +3481,10 @@ function UEFMission2ReinforceCivilianTracker()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Is player 1 M28AI?
-    local oFirstPlayer
-    local oM28Brain
-    for iBrain, oBrain in ArmyBrains do
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; .BrainType='..(oBrain.BrainType or 'nil')..'; .M28Team='..(oBrain.M28Team or 'nil')..'; Does nickname contain M28='..tostring(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname))..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oFirstPlayer.M28Team='..(oFirstPlayer.M28Team or 'nil')) end
-        if not(oFirstPlayer) and oBrain.BrainType == 'Human' then
-            oFirstPlayer = oBrain
-            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oFirstPlayer') end
-            if oM28Brain then break end
-        end
-        if oBrain.M28AI and oBrain.BrainType == 'AI' and M28Conditions.DoesAINicknameContainM28(oBrain.Nickname) and oBrain.M28Team == oFirstPlayer.M28Team then
-            oM28Brain = oBrain
-            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oM28Brain') end
-            if oFirstPlayer then break end
-        end
-    end
-    if not(oM28Brain) and oFirstPlayer.M28AI then oM28Brain = oFirstPlayer end
-    if bDebugMessages == true then LOG(sFunctionRef..': oM28Brain='..(oM28Brain.Nickname or 'nil')..'; oFirstPlayer='..(oFirstPlayer.Nickname or 'nil')) end
+    local oM28Brain, oFirstPlayer = GetM28BrainForCampaignObjective()
+
+    if bDebugMessages == true then LOG(sFunctionRef..': oM28Brain='..(oM28Brain.Nickname or 'nil')) end
+
     if oM28Brain and oFirstPlayer then
         local rTargetRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('Civilian_Area')
         local tTargetMidpoint = {(rTargetRect['x0'] + rTargetRect['x1'])*0.5 , 0, (rTargetRect['y0'] + rTargetRect['y1'])*0.5}
@@ -3725,104 +3746,91 @@ function UEFMissionSendTruckToTarget(tTrucks, tTargetMidpoint, sScenarioObjectiv
     --sScenarioObjective - either send as text the objective reference, such that doing .Active for this will return the right answer, or if the mission does something like ScenarioInfo.M1P2Complete = true then could send the refernece 'M1P2Complete'
     --bRecheckObjectiveUnitTable - if true then will look for ScenarioInfo[sScenarioObjective].units
     --Is player 1 M28AI?
-    local oFirstPlayer
-    local oM28Brain
-    for iBrain, oBrain in ArmyBrains do
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; .BrainType='..(oBrain.BrainType or 'nil')..'; .M28Team='..(oBrain.M28Team or 'nil')..'; Does nickname contain M28='..tostring(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname))..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oFirstPlayer.M28Team='..(oFirstPlayer.M28Team or 'nil')) end
-        if not(oFirstPlayer) and oBrain.BrainType == 'Human' then
-            oFirstPlayer = oBrain
-            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oFirstPlayer') end
-            if oM28Brain then break end
+    local oM28Brain, oFirstPlayer = GetM28BrainForCampaignObjective()
+    if bDebugMessages == true then LOG(sFunctionRef..': oM28Brain='..(oM28Brain.Nickname or 'nil')) end
+    if oM28Brain and oFirstPlayer then
+        --refbCampaignSpecialLoopActive = 'M28CampActiveLoop' --against trucks part of the loop so we dont have multiple loops
+        local refbGivenTruckOrder = 'M28UEFM2TruckOrder'
+        local refiTimeLastGivenTruckMoveOrder = 'M28UEFM4TruckOrder'
+        local oFirstTruckWithoutOrder
+        for iTruck, oTruck in tTrucks do
+            if not(oTruck.Dead) and not(oTruck[refiTimeLastGivenTruckMoveOrder]) and not(oTruck[refbCampaignSpecialLoopActive]) then
+                oFirstTruckWithoutOrder = oTruck
+                break
+            end
         end
-        if oBrain.M28AI and oBrain.BrainType == 'AI' and M28Conditions.DoesAINicknameContainM28(oBrain.Nickname) and oBrain.M28Team == oFirstPlayer.M28Team then
-            oM28Brain = oBrain
-            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oM28Brain') end
-            if oFirstPlayer then break end
-        end
-    end
-    if not(oM28Brain) and oFirstPlayer.M28AI then oM28Brain = oFirstPlayer end
-    if bDebugMessages == true then LOG(sFunctionRef..': oM28Brain='..(oM28Brain.Nickname or 'nil')..'; oFirstPlayer='..(oFirstPlayer.Nickname or 'nil')) end
-    --refbCampaignSpecialLoopActive = 'M28CampActiveLoop' --against trucks part of the loop so we dont have multiple loops
-    local refbGivenTruckOrder = 'M28UEFM2TruckOrder'
-    local refiTimeLastGivenTruckMoveOrder = 'M28UEFM4TruckOrder'
-    local oFirstTruckWithoutOrder
-    for iTruck, oTruck in tTrucks do
-        if not(oTruck.Dead) and not(oTruck[refiTimeLastGivenTruckMoveOrder]) and not(oTruck[refbCampaignSpecialLoopActive]) then
-            oFirstTruckWithoutOrder = oTruck
-            break
-        end
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': oFirstTruckWithoutOrder='..(oFirstTruckWithoutOrder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstTruckWithoutOrder) or 'nil')..'; Time='..GetGameTimeSeconds()) end
-    if oFirstTruckWithoutOrder then
-        refbGivenTruckOrder = refbGivenTruckOrder..oFirstTruckWithoutOrder.EntityId
+        if bDebugMessages == true then LOG(sFunctionRef..': oFirstTruckWithoutOrder='..(oFirstTruckWithoutOrder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstTruckWithoutOrder) or 'nil')..'; Time='..GetGameTimeSeconds()) end
+        if oFirstTruckWithoutOrder then
+            refbGivenTruckOrder = refbGivenTruckOrder..oFirstTruckWithoutOrder.EntityId
 
-        if oM28Brain and oFirstPlayer and not(oM28Brain[refbGivenTruckOrder]) then
-            local iTargetPlateau, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tTargetMidpoint)
-            if iTargetPlateau and iTargetZone and iTargetPlateau > 0 then
-                local iTargetIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tTargetMidpoint)
-                if iTargetIsland then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should try giving civilian trucks an order, ScenarioInfo.M2P2.Active='..tostring(ScenarioInfo.M2P2.Active or false)..'; ScenarioInfo.M2P2Complete='..tostring(ScenarioInfo.M2P2Complete or false)) end
-                    local iTimeToCheckUntil = GetGameTimeSeconds() + (iOptionalSecondsToConsiderOverride or 90)
+            if oM28Brain and oFirstPlayer and not(oM28Brain[refbGivenTruckOrder]) then
+                local iTargetPlateau, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tTargetMidpoint)
+                if iTargetPlateau and iTargetZone and iTargetPlateau > 0 then
+                    local iTargetIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tTargetMidpoint)
+                    if iTargetIsland then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should try giving civilian trucks an order, ScenarioInfo.M2P2.Active='..tostring(ScenarioInfo.M2P2.Active or false)..'; ScenarioInfo.M2P2Complete='..tostring(ScenarioInfo.M2P2Complete or false)) end
+                        local iTimeToCheckUntil = GetGameTimeSeconds() + (iOptionalSecondsToConsiderOverride or 90)
 
 
 
-                    if M28Utilities.IsTableEmpty(tTrucks) == false then
-                        local bResetM28ActiveFlag
-                        local bTruckIncludedInPriorityDefence
-                        local iDelayBeforeReissuingIfNoSpeed = 300
-                        if oFirstPlayer.M28AI and oFirstPlayer == oM28Brain then iDelayBeforeReissuingIfNoSpeed = 120 end
-                        oM28Brain[refbGivenTruckOrder] = true
-                        local refiCyclesWhereNotMovingWithoutOrder = 'M28TruckNoOrder'
-                        for iTruck, oTruck in tTrucks do
-                            if not(oTruck.Dead) then oTruck[refbCampaignSpecialLoopActive] = true end
-                        end
-                        while GetGameTimeSeconds() < iTimeToCheckUntil and (ScenarioInfo[sScenarioObjective].Active or not(ScenarioInfo[sScenarioObjective] == true)) do
-                            if bDebugMessages == true then LOG(sFunctionRef..': Start of cycle for oFirstTruckWithoutOrder='..(oFirstTruckWithoutOrder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstTruckWithoutOrder) or 'nil')..'; size of tTrucks='..table.getn(tTrucks)) end
-                            for iCurTruck = table.getn(tTrucks), 1, -1 do
-                                local oTruck = tTrucks[iCurTruck]
-                                if oTruck.Dead then
-                                    table.remove(tTrucks, iCurTruck)
-                                else
-                                    if M28UnitInfo.IsUnitValid(oTruck) and M28UnitInfo.GetUnitSpeed(oTruck) == 0 then
-                                        oTruck[refiCyclesWhereNotMovingWithoutOrder] = (oTruck[refiCyclesWhereNotMovingWithoutOrder] or 0) + 1
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iCyclesWhereNotMovingWithoutOrder='..oTruck[refiCyclesWhereNotMovingWithoutOrder]..'; Is oTruck valid='..tostring(M28UnitInfo.IsUnitValid(oTruck))..'; oTruck='..oTruck.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTruck)..'; refiTimeLastGivenTruckMoveOrder='..(oTruck[refiTimeLastGivenTruckMoveOrder] or 'nil')..'; Time='..GetGameTimeSeconds()) end
-                                    if (oTruck[refiCyclesWhereNotMovingWithoutOrder] or 0) > 1 and ((not(oTruck[refiTimeLastGivenTruckMoveOrder]) and oTruck[refiCyclesWhereNotMovingWithoutOrder] >= 60) or oTruck.M28Active or (oTruck:GetAIBrain().M28AI and oTruck:GetAIBrain().BrainType == 'AI') or (oTruck[refiCyclesWhereNotMovingWithoutOrder] >= 180 and M28Utilities.GetDistanceBetweenPositions(oTruck:GetPosition(), tTargetMidpoint) <= 70)) then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Will give order to truck if not dead, oTruck='..oTruck.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTruck)) end
-                                        if not(oTruck.Dead) and ((not(oTruck:IsUnitState('Attached')) and (M28UnitInfo.GetUnitSpeed(oTruck) < 0.1 or (oTruck.M28Active and (not(oTruck[M28UnitInfo.refiGameTimeToResetMicroActive]) or GetGameTimeSeconds() - oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] <= 10)))) or (oTruck[refiTimeLastGivenTruckMoveOrder] and GetGameTimeSeconds() - oTruck[refiTimeLastGivenTruckMoveOrder] >= iDelayBeforeReissuingIfNoSpeed and M28UnitInfo.GetUnitSpeed(oTruck) == 0)) then
-                                            oTruck[refiCyclesWhereNotMovingWithoutOrder] = 0
-                                            --Temporarily set M28Active to true
-                                            if oFirstPlayer == oM28Brain and not(oTruck.M28Active) and not(M28Orders.bDontConsiderCombinedArmy) then
-                                                bResetM28ActiveFlag = true
-                                                oTruck.M28Active = true
-                                            end
-                                            M28Orders.IssueTrackedMove(oTruck, tTargetMidpoint, 5, false, 'CampObjMTr', true)
-                                            oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 120
-                                            oTruck[M28UnitInfo.refbSpecialMicroActive] = true
-                                            oTruck[refiTimeLastGivenTruckMoveOrder] = GetGameTimeSeconds()
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Given move order to truck') end
-                                            if bResetM28ActiveFlag then
-                                                oTruck.M28Active = false
-                                            end
-                                            bTruckIncludedInPriorityDefence = false
-                                            if not(M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam]) then
-                                                M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] = {}
-                                            else
-                                                for iRecordedTruck, oRecordedTruck in M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] do
-                                                    if oTruck == oRecordedTruck then
-                                                        bTruckIncludedInPriorityDefence = true
-                                                        break
+                        if M28Utilities.IsTableEmpty(tTrucks) == false then
+                            local bResetM28ActiveFlag
+                            local bTruckIncludedInPriorityDefence
+                            local iDelayBeforeReissuingIfNoSpeed = 300
+                            if oFirstPlayer.M28AI and oFirstPlayer == oM28Brain then iDelayBeforeReissuingIfNoSpeed = 120 end
+                            oM28Brain[refbGivenTruckOrder] = true
+                            local refiCyclesWhereNotMovingWithoutOrder = 'M28TruckNoOrder'
+                            for iTruck, oTruck in tTrucks do
+                                if not(oTruck.Dead) then oTruck[refbCampaignSpecialLoopActive] = true end
+                            end
+                            while GetGameTimeSeconds() < iTimeToCheckUntil and (ScenarioInfo[sScenarioObjective].Active or not(ScenarioInfo[sScenarioObjective] == true)) do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Start of cycle for oFirstTruckWithoutOrder='..(oFirstTruckWithoutOrder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstTruckWithoutOrder) or 'nil')..'; size of tTrucks='..table.getn(tTrucks)) end
+                                for iCurTruck = table.getn(tTrucks), 1, -1 do
+                                    local oTruck = tTrucks[iCurTruck]
+                                    if oTruck.Dead then
+                                        table.remove(tTrucks, iCurTruck)
+                                    else
+                                        if M28UnitInfo.IsUnitValid(oTruck) and M28UnitInfo.GetUnitSpeed(oTruck) == 0 then
+                                            oTruck[refiCyclesWhereNotMovingWithoutOrder] = (oTruck[refiCyclesWhereNotMovingWithoutOrder] or 0) + 1
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iCyclesWhereNotMovingWithoutOrder='..oTruck[refiCyclesWhereNotMovingWithoutOrder]..'; Is oTruck valid='..tostring(M28UnitInfo.IsUnitValid(oTruck))..'; oTruck='..oTruck.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTruck)..'; refiTimeLastGivenTruckMoveOrder='..(oTruck[refiTimeLastGivenTruckMoveOrder] or 'nil')..'; Time='..GetGameTimeSeconds()) end
+                                        if (oTruck[refiCyclesWhereNotMovingWithoutOrder] or 0) > 1 and ((not(oTruck[refiTimeLastGivenTruckMoveOrder]) and oTruck[refiCyclesWhereNotMovingWithoutOrder] >= 60) or oTruck.M28Active or (oTruck:GetAIBrain().M28AI and oTruck:GetAIBrain().BrainType == 'AI') or (oTruck[refiCyclesWhereNotMovingWithoutOrder] >= 180 and M28Utilities.GetDistanceBetweenPositions(oTruck:GetPosition(), tTargetMidpoint) <= 70)) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will give order to truck if not dead, oTruck='..oTruck.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTruck)) end
+                                            if not(oTruck.Dead) and ((not(oTruck:IsUnitState('Attached')) and (M28UnitInfo.GetUnitSpeed(oTruck) < 0.1 or (oTruck.M28Active and (not(oTruck[M28UnitInfo.refiGameTimeToResetMicroActive]) or GetGameTimeSeconds() - oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] <= 10)))) or (oTruck[refiTimeLastGivenTruckMoveOrder] and GetGameTimeSeconds() - oTruck[refiTimeLastGivenTruckMoveOrder] >= iDelayBeforeReissuingIfNoSpeed and M28UnitInfo.GetUnitSpeed(oTruck) == 0)) then
+                                                oTruck[refiCyclesWhereNotMovingWithoutOrder] = 0
+                                                --Temporarily set M28Active to true
+                                                if oFirstPlayer == oM28Brain and not(oTruck.M28Active) and not(M28Orders.bDontConsiderCombinedArmy) then
+                                                    bResetM28ActiveFlag = true
+                                                    oTruck.M28Active = true
+                                                end
+                                                M28Orders.IssueTrackedMove(oTruck, tTargetMidpoint, 5, false, 'CampObjMTr', true)
+                                                oTruck[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 120
+                                                oTruck[M28UnitInfo.refbSpecialMicroActive] = true
+                                                oTruck[refiTimeLastGivenTruckMoveOrder] = GetGameTimeSeconds()
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Given move order to truck') end
+                                                if bResetM28ActiveFlag then
+                                                    oTruck.M28Active = false
+                                                end
+                                                bTruckIncludedInPriorityDefence = false
+                                                if not(M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam]) then
+                                                    M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] = {}
+                                                else
+                                                    for iRecordedTruck, oRecordedTruck in M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam] do
+                                                        if oTruck == oRecordedTruck then
+                                                            bTruckIncludedInPriorityDefence = true
+                                                            break
+                                                        end
                                                     end
                                                 end
-                                            end
-                                            if not(bTruckIncludedInPriorityDefence) then
-                                                table.insert(oTruck, M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam])
+                                                if not(bTruckIncludedInPriorityDefence) then
+                                                    table.insert(oTruck, M28Team.tAirSubteamData[oM28Brain.M28AirSubteam][M28Team.reftACUExpAndPriorityDefenceOnSubteam])
+                                                end
                                             end
                                         end
                                     end
                                 end
+                                WaitSeconds(1)
                             end
-                            WaitSeconds(1)
                         end
                     end
                 end
@@ -3837,25 +3845,10 @@ function UEFBlackSunComponentCheckForTransport()
     local sFunctionRef = 'UEFBlackSunComponentCheckForTransport'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    
-    local oFirstPlayer
-    local oM28Brain
-    for iBrain, oBrain in ArmyBrains do
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; .BrainType='..(oBrain.BrainType or 'nil')..'; .M28Team='..(oBrain.M28Team or 'nil')..'; Does nickname contain M28='..tostring(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname))..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oFirstPlayer.M28Team='..(oFirstPlayer.M28Team or 'nil')) end
-        if not(oFirstPlayer) and oBrain.BrainType == 'Human' then
-            oFirstPlayer = oBrain
-            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oFirstPlayer') end
-            if oM28Brain then break end
-        end
-        if oBrain.M28AI and oBrain.BrainType == 'AI' and M28Conditions.DoesAINicknameContainM28(oBrain.Nickname) and oBrain.M28Team == oFirstPlayer.M28Team then
-            oM28Brain = oBrain
-            if bDebugMessages == true then LOG(sFunctionRef..': Recording as oM28Brain') end
-            if oFirstPlayer then break end
-        end
-    end
-    if not(oM28Brain) and oFirstPlayer.M28AI then oM28Brain = oFirstPlayer end
+
+    local oM28Brain, oFirstPlayer = GetM28BrainForCampaignObjective()
     local refbUEFM6Monitor = 'M28UEFM6TruckMonitor'
-    if not(oM28Brain[refbUEFM6Monitor]) and M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunComponent) then
+    if oM28Brain and not(oM28Brain[refbUEFM6Monitor]) and M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunComponent) then
         oM28Brain[refbUEFM6Monitor] = true
         local oTransportToGiveOrder
         local oComponent = ScenarioInfo.BlackSunComponent
@@ -4058,8 +4051,8 @@ function UEFBlackSunComponentCheckForTransport()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetSubsInCampaignMission(iTeam, iSubsWanted)
-    local sFunctionRef = 'GetSubsInCampaignMission'
+function GetM28BrainForCampaignObjective(bAlsoGetFirstPlayer)
+    local sFunctionRef = 'GetM28BrainForCampaignObjective'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -4078,28 +4071,93 @@ function GetSubsInCampaignMission(iTeam, iSubsWanted)
                 if bDebugMessages == true then LOG(sFunctionRef..': Recording as oM28Brain') end
                 if oFirstPlayer then break end
             end
+        elseif not(oFirstPlayer) and oBrain.BrainType == 'Human' then
+            oFirstPlayer = oBrain
+            if oM28Brain then break end
         end
     end
     if not(oM28Brain) and oFirstPlayer.M28AI then oM28Brain = oFirstPlayer end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if bAlsoGetFirstPlayer then
+        return oM28Brain, oFirstPlayer
+    else
+        return oM28Brain
+    end
+end
+
+function GetSpecificNavalCategoryInCampaignMission(iTeam, iUnitsWanted, iCategoryWanted, iSecondUnitsWanted, iSecondCategoryWanted)
+    --Will first get iCategoryWanted, then ocne have iUnitsWanted will move on to iSecondCategoryWnated if it is specified
+    local sFunctionRef = 'GetSpecificNavalCategoryInCampaignMission'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local oM28Brain = GetM28BrainForCampaignObjective()
     if oM28Brain then
         local refbSubCheckActive = 'M28M2SubCheck'
         if not(oM28Brain[refbSubCheckActive]) then
             oM28Brain[refbSubCheckActive] = true
-            local iLifetimeCountThreshold = iSubsWanted * 2
+            local iLifetimeCountThreshold = iUnitsWanted * 2
+            local iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iCategoryWanted)
+            local oPrimaryFactory
 
-
-            while oM28Brain:GetCurrentUnits(M28UnitInfo.refCategorySubmarine) < iSubsWanted and M28Conditions.GetLifetimeBuildCount(oM28Brain, M28UnitInfo.refCategorySubmarine) < iLifetimeCountThreshold do
+            while iCurUnitsOfCategory < iUnitsWanted and M28Conditions.GetLifetimeBuildCount(oM28Brain, iCategoryWanted) < iLifetimeCountThreshold do
                 local toNavalFac = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory, false, false)
                 if M28Utilities.IsTableEmpty(toNavalFac) == false then
                     for iUnit, oUnit in toNavalFac do
                         if not(oUnit[M28Factory.refsFactoryNextBlueprintOverride]) then
-                            oUnit[M28Factory.refsFactoryNextBlueprintOverride] =  M28Factory.GetBlueprintThatCanBuildOfCategory(oM28Brain, M28UnitInfo.refCategorySubmarine, oUnit, false, false, false, nil, false, nil, true)
-                            if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 then oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true end
+                            oUnit[M28Factory.refsFactoryNextBlueprintOverride] =  M28Factory.GetBlueprintThatCanBuildOfCategory(oM28Brain, iCategoryWanted, oUnit, false, false, false, nil, false, nil, true)
+                            if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 then oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true oPrimaryFactory = oUnit end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Set factory '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to build iCategoryWanted blueprint='..(oUnit[M28Factory.refsFactoryNextBlueprintOverride] or 'nil')) end
                         end
                     end
                 end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitSeconds(10)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iCategoryWanted)
+                if M28UnitInfo.IsUnitValid(oPrimaryFactory) and oPrimaryFactory:GetWorkProgress() >= 0.75 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Primary override Will increase iCurUnitsOfCategory if primary factory is almost complete, workprogress='..oPrimaryFactory:GetWorkProgress()..'; oPrimaryFactory[M28Factory.refsLastBlueprintBuilt]='..(oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] or 'nil')) end
+                    if oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] == oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] then
+                        iCurUnitsOfCategory = iCurUnitsOfCategory + 1
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering starting primary loop again, time='..GetGameTimeSeconds()..'; iCurUnitsOfCategory='..iCurUnitsOfCategory) end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Got all the primary category we want, iSecondUnitsWanted='..(iSecondUnitsWanted or 'nil')) end
+            if iSecondUnitsWanted then
+                iLifetimeCountThreshold = iSecondUnitsWanted * 2
+                iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iSecondCategoryWanted)
+                local toNavalFac = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory, false, false)
+                if M28Utilities.IsTableEmpty(toNavalFac) == false then
+                    for iUnit, oUnit in toNavalFac do
+                        oUnit[M28Factory.refsFactoryNextBlueprintOverride] = nil
+                    end
+                end
+                while iCurUnitsOfCategory < iSecondUnitsWanted and M28Conditions.GetLifetimeBuildCount(oM28Brain, iSecondCategoryWanted) < iLifetimeCountThreshold do
+                    local toNavalFac = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory, false, false)
+                    if M28Utilities.IsTableEmpty(toNavalFac) == false then
+                        for iUnit, oUnit in toNavalFac do
+                            if not(oUnit[M28Factory.refsFactoryNextBlueprintOverride]) then
+                                oUnit[M28Factory.refsFactoryNextBlueprintOverride] =  M28Factory.GetBlueprintThatCanBuildOfCategory(oM28Brain, iSecondCategoryWanted, oUnit, false, false, false, nil, false, nil, true)
+                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 then oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Set factory '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to build iSecondCategoryWanted blueprint='..(oUnit[M28Factory.refsFactoryNextBlueprintOverride] or 'nil')) end
+                            end
+                        end
+                    end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitSeconds(10)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iSecondCategoryWanted)
+                    if M28UnitInfo.IsUnitValid(oPrimaryFactory) and oPrimaryFactory:GetWorkProgress() >= 0.75 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Secondary override Will increase iCurUnitsOfCategory if primary factory is almost complete, workprogress='..oPrimaryFactory:GetWorkProgress()..'; oPrimaryFactory[M28Factory.refsLastBlueprintBuilt]='..(oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] or 'nil')) end
+                        if oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] == oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] then
+                            iCurUnitsOfCategory = iCurUnitsOfCategory + 1
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Starting secondary loop again, time='..GetGameTimeSeconds()..'; iCurUnitsOfCategory='..iCurUnitsOfCategory) end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished building all the units we want') end
             local toNavalFac = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory, false, false)
             if M28Utilities.IsTableEmpty(toNavalFac) == false then
                 for iUnit, oUnit in toNavalFac do
@@ -4123,25 +4181,7 @@ function SendACUsToCampaignObjective(sArea)
         tMidpoint[2] = GetTerrainHeight(tMidpoint[1], tMidpoint[3])
         local tM28ACUs = ScenarioInfo.PlayerCDRs
         if M28Utilities.IsTableEmpty(tM28ACUs) then
-            local oFirstPlayer
-            local oM28Brain
-            for iBrain, oBrain in ArmyBrains do
-                if oBrain.M28AI then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; .BrainType='..(oBrain.BrainType or 'nil')..'; .M28Team='..(oBrain.M28Team or 'nil')..'; Does nickname contain M28='..tostring(M28Conditions.DoesAINicknameContainM28(oBrain.Nickname))..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oFirstPlayer.M28Team='..(oFirstPlayer.M28Team or 'nil')) end
-                    if not(oFirstPlayer) and oBrain.BrainType == 'Human' then
-                        oFirstPlayer = oBrain
-                        if bDebugMessages == true then LOG(sFunctionRef..': Recording as oFirstPlayer') end
-                        if oM28Brain then break end
-                    end
-                    if oBrain.M28AI and oBrain.BrainType == 'AI' and M28Conditions.DoesAINicknameContainM28(oBrain.Nickname) and oBrain.M28Team == oFirstPlayer.M28Team then
-                        oM28Brain = oBrain
-                        if bDebugMessages == true then LOG(sFunctionRef..': Recording as oM28Brain') end
-                        if oFirstPlayer then break end
-                    end
-                end
-            end
-            if not(oM28Brain) and oFirstPlayer.M28AI then oM28Brain = oFirstPlayer end
-            if bDebugMessages == true then LOG(sFunctionRef..': oM28Brain='..(oM28Brain.Nickname or 'nil')) end
+            local oM28Brain = GetM28BrainForCampaignObjective()
             if oM28Brain then
                 tM28ACUs = M28Team.tTeamData[oM28Brain.M28Team][M28Team.reftM28ACUs]
             end
@@ -4158,6 +4198,120 @@ function SendACUsToCampaignObjective(sArea)
             end
         end
 
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function CybranM6SendCampaignACUToNearestGateway()
+    local sFunctionRef = 'SendACUsToCampaignObjective'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tM28ACUs = ScenarioInfo.PlayerCDRs
+    if M28Utilities.IsTableEmpty(tM28ACUs) then
+        local oM28Brain = GetM28BrainForCampaignObjective()
+        if oM28Brain then
+            tM28ACUs = M28Team.tTeamData[oM28Brain.M28Team][M28Team.reftM28ACUs]
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is tM28ACUs empty='..tostring(M28Utilities.IsTableEmpty(tM28ACUs))) end
+    if M28Utilities.IsTableEmpty(tM28ACUs) == false then
+        while M28Conditions.IsTableOfUnitsStillValid(tM28ACUs) do
+            --Do we have a gateway?
+            for iUnit, oUnit in tM28ACUs do
+                LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will send to gateway we own if if ScenarioInfo.M2P2.Active is true, if ScenarioInfo.M2P2.Active='..tostring(ScenarioInfo.M2P2.Active or false))
+                if ScenarioInfo.M2P2.Active then
+                    if oUnit:GetAIBrain().M28AI and not(oUnit:GetAIBrain().CampaignAI) and (oUnit.M28Active or M28Orders.bDontConsiderCombinedArmy) then
+                        local tFriendlyGateways = oUnit:GetAIBrain():GetListOfUnits(M28UnitInfo.refCategoryQuantumGateway, false, true)
+                        if tFriendlyGateways[1] then
+                            local tMidpoint = tFriendlyGateways[1]:GetPosition()
+                            oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
+                            if bDebugMessages == true then LOG(sFunctionRef..': Set ACU owned by '..oUnit:GetAIBrain().Nickname..' to have reftSpecialObjectiveMoveLocation to be the friendly gateway at time='..GetGameTimeSeconds()) end
+                        end
+                    end
+                else
+                    oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = nil
+                end
+            end
+            if not(ScenarioInfo.M2P2.Active) then
+                if bDebugMessages == true then LOG(sFunctionRef..': M2P2 no longer active so aborting loop') end
+                break
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(60)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function PeriodicallySendEngineerToCaptureTarget(oCaptureTarget, sOptionalObjectiveRef)
+    local sFunctionRef = 'PeriodicallySendEngineerToCaptureTarget'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local oM28Brain = GetM28BrainForCampaignObjective()
+    if oM28Brain then
+        local iTeam = oM28Brain.Team
+        local iTargetPlateau = oCaptureTarget[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+        local iTimeWaitedWithLastEngineer
+        --Wait 10 minutes first to give a chance to control the area
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(600)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        local toEngineersGivenOrderTo = {}
+        local iTimeToWait
+        while M28UnitInfo.IsUnitValid(oCaptureTarget) and ((sOptionalObjectiveRef and ScenarioInfo[sOptionalObjectiveRef].Active) or not(sOptionalObjectiveRef)) do
+            --Is the target free from significant enemy fortifications?
+            local tNearbyEnemies = oM28Brain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFirebaseSuitable + categories.EXPERIMENTAL, oCaptureTarget:GetPosition(), 60, 'Enemy')
+            if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyEnemies empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemies))..'; time='..GetGameTimeSeconds()) end
+            if M28Utilities.IsTableEmpty(tNearbyEnemies) then
+                iTimeWaitedWithLastEngineer = 0
+                local tFriendlyEngineers = oM28Brain:GetListOfUnits(M28UnitInfo.refCategoryEngineer, false, true)
+                if M28Utilities.IsTableEmpty(tFriendlyEngineers) == false then
+                    for iEngineer, oEngineer in tFriendlyEngineers do
+                        if not(oEngineer.Dead) and oEngineer:GetFractionComplete() == 1 and oEngineer[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iTargetPlateau and (oEngineer.M28Active or M28Orders.bDontConsiderCombinedArmy) and not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have an engineer which we will send a capture order to, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Time='..GetGameTimeSeconds()) end
+                            M28Orders.IssueTrackedCapture(oEngineer, oCaptureTarget, false, 'CamOCapt', true)
+                            M28Engineer.TrackEngineerAction(oEngineer, M28Engineer.refActionCaptureUnit, true, 1, nil, nil, false)
+                            table.insert(toEngineersGivenOrderTo, oEngineer)
+                            while M28UnitInfo.IsUnitValid(oEngineer) and M28UnitInfo.IsUnitValid(oCaptureTarget) do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dist from engineer to capture target='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oCaptureTarget:GetPosition())..'; Time='..GetGameTimeSeconds()) end
+                                oEngineer[M28UnitInfo.refbSpecialMicroActive] = true
+                                oEngineer[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + 15
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                WaitSeconds(10)
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                iTimeWaitedWithLastEngineer = iTimeWaitedWithLastEngineer + 10
+                                if iTimeWaitedWithLastEngineer >= 180 then
+                                    if M28Conditions.IsTableOfUnitsStillValid(toEngineersGivenOrderTo) and table.getn(toEngineersGivenOrderTo) >= 10 then --redundancy, cant see this scenario happening
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will stick with this engineer as we have 10 with active orders') end
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Been more than 3 minutes so will start a new cycle') end
+                                        break
+                                    end --send another incase the first dies
+                                end
+                            end
+                            iTimeToWait = math.max(10, 180 - iTimeWaitedWithLastEngineer)
+                            break
+                        end
+                    end
+                else
+                    iTimeToWait = 10
+                end
+            else
+                iTimeToWait = 10
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(iTimeToWait)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+        if M28Conditions.IsTableOfUnitsStillValid(toEngineersGivenOrderTo) then
+            for iEngineer, oEngineer in toEngineersGivenOrderTo do
+                oEngineer[M28UnitInfo.refbSpecialMicroActive] = false
+                M28Orders.IssueTrackedClearCommands(oEngineer)
+            end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

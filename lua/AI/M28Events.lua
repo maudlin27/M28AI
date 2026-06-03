@@ -2065,7 +2065,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
                 --Enable M28Active status if the engineer is active and we have set to inherit
-                if not(M28Orders.bDontConsiderCombinedArmy) and (oEngineer.M28Active or (oEngineer.Parent and oEngineer.Parent.M28Active and EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oEngineer.UnitId))) and oEngineer:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(oConstruction.M28Active) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 3) then
+                if not(M28Orders.bDontConsiderCombinedArmy) and (oEngineer.M28Active or (oEngineer.Parent and oEngineer.Parent.M28Active and EntityCategoryContains(categories.EXTERNALFACTORYUNIT, oEngineer.UnitId))) and oEngineer:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(oConstruction.M28Active) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 3) and not(tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 4) then
                     oConstruction.M28Active = true
                     oConstruction:UpdateStat('M28Active', 1)
                 end
@@ -3646,6 +3646,16 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                         M28UnitInfo.EnableLandWalkingForDestroyerOwnedByPlayer(oUnit) --for AI it seems to automatically move on land, for players it doesnt
                                     end
                                 end
+                            elseif tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 4 then
+                                --Sim city mode
+                                if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryEngineer - categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Enabled M28AI logic for the unit') end
+                                    oUnit.M28Active = true
+                                    oUnit:UpdateStat('M28Active', 1)
+                                    if oUnit.UnitId == 'urs0201' then
+                                        M28UnitInfo.EnableLandWalkingForDestroyerOwnedByPlayer(oUnit) --for AI it seems to automatically move on land, for players it doesnt
+                                    end
+                                end
                             elseif oUnit:GetFractionComplete() == 1 and oUnit.Parent and oUnit.Parent.M28Active and not(oUnit.M28Active) and oUnit:GetAIBrain().BrainType == 'Human' and tonumber(ScenarioInfo.Options.M28CAInherit or 2) == 1 and not(EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then --e.g. novax will create a 100% complete unit
                                 oUnit.M28Active = true
                                 oUnit:UpdateStat('M28Active', 1)
@@ -3655,7 +3665,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                             else
                                 oUnit:UpdateStat('M28Active', 0)
                             end
-                        elseif not(ScenarioInfo.Options.M28CombinedArmy == 4) then --if is option 4, then user wants the UI button hidden
+                        elseif not(ScenarioInfo.Options.M28CombinedArmy == 5) then --if is option 4, then user wants the UI button hidden
                             if bDebugMessages == true then LOG(sFunctionRef..': Toggling M28CombinedArmiesShowUI option') end
                             oUnit:UpdateStat('M28CombinedArmiesShowUI', 1)
                         end
