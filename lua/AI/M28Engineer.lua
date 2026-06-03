@@ -18995,7 +18995,6 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
     end
-    bDebugMessages = false
 
     --Higih priority mex if we have water zone start
     iCurPriority = iCurPriority + 1
