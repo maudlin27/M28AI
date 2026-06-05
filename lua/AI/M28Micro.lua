@@ -1770,18 +1770,41 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function MoveAwayFromFactory(oUnit, oFactory)
-    if EntityCategoryContains(categories.STRUCTURE, oFactory.UnitId) then --and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then
-        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-        local sFunctionRef = 'MoveAwayFromFactory'
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+function MoveAwayFromFactory(oUnit, oEngineerOrFactory)
+    --If mobile land has been built by an engineer, check for a factory that built it as well
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MoveAwayFromFactory'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local oFactory
+    if EntityCategoryContains(categories.STRUCTURE, oEngineerOrFactory.UnitId) then oFactory = oEngineerOrFactory
+    elseif true and GetGameTimeSeconds() >= 3660 and EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineerOrFactory.UnitId) then
+        bDebugMessages = true
+        local aiBrain = oEngineerOrFactory:GetAIBrain()
+        local toNearbyFactories = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFactory, oUnit:GetPosition(), 5, 'Ally') --tried with 4 and didnt work
+        if bDebugMessages == true then LOG(sFunctionRef..': Is toNearbyFactories empty='..tostring(M28Utilities.IsTableEmpty(toNearbyFactories))) end
+        if M28Utilities.IsTableEmpty(toNearbyFactories) == false then
+            local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+            for iNearbyFactory, oNearbyFactory in toNearbyFactories do
+                --Have issue where factory can be at say 99% completion, and an assisting engineer triggers the unit completion instead of the factory itself
+                if bDebugMessages == true then LOG(sFunctionRef..': oNearbyFactory='..oNearbyFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyFactory)..'; work progress='..oNearbyFactory:GetWorkProgress()..'; refsLastBlueprintBuilt='..(oNearbyFactory[M28Factory.refsLastBlueprintBuilt] or 'nil')) end
+                if oNearbyFactory:GetFractionComplete() == 1 and ((oNearbyFactory:GetWorkProgress() >= 0.99 and oNearbyFactory[M28Factory.refsLastBlueprintBuilt] == oUnit.UnitId) or oNearbyFactory:GetWorkProgress() == 0) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Assuming this unit was the underlying factory') end
+                    oFactory = oNearbyFactory
+                    break
+                end
+            end
+        end
+    end
+
+    if oFactory then --and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then
 
         local aiBrain = oFactory:GetAIBrain()
         if aiBrain.M28AI then --redundancy
             local iTeam = aiBrain.M28Team
             local tLZOrWZData, tLZOrWZTeamData
             local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': Near start, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Time='..GetGameTimeSeconds()) end
             if iLZOrWZ > 0 then
                 if iPlateauOrZero == 0 then
                     tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
@@ -1794,7 +1817,6 @@ function MoveAwayFromFactory(oUnit, oFactory)
                     local iFactorySize = M28UnitInfo.GetBuildingSize(oFactory.UnitId)
                     local tOrderPosition = M28Utilities.MoveInDirection(oFactory:GetPosition(), M28Utilities.GetAngleFromAToB(oFactory:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestEnemyBase]), iFactorySize + 2, true, false, true)
                     --If dealing with land fac then rotate engineer
-                    local bLandFacRotatedEngineer = false
                     if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                         local iAngleToDestination = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tOrderPosition)
                         if oUnit.SetRotation then oUnit:SetRotation(iAngleToDestination) end
@@ -1805,6 +1827,10 @@ function MoveAwayFromFactory(oUnit, oFactory)
                         end
                     end
                     M28Orders.IssueTrackedMove(oUnit, tOrderPosition, 0, false, 'JustBuilt', true)
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Just told unit to move to tOrderPosition, will draw in blue')
+                        M28Utilities.DrawLocation(tOrderPosition)
+                    end
                     local iMicroDelay = 1.5
                     if EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oFactory.UnitId) then iMicroDelay = 4 --done as when was 1.5 would have RAS SACUs given new orders like GE template just after being built and getting stuck
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and EntityCategoryContains(M28UnitInfo.categories.TECH3 * M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) then iMicroDelay = 4
@@ -1815,8 +1841,8 @@ function MoveAwayFromFactory(oUnit, oFactory)
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' built from factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time='..GetGameTimeSeconds()) end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function DelayedUnitMove(oUnit, tMoveDirection, iMoveThreshold, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder, iSecondsToWait)

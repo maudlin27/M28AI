@@ -4883,7 +4883,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                     end
                                                 end
                                                 if not(bReclaimingNearbyCivilianWalls) then
-                                                    if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oNearestReclaimableEnemy.UnitId) and iNearestReclaimableEnemy <= iDistanceUntilInRange then
+                                                    if oNearestReclaimableEnemy:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oNearestReclaimableEnemy.UnitId) and iNearestReclaimableEnemy <= iDistanceUntilInRange then
                                                         M28Orders.IssueTrackedCapture(oEngineer, oNearestReclaimableEnemy, false, 'CapT1Mx', false)
                                                     else
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Will try and reclaim oNearestReclaimableEnemy='..oNearestReclaimableEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy)) end
@@ -13482,6 +13482,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
+    bDebugMessages = false
 
     --Units needing air staging
     iCurPriority = iCurPriority + 1
@@ -15316,6 +15317,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
+    bDebugMessages = false
 
     --1 T3 mass fab if not defending against T3 arti and have lots of t3 mexes; or quantum gateway if enemy having them
     iCurPriority = iCurPriority + 1

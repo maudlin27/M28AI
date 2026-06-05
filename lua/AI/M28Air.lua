@@ -5224,138 +5224,139 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                 AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets, iTeam, iAirSubteam, tExistingThreatAssignedByUnitRef, true)
                             end
 
+                        end
 
 
-                            --If still have available air send them to the support location (unless they could do with a fuel or health top-up); if theyre already there and have low mass consider ctrl-king inties
-                            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering AirAA targets for all land and water zones, is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; Is air rally outside playable area='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea])) end
-                            if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
-                                M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAirAAForCoreEnemies] = false
-                                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] then
-                                    --First check for enemy units near the revised rally point instead
-                                    local aiBrain
-                                    for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
-                                        if oBrain.M28AI then aiBrain = oBrain break end
-                                    end
-                                    local tEnemiesNearRally = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryAllAir, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 150, 'Enemy')
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemiesNearRally empty for backup given outside playable area='..tostring( M28Utilities.IsTableEmpty(tEnemiesNearRally))) end
-                                    if M28Utilities.IsTableEmpty(tEnemiesNearRally) == false then
-                                        AssignAirAATargets(tAvailableAirAA, tEnemiesNearRally, iTeam, iAirSubteam, tExistingThreatAssignedByUnitRef)
-                                    end
 
+                        --If still have available air send them to the support location (unless they could do with a fuel or health top-up); if theyre already there and have low mass consider ctrl-king inties
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering AirAA targets for all land and water zones, is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; Is air rally outside playable area='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea])) end
+                        if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
+                            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAirAAForCoreEnemies] = false
+                            if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] then
+                                --First check for enemy units near the revised rally point instead
+                                local aiBrain
+                                for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+                                    if oBrain.M28AI then aiBrain = oBrain break end
                                 end
-                                if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
-                                    --Alternate where on the move point we will gather at, to try and make it more likely asfs will be facing the same direction when idling
-                                    local iAngleAdjust = (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastAirAASupportPointAngleAdjust] or 0) + 15
-                                    if iAngleAdjust >= 360 then iAngleAdjust = iAngleAdjust - 360 end
-                                    M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastAirAASupportPointAngleAdjust] = iAngleAdjust
-                                    local iDistToMove = 20 --asf max speed is 22
-                                    local tMovePoint = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iAngleAdjust, iDistToMove, true, false, M28Map.bIsCampaignMap)
-                                    if bDebugMessages == true and tMovePoint[1] > 10000 then LOG(sFunctionRef..': tMovePoint='..repru(tMovePoint)..'; reftAirSubSupportPoint='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; iAngleAdjust='..iAngleAdjust..'; iDistToMove='..iDistToMove..'; Time='..GetGameTimeSeconds()) end
+                                local tEnemiesNearRally = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryAllAir, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 150, 'Enemy')
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemiesNearRally empty for backup given outside playable area='..tostring( M28Utilities.IsTableEmpty(tEnemiesNearRally))) end
+                                if M28Utilities.IsTableEmpty(tEnemiesNearRally) == false then
+                                    AssignAirAATargets(tAvailableAirAA, tEnemiesNearRally, iTeam, iAirSubteam, tExistingThreatAssignedByUnitRef)
+                                end
+
+                            end
+                            if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
+                                --Alternate where on the move point we will gather at, to try and make it more likely asfs will be facing the same direction when idling
+                                local iAngleAdjust = (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastAirAASupportPointAngleAdjust] or 0) + 15
+                                if iAngleAdjust >= 360 then iAngleAdjust = iAngleAdjust - 360 end
+                                M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastAirAASupportPointAngleAdjust] = iAngleAdjust
+                                local iDistToMove = 20 --asf max speed is 22
+                                local tMovePoint = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], iAngleAdjust, iDistToMove, true, false, M28Map.bIsCampaignMap)
+                                if bDebugMessages == true and tMovePoint[1] > 10000 then LOG(sFunctionRef..': tMovePoint='..repru(tMovePoint)..'; reftAirSubSupportPoint='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; iAngleAdjust='..iAngleAdjust..'; iDistToMove='..iDistToMove..'; Time='..GetGameTimeSeconds()) end
+                                if M28Utilities.IsTableEmpty(tMovePoint) then
+                                    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) == false then tMovePoint = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][1],M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][2],M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][3]} end
                                     if M28Utilities.IsTableEmpty(tMovePoint) then
-                                        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) == false then tMovePoint = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][1],M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][2],M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][3]} end
-                                        if M28Utilities.IsTableEmpty(tMovePoint) then
-                                            M28Utilities.ErrorHandler('Have invalid move point due to no air support point, will try startp osition instead')
-                                            tMovePoint = M28Map.GetPlayerStartPosition(M28Team.GetFirstActiveM28Brain(iTeam), false)
+                                        M28Utilities.ErrorHandler('Have invalid move point due to no air support point, will try startp osition instead')
+                                        tMovePoint = M28Map.GetPlayerStartPosition(M28Team.GetFirstActiveM28Brain(iTeam), false)
+                                    end
+                                end
+
+                                local bConsiderCtrlKOfInties = false
+                                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and iAvailableAndInCombatAirAAThreat >= 1750 and M28Conditions.TeamHasLowMass(iTeam) and M28Utilities.IsTableEmpty(tMovePoint) == false and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tMovePoint)) then
+                                    local tInties = EntityCategoryFilterDown(categories.TECH1, tAvailableAirAA)
+                                    if M28Utilities.IsTableEmpty(tInties) == false then
+                                        local tASFs = EntityCategoryFilterDown(categories.TECH3, tAvailableAirAA)
+                                        if M28Utilities.IsTableEmpty(tASFs) == false and table.getn(tASFs) >= 6 then
+                                            bConsiderCtrlKOfInties = true
                                         end
                                     end
+                                end
+                                local iIdleAirAACount = 0
+                                local iDistToReissueMoveOrder = 10
+                                if M28Conditions.IsAirMoveLocationSafeToIdle(tMovePoint, iTeam, true) then iDistToReissueMoveOrder = 60 end
 
-                                    local bConsiderCtrlKOfInties = false
-                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and iAvailableAndInCombatAirAAThreat >= 1750 and M28Conditions.TeamHasLowMass(iTeam) and M28Utilities.IsTableEmpty(tMovePoint) == false and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tMovePoint)) then
-                                        local tInties = EntityCategoryFilterDown(categories.TECH1, tAvailableAirAA)
-                                        if M28Utilities.IsTableEmpty(tInties) == false then
-                                            local tASFs = EntityCategoryFilterDown(categories.TECH3, tAvailableAirAA)
-                                            if M28Utilities.IsTableEmpty(tASFs) == false and table.getn(tASFs) >= 6 then
-                                                bConsiderCtrlKOfInties = true
+                                for iUnit, oUnit in tAvailableAirAA do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bConsiderCtrlKOfInties='..tostring(bConsiderCtrlKOfInties)..'; oUnit.Dead='..tostring(oUnit.Dead or false)) end
+                                    if not(oUnit.Dead) then --redundancy
+                                        if bConsiderCtrlKOfInties and EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
+                                            bConsiderCtrlKOfInties = false
+                                            local bMoveUnitToRally = false
+                                            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMovePoint) >= 10 then
+                                                local tUnitZoneData, tUnitTeamZoneData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                                if not(tUnitTeamZoneData[M28Map.subrefLZbCoreBase]) then bMoveUnitToRally = true end
                                             end
-                                        end
-                                    end
-                                    local iIdleAirAACount = 0
-                                    local iDistToReissueMoveOrder = 10
-                                    if M28Conditions.IsAirMoveLocationSafeToIdle(tMovePoint, iTeam, true) then iDistToReissueMoveOrder = 60 end
-
-                                    for iUnit, oUnit in tAvailableAirAA do
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bConsiderCtrlKOfInties='..tostring(bConsiderCtrlKOfInties)..'; oUnit.Dead='..tostring(oUnit.Dead or false)) end
-                                        if not(oUnit.Dead) then --redundancy
-                                            if bConsiderCtrlKOfInties and EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
-                                                bConsiderCtrlKOfInties = false
-                                                local bMoveUnitToRally = false
-                                                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMovePoint) >= 10 then
-                                                    local tUnitZoneData, tUnitTeamZoneData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                                                    if not(tUnitTeamZoneData[M28Map.subrefLZbCoreBase]) then bMoveUnitToRally = true end
-                                                end
-                                                if bMoveUnitToRally or oUnit[M28UnitInfo.refbCampaignTriggerAdded] then
-                                                    M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'AACtrlKI', false)
-                                                else
-                                                    ForkThread(M28Micro.MoveAndKillAirUnit,oUnit)
-                                                    --M28Orders.IssueTrackedKillUnit(oUnit)
-                                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs]) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryAirAA * categories.TECH3) > 0 then
-                                                        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs] = true
-                                                    end
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': CtrlKing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                                                end
-                                            elseif ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
-                                                table.insert(tAirForRefueling, oUnit)
+                                            if bMoveUnitToRally or oUnit[M28UnitInfo.refbCampaignTriggerAdded] then
+                                                M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'AACtrlKI', false)
                                             else
-                                                if M28Utilities.IsTableEmpty(tMovePoint) == false then
-                                                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMovePoint) <= iDistToReissueMoveOrder and oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], tMovePoint) <= iDistToReissueMoveOrder then
-                                                        --Do nothing - idle on ground
-                                                    else
-                                                        M28Orders.IssueTrackedMove(oUnit, tMovePoint, iDistToReissueMoveOrder, false, 'AAIdle', false)
+                                                ForkThread(M28Micro.MoveAndKillAirUnit,oUnit)
+                                                --M28Orders.IssueTrackedKillUnit(oUnit)
+                                                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs]) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryAirAA * categories.TECH3) > 0 then
+                                                    M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs] = true
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': CtrlKing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                            end
+                                        elseif ((oUnit:GetFuelRatio() < 0.6 and oUnit:GetFuelRatio() >= 0) or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                                            table.insert(tAirForRefueling, oUnit)
+                                        else
+                                            if M28Utilities.IsTableEmpty(tMovePoint) == false then
+                                                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMovePoint) <= iDistToReissueMoveOrder and oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition], tMovePoint) <= iDistToReissueMoveOrder then
+                                                    --Do nothing - idle on ground
+                                                else
+                                                    M28Orders.IssueTrackedMove(oUnit, tMovePoint, iDistToReissueMoveOrder, false, 'AAIdle', false)
+                                                end
+                                                iIdleAirAACount = iIdleAirAACount + 1
+                                            end
+                                        end
+                                    elseif bDebugMessages == true then LOG(sFunctionRef..': Air unit appears to be dead?')
+                                    end
+                                end
+                                if iIdleAirAACount >= 30 and iAvailableAndInCombatAirAAThreat >= 12000 and ScenarioInfo.Options.M28Teammate == 1 then
+                                    --Consider gifting ASFs to a teammate if we haven't considered recently; only gift if they have more asfs than we do, and we lack air control
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Time since we last considered gifting asf to a teammate for airsubteam '..iAirSubteam..'='..(GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiTimeLastConsideredGiftingASFToAlly] or -100))) end
+                                    if GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiTimeLastConsideredGiftingASFToAlly] or -100) >= 30 then
+                                        M28Team.tAirSubteamData[iAirSubteam][M28Team.refiTimeLastConsideredGiftingASFToAlly] = GetGameTimeSeconds()
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; Table of friendly human and ai brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]))..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; iAvailableAndInCombatAirAAThreat='..iAvailableAndInCombatAirAAThreat) end
+                                        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+                                            local iHumanHighestAirAAThreat = 0
+                                            local oHumanHighestAirAAThreat
+                                            local iAllTeamAirAAThreat = 0
+                                            local iCurAirAAThreat = 0
+                                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                                                if not(oBrain.M28AI) and (oBrain.Human or (not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain)))) then
+                                                    iCurAirAAThreat = M28UnitInfo.GetMassCostOfUnits(oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3, false, true))
+                                                    iAllTeamAirAAThreat = iAllTeamAirAAThreat + iCurAirAAThreat
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering human '..oBrain.Nickname..'; iCurAirAAThreat='..iCurAirAAThreat..'; iAllTeamAirAAThreat='..iAllTeamAirAAThreat) end
+                                                    if iCurAirAAThreat > iHumanHighestAirAAThreat then
+                                                        iHumanHighestAirAAThreat = iCurAirAAThreat
+                                                        oHumanHighestAirAAThreat = oBrain
                                                     end
-                                                    iIdleAirAACount = iIdleAirAACount + 1
                                                 end
                                             end
-                                        elseif bDebugMessages == true then LOG(sFunctionRef..': Air unit appears to be dead?')
-                                        end
-                                    end
-                                    if iIdleAirAACount >= 30 and iAvailableAndInCombatAirAAThreat >= 12000 and ScenarioInfo.Options.M28Teammate == 1 then
-                                        --Consider gifting ASFs to a teammate if we haven't considered recently; only gift if they have more asfs than we do, and we lack air control
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Time since we last considered gifting asf to a teammate for airsubteam '..iAirSubteam..'='..(GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiTimeLastConsideredGiftingASFToAlly] or -100))) end
-                                        if GetGameTimeSeconds() - (M28Team.tAirSubteamData[iAirSubteam][M28Team.refiTimeLastConsideredGiftingASFToAlly] or -100) >= 30 then
-                                            M28Team.tAirSubteamData[iAirSubteam][M28Team.refiTimeLastConsideredGiftingASFToAlly] = GetGameTimeSeconds()
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; Table of friendly human and ai brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]))..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; iAvailableAndInCombatAirAAThreat='..iAvailableAndInCombatAirAAThreat) end
-                                            if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
-                                                local iHumanHighestAirAAThreat = 0
-                                                local oHumanHighestAirAAThreat
-                                                local iAllTeamAirAAThreat = 0
-                                                local iCurAirAAThreat = 0
-                                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
-                                                    if not(oBrain.M28AI) and (oBrain.Human or (not(oBrain.BrainType == 'AI') and not(M28Conditions.IsCivilianBrain(oBrain)))) then
-                                                        iCurAirAAThreat = M28UnitInfo.GetMassCostOfUnits(oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3, false, true))
-                                                        iAllTeamAirAAThreat = iAllTeamAirAAThreat + iCurAirAAThreat
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering human '..oBrain.Nickname..'; iCurAirAAThreat='..iCurAirAAThreat..'; iAllTeamAirAAThreat='..iAllTeamAirAAThreat) end
-                                                        if iCurAirAAThreat > iHumanHighestAirAAThreat then
-                                                            iHumanHighestAirAAThreat = iCurAirAAThreat
-                                                            oHumanHighestAirAAThreat = oBrain
+                                            if iHumanHighestAirAAThreat >= math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 1.3, 15000) then
+                                                --Want to gift some of our ASF to teammate
+                                                local tOurASFs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirAA *  categories.TECH3, tAvailableAirAA)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of our available asfs empty='..tostring(M28Utilities.IsTableEmpty(tOurASFs))) end
+                                                if M28Utilities.IsTableEmpty(tOurASFs) == false then
+                                                    local toUnitsToConsiderGifting = {}
+                                                    local iASFCount = 0
+                                                    for iASF, oASF in tOurASFs do
+                                                        if oASF[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and not(oASF[M28UnitInfo.refbSpecialMicroActive]) and (M28Orders.bDontConsiderCombinedArmy or oASF.M28Active) then
+                                                            iASFCount = iASFCount + 1
+                                                            table.insert(toUnitsToConsiderGifting, oASF)
                                                         end
                                                     end
-                                                end
-                                                if iHumanHighestAirAAThreat >= math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 1.3, 15000) then
-                                                    --Want to gift some of our ASF to teammate
-                                                    local tOurASFs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirAA *  categories.TECH3, tAvailableAirAA)
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of our available asfs empty='..tostring(M28Utilities.IsTableEmpty(tOurASFs))) end
-                                                    if M28Utilities.IsTableEmpty(tOurASFs) == false then
-                                                        local toUnitsToConsiderGifting = {}
-                                                        local iASFCount = 0
-                                                        for iASF, oASF in tOurASFs do
-                                                            if oASF[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and not(oASF[M28UnitInfo.refbSpecialMicroActive]) and (M28Orders.bDontConsiderCombinedArmy or oASF.M28Active) then
-                                                                iASFCount = iASFCount + 1
-                                                                table.insert(toUnitsToConsiderGifting, oASF)
-                                                            end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': iASFCount='..iASFCount) end
+                                                    if iASFCount >= 30 then
+                                                        local toASFToGive = {}
+                                                        local iASFToGive = iASFCount - iMinimumASFCountPostGifting
+                                                        for iASF, oASF in toUnitsToConsiderGifting do
+                                                            table.insert(toASFToGive, oASF)
+                                                            if iASF >= iASFToGive then break end
                                                         end
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': iASFCount='..iASFCount) end
-                                                        if iASFCount >= 30 then
-                                                            local toASFToGive = {}
-                                                            local iASFToGive = iASFCount - iMinimumASFCountPostGifting
-                                                            for iASF, oASF in toUnitsToConsiderGifting do
-                                                                table.insert(toASFToGive, oASF)
-                                                                if iASF >= iASFToGive then break end
-                                                            end
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': Transferring '..iASFToGive..' to player '..oHumanHighestAirAAThreat.Nickname) end
-                                                            M28Chat.SendMessage(toUnitsToConsiderGifting[1]:GetAIBrain(), 'GiveASFs', 'We should combine our air forces to maintain air control, I\'ve just transferred '..iASFToGive..' of my fighters to you '..oHumanHighestAirAAThreat.Nickname..', I trust you\'ll keep the skies clear of hostiles', 0.1, 900, true, true)
-                                                            M28Team.TransferUnitsToPlayer(toASFToGive, oHumanHighestAirAAThreat:GetArmyIndex())
-                                                            M28Team.tAirSubteamData[iAirSubteam][M28Team.refoLastHumanGiftedASFs] = oHumanHighestAirAAThreat
-                                                        end
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Transferring '..iASFToGive..' to player '..oHumanHighestAirAAThreat.Nickname) end
+                                                        M28Chat.SendMessage(toUnitsToConsiderGifting[1]:GetAIBrain(), 'GiveASFs', 'We should combine our air forces to maintain air control, I\'ve just transferred '..iASFToGive..' of my fighters to you '..oHumanHighestAirAAThreat.Nickname..', I trust you\'ll keep the skies clear of hostiles', 0.1, 900, true, true)
+                                                        M28Team.TransferUnitsToPlayer(toASFToGive, oHumanHighestAirAAThreat:GetArmyIndex())
+                                                        M28Team.tAirSubteamData[iAirSubteam][M28Team.refoLastHumanGiftedASFs] = oHumanHighestAirAAThreat
                                                     end
                                                 end
                                             end

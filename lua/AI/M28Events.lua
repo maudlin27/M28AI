@@ -3145,6 +3145,7 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                     --Mobile land units - give a micro move order so they dont block the factory
                     if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oJustBuilt.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Telling oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' to move away from factory '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)) end
                         ForkThread(M28Micro.MoveAwayFromFactory, oJustBuilt, oEngineer)
                     end
 
