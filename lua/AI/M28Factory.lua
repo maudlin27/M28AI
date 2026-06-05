@@ -46,7 +46,7 @@ reftsFactoryEnhancementPreferences = 'M28FaPref' --false if no enhancements avai
 refsFactoryNextBlueprintOverride = 'M28FaOvrd' --If this is set, the factory will build this unit in place of normal logic
 
 --Variables against units (generally):
-refiTimeOfLastFacBlockOrder = 'M28FacBlkO' --Gametimeseconds that a unit was told to move (to try and unblock a factory)
+refiTimeOfLastFacBlockOrder = 'M28FacBlkO' --Gametimeseconds that a unit was told to move (to try and unblock a factory), or that a factory checked for blocking units
 
 --Variables against brain
 refiHighestFactoryBuildCount = 'M28FacBrTotBC' --against aiBrain, Highest build count of a factory
@@ -3290,31 +3290,55 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Consider getting raider if not assigned any in a while, number of raiders under construction='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryRaider, false, false)..'; subrefiCurRaidingZoneTarget='..(tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 'nil')..'; is reftRaiderSubtable nil='..tostring(tLZTeamData[M28Map.reftRaiderSubtable] == nil)..'; subrefiTimeSinceLastConstructedRaiderAssignment='..GetGameTimeSeconds() - (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment] or 0)..'; subrefiActiveRaidersCreatedByThisZone='..(tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0)) end
         if ((tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 0) > 0 or (GetGameTimeSeconds() >= 360 and not(tLZTeamData[M28Map.reftRaiderSubtable]) and oFactory[refiTotalBuildCount] >= 8 and GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastCheckedForZoneToTarget] or 0) >= 100 * iFactoryTechLevel)) and (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0) < 2 and GetGameTimeSeconds() - (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiTimeSinceLastConstructedRaiderAssignment] or 0) >= 60 then
+            --Check we are on same island as enemy base, or there are enemies on this plateau
+            local bHaveEnemiesToAttack = false
+            if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] then
+                bHaveEnemiesToAttack = true
+            elseif M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false and M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones]) == false then
+                for iIsland, tLandZonesInIsland in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones] do
+                    --Only consider islands with mexes (for performance reasons)
+                    if iIsland == tLZData[M28Map.subrefLZIslandRef] then
+                        --Get the land zone in this island that is closest to our current land zone
+                        for iEntry, iIslandLZ in tLandZonesInIsland do
+                            local tOtherIslandLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam]
+                            if tOtherIslandLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] then
+                                bHaveEnemiesToAttack = true
+                                break
+                            end
+                        end
+                        if bHaveEnemiesToAttack then break end
+                    end
+                end
+            end
+            if true and GetGameTimeSeconds() <= 630 then bHaveEnemiesToAttack = true end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to build raiders, bHaveEnemiesToAttack='..tostring(bHaveEnemiesToAttack)) end
             --Get raider unless already have 2+ raiders being built
-            local iCurRaidersBeingBuiltOrAssigned = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryRaider, false, false) + (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0)
-            if iCurRaidersBeingBuiltOrAssigned < 2 or (iFactoryTechLevel == 1 and iCurRaidersBeingBuiltOrAssigned < 3) then
-                --Check for other zones also targeting this, and see how many they have built or assigned
-                if tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] then
-                    local tTargetRaidingZoneLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]][M28Map.subrefLZTeamData][iTeam]
-                    if M28Utilities.IsTableEmpty(tTargetRaidingZoneLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids]) == false then
-                        for _, iOtherBaseZone in tTargetRaidingZoneLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids] do
-                            if not(iOtherBaseZone == iLandZone) then
-                                local tOtherLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherBaseZone][M28Map.subrefLZTeamData][iTeam]
-                                if bDebugMessages == true then LOG(sFunctionRef..': This zone current raiding zone target='..tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]..'; considering iOtherBaseZone='..iOtherBaseZone..'; iOtherBaseZone subrefiCurRaidingZoneTarget='..(tOtherLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 'nil')..';  Number of raiders built by iOtherBaseZone='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tOtherLZTeamData, M28UnitInfo.refCategoryRaider, false, false)..'; subrefiActiveRaidersCreatedByThisZone for otherzone='..(tOtherLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0)) end
-                                iCurRaidersBeingBuiltOrAssigned = iCurRaidersBeingBuiltOrAssigned + (tOtherLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0)
-                                if iCurRaidersBeingBuiltOrAssigned >= 3 then
-                                    break
-                                else
-                                    iCurRaidersBeingBuiltOrAssigned = iCurRaidersBeingBuiltOrAssigned + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tOtherLZTeamData, M28UnitInfo.refCategoryRaider, false, false)
+            if bHaveEnemiesToAttack then
+                local iCurRaidersBeingBuiltOrAssigned = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryRaider, false, false) + (tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0)
+                if iCurRaidersBeingBuiltOrAssigned < 2 or (iFactoryTechLevel == 1 and iCurRaidersBeingBuiltOrAssigned < 3) then
+                    --Check for other zones also targeting this, and see how many they have built or assigned
+                    if tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] then
+                        local tTargetRaidingZoneLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]][M28Map.subrefLZTeamData][iTeam]
+                        if M28Utilities.IsTableEmpty(tTargetRaidingZoneLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids]) == false then
+                            for _, iOtherBaseZone in tTargetRaidingZoneLZTeamData[M28Map.reftRaiderSubtable][M28Map.subreftiZonesTargetingThisForRaids] do
+                                if not(iOtherBaseZone == iLandZone) then
+                                    local tOtherLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherBaseZone][M28Map.subrefLZTeamData][iTeam]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': This zone current raiding zone target='..tLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget]..'; considering iOtherBaseZone='..iOtherBaseZone..'; iOtherBaseZone subrefiCurRaidingZoneTarget='..(tOtherLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiCurRaidingZoneTarget] or 'nil')..';  Number of raiders built by iOtherBaseZone='..M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tOtherLZTeamData, M28UnitInfo.refCategoryRaider, false, false)..'; subrefiActiveRaidersCreatedByThisZone for otherzone='..(tOtherLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0)) end
+                                    iCurRaidersBeingBuiltOrAssigned = iCurRaidersBeingBuiltOrAssigned + (tOtherLZTeamData[M28Map.reftRaiderSubtable][M28Map.subrefiActiveRaidersCreatedByThisZone] or 0)
+                                    if iCurRaidersBeingBuiltOrAssigned >= 3 then
+                                        break
+                                    else
+                                        iCurRaidersBeingBuiltOrAssigned = iCurRaidersBeingBuiltOrAssigned + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tOtherLZTeamData, M28UnitInfo.refCategoryRaider, false, false)
+                                    end
                                 end
                             end
                         end
                     end
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurRaidersBeingBuiltOrAssigned after considering other zones with common target='..iCurRaidersBeingBuiltOrAssigned) end
-                if iCurRaidersBeingBuiltOrAssigned < 3 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will build a raider') end
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryRaider) then return sBPIDToBuild end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurRaidersBeingBuiltOrAssigned after considering other zones with common target='..iCurRaidersBeingBuiltOrAssigned) end
+                    if iCurRaidersBeingBuiltOrAssigned < 3 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will build a raider') end
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryRaider) then return sBPIDToBuild end
+                    end
                 end
             end
         end
@@ -3434,6 +3458,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     iEngisWanted = math.max(2, iEngisWanted * 0.5)
                     if bDebugMessages == true then LOG(sFunctionRef..': Limiting engis wanted to 2 or half of normal as not a core base') end
                 end
+            elseif bHaveLowMass and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 0) <= 10 and tLZData[M28Map.subrefTotalSignificantMassReclaim] < 50 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Recently stalled so reducing engis wanted') end
+                iEngisWanted = 2
             end
             if M28Utilities.bLoudModActive or M28Utilities.bQuietModActive then
                 if bHaveLowMass then iEngisWanted = iEngisWanted * 0.6
@@ -4040,7 +4067,14 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if M28Map.subrefLZSValue >= 1000 then iThreatFactor = iThreatFactor * 1.5 end
             if tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then iThreatFactor = iThreatFactor * 2 end
             if tLZData[M28Map.subrefLZOrWZMexCount] >= 4 then iThreatFactor = iThreatFactor * 2 end
-
+            if bHaveLowMass then
+                if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iThreatFactor = iThreatFactor * 0.4
+                elseif GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] <= 6 then
+                    iThreatFactor = iThreatFactor * 0.5
+                else
+                    iThreatFactor = iThreatFactor * 0.9
+                end
+            end
 
             if not(iThreatFactor == 1) then
                 iFriendlyDFThreatWanted = iFriendlyDFThreatWanted * iThreatFactor
@@ -4080,7 +4114,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if iNearbyDFThreat < iFriendlyDFThreatWanted or iNearbyIFThreat < iFriendlyIFThreatWanted or iNearbyGroundAAThreat < iFriendlyAAThreatWanted then
                     if bDebugMessages == true then LOG(sFunctionRef..': Will get basic level of combat threat as are on an island') end
                     --Get a couple of each type first:
-                    if iNearbyDFThreat < 100 then
+                    if iNearbyDFThreat < math.min(iFriendlyDFThreatWanted, 100) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Want land combat as low nearby DF threat') end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.DIRECTFIRE) then return sBPIDToBuild end
                     end
@@ -4088,7 +4122,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         if bDebugMessages == true then LOG(sFunctionRef..': Want AA as low AA threat') end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA) then return sBPIDToBuild end
                     end
-                    if iNearbyIFThreat < 50 then
+                    if iNearbyIFThreat < math.min(iFriendlyIFThreatWanted, 50) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Want indirect threat') end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
                     end
@@ -4140,7 +4174,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if tLZTeamData[M28Map.subrefTbWantBP] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.01 and ((bHaveHighestLZTech and (not(M28Map.bIsLowMexMap) or not(bHaveLowMass))) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.4 and tLZTeamData[M28Map.subrefLZbCoreBase])) then
             if not((M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and bHaveLowMass) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will get an engi unless have lots in this zone already, GetEngiCountInZone='..GetEngiCountInZone()) end
-                if tLZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refiTotalBuildCount] < 5 or GetEngiCountInZone() < 10 or tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount] >= 7 then
+                if tLZTeamData[M28Map.subrefLZbCoreBase] or oFactory[refiTotalBuildCount] < 5 or ((not(bHaveLowMass) or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or 0) > 10 or tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 50)) and (GetEngiCountInZone() < 10 or tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount] >= 7) then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
                         return sBPIDToBuild
                     end
@@ -4484,7 +4518,7 @@ function MovePotentialBlockingUnitsFromFactory(oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local aiBrain = oFactory:GetAIBrain()
-
+    if not(EntityCategoryContains(categories.MOBILE, oFactory.UnitId)) then oFactory[refiTimeOfLastFacBlockOrder] = math.floor(GetGameTimeSeconds()) end
     local rRect = M28Utilities.GetRectAroundLocation(oFactory:GetPosition(), M28UnitInfo.GetBuildingSize(oFactory.UnitId) * 0.5 - 0.2)
     local tUnitsInRect = GetUnitsInRect(rRect)
     if bDebugMessages == true then LOG(sFunctionRef..': Factory doesnt seem to have been trying to build something for a long time for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' owned by brain '..oFactory:GetAIBrain().Nickname..'; so will check for units nearby that arent attached, are complete, and are blocking it. Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))..'; Team='..aiBrain.M28Team..'; Time='..GetGameTimeSeconds()) end
@@ -4579,6 +4613,8 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
 
 
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; M28BuilderCheckActive='..tostring(oFactory['M28BuilderCheckActive'] or false)..'; time='..GetGameTimeSeconds()) end
+
     if not (oFactory['M28BuilderCheckActive']) then
         oFactory['M28BuilderCheckActive'] = true
         local iTicksWaited = 0
@@ -4626,11 +4662,15 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                 --(naval factories can take longer for larger units to move away, e.g. aircraft carriers)
                 if iTicksWaited >= 200 and (iTicksWaited >= 400 or not(EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId))) then
                     --Only display warning if dealing with a conventional factory (since most of the time other factories will want to be building)
+                    bDebugMessages = true
                     if not(oFactory:GetAIBrain()[M28Overseer.refbCloseToUnitCap]) then
                         M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
                         if bDebugMessages == true then
                             local oFacBrain = oFactory:GetAIBrain()
-                            LOG(sFunctionRef..': refiOurHighestAirFactoryTech='..oFacBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Our highest land fac tech='..oFacBrain[M28Economy.refiOurHighestLandFactoryTech]..'; refiOurHighestNavalFactoryTech='..oFacBrain[M28Economy.refiOurHighestNavalFactoryTech])
+                            LOG(sFunctionRef..': will check for blocking units around oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' if havent recently, Time since refiTimeOfLastFacBlockOrder='..GetGameTimeSeconds() - (oFactory[refiTimeOfLastFacBlockOrder] or 0)..'; refiOurHighestAirFactoryTech='..oFacBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Our highest land fac tech='..oFacBrain[M28Economy.refiOurHighestLandFactoryTech]..'; refiOurHighestNavalFactoryTech='..oFacBrain[M28Economy.refiOurHighestNavalFactoryTech])
+                        end
+                        if GetGameTimeSeconds() - (oFactory[refiTimeOfLastFacBlockOrder] or 0) >= 20 then
+                            MovePotentialBlockingUnitsFromFactory(oFactory)
                         end
                     end
                     break
@@ -5058,6 +5098,12 @@ function IdleFactoryMonitor(aiBrain)
                         if bDebugMessages == true then LOG(sFunctionRef..': Have a factory that hasnt been given an order to build for some time now, will call DecideAndBuildUnitForFactory for the factory, and consider self destructing if no order') end
                         oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
                         ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, nil, true)
+                    elseif true and GetGameTimeSeconds() >= 62*60 and oFactory:GetWorkProgress() == 0 and oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oFactory[refiFirstTimeOfLastOrder] >= 60 and GetGameTimeSeconds() - (oFactory[refiTimeOfLastFacBlockOrder] or 0) >= 60 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will check for if are blocking units') end
+                        MovePotentialBlockingUnitsFromFactory(oFactory)
+
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': None of conditions for checks satisfied') end
                     end
                 end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
