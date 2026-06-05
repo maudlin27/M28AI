@@ -2036,7 +2036,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
     local sFunctionRef = 'GetACUUpgradeWanted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU[refiUpgradeCount] == 2 and oACU.UnitId == 'xsl0001' then bDebugMessages = true end
 
     local sUpgradeWanted, bIgnoreOtherConditions
 
@@ -6318,7 +6318,7 @@ function GetACUOrder(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oACU[refiUpgradeCount] == 2 and oACU.UnitId == 'xsl0001' then bDebugMessages = true end
 
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
@@ -7443,6 +7443,7 @@ function GetACUOrder(aiBrain, oACU)
                                                                             if bDebugMessages == true then
                                                                                 LOG(sFunctionRef..': Arent doing initial build order and dont want to run, ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Brain mass stored%='..aiBrain:GetEconomyStoredRatio('MASS')..'; If are nearby enemies then will list out, is table of nearby enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; oACU[M28UnitInfo.refiDFRange]='..(oACU[M28UnitInfo.refiDFRange] or 'nil')..'; ACU position='..repru(oACU:GetPosition())..'; ACU team='..oACU:GetAIBrain().M28Team)
                                                                                 if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                                                                    --CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                               iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
                                                                                     LOG(sFunctionRef..': are we close to nearby units='..tostring(M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 12 , aiBrain.M28Team, true, math.max(25, oACU[M28UnitInfo.refiDFRange] + 12))))
                                                                                     for iUnit, oUnit in tLZOrWZTeamData[M28Map.reftoNearestDFEnemies] do
                                                                                         LOG(sFunctionRef..': Entry '..iUnit..' is unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' which is '..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())..' with range '..(oUnit[M28UnitInfo.refiDFRange] or 'nil'))
@@ -7454,6 +7455,8 @@ function GetACUOrder(aiBrain, oACU)
                                                                             elseif tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or tLZOrWZTeamData[M28Map.subrefLZSValue] >= 200 then
                                                                                 iNearbyEnemyAttackRangeThreshold = 20
                                                                             end
+                                                                            --Be more aggressive if have several upgrades already
+                                                                            if oACU[refiUpgradeCount] >= 2 and (oACU[refiUpgradeCount] >= 3 or not(EntityCategoryContains(categories.AEON, oACU.UnitId))) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 and not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) then iNearbyEnemyAttackRangeThreshold = iNearbyEnemyAttackRangeThreshold + 15 end
                                                                             --Check adjacent zones for closest enemy in case are any within range
                                                                             local oClosestEnemy, oCurEnemy
                                                                             local iClosestEnemy = (oACU[M28UnitInfo.refiDFRange] or 0) + iNearbyEnemyAttackRangeThreshold
@@ -7471,7 +7474,7 @@ function GetACUOrder(aiBrain, oACU)
                                                                                 end
                                                                             end
                                                                             --No nearby enemies subject to oClosestEnemy, consider building power if have low level of it and lots of mass
-                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want more power for high mass levels, or want to attack nearby enemies, or get nearby reclaim, Is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; not(M28Conditions.HaveLowMass(aiBrain)='..tostring(not(M28Conditions.HaveLowMass(aiBrain)))..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))..'; tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]='..(tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')..'; oClosestEnemy='..(oClosestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy) or 'nil')) end
+                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want more power for high mass levels, or want to attack nearby enemies, or get nearby reclaim, Is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; not(M28Conditions.HaveLowMass(aiBrain)='..tostring(not(M28Conditions.HaveLowMass(aiBrain)))..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))..'; tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim]='..(tLZOrWZData[M28Map.subrefTotalSignificantMassReclaim] or 'nil')..'; oClosestEnemy='..(oClosestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy) or 'nil')..'; iNearbyEnemyAttackRangeThreshold='..iNearbyEnemyAttackRangeThreshold) end
                                                                             --Ignore scouts that arent in range
                                                                             if oClosestEnemy and (iClosestEnemy <= oACU[M28UnitInfo.refiDFRange] or not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - M28UnitInfo.refCategoryCombatScout, oClosestEnemy.UnitId))) and AttackNearestEnemyWithACU(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
                                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Attacking nearby closest enemy') end
