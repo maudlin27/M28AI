@@ -12856,13 +12856,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
 
 
-    --Have 1 engi go to adjacent water zone early game to get naval fac (higher even than unclaimed mex) once we have built 4+ engis
+    --Have 1 engi go to adjacent water zone early game to get naval fac (higher even than unclaimed mex) once we have built 4+ engis (10 in campaign early game)
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Early game naval fac for naval map: refbCanPathToEnemyBaseWithLand='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] or false)..'; is subrefAdjacentWaterZones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]))..'; refiOurHighestNavalFactoryTech='..(aiBrain[M28Economy.refiOurHighestNavalFactoryTech] or 'nil')..'; subrefiHighestFriendlyFactoryTech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')) end
     if (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or aiBrain[M28Overseer.refbPrioritiseNavy]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false and aiBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0 and GetGameTimeSeconds() <= 420 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 1 then
         local iEngiLC = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)
         if bDebugMessages == true then LOG(sFunctionRef..': iEngiLC='..iEngiLC) end
-        if iEngiLC >= 4 then
+        if iEngiLC >= 4 and (not(M28Map.bIsCampaignMap) or iEngiLC >= 10 or GetGameTimeSeconds() >= 600) then
             local iCurWZ, iCurPond, bHaveAdjWZWithCoreBase
             local iHighestValuePondValue = 0
             for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
@@ -13482,7 +13482,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
-    bDebugMessages = false
 
     --Units needing air staging
     iCurPriority = iCurPriority + 1
@@ -13961,6 +13960,14 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
             if iHighestTechEngiAvailable == 0 then break end
         end
+    end
+
+    --Campaign priority defences
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.reftObjectiveLocation] and (tLZTeamData[M28Map.reftObjectiveLocation][M28Map.subrefiObjTechLevelWanted] or 1) == 1 and tLZTeamData[M28Map.subrefLZFortify] and M28Conditions.DoWeWantToBuildObjectiveCategory(tLZTeamData[M28Map.reftObjectiveLocation]) then
+        local iTechLevelWanted = (tLZTeamData[M28Map.reftObjectiveLocation][M28Map.subrefiObjTechLevelWanted] or 1)
+        iBPWanted = tiBPByTech[iTechLevelWanted]
+        HaveActionToAssign(refActionBuildSpecialObjective, iTechLevelWanted, iBPWanted, tLZTeamData[M28Map.reftObjectiveLocation])
     end
 
 
@@ -15317,7 +15324,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
-    bDebugMessages = false
 
     --1 T3 mass fab if not defending against T3 arti and have lots of t3 mexes; or quantum gateway if enemy having them
     iCurPriority = iCurPriority + 1

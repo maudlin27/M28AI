@@ -2469,7 +2469,25 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             --Aeon Mission 1 workaround for bug in mission preventing it from ending
         elseif ScenarioInfo.M7_FauxUEFCommanderUnit then
             ForkThread(M1AeonEndMissionBackupMonitor)
-        elseif ScenarioInfo.M1P1Obj.Active and Target.MarkArea and Target.Requirements and Target.Category == categories.uab4301 then --Aeon mission 5 - build UEF T3 shield
+            --Aeon M2 - get pd early on
+        elseif ScenarioInfo.NeutralCybran == 3 and ScenarioInfo.Cybran == 2 and  ScenarioInfo.M1P1Objective.Active and GetGameTimeSeconds() <= 300 then
+            local oM28Brain = GetM28BrainForCampaignObjective()
+            if oM28Brain then
+                local tStart = M28Map.GetPlayerStartPosition(oM28Brain)
+                if tStart then
+                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStart)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if have start with valid zone, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
+                    if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
+                        local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                        tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tStart[1], GetSurfaceHeight(tStart[1], tStart[3]), tStart[3]}, [M28Map.subrefiObjCategoryToBuild] = M28UnitInfo.refCategoryPD, [M28Map.subrefiObjTechLevelWanted] = 1, [M28Map.subrefiObjLocationSize] = 80, [M28Map.subrefiNumberWanted] = 2}
+                        tLZTeamData[M28Map.subrefLZFortify] = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording we want 2 PD for P'..iPlateauOrZero..'Z'..iLandOrWaterZone) end
+                    end
+                end
+            end
+
+            --Aeon mission 5 - build UEF T3 shield
+        elseif ScenarioInfo.M1P1Obj.Active and Target.MarkArea and Target.Requirements and Target.Category == categories.uab4301 then
             M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] = true
             M28Team.tTeamData[iTeam][M28Team.refiEnemyT3ArtiCount] = 1
             if bDebugMessages == true then LOG(sFunctionRef..': Want to build T3 shielding for Aeon M5') end
@@ -2542,7 +2560,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
 
                 end
             end
-            --SC Aeon M5 - UEF changing sides
+            --SC Aeon Mission 5 - UEF changing sides
         elseif ScenarioInfo.M2P1Obj.Active and ScenarioInfo.Ariel and ScenarioInfo.Colonies and not(tbSpecialCodeForMission[21]) then
             tbSpecialCodeForMission[21] = true
             --Have had a change in factions, update all unit tables
@@ -2667,8 +2685,8 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
             end
         end
-        --UEF M1 - Air fac upgrading breaks the mission
-        if ScenarioInfo.AirFactory.UnitId and not(ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit]) and ScenarioInfo.AirFactory:GetBlueprint().General.UpgradesTo and ScenarioInfo.AirFactory:GetAIBrain().M28AI then
+            --UEF M1 - Air fac upgrading breaks the mission
+            if ScenarioInfo.AirFactory.UnitId and not(ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit]) and ScenarioInfo.AirFactory:GetBlueprint().General.UpgradesTo and ScenarioInfo.AirFactory:GetAIBrain().M28AI then
         if bDebugMessages == true then LOG(sFunctionRef..': Flagging not to upgrade unit '..ScenarioInfo.AirFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(ScenarioInfo.AirFactory.UnitId)..' as it may be an objective unit') end
         ScenarioInfo.AirFactory[M28UnitInfo.refbObjectiveUnit] = true
             end
