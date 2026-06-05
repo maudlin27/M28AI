@@ -4662,7 +4662,6 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                 --(naval factories can take longer for larger units to move away, e.g. aircraft carriers)
                 if iTicksWaited >= 200 and (iTicksWaited >= 400 or not(EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId))) then
                     --Only display warning if dealing with a conventional factory (since most of the time other factories will want to be building)
-                    bDebugMessages = true
                     if not(oFactory:GetAIBrain()[M28Overseer.refbCloseToUnitCap]) then
                         M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
                         if bDebugMessages == true then

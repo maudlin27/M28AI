@@ -2036,7 +2036,7 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe, tLZOrWZData, tLZOrWZTeamD
     local sFunctionRef = 'GetACUUpgradeWanted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU[refiUpgradeCount] == 2 and oACU.UnitId == 'xsl0001' then bDebugMessages = true end
+
 
     local sUpgradeWanted, bIgnoreOtherConditions
 
@@ -6318,7 +6318,7 @@ function GetACUOrder(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oACU[refiUpgradeCount] == 2 and oACU.UnitId == 'xsl0001' then bDebugMessages = true end
+
 
     if oACU[refbUseACUAggressively] then
         oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)

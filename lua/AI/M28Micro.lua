@@ -1779,7 +1779,6 @@ function MoveAwayFromFactory(oUnit, oEngineerOrFactory)
     local oFactory
     if EntityCategoryContains(categories.STRUCTURE, oEngineerOrFactory.UnitId) then oFactory = oEngineerOrFactory
     elseif true and GetGameTimeSeconds() >= 3660 and EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineerOrFactory.UnitId) then
-        bDebugMessages = true
         local aiBrain = oEngineerOrFactory:GetAIBrain()
         local toNearbyFactories = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFactory, oUnit:GetPosition(), 5, 'Ally') --tried with 4 and didnt work
         if bDebugMessages == true then LOG(sFunctionRef..': Is toNearbyFactories empty='..tostring(M28Utilities.IsTableEmpty(toNearbyFactories))) end
