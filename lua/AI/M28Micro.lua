@@ -774,7 +774,69 @@ function DodgeShot(oTarget, oOptionalWeapon, oAttacker, iTimeToDodge)
         --ACU special - if ACU wants to run, then ignore hte last order and instead treat it as tyring to run to base
         if oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or -100) <= 5 or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and M28UnitInfo.GetUnitHealthPercent(oTarget) <= 0.6) then
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oTarget:GetPosition(), true, oTarget:GetAIBrain().M28Team)
-            if tLZOrWZTeamData then tCurDestination = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]} end
+
+            if tLZOrWZTeamData then
+                if M28Conditions.BaseIsSafeToRetreatTo(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oTarget:GetAIBrain().M28Team) or (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) and not(tLZOrWZData[M28Map.subrefWZTeamData])) then
+                    tCurDestination = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                    if bDebugMessages == true then LOG(sFunctionRef..': setting ACU tCurDestination as the closest friendly base if it is in a valid zone, as it has recently tried running') end
+                else
+                    local iCurDistLessRange
+                    local iClosestEnemyDistLessRange = 10000
+                    local oClosestEnemy
+                    function ConsiderNearestEnemy(tEnemies)
+                        for iEnemy, oEnemy in tEnemies do
+                            if not(oEnemy.Dead) then
+                                iCurDistLessRange = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oTarget:GetPosition()) - (oEnemy[M28UnitInfo.refiDFRange] or 0)
+                                if iCurDistLessRange < iClosestEnemyDistLessRange then
+                                    iClosestEnemyDistLessRange = iCurDistLessRange
+                                    oClosestEnemy = oEnemy
+                                end
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                        ConsiderNearestEnemy(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies])
+                        --If have water zone check for nearby land zones if we arent underwater
+                    elseif tLZOrWZData[M28Map.subrefWZTeamData] and not(M28UnitInfo.IsUnitUnderwater(oTarget)) then
+                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                            ConsiderNearestEnemy(tLZOrWZTeamData[M28Map.reftoNearestCombatEnemies])
+                        end
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentLandZones]) == false then
+                            local iTeam = oTarget:GetAIBrain().M28Team
+                            for iEntry, tSubtable in tLZOrWZData[M28Map.subrefAdjacentLandZones] do
+                                local tAdjLZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
+                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                    ConsiderNearestEnemy(tAdjLZTeamData[M28Map.reftoNearestDFEnemies])
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': the base isnt safe and we have nearby DF enemies so will assume wanted to run from nearest DF enemy, oClosestEnemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)) end
+                    if oClosestEnemy then
+                        local iAngleFromNearestEnemy = M28Utilities.GetAngleFromAToB(oClosestEnemy:GetPosition(), oTarget:GetPosition())
+                        local tPotentialMovePoint
+                        local iDistToMove = 10
+                        local iPlateauWanted = NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oTarget:GetPosition())
+                        local bHaveMovePoint
+                        for iAngleAdjust = 0, 45, 15 do
+                            for iAngleFactor = -1, 1 do
+                                if iAngleFactor == -1 or iAngleAdjust > 0 then
+                                    tPotentialMovePoint = M28Utilities.MoveInDirection(oTarget:GetPosition(), iAngleFromNearestEnemy + iAngleAdjust * iAngleFactor, iDistToMove, false, false, false)
+                                    if M28Utilities.IsTableEmpty(tPotentialMovePoint) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeAmphibious,  tPotentialMovePoint) == iPlateauWanted then
+                                        tCurDestination = {tPotentialMovePoint[1], tPotentialMovePoint[2], tPotentialMovePoint[3]}
+                                        bHaveMovePoint = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have a run location we can path to, iAngleFactor='..iAngleFactor..'; iAngleAdjust='..iAngleAdjust) end
+                                        break
+                                    end
+                                end
+                                if bHaveMovePoint then break end
+                            end
+                            if bHaveMovePoint then break end
+                        end
+                    end
+                end
+            end
         elseif EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.EXPERIMENTAL, oTarget.UnitId) then
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oTarget:GetPosition(), true, oTarget:GetAIBrain().M28Team)
             if tLZOrWZTeamData then tCurDestination = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]} end
