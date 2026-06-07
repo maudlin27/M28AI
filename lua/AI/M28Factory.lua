@@ -7091,14 +7091,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         end
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryFrigate) then
             return sBPIDToBuild
-            end --Want frigate as enemy is close
+        end --Want frigate as enemy is close
     end
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Enemy air to ground threat in this zone? refiEnemyAirToGroundThreat='..tWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; subrefLZThreatAllyMAA='..tWZTeamData[M28Map.subrefLZThreatAllyMAA]..'; subrefLZOrWZThreatAllyGroundAA='..tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA]) end
     if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.min(2500, tWZTeamData[M28Map.subrefLZThreatAllyMAA] * 0.35)
-    --Early in campaign we might overbuild, e.g. cybran M6
-    and (not(M28Map.bIsCampaignMap) or iFactoryTechLevel < 3 or aiBrain:GetCurrentUnits(iCombatCategory) >= 3 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)) then
+            --Early in campaign we might overbuild, e.g. cybran M6
+            and (not(M28Map.bIsCampaignMap) or iFactoryTechLevel < 3 or aiBrain:GetCurrentUnits(iCombatCategory) >= 3 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0)) then
 
         if EntityCategoryContains(categories.AEON, oFactory.UnitId) or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.max(100, (tWZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] or 0) * 0.5) then
             if bDebugMessages == true then LOG(sFunctionRef .. ': Immediate threat - want AA') end
@@ -7119,6 +7119,17 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         local iFactoriesInZone = M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tWZTeamData, M28UnitInfo.refCategoryFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': Higher priority naval engi builder, iEngineersUnderConstruction='..iEngineersUnderConstruction..'; iFactoriesInZone='..iFactoriesInZone..'; Factory engi LC='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer)..'; Total build count='..oFactory[refiTotalBuildCount]) end
         if (iFactoriesInZone >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.9 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0) and iEngineersUnderConstruction < iFactoriesInZone * 0.5 and (iFactoriesInZone > 1 or M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer) < oFactory[refiTotalBuildCount] * 0.5) then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
+    end
+
+    --Engineer if we have no land or air facs and no engineers (rebuilding  base)
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 0 and aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 0 then
+        local iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer)
+        local iCurNavalSurfaceCombat = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE)
+        if bDebugMessages == true then LOG(sFunctionRef..': We have no land or air fac, iCurEngineers='..iCurEngineers..'; iCurNavalSurfaceCombat='..iCurNavalSurfaceCombat) end
+        if iCurEngineers == 0 or iCurEngineers < math.min(5, iCurNavalSurfaceCombat) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
     end
