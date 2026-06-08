@@ -2487,13 +2487,14 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
             end
             ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory, 5, M28UnitInfo.refCategoryEngineer, 2, M28UnitInfo.refCategoryMAA)
-            --Aeon Mission 3 - get gun upgrade asap
+            --Aeon Mission 3 - get gun upgrade asap and subs
         elseif ScenarioInfo.Eris == 3 and ScenarioInfo.UEF == 2 and ScenarioInfo.Player2 == 4 and GetGameTimeSeconds() <= 360 then
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftM28ACUs]) == false then
                 for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftM28ACUs] do
                     oACU[M28ACU.refbWantsPriorityUpgrade] = true
                 end
             end
+            TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, M28UnitInfo.refCategoryNavalFactory, 23, M28UnitInfo.refCategoryNavalAA,20,  M28UnitInfo.refCategorySubmarine)
             --Aeon mission 5 - build UEF T3 shield
         elseif ScenarioInfo.M1P1Obj.Active and Target.MarkArea and Target.Requirements and Target.Category == categories.uab4301 then
             M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] = true
