@@ -11299,6 +11299,19 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             else
                                 --Do nothing
                             end
+                            --Consider ctrlking t1-T2 non-amphibious non-hover if have lots
+                            if tRemainingLandUnits[1]:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and not(tRemainingLandUnits[1]:GetAIBrain()[M28Overseer.refbRecentlyKilledIdleIslandUnit]) and table.getn(tRemainingLandUnits) >= 12 then
+                                for iCurTech = 1, 2 do
+                                    local toUnitsToKill = EntityCategoryFilterDown(M28UnitInfo.ConvertTechLevelToCategory(iCurTech) - M28UnitInfo.refCategoryAmphibious - categories.HOVER, tRemainingLandUnits)
+                                    if M28Utilities.IsTableEmpty(toUnitsToKill) == false then
+                                        tRemainingLandUnits[1]:GetAIBrain()[M28Overseer.refbRecentlyKilledIdleIslandUnit] = true
+                                        M28Utilities.DelayChangeVariable(tRemainingLandUnits[1]:GetAIBrain(), M28Overseer.refbRecentlyKilledIdleIslandUnit, false, 5)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will kill unit rather than having it patrol due to unit cap, toUnitsToKill[1]='..toUnitsToKill[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(toUnitsToKill[1])..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; TIme='..GetGameTimeSeconds()) end
+                                        M28Orders.IssueTrackedKillUnit(toUnitsToKill[1])
+                                        break
+                                    end
+                                end
+                            end
                         end
                     end
                 end

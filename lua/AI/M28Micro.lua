@@ -774,7 +774,69 @@ function DodgeShot(oTarget, oOptionalWeapon, oAttacker, iTimeToDodge)
         --ACU special - if ACU wants to run, then ignore hte last order and instead treat it as tyring to run to base
         if oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or -100) <= 5 or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and M28UnitInfo.GetUnitHealthPercent(oTarget) <= 0.6) then
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oTarget:GetPosition(), true, oTarget:GetAIBrain().M28Team)
-            if tLZOrWZTeamData then tCurDestination = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]} end
+
+            if tLZOrWZTeamData then
+                if M28Conditions.BaseIsSafeToRetreatTo(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oTarget:GetAIBrain().M28Team) or (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) and not(tLZOrWZData[M28Map.subrefWZTeamData])) then
+                    tCurDestination = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                    if bDebugMessages == true then LOG(sFunctionRef..': setting ACU tCurDestination as the closest friendly base if it is in a valid zone, as it has recently tried running') end
+                else
+                    local iCurDistLessRange
+                    local iClosestEnemyDistLessRange = 10000
+                    local oClosestEnemy
+                    function ConsiderNearestEnemy(tEnemies)
+                        for iEnemy, oEnemy in tEnemies do
+                            if not(oEnemy.Dead) then
+                                iCurDistLessRange = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oTarget:GetPosition()) - (oEnemy[M28UnitInfo.refiDFRange] or 0)
+                                if iCurDistLessRange < iClosestEnemyDistLessRange then
+                                    iClosestEnemyDistLessRange = iCurDistLessRange
+                                    oClosestEnemy = oEnemy
+                                end
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                        ConsiderNearestEnemy(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies])
+                        --If have water zone check for nearby land zones if we arent underwater
+                    elseif tLZOrWZData[M28Map.subrefWZTeamData] and not(M28UnitInfo.IsUnitUnderwater(oTarget)) then
+                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                            ConsiderNearestEnemy(tLZOrWZTeamData[M28Map.reftoNearestCombatEnemies])
+                        end
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentLandZones]) == false then
+                            local iTeam = oTarget:GetAIBrain().M28Team
+                            for iEntry, tSubtable in tLZOrWZData[M28Map.subrefAdjacentLandZones] do
+                                local tAdjLZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
+                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                                    ConsiderNearestEnemy(tAdjLZTeamData[M28Map.reftoNearestDFEnemies])
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': the base isnt safe and we have nearby DF enemies so will assume wanted to run from nearest DF enemy, oClosestEnemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)) end
+                    if oClosestEnemy then
+                        local iAngleFromNearestEnemy = M28Utilities.GetAngleFromAToB(oClosestEnemy:GetPosition(), oTarget:GetPosition())
+                        local tPotentialMovePoint
+                        local iDistToMove = 10
+                        local iPlateauWanted = NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oTarget:GetPosition())
+                        local bHaveMovePoint
+                        for iAngleAdjust = 0, 45, 15 do
+                            for iAngleFactor = -1, 1 do
+                                if iAngleFactor == -1 or iAngleAdjust > 0 then
+                                    tPotentialMovePoint = M28Utilities.MoveInDirection(oTarget:GetPosition(), iAngleFromNearestEnemy + iAngleAdjust * iAngleFactor, iDistToMove, false, false, false)
+                                    if M28Utilities.IsTableEmpty(tPotentialMovePoint) == false and NavUtils.GetTerrainLabel(M28Map.refPathingTypeAmphibious,  tPotentialMovePoint) == iPlateauWanted then
+                                        tCurDestination = {tPotentialMovePoint[1], tPotentialMovePoint[2], tPotentialMovePoint[3]}
+                                        bHaveMovePoint = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have a run location we can path to, iAngleFactor='..iAngleFactor..'; iAngleAdjust='..iAngleAdjust) end
+                                        break
+                                    end
+                                end
+                                if bHaveMovePoint then break end
+                            end
+                            if bHaveMovePoint then break end
+                        end
+                    end
+                end
+            end
         elseif EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.EXPERIMENTAL, oTarget.UnitId) then
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oTarget:GetPosition(), true, oTarget:GetAIBrain().M28Team)
             if tLZOrWZTeamData then tCurDestination = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]} end
@@ -1770,18 +1832,40 @@ function TurnAirUnitAndAttackTarget(oBomber, oTarget, bDontAdjustMicroFlag, bCon
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function MoveAwayFromFactory(oUnit, oFactory)
-    if EntityCategoryContains(categories.STRUCTURE, oFactory.UnitId) then --and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then
-        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-        local sFunctionRef = 'MoveAwayFromFactory'
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+function MoveAwayFromFactory(oUnit, oEngineerOrFactory)
+    --If mobile land has been built by an engineer, check for a factory that built it as well
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MoveAwayFromFactory'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local oFactory
+    if EntityCategoryContains(categories.STRUCTURE, oEngineerOrFactory.UnitId) then oFactory = oEngineerOrFactory
+    elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineerOrFactory.UnitId) then
+        local aiBrain = oEngineerOrFactory:GetAIBrain()
+        local toNearbyFactories = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFactory, oUnit:GetPosition(), 5, 'Ally') --tried with 4 and didnt work
+        if bDebugMessages == true then LOG(sFunctionRef..': Is toNearbyFactories empty='..tostring(M28Utilities.IsTableEmpty(toNearbyFactories))) end
+        if M28Utilities.IsTableEmpty(toNearbyFactories) == false then
+            local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+            for iNearbyFactory, oNearbyFactory in toNearbyFactories do
+                --Have issue where factory can be at say 99% completion, and an assisting engineer triggers the unit completion instead of the factory itself
+                if bDebugMessages == true then LOG(sFunctionRef..': oNearbyFactory='..oNearbyFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyFactory)..'; work progress='..oNearbyFactory:GetWorkProgress()..'; refsLastBlueprintBuilt='..(oNearbyFactory[M28Factory.refsLastBlueprintBuilt] or 'nil')) end
+                if oNearbyFactory:GetFractionComplete() == 1 and ((oNearbyFactory:GetWorkProgress() >= 0.99 and oNearbyFactory[M28Factory.refsLastBlueprintBuilt] == oUnit.UnitId) or oNearbyFactory:GetWorkProgress() == 0) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Assuming this unit was the underlying factory') end
+                    oFactory = oNearbyFactory
+                    break
+                end
+            end
+        end
+    end
+
+    if oFactory then --and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then
 
         local aiBrain = oFactory:GetAIBrain()
         if aiBrain.M28AI then --redundancy
             local iTeam = aiBrain.M28Team
             local tLZOrWZData, tLZOrWZTeamData
             local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': Near start, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Time='..GetGameTimeSeconds()) end
             if iLZOrWZ > 0 then
                 if iPlateauOrZero == 0 then
                     tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
@@ -1794,7 +1878,6 @@ function MoveAwayFromFactory(oUnit, oFactory)
                     local iFactorySize = M28UnitInfo.GetBuildingSize(oFactory.UnitId)
                     local tOrderPosition = M28Utilities.MoveInDirection(oFactory:GetPosition(), M28Utilities.GetAngleFromAToB(oFactory:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestEnemyBase]), iFactorySize + 2, true, false, true)
                     --If dealing with land fac then rotate engineer
-                    local bLandFacRotatedEngineer = false
                     if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                         local iAngleToDestination = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tOrderPosition)
                         if oUnit.SetRotation then oUnit:SetRotation(iAngleToDestination) end
@@ -1805,6 +1888,10 @@ function MoveAwayFromFactory(oUnit, oFactory)
                         end
                     end
                     M28Orders.IssueTrackedMove(oUnit, tOrderPosition, 0, false, 'JustBuilt', true)
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Just told unit to move to tOrderPosition, will draw in blue')
+                        M28Utilities.DrawLocation(tOrderPosition)
+                    end
                     local iMicroDelay = 1.5
                     if EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oFactory.UnitId) then iMicroDelay = 4 --done as when was 1.5 would have RAS SACUs given new orders like GE template just after being built and getting stuck
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) and EntityCategoryContains(M28UnitInfo.categories.TECH3 * M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) then iMicroDelay = 4
@@ -1815,8 +1902,8 @@ function MoveAwayFromFactory(oUnit, oFactory)
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' built from factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time='..GetGameTimeSeconds()) end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function DelayedUnitMove(oUnit, tMoveDirection, iMoveThreshold, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder, iSecondsToWait)
