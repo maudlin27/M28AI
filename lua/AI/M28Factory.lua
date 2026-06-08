@@ -3310,7 +3310,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     end
                 end
             end
-            if true and GetGameTimeSeconds() <= 630 then bHaveEnemiesToAttack = true end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to build raiders, bHaveEnemiesToAttack='..tostring(bHaveEnemiesToAttack)) end
             --Get raider unless already have 2+ raiders being built
             if bHaveEnemiesToAttack then
@@ -5097,7 +5096,7 @@ function IdleFactoryMonitor(aiBrain)
                         if bDebugMessages == true then LOG(sFunctionRef..': Have a factory that hasnt been given an order to build for some time now, will call DecideAndBuildUnitForFactory for the factory, and consider self destructing if no order') end
                         oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
                         ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, nil, true)
-                    elseif true and GetGameTimeSeconds() >= 62*60 and oFactory:GetWorkProgress() == 0 and oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oFactory[refiFirstTimeOfLastOrder] >= 60 and GetGameTimeSeconds() - (oFactory[refiTimeOfLastFacBlockOrder] or 0) >= 60 then
+                    elseif oFactory:GetWorkProgress() == 0 and oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oFactory[refiFirstTimeOfLastOrder] >= 60 and GetGameTimeSeconds() - (oFactory[refiTimeOfLastFacBlockOrder] or 0) >= 60 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will check for if are blocking units') end
                         MovePotentialBlockingUnitsFromFactory(oFactory)
 
