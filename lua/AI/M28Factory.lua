@@ -2318,6 +2318,16 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+    --At least 3 T2 engineers if enemy has TML nearby
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false then
+        local iT2PlusEngineersInZone = M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer - categories.TECH1)
+        if bDebugMessages == true then LOG(sFunctionRef..': Want minimum number of engineers to get TMD, iT2PlusEngineersInZone='..iT2PlusEngineersInZone) end
+        if iT2PlusEngineersInZone < 3 and (iT2PlusEngineersInZone < 2 or not(oFactory[refsLastBlueprintBuilt]) or not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oFactory[refsLastBlueprintBuilt]))) then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
+    end
+
     --Indirect fire if T2+ with nearby enemy firebase (slightly lower priority than before) or enemy with units on adj plateau, and no enemies in this zone itself, and are a core base
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
