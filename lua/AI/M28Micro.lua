@@ -2232,9 +2232,9 @@ function MoveAndKillAirUnit(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oLauncher, iTeam, bEnemyNuke)
+function KeepUnitsAwayFromNukeOrTMLTarget(oProjectile, oLauncher, iTeam, bEnemyNuke)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'MonitorNukeTargetForNukeWeHaveIntelOf'
+    local sFunctionRef = 'KeepUnitsAwayFromNukeOrTMLTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if not(oProjectile:BeenDestroyed()) and oProjectile.GetCurrentTargetPosition then
@@ -2244,29 +2244,59 @@ function MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oLauncher, iTeam, bE
             if bDebugMessages == true then LOG(sFunctionRef..': Outer ring='..repru(oProjectile.OuterRing)..'; Inner ring='..repru(oProjectile.InnerRing)..'; oLauncher='..(oLauncher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher) or 'nil')) end
             --Record in friendly nuke table
             local tTarget = oProjectile:GetCurrentTargetPosition()
-            ForkThread(M28Building.RecordNukeTarget, iTeam, tTarget)
-            local iSearchArea = math.min((oProjectile.OuterRing.Radius or 50), math.max(56, (oProjectile.InnerRing.Radius or 35) + 15)) + 4
-            local iCategoriesToSearch = M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryAllNavy * categories.MOBILE - categories.TECH1 + categories.COMMAND + categories.SUBCOMMANDER
+            local iSearchArea, iCategoriesToSearch
             local iSpeed = (oProjectile.Blueprint.Physics.MaxSpeed or 10)
+
+            local bIsTML = EntityCategoryContains(M28UnitInfo.refCategoryTML, oLauncher.UnitId)
+            if bIsTML then
+                iSearchArea = (oProjectile.CreatedByWeapon.Blueprint.DamageRadius or 2) + 2
+                iCategoriesToSearch = categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryLandExperimental + categories.LAND * categories.TECH2 * categories.MOBILE + categories.LAND * categories.TECH3 * categories.MOBILE
+            else
+                --Nuke
+                iSearchArea = math.min((oProjectile.OuterRing.Radius or 50), math.max(56, (oProjectile.InnerRing.Radius or 35) + 15)) + 4
+                iCategoriesToSearch = M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryAllNavy * categories.MOBILE - categories.TECH1 + categories.COMMAND + categories.SUBCOMMANDER
+                ForkThread(M28Building.RecordNukeTarget, iTeam, tTarget)
+            end
+
             local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tTarget, oProjectile:GetPosition())
             local iTimeToTarget = iDistToTarget / iSpeed
             if bDebugMessages == true then LOG(sFunctionRef..': iSpeed='..iSpeed..'; iDistToTarget='..iDistToTarget..'; iTimeToTarget='..iTimeToTarget..'; iSearchArea='..iSearchArea..'; Excess time='..(iTimeToTarget - iSearchArea / 2)*10) end
-            if iTimeToTarget >= iSearchArea / 2 then --want to allow enough time for a unit in the middle of the target to get out of the way
+            if iTimeToTarget >= iSearchArea / 2 + 1 and (not(bIsTML) or iTimeToTarget >= iSearchArea / 2 + 2) then --wait until almost the last moment before moving away; however want to allow enough time for a unit in the middle of the target to get out of the way
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                WaitTicks(math.floor((iTimeToTarget - iSearchArea / 2)*10))
+                if bIsTML then --when testing, missile hit when timetotarget was less than 1s, but dodged when it was 2.1s (campaign mission Cybran TML)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will wait '..math.max(1, math.floor((iTimeToTarget - 2 - iSearchArea / 2)*10))..' ticks before giving move orders to move away') end
+                    WaitTicks(math.max(1, math.floor((iTimeToTarget - 2 - iSearchArea / 2)*10)))
+                else
+                    WaitTicks(math.max(1, math.floor((iTimeToTarget - 1 - iSearchArea / 2)*10)))
+                end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
             local iAngleToUnit
             local iMoveDistance = iSearchArea + 15
             local bKeepInCampaignArea = M28Map.bIsCampaignMap
+            local iAngleToTMLLauncher, iAngleDifToLauncher
+
             while not(oProjectile:BeenDestroyed()) and not(aiBrain.M28IsDefeated)  do
                 --Every second check for friendly experimental, ACU, and T3 land units around the target area and have them move away
                 --First check the missile is close enough that we should try and have units run
                 local tFriendlyUnitsNearTarget = aiBrain:GetUnitsAroundPoint(iCategoriesToSearch, tTarget, iSearchArea, 'Ally')
+                if bDebugMessages == true then LOG(sFunctionRef..': Is tFriendlyUnitsNearTarget empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyUnitsNearTarget))..'; Time='..GetGameTimeSeconds()) end
                 if M28Utilities.IsTableEmpty(tFriendlyUnitsNearTarget) == false then
                     for iUnit, oUnit in tFriendlyUnitsNearTarget do
                         if oUnit:GetAIBrain().M28AI and (not(oUnit:GetAIBrain().M28Easy) or (not(bEnemyNuke) and EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId))) then
                             iAngleToUnit = M28Utilities.GetAngleFromAToB(tTarget, oUnit:GetPosition())
+                            if bIsTML then
+                                iAngleToTMLLauncher = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oLauncher:GetPosition())
+                                iAngleDifToLauncher = M28Utilities.GetAngleDifference(iAngleToUnit, iAngleToTMLLauncher)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iAngleToTMLLauncher='..iAngleToTMLLauncher..'; iAngleDifToLauncher='..iAngleDifToLauncher) end
+                                if iAngleDifToLauncher < 20 then --TML missiles can hit us if we are moving in similar path as they fly lower than nukes
+                                    if M28Utilities.GetAngleDifference(iAngleToUnit + 15, iAngleToTMLLauncher) > M28Utilities.GetAngleDifference(iAngleToUnit - 15, iAngleToTMLLauncher) then
+                                        iAngleToUnit = iAngleToUnit + 15
+                                    else
+                                        iAngleToUnit = iAngleToUnit - 15
+                                    end
+                                end
+                            end
                             local tMoveAwayPoint = M28Utilities.MoveInDirection(tTarget, iAngleToUnit, iMoveDistance, true, false, bKeepInCampaignArea)
                             M28Orders.IssueTrackedMove(oUnit, tMoveAwayPoint, 5, false, 'NukeDodge', true)
                             TrackTemporaryUnitMicro(oUnit, 1)
@@ -2282,14 +2312,15 @@ function MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oLauncher, iTeam, bE
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function MonitorEnemyNukeForIntel(oProjectile, iTeam)
+function MonitorEnemyNukeOrTMLMissileForIntel(oProjectile, iTeam)
     --Intended for hostile nuke - want to try and take evasive action once we see hten uke being launched
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'MonitorEnemyNukeForIntel'
+    local sFunctionRef = 'MonitorEnemyNukeOrTMLMissileForIntel'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for iTeam='..iTeam..'; oProjectile.Launcher='..(oProjectile.Launcher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oProjectile.Launcher) or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of loop for iTeam='..iTeam..'; oProjectile.Launcher='..(oProjectile.Launcher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oProjectile.Launcher) or 'nil')..'; oProjectile.GetCurrentTargetPosition='..reprs(oProjectile.GetCurrentTargetPosition)..'; Time='..GetGameTimeSeconds()) end
     if not(oProjectile:BeenDestroyed()) and oProjectile.GetCurrentTargetPosition then
+        if bDebugMessages == true then LOG(sFunctionRef..': GetCurrentTargetPosition()='..reprs(oProjectile:GetCurrentTargetPosition())) end
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         if aiBrain then
             local iCurDist
@@ -2324,9 +2355,15 @@ function MonitorEnemyNukeForIntel(oProjectile, iTeam)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Exited the projectile monitor loop, bHaveIntel='..tostring(bHaveIntel)..'; Time='..GetGameTimeSeconds()) end
             if bHaveIntel then
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                MonitorNukeTargetForNukeWeHaveIntelOf(oProjectile, oProjectile.Launcher, iTeam, true)
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                if EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId)
+                or EntityCategoryContains(M28UnitInfo.refCategoryTML, oProjectile.Launcher.UnitId) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have intel of enemy TML or nuke so will make units avoid the target') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    KeepUnitsAwayFromNukeOrTMLTarget(oProjectile, oProjectile.Launcher, iTeam, true)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                else
+                    M28Utilities.ErrorHandler('Unrecognised missile launcher type, need code adding')
+                end
             end
         end
     end

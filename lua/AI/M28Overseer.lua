@@ -2526,9 +2526,13 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     local tMidpoint = {(tBaseAreaForRect[1] + tBaseAreaForRect[3]) * 0.5, 0, (tBaseAreaForRect[2] + tBaseAreaForRect[4]) * 0.5}
                     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tMidpoint)
                     local tMidpointLZData, tMidpointLZTeamData = M28Map.GetLandOrWaterZoneData(tMidpoint, true, iTeam)
+
+                    tMidpointLZTeamData[M28Map.subrefLZFortify] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Changing P'..iPlateauOrZero..'Z'..iLandOrWaterZone..' midppoint from '..repru(tMidpointLZData[M28Map.subrefMidpoint])..' to '..repru(tMidpoint)) end
+                    tMidpointLZData[M28Map.subrefMidpoint] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
                     local iTotalSegments = table.getn(tMidpointLZData[M28Map.subrefLZSegments])
                     local iSegmentStart = (tMidpointLZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] or 0)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Midpoint='..repru(tMidpoint)..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTotalSegments='..iTotalSegments..'; iSegmentStart='..iSegmentStart) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Rect Midpoint='..repru(tMidpoint)..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTotalSegments='..iTotalSegments..'; iSegmentStart='..iSegmentStart) end
                     local iCurCycleCount = 0
                     local iWaitCycleCount = 0
                     while iSegmentStart < iTotalSegments * 0.9 do
@@ -2575,6 +2579,14 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             --Have had a change in factions, update all unit tables
             if bDebugMessages == true then LOG(sFunctionRef..': Will update recorded units following uef alliance changes so arti is detected, changing sides, Time='..GetGameTimeSeconds()) end
             ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
+            --Aeon mission 6 - prioritise battleships and carriers; also periodically send engineer to try and capture
+        elseif ScenarioInfo.UEF == 2 and ScenarioInfo.Aeon == 4 and ScenarioInfo.Cybran == 3 and ScenarioInfo.Neutral == 5 and not(ScenarioInfo.M1P1Objective.Complete) and not(ScenarioInfo.M1P2Objective.Active) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will prioritise building carrier and battleships for start of Aeon M6') end
+            TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, M28UnitInfo.refCategoryNavalFactory, 1, M28UnitInfo.refCategoryCarrier, 4, M28UnitInfo.refCategoryBattleship)
+            --After 45m consider sending engineers
+            if ScenarioInfo.BlackSunControlCenter then
+                ForkThread(PeriodicallySendEngineerToCaptureTarget, ScenarioInfo.BlackSunControlCenter, ScenarioInfo.M1P1Objective, 2700)
+            end
             --FA M2 Dawn - update enemy unit tables after brief delay
         elseif ScenarioInfo.QAICommander and ScenarioInfo.M4P1.Active and not(tbSpecialCodeForMission[41]) then
             tbSpecialCodeForMission[41] = true
@@ -4126,8 +4138,8 @@ function TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, iFactoryCategory
             local iLifetimeCountThreshold = iUnitsWanted * 2
             local iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iCategoryWanted)
             local oPrimaryFactory
-            local bDealingWithNavy = false
-            if iFactoryCategory == M28UnitInfo.refCategoryNavalFactory then bDealingWithNavy = true end
+            local bWantNavalFac = false
+            if iFactoryCategory == M28UnitInfo.refCategoryNavalFactory then bWantNavalFac = true end
 
 
             while iCurUnitsOfCategory < iUnitsWanted and M28Conditions.GetLifetimeBuildCount(oM28Brain, iCategoryWanted) < iLifetimeCountThreshold do
@@ -4135,7 +4147,7 @@ function TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, iFactoryCategory
                 if M28Utilities.IsTableEmpty(toFactories) == false then
                     for iUnit, oUnit in toFactories do
                         if not(oUnit[M28Factory.refsFactoryNextBlueprintOverride]) then
-                            bDealingWithNavy = EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId)
+                            bWantNavalFac = EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId)
                             oUnit[M28Factory.refsFactoryNextBlueprintOverride] =  M28Factory.GetBlueprintThatCanBuildOfCategory(oM28Brain, iCategoryWanted, oUnit, false, false, false, nil, false, nil, true)
                             if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 then oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true oPrimaryFactory = oUnit end
                             if bDebugMessages == true then LOG(sFunctionRef..': Set factory '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to build iCategoryWanted blueprint='..(oUnit[M28Factory.refsFactoryNextBlueprintOverride] or 'nil')) end
@@ -4143,7 +4155,7 @@ function TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, iFactoryCategory
                     end
                 end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                if bDealingWithNavy then WaitSeconds(10) else WaitSeconds(3) end
+                if bWantNavalFac then WaitSeconds(10) else WaitSeconds(3) end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iCategoryWanted)
                 if M28UnitInfo.IsUnitValid(oPrimaryFactory) and oPrimaryFactory:GetWorkProgress() >= 0.3 then
@@ -4276,7 +4288,7 @@ function CybranM6SendCampaignACUToNearestGateway()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function PeriodicallySendEngineerToCaptureTarget(oCaptureTarget, sOptionalObjectiveRef)
+function PeriodicallySendEngineerToCaptureTarget(oCaptureTarget, sOptionalObjectiveRef, iOptionalStartingWait)
     local sFunctionRef = 'PeriodicallySendEngineerToCaptureTarget'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -4288,7 +4300,7 @@ function PeriodicallySendEngineerToCaptureTarget(oCaptureTarget, sOptionalObject
         local iTimeWaitedWithLastEngineer
         --Wait 10 minutes first to give a chance to control the area
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(600)
+        WaitSeconds(iOptionalStartingWait or 600)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         local toEngineersGivenOrderTo = {}
         local iTimeToWait

@@ -3267,6 +3267,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
         local iTeam = aiBrain.M28Team
         local iArtiFacingAngle = M28UnitInfo.GetUnitFacingAngle(oArti)
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+        local oFirstUnitAvoidedDueToCaptureTarget, oCaptureTargetForFirstUnitAvoided
         local iShotCount = 1
         if oArti.UnitId == 'url0401' then iShotCount = 0.1 end
 
@@ -3338,6 +3339,8 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
             local iCurAAThreat
             local iShotMissFactor
             local iArtiAngleFactor
+            local tiLowerPriorityPlateauAndLandZonesWithEnemyBuildings = {} --whenever a zone is ignored due to not having the highest value, or repalced as second most value, it is recorded here, so if we fail to find a target we can refer to these zones
+            local tiLowerPriorityIndexAndStructureValue = {} --[x] is the index in tiLowerPriorityPlateauAndLandZonesWithEnemyBuildings, returns the structure value in the zone
 
             local iFriendlyUnitReductionFactor = 2
             local iFriendlyUnitAOEFactor = 2
@@ -3429,7 +3432,6 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     iShieldFactor = 8
                 end
             end
-            local iDoubleShieldFactorThreshold = 4000 --If enemy has more than this much mass then will double the shield factor
 
             for iEntry, tPlateauZoneAndDist in oArti[reftiPlateauAndZonesInRange] do
                 local tAltLZOrWZData
@@ -3442,7 +3444,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                 end
                 if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]) then
-                    iCurMobileThreat = ((tAltLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] or 0))
+                    iCurMobileThreat = ((tAltLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0))
                     --Get more precise calculation - i.e. the threat calculation above reduces threat for health, meaning if we attack say a fatboy, its threat decreases as its shield decreases, making it likely we switch targets when its shield is about to be destroyed; however dont bother with low threat values
                     if iCurMobileThreat >= 1000 then
                         if tPlateauZoneAndDist[1] == 0 then
@@ -3500,6 +3502,13 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                         end
                     end
 
+                    --Campaign capture objectives - avoid capture targets unless they're far higher in value than other potential targets
+                    if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(tAltLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Zone has capture targets so significantly reducing its value, iCurValue before reduction='..iCurValue) end
+                        if iCurValue > iSecondBestValue and not(oCaptureTargetForFirstUnitAvoided) then oCaptureTargetForFirstUnitAvoided = tAltLZOrWZData[M28Map.subreftoUnitsToCapture][1] end
+                        iCurValue = iCurValue / 20
+                    end
+
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering plateau '..tPlateauZoneAndDist[1]..' and zone '..tPlateauZoneAndDist[2]..'; Dist='..tPlateauZoneAndDist[3]..'; iCurValue before factoring in ineffective shot count='..iCurValue..'; tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount]='..(tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 'nil')..'; iCurAAThreat='..iCurAAThreat..'; iCurMobileThreat='..iCurMobileThreat..'; tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]..'; iSecondBestValue='..iSecondBestValue) end
 
                     --Adjust value for number of times shots have hit
@@ -3524,19 +3533,34 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             iBestLZOrWZ = tPlateauZoneAndDist[2]
                             iBestAngleFactor = iArtiAngleFactor
                         elseif iCurValue > iSecondBestValue then
+                            if iSecondBestPlateauOrZero then
+                                local tSecondBestTeamData
+                                if iSecondBestPlateauOrZero > 0 then
+                                    tSecondBestTeamData = M28Map.tAllPlateaus[iSecondBestPlateauOrZero][M28Map.subrefPlateauLandZones][iSecondBestLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+                                else
+                                    tSecondBestTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iSecondBestLZOrWZ]][M28Map.subrefPondWaterZones][iSecondBestLZOrWZ][M28Map.subrefWZTeamData][iTeam]
+                                end
+                                if (tSecondBestTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) > 500 then
+                                    table.insert(tiLowerPriorityPlateauAndLandZonesWithEnemyBuildings, {iSecondBestPlateauOrZero, iSecondBestLZOrWZ})
+                                    table.insert(tiLowerPriorityIndexAndStructureValue, (tSecondBestTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0))
+                                end
+                            end
                             iSecondBestValue = iCurValue
                             iSecondBestPlateauOrZero = tPlateauZoneAndDist[1]
                             iSecondBestLZOrWZ = tPlateauZoneAndDist[2]
                             iSecondBestAngleFactor = iArtiAngleFactor
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': iCurValue after adj='..iCurValue..'; iShotMissFactor='..iShotMissFactor..'; iArtiAngleFactor='..iArtiAngleFactor) end
+                    elseif (tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) > 500 then
+                        table.insert(tiLowerPriorityPlateauAndLandZonesWithEnemyBuildings, {tPlateauZoneAndDist[1], tPlateauZoneAndDist[2]})
+                        table.insert(tiLowerPriorityIndexAndStructureValue, (tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0))
                     end
                 end
             end
 
             --Now have the best 2 zones on an aggregate basis, get the best location for the arti target within these zones
             --Reduce value of shields against high damage and aoe targets
-
+            local iCaptureTargetDistanceThreshold = 34
             function GetBestUnitTargetAndValueInZone(iPlateauOrZero, iLZOrWZ, iAngleFactor)
                 local tAltLZOrWZData
                 local tAltLZOrWZTeamData
@@ -3569,16 +3593,39 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     --Filter to the top 25 units in the zone by mass cost for performance reasons
                     local tiBaseValueOfPriorityUnits = {}
                     local iBaseValue
+                    local toUnitsToAvoid
+                    if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(tAltLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then toUnitsToAvoid = tAltLZOrWZData[M28Map.subreftoUnitsToCapture] end
+                    function IsCloseToUnitToAvoid(oUnitToConsider)
+                        if toUnitsToAvoid then
+                            for iToAvoid, oToAvoid in toUnitsToAvoid do
+                                if not(oToAvoid.Dead) and M28Utilities.GetDistanceBetweenPositions(oToAvoid:GetPosition(), oUnitToConsider:GetPosition()) <= iCaptureTargetDistanceThreshold then
+                                    if not(oFirstUnitAvoidedDueToCaptureTarget) then
+                                        oFirstUnitAvoidedDueToCaptureTarget = oUnitToConsider
+                                        oCaptureTargetForFirstUnitAvoided = oToAvoid
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iclosetounittoavoid: Unit '..oUnitToConsider.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToConsider)..' is too close to capture target '..oToAvoid.UnitId..M28UnitInfo.GetUnitLifetimeCount(oToAvoid)) end
+                                    return true
+                                else
+                                end
+                            end
+                        end
+                        return false
+                    end
 
                     for iUnit, oUnit in tPriorityUnits do
                         --Double check are in range
                         if M28UnitInfo.IsUnitValid(oUnit) then
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oArti:GetPosition())
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..iCurDist..'; iMaxRange='..iMaxRange..'; iMinRange='..iMinRange..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; iFriendlyUnitReductionFactor='..(iFriendlyUnitReductionFactor or 'nil')..'; iFriendlyUnitAOEFactor='..(iFriendlyUnitAOEFactor or 'nil')..'; iSizeAdjust='..(iSizeAdjust or 'nil')..'; iMultipleShotMod='..(iMultipleShotMod or 'nil')..'; iMobileValueFactorInner='..(iMobileValueFactorInner or 'nil')..'; iShieldReductionFactor='..(iShieldReductionFactor or 'nil')) end
-                            if iCurDist <= iMaxRange and iCurDist >= iMinRange and (bDontConsiderIfUnderwater or not(M28UnitInfo.IsUnitUnderwater(oUnit))) then
-                                iBaseValue = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
-                                if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and oUnit:GetFractionComplete() >= 0.98 then iBaseValue = iBaseValue * iMobileValueFactorInner end
-                                tiBaseValueOfPriorityUnits[iUnit] = iBaseValue
+                            if iCurDist <= iMaxRange and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) and iCurDist >= iMinRange and (bDontConsiderIfUnderwater or not(M28UnitInfo.IsUnitUnderwater(oUnit))) then
+                                if toUnitsToAvoid and IsCloseToUnitToAvoid(oUnit) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Ignoring unit as too close to a unit to avoid') end
+                                else
+                                    --Check if units to avoid
+                                    iBaseValue = (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit)) * oUnit:GetFractionComplete()
+                                    if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and oUnit:GetFractionComplete() >= 0.98 then iBaseValue = iBaseValue * iMobileValueFactorInner end
+                                    tiBaseValueOfPriorityUnits[iUnit] = iBaseValue
+                                end
                             end
                         end
                     end
@@ -3634,47 +3681,126 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                         oBestTarget = oAltTarget
                         iBestValue = iAltTargetValue
                     end
-                end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering first and second best zones, oBestTarget='..(oBestTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestTarget) or 'nil')..'; tBestArtiSynchronisedGroundTarget='..repru(tBestArtiSynchronisedGroundTarget)..'; oArtiSynchronisedTarget='..(oArtiSynchronisedTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oArtiSynchronisedTarget) or 'nil')) end
-            if oArtiSynchronisedTarget and tBestArtiSynchronisedGroundTarget then oBestTarget = oArtiSynchronisedTarget end
-            if not(oBestTarget) and not(tBestArtiSynchronisedGroundTarget) then
-                M28Utilities.ErrorHandler('No target found for T3 arti, will fire at closest enemy base instead if we can hit it', true)
-                local bGivenAltTarget = false
-                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                local iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oArti:GetPosition())
-                if iDistToEnemyBase <= iMaxRange and iDistToEnemyBase >= iMinRange and ( bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLZTeamData[M28Map.reftClosestEnemyBase])) then
-                    --GetDamageFromBomb(aiBrain, tBaseLocation,                             iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
-                    local iDamage = M28Logic.GetDamageFromBomb(aiBrain, tLZTeamData[M28Map.reftClosestEnemyBase], iAOE, iDamage, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor,          false,                          iSizeAdjust,        iMultipleShotMod,               iMobileValueFactorInner,                    true,               iShieldReductionFactor,         true)
-                    if iDamage >= 0 then --should mean dont have much in way of friendly forces there
-                        --Check there are enemy units nearby
-                        local bNearbyEnemyUnits = false
-                        local tNearbyUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tLZTeamData[M28Map.reftClosestEnemyBase], iAOE * 1.3))
-                        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
-                            for iUnit, oUnit in tNearbyUnits do
-                                if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryStructure - categories.TECH1 * categories.MOBILE, oUnit.UnitId) then
-                                    if IsEnemy(oUnit:GetAIBrain():GetArmyIndex(), aiBrain:GetArmyIndex()) then
-                                        bNearbyEnemyUnits = true
-                                        break
-                                    end
-                                end
-                            end
-                        end
-                        if bNearbyEnemyUnits then
-                            iBestValue = iDamage
-                            --Is this the same as the last target?
-                            oArti[refiLastTargetValue] = iBestValue
-                            local tLastOrder = oArti[M28Orders.reftiLastOrders][oArti[M28Orders.refiOrderCount]]
-                            if M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], tLZTeamData[M28Map.reftClosestEnemyBase]) > 1 then
-                                oArti[refiTimeLastGotBestArtiTarget] = GetGameTimeSeconds()
-                                M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
-                                IncreaseArtiShotCount(tLZTeamData[M28Map.reftClosestEnemyBase], iTeam, iShotCount)
-                            end
-                            bGivenAltTarget = true
+                    if not(oBestTarget) and M28Utilities.IsTableEmpty(tiLowerPriorityPlateauAndLandZonesWithEnemyBuildings) == false then
+                        for iIndex, iBuildingValue in M28Utilities.SortTableByValue(tiLowerPriorityIndexAndStructureValue, true) do
+                            GetBestUnitTargetAndValueInZone(tiLowerPriorityPlateauAndLandZonesWithEnemyBuildings[iIndex][1], tiLowerPriorityPlateauAndLandZonesWithEnemyBuildings[iIndex][2])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering alternative for best unit target P'..tiLowerPriorityPlateauAndLandZonesWithEnemyBuildings[iIndex][1]..'Z'..tiLowerPriorityPlateauAndLandZonesWithEnemyBuildings[iIndex][2]) end
+                            if oBestTarget then break end
                         end
                     end
                 end
-                if not(bGivenAltTarget) then M28Orders.IssueTrackedClearCommands(oArti) end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering first and second best zones, oBestTarget='..(oBestTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestTarget) or 'nil')..'; tBestArtiSynchronisedGroundTarget='..repru(tBestArtiSynchronisedGroundTarget)..'; oArtiSynchronisedTarget='..(oArtiSynchronisedTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oArtiSynchronisedTarget) or 'nil')..'; oFirstUnitAvoidedDueToCaptureTarget='..(oFirstUnitAvoidedDueToCaptureTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstUnitAvoidedDueToCaptureTarget) or 'nil')..'; oCaptureTargetForFirstUnitAvoided='..(oCaptureTargetForFirstUnitAvoided.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oCaptureTargetForFirstUnitAvoided) or 'nil')) end
+            if oArtiSynchronisedTarget and tBestArtiSynchronisedGroundTarget then oBestTarget = oArtiSynchronisedTarget end
+            if not(oBestTarget) and not(tBestArtiSynchronisedGroundTarget) then
+                local bGivenAltTarget = false
+                if  oCaptureTargetForFirstUnitAvoided then
+                    if not(oFirstUnitAvoidedDueToCaptureTarget) then
+                        local tCaptureLZData, tCaptureLZTeamData = M28Map.GetLandOrWaterZoneData(oCaptureTargetForFirstUnitAvoided:GetPosition(), true, iTeam)
+                        if (tCaptureLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) >= 200 and M28Utilities.IsTableEmpty(tCaptureLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                            --Get the furthest building from capture target
+                            local tEnemyBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tCaptureLZTeamData[M28Map.subrefTEnemyUnits])
+                            if M28Utilities.IsTableEmpty(tEnemyBuildings) == false then
+                                local iFurthestDist = 10 --dont want units that are too close to capture target
+                                local iCurDist
+                                for iBuilding, oBuilding in tEnemyBuildings do
+                                    if not(oBuilding.Dead) then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oBuilding:GetPosition(), oCaptureTargetForFirstUnitAvoided:GetPosition())
+                                        if iCurDist > iFurthestDist then
+                                            iFurthestDist = iCurDist
+                                            oFirstUnitAvoidedDueToCaptureTarget = oBuilding
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': oFirstUnitAvoidedDueToCaptureTarget after checking furthest building='..(oFirstUnitAvoidedDueToCaptureTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFirstUnitAvoidedDueToCaptureTarget) or 'nil')..'; iFurthestDist='..iFurthestDist) end
+                            end
+                        end
+                    end
+                    if oFirstUnitAvoidedDueToCaptureTarget then
+                        local iAngleToUnitFromCaptureTarget = M28Utilities.GetAngleFromAToB(oCaptureTargetForFirstUnitAvoided:GetPosition(), oFirstUnitAvoidedDueToCaptureTarget:GetPosition())
+                        local iDistToMove = iCaptureTargetDistanceThreshold - M28Utilities.GetDistanceBetweenPositions(oFirstUnitAvoidedDueToCaptureTarget:GetPosition(), oCaptureTargetForFirstUnitAvoided:GetPosition())
+                        local tAltTarget = M28Utilities.MoveInDirection(oFirstUnitAvoidedDueToCaptureTarget:GetPosition(), iAngleToUnitFromCaptureTarget, iDistToMove, true, false, true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try targeting oFirstUnitAvoidedDueToCaptureTarget='..oFirstUnitAvoidedDueToCaptureTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstUnitAvoidedDueToCaptureTarget)..'; iDistToMove='..iDistToMove..'; Dist between the target and capture unit='..M28Utilities.GetDistanceBetweenPositions(oFirstUnitAvoidedDueToCaptureTarget:GetPosition(), oCaptureTargetForFirstUnitAvoided:GetPosition())) end
+                        if M28Utilities.IsTableEmpty(tAltTarget) == false then
+                            oArti[refiTimeLastGotBestArtiTarget] = GetGameTimeSeconds()
+                            M28Orders.IssueTrackedGroundAttack(oArti, tAltTarget, 1, false, 'ArtiCaptU', false)
+                            bGivenAltTarget = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try attacking unit near capture target') end
+                        end
+                    end
+                end
+                if not(bGivenAltTarget) then
+                    M28Utilities.ErrorHandler('No target found for T3 arti, will fire at closest enemy base instead if we can hit it', true)
+                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                    local toUnitsToAvoid
+                    if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then toUnitsToAvoid = tLZData[M28Map.subreftoUnitsToCapture] end
+                    function IsCloseToUnitToAvoid(oUnitToConsider)
+                        if toUnitsToAvoid then
+                            for iToAvoid, oToAvoid in toUnitsToAvoid do
+                                if not(oToAvoid.Dead) and M28Utilities.GetDistanceBetweenPositions(oToAvoid:GetPosition(), oUnitToConsider:GetPosition()) <= iCaptureTargetDistanceThreshold then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnitToConsider.UnitId..M28UnitInfo.GeetUnitLifetimeCount(oUnitToConsider)..' is too close to capture target '..oToAvoid.UnitId..M28UnitInfo.GetUnitLifetimeCount(oToAvoid)) end
+                                    --Commented out below as no point recording for here as the logic using these is above/has already happened
+                                    --[[if not(oFirstUnitAvoidedDueToCaptureTarget) then
+                                        oFirstUnitAvoidedDueToCaptureTarget = oUnitToConsider
+                                        oCaptureTargetForFirstUnitAvoided = oToAvoid
+                                    end--]]
+                                    return true
+                                end
+                            end
+                        end
+                        return false
+                    end
+                    local iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oArti:GetPosition())
+                    if iDistToEnemyBase <= iMaxRange and iDistToEnemyBase >= iMinRange and ( bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLZTeamData[M28Map.reftClosestEnemyBase])) then
+                        --GetDamageFromBomb(aiBrain, tBaseLocation,                             iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
+                        local iDamage = M28Logic.GetDamageFromBomb(aiBrain, tLZTeamData[M28Map.reftClosestEnemyBase], iAOE, iDamage, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor,          false,                          iSizeAdjust,        iMultipleShotMod,               iMobileValueFactorInner,                    true,               iShieldReductionFactor,         true)
+                        if iDamage >= 0 then --should mean dont have much in way of friendly forces there
+                            --Check there are enemy units nearby
+                            local bNearbyEnemyUnits = false
+                            local tNearbyUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tLZTeamData[M28Map.reftClosestEnemyBase], iAOE * 1.3))
+                            if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                                for iUnit, oUnit in tNearbyUnits do
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryStructure - categories.TECH1 * categories.MOBILE, oUnit.UnitId) then
+                                        if IsEnemy(oUnit:GetAIBrain():GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                                            if toUnitsToAvoid and IsCloseToUnitToAvoid(oUnit) then
+                                                --Ignore unit
+                                            else
+                                                bNearbyEnemyUnits = true
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            if bNearbyEnemyUnits then
+                                iBestValue = iDamage
+                                --Is this the same as the last target?
+                                oArti[refiLastTargetValue] = iBestValue
+                                local tLastOrder = oArti[M28Orders.reftiLastOrders][oArti[M28Orders.refiOrderCount]]
+                                if M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetRoughDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], tLZTeamData[M28Map.reftClosestEnemyBase]) > 1 then
+                                    oArti[refiTimeLastGotBestArtiTarget] = GetGameTimeSeconds()
+                                    M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
+                                    IncreaseArtiShotCount(tLZTeamData[M28Map.reftClosestEnemyBase], iTeam, iShotCount)
+                                end
+                                bGivenAltTarget = true
+                            end
+                        end
+                    end
+                    if oFirstUnitAvoidedDueToCaptureTarget and oCaptureTargetForFirstUnitAvoided then
+                        local iAngleToUnitFromCaptureTarget = M28Utilities.GetAngleFromAToB(oCaptureTargetForFirstUnitAvoided:GetPosition(), oFirstUnitAvoidedDueToCaptureTarget:GetPosition())
+                        local iDistToMove = iCaptureTargetDistanceThreshold - M28Utilities.GetDistanceBetweenPositions(oFirstUnitAvoidedDueToCaptureTarget:GetPosition(), oCaptureTargetForFirstUnitAvoided:GetPosition())
+                        local tAltTarget = M28Utilities.MoveInDirection(oFirstUnitAvoidedDueToCaptureTarget:GetPosition(), iAngleToUnitFromCaptureTarget, iDistToMove, true, false, true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try targeting oFirstUnitAvoidedDueToCaptureTarget='..oFirstUnitAvoidedDueToCaptureTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstUnitAvoidedDueToCaptureTarget)..'; iDistToMove='..iDistToMove..'; Dist between the target and capture unit='..M28Utilities.GetDistanceBetweenPositions(oFirstUnitAvoidedDueToCaptureTarget:GetPosition(), oCaptureTargetForFirstUnitAvoided:GetPosition())..'; tAltTarget='..repru(tAltTarget)) end
+                        if M28Utilities.IsTableEmpty(tAltTarget) == false then
+                            oArti[refiTimeLastGotBestArtiTarget] = GetGameTimeSeconds()
+                            M28Orders.IssueTrackedGroundAttack(oArti, tAltTarget, 1, false, 'ArtiCaptU', false)
+                            bGivenAltTarget = true
+                        end
+                    end
+                    if not(bGivenAltTarget) then
+                        M28Orders.IssueTrackedClearCommands(oArti)
+                    end
+                end
             else
                 local tActualTarget
                 local tLeadingTarget
@@ -3758,10 +3884,9 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                         end
                     end
                     IncreaseArtiShotCount(tActualTarget, iTeam, iShotCount)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Sent order to attack to oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..', iBestValue='..iBestValue..'; tActualTarget='..repru(tActualTarget)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Sent order to attack to oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..', iBestValue='..iBestValue..'; tActualTarget='..repru(tActualTarget)..'; is tActualTarget in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tActualTarget))..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)) end
                 end
             end
-
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

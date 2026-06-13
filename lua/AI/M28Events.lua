@@ -1836,7 +1836,7 @@ function ProjectileCreated(oProjectile, inWater)
                     end
                 end
             end
-            --LOG('TEMPCODE oProjectile.Launcher.UnitId='..(oProjectile.Launcher.UnitId or 'nil')..'; oProjectile.InnerRing='..(oProjectile.InnerRing or 'nil')..'; oProjectile.OuterRing='..(oProjectile.OuterRing or 'nil')..'; Launcher is SML='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, (oProjectile.Launcher.UnitId or 'uel0001'))))
+            if oProjectile.Launcher.UnitId == 'urb2108' then LOG('TEMPCODE oProjectile.Launcher.UnitId='..(oProjectile.Launcher.UnitId or 'nil')..'; oProjectile.InnerRing='..(oProjectile.InnerRing or 'nil')..'; oProjectile.OuterRing='..(oProjectile.OuterRing or 'nil')..'; Launcher is SML='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, (oProjectile.Launcher.UnitId or 'uel0001')))..'; Launcher is TML='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryTML, oProjectile.Launcher.UnitId))..'; TML damage radius per blueprint='..(oProjectile.CreatedByWeapon.Blueprint.DamageRadius or 'nil')..'; Brain nickname='..(oProjectile.CreatedByWeapon.Brain.Nickname or 'nil')..' Army index='..(oProjectile.CreatedByWeapon.Army or 'nil')..'; reprs of oProjectile='..reprs(oProjectile)) end
             if oProjectile.Launcher.UnitId and oProjectile.InnerRing and oProjectile.OuterRing and EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId) then
                 --Have a nuke missile that has just been fired
                 local oLauncher = oProjectile.Launcher
@@ -1844,18 +1844,28 @@ function ProjectileCreated(oProjectile, inWater)
                 if M28UnitInfo.IsUnitValid(oLauncher) then
                     local iTeam = oLauncher:GetAIBrain().M28Team
                     if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
-                        ForkThread(M28Micro.MonitorNukeTargetForNukeWeHaveIntelOf, oProjectile, oLauncher, iTeam)
+                        ForkThread(M28Micro.KeepUnitsAwayFromNukeOrTMLTarget, oProjectile, oLauncher, iTeam)
                     end
                     --Start a threat for each team with M28 in that isnt an ally to check if we have visual of the missile
                     for iCurTeam = 1, M28Team.iTotalTeamCount do
                         if not(iCurTeam == iTeam) and M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
-                            ForkThread(M28Micro.MonitorEnemyNukeForIntel, oProjectile, iCurTeam)
+                            ForkThread(M28Micro.MonitorEnemyNukeOrTMLMissileForIntel, oProjectile, iCurTeam)
+                        end
+                    end
+                end
+                --All TML targeting (for dodging shots once see missile)
+            elseif oProjectile.Launcher.UnitId and oProjectile.CreatedByWeapon.Blueprint.DamageRadius and EntityCategoryContains(M28UnitInfo.refCategoryTML, oProjectile.Launcher.UnitId) then
+                local iTeam = (oProjectile.CreatedByWeapon.Brain.M28Team or M28Overseer.tAllAIBrainsByArmyIndex[oProjectile.Army].M28Team)
+                if iTeam then
+                    for iCurTeam = 1, M28Team.iTotalTeamCount do
+                        if not(iCurTeam == iTeam) and M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                            ForkThread(M28Micro.MonitorEnemyNukeOrTMLMissileForIntel, oProjectile, iCurTeam)
                         end
                     end
                 end
 
             end
-            --TML targeting
+            --M28 specific TML targeting
             if oProjectile.Launcher.UnitId and oProjectile.Launcher[M28Building.refoLastTMLTarget] and EntityCategoryContains(M28UnitInfo.refCategoryTML, oProjectile.Launcher.UnitId) then
                 local oLauncher = oProjectile.Launcher
                 if M28UnitInfo.IsUnitValid(oLauncher) and oLauncher:GetAIBrain().M28AI then
