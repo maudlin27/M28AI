@@ -2579,6 +2579,14 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             --Have had a change in factions, update all unit tables
             if bDebugMessages == true then LOG(sFunctionRef..': Will update recorded units following uef alliance changes so arti is detected, changing sides, Time='..GetGameTimeSeconds()) end
             ForkThread(UpdateAllRecordedUnitsFollowingTeamChange)
+            --Aeon mission 6 - prioritise battleships and carriers; also periodically send engineer to try and capture
+        elseif ScenarioInfo.UEF == 2 and ScenarioInfo.Aeon == 4 and ScenarioInfo.Cybran == 3 and ScenarioInfo.Neutral == 5 and not(ScenarioInfo.M1P1Objective.Complete) and not(ScenarioInfo.M1P2Objective.Active) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will prioritise building carrier and battleships for start of Aeon M6') end
+            TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, M28UnitInfo.refCategoryNavalFactory, 1, M28UnitInfo.refCategoryCarrier, 4, M28UnitInfo.refCategoryBattleship)
+            --After 45m consider sending engineers
+            if ScenarioInfo.BlackSunControlCenter then
+                ForkThread(PeriodicallySendEngineerToCaptureTarget, ScenarioInfo.BlackSunControlCenter, ScenarioInfo.M1P1Objective, 2700)
+            end
             --FA M2 Dawn - update enemy unit tables after brief delay
         elseif ScenarioInfo.QAICommander and ScenarioInfo.M4P1.Active and not(tbSpecialCodeForMission[41]) then
             tbSpecialCodeForMission[41] = true
@@ -4280,7 +4288,7 @@ function CybranM6SendCampaignACUToNearestGateway()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function PeriodicallySendEngineerToCaptureTarget(oCaptureTarget, sOptionalObjectiveRef)
+function PeriodicallySendEngineerToCaptureTarget(oCaptureTarget, sOptionalObjectiveRef, iOptionalStartingWait)
     local sFunctionRef = 'PeriodicallySendEngineerToCaptureTarget'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -4292,7 +4300,7 @@ function PeriodicallySendEngineerToCaptureTarget(oCaptureTarget, sOptionalObject
         local iTimeWaitedWithLastEngineer
         --Wait 10 minutes first to give a chance to control the area
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(600)
+        WaitSeconds(iOptionalStartingWait or 600)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         local toEngineersGivenOrderTo = {}
         local iTimeToWait
