@@ -1698,6 +1698,18 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
         if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
         if oBP.Enhancements['FAF_SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'FAF_SelfRepairSystem') end
         if bDebugMessages == true then LOG(sFunctionRef..': Want to use acu torpedo attack') end
+        --Campaign where cant path to enemy base with land and have good energy - get gun (to help with early raids) then RAS
+    elseif not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and M28Map.iMapSize >= 500 and M28Map.bIsCampaignMap then
+        if EntityCategoryContains(categories.UEF, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'Shield', 'T3Engineering'}
+        elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+        elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'ResourceAllocation'}
+        elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'T3Engineering'}
+        end
+
         --ACUs that have to choose between RAS and defensive upgrades - at high eco levels switch from getting RAS to getting defensive upgrade
         --UEF can get shield+RAS
         --Sera can get nano+RAS
@@ -1890,7 +1902,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                     end
                 end
             else
-                oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'DamageStabilization'}
+                oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced', 'T3Engineering'}
             end
         end
     else
