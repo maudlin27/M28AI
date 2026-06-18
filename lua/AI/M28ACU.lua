@@ -174,6 +174,14 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
             iMaxAreaToSearch = oACU:GetBlueprint().Economy.MaxBuildDistance + M28UnitInfo.GetBuildingSize('ueb0101') * 0.5 + 1 --are ok with moving a very small distance to start building if it means we get adjacency
         end
     end
+    --Campaign where large reclaim around ACU - increase search distance
+    if M28Map.bIsCampaignMap and tLZData[M28Map.subrefTotalSignificantMassReclaim] >= 500 then
+        local rNearbyRect = M28Utilities.GetRectAroundLocation(oACU:GetPosition(), 15)
+        if M28Map.GetReclaimInRectangle(3, rNearbyRect) >= 200 then
+            iMaxAreaToSearch = iMaxAreaToSearch + 15
+            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) >= 4 then iMaxAreaToSearch = iMaxAreaToSearch + 10 end
+        end
+    end
     local iSearchSegments = 20
     if iPlateauOrZero == 0 then
         iSearchSegments = 50
@@ -204,7 +212,7 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
     iSearchSegments = math.floor(iSearchSegments)
     if M28Overseer.refiRoughTotalUnitsInGame <= 500 then iSearchSegments = iSearchSegments * 2 end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Will try and search for '..iSearchSegments..' in iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..' so ACU is picking from best location for factory') end
+    if bDebugMessages == true then LOG(sFunctionRef..': Will try and search for '..iSearchSegments..' in iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..' so ACU is picking from best location for factory, iMaxAreaToSearch='..iMaxAreaToSearch) end
     M28Engineer.SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iSearchSegments)
     ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iMaxAreaToSearch * 2, M28Engineer.tiActionAdjacentCategory[(iEngineerActionOverride or M28Engineer.refActionBuildLandFactory)], M28UnitInfo.refCategoryEngineer)
 
