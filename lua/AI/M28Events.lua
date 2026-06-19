@@ -2599,6 +2599,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 end
                             end
                         end
+                    --PD tracking
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, oJustBuilt.UnitId) then
+                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oEngineer:GetAIBrain().M28Team)
+                        tLZTeamData[M28Map.refiTimeLastCompletedPD] = GetGameTimeSeconds()
                     end
 
                     --Logic based on the unit that was just built:

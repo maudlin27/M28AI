@@ -349,6 +349,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiTimeOfLastSMDPrioritisationRequest = 'GetSMD' --Gametimeseconds that this zone was recorded as wanting SMD (will treat similarly to objectivesmd if request was made in last 6m)
 
             refbIgnoreEmergencyPDReassignmentLogic = 'EmPDAtv' --true if have logic monitoring emergency PD builders active
+            refiTimeLastCompletedPD = 'EmPDTim' --gametimeseconds that onconstructed triggered (so we abort emergency PD reassignment logic)
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             --Economy related values
             subreftoActiveUpgrades = 'ActiveUpgrades' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
