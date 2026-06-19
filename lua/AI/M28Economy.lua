@@ -2673,9 +2673,10 @@ function ManageEnergyStalls(iTeam)
 
                                                 if bApplyActionToUnit then
                                                     --Dont pause factory that is building an engineer or is an air factory that isnt building an air unit, if its our highest tech level and we dont have at least 5 engis of that tech level
-                                                    if M28UnitInfo.GetUnitTechLevel(oUnit) >= math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(M28UnitInfo.GetUnitTechLevel(oUnit))) < 2 then
+                                                    if M28UnitInfo.GetUnitTechLevel(oUnit) >= math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(M28UnitInfo.GetUnitTechLevel(oUnit))) < 2
+                                                    and (oUnit:GetWorkProgress() >= 0.9 or (oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]))) then
                                                         --Dont pause factory as have too few engis and want to build power with those engis
-                                                        if bDebugMessages == true then LOG(sFunctionRef .. ': Have too few engineers so wont pause factory') end
+                                                        if bDebugMessages == true then LOG(sFunctionRef .. ': Have too few engineers and are building more so wont pause factory') end
                                                         bApplyActionToUnit = false
                                                     end
                                                 end
@@ -2695,19 +2696,19 @@ function ManageEnergyStalls(iTeam)
                                             end
 
                                             if iCategoryRef == categories.COMMAND then
-                                            --want in addition to above as ACU might have personal shield
+                                                --want in addition to above as ACU might have personal shield
 
-                                            if not (oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded')) then
-                                            bApplyActionToUnit = false
-                                            elseif oUnit.GetWorkProgress then
-                                            if oUnit:GetWorkProgress() >= 0.85 then
-                                            bApplyActionToUnit = false
-                                            --dont pause t1 mex construction
-                                            elseif oUnit.GetFocusUnit and oUnit:GetFocusUnit() and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oUnit:GetFocusUnit().UnitId) then
-                                            bApplyActionToUnit = false
+                                                if not (oUnit:IsUnitState('Upgrading')) and not(oUnit:IsUnitState('BeingUpgraded')) then
+                                                    bApplyActionToUnit = false
+                                                elseif oUnit.GetWorkProgress then
+                                                    if oUnit:GetWorkProgress() >= 0.85 then
+                                                        bApplyActionToUnit = false
+                                                        --dont pause t1 mex construction
+                                                    elseif oUnit.GetFocusUnit and oUnit:GetFocusUnit() and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oUnit:GetFocusUnit().UnitId) then
+                                                        bApplyActionToUnit = false
+                                                    end
                                                 end
-                                                end
-                                                end
+                                            end
                                         end
                                     elseif bDebugMessages == true then LOG(sFunctionRef..': Unit entry='..iUnit..'; Unit isnt valid or constructed')
                                     end
