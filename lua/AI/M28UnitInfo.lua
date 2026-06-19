@@ -2772,6 +2772,12 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
                 else EnableUnitStealth(oUnit)
                 end
                 oUnit[refbPaused] = bPauseNotUnpause
+                --commented out below as introduced when thought mass fabs werent turning off but they were
+            --[[elseif oUnit.OnProductionPaused and oUnit.OnProductionUnpaused and EntityCategoryContains(refCategoryMassFab, oUnit.UnitId) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will toggle production pause') end
+                if bPauseNotUnpause then oUnit:OnProductionPause()
+                else oUnit:OnProductionUnpaused()
+                end--]]
             end
             if bDebugMessages == true then LOG(sFunctionRef..': end of code oUnit[refbPaused]='..tostring(oUnit[refbPaused] or false)..'; oUnit[refiPausedPriority]='..(oUnit[refiPausedPriority] or 'nil')) end
 
