@@ -8290,7 +8290,7 @@ function HaveActionForACUAsEngineer(oACU, tLZOrWZData, tLZOrWZTeamData, iPlateau
                     end
                     --Get experimental if T3 and dont have low power and have all t3 mexes in zone, subject to normal overrides
                 elseif oACU[refiBuildTech] >= 3 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] >= tLZOrWZData[M28Map.subrefLZOrWZMexCount] and (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 2 and tLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.15 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 and not(M28Conditions.HaveLowPower(iTeam))))
-                        and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Team.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryAirNonScout * categories.TECH3) >= 50)
+                        and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] > 0 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryAirNonScout * categories.TECH3) >= 50)
                 then
                     local tbEngineersOfFaction = {}
                     tbEngineersOfFaction[M28UnitInfo.GetUnitFaction(oACU)] = true
