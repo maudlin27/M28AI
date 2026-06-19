@@ -2072,6 +2072,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             LOG(sFunctionRef..': Aeon M5 check, if ScenarioInfo.M2P1Obj.Active='..tostring(ScenarioInfo.M2P1Obj.Active or false)..'; ScenarioInfo.Ariel==nil='..tostring(ScenarioInfo.Ariel == nil)..'; Colonies is nil='..tostring(ScenarioInfo.Colonies == nil)..'; tbSpecialCodeForMission[21]='..tostring(tbSpecialCodeForMission[21] or false))
             LOG(sFunctionRef..': UEF M6 check, ScenarioInfo.Component='..(ScenarioInfo.Component or 'nil')..'; ScenarioInfo.BlackSun='..(ScenarioInfo.BlackSun or 'nil')..'; is ScenarioInfo.BlackSunComponent valid='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunComponent))..'; is it nil='..tostring(ScenarioInfo.BlackSunComponent == nil)..'; ScenarioInfo.M1P2.Active='..tostring(ScenarioInfo.M1P2.Active))
             LOG(sFunctionRef..': Cybran M5 check, ScenarioInfo.FauxUEF='..(ScenarioInfo.FauxUEF or 'nil')..'; Hex5='..(ScenarioInfo.Hex5 or 'nil')..'; M1P1Complete='..tostring(ScenarioInfo.M1P1Complete or false)..'; M2P2Complete='..tostring(ScenarioInfo.M2P2Complete or false))
+            LOG(sFunctionRef..': FA M1 check, is ScenarioInfo.M1ObjectiveShield nil='..tostring(ScenarioInfo.M1ObjectiveShield == nil)..'; .UnitId='..(ScenarioInfo.M1ObjectiveShield.UnitId or 'nil'))
         end
         --UEF Mission 2 - if player 1 has M28AI logic active, then try and move units to the area for civilians
         if Target.Area == 'Civilian_Area' and ScenarioInfo.M2P1.Active and ScenarioInfo.AllyResearch == 3 and ScenarioInfo.AllyCivilian == 4 and ScenarioInfo.CivilianFacilityReinforcedObjectiveComplete == false then
@@ -2159,7 +2160,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     if (iLandZone or 0) > 0 then
                         local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
                         --Wont set a size for now (v296 functionality)
-                        tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tLocation[1], tLocation[2], tLocation[3]}, [M28Map.subrefiObjCategoryToBuild] = categories.ueb3201, [M28Map.subrefiObjLocationSize] = iSize, [M28Map.subrefiNumberWanted] = 1}
+                        tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tLocation[1], tLocation[2], tLocation[3]}, [M28Map.subrefiObjCategoryToBuild] = categories.ueb3201, [M28Map.subrefiObjTechLevelWanted] = 2, [M28Map.subrefiObjLocationSize] = iSize, [M28Map.subrefiNumberWanted] = 1}
                         if bDebugMessages == true then LOG(sFunctionRef..': Added T2 radar location for Plateau '..iPlateau..'; Zone '..iLandZone..'; reftObjectiveLocation='..reprs(tLZTeamData[M28Map.reftObjectiveLocation])) end
                     end
                 end
@@ -2189,7 +2190,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                         if (iLandZone or 0) > 0 then
                             local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
                             --Wont set a size for now (v296 functionality)
-                            tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tLocation[1], tLocation[2], tLocation[3]}, [M28Map.subrefiObjCategoryToBuild] = M28UnitInfo.refCategorySMD, [M28Map.subrefiNumberWanted] = 1}
+                            tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tLocation[1], tLocation[2], tLocation[3]}, [M28Map.subrefiObjCategoryToBuild] = M28UnitInfo.refCategorySMD, [M28Map.subrefiObjTechLevelWanted] = 3, [M28Map.subrefiNumberWanted] = 1}
                             if bDebugMessages == true then LOG(sFunctionRef..': Added SMD location for Plateau '..iPlateau..'; Zone '..iLandZone) end
                         end
                     end
@@ -2453,7 +2454,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStart)
                     if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
                         local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
-                        tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tStart[1], GetSurfaceHeight(tStart[1], tStart[3]), tStart[3]}, [M28Map.subrefiObjCategoryToBuild] = M28UnitInfo.refCategorySMD, [M28Map.subrefiObjLocationSize] = 80, [M28Map.subrefiNumberWanted] = 7}
+                        tLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tStart[1], GetSurfaceHeight(tStart[1], tStart[3]), tStart[3]}, [M28Map.subrefiObjCategoryToBuild] = M28UnitInfo.refCategorySMD, [M28Map.subrefiObjTechLevelWanted] = 3, [M28Map.subrefiObjLocationSize] = 80, [M28Map.subrefiNumberWanted] = 7}
                         if bDebugMessages == true then LOG(sFunctionRef..': Recording we want 7 SMD for P'..iPlateauOrZero..'Z'..iLandOrWaterZone) end
                     end
                 end
@@ -2567,7 +2568,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tMidpoint)
                     if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
                         local tMidpointLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
-                        tMidpointLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tMidpoint[1], GetSurfaceHeight(tMidpoint[1], tMidpoint[3]), tMidpoint[3]}, [M28Map.subrefiObjCategoryToBuild] = M28UnitInfo.refCategorySMD, [M28Map.subrefiObjLocationSize] = iSize, [M28Map.subrefiNumberWanted] = 1}
+                        tMidpointLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = {tMidpoint[1], GetSurfaceHeight(tMidpoint[1], tMidpoint[3]), tMidpoint[3]}, [M28Map.subrefiObjCategoryToBuild] = M28UnitInfo.refCategorySMD, [M28Map.subrefiObjTechLevelWanted] = 3, [M28Map.subrefiObjLocationSize] = iSize, [M28Map.subrefiNumberWanted] = 1}
                         if bDebugMessages == true then LOG(sFunctionRef..': Set SMD location for iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Location='..repru(tMidpointLZTeamData[M28Map.reftObjectiveLocation])) end
                     end
 
@@ -2587,6 +2588,26 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             if ScenarioInfo.BlackSunControlCenter then
                 ForkThread(PeriodicallySendEngineerToCaptureTarget, ScenarioInfo.BlackSunControlCenter, ScenarioInfo.M1P1Objective, 2700)
             end
+            --FA M1 - build T2 AA by the shield, and rush T3 HQ
+        elseif ScenarioInfo.M1ObjectiveShield and ScenarioInfo.Seraphim == 2 and ScenarioInfo.Order == 3 and ScenarioInfo.UEF == 4 and not(ScenarioInfo.M2P1.Active) and not(ScenarioInfo.M2P1.Complete) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will look to build AA under shield if M1S2 is active or it is start of game (i.e. havent even been given the objective yet), or if not will upgrade facs to t2, ScenarioInfo.M1S2.Active='..tostring(ScenarioInfo.M1S2.Active or false)) end
+            --if ScenarioInfo.M1S2.Active then
+            if not(ScenarioInfo.M1S2.Complete) then
+                local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(ScenarioInfo.M1ObjectiveShield:GetPosition())
+                if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
+                    local tMidpointLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                    tMidpointLZTeamData[M28Map.reftObjectiveLocation] = {[M28Map.subreftObjLocation] = ScenarioInfo.M1ObjectiveShield:GetPosition(), [M28Map.subrefiObjCategoryToBuild] = categories.ANTIAIR * categories.STRUCTURE * categories.ANTIAIR - categories.TECH1, [M28Map.subrefiObjTechLevelWanted] = 2, [M28Map.subrefiObjLocationSize] = 15, [M28Map.subrefiNumberWanted] = 2}
+                    if bDebugMessages == true then LOG(sFunctionRef..': Setting to build 2 T2 AA at objective location for iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Location='..repru(tMidpointLZTeamData[M28Map.reftObjectiveLocation])) end
+                end
+            end
+            if not(ScenarioInfo.M1S2.Active) then
+                --Start of game
+                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory * categories.TECH1, 1, M28UnitInfo.refCategoryLandHQ * categories.TECH2, nil, nil, 'T2Land')
+                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory * categories.TECH2, 8, M28UnitInfo.refCategoryEngineer * categories.TECH2, 1, M28UnitInfo.refCategoryLandHQ * categories.TECH3, 'T2LEng')
+                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryAirFactory * categories.TECH1, 1, M28UnitInfo.refCategoryAirHQ * categories.TECH2, nil, nil, 'T2Air')
+                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryAirFactory * categories.TECH2, 8, M28UnitInfo.refCategoryEngineer * categories.TECH2, 1, M28UnitInfo.refCategoryAirHQ * categories.TECH3, 'T2AEng')
+            end
+            --end
             --FA M2 Dawn - update enemy unit tables after brief delay
         elseif ScenarioInfo.QAICommander and ScenarioInfo.M4P1.Active and not(tbSpecialCodeForMission[41]) then
             tbSpecialCodeForMission[41] = true
@@ -4124,7 +4145,7 @@ function GetM28BrainForCampaignObjective(bAlsoGetFirstPlayer)
     end
 end
 
-function TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, iFactoryCategory, iUnitsWanted, iCategoryWanted, iSecondUnitsWanted, iSecondCategoryWanted)
+function TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, iFactoryCategory, iUnitsWanted, iCategoryWanted, iSecondUnitsWanted, iSecondCategoryWanted, sOptionalUniqueReference)
     --Will first get iCategoryWanted, then ocne have iUnitsWanted will move on to iSecondCategoryWnated if it is specified
     local sFunctionRef = 'TellFactoryToBuildSpecificUnitInCampaignMission'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -4133,6 +4154,7 @@ function TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, iFactoryCategory
     local oM28Brain = GetM28BrainForCampaignObjective()
     if oM28Brain then
         local refbFactorySpecificUnitCheckActive = 'M28CampFacOvrd'
+        if sOptionalUniqueReference then refbFactorySpecificUnitCheckActive = refbFactorySpecificUnitCheckActive..sOptionalUniqueReference end
         if not(oM28Brain[refbFactorySpecificUnitCheckActive]) then
             oM28Brain[refbFactorySpecificUnitCheckActive] = true
             local iLifetimeCountThreshold = iUnitsWanted * 2
@@ -4158,9 +4180,9 @@ function TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, iFactoryCategory
                 if bWantNavalFac then WaitSeconds(10) else WaitSeconds(3) end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iCategoryWanted)
-                if M28UnitInfo.IsUnitValid(oPrimaryFactory) and oPrimaryFactory:GetWorkProgress() >= 0.3 then
+                if M28UnitInfo.IsUnitValid(oPrimaryFactory) and oPrimaryFactory:GetWorkProgress() >= 0.05 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Primary override Will increase iCurUnitsOfCategory if primary factory is almost complete, workprogress='..oPrimaryFactory:GetWorkProgress()..'; oPrimaryFactory[M28Factory.refsLastBlueprintBuilt]='..(oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] or 'nil')) end
-                    if oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] == oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] then
+                    if oPrimaryFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] == oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and EntityCategoryContains(iCategoryWanted, oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride]) then
                         iCurUnitsOfCategory = iCurUnitsOfCategory + 1
                     end
                 end
@@ -4191,9 +4213,9 @@ function TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, iFactoryCategory
                     WaitSeconds(10)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iSecondCategoryWanted)
-                    if M28UnitInfo.IsUnitValid(oPrimaryFactory) and oPrimaryFactory:GetWorkProgress() >= 0.3 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Secondary override Will increase iCurUnitsOfCategory if primary factory is almost complete, workprogress='..oPrimaryFactory:GetWorkProgress()..'; oPrimaryFactory[M28Factory.refsLastBlueprintBuilt]='..(oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] or 'nil')) end
-                        if oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] == oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] then
+                    if M28UnitInfo.IsUnitValid(oPrimaryFactory) and oPrimaryFactory:GetWorkProgress() >= 0.05 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Secondary override Will increase iCurUnitsOfCategory if primary factory is almost complete, workprogress='..oPrimaryFactory:GetWorkProgress()..'; oPrimaryFactory[M28Factory.refsLastBlueprintBuilt]='..(oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] or 'nil')..'; oPrimaryFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]='..(oPrimaryFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] or 'nil')) end
+                        if oPrimaryFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] == oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and EntityCategoryContains(iSecondCategoryWanted, oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride]) then
                             iCurUnitsOfCategory = iCurUnitsOfCategory + 1
                         end
                     end
