@@ -3663,7 +3663,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                 end
                             elseif tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 4 then
                                 --Sim city mode
-                                if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryEngineer - categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                                if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryEngineer - categories.COMMAND + categories.SUBCOMMANDER -M28UnitInfo.refCategoryTransport, oUnit.UnitId) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Enabled M28AI logic for the unit') end
                                     oUnit.M28Active = true
                                     oUnit:UpdateStat('M28Active', 1)
