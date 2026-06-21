@@ -373,7 +373,7 @@ AIOpts = {
             },
             {
                 text = 'Sim City (M28 has mobile non-engineers)',
-                help = 'Sim city mode - AI controls all mobile non-engineer units',
+                help = 'Sim city mode - AI controls all mobile non-engineer non-transport units',
                 key = 4,
             },
             {
