@@ -1245,7 +1245,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
         end
     end
 
-    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and oUnit:GetFractionComplete() == 1 then M28Utilities.ErrorHandler('Havent flagged that a constructed air unit is an air unit') end
+    if EntityCategoryContains(categories.MOBILE * categories.AIR - M28UnitInfo.refCategoryEngineer, oUnit.UnitId) and not(bIsEnemyAirUnit) and oUnit:GetFractionComplete() == 1 then M28Utilities.ErrorHandler('Havent flagged that a constructed air unit is an air unit') end
 
 
     local bAddToZone = true
