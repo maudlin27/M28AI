@@ -247,6 +247,11 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                             ForkThread(ConsiderRecordingStratBomberToSuicideInto, oKillerUnit, true)
                         end
 
+                        --Non-M28 specific unit (i.e. applies to both non-M28 killers and non-M28 killed units)
+                        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, oUnitKilled.UnitId) then
+                            M28Map.ConsiderUpdatingPlayerStartPositionForDestroyedFactory(oKillerBrain.M28Team, oUnitKilled, oUnitKilled:GetAIBrain())
+                        end
+
                         --Logic specific to where M28 unit is killed:
                         if oUnitKilled:GetAIBrain().M28AI then
                             local iTeam = oUnitKilled:GetAIBrain().M28Team
