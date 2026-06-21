@@ -213,6 +213,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastAirStagingShortage = 'M28TeamTimeAirStagingShortage' --Gametimeseconds that a team member last had units that had nowhere to refuel
     reftoEnemyExperimentalAirObjectives = 'M28TeamEnemyAirExp' --Table of enemy air experimentals that we need to destroy
     toBomberSuicideTargets = 'M28TeamStratSuic' --Table of enemy strat bombers that we want to suicide ASFs into
+    refbActiveDefenseObjective = 'M28TDefObj' --true if we need to use gunships more aggressively
 
     refiGunshipLosses = 'M28TGShLoss' --mass value of non-experimental gunships our M28 team has lost
     refiBomberLosses = 'M28TBmbLoss' --mass value of non-experimental bombers oure M28 team has lost
@@ -346,6 +347,8 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
 tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental + categories.COMMAND, --include ACU here so that if ACU gets laser or blast gun upgrade it will get assigned to land experimentals
                               [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD, [reftEnemyBattleships] = M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, [reftEnemyMobileSatellites] = M28UnitInfo.refCategorySatellite, [reftEnemyAirExperimentals] = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL }
 
+--Other
+tbEnemyTeamStartPositionMonitorActive = {} --[x] is the team (whose enemies are considering if they should update the player start position), returns true if have active monitor
 
 
 function CreateNewLandSubteam(iPlateau, iIsland, tM28BrainsInSubteam)
@@ -1245,7 +1248,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
         end
     end
 
-    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and oUnit:GetFractionComplete() == 1 then M28Utilities.ErrorHandler('Havent flagged that a constructed air unit is an air unit') end
+    if EntityCategoryContains(categories.MOBILE * categories.AIR - M28UnitInfo.refCategoryEngineer, oUnit.UnitId) and not(bIsEnemyAirUnit) and oUnit:GetFractionComplete() == 1 then M28Utilities.ErrorHandler('Havent flagged that a constructed air unit is an air unit') end
 
 
     local bAddToZone = true
@@ -2059,8 +2062,8 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU, refbDangerousForACUs is now true') end
                                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                                     end
-                                    if not(EntityCategoryContains(M28UnitInfo.refCategorySatellite, oUnit.UnitId)) then
-                                        ForkThread(M28Chat.SendWarningWhenHaveVisualOnEnemy, aiBrain, oUnit)
+                                    if not(EntityCategoryContains(M28UnitInfo.refCategorySatellite + categories.INSIGNIFICANTUNIT + M28UnitInfo.refCategoryBattleship * categories.TECH3 * categories.SILO, oUnit.UnitId)) then
+                                        ForkThread(M28Chat.SendTextMarkerWarningWhenHaveVisualOnEnemy, aiBrain, oUnit)
                                     end
                                 end
                             elseif M28Conditions.IsUnitLongRangeThreat(oUnit) then
@@ -4537,7 +4540,7 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
     if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
         for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
             if oBrain[M28Overseer.refoNearestEnemyBrain].M28IsDefeated then
-                M28Map.UpdateNewPrimaryBaseLocation(oBrain)
+                M28Map.UpdateNewPrimaryEnemyBaseLocation(oBrain)
             end
         end
     end

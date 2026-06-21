@@ -278,7 +278,7 @@ refCategoryMonkeylord = refCategoryLandExperimental * categories.CYBRAN * catego
 refCategoryMegalith = refCategoryLandExperimental * categories.CYBRAN * categories.DIRECTFIRE * categories.SNIPER
 refCategoryYthotha = refCategoryLandExperimental * categories.SERAPHIM * categories.DIRECTFIRE
 refCategoryMobileLand = categories.LAND * categories.MOBILE  - categories.UNSELECTABLE - categories.UNTARGETABLE
-refCategoryEngineer = categories.LAND * categories.MOBILE * categories.ENGINEER - categories.COMMAND - categories.FIELDENGINEER -categories.SUBCOMMANDER --Dont include sparkys as they cant build a lot of things, so just treat them as a combat unit that can reclaim
+refCategoryEngineer = categories.LAND * categories.MOBILE * categories.ENGINEER + categories.AIR * categories.MOBILE * categories.ENGINEER - categories.COMMAND - categories.FIELDENGINEER -categories.SUBCOMMANDER --Dont include sparkys as they cant build a lot of things, so just treat them as a combat unit that can reclaim
 refCategoryRASSACU = categories.SUBCOMMANDER * categories.RASPRESET + categories.SUBCOMMANDER * categories.SERAPHIM
 refCategoryRover = categories.POD * categories.ENGINEER * categories.MOBILE - categories.CONSTRUCTION -refCategoryEngineer
 refCategoryHive = categories.STRUCTURE * categories.STATIONASSISTPOD * categories.ENGINEERSTATION
@@ -2772,6 +2772,12 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause, bExcludeProduction, 
                 else EnableUnitStealth(oUnit)
                 end
                 oUnit[refbPaused] = bPauseNotUnpause
+                --commented out below as introduced when thought mass fabs werent turning off but they were
+            --[[elseif oUnit.OnProductionPaused and oUnit.OnProductionUnpaused and EntityCategoryContains(refCategoryMassFab, oUnit.UnitId) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will toggle production pause') end
+                if bPauseNotUnpause then oUnit:OnProductionPause()
+                else oUnit:OnProductionUnpaused()
+                end--]]
             end
             if bDebugMessages == true then LOG(sFunctionRef..': end of code oUnit[refbPaused]='..tostring(oUnit[refbPaused] or false)..'; oUnit[refiPausedPriority]='..(oUnit[refiPausedPriority] or 'nil')) end
 

@@ -7102,7 +7102,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                     elseif bHaveACUInTroubleAndRecentlyInCombat then
-                        M28Utilities.ErrorHandler('Thought we would be protecting an ACU but no ACU to protect')
+                        M28Utilities.ErrorHandler('Thought we would be protecting an ACU but no ACU to protect, will clear flag as might be the ACU died')
+                        tLZTeamData[M28Map.refbACUInTrouble] = false
                     end
                 end
 

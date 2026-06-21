@@ -349,6 +349,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiTimeOfLastSMDPrioritisationRequest = 'GetSMD' --Gametimeseconds that this zone was recorded as wanting SMD (will treat similarly to objectivesmd if request was made in last 6m)
 
             refbIgnoreEmergencyPDReassignmentLogic = 'EmPDAtv' --true if have logic monitoring emergency PD builders active
+            refiTimeLastCompletedPD = 'EmPDTim' --gametimeseconds that onconstructed triggered (so we abort emergency PD reassignment logic)
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             --Economy related values
             subreftoActiveUpgrades = 'ActiveUpgrades' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
@@ -4165,7 +4166,7 @@ function DelayedConsiderationOfWhetherToIgnoreFriendlyBase(tLZData, tLZTeamData,
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBaseToIgnore, bOnlyCheckIfFriendlyBaseToIgnore)
+function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBaseToIgnore, bOnlyCheckIfFriendlyBaseToIgnore, bOnlyUpdateNearestEnemyBase)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -4274,7 +4275,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBa
         elseif M28Utilities.IsTableEmpty(toIgnoredEnemyBrains) == false then
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated primary enemy base location for brain '..oBrain.Nickname..'; Enemy base before update='..repru(GetPrimaryEnemyBaseLocation(oBrain))) end
-                UpdateNewPrimaryBaseLocation(oBrain, true)
+                UpdateNewPrimaryEnemyBaseLocation(oBrain, true)
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated primary enemy base location for brain '..oBrain.Nickname..'; Enemy base after update='..repru(GetPrimaryEnemyBaseLocation(oBrain))) end
             end
         end
@@ -4282,6 +4283,18 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBa
         local iCurBrainDist
         local iClosestBrainDist
         local iClosestBrainRef, iClosestM28BrainRef, iClosestM28BrainDist
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': About to cycle through all plateaus and zones, tEnemyBases='..repru(tEnemyBases))
+            if tEnemyBases[1] then
+                for iBase, tBase in tEnemyBases do
+                    local iEnemyPlateau, iEnemyZone = GetClosestPlateauOrZeroAndZoneToPosition(tBase)
+                    LOG(sFunctionRef..': enemy base '..repru(tBase)..' has plateau='..(iEnemyPlateau or 'nil')..' zone '..(iEnemyZone or 'nil'))
+                end
+                for iBrain, oBrain in ArmyBrains do
+                    LOG(sFunctionRef..': oBrain '..oBrain.Nickname..' has a start position='..repru(GetPlayerStartPosition(oBrain)))
+                end
+            end
+        end
 
         for iPlateau, tPlateauSubtable in tAllPlateaus do
             for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
@@ -4302,8 +4315,10 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBa
                 end
                 if iClosestBrainRef then
                     local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
-                    tLZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
-                    tLZTeamData[reftiClosestFriendlyM28BrainIndex] = (iClosestM28BrainRef or iClosestBrainRef)
+                    if not(bOnlyUpdateNearestEnemyBase) then
+                        tLZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
+                        tLZTeamData[reftiClosestFriendlyM28BrainIndex] = (iClosestM28BrainRef or iClosestBrainRef)
+                    end
                     tLZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
                     tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefMidpoint], false) /  math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZTeamData[reftClosestEnemyBase]))
                     if bDebugMessages == true then LOG(sFunctionRef..': Have recorded closest enemy base for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; tLZTeamData[reftClosestFriendlyBase]='..repru(tLZTeamData[reftClosestFriendlyBase])..'; repru(tLZTeamData[reftClosestEnemyBase])='..repru(tLZTeamData[reftClosestEnemyBase])..'; iClosestBrainRef='..iClosestBrainRef..'; tBrainsByIndex[iClosestBrainRef].Nickname='..tBrainsByIndex[iClosestBrainRef].Nickname..'; aiBrain[reftPrimaryEnemyBaseLocation] for this brain='..repru(tBrainsByIndex[iClosestBrainRef][reftPrimaryEnemyBaseLocation])..'; iClosestBrainDist='..iClosestBrainDist) end
@@ -4385,7 +4400,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, bOnlyCheckIfEnemyBa
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZLogic)
+function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZLogic, bOnlyUpdateNearestEnemyBase)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -4462,9 +4477,10 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, bDontInitializeWZL
                         iClosestM28BrainRef = iBrain
                     end
                 end
-
-                tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
-                tWZTeamData[reftiClosestFriendlyM28BrainIndex] = (iClosestM28BrainRef or iClosestBrainRef)
+                if not(bOnlyUpdateNearestEnemyBase) then
+                    tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
+                    tWZTeamData[reftiClosestFriendlyM28BrainIndex] = (iClosestM28BrainRef or iClosestBrainRef)
+                end
                 tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
                 tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false) / math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZTeamData[reftClosestEnemyBase]))
                 if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond..'; Mod dist to midpoint from our start='..GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false)..'; Mod dist to nearest enemy base (to this WZ) from our friendly base='..GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZTeamData[reftClosestEnemyBase])..'; tWZTeamData[refiModDistancePercent]='..tWZTeamData[refiModDistancePercent]) end
@@ -5583,10 +5599,10 @@ function GetOppositeLocation(tLocation)
     return tOpposite
 end
 
-function UpdateNewPrimaryBaseLocation(aiBrain, bIgnoreIfDefeated)
+function UpdateNewPrimaryEnemyBaseLocation(aiBrain, bIgnoreIfDefeated)
     --Updates reftPrimaryEnemyBaseLocation to the nearest enemy start position (unless there are no structures there in which case it searches for a better start position)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'UpdateNewPrimaryBaseLocation'
+    local sFunctionRef = 'UpdateNewPrimaryEnemyBaseLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --LOG(sFunctionRef..': aiBrain='..aiBrain:GetArmyIndex()..'; Start position='..(aiBrain:GetArmyIndex() or 'nil'))
@@ -5792,7 +5808,7 @@ function GetPrimaryEnemyBaseLocation(aiBrain)
     --Used as the main location for the AI to evaluate things such as threats and make decisions; by default will be the nearest enemy start position
 
     --Done as a function so easier to adjust in the future if decide we want to
-    if not(aiBrain[reftPrimaryEnemyBaseLocation]) then UpdateNewPrimaryBaseLocation(aiBrain, true) end
+    if not(aiBrain[reftPrimaryEnemyBaseLocation]) then UpdateNewPrimaryEnemyBaseLocation(aiBrain, true) end
     return aiBrain[reftPrimaryEnemyBaseLocation]
 end
 
@@ -6066,7 +6082,7 @@ function RecordPondToExpandTo(aiBrain)
         if iWaitCount >= 20 then break end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, time='..GetGameTimeSeconds()..'; Is table of pond details empty='..tostring(M28Utilities.IsTableEmpty(tPondDetails))..'; bHaveRecordedPonds='..tostring(bHaveRecordedPonds)) end
-    if not(aiBrain[reftPrimaryEnemyBaseLocation]) then UpdateNewPrimaryBaseLocation(aiBrain, true) end
+    if not(aiBrain[reftPrimaryEnemyBaseLocation]) then UpdateNewPrimaryEnemyBaseLocation(aiBrain, true) end
     if M28Utilities.IsTableEmpty(tPondDetails) == false then
         local bStartLocationIsUnderwater = false
         local bThisPondHasUnderwaterStartLocation = false
@@ -9374,6 +9390,209 @@ function DrawLandZonePath(iPlateau, iStartLandZone, iEndLandZone)
     end
 end
 
+function ConsiderUpdatingPlayerStartPositionForDestroyedFactory(iTeamThatKilledFactory, oKilledUnit, oKilledBrain)
+    --If an HQ is killed on land by a team with m28 pllayers in it, then check if no other factories and if not then update the start position if find a more appropriate alternative start position (e.g. a factory in another zone)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderUpdatingPlayerStartPositionForDestroyedFactory'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oKilledBrain='..oKilledBrain.Nickname..'; oKilledUnit='..oKilledUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKilledUnit)..'; iTeamThatKilledFactory='..iTeamThatKilledFactory..'; Time='..GetGameTimeSeconds()) end
+    if (M28Team.tTeamData[iTeamThatKilledFactory][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+        local iPrimaryEnemyM28Team = iTeamThatKilledFactory
+        local iStartPlateau, iStartZone = GetClosestPlateauOrZeroAndZoneToPosition(GetPlayerStartPosition(oKilledBrain))
+
+        local iUnitPlateau, iUnitZone
+        if oKilledUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iPrimaryEnemyM28Team] then
+            iUnitPlateau =  oKilledUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iPrimaryEnemyM28Team][1]
+            iUnitZone =  oKilledUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iPrimaryEnemyM28Team][2]
+        else
+            iUnitPlateau, iUnitZone = GetClosestPlateauOrZeroAndZoneToPosition(oKilledUnit:GetPosition())
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iStartPlateau='..(iStartPlateau or 'nil')..'; iStartZone='..(iStartZone or 'nil')..'; iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitZone='..(iUnitZone or 'nil')) end
+        if iUnitZone == iStartZone and iUnitPlateau == iStartPlateau and (iStartPlateau or 0) > 0 and GetGameTimeSeconds() >= 120 then
+            local tiEnemyM28TeamsToUpdate = {}
+            local iKilledIndex = oKilledBrain:GetArmyIndex()
+
+            for iCurTeam = 1, M28Team.iTotalTeamCount do
+                if (M28Team.tTeamData[iCurTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
+                    if not(iPrimaryEnemyM28Team) then iPrimaryEnemyM28Team = iCurTeam end
+                    --Check is enemy
+                    if IsEnemy(iKilledIndex, M28Team.GetFirstActiveM28Brain(iCurTeam):GetArmyIndex()) then
+                        table.insert(tiEnemyM28TeamsToUpdate, iCurTeam)
+                    end
+                end
+            end
+            if iPrimaryEnemyM28Team and M28Utilities.IsTableEmpty(tiEnemyM28TeamsToUpdate) == false then
+                local tOrigBaseLZData = tAllPlateaus[iStartPlateau][subrefPlateauLandZones][iStartZone]
+                local tOrigBaseLZTeamData = tOrigBaseLZData[subrefLZTeamData][iPrimaryEnemyM28Team]
+                local bHaveOtherFactory = false
+                if M28Utilities.IsTableEmpty(tOrigBaseLZTeamData[subrefTEnemyUnits]) == false then
+                    local tOtherFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tOrigBaseLZTeamData[subrefTEnemyUnits])
+                    if M28Utilities.IsTableEmpty(tOtherFactories) == false then
+                        for iFactory, oFactory in tOtherFactories do
+                            if M28UnitInfo.IsUnitValid(oFactory) and not(oFactory == oKilledUnit) then
+                                if bDebugMessages == true then LOG(sFunctionRef..'; Enemy has a factory that isnt dead, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
+                                bHaveOtherFactory = true
+                                break
+                            end
+                        end
+
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': bHaveOtherFactory based on units that killer team has identified='..tostring(bHaveOtherFactory)) end
+                if not(bHaveOtherFactory) then
+                    --Check based on killed brain that no nearby factories, as we may not have intel of untis that are here
+                    local iSearchRadius = math.max(tOrigBaseLZData[subrefLZMaxSegX] - tOrigBaseLZData[subrefLZMinSegX], tOrigBaseLZData[subrefLZMaxSegZ] - tOrigBaseLZData[subrefLZMinSegZ]) * iLandZoneSegmentSize * 0.5
+                    local tNearbyFactories = oKilledBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, tOrigBaseLZData[subrefMidpoint], iSearchRadius, 'Ally')
+                    if M28Utilities.IsTableEmpty(tNearbyFactories) == false then
+                        --Is the other factory also in this zone?
+                        local iCurUnitPlateau, iCurUnitZone
+                        for iFactory, oFactory in    tNearbyFactories do
+                            if not(oFactory.Dead) then
+                                iCurUnitPlateau, iCurUnitZone = GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+                                if iCurUnitZone == iStartZone and iCurUnitPlateau == iStartPlateau then
+                                    bHaveOtherFactory = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iSearchRadius='..iSearchRadius..'; is tNearbyFactories empty='..tostring(M28Utilities.IsTableEmpty(tNearbyFactories))..'; bHaveOtherFactory='..tostring(bHaveOtherFactory)) end
+                    if not(bHaveOtherFactory) then
+                        --Monitor this zone so when the S value drops we can consider another more suitable base
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will call ForkedChangeEnemyStartPositionOnceNoBuildingsInZone unless already active monitor for killed brain team, tbEnemyTeamStartPositionMonitorActive='..tostring(M28Team.tbEnemyTeamStartPositionMonitorActive[oKilledBrain.M28Team] or false)) end
+                        if not(M28Team.tbEnemyTeamStartPositionMonitorActive[oKilledBrain.M28Team]) then
+
+                            ForkThread(ForkedChangeEnemyStartPositionOnceNoBuildingsInZone, iStartPlateau, iStartZone, tOrigBaseLZData, oKilledBrain, oKilledBrain.M28Team, iTeamThatKilledFactory, tiEnemyM28TeamsToUpdate, iSearchRadius)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ForkedChangeEnemyStartPositionOnceNoBuildingsInZone(iStartPlateau, iStartZone, tStartLZData, oKilledBrain, iKilledTeam, iKillerTeam, tiEnemyM28TeamsToUpdate, iSearchRadius)
+    --CALL VIA FORK THREAD
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ForkedChangeEnemyStartPositionOnceNoBuildingsInZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(M28Team.tbEnemyTeamStartPositionMonitorActive[iKilledTeam]) then
+        M28Team.tbEnemyTeamStartPositionMonitorActive[iKilledTeam] = true
+        local iCurUnitPlateau, iCurUnitZone
+        local bHaveNewFactory
+        function HaveNearbyUnitsOfInterest()
+            local tNearbyUnitsOfInterest = oKilledBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryExperimentalLevel, tStartLZData[subrefMidpoint], iSearchRadius, 'Ally')
+            if bDebugMessages == true then LOG(sFunctionRef..': CHecking for nearby factories and engineers, is tNearbyUnitsOfInterest empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest))..'; Time='..GetGameTimeSeconds()) end
+            if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) then
+                return false
+            else
+                local bHaveNearbyUnits = false
+                for iUnit, oUnit in tNearbyUnitsOfInterest do
+                    if not(oUnit.Dead) then --redundancy
+                        iCurUnitPlateau, iCurUnitZone = GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurUnitPlateau='..iCurUnitPlateau..'; iCurUnitZone='..iCurUnitZone) end
+                        if iCurUnitPlateau == iStartPlateau and iCurUnitZone == iStartZone then
+                            bHaveNearbyUnits = true
+                            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then
+                                bHaveNewFactory = true
+                                break
+                            end
+                        end
+                    end
+                end
+                return bHaveNearbyUnits
+            end
+        end
+        while HaveNearbyUnitsOfInterest() do
+            if bDebugMessages == true then LOG(sFunctionRef..': Enemy still has units of interest nearby, bHaveNewFactory='..tostring(bHaveNewFactory)) end
+            if bHaveNewFactory then break end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(30)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished doing the searhc loop, will update start if no new factory, bHaveNewFacotyr='..tostring(bHaveNewFactory)) end
+        if not(bHaveNewFactory) then
+            --Have no buildings or engineers in the zone, so have been wiped out, so want to update nearest enemy base if can find something more suitable, provided it is further from the enemy team than current base
+            local tStartLZTeamData = tStartLZData[subrefLZTeamData][iKillerTeam]
+            local tNearestKillerBase = tStartLZTeamData[reftClosestFriendlyBase]
+            local tOtherFactories = oKilledBrain:GetListOfUnits(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, false, true)
+            local iMinDistFromKillerBase = M28Utilities.GetDistanceBetweenPositions(tNearestKillerBase, tStartLZData[subrefMidpoint])
+            local iClosestFactoryToOldStart = 100000
+            local iCurDist, oClosestFactory
+
+            function LookForNewFactory(tOtherFactories)
+                if M28Utilities.IsTableEmpty(tOtherFactories) == false then
+                    for iFactory, oFactory in tOtherFactories do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' owned by '..oFactory:GetAIBrain().Nickname..'; dist to killer base='..M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), tNearestKillerBase)..'; iMinDistFromKillerBase='..iMinDistFromKillerBase..'; Dist to old start LZData='..M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), tStartLZData[subrefMidpoint])..'; iClosestFactoryToOldStart='..iClosestFactoryToOldStart) end
+                        if M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), tNearestKillerBase) > iMinDistFromKillerBase then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oFactory:GetPosition(), tStartLZData[subrefMidpoint])
+                            if iCurDist < iClosestFactoryToOldStart then
+                                iClosestFactoryToOldStart = iCurDist
+                                oClosestFactory = oFactory
+                            end
+                        end
+                    end
+                end
+            end
+
+            LookForNewFactory(tOtherFactories)
+            if bDebugMessages == true then LOG(sFunctionRef..': oClosestFactory after considering just killed brain factories='..(oClosestFactory.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestFactory) or 'nil')) end
+            if not(oClosestFactory) then
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iKilledTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+                    for iBrain, oBrain in M28Team.tTeamData[iKilledTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                        if not(oBrain == oKilledBrain) then
+                            tOtherFactories = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, false, true)
+                            LookForNewFactory(tOtherFactories)
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': oClosestFactory after considering teammates of killed brain factories='..(oClosestFactory.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestFactory) or 'nil')) end
+            if oClosestFactory then
+                local iCurUnitPlateau, iCurUnitZone = GetClosestPlateauOrZeroAndZoneToPosition(oClosestFactory:GetPosition())
+                if iCurUnitPlateau and iCurUnitZone and iCurUnitPlateau > 0 then
+                    --Update this player start position and then update nearest enemy base for our team
+
+
+                    if oKilledBrain.M28AI then
+                        local tOldStartLZTeamData = tStartLZData[subrefLZTeamData][iKilledTeam]
+                        tOldStartLZTeamData[subrefLZbCoreBase] = nil
+                        tOldStartLZTeamData[subrefbCoreBaseOverride] = nil
+                        if not(M28Team.tTeamData[iKilledTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateau]) then
+                            if not(M28Team.tTeamData[iKilledTeam][M28Team.reftiCoreZonesByPlateau]) then M28Team.tTeamData[iKilledTeam][M28Team.reftiCoreZonesByPlateau] = {} end
+                            M28Team.tTeamData[iKilledTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateau] = {}
+                        end
+                        M28Team.tTeamData[iKilledTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateau][iStartZone] = nil
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iKilledTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateau]) then M28Team.tTeamData[iKilledTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateau] = nil end
+                    end
+                    PlayerStartPoints[oKilledBrain:GetArmyIndex()] = {oClosestFactory:GetPosition()[1], oClosestFactory:GetPosition()[2], oClosestFactory:GetPosition()[3]}
+                    if bDebugMessages == true then LOG(sFunctionRef..': Updated player start point to closest factory position='..repru(oClosestFactory:GetPosition())) end
+                    if M28Utilities.IsTableEmpty(tiEnemyM28TeamsToUpdate) == false then
+                        for _, iTeam in tiEnemyM28TeamsToUpdate do
+                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then --redundancy, already checked this earlier
+                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                                    if oBrain[reftPrimaryEnemyBaseLocation] or (oBrain.M28AI and not(oBrain.M28IsDefeated)) then
+                                        UpdateNewPrimaryEnemyBaseLocation(oBrain, true)
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will update nearest allied and enemy base data for iTeam='..iTeam) end
+                            RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, false, false, true)
+                            RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, true, true)
+                        end
+                    end
+                end
+            end
+        end
+
+        M28Team.tbEnemyTeamStartPositionMonitorActive[iKilledTeam] = false
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+
 function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
     --Intended to be called after the map is resized
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -9382,139 +9601,258 @@ function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
 
     WaitSeconds(iDelayInSeconds)
     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to update positions, bIsCampaignMap='..tostring(bIsCampaignMap)..'; CampAI setting='..(ScenarioInfo.Options.CampAI or 'nil')..'; Time='..GetGameTimeSeconds()) end
-    if bIsCampaignMap and not(ScenarioInfo.Options.CampAI == 1) then --We are applying M28 to either an ally or enemy
-        local tbTeamsToUpdate = {}
-        for iBrain, oBrain in ArmyBrains do
-            if oBrain.CampaignAI and oBrain.M28AI then
-                tbTeamsToUpdate[oBrain.M28Team] = true
+    if bIsCampaignMap then --and not(ScenarioInfo.Options.CampAI == 1) then --We are applying M28 to either an ally or enemy
+        local tbTeamsToUpdateForChangesInAlliesOrEnemies = {}
+        local tbTeamsToCheckForChangesInStart = {}
+        local tbChangedStartByTeam = {}
+        local toBrainsWithoutStart = {}
+        --Record all M28 teams
+        for iTeam = 1, M28Team.iTotalTeamCount do
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                table.insert(tbTeamsToUpdateForChangesInAlliesOrEnemies, iTeam)
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Teams to update='..repru(tbTeamsToUpdate)) end
-        if M28Utilities.IsTableEmpty(tbTeamsToUpdate) == false then
-            function DoesZoneContainHQ(tLZData, iTeam)
-                local tCurZoneTeamData = tLZData[subrefLZTeamData][iTeam]
-                if M28Utilities.IsTableEmpty(tCurZoneTeamData[subreftoLZOrWZAlliedUnits]) == false then
-                    local tFriendlyFactoryHQs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories, tCurZoneTeamData[subreftoLZOrWZAlliedUnits])
-                    if M28Utilities.IsTableEmpty(tFriendlyFactoryHQs) == false then
-                        return true
+        if M28Utilities.IsTableEmpty(tbTeamsToUpdateForChangesInAlliesOrEnemies) == false then
+            for iBrain, oBrain in ArmyBrains do
+                if oBrain.CampaignAI or M28Conditions.IsCivilianBrain(oBrain) then
+                    --Check this is an enemy of an M28Team, or has active M28AI
+                    if oBrain.M28AI and not(ScenarioInfo.Options.CampAI == 1) then
+                        tbTeamsToCheckForChangesInStart[oBrain.M28Team] = true
+                    else
+                        --Are we an enemy of an M28 team?
+                        for _, iTeam in tbTeamsToUpdateForChangesInAlliesOrEnemies do
+                            if IsEnemy(oBrain:GetArmyIndex(), M28Team.GetFirstActiveM28Brain(iTeam):GetArmyIndex()) then
+                                tbTeamsToCheckForChangesInStart[oBrain.M28Team] = true
+                                break
+                            end
+                        end
                     end
                 end
-                return false
             end
-            local tbChangedStartByTeam = {}
-            for iTeam, bUpdate in tbTeamsToUpdate do
-                for iBrain, oBrain in ArmyBrains do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Updating iTeam='..iTeam..'; Considering whether to update for oBrain='..oBrain.Nickname..'; oBrain.M28Team='..oBrain.M28Team..'; Is this same team='..tostring(oBrain.M28Team==iTeam)..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oBrain.CampaignAI='..tostring(oBrain.CampaignAI or false)) end
-                    if oBrain.M28Team == iTeam and oBrain.M28AI and oBrain.CampaignAI then
-                        --Have a campaign AI on this team and map has just expanded, so consider if we should change the start position of this AI
-                        local tCurStartPosition = GetPlayerStartPosition(oBrain)
-                        local iStartPlateauOrZero, iStartLandZone = GetClosestPlateauOrZeroAndZoneToPosition(tCurStartPosition)
-                        local tCurStartLZData, tCurStartLZTeamData = GetLandOrWaterZoneData(tCurStartPosition, true, iTeam)
-                        local bStartNoLongerAppropriate = false
-                        if not(M28Conditions.IsLocationInPlayableArea(tCurStartLZData[subrefMidpoint])) then
-                            bStartNoLongerAppropriate = true
-                        elseif (tCurStartLZTeamData[subrefLZSValue] or 0) <= 5000 then
-                            bStartNoLongerAppropriate = not(DoesZoneContainHQ(tCurStartLZData, iTeam))
+            if bDebugMessages == true then LOG(sFunctionRef..': tbTeamsToCheckForChangesInStart='..repru(tbTeamsToCheckForChangesInStart)) end
+            if M28Utilities.IsTableEmpty(tbTeamsToCheckForChangesInStart) == false then
+                function DoesZoneContainHQ(tLZData, iTeam)
+                    local tCurZoneTeamData = tLZData[subrefLZTeamData][iTeam]
+                    if M28Utilities.IsTableEmpty(tCurZoneTeamData[subreftoLZOrWZAlliedUnits]) == false then
+                        local tFriendlyFactoryHQs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories, tCurZoneTeamData[subreftoLZOrWZAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tFriendlyFactoryHQs) == false then
+                            return true
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if brain '..oBrain.Nickname..' still has an appropriate start point, bStartNoLongerAppropriate='..tostring(bStartNoLongerAppropriate)..'; LZ S value='..(tCurStartLZTeamData[subrefLZSValue] or 'nil')..'; Does it contain an HQ='..tostring(DoesZoneContainHQ(tCurStartLZData, iTeam))) end
-                        if bStartNoLongerAppropriate then
-                            --Cycle through every plateau and land zone looking for a core base, and see if the core base has factory HQs in it
-                            local tbPlateauAndZoneShortlist = {}
-                            local tbBackupPlateauAndZoneShortlist = {}
-                            for iPlateau, tPlateauSubtable in tAllPlateaus do
-                                if M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauLandZones]) == false then
-                                    for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
-                                        if tLZData[subrefLZTeamData][iTeam][subrefLZbCoreBase] then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Found a core base, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandZone='..iStartLandZone..'; Does zone contain HQ='..tostring(DoesZoneContainHQ(tLZData, iTeam))) end
-                                            --Check it contains HQ (otherwise we might be considering the existing one/similar)
-                                            if not (iPlateau == iStartPlateauOrZero and iLandZone == iStartLandZone) and M28Conditions.IsLocationInPlayableArea(tLZData[subrefMidpoint]) and DoesZoneContainHQ(tLZData, iTeam) then
-                                                if not(tbPlateauAndZoneShortlist[iPlateau]) then tbPlateauAndZoneShortlist[iPlateau] = {} end
-                                                tbPlateauAndZoneShortlist[iPlateau][iLandZone] = true
-                                            end
-                                        end
-                                    end
-                                    if M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist[iPlateau]) then
-                                        --Look for any zones with factories in, and add zones with buildings (not factories) to backup list - i.e. remove the core base flag requirement
-                                        for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
-                                            if not (iPlateau == iStartPlateauOrZero and iLandZone == iStartLandZone) and M28Conditions.IsLocationInPlayableArea(tLZData[subrefMidpoint]) then
-                                                --Do we have factories of any kind in here?
-                                                if DoesZoneContainHQ(tLZData, iTeam) then
-                                                    if not(tbPlateauAndZoneShortlist[iPlateau]) then tbPlateauAndZoneShortlist[iPlateau] = {} end
-                                                    tbPlateauAndZoneShortlist[iPlateau][iLandZone] = true
-                                                elseif (tLZData[subrefLZTeamData][iTeam][subrefLZSValue] or 0) > 0 then
-                                                    if not(tbBackupPlateauAndZoneShortlist[iPlateau]) then tbBackupPlateauAndZoneShortlist[iPlateau] = {} end
-                                                    tbBackupPlateauAndZoneShortlist[iPlateau][iLandZone] = true
+                    end
+                    return false
+                end
+                for iTeam, bUpdate in tbTeamsToCheckForChangesInStart do
+                    if bUpdate then --redundancy
+                        for iBrain, oBrain in ArmyBrains do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Updating iTeam='..iTeam..'; Considering whether to update for oBrain='..oBrain.Nickname..'; oBrain.M28Team='..(oBrain.M28Team or 'nil')..'; Is this same team='..tostring(oBrain.M28Team==iTeam)..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)..'; oBrain.CampaignAI='..tostring(oBrain.CampaignAI or false)) end
+                            if oBrain.M28Team == iTeam then
+                                --Map has just expanded, so consider if we should change the start position of this AI
+                                local tCurStartPosition = GetPlayerStartPosition(oBrain)
+                                local iStartPlateauOrZero, iStartLandZone = GetClosestPlateauOrZeroAndZoneToPosition(tCurStartPosition)
+                                local tCurStartLZData, tCurStartLZTeamData = GetLandOrWaterZoneData(tCurStartPosition, true, iTeam)
+                                local bStartNoLongerAppropriate = false
+                                if not(M28Conditions.IsLocationInPlayableArea(tCurStartLZData[subrefMidpoint])) then
+                                    bStartNoLongerAppropriate = true
+                                elseif (tCurStartLZTeamData[subrefLZSValue] or 0) <= 5000 then
+                                    bStartNoLongerAppropriate = not(DoesZoneContainHQ(tCurStartLZData, iTeam))
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if brain '..oBrain.Nickname..' still has an appropriate start point, bStartNoLongerAppropriate='..tostring(bStartNoLongerAppropriate)..'; LZ S value='..(tCurStartLZTeamData[subrefLZSValue] or 'nil')..'; Does it contain an HQ='..tostring(DoesZoneContainHQ(tCurStartLZData, iTeam))..'; oBrain.M28AI='..tostring(oBrain.M28AI or false)) end
+                                if bStartNoLongerAppropriate then
+                                    --Cycle through every plateau and land zone looking for a core base, and see if the core base has factory HQs in it
+                                    local tbPlateauAndZoneShortlist = {}
+                                    local tbBackupPlateauAndZoneShortlist = {}
+                                    if oBrain.M28AI then
+                                        for iPlateau, tPlateauSubtable in tAllPlateaus do
+                                            if M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauLandZones]) == false then
+                                                for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+                                                    if tLZData[subrefLZTeamData][iTeam][subrefLZbCoreBase] then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Found a core base, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandZone='..iStartLandZone..'; Does zone contain HQ='..tostring(DoesZoneContainHQ(tLZData, iTeam))) end
+                                                        --Check it contains HQ (otherwise we might be considering the existing one/similar)
+                                                        if not (iPlateau == iStartPlateauOrZero and iLandZone == iStartLandZone) and M28Conditions.IsLocationInPlayableArea(tLZData[subrefMidpoint]) and DoesZoneContainHQ(tLZData, iTeam) then
+                                                            if not(tbPlateauAndZoneShortlist[iPlateau]) then tbPlateauAndZoneShortlist[iPlateau] = {} end
+                                                            tbPlateauAndZoneShortlist[iPlateau][iLandZone] = true
+                                                        end
+                                                    end
+                                                end
+                                                if M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist[iPlateau]) then
+                                                    --Look for any zones with factories in, and add zones with buildings (not factories) to backup list - i.e. remove the core base flag requirement
+                                                    for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+                                                        if not (iPlateau == iStartPlateauOrZero and iLandZone == iStartLandZone) and M28Conditions.IsLocationInPlayableArea(tLZData[subrefMidpoint]) then
+                                                            --Do we have factories of any kind in here?
+                                                            if DoesZoneContainHQ(tLZData, iTeam) then
+                                                                if not(tbPlateauAndZoneShortlist[iPlateau]) then tbPlateauAndZoneShortlist[iPlateau] = {} end
+                                                                tbPlateauAndZoneShortlist[iPlateau][iLandZone] = true
+                                                            elseif (tLZData[subrefLZTeamData][iTeam][subrefLZSValue] or 0) > 0 then
+                                                                if not(tbBackupPlateauAndZoneShortlist[iPlateau]) then tbBackupPlateauAndZoneShortlist[iPlateau] = {} end
+                                                                tbBackupPlateauAndZoneShortlist[iPlateau][iLandZone] = true
+                                                            end
+                                                        end
+                                                    end
+                                                    if M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist[iPlateau]) then tbPlateauAndZoneShortlist[iPlateau] = tbBackupPlateauAndZoneShortlist[iPlateau] end
                                                 end
                                             end
                                         end
-                                        if M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist[iPlateau]) then tbPlateauAndZoneShortlist[iPlateau] = tbBackupPlateauAndZoneShortlist[iPlateau] end
+                                    else
+                                        --Nto dealing with M28 brain so wont have recorded values
+                                        local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
+                                        function AddUnitZonesToShortlist(tUnits)
+                                            for iUnit, oUnit in tUnits do
+                                                local iUnitPlateau, iUnitZone = GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Will add unit plateau and zone to shortlist if on land, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitZone='..(iUnitZone or 'nil')) end
+                                                if (iUnitPlateau or 0) > 0 and iUnitZone then
+                                                    if not(tbPlateauAndZoneShortlist[iUnitPlateau]) then tbPlateauAndZoneShortlist[iUnitPlateau] = {} end
+                                                    tbPlateauAndZoneShortlist[iUnitPlateau][iUnitZone] = true
+                                                end
+                                            end
+                                        end
+                                        if M28Utilities.IsTableEmpty(tACUs) == false then
+                                            AddUnitZonesToShortlist(tACUs)
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Just considered zones with ACUs in, is tbPlateauAndZoneShortlist empty='..tostring(M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist))) end
+                                        if M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through tech levels for HQ') end
+                                            for iTechLevel = 3, 1, -1 do
+                                                local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iTechLevel)
+                                                local toHQsByTech = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * iTechCategory + M28UnitInfo.refCategoryAirHQ * iTechCategory, false, true)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Looking for Land and Air HQs, iTechLevel='..iTechLevel..'; Is toHQsByTech empty='..tostring(M28Utilities.IsTableEmpty(toHQsByTech))) end
+                                                if M28Utilities.IsTableEmpty(toHQsByTech) == false then
+                                                    AddUnitZonesToShortlist(toHQsByTech)
+                                                    if M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist) == false then
+                                                        break
+                                                    end
+                                                end
+                                            end
+                                        elseif bDebugMessages == true then LOG(sFunctionRef..': tbPlateauAndZoneShortlist is not empty')
+                                        end
                                     end
-                                end
-                            end
-                            if bDebugMessages == true then LOG(sFunctionRef..': is plateau and zone shortlist empty='..tostring(M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist))) end
-                            if M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist) == false then
-                                --Get the closest zone on the same plateau, or failing that the closest zone on any plateau
-                                local iClosestDistSamePlateau = 100000
-                                local tiClosestPlateauAndZoneSamePlateau = {}
-                                local iClosestDistAnyPlateau = 100000
-                                local tiClosestplateauAndZoneAnyPlateau = {}
-                                local iCurDist
-                                for iPlateau, tZones in tbPlateauAndZoneShortlist do
-                                    for iZone, bInclude in tZones do
-                                        local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone]
-                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tCurStartLZData[subrefMidpoint])
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering shortlist for iPlateau='..iPlateau..'; iZone='..iZone..'; iCurDist='..iCurDist..'; iClosestDistAnyPlateau='..iClosestDistAnyPlateau..'; iClosestDistSamePlateau='..iClosestDistSamePlateau..'; iStartPlateauOrZero='..iStartPlateauOrZero) end
-                                        if iCurDist < iClosestDistAnyPlateau then
-                                            iClosestDistAnyPlateau = iCurDist
-                                            tiClosestplateauAndZoneAnyPlateau = {iPlateau, iZone}
+                                    if bDebugMessages == true then LOG(sFunctionRef..': is plateau and zone shortlist empty='..tostring(M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist))) end
+                                    if M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist) then
+                                        table.insert(toBrainsWithoutStart, oBrain)
+                                    else
+                                        --Get the closest zone on the same plateau, or failing that the closest zone on any plateau
+                                        local iClosestDistSamePlateau = 100000
+                                        local tiClosestPlateauAndZoneSamePlateau = {}
+                                        local iClosestDistAnyPlateau = 100000
+                                        local tiClosestplateauAndZoneAnyPlateau = {}
+                                        local iCurDist
+                                        for iPlateau, tZones in tbPlateauAndZoneShortlist do
+                                            for iZone, bInclude in tZones do
+                                                local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone]
+                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tCurStartLZData[subrefMidpoint])
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering shortlist for iPlateau='..iPlateau..'; iZone='..iZone..'; iCurDist='..iCurDist..'; iClosestDistAnyPlateau='..iClosestDistAnyPlateau..'; iClosestDistSamePlateau='..iClosestDistSamePlateau..'; iStartPlateauOrZero='..iStartPlateauOrZero) end
+                                                if iCurDist < iClosestDistAnyPlateau then
+                                                    iClosestDistAnyPlateau = iCurDist
+                                                    tiClosestplateauAndZoneAnyPlateau = {iPlateau, iZone}
+                                                end
+                                                if iCurDist < iClosestDistSamePlateau and iPlateau == iStartPlateauOrZero then
+                                                    iClosestDistSamePlateau = iCurDist
+                                                    tiClosestPlateauAndZoneSamePlateau = {iPlateau, iZone}
+                                                end
+                                            end
                                         end
-                                        if iCurDist < iClosestDistSamePlateau and iPlateau == iStartPlateauOrZero then
-                                            iClosestDistSamePlateau = iCurDist
-                                            tiClosestPlateauAndZoneSamePlateau = {iPlateau, iZone}
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering changing the start position for campaign oBrain='..oBrain.Nickname..'; iClosestDistSamePlateau='..iClosestDistSamePlateau..'; iClosestDistAnyPlateau='..iClosestDistAnyPlateau..'; is tiClosestPlateauAndZoneSamePlateau empty='..tostring(M28Utilities.IsTableEmpty(tiClosestPlateauAndZoneSamePlateau))..'; Is tiClosestplateauAndZoneAnyPlateau empty='..tostring(M28Utilities.IsTableEmpty(tiClosestplateauAndZoneAnyPlateau))) end
+                                        local bChangedStart = false
+                                        if M28Utilities.IsTableEmpty(tiClosestPlateauAndZoneSamePlateau) == false then
+                                            --Set new start position to this zone midpoint
+                                            local tLZData = tAllPlateaus[tiClosestPlateauAndZoneSamePlateau[1]][subrefPlateauLandZones][tiClosestPlateauAndZoneSamePlateau[2]]
+                                            PlayerStartPoints[oBrain:GetArmyIndex()] = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
+                                            bChangedStart = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Same plateau Changing to P'..tiClosestPlateauAndZoneSamePlateau[1]..'Z'..tiClosestPlateauAndZoneSamePlateau[2]) end
+                                        elseif M28Utilities.IsTableEmpty(tiClosestplateauAndZoneAnyPlateau) == false then
+                                            local tLZData = tAllPlateaus[tiClosestplateauAndZoneAnyPlateau[1]][subrefPlateauLandZones][tiClosestplateauAndZoneAnyPlateau[2]]
+                                            PlayerStartPoints[oBrain:GetArmyIndex()] = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
+                                            bChangedStart = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Dif plateau Changing to P'..tiClosestplateauAndZoneAnyPlateau[1]..'Z'..tiClosestplateauAndZoneAnyPlateau[2]) end
                                         end
-                                    end
-                                end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering changing the start position for campaign oBrain='..oBrain.Nickname..'; iClosestDistSamePlateau='..iClosestDistSamePlateau..'; iClosestDistAnyPlateau='..iClosestDistAnyPlateau..'; is tiClosestPlateauAndZoneSamePlateau empty='..tostring(M28Utilities.IsTableEmpty(tiClosestPlateauAndZoneSamePlateau))..'; Is tiClosestplateauAndZoneAnyPlateau empty='..tostring(M28Utilities.IsTableEmpty(tiClosestplateauAndZoneAnyPlateau))) end
-                                local bChangedStart = false
-                                if M28Utilities.IsTableEmpty(tiClosestPlateauAndZoneSamePlateau) == false then
-                                    --Set new start position to this zone midpoint
-                                    local tLZData = tAllPlateaus[tiClosestPlateauAndZoneSamePlateau[1]][subrefPlateauLandZones][tiClosestPlateauAndZoneSamePlateau[2]]
-                                    PlayerStartPoints[oBrain:GetArmyIndex()] = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
-                                    bChangedStart = true
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Same plateau Changing to P'..tiClosestPlateauAndZoneSamePlateau[1]..'Z'..tiClosestPlateauAndZoneSamePlateau[2]) end
-                                elseif M28Utilities.IsTableEmpty(tiClosestplateauAndZoneAnyPlateau) == false then
-                                    local tLZData = tAllPlateaus[tiClosestplateauAndZoneAnyPlateau[1]][subrefPlateauLandZones][tiClosestplateauAndZoneAnyPlateau[2]]
-                                    PlayerStartPoints[oBrain:GetArmyIndex()] = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
-                                    bChangedStart = true
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Dif plateau Changing to P'..tiClosestplateauAndZoneAnyPlateau[1]..'Z'..tiClosestplateauAndZoneAnyPlateau[2]) end
-                                end
-                                tbChangedStartByTeam[iTeam] = bChangedStart
-                                if bChangedStart then
-                                    --Clear core zone flag from old zone
-                                    tCurStartLZTeamData[subrefLZbCoreBase] = nil
-                                    tCurStartLZTeamData[subrefbCoreBaseOverride] = nil
-                                    if (iStartPlateauOrZero or 0) > 0 and iStartLandZone then
-                                        if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero]) then
-                                            if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] = {} end
-                                            M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero] = {}
+                                        tbChangedStartByTeam[iTeam] = bChangedStart
+                                        if bChangedStart then
+                                            --Clear core zone flag from old zone if M28AI
+                                            if oBrain.M28AI then
+                                                tCurStartLZTeamData[subrefLZbCoreBase] = nil
+                                                tCurStartLZTeamData[subrefbCoreBaseOverride] = nil
+                                                if (iStartPlateauOrZero or 0) > 0 and iStartLandZone then
+                                                    if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero]) then
+                                                        if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] = {} end
+                                                        M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero] = {}
+                                                    end
+                                                    M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero][iStartLandZone] = nil
+                                                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero]) then M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero] = nil end
+                                                end
+                                            end
                                         end
-                                        M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero][iStartLandZone] = nil
-                                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero]) then M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero] = nil end
                                     end
                                 end
                             end
                         end
                     end
                 end
-            end
-            if M28Utilities.IsTableEmpty(tbChangedStartByTeam) == false then
-                --Update nearest friendly base after 1 tick delay (to ensure we have updated enemies as well)
-                if bDebugMessages == true then LOG(sFunctionRef..': Will update closest friendly and enemy base for each zone for each team with M28AI in it, tbChangedStartByTeam='..repru(tbChangedStartByTeam)) end
-                for iTeam = 1, M28Team.iTotalTeamCount do
-                    if (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or 0) > 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Updating for iTeam='..iTeam) end
-                        RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, false, false)
-                        RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, true)
+                if M28Utilities.IsTableEmpty(toBrainsWithoutStart) == false then
+                    --Check for a brain that is an ally of this that does have a start
+                    for iEntry, oBrain in toBrainsWithoutStart do
+                        local iBrainIndex = oBrain:GetArmyIndex()
+                        local iAllyIndex, bHaveNoStart
+                        for iAllyBrain, oAllyBrain in ArmyBrains do
+                            iAllyIndex = oAllyBrain:GetArmyIndex()
+                            if bDebugMessages == true then LOG(sFunctionRef..': Looking for ally brain of oBrain='..oBrain.Nickname..'; considering potential ally brain='..oAllyBrain.Nickname..'; IsAlly='..tostring(IsAlly(iAllyIndex, iBrainIndex))..'; ALly start point='..repru(PlayerStartPoints[iAllyIndex])) end
+                            if IsAlly(iAllyIndex, iBrainIndex) and not(iAllyIndex == iBrainIndex) and PlayerStartPoints[iAllyIndex] then
+                                --Have a match, make sure we have a start position for this
+                                bHaveNoStart = false
+                                for iSecondEntry, oSecondBrain in toBrainsWithoutStart do
+                                    if oSecondBrain:GetArmyIndex() == iAllyIndex then
+                                        bHaveNoStart = true
+                                        break
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': bHaveNoStart for AllyBrain='..tostring(bHaveNoStart)) end
+                                if not(bHaveNoStart) then
+                                    local tCurStartPosition = GetPlayerStartPosition(oBrain)
+                                    PlayerStartPoints[iBrainIndex] = {PlayerStartPoints[iAllyIndex][1], PlayerStartPoints[iAllyIndex][2], PlayerStartPoints[iAllyIndex][3]}
+                                    if oBrain.M28Team then
+                                        tbChangedStartByTeam[oBrain.M28Team] = true
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Updated our start position to ally brains') end
+                                    if oBrain.M28AI then
+                                        local iStartPlateauOrZero, iStartLandZone = GetClosestPlateauOrZeroAndZoneToPosition(tCurStartPosition)
+                                        local iTeam = oBrain.M28Team
+                                        local tCurStartLZData, tCurStartLZTeamData = GetLandOrWaterZoneData(tCurStartPosition, true, iTeam)
+                                        tCurStartLZTeamData[subrefLZbCoreBase] = nil
+                                        tCurStartLZTeamData[subrefbCoreBaseOverride] = nil
+
+                                        if (iStartPlateauOrZero or 0) > 0 and iStartLandZone then
+                                            if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero]) then
+                                                if not(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau] = {} end
+                                                M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero] = {}
+                                            end
+                                            M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero][iStartLandZone] = nil
+                                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero]) then M28Team.tTeamData[iTeam][M28Team.reftiCoreZonesByPlateau][iStartPlateauOrZero] = nil end
+                                        end
+                                    end
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Is tbChangedStartByTeam empty='..tostring(M28Utilities.IsTableEmpty(tbChangedStartByTeam))) end
+                if M28Utilities.IsTableEmpty(tbChangedStartByTeam) == false and M28Utilities.IsTableEmpty(tbTeamsToUpdateForChangesInAlliesOrEnemies) == false then
+                    --Update nearest friendly base after 1 tick delay (to ensure we have updated enemies as well)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will update closest friendly and enemy base for each zone for each team with M28AI in it, tbChangedStartByTeam='..repru(tbChangedStartByTeam)) end
+                    for iTeam = 1, M28Team.iTotalTeamCount do
+                        if tbTeamsToUpdateForChangesInAlliesOrEnemies[iTeam] then
+                            --Update nearest enemy
+                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains]) == false then
+                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyHumanAndAIBrains] do
+                                    if oBrain[reftPrimaryEnemyBaseLocation] or (oBrain.M28AI and not(oBrain.M28IsDefeated)) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will update the UpdateNewPrimaryEnemyBaseLocation for oBrain='..oBrain.Nickname) end
+                                        UpdateNewPrimaryEnemyBaseLocation(oBrain, true)
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Updating closest ally and enemy base for iTeam='..iTeam) end
+                            RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam, false, false)
+                            RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam, true)
+                        end
                     end
                 end
             end

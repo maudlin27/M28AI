@@ -2364,8 +2364,8 @@ function RemovePing(iOwner, iPingID)
 end
 
 
-function SendWarningWhenHaveVisualOnEnemy(aiBrain, oUnit)
-    local sFunctionRef = 'SendWarningWhenHaveVisualOnEnemy'
+function SendTextMarkerWarningWhenHaveVisualOnEnemy(aiBrain, oUnit)
+    local sFunctionRef = 'SendTextMarkerWarningWhenHaveVisualOnEnemy'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Once have visual on enemy unit want to warn teammates

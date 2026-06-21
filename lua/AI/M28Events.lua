@@ -247,6 +247,11 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                             ForkThread(ConsiderRecordingStratBomberToSuicideInto, oKillerUnit, true)
                         end
 
+                        --Non-M28 specific unit (i.e. applies to both non-M28 killers and non-M28 killed units)
+                        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryAirFactory, oUnitKilled.UnitId) then
+                            M28Map.ConsiderUpdatingPlayerStartPositionForDestroyedFactory(oKillerBrain.M28Team, oUnitKilled, oUnitKilled:GetAIBrain())
+                        end
+
                         --Logic specific to where M28 unit is killed:
                         if oUnitKilled:GetAIBrain().M28AI then
                             local iTeam = oUnitKilled:GetAIBrain().M28Team
@@ -2599,6 +2604,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 end
                             end
                         end
+                    --PD tracking
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryPD, oJustBuilt.UnitId) then
+                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oEngineer:GetAIBrain().M28Team)
+                        tLZTeamData[M28Map.refiTimeLastCompletedPD] = GetGameTimeSeconds()
                     end
 
                     --Logic based on the unit that was just built:
@@ -3659,7 +3668,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                                 end
                             elseif tonumber(ScenarioInfo.Options.M28CombinedArmy or 2) == 4 then
                                 --Sim city mode
-                                if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryEngineer - categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                                if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryEngineer - categories.COMMAND + categories.SUBCOMMANDER -M28UnitInfo.refCategoryTransport, oUnit.UnitId) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Enabled M28AI logic for the unit') end
                                     oUnit.M28Active = true
                                     oUnit:UpdateStat('M28Active', 1)

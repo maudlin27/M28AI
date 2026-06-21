@@ -380,9 +380,33 @@ function DodgeBomb(oBomber, oWeapon, projectile)
             if bDebugMessages == true then LOG(sFunctionRef..': Is table of mobile land units in rectangle around bomb radius empty='..tostring(M28Utilities.IsTableEmpty(tMobileLandAndGunshipsInArea))) end
             if M28Utilities.IsTableEmpty(tMobileLandAndGunshipsInArea) == false then
                 local oCurBrain
+                local tNearbyFixedShields
+                function AreUnderFixedShield(oUnitConsidering)
+                    if not(tNearbyFixedShields) and not(oUnitConsidering:GetAIBrain().M28Team == oBomber:GetAIBrain().M28Team) then
+                        tNearbyFixedShields = {}
+                        local iTargetPlateauOrZero, iTargetLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnitConsidering:GetPosition())
+                        if (iTargetPlateauOrZero or 0) > 0 then
+                            local tTargetLZData = M28Map.tAllPlateaus[iTargetPlateauOrZero][M28Map.subrefPlateauLandZones][iTargetLandOrWaterZone]
+                            local tTargetLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][oUnitConsidering:GetAIBrain().M28Team]
+                            if (tTargetLZTeamData[M28Map.subrefLZSValue] or 0) >= 250 then
+                                tNearbyFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tTargetLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                            end
+                        end
+                    end
+                    if tNearbyFixedShields[1] then
+                        for iShield, oShield in tNearbyFixedShields do
+                            if not(oShield.Dead) and oShield:GetFractionComplete() == 1 and oShield.MyShield.GetHealth and oShield.MyShield:GetHealth() > 0 then
+                                if M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oUnitConsidering:GetPosition()) < (oShield:GetBlueprint().Defense.Shield.ShieldSize or 10) * 0.5 - 1 then
+                                    return true
+                                end
+                            end
+                        end
+                    end
+                    return false
+                end
                 for iUnit, oUnit in tMobileLandAndGunshipsInArea do
                     if not(oUnit.Dead) and oUnit.GetUnitId and oUnit.GetPosition and oUnit.GetAIBrain then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Does unit already have micro active='..tostring((oUnit[M28UnitInfo.refbSpecialMicroActive] or false))..'; refbLowerPriorityMicroActive='..tostring(oUnit[M28UnitInfo.refbLowerPriorityMicroActive] or false)..'; iTimeToRun='..iTimeToRun) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Does unit already have micro active='..tostring((oUnit[M28UnitInfo.refbSpecialMicroActive] or false))..'; refbLowerPriorityMicroActive='..tostring(oUnit[M28UnitInfo.refbLowerPriorityMicroActive] or false)..'; iTimeToRun='..iTimeToRun..'; AreUnderFixedShield='..tostring(AreUnderFixedShield(oUnit) or false)) end
                         oCurBrain = oUnit:GetAIBrain()
                         if oCurBrain.M28AI and not(oCurBrain.M28IsDefeated) and not(oCurBrain:IsDefeated()) and IsEnemy(oCurBrain:GetArmyIndex(), iBomberArmyIndex) then
                             if not(oUnit[M28UnitInfo.refbEasyBrain]) then
@@ -449,9 +473,11 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                                         --Are we a mobile shield that isn't on the same team as the bomber? If so, then dont worry about dodging
                                         if not(EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId)) or not(oUnit.MyShield.GetHealth) or oUnit.MyShield:GetHealth() == 0 or not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy then
                                             if bDontCheckIfFriendlyGunships or not(EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId)) or not(oUnit:GetAIBrain().M28Team == oBomber:GetAIBrain().M28Team) then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': about to call moveawayfromtargettemporarily') end
-                                                MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tBombTarget)
-                                                oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+                                                if not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) or (oUnit:GetWorkProgress() or 0) == 0 or not(AreUnderFixedShield(oUnit)) then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': about to call moveawayfromtargettemporarily') end
+                                                    MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tBombTarget)
+                                                    oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
+                                                end
                                             end
                                         end
                                     end
@@ -515,8 +541,9 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             if not(M28UnitInfo.IsUnitValid(oWeaponTarget)) or EntityCategoryContains(categories.NAVAL * categories.MOBILE, oWeaponTarget.UnitId) or ((oWeaponBP.DamageRadius or 0) >= 1 and ((oWeaponBP.FiringTolerance or 0) >= 0.5 or oWeapon.WeaponCategory == 'Artillery')) then bConsiderUnitsInArea = true end
 
             local tUnitsToConsiderDodgeFor = {}
+
             function ConsiderAddingUnitToTable(oCurUnit, bIncludeBusyUnits)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should add oCurUnit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurUnit)..'; Brain='..oCurUnit:GetAIBrain().Nickname..'; Unit state='..M28UnitInfo.GetUnitState(oCurUnit)..'; Special micro active='..tostring(oCurUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()..'; refiGameTimeToResetMicroActive='..(oCurUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should add oCurUnit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurUnit)..'; Brain='..oCurUnit:GetAIBrain().Nickname..'; Unit state='..M28UnitInfo.GetUnitState(oCurUnit)..'; Special micro active='..tostring(oCurUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()..'; refiGameTimeToResetMicroActive='..(oCurUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; are under fixed shield='..tostring(AreUnderFixedShield(oCurUnit) or false)) end
                 local aiBrain = oCurUnit:GetAIBrain()
                 --M28Easy - dont dodge unless damaged ACU dodging t1 arti fire
                 if aiBrain.M28AI and (not(aiBrain.M28Easy) or (oCurUnit[M28ACU.refbTreatingAsACU] and oCurUnit:GetHealthPercent() < 0.9 and EntityCategoryContains(M28UnitInfo.refCategoryIndirect * categories.TECH1, oUnit.UnitId))) and (not(aiBrain[refiMaxUnitsToDodgeMicroAtOnce]) or aiBrain[refiCurUnitsDodging] < aiBrain[refiMaxUnitsToDodgeMicroAtOnce]) and (bIncludeBusyUnits or (not(oCurUnit:IsUnitState('Upgrading')) and (not(oCurUnit[M28UnitInfo.refbSpecialMicroActive]) or oCurUnit[M28UnitInfo.refbLowerPriorityMicroActive]))) then
@@ -525,8 +552,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                     elseif EntityCategoryContains(categories.MOBILE, oCurUnit.UnitId) then
                         if oCurUnit:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oCurUnit) then
                             if not(oUnit[M28UnitInfo.refbEasyBrain]) then
-                                --Engineers - dont dodge if almost done construction
-                                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oCurUnit.UnitId) and oCurUnit:GetWorkProgress() >= 0.4 and (oCurUnit:GetWorkProgress() >= 0.95 or ((oWeaponBP.Damage or 100) <= 50 and (oCurUnit:GetWorkProgress() >= 0.8 or oCurUnit:GetFocusUnit().UnitId and EntityCategoryContains(categories.DEFENSE, oCurUnit:GetFocusUnit().UnitId)))) then
+                                --Engineers - dont dodge if almost done construction or dodging bomb and under fixed shield
+                                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oCurUnit.UnitId) and (oCurUnit:GetWorkProgress() >= 0.4 and (oCurUnit:GetWorkProgress() >= 0.95 or ((oWeaponBP.Damage or 100) <= 50 and (oCurUnit:GetWorkProgress() >= 0.8 or oCurUnit:GetFocusUnit().UnitId and EntityCategoryContains(categories.DEFENSE, oCurUnit:GetFocusUnit().UnitId))))) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Wont dodge shot as almost done with construction or low damaage shot and we are building defensive unit, work progress='..oCurUnit:GetWorkProgress()..'; Weapon damage='..(oWeaponBP.Damage or 'nil')) end
                                 else
                                     if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to consider dodging for') end
