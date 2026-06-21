@@ -899,20 +899,20 @@ function ConsiderHydroUpgradeLoop(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptionalResourceModAdjustmentOverride)
+function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptionalResourceModAdjustmentOverride, oOptionalBrainFromDestroyedUnit)
     --iOptionalResourceModAdjustmentOverride - intended for use with AIX overwhelm where we have already recorded a unit but at the 'wrong' resource rate
 
     --Logs are enabled below
     if oUnit.GetAIBrain and EntityCategoryContains(M28UnitInfo.refCategoryResourceUnit + M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) then
         --Does the unit have an M28 aiBrain?
-        local aiBrain = oUnit:GetAIBrain()
+        local aiBrain = (oOptionalBrainFromDestroyedUnit or oUnit:GetAIBrain())
         if aiBrain.M28AI then
             local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             local sFunctionRef = 'UpdateGrossIncomeForUnit'
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
             if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..' oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDestroyed='..tostring(bDestroyed or false)..': Unit aiBrain='..oUnit:GetAIBrain().Nickname..'; Brain recorded for economy='..((oUnit[refoBrainRecordedForEconomy] or {'nil'}).Nickname or 'nil')..'; Fraction complete='..oUnit:GetFractionComplete()) end
-            if oUnit:GetFractionComplete() < 1 then M28Utilities.ErrorHandler('Trying to update income for unit whose fraction isnt complete') end
+            if (not(bDestroyed) or not(oOptionalBrainFromDestroyedUnit)) and oUnit:GetFractionComplete() < 1 then M28Utilities.ErrorHandler('Trying to update income for unit whose fraction isnt complete') end
 
             if (bDestroyed and oUnit[refoBrainRecordedForEconomy] == aiBrain) or (not(bDestroyed) and not(oUnit[refoBrainRecordedForEconomy] == aiBrain)) then
                 local iMassGen
@@ -924,7 +924,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements, iOptio
                         iMassGen = iMassGen * iOptionalResourceModAdjustmentOverride
                         iEnergyGen = iEnergyGen * iOptionalResourceModAdjustmentOverride
                     end
-                    local iTeam = oUnit:GetAIBrain().M28Team
+                    local iTeam = aiBrain.M28Team
                     if bDestroyed then
                         local bRemainingParagon = false
                         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -1220,7 +1220,7 @@ function RefreshEconomyGrossValues(aiBrain)
             for iRecorded, oRecorded in aiBrain[toRecordedEconomyUnits] do
                 if (oRecorded.Dead or (oRecorded.BeenDestroyed and oRecorded:BeenDestroyed())) and oRecorded[refoBrainRecordedForEconomy] == aiBrain then
                     if bDebugMessages == true then LOG(sFunctionRef..': Have a dead resource generator that we havent recognised is dead, oRecorded='..(oRecorded.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oRecorded) or 'nil')) end
-                    UpdateGrossIncomeForUnit(oRecorded, true) --(this also has a brain check, added brain check above as well for minor optimisation)
+                    UpdateGrossIncomeForUnit(oRecorded, true, nil, nil, aiBrain) --(this also has a brain check, added brain check above as well for minor optimisation)
                 end
             end
 
