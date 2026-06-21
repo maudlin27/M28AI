@@ -2607,6 +2607,14 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryAirFactory * categories.TECH1, 1, M28UnitInfo.refCategoryAirHQ * categories.TECH2, nil, nil, 'T2Air')
                 ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryAirFactory * categories.TECH2, 8, M28UnitInfo.refCategoryEngineer * categories.TECH2, 1, M28UnitInfo.refCategoryAirHQ * categories.TECH3, 'T2AEng')
             end
+            --Use gunships more aggressively once built up a decent force
+            M28Team.tTeamData[iTeam][M28Team.refbActiveDefenseObjective] = true
+            --FA M1 - once defended civilians remove gunship aggression flag
+        elseif ScenarioInfo.Seraphim == 2 and ScenarioInfo.Order == 3 and ScenarioInfo.UEF == 4 and ScenarioInfo.M1P1.Complete and (ScenarioInfo.M2CivilianBuildings or ScenarioInfo.M1ObjectiveShield or ScenarioInfo.M3CivilianCity or ScenarioInfo.Incarna1) then
+            if ScenarioInfo.M2P1.Active then M28Team.tTeamData[iTeam][M28Team.refbActiveDefenseObjective] = true
+            elseif ScenarioInfo.M2P1.Complete or M28Utilities.IsTableEmpty(ScenarioInfo.M2CivilianBuildings) then M28Team.tTeamData[iTeam][M28Team.refbActiveDefenseObjective] = false
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will set gunship aggression flag depending on if M2P1 is active, refbActiveDefenseObjective='..tostring(M28Team.tTeamData[iTeam][M28Team.refbActiveDefenseObjective] or false)) end
             --end
             --FA M2 Dawn - update enemy unit tables after brief delay
         elseif ScenarioInfo.QAICommander and ScenarioInfo.M4P1.Active and not(tbSpecialCodeForMission[41]) then

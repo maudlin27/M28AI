@@ -871,6 +871,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iTeam, iAirSubteam, iCategory, bRec
     local tInUseUnits = {}
     local tSpecialLogicUnits = {}
     local iLowFuelThreshold = 0.25
+    if M28Team.tTeamData[iTeam][M28Team.refbActiveDefenseObjective] then iLowFuelThreshold = 0.2 end
     local iLowHealthThreshold = iProjectileLowHealthThreshold
     if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] or M28Team.tTeamData[iTeam][M28Team.refbDontHaveBuildingsOrACUInPlayableArea] then
         local bHaveAirStaging = false
@@ -8189,7 +8190,7 @@ function ManageGunships(iTeam, iAirSubteam)
                             if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyUnit (or closest AA if enemy has nearby groudnAA)='..(oClosestEnemyUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyUnit) or 'nil')..'; will set this as the position to use for detailed AA check, tMidpointForDetailedAACheck='..repru(tMidpointForDetailedAACheck)) end
                         end
                         local tStartToUse
-                        if bDoDetailedGroundAACheck and GetGameTimeSeconds() >= 43*60+20 then tStartToUse = oFrontGunship:GetPosition() end
+                        if bDoDetailedGroundAACheck then tStartToUse = oFrontGunship:GetPosition() end
                         --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam, bDoDetailedCheckForAA, bReturnGroundAAThreatInstead, tOptionalStartMidpointAdjustForDetailedCheck, bReturnGroundAAUnitsAlongsideAAThreat, tOptionalEndMidpointAdjustForDetailedCheck)
                         bTooMuchAA = DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, iPlateauOrZero, iLandOrWaterZone, not(bCheckForAirAA), iMaxEnemyGroundAA, iSpecificAirAAThreatLimit,     false,              iAirSubteam, bDoDetailedGroundAACheck, nil,                         tStartToUse,                                        nil,                                    tMidpointForDetailedAACheck)
                         if not(bTooMuchAA) and oClosestEnemyAAUnit and not(oClosestEnemyAAUnit == oClosestEnemyUnit) and DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, iPlateauOrZero, iLandOrWaterZone, not(bCheckForAirAA), iMaxEnemyGroundAA, iSpecificAirAAThreatLimit,     false,              iAirSubteam, bDoDetailedGroundAACheck, nil,                         tStartToUse,                                        nil,                                    oClosestEnemyAAUnit:GetPosition()) then
@@ -8736,8 +8737,8 @@ function ManageGunships(iTeam, iAirSubteam)
                                                     end
 
                                                     --Large numbers of T2 gunships in campaign - lower threshold to attack
-                                                    if iOurGunshipThreat >= 10000 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 then
-                                                        iGunshipThreatFactorWanted = math.max(2.05, iGunshipThreatFactorWanted * 0.8)
+                                                    if iOurGunshipThreat >= 10000 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] < 3 or M28Team.tTeamData[iTeam][M28Team.refbActiveDefenseObjective]) then
+                                                        iGunshipThreatFactorWanted = math.max(iMinThreatFactor, iGunshipThreatFactorWanted * 0.8)
                                                     else
                                                         iGunshipThreatFactorWanted = math.max(2.05, iGunshipThreatFactorWanted)
                                                     end
