@@ -2721,7 +2721,9 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                         bHighHealthWithStealth = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Are stealthed and on high health so will ignore enemy threat and be aggressive unless in assassination') end
                                     end
-                                    if not(bHighHealthWithStealth) or not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar]) then
+                                    if bHighHealthWithStealth and (oACU[refbUseACUAggressively] or not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': We have stealth so will ignore rest of potential run from enemy logic') end
+                                    else
                                         local iEnemyNearbyThreat = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                                         local iEnemyMobileNearbyDFThreat = (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)
                                         local aiBrain = oACU:GetAIBrain()
@@ -3205,6 +3207,67 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                                         end
                                                     end
                                                 end
+                                            end
+
+                                            --Exception if we want to run but enemy has units nearby significantly less threat than us that we can attack without getting into range of main enemy threat
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering exception to wanting to run if gun ACU with high health, iACUThreat='..iACUThreat..'; iHealthPercent='..iHealthPercent..'; refbUseACUAggressively='..tostring(oACU[refbUseACUAggressively] or false)..'; refbAssassinationOrSimilar='..tostring(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar] or false)) end
+                                            if bWantToRun and iHealthPercent >= 0.98 and iACUThreat >= 1300 and oACU[refiUpgradeCount] >= 1 and (oACU[refbUseACUAggressively] or not(M28Team.tTeamData[iTeam][M28Team.refbAssassinationOrSimilar])) then
+                                                --Get closest enemy
+                                                local oClosestEnemy
+                                                local iClosestEnemy = 10000
+                                                function GetClosestUnitInZone(tCurLZTeamData)
+                                                    if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                                        local oCurZoneClosestEnemy, iCurZoneClosestEnemy = M28Utilities.GetNearestUnit(tCurLZTeamData[M28Map.subrefTEnemyUnits], oACU:GetPosition(), false, nil, true)
+                                                        if iCurZoneClosestEnemy < iClosestEnemy then
+                                                            iClosestEnemy = iCurZoneClosestEnemy
+                                                            oClosestEnemy = oCurZoneClosestEnemy
+                                                        end
+                                                    end
+                                                end
+                                                GetClosestUnitInZone(tLZTeamData)
+                                                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                                    for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                                        GetClosestUnitInZone(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam])
+                                                    end
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iClosestEnemy='..iClosestEnemy..'; oClosestEnemy='..(oClosestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy) or 'nil')) end
+                                                if iClosestEnemy <= 75 and oClosestEnemy then --We are close enough that we could consider attacking nearest enemies
+                                                    --ACU moves at 1.7 speed vs mantis at 3.7, so assume a 2 speed differential as a rough approximation and reduce by ACU range
+                                                    local iMobileDistThreshold = math.max(5, iClosestEnemy * 2 - oACU[M28UnitInfo.refiDFRange])
+                                                    local iStructureDistThreshold = 15 - oACU[M28UnitInfo.refiDFRange]
+                                                    local iEnemyThreatNearNearestEnemy = 0
+                                                    local iThreatThreshold = iACUThreat * 0.7
+                                                    local iCurDistLessRange
+                                                    local bTooMuchEnemyThreat = false
+                                                    function GetThreatOfEnemiesNearClosestEnemyUnitForCurZone(tCurLZTeamData)
+                                                        if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                                            for iUnit, oUnit in tCurLZTeamData[M28Map.subrefTEnemyUnits] do
+                                                                if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(oUnit.Dead) then
+                                                                    iCurDistLessRange = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oClosestEnemy:GetPosition()) - oUnit[M28UnitInfo.refiDFRange]
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to include enemy oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDistLessRange='..iCurDistLessRange..'; threat of htis unit='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true, false)) end
+                                                                    if iCurDistLessRange < iMobileDistThreshold and (iCurDistLessRange <= iStructureDistThreshold or EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then
+                                                                        iEnemyThreatNearNearestEnemy = iEnemyThreatNearNearestEnemy + M28UnitInfo.GetCombatThreatRating({ oUnit }, true, false)
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyThreatNearNearestEnemy Threat after inclusion='..iEnemyThreatNearNearestEnemy..'; iThreatThreshold='..iThreatThreshold) end
+                                                                        if iEnemyThreatNearNearestEnemy > iThreatThreshold then
+                                                                            bTooMuchEnemyThreat = true
+                                                                            break
+                                                                        end
+                                                                    end
+                                                                end
+                                                            end
+                                                        end
+                                                    end
+                                                    GetThreatOfEnemiesNearClosestEnemyUnitForCurZone(tLZTeamData)
+                                                    if not(bTooMuchEnemyThreat) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                                            GetThreatOfEnemiesNearClosestEnemyUnitForCurZone(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam])
+                                                            if bTooMuchEnemyThreat then break end
+                                                        end
+                                                    end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to no longer run due to ACU being able to attack nearest enemies before they can get support, bTooMuchEnemyThreat='..tostring(bTooMuchEnemyThreat or false)) end
+                                                    if not(bTooMuchEnemyThreat) then bWantToRun = false end
+                                                end
+
                                             end
                                         end
                                     end
