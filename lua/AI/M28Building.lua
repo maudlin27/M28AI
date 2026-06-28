@@ -3266,6 +3266,29 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
         local aiBrain = oArti:GetAIBrain()
         local iTeam = aiBrain.M28Team
         local iArtiFacingAngle = M28UnitInfo.GetUnitFacingAngle(oArti)
+        if bDebugMessages == true then
+            LOG('Updated GetUnitFacingAngle(oUnit) result='..M28UnitInfo.GetUnitFacingAngle(oArti)..'; old code below which didnt adjust GetHeadingPitch')
+            if EntityCategoryContains(categories.STRUCTURE * categories.DIRECTFIRE + categories.STRUCTURE * categories.INDIRECTFIRE, oArti.UnitId) then
+                if oArti.GetWeapon and oArti:GetWeaponCount() > 0 then
+                    --LOG('GetFacingAngle: oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
+                    local oWeapon = oArti:GetWeapon(1)
+                    if oWeapon and oWeapon.GetAimManipulator and oWeapon:GetAimManipulator().GetHeadingPitch then
+                        LOG('oWeapon:GetAimManipulator():GetHeadingPitch()='..oWeapon:GetAimManipulator():GetHeadingPitch()..'; ConvertRadiansToAngle result='..M28Utilities.ConvertRadiansToAngle(oWeapon:GetAimManipulator():GetHeadingPitch())..'; new code increases this by 89')
+                    else LOG('Returning 0')
+                    end
+                else LOG('Returning 0')
+                end
+                if oArti:IsValidBone('Turret') then
+                    --0% = south, 25% = east, 50% = north; want to convert from % into angle where 0 is north
+                    LOG('GetBoneDirection(Turret)='..oArti:GetBoneDirection('Turret')..'; ConvertCounterclockwisePercentageToAngle result='..oArti:GetBoneDirection('Turret'))
+                else
+                    LOG('No turret, arti heading='..oArti:GetHeading()..'; will return '..180 - oUnit:GetHeading() / math.pi * 180)
+                end
+            else
+                --Other units (would expect to be mobile) - get the unit direction
+                LOG('Not DF or IF structure, will return based on unit heading='..oArti:GetHeading()..', returning '..180 - oArti:GetHeading() / math.pi * 180)
+            end
+        end
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
         local oFirstUnitAvoidedDueToCaptureTarget, oCaptureTargetForFirstUnitAvoided
         local iShotCount = 1
@@ -3404,7 +3427,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                                         if iShotMissFactor < 1 then iShotMissFactor = 1 - (1 - iShotMissFactor) * 0.5 end
                                         --Increase value by 25% due to synchronisation benefit, and ignore angle factor
                                         iCurValue = iCurValue * iShotMissFactor * 1.25
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurValue='..iCurValue..'; after applying iShotMissFactor='..iShotMissFactor..'; iBestValue so far='..iBestValue) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurValue='..iCurValue..'; after applying iShotMissFactor='..iShotMissFactor..'; iBestValue so far='..iBestValue..'; subrefiIneffectiveArtiShotCount='..(tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 'nil')) end
                                         if iCurValue > iBestValue then
                                             iBestValue = iCurValue
                                             tBestArtiSynchronisedGroundTarget = {tLastArtiTarget[1], tLastArtiTarget[2], tLastArtiTarget[3]}
@@ -3550,7 +3573,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             iSecondBestLZOrWZ = tPlateauZoneAndDist[2]
                             iSecondBestAngleFactor = iArtiAngleFactor
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iCurValue after adj='..iCurValue..'; iShotMissFactor='..iShotMissFactor..'; iArtiAngleFactor='..iArtiAngleFactor) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurValue after adj='..iCurValue..'; iShotMissFactor='..iShotMissFactor..'; iArtiAngleFactor='..iArtiAngleFactor..'; iArtiFacingAngle='..iArtiFacingAngle..'; tPlateauZoneAndDist[4]='..(tPlateauZoneAndDist[4] or 'nil')) end
                     elseif (tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) > 500 then
                         table.insert(tiLowerPriorityPlateauAndLandZonesWithEnemyBuildings, {tPlateauZoneAndDist[1], tPlateauZoneAndDist[2]})
                         table.insert(tiLowerPriorityIndexAndStructureValue, (tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0))
@@ -3884,7 +3907,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                         end
                     end
                     IncreaseArtiShotCount(tActualTarget, iTeam, iShotCount)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Sent order to attack to oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..', iBestValue='..iBestValue..'; tActualTarget='..repru(tActualTarget)..'; is tActualTarget in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tActualTarget))..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Sent order to attack to oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..', iBestValue='..iBestValue..'; tActualTarget='..repru(tActualTarget)..'; is tActualTarget in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tActualTarget))..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; Angle from arti to target='..M28Utilities.GetAngleFromAToB(oArti:GetPosition(), tActualTarget)) end
                 end
             end
         end

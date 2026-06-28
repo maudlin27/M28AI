@@ -1140,7 +1140,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 --Have initial power and mexes built, get second factory now subject to the cap
                                 if iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < iFactoryCap then
                                     local bWantAirFactory = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZOrWZData, tLZOrWZTeamData, aiBrain)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want more factories, iCurLandFactories='..iCurLandFactories..'; Want more factories='..tostring(M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ))..'; Cur air factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want more factories, iCurLandFactories='..iCurLandFactories..'; Want more factories='..tostring(M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ))..'; Cur air factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)..'; bWantAirFactory='..tostring(bWantAirFactory)) end
                                     if bGoSecondAir and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0 then
                                         ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to go second air') end
@@ -1180,7 +1180,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Will try building another mex') end
                                             --Third factory if overflowing mass or have quite a bit stored
                                         elseif iCurLandFactories < 3 and (not(tLZOrWZTeamData[M28Map.refbBaseInSafePosition]) or tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= 2) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and (M28Map.iMapSize <= 512 and (M28Map.iMapSize <= 256 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1)) and aiBrain:GetEconomyStored('MASS') >= 250 or (aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100) and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 4 and M28Conditions.WantMoreFactories(iTeam, iPlateauOrZero, iLZOrWZ) then
-
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will get another factory') end
                                             if bWantAirFactory then
                                                 ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData,     M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
                                             else
@@ -5483,7 +5483,6 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
     oACU[refiTimeLastWantedToRun] = GetGameTimeSeconds()
 
     --Go to core base
@@ -6676,63 +6675,6 @@ function GetACUOrder(aiBrain, oACU)
     elseif GiveOverchargeOrderIfRelevant(tLZOrWZData, tLZOrWZTeamData, oACU, iPlateauOrZero, iLandOrWaterZone) then
         --when an overcharge shot is fired it triggers this code to run again so no need to queue things up afterwards
         if bDebugMessages == true then LOG(sFunctionRef..': Have just givne overcharge order') end
-    elseif oACU[M28UnitInfo.refbSpecialMicroActive] and not(oACU[refbACUSnipeModeActive]) then
-        --Do nothing unless are in range of PD in which case retreat despite the special micro
-        if bDebugMessages == true then LOG(sFunctionRef..': ACU has special micro active, Time remaining='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 0) - GetGameTimeSeconds()..'; Does ACU want to run='..tostring(DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU))) end
-        if RunFromEnemyTeleport(oACU, iTeam, tLZOrWZData) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Are running from a nearby enemy teleport attempt') end
-        elseif DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
-            if bDebugMessages == true then LOG(sFunctionRef..': have flagged that acu wants to run, iPlateauOrZero='..iPlateauOrZero..'; Enemy DF structure threat='..(tLZOrWZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0)..'; ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Is table of enemy units empty='..tostring( M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
-            ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
-            if iPlateauOrZero > 0 and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.8 then
-                local oNearestPD
-                local iClosestDistUntilInRange = 10000
-                local iCurDist
-                function ConsiderNearestPDInZone(tLZTeamData)
-                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                        local tEnemyPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefTEnemyUnits])
-                        if M28Utilities.IsTableEmpty(tEnemyPD) == false then
-                            for iUnit, oUnit in tEnemyPD do
-                                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
-                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
-                                    if iCurDist < iClosestDistUntilInRange then
-                                        iClosestDistUntilInRange = iCurDist
-                                        oNearestPD = oUnit
-                                        if iClosestDistUntilInRange < 0 then break end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-                ConsiderNearestPDInZone(tLZOrWZTeamData)
-                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
-                    for _, iAdjLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
-                        local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                        ConsiderNearestPDInZone(tAdjLZTeamData)
-                    end
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..'; Considering ignoring special micro, iClosestDistUntilInRange='..iClosestDistUntilInRange..'; oNearestPD='..(oNearestPD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestPD) or 'nil')) end
-                if iClosestDistUntilInRange <= 1 and oNearestPD then
-                    --We want to run
-                    local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true)
-                    if M28Utilities.IsTableEmpty(tRallyPoint) == false then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Angle to rally point tRallyPoint='..M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)..'; Angle to nearest enemy PD='..M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oNearestPD:GetPosition())) end
-                        if M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint), M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oNearestPD:GetPosition())) > 90 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will consider running to shield or rally point') end
-                            if not(ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero, iLandOrWaterZone)) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will override micro logic and retreat') end
-                                M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'ACUIgnMRetr', true)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        if GetGameTimeSeconds() > (oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 0) then
-            oACU[M28UnitInfo.refbSpecialMicroActive] = false
-        end
-        --Low cost and build time upgrades - ensure we always have the desired upgrades
     else
         oACU[refbOnlyOverchargeHighValueTargets] = oACU[refbACUSnipeModeActive] --will also set to true if we are trying to run down an enemy ACU
         oACU[refoShieldRallyTarget] = nil
@@ -6741,7 +6683,7 @@ function GetACUOrder(aiBrain, oACU)
         if oACU[refbDoingInitialBuildOrder] then
             if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and GetGameTimeSeconds() >= 20 and DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and (not(M28Map.bIsCampaignMap) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) > 0) then
                 ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
-                if bDebugMessages == true then LOG(sFunctionRef..': Want to return to core base (or core zone with shield)') end
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to return to core base (or core zone with shield), subrefLZbCoreBase='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)) end
                 if not(ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero, iLandOrWaterZone)) then
                     ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will go to core base') end
@@ -6871,6 +6813,64 @@ function GetACUOrder(aiBrain, oACU)
         elseif oACU[reftSpecialObjectiveMoveLocation] then
             M28Orders.IssueTrackedMove(oACU, oACU[reftSpecialObjectiveMoveLocation], 3, false, 'ACUObj', false)
             bProceedWithLogic = false
+        elseif oACU[M28UnitInfo.refbSpecialMicroActive] and not(oACU[refbACUSnipeModeActive]) then
+            --Do nothing unless are in range of PD in which case retreat despite the special micro
+            if bDebugMessages == true then LOG(sFunctionRef..': ACU has special micro active, Time remaining='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 0) - GetGameTimeSeconds()..'; Does ACU want to run='..tostring(DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU))) end
+            if RunFromEnemyTeleport(oACU, iTeam, tLZOrWZData) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Are running from a nearby enemy teleport attempt') end
+            elseif DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                if bDebugMessages == true then LOG(sFunctionRef..': have flagged that acu wants to run, iPlateauOrZero='..iPlateauOrZero..'; Enemy DF structure threat='..(tLZOrWZTeamData[M28Map.subrefThreatEnemyDFStructures] or 0)..'; ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Is table of enemy units empty='..tostring( M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
+                ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
+                if iPlateauOrZero > 0 and M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.8 then
+                    local oNearestPD
+                    local iClosestDistUntilInRange = 10000
+                    local iCurDist
+                    function ConsiderNearestPDInZone(tLZTeamData)
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                            local tEnemyPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefTEnemyUnits])
+                            if M28Utilities.IsTableEmpty(tEnemyPD) == false then
+                                for iUnit, oUnit in tEnemyPD do
+                                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
+                                        if iCurDist < iClosestDistUntilInRange then
+                                            iClosestDistUntilInRange = iCurDist
+                                            oNearestPD = oUnit
+                                            if iClosestDistUntilInRange < 0 then break end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    ConsiderNearestPDInZone(tLZOrWZTeamData)
+                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                            local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                            ConsiderNearestPDInZone(tAdjLZTeamData)
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..'; Considering ignoring special micro, iClosestDistUntilInRange='..iClosestDistUntilInRange..'; oNearestPD='..(oNearestPD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestPD) or 'nil')) end
+                    if iClosestDistUntilInRange <= 1 and oNearestPD then
+                        --We want to run
+                        local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true)
+                        if M28Utilities.IsTableEmpty(tRallyPoint) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Angle to rally point tRallyPoint='..M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint)..'; Angle to nearest enemy PD='..M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oNearestPD:GetPosition())) end
+                            if M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oACU:GetPosition(), tRallyPoint), M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oNearestPD:GetPosition())) > 90 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will consider running to shield or rally point') end
+                                if not(ConsiderRunningToNearestShield(oACU, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrZero, iLandOrWaterZone)) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will override micro logic and retreat') end
+                                    M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'ACUIgnMRetr', true)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if GetGameTimeSeconds() > (oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 0) then
+                oACU[M28UnitInfo.refbSpecialMicroActive] = false
+            end
+            bProceedWithLogic = false
+            --Low cost and build time upgrades - ensure we always have the desired upgrades
             --Move away from a teleport
         elseif RunFromEnemyTeleport(oACU, iTeam, tLZOrWZData) then
             bProceedWithLogic = false

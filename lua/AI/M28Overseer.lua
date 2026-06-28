@@ -2652,6 +2652,12 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                         ScenarioInfo.M1P1:ManualResult(true)
                     end
                 end--]]
+            --FA M4 - prioritise early T2 land
+
+        elseif ScenarioInfo.Dostya == 2 and ScenarioInfo.Seraphim == 3 and ScenarioInfo.SeraphimSecondary == 4 and not(ScenarioInfo.M1P1.Complete) then
+            ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory, 5, M28UnitInfo.refCategoryEngineer, 1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, 'T2Land')
+            --UEF and Cybran - get skirmishers
+            ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory * categories.TECH2, 2, M28UnitInfo.refCategoryLandScout, 3, M28UnitInfo.refCategorySkirmisher * categories.TECH2, 'T2Skirmish')
             --FA M6 - Fletcher changing sides
         elseif ScenarioInfo.M2P1.Active and ScenarioInfo.FletcherACU and not(tbSpecialCodeForMission[21]) then
             tbSpecialCodeForMission[21] = true

@@ -10832,6 +10832,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     if iEngiCount > 0 then
                         --Check the brain still exists
                         if tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi] and not(tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi].M28IsDefeated) and not(tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi]:IsDefeated()) then
+                            local iFailedLoopCount = 0
                             while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to gift engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to brain '..tLZOrWZTeamData[M28Map.subrefoBrainWantingEngi].Nickname) end
                                 --Check the engineer isnt owned by the same brain
@@ -10842,6 +10843,10 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                     --TRACKING NOTE - our engineer unit will be killed from being transferred, this is primarily so iEngiCount gets updated/avid infinite loop
                                     TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority, nil, nil, bMarkAsSpare)
                                     UpdateBPTracking()
+                                else
+                                    if iEngiCount <= 1 then break end
+                                    iFailedLoopCount = iFailedLoopCount + 1
+                                    if iFailedLoopCount >= 5 then break end --redundancy
                                 end
                             end
                         end

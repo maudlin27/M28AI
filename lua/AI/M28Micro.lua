@@ -510,7 +510,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDodgingShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        
+
     if not(ScenarioInfo.Options.M28DodgeMicro == 2) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId)) then
         local oWeaponBP = oWeapon.Blueprint or oWeapon.bp
         if bDebugMessages == true then
@@ -799,7 +799,7 @@ function DodgeShot(oTarget, oOptionalWeapon, oAttacker, iTimeToDodge)
         local tCurDestination
         local bAttackMove = false
         --ACU special - if ACU wants to run, then ignore hte last order and instead treat it as tyring to run to base
-        if oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or -100) <= 5 or (EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and M28UnitInfo.GetUnitHealthPercent(oTarget) <= 0.6) then
+        if (oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or -100) <= 5) or ((EntityCategoryContains(categories.COMMAND, oTarget.UnitId) and M28UnitInfo.GetUnitHealthPercent(oTarget) <= 0.6 and not(oTarget[M28ACU.refbUseACUAggressively]) and oTarget:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] >= 1)) then
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oTarget:GetPosition(), true, oTarget:GetAIBrain().M28Team)
 
             if tLZOrWZTeamData then
@@ -951,20 +951,44 @@ function DodgeShot(oTarget, oOptionalWeapon, oAttacker, iTimeToDodge)
             end
         end
 
-        local tTempDestination = M28Utilities.MoveInDirection(oTarget:GetPosition(), iAngleToMove, iDistanceToRun, true, false, true)
-        if bDebugMessages == true then LOG(sFunctionRef..': oTarget (ie unit that is dodging)='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; clearing current orders which have a possible destination of '..repru(tCurDestination)..'; and giving an order to move to '..repru(tTempDestination)..'; Dist from our position to temp position='..M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), tTempDestination)..'; iAngleAdjust='..iAngleAdjust..'; Unit size='..iUnitSize..'; iTimeToDodge='..iTimeToDodge) end
-        --M28Orders.IssueTrackedClearCommands(oTarget)
-        TrackTemporaryUnitMicro(oTarget, iTimeToDodge)
-        if bAdjustDodgeMicroCount then
-            M28Utilities.DelayChangeVariable(oTarget:GetAIBrain(), refiCurUnitsDodging, -1, iTimeToDodge, nil, nil, nil, nil, true)
+        local tTempDestination
+
+        for iAngleAdjust = 0, 90 do
+            for iAngleMod = -1, 1, 2 do
+                if iAngleAdjust == 0 then
+                    tTempDestination = M28Utilities.MoveInDirection(oTarget:GetPosition(), iAngleToMove, iDistanceToRun, false, false, false)
+                    if bDebugMessages == true then LOG(sFunctionRef..': bae angle with no adjust, is tTempDestination in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tTempDestination))..'; tTempDestination='..repru(tTempDestination)) end
+                    if not(M28Conditions.IsLocationInPlayableArea(tTempDestination)) then
+                        tTempDestination = nil
+                    end
+                    break
+                else
+                    tTempDestination = M28Utilities.MoveInDirection(oTarget:GetPosition(), iAngleToMove + iAngleMod * iAngleAdjust, iDistanceToRun, false, false, false)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iAngleToMove='..iAngleToMove..'; iAngleAdjust='..iAngleAdjust..'; iAngleMod='..iAngleMod..'; is tTempDestination in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tTempDestination))..'; tTempDestination='..repru(tTempDestination)) end
+                    if not(M28Conditions.IsLocationInPlayableArea(tTempDestination)) then
+                        tTempDestination = nil
+                    end
+                    if tTempDestination then break end
+                end
+            end
+            if tTempDestination then break end
         end
-        M28Orders.IssueTrackedMove(oTarget, tTempDestination, 0.25, false, 'MiDod1', true)
-        --Also send an order to go to the destination that we had before
-        if bAttackMove then
-            M28Orders.IssueTrackedAttackMove(oTarget, tCurDestination, 0.25, true, 'MiDod2', true)
-        else
-            --M28Orders.IssueTrackedMove(oTarget, tCurDestination, 0.25, true, 'MiDod3', true)
-            --Disabled for v89 given new 'get goal' position and increase in the micro dodge distance
+        if bDebugMessages == true then LOG(sFunctionRef..': oTarget (ie unit that is dodging)='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; clearing current orders which have a possible destination of '..repru(tCurDestination)..'; and giving an order to move to '..repru(tTempDestination)..'; Dist from our position to temp position='..M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), tTempDestination)..'; iAngleAdjust='..iAngleAdjust..'; Unit size='..iUnitSize..'; iTimeToDodge='..iTimeToDodge) end
+        if tTempDestination then
+            --M28Orders.IssueTrackedClearCommands(oTarget)
+            TrackTemporaryUnitMicro(oTarget, iTimeToDodge)
+            if bAdjustDodgeMicroCount then
+                M28Utilities.DelayChangeVariable(oTarget:GetAIBrain(), refiCurUnitsDodging, -1, iTimeToDodge, nil, nil, nil, nil, true)
+            end
+            M28Orders.IssueTrackedMove(oTarget, tTempDestination, 0.25, false, 'MiDod1', true)
+            --Also send an order to go to the destination that we had before
+            if bAttackMove then
+                M28Orders.IssueTrackedAttackMove(oTarget, tCurDestination, 0.25, true, 'MiDod2', true)
+            else
+                --M28Orders.IssueTrackedMove(oTarget, tCurDestination, 0.25, true, 'MiDod3', true)
+                --Disabled for v89 given new 'get goal' position and increase in the micro dodge distance
+            end
+        elseif bDebugMessages == true then LOG(sFunctionRef..': Wont give dodge order as couldnt find anywhere valid to move to')
         end
     end
 
