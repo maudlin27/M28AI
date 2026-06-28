@@ -2060,8 +2060,6 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     --First check in case of unit restrictions
     if M28Overseer.bAirFactoriesCantBeBuilt then
         if bDebugMessages == true then LOG(sFunctionRef..': Air factories seem to be disabled so wont try to build') end
@@ -2082,6 +2080,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
         end
 
         local aiBrain = oOptionalBrainOverride or ArmyBrains[tLZTeamData[M28Map.reftiClosestFriendlyM28BrainIndex]]
+
         if bDebugMessages == true then LOG(sFunctionRef..': Near start, iLandFactoriesHave='..iLandFactoriesHave..'; Highest air fac tech='..(aiBrain[M28Economy.refiOurHighestAirFactoryTech] or 'nil')..'; bGoingSecondAir='..tostring(aiBrain[M28Economy.refbGoingSecondAir] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Focus on T1 spam='..tostring(M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] or false)..'; oOptionalBrainOverride='..(oOptionalBrainOverride.Nickname or 'nil')..'; aiBrain='..(aiBrain.Nickname or 'nil')) end
 
         --Early game where ACU wants to go second air - build air fac if low on mass to avoid a case where we stall mass while trying to build 2 different factories at once
@@ -2190,11 +2189,11 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                             --Cant path to enemy except with amphibious, so dont want lots of land factories
                                             iLandFactoriesWantedBeforeAir = 1
                                             --Exception if low gross power
-                                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 and not(aiBrain[M28Overseer.refbPrioritiseNavy]) and not(aiBrain[M28Overseer.refbPrioritiseAir]) then
+                                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] and not(aiBrain[M28Overseer.refbPrioritiseNavy]) and not(aiBrain[M28Overseer.refbPrioritiseAir]) then
                                                 iLandFactoriesWantedBeforeAir = 2
                                             end
                                             iAirFactoriesForEveryLandFactory = 5
-                                            if bDebugMessages == true then LOG(sFunctionRef..': We cant path to enemy by land so eant lots if air relative to land') end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': We cant path to enemy by land so eant lots if air relative to land, iLandFactoriesWantedBeforeAir before further adjustments='..iLandFactoriesWantedBeforeAir) end
                                         end
                                     else
                                         --Can path to enemy with land, base number of factories wanted on distance to enemy base
@@ -2306,11 +2305,8 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData, oOp
                                             end--]]
                                         end
                                     end
-                                    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
-                                        --Early game on naval map - still just get 1 land fac first
-                                        if iLandFactoriesHave > 1 or aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
-                                            iLandFactoriesWantedBeforeAir = iLandFactoriesWantedBeforeAir + 1
-                                        end
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 and not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
+                                        iLandFactoriesWantedBeforeAir = iLandFactoriesWantedBeforeAir + 1
                                         iAirFactoriesForEveryLandFactory = iAirFactoriesForEveryLandFactory * 0.8
                                     end
                                     if iLandFactoriesHave >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 1 and M28Map.bIsCampaignMap then
@@ -4820,3 +4816,16 @@ function IsCloseToPacifistUnit(tPosition, iOptionalDistThreshold)
     return false
 end
 
+function  HaveMinimumVisualOrRadarRange(tUnits, iMinIntelWanted)
+    --Returns true if finds unit in tUnits with desired intel or radar range
+    local tbConsideredUnitByID = {}
+    for iUnit, oUnit in tUnits do
+        if not(tbConsideredUnitByID[oUnit.UnitId]) then
+            tbConsideredUnitByID[oUnit.UnitId] = true
+            if (oUnit:GetBlueprint().Intel.RadarRadius or 0) >= iMinIntelWanted or (oUnit:GetBlueprint().Intel.VisionRadius or 0) >= iMinIntelWanted or (oUnit:GetBlueprint().Intel.OmniRadius or 0) >= iMinIntelWanted then
+                return true
+            end
+        end
+    end
+    return false
+end
