@@ -2857,7 +2857,10 @@ function GetUnitFacingAngle(oUnit)
             --LOG('GetFacingAngle: oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
             local oWeapon = oUnit:GetWeapon(1)
             if oWeapon and oWeapon.GetAimManipulator and oWeapon:GetAimManipulator().GetHeadingPitch then
-                return M28Utilities.ConvertRadiansToAngle(oWeapon:GetAimManipulator():GetHeadingPitch())
+                --T3 arti and mavor - this seems to return about 180 out from actual direction; based on testing arti will have converted facing angle (without ajdustment) of 59.9 (varies marginally for dif arti but within 1 degrees), for a target that is 146.9; so increase angle by 87
+                local iFacingAngle = M28Utilities.ConvertRadiansToAngle(oWeapon:GetAimManipulator():GetHeadingPitch()) +  87
+                if iFacingAngle > 360 then iFacingAngle = iFacingAngle - 360 end
+                return iFacingAngle
             else return 0
             end
         else return 0
