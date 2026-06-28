@@ -3005,11 +3005,12 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
     local sFunctionRef = 'ConsiderPriorityAirFactoryUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; tTeamData[iM28Team][subrefiHighestEnemyAirTech]='..tTeamData[iM28Team][subrefiHighestEnemyAirTech]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; tTeamData[iM28Team][subrefiHighestEnemyAirTech]='..tTeamData[iM28Team][subrefiHighestEnemyAirTech]..'; refbFocusOnT1Spam='..tostring(tTeamData[iM28Team][refbFocusOnT1Spam])) end
 
     if tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] < 3 and not(tTeamData[iM28Team][refbFocusOnT1Spam]) then
         --Campaign specific - dont be as keen to urgently upgrade air (as it may be enemy starts at t3 air while we start at t1)
-        if not(M28Map.bIsCampaignMap) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
+        if bDebugMessages == true then LOG(sFunctionRef..': subrefiTeamGrossMass='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; refiHighestBrainBuildMultiplier='..tTeamData[iM28Team][refiHighestBrainBuildMultiplier]..'; subrefiTeamMassStored='..tTeamData[iM28Team][subrefiTeamMassStored]..'; desired mass='..4 * tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainBuildMultiplier]  - tTeamData[iM28Team][subrefiTeamMassStored] / 150) end
+        if not(M28Map.bIsCampaignMap) or tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainBuildMultiplier] - tTeamData[iM28Team][subrefiTeamMassStored] / 150  then
             local bWantUpgrade = false
             --Prioritise air factory if we dont have T2 air and enemy has navy
             local bAirSubteamNeedsTorps = false
@@ -3090,7 +3091,7 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
                     --Prioritise air fac if we already have T2 land and at least 4 mass per tick and 70 power per tick, or if we have 6 mass and 100 power, provided no current HQ upgrades
                     if bDebugMessages == true then LOG(sFunctionRef..': Our highest tech level='..tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech]..'; Enemy highest tech='..tTeamData[iM28Team][subrefiHighestEnemyAirTech]..'; Gross energy='..tTeamData[iM28Team][subrefiTeamGrossEnergy]..'; Highest resource mult='.. tTeamData[iM28Team][refiHighestBrainResourceMultiplier]..'; Team T2+ engi lifetime count='..M28Conditions.GetTeamLifetimeBuildCount(iM28Team, M28UnitInfo.refCategoryEngineer - categories.TECH1)) end
 
-                    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 70 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] >= 2 or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 102 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainResourceMultiplier]))
+                    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainBuildMultiplier] and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 70 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainBuildMultiplier] and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] >= 2 or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainBuildMultiplier] and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 102 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainBuildMultiplier]))
                             and (tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] <= tTeamData[iM28Team][subrefiHighestEnemyAirTech] or (tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 70 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainResourceMultiplier] and M28Conditions.GetTeamLifetimeBuildCount(iM28Team, M28UnitInfo.refCategoryEngineer - categories.TECH1) >= 3 + 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount]))
                     then
                         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
@@ -3154,6 +3155,7 @@ function ConsiderPriorityNavalFactoryUpgrades(iM28Team)
                     if iTotalBuildCount <= 8 and tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] <= 2 then
                         local iEcoConditionFactor = 1
                         if tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] == 1 then iEcoConditionFactor = 0.3 end
+                        iEcoConditionFactor = iEcoConditionFactor * tTeamData[iM28Team][refiHighestBrainBuildMultiplier]
                         if M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 600 and tTeamData[iM28Team][subrefiTeamGrossMass] <= 20 * iEcoConditionFactor then
                             bWantUpgrade = false
                         elseif tTeamData[iM28Team][subrefiTeamGrossMass] <= 10 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * iEcoConditionFactor then
