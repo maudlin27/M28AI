@@ -5143,6 +5143,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local iAirSubteam = aiBrain.M28AirSubteam
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
+    --exception - naval maps where we have good net energy and lack t2 air
+    if  iFactoryTechLevel == 1 and bHaveLowPower and not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 12 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 40 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] then
+        bHaveLowPower = false
+        if bDebugMessages == true then LOG(sFunctionRef..': Exception to low power for navla map t1 air fac') end
+    end
+
     local bSaveMassDueToEnemyFirebaseOrOurExperimental
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false and bHaveLowMass then
         bSaveMassDueToEnemyFirebaseOrOurExperimental = true
