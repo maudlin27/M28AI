@@ -1866,7 +1866,6 @@ function ProjectileCreated(oProjectile, inWater)
                     end
                 end
             end
-            if oProjectile.Launcher.UnitId == 'urb2108' then LOG('TEMPCODE oProjectile.Launcher.UnitId='..(oProjectile.Launcher.UnitId or 'nil')..'; oProjectile.InnerRing='..(oProjectile.InnerRing or 'nil')..'; oProjectile.OuterRing='..(oProjectile.OuterRing or 'nil')..'; Launcher is SML='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, (oProjectile.Launcher.UnitId or 'uel0001')))..'; Launcher is TML='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryTML, oProjectile.Launcher.UnitId))..'; TML damage radius per blueprint='..(oProjectile.CreatedByWeapon.Blueprint.DamageRadius or 'nil')..'; Brain nickname='..(oProjectile.CreatedByWeapon.Brain.Nickname or 'nil')..' Army index='..(oProjectile.CreatedByWeapon.Army or 'nil')..'; reprs of oProjectile='..reprs(oProjectile)) end
             if oProjectile.Launcher.UnitId and oProjectile.InnerRing and oProjectile.OuterRing and EntityCategoryContains(M28UnitInfo.refCategorySML, oProjectile.Launcher.UnitId) then
                 --Have a nuke missile that has just been fired
                 local oLauncher = oProjectile.Launcher
