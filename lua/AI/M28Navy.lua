@@ -538,13 +538,16 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         local iBaseSubmersibleThreat = (tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] or 0)
         --function                                                   GetCombatThreatRating(tUnits,                          bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
         tWZTeamData[M28Map.subrefWZThreatEnemyVsSurface] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits],   true,       false,              false,                      false,      true,           false)
+        --AA - before adjustment for submerged AA units later on
         --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
-        tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false, false)
+        tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false, false) --We adjust this for toSubmergedAAUnits below
         tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetMassCostOfUnits(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tWZTeamData[M28Map.subrefTEnemyUnits]), true)
         tWZTeamData[M28Map.subreftEnemyLongRangeUnits] = {}
         local iTorpDefenceCount = 0
         local iLRThreshold = iLongRangeThreshold
         local iCurShield, iMaxShield, iThreatFactor
+        local toSubmergedAAUnits = {}
+
         for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering ranges and underwater mex threat adjustments for WZ'..iWaterZone..', oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))) end
             if oUnit:GetFractionComplete() >= 0.95 and oUnit[M28UnitInfo.refiCombatRange] > 0 then
@@ -563,6 +566,10 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                         tWZTeamData[M28Map.subrefWZBestEnemySubmersibleRange] = oUnit[M28UnitInfo.refiAntiNavyRange]
                     end
                 end
+
+                if (oUnit[M28UnitInfo.refiAARange] or 0) > 0 and EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) and M28UnitInfo.IsUnitUnderwater(oUnit) then
+                    table.insert(toSubmergedAAUnits, oUnit)
+                end
                 if oUnit[M28UnitInfo.refiCombatRange] > iLRThreshold then
                     table.insert(tWZTeamData[M28Map.subreftEnemyLongRangeUnits], oUnit)
                 end
@@ -577,6 +584,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                 tWZTeamData[M28Map.subrefThreatEnemyShield] = tWZTeamData[M28Map.subrefThreatEnemyShield] + iThreatFactor * (oUnit[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oUnit))
             end
         end
+
         tWZTeamData[M28Map.refiEnemyTorpDefenceCount] = iTorpDefenceCount
         if (tWZTeamData[M28Map.subrefThreatEnemyShield] or 0) >= 50 then
             local iMaxShieldRating
@@ -608,6 +616,12 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         --If enemy has antinavy surface combat units then increase submersible threat
         if iTorpDefenceSurfaceCount > 0 and tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > 50 then
             tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] = math.max(tWZTeamData[M28Map.subrefWZThreatEnemySubmersible], math.min(iBaseSubmersibleThreat * 3, tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] + iTorpDefenceSurfaceCount * 200))
+        end
+
+        --Mostly ignore submerged AA threat
+        if M28Utilities.IsTableEmpty(toSubmergedAAUnits) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has submerged AA units with an AA threat of '..M28UnitInfo.GetAirThreatLevel(toSubmergedAAUnits, true, false, true, false, false, false, false)..'; tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] before update='..tWZTeamData[M28Map.subrefiThreatEnemyGroundAA]) end
+            tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] = tWZTeamData[M28Map.subrefiThreatEnemyGroundAA] - M28UnitInfo.GetAirThreatLevel(toSubmergedAAUnits, true, false, true, false, false, false, false) * 0.9
         end
     end
 
