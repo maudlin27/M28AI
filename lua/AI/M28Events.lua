@@ -3376,7 +3376,10 @@ function OnReclaimFinished(oEngineer, oReclaim)
                 else--]]
                 for iEngineer, oEngineer in oReclaim[M28Engineer.reftUnitsReclaimingUs] do
                     if M28UnitInfo.IsUnitValid(oEngineer) then
-                        table.insert(tEngineersToClear, oEngineer)
+                        --Dont include ACU, as in one case had 40% upgraded ACU get cleared
+                        if not(EntityCategoryContains(categories.COMMAND, oEngineer.UnitId)) then
+                            table.insert(tEngineersToClear, oEngineer)
+                        end
                     end
                 end
                 for iEngineer, oEngineer in tEngineersToClear do
