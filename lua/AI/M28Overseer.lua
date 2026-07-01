@@ -2607,10 +2607,10 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             end
             if not(ScenarioInfo.M1S2.Active) then
                 --Start of game
-                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory * categories.TECH1, 1, M28UnitInfo.refCategoryLandHQ * categories.TECH2, nil, nil, 'T2Land')
-                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory * categories.TECH2, 8, M28UnitInfo.refCategoryEngineer * categories.TECH2, 1, M28UnitInfo.refCategoryLandHQ * categories.TECH3, 'T2LEng')
-                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryAirFactory * categories.TECH1, 1, M28UnitInfo.refCategoryAirHQ * categories.TECH2, nil, nil, 'T2Air')
-                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryAirFactory * categories.TECH2, 8, M28UnitInfo.refCategoryEngineer * categories.TECH2, 1, M28UnitInfo.refCategoryAirHQ * categories.TECH3, 'T2AEng')
+                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory * categories.TECH1, 1, M28UnitInfo.refCategoryLandHQ * categories.TECH2, nil, nil, nil, nil, 'T2Land')
+                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory * categories.TECH2, 8, M28UnitInfo.refCategoryEngineer * categories.TECH2, 1, M28UnitInfo.refCategoryLandHQ * categories.TECH3, nil, nil, 'T2LEng')
+                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryAirFactory * categories.TECH1, 1, M28UnitInfo.refCategoryAirHQ * categories.TECH2, nil, nil, nil, nil, 'T2Air')
+                ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryAirFactory * categories.TECH2, 8, M28UnitInfo.refCategoryEngineer * categories.TECH2, 1, M28UnitInfo.refCategoryAirHQ * categories.TECH3, nil, nil, 'T2AEng')
             end
             --Use gunships more aggressively once built up a decent force
             M28Team.tTeamData[iTeam][M28Team.refbActiveDefenseObjective] = true
@@ -2685,12 +2685,12 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
 
             --FA M4 - prioritise early T2 land
         elseif ScenarioInfo.Dostya == 2 and ScenarioInfo.Seraphim == 3 and ScenarioInfo.SeraphimSecondary == 4 and not(ScenarioInfo.M1P1.Complete) then
-            ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory, 5, M28UnitInfo.refCategoryEngineer, 1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, 'T2Land')
+            ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory, 5, M28UnitInfo.refCategoryEngineer, 1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, nil, nil, 'T2Land')
             --UEF and Cybran - get skirmishers
-            ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory * categories.TECH2, 2, M28UnitInfo.refCategoryLandScout, 3, M28UnitInfo.refCategorySkirmisher * categories.TECH2, 'T2Skirmish')
+            ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory * categories.TECH2, 2, M28UnitInfo.refCategoryLandScout, 3, M28UnitInfo.refCategorySkirmisher * categories.TECH2, nil, nil, 'T2Skirmish')
             --FA M5 start of game
         elseif ScenarioInfo.Brackman == 8 and ScenarioInfo.Hex5 == 3 and ScenarioInfo.AeonArmy == 5 and not( ScenarioInfo.M1P1.Complete) then
-            ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory, 6, M28UnitInfo.refCategoryEngineer, 1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, 'T2Land')
+            ForkThread(TellFactoryToBuildSpecificUnitInCampaignMission, iTeam, M28UnitInfo.refCategoryLandFactory, 5, M28UnitInfo.refCategoryEngineer, 1, M28UnitInfo.refCategoryMobileDFLand, 1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, 'T2Land')
 
             --FA M6 - Fletcher changing sides
         elseif ScenarioInfo.M2P1.Active and ScenarioInfo.FletcherACU and not(tbSpecialCodeForMission[21]) then
@@ -4163,91 +4163,72 @@ function GetM28BrainForCampaignObjective(bAlsoGetFirstPlayer)
     end
 end
 
-function TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, iFactoryCategory, iUnitsWanted, iCategoryWanted, iSecondUnitsWanted, iSecondCategoryWanted, sOptionalUniqueReference)
-    --Will first get iCategoryWanted, then ocne have iUnitsWanted will move on to iSecondCategoryWnated if it is specified
+function TellFactoryToBuildSpecificUnitInCampaignMission(iTeam, iFactoryCategory, iUnitsWanted, iCategoryWanted, iSecondUnitsWanted, iSecondCategoryWanted, iThirdUnitsWanted, iThirdCategoryWanted, sOptionalUniqueReference)
+    --Will first get iCategoryWanted, then ocne have iUnitsWanted will move on to iSecondCategoryWnated if it is specified, and then third unitswanted and thirdcategorywanted
     local sFunctionRef = 'TellFactoryToBuildSpecificUnitInCampaignMission'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local oM28Brain = GetM28BrainForCampaignObjective()
-    if oM28Brain then
+    if oM28Brain and oM28Brain.M28Team == iTeam then
         local refbFactorySpecificUnitCheckActive = 'M28CampFacOvrd'
         if sOptionalUniqueReference then refbFactorySpecificUnitCheckActive = refbFactorySpecificUnitCheckActive..sOptionalUniqueReference end
         if not(oM28Brain[refbFactorySpecificUnitCheckActive]) then
             oM28Brain[refbFactorySpecificUnitCheckActive] = true
-            local iLifetimeCountThreshold = iUnitsWanted * 2
-            local iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iCategoryWanted)
-            local oPrimaryFactory
-            local bWantNavalFac = false
-            if iFactoryCategory == M28UnitInfo.refCategoryNavalFactory then bWantNavalFac = true end
-            local iUnderConstructionCount = 0
+            local iCategoryCycle = 0
 
-
-            while iCurUnitsOfCategory < iUnitsWanted and M28Conditions.GetLifetimeBuildCount(oM28Brain, iCategoryWanted) < iLifetimeCountThreshold do
-                local toFactories = oM28Brain:GetListOfUnits(iFactoryCategory, false, false)
-                if M28Utilities.IsTableEmpty(toFactories) == false then
-                    for iUnit, oUnit in toFactories do
-                        if not(oUnit[M28Factory.refsFactoryNextBlueprintOverride]) then
-                            bWantNavalFac = EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId)
-                            oUnit[M28Factory.refsFactoryNextBlueprintOverride] =  M28Factory.GetBlueprintThatCanBuildOfCategory(oM28Brain, iCategoryWanted, oUnit, false, false, false, nil, false, nil, true)
-                            if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 then oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true oPrimaryFactory = oUnit end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Set factory '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to build iCategoryWanted blueprint='..(oUnit[M28Factory.refsFactoryNextBlueprintOverride] or 'nil')) end
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory - categories.TECH1, oUnit[M28Factory.refsFactoryNextBlueprintOverride]) then
-                            iUnderConstructionCount = iUnderConstructionCount + 1
-                        end
-                    end
-                end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                if bWantNavalFac then WaitSeconds(10) else WaitSeconds(3) end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iCategoryWanted)
-                if iUnderConstructionCount == 0 and M28UnitInfo.IsUnitValid(oPrimaryFactory) and oPrimaryFactory:GetWorkProgress() >= 0.05 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Primary override Will increase iCurUnitsOfCategory if primary factory is almost complete, workprogress='..oPrimaryFactory:GetWorkProgress()..'; oPrimaryFactory[M28Factory.refsLastBlueprintBuilt]='..(oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] or 'nil')) end
-                    if oPrimaryFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] == oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and EntityCategoryContains(iCategoryWanted, oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride]) then
-                        iUnderConstructionCount = iUnderConstructionCount + 1
-                    end
-                end
-                iCurUnitsOfCategory = iCurUnitsOfCategory + iUnderConstructionCount
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering starting primary loop again, time='..GetGameTimeSeconds()..'; iCurUnitsOfCategory='..iCurUnitsOfCategory..'; iUnderConstructionCount='..iUnderConstructionCount) end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': Got all the primary category we want, iSecondUnitsWanted='..(iSecondUnitsWanted or 'nil')) end
-            if iSecondUnitsWanted then
+            function GetUnitsOfCategory(iCurNumberWanted, iCurCategoryWanted)
+                local iLifetimeCountThreshold = iCurNumberWanted * 2
+                local iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iCurCategoryWanted)
+                local oPrimaryFactory
+                local bWantNavalFac = false
+                if iFactoryCategory == M28UnitInfo.refCategoryNavalFactory then bWantNavalFac = true end
                 local iUnderConstructionCount = 0
-                iLifetimeCountThreshold = iSecondUnitsWanted * 2
-                iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iSecondCategoryWanted)
-                local toFactories = oM28Brain:GetListOfUnits(iFactoryCategory, false, false)
-                if M28Utilities.IsTableEmpty(toFactories) == false then
-                    for iUnit, oUnit in toFactories do
-                        oUnit[M28Factory.refsFactoryNextBlueprintOverride] = nil
-                    end
-                end
-                while iCurUnitsOfCategory < iSecondUnitsWanted and M28Conditions.GetLifetimeBuildCount(oM28Brain, iSecondCategoryWanted) < iLifetimeCountThreshold do
+                iCategoryCycle = iCategoryCycle + 1
+                if bDebugMessages == true then LOG(sFunctionRef..': About to start new loop, iCategoryCycle='..iCategoryCycle..'; iCurUnitsOfCategory='..iCurUnitsOfCategory..'; Time='..GetGameTimeSeconds()) end
+                local bAddOverrides = false
+
+                while iCurUnitsOfCategory < iCurNumberWanted and M28Conditions.GetLifetimeBuildCount(oM28Brain, iCurCategoryWanted) < iLifetimeCountThreshold do
+                    bAddOverrides = iCurUnitsOfCategory + iUnderConstructionCount < iCurNumberWanted
                     local toFactories = oM28Brain:GetListOfUnits(iFactoryCategory, false, false)
+                    if bDebugMessages == true then LOG(sFunctionRef..': bAddOverrides='..tostring(bAddOverrides)..'; is toFactories empty='..tostring(M28Utilities.IsTableEmpty(toFactories))) end
                     if M28Utilities.IsTableEmpty(toFactories) == false then
                         for iUnit, oUnit in toFactories do
-                            if not(oUnit[M28Factory.refsFactoryNextBlueprintOverride]) then
-                                oUnit[M28Factory.refsFactoryNextBlueprintOverride] =  M28Factory.GetBlueprintThatCanBuildOfCategory(oM28Brain, iSecondCategoryWanted, oUnit, false, false, false, nil, false, nil, true)
-                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 then oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Set factory '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to build iSecondCategoryWanted blueprint='..(oUnit[M28Factory.refsFactoryNextBlueprintOverride] or 'nil')) end
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory - categories.TECH1, oUnit[M28Factory.refsFactoryNextBlueprintOverride]) then
+                            if bAddOverrides then
+                            --if not(oUnit[M28Factory.refsFactoryNextBlueprintOverride]) then
+                                bWantNavalFac = EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId)
+                                oUnit[M28Factory.refsFactoryNextBlueprintOverride] =  M28Factory.GetBlueprintThatCanBuildOfCategory(oM28Brain, iCurCategoryWanted, oUnit, false, false, false, nil, false, nil, true)
+                                if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 then oUnit[M28Factory.refbPrimaryFactoryForIslandOrPond] = true oPrimaryFactory = oUnit end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Set factory '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to build iCurCategoryWanted blueprint='..(oUnit[M28Factory.refsFactoryNextBlueprintOverride] or 'nil')) end
+                            elseif oUnit[M28Factory.refsFactoryNextBlueprintOverride] and EntityCategoryContains(iCurCategoryWanted, oUnit[M28Factory.refsFactoryNextBlueprintOverride]) and ((oUnit[M28Factory.refsLastBlueprintBuilt] and oUnit[M28Factory.refsFactoryNextBlueprintOverride] == oUnit[M28Factory.refsLastBlueprintBuilt]) or EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit[M28Factory.refsFactoryNextBlueprintOverride])) then
                                 iUnderConstructionCount = iUnderConstructionCount + 1
                             end
                         end
                     end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    WaitSeconds(10)
+                    if bWantNavalFac then WaitSeconds(3) else WaitSeconds(1) end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                    iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iSecondCategoryWanted)
+                    iCurUnitsOfCategory = oM28Brain:GetCurrentUnits(iCurCategoryWanted)
                     if iUnderConstructionCount == 0 and M28UnitInfo.IsUnitValid(oPrimaryFactory) and oPrimaryFactory:GetWorkProgress() >= 0.05 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Secondary override Will increase iCurUnitsOfCategory if primary factory is almost complete, workprogress='..oPrimaryFactory:GetWorkProgress()..'; oPrimaryFactory[M28Factory.refsLastBlueprintBuilt]='..(oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] or 'nil')..'; oPrimaryFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]='..(oPrimaryFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] or 'nil')) end
-                        if oPrimaryFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] == oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and EntityCategoryContains(iSecondCategoryWanted, oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride]) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Primary override Will increase iCurUnitsOfCategory if primary factory is almost complete, workprogress='..oPrimaryFactory:GetWorkProgress()..'; oPrimaryFactory[M28Factory.refsLastBlueprintBuilt]='..(oPrimaryFactory[M28Factory.refsLastBlueprintBuilt] or 'nil')) end
+                        if oPrimaryFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] == oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride] and EntityCategoryContains(iCurCategoryWanted, oPrimaryFactory[M28Factory.refsFactoryNextBlueprintOverride]) then
                             iUnderConstructionCount = iUnderConstructionCount + 1
                         end
                     end
-                    iCurUnitsOfCategory = iCurUnitsOfCategory + iUnderConstructionCount
-                    if bDebugMessages == true then LOG(sFunctionRef..': Starting secondary loop again, time='..GetGameTimeSeconds()..'; iCurUnitsOfCategory='..iCurUnitsOfCategory..'; iUnderConstructionCount='..iUnderConstructionCount) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering starting primary loop again, time='..GetGameTimeSeconds()..'; iCurUnitsOfCategory='..iCurUnitsOfCategory..'; iUnderConstructionCount='..iUnderConstructionCount..'; bAddOverrides='..tostring(bAddOverrides)) end
                 end
             end
+            GetUnitsOfCategory(iUnitsWanted, iCategoryWanted)
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Got all the primary category we want, iSecondUnitsWanted='..(iSecondUnitsWanted or 'nil')) end
+            if iSecondUnitsWanted then
+                GetUnitsOfCategory(iSecondUnitsWanted, iSecondCategoryWanted)
+                if bDebugMessages == true then LOG(sFunctionRef..': Got all secondary category we want, moving onto third cateogry, iThirdUnitsWanted='..(iThirdUnitsWanted or 'nil')) end
+                if iThirdUnitsWanted then
+                    GetUnitsOfCategory(iThirdUnitsWanted, iThirdCategoryWanted)
+                end
+            end
+
             if bDebugMessages == true then LOG(sFunctionRef..': Finished building all the units we want') end
             local toFactories = oM28Brain:GetListOfUnits(iFactoryCategory, false, false)
             if M28Utilities.IsTableEmpty(toFactories) == false then
