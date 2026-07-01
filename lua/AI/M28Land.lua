@@ -3204,8 +3204,26 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
 
     --First split the MAA into those that need to run (due to being in range of DF units) and those that can advance
     local tMAAToAdvance = {}
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; P='..iPlateau..'; Zone='..iLandZone) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) and not(bRetreatWithAllMAA) then
+    local toEnemiesToAvoid
+    if (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0) == 0 then
+        toEnemiesToAvoid = tLZTeamData[M28Map.reftoNearestDFEnemies]
+    else
+        toEnemiesToAvoid = {}
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+            for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                table.insert(toEnemiesToAvoid, oUnit)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+            for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
+                if (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 and (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 and (oUnit[M28UnitInfo.refiIndirectRange] or 0) <= 100 then
+                    table.insert(toEnemiesToAvoid, oUnit)
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, is table of nearest DF enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; is toEnemiesToAvoid empty='..tostring(M28Utilities.IsTableEmpty(toEnemiesToAvoid))..'; P='..iPlateau..'; Zone='..iLandZone) end
+    if M28Utilities.IsTableEmpty(toEnemiesToAvoid) and not(bRetreatWithAllMAA) then
         --No DF enemies so treat all MAA as being available
         tMAAToAdvance = tAvailableMAA
         if bDebugMessages == true then LOG(sFunctionRef..': No DF enemies so will consider advancing with all MAA') end
@@ -3225,8 +3243,8 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
         local bMovingTowardsEnemy, iAngleToRally, iAngleToNearestUnit, bAmphibiousUnit
         local bCampaignMap = M28Map.bIsCampaignMap
         if bDebugMessages == true then
-            LOG(sFunctionRef..': Will list out every unit in reftoNearestDFEnemies')
-            for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+            LOG(sFunctionRef..': Will list out every unit in toEnemiesToAvoid')
+            for iUnit, oUnit in toEnemiesToAvoid do
                 LOG(sFunctionRef..': Enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
             end
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -3245,13 +3263,13 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
         if bDebugMessages == true then LOG(sFunctionRef..': iRunThreshold='..iRunThreshold..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
         for iUnit, oUnit in tAvailableMAA do
             --Run if within 14 of being in range of enemy direct fire
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if friendly unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in range of an enemy unit, is close to enemy='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if friendly unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in range of an enemy unit, is close to enemy='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemiesToAvoid, iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit))) end
             --CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                           iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
-            if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit) then
+            if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemiesToAvoid, iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit) then
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': MAA '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is too close to DF enemy, iRunThreshold='..iRunThreshold..'; will run back; will list out enemy units and distance to us in a moment')
-                    for iEnemy, oEnemy in tLZTeamData[M28Map.reftoNearestDFEnemies] do
-                        LOG('oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF r ange='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; Dist to this MAA unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Actual distance using actual position='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy:GetPosition()))
+                    for iEnemy, oEnemy in toEnemiesToAvoid do
+                        LOG('oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF r ange='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; IF range='..(oEnemy[M28UnitInfo.refiIndirectRange] or 'nil')..'; Dist to this MAA unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Actual distance using actual position='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy:GetPosition()))
                     end
                 end
                 --Does moving towards the rally point take us closer to the enemy?
