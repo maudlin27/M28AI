@@ -3229,15 +3229,19 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
         if bDebugMessages == true then LOG(sFunctionRef..': No DF enemies so will consider advancing with all MAA') end
     else
         local iRunThreshold = 20
+        local iIndirectRunThreshold = 6
         if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then
             iRunThreshold = 14
+            iIndirectRunThreshold = 3
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false then
                 iRunThreshold = 10
+                iIndirectRunThreshold = 0
             end
         end
         --Increase run threshold if we dont have a significant combat force in this zone
         if tLZTeamData[M28Map.subrefbLZWantsDFSupport] and tLZTeamData[M28Map.subrefLZThreatAllyMAA] > (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] + tLZTeamData[M28Map.subrefLZSValue]) * 2 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] < tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] then
             iRunThreshold = iRunThreshold * 2
+            iIndirectRunThreshold = iIndirectRunThreshold + 2
         end
 
         local bMovingTowardsEnemy, iAngleToRally, iAngleToNearestUnit, bAmphibiousUnit
@@ -3260,12 +3264,12 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
             end
         end
 
-        if bDebugMessages == true then LOG(sFunctionRef..': iRunThreshold='..iRunThreshold..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': iRunThreshold='..iRunThreshold..'; iIndirectRunThreshold='..iIndirectRunThreshold..'; Enemy air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
         for iUnit, oUnit in tAvailableMAA do
             --Run if within 14 of being in range of enemy direct fire
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if friendly unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in range of an enemy unit, is close to enemy='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemiesToAvoid, iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit))) end
-            --CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                           iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
-            if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemiesToAvoid, iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if friendly unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in range of an enemy unit, is close to enemy='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemiesToAvoid, iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit                                        , nil                           , nil                           , true,                             iIndirectRunThreshold))) end
+            --                  CloseToEnemyUnit(tStartPosition, tUnitsToCheck,      iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange, bIncludeEnemyIndirectRangeIfNoDFRange, iIndirectDistThresholdOverride)
+            if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemiesToAvoid, iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit                                        , nil                           , nil                           , true,                             iIndirectRunThreshold) then
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': MAA '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is too close to DF enemy, iRunThreshold='..iRunThreshold..'; will run back; will list out enemy units and distance to us in a moment')
                     for iEnemy, oEnemy in toEnemiesToAvoid do

@@ -1279,10 +1279,11 @@ function IsUnitInRangeOfLRIndirectFireUnits(oUnit, tLZTeamData, iDistThreshold)
     end
 end
 
-function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
+function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange, bIncludeEnemyIndirectRangeIfNoDFRange, iIndirectDistThresholdOverride)
     --Returns true if our distance to any of tUnitsToCheck is <= iDistThreshold; if bIncludeEnemyDFRange is true then our distance to the units is reduced by the enemy unit's DF range (meaning it returns true if we are within iDistThreshold of the enemy unit being able to shoot at us);
     --iAltThresholdToDFRange - if bIncludeEnemyDFRange is true and this also has a value specified, then if we are within iAltThresholdToDFRange will return true regardless of the iDistThreshold test; i.e. we will both check if enemy dist-DF range is within iDistThreshold, or if enemy dist is within iAltThresholdToDFRange
     --oUnitIfConsideringAngleAndLastShot - if we have a unit that is very vulnerable at lcose range (e.g. a skirmisher unit), then including this here will mean a check is done of the enemy unit facing angle and unit state (to factor in how easily it could close in to us) to decide whether to run or not
+    --iIndirectDistThresholdOverride - iDistThreshold to use when checking directfire ranges, only relevant if bIncludeEnemyIndirectRangeIfNoDFRange is true and the unit lacks a DF attack
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CloseToEnemyUnit'
@@ -1292,7 +1293,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
 
     local iCurDist
     if bDebugMessages == true then
-        LOG(sFunctionRef..': tStartPosition='..repru(tStartPosition)..'; Size of tUnitsToCheck='..table.getn(tUnitsToCheck)..'; iDistThreshold='..iDistThreshold..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false))
+        LOG(sFunctionRef..': tStartPosition='..repru(tStartPosition)..'; Size of tUnitsToCheck='..table.getn(tUnitsToCheck)..'; iDistThreshold='..iDistThreshold..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false)..'; bIncludeEnemyIndirectRangeIfNoDFRange='..tostring(bIncludeEnemyIndirectRangeIfNoDFRange or false))
         for iUnit, oUnit in tUnitsToCheck do
             LOG(sFunctionRef..': Dist to oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' = '..M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..' based on last known position of '..repru(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; actual unit position='..repru(oUnit:GetPosition())..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Is distance less tahn threshold='..tostring(M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) < iDistThreshold))
         end
@@ -1358,7 +1359,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false)..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; iCurDist='..iCurDist..'; iDistThreshold='..iDistThreshold..'; iAltThresholdToDFRange='..(iAltThresholdToDFRange or 'nil')) end
-            if (bIncludeEnemyDFRange and (iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iDistThreshold or iCurDist <= (iAltThresholdToDFRange or 0) or (bIncludeEnemyAntiNavyRange and iCurDist - (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) <= iDistThreshold))) or (not(bIncludeEnemyDFRange) and iCurDist <= iDistThreshold) then
+            if (bIncludeEnemyDFRange and (iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iDistThreshold or iCurDist <= (iAltThresholdToDFRange or 0) or (bIncludeEnemyIndirectRangeIfNoDFRange and (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 and oUnit[M28UnitInfo.refiIndirectRange] and iCurDist - oUnit[M28UnitInfo.refiIndirectRange] <= (iIndirectDistThresholdOverride or iDistThreshold)) or (bIncludeEnemyAntiNavyRange and iCurDist - (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) <= iDistThreshold))) or (not(bIncludeEnemyDFRange) and iCurDist <= iDistThreshold) then
                 --Structure specific
                 if not(iOptionalDistThresholdForStructure) or iCurDist <= iOptionalDistThresholdForStructure or not(EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) or (bIncludeEnemyDFRange and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and iCurDist <= math.min(iDistThreshold, iOptionalDistThresholdForStructure) + (oUnit[M28UnitInfo.refiDFRange] or 0)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
