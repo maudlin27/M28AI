@@ -4788,6 +4788,8 @@ function CanTravelToDestinationWithinMapBounds(tStart, tEnd, sPathing, bDrawPath
         else
             return nil
         end
+    else
+        return true
     end
 end
 

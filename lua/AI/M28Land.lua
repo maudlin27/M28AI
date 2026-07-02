@@ -11169,22 +11169,32 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
             if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
                 --Search for a zone with enemy units and attack it, if there is one
+                if bDebugMessages == true then LOG(sFunctionRef..': Searching for other zones with enemy units, is subrefLZPathingToOtherLandZones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))) end
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                     local bDontCheckPathability = not(M28Map.bIsCampaignMap) or (M28Map.rMapPotentialPlayableArea[3] <= M28Map.rMapPlayableArea[3] and M28Map.rMapPotentialPlayableArea[4] <= M28Map.rMapPlayableArea[4] and M28Map.rMapPotentialPlayableArea[1] >= M28Map.rMapPlayableArea[1] and M28Map.rMapPotentialPlayableArea[2] >= M28Map.rMapPlayableArea[2])
+                    if bDebugMessages and not(bDontCheckPathability) then
+                        LOG(sFunctionRef..': LZData midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; IsLocationInPlayableArea='..tostring(M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]))..'; Island ref='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) or 'nil')..'; Can travel from midpoint to first available combat unit='..tostring(M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tAvailableCombatUnits[1]:GetPosition()) or false, M28Map.refPathingTypeLand))
+                        if not(M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tAvailableCombatUnits[1]:GetPosition(), M28Map.refPathingTypeLand)) then
+                            M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tAvailableCombatUnits[1]:GetPosition(), M28Map.refPathingTypeLand, true)
+                        end
+                    end
                     for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                         local tCurLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefLZNumber]]
                         if not(M28Overseer.bPacifistModeActive) or not(M28Conditions.IsZoneAPacifistZone(iPlateau, tSubtable[M28Map.subrefLZNumber])) then
                             local tCurZoneTeamData =tCurLZData[M28Map.subrefLZTeamData][iTeam]
                             if M28Utilities.IsTableEmpty(tCurZoneTeamData[M28Map.subrefTEnemyUnits]) == false then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering sending remaining land units to LZ='..tSubtable[M28Map.subrefLZNumber]..'; travel path in playable area='..tostring((M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) and M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tCurLZData[M28Map.subrefMidpoint], M28Map.refPathingTypeLand)))) end
-                                if bDontCheckPathability or (M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) and M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tCurLZData[M28Map.subrefMidpoint], M28Map.refPathingTypeLand)) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering sending remaining land units to LZ='..tSubtable[M28Map.subrefLZNumber]..'; travel path in playable area='..tostring((M28Conditions.IsLocationInPlayableArea(tCurLZData[M28Map.subrefMidpoint]) and M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tCurLZData[M28Map.subrefMidpoint], M28Map.refPathingTypeLand)))..'; tCurLZData[M28Map.subrefMidpoint]='..repru(tCurLZData[M28Map.subrefMidpoint])..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; Land pathing (island ref) of target LZ='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tCurLZData[M28Map.subrefMidpoint]) or 'nil')..'; Can first available combat unit travel to target midpoint='..tostring(M28Conditions.CanTravelToDestinationWithinMapBounds(tAvailableCombatUnits[1]:GetPosition(), tCurLZData[M28Map.subrefMidpoint], M28Map.refPathingTypeLand) or false)) end
+                                if bDontCheckPathability or (M28Conditions.IsLocationInPlayableArea(tCurLZData[M28Map.subrefMidpoint]) and M28Conditions.CanTravelToDestinationWithinMapBounds(tLZData[M28Map.subrefMidpoint], tCurLZData[M28Map.subrefMidpoint], M28Map.refPathingTypeLand)) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will record this zone as a target unless we have already recorded a zone to target, subreftiLandZoneTargetedByOurCombat='..(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurCombat] or 'nil')) end
                                     if not(tLZTeamData[M28Map.subreftiLandZoneTargetedByOurCombat]) then --Only record if we havent already recorded above (or else we will end up overriding cur zone target); not sure if such a scenario could arise but best to be safe
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will record target LZ='..tSubtable[M28Map.subrefLZNumber]..' as a target') end
                                         RecordDFLandZoneTarget(tLZTeamData, iPlateau, iLandZone, iTeam, tSubtable[M28Map.subrefLZNumber], M28Map.subrefiLZOrWZTMovingToOtherZone)
                                     end
                                     for iUnit, oUnit in tRemainingLandUnits do
                                         if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone) then
                                             oUnit[refiCurrentAssignmentValue] = 0
                                         else
+                                            if bDebugMessages == true then LOG(sFunctionRef..'; Will send unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to target LZ '..tSubtable[M28Map.subrefLZNumber]..' unless unit is stuck') end
                                             if not(IgnoreOrderDueToStuckUnit(oUnit)) then
                                                 M28Orders.IssueTrackedMove(oUnit, tCurLZData[M28Map.subrefMidpoint], 6, false, 'BkMvLZ'..tSubtable[M28Map.subrefLZNumber]..';'..iLandZone)
                                             end
@@ -11200,6 +11210,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for other zones to target, is tRemainingLandUnits empty='..tostring(M28Utilities.IsTableEmpty(tRemainingLandUnits))) end
             if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if can path to closest enemy base by land, Cur subrefLZIslandRef='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; ClosestEnemyBase land ref='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZTeamData[M28Map.reftClosestEnemyBase]))) end
                 if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == tLZData[M28Map.subrefLZIslandRef] then
