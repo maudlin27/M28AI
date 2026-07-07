@@ -7306,7 +7306,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                             if oUnit[M28UnitInfo.refbEasyBrain] then
                                                 --Attack-move to nearest enemy
                                                 if not(IgnoreOrderDueToStuckUnit(oUnit)) then
-                                                    M28Orders.IssueTrackedAttackMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'EsyLRAM'..iLandZone)
+                                                    --Fatboy exception - consider basic kiting retreat logic if enemy is close
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking M28Easy fatboy kiting exception, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; is tSkirmisherDFEnemies empty='..tostring(M28Utilities.IsTableEmpty(tSkirmisherDFEnemies))..'; refbLastShotBlocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Close to enemy based on -25 to range='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tSkirmisherDFEnemies, oUnit[M28UnitInfo.refiDFRange] - 25, iTeam, false, nil, nil, nil, nil, nil, nil, nil))) end
+                                                    if (oUnit[M28UnitInfo.refiDFRange] or 0) >= 80 and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) and M28Utilities.IsTableEmpty(tSkirmisherDFEnemies) == false and ((not(oUnit[M28UnitInfo.refbLastShotBlocked]) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tSkirmisherDFEnemies, oUnit[M28UnitInfo.refiDFRange] - 25, iTeam, false, nil, nil, nil, nil, nil, nil, nil)) or (oUnit[M28UnitInfo.refbLastShotBlocked] and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tSkirmisherDFEnemies, oUnit[M28UnitInfo.refiDFRange] - 35, iTeam, false, nil, nil, nil, nil, nil, nil, nil))) then
+                                                        --Do a kiting retreat of fatboy
+                                                        M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'EsyFBKit'..iLandZone)
+                                                    else
+                                                        M28Orders.IssueTrackedAttackMove(oUnit, oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'EsyLRAM'..iLandZone)
+                                                    end
                                                 end
                                             else
                                                 --Experimental specific - attack ACU if in-range
