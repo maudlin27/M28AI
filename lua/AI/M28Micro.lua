@@ -2445,8 +2445,7 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
         if bProceedWithMicro then
             local iOurSpeed = oUnit:GetBlueprint().Air.MaxAirspeed
             local iEnemySpeed = oTarget:GetBlueprint().Air.MaxAirspeed
-            local iTempMoveLimit = 5
-            local iMaxAngleToTryAndTurn = 20
+            --local iMaxAngleToTryAndTurn = 20
             --Want to consider hover-turning against enemy asfs if we have same speed as them and we arent chasing them (suggesting they might be turning or they might be facing us)
             --(wont use hover-logic on enemy asfs once we have reached 100+ asfs to avoid massive slowdown)
             if bDebugMessages == true then LOG(sFunctionRef..': iOurSpeed='..(iOurSpeed or 'nil')..'; iEnemySpeed='..(iEnemySpeed or 'nil')..'; Our facing angle='..M28UnitInfo.GetUnitFacingAngle(oUnit)..'; Enemy unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oTarget)..'; Angle dif='..M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oUnit), M28UnitInfo.GetUnitFacingAngle(oTarget))..'; Dist to enemy='..M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), oUnit:GetPosition())) end
@@ -2459,17 +2458,17 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                     EnableUnitMicroUntilManuallyTurnOff(oUnit)
                     --oUnit[M28UnitInfo.refbSpecialMicroActive] = true
                     local iCurDistToTarget
-                    local iCurAngleToTarget
+                    --[[local iCurAngleToTarget
                     local iCurFacingAngle
                     local iMinDistToTarget = math.min(iOurRange * 0.8, math.max(iOurRange * 0.5, iOurRange - 5))
                     local iMaxDistToConsiderHoverTurn = 50
                     local iHalfDistThreshold = iOurRange * 0.5
                     local iCurAngleDif
-                    local bTurnClockwise
+                    local bTurnClockwise--]]
                     local bEnemyIsCloseToOurSpeed = false
                     if iEnemySpeed >= iOurSpeed * 0.95 then bEnemyIsCloseToOurSpeed = true end
                     local iReorderDist = 0.1
-                    local iDistToMoveTowardsTarget, iAngleToMove
+                    --local iDistToMoveTowardsTarget, iAngleToMove
                     local iMaxTimeBetweenShotsWanted = oUnit[M28UnitInfo.refiTimeBetweenAirAAShots]
                     if not(iMaxTimeBetweenShotsWanted) then iMaxTimeBetweenShotsWanted = 8
                     else iMaxTimeBetweenShotsWanted = iMaxTimeBetweenShotsWanted + math.max(3, iMaxTimeBetweenShotsWanted * 0.5) --see v307 notes for detailed scenarios and testing to come up with this value; high variability from different replay sandbox tests
@@ -2555,7 +2554,6 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
 
                     iAngleToMove = math.min(iMaxAngleToTryAndTurn, iCurAngleDif)
                     if not(bTurnClockwise) then iAngleToMove = -iAngleToMove end
-                    iDistToMoveTowardsTarget = math.min(iCurDistToTarget, iTempMoveLimit)
                     iReorderDist = 0.1
 
                     tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurFacingAngle + iAngleToMove, iDistToMoveTowardsTarget, true, false, false)
@@ -2595,7 +2593,6 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                                         bTurnClockwise = false
                                     end
                                 end
-                                iDistToMoveTowardsTarget = iTempMoveLimit
                                 iAngleToMove = iMaxAngleToTryAndTurn
                                 if bTurnClockwise then
                                     tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurFacingAngle + iAngleToMove, iDistToMoveTowardsTarget, true, false, false)
