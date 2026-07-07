@@ -2853,12 +2853,22 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                 or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3.5 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] and (tTeamData[iM28Team][subrefiTeamMassStored] >= 300 * math.min(2, tTeamData[iM28Team][subrefiActiveM28BrainCount]) * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] or tTeamData[iM28Team][subrefiTeamGrossMass] >= 7 * tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] * tTeamData[iM28Team][subrefiActiveM28BrainCount]) and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 8.5 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) *0.5) or tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= (20 * (2.5-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) * tTeamData[iM28Team][subrefiActiveM28BrainCount]))
                 --Get priority upgrade to T2 if enemy has TMLs
                 or (tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and tTeamData[iM28Team][subrefiTeamGrossMass] >= 0.6 and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 8)
-                then
+        then
             if bDebugMessages == true then LOG(sFunctionRef..': Want to get upgrade as have high eco or enemy outtechs us; however will make exception if are at T3 air and low mass') end
             bInitiallyWantUpgrade = true
             if tTeamData[iM28Team][subrefiTeamAverageMassPercentStored] <= 0.05 and tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] >= 3 and GetGameTimeSeconds() - (tTeamData[iM28Team][refiTimeOfLastMassStall] or -100) <= 45 and tTeamData[iM28Team][refiConstructedExperimentalCount] == 0 then
                 bInitiallyWantUpgrade = false
                 if bDebugMessages == true then LOG(sFunctionRef..': Changed mind, dont want to upgrade yet as a priority due to low mass and having T3 air') end
+            end
+            --Further exception if low mass
+            if tTeamData[iM28Team][subrefiTeamGrossMass] <= 2.4 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainBuildMultiplier] then
+                if tTeamData[iM28Team][subrefiTeamGrossMass] <= tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][refiHighestBrainBuildMultiplier] then
+                    bInitiallyWantUpgrade = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have fewer than 4 t1 mex equivalent so wont get upgrade afterall') end
+                elseif tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] then
+                    bInitiallyWantUpgrade = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have less than 4 t2 mex equivalent in mass so wont get T3 land upgrade yet') end
+                end
             end
         end
         --Does enemy have a nearby upgraded or upgrading AUC and we lack T2 land for a brain?

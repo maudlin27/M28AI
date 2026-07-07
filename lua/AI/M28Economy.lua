@@ -73,17 +73,21 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker, iOptionalWait)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitToUpgrade='..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..' owned by '..oUnitToUpgrade:GetAIBrain().Nickname..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; unit brain='..oUnitToUpgrade:GetAIBrain().Nickname..'; Are we in T1 spam mode='..tostring(M28Team.tTeamData[oUnitToUpgrade:GetAIBrain().M28Team][M28Team.refbFocusOnT1Spam])..'; Unit enhancement upgrade count='..(oUnitToUpgrade[M28ACU.refiUpgradeCount] or 'nil')..'; refbTriedUpgrading='..tostring(oUnitToUpgrade[M28UnitInfo.refbTriedUpgrading] or false)..'; refbObjectiveUnit='..tostring(oUnitToUpgrade[M28UnitInfo.refbObjectiveUnit] or false)..'; Is oUnitToUpgrade.EventCallbacks.OnKilled nil='..tostring(oUnitToUpgrade.EventCallbacks.OnKilled == nil)..'; iOptionalWait='..(iOptionalWait or 'nil')) end
     local bContinue = true
-
-    if iOptionalWait and iOptionalWait > 0 then
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(iOptionalWait)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    end
-    --Campaign specific - dont upgrade a campaign objective unit if it doesnt have an active OnKilled callback
-    if oUnitToUpgrade[M28UnitInfo.refbObjectiveUnit] and M28Map.bIsCampaignMap and not(oUnitToUpgrade.EventCallbacks.OnKilled) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Wont upgrade afterall as we might break a campaign objective') end
-        M28Utilities.ErrorHandler('Aborting upgrade of unit '..oUnitToUpgrade.UnitId..' as it might be a campaign objective unit', true, false)
+    if oUnitToUpgrade.CanBuild then
+        if iOptionalWait and iOptionalWait > 0 then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(iOptionalWait)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+        --Campaign specific - dont upgrade a campaign objective unit if it doesnt have an active OnKilled callback
+        if oUnitToUpgrade[M28UnitInfo.refbObjectiveUnit] and M28Map.bIsCampaignMap and not(oUnitToUpgrade.EventCallbacks.OnKilled) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Wont upgrade afterall as we might break a campaign objective') end
+            M28Utilities.ErrorHandler('Aborting upgrade of unit '..oUnitToUpgrade.UnitId..' as it might be a campaign objective unit', true, false)
+            bContinue = false
+        end
+    else
         bContinue = false
+        M28Utilities.ErrorHandler('Wanted to upgrade unit '..oUnitToUpgrade.UnitId..' but .CanBuild isnt true')
     end
     if bContinue then
         --Do we have any HQs of the same factory type of a higher tech level?
@@ -156,7 +160,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker, iOptionalWait)
                     --Issue upgrade
                     M28Orders.IssueTrackedUpgrade(oUnitToUpgrade, sUpgradeID, bAddToExistingQueue)
                     --Issue where if we give the upgrade presumably just as the unit has finihsed its own upgrade, then it shows as beingupgrade while also being complete; so we wait 1 second and try again
-                elseif oUnitToUpgrade:GetFractionComplete() == 1 then
+                elseif oUnitToUpgrade:GetFractionComplete() == 1 and oUnitToUpgrade.CanBuild then
                     ForkThread(UpgradeUnit, oUnitToUpgrade, false, 1)
                 end
             end

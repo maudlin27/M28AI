@@ -3376,7 +3376,10 @@ function OnReclaimFinished(oEngineer, oReclaim)
                 else--]]
                 for iEngineer, oEngineer in oReclaim[M28Engineer.reftUnitsReclaimingUs] do
                     if M28UnitInfo.IsUnitValid(oEngineer) then
-                        table.insert(tEngineersToClear, oEngineer)
+                        --Dont include ACU, as in one case had 40% upgraded ACU get cleared
+                        if not(EntityCategoryContains(categories.COMMAND, oEngineer.UnitId)) then
+                            table.insert(tEngineersToClear, oEngineer)
+                        end
                     end
                 end
                 for iEngineer, oEngineer in tEngineersToClear do
@@ -3757,9 +3760,9 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         end
 
                         --Penetration fighters - disable airaa micro
-                        if oUnit.UnitId == 'uea0303' or oUnit.UnitId == 'ura0303' or oUnit.UnitId == 'uaa0303' or oUnit.UnitId == 'xsa0303' then
+                        --[[if oUnit.UnitId == 'uea0303' or oUnit.UnitId == 'ura0303' or oUnit.UnitId == 'uaa0303' or oUnit.UnitId == 'xsa0303' then
                             oUnit[M28Air.refbDisableAirAAAttackMicro] = true
-                        end
+                        end--]]
 
                         --Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
                         --First handle units that are important enough we have logic for while they are part-constructed
