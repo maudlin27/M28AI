@@ -1343,11 +1343,40 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent LZ='..tSubtable[M28Map.subrefWPlatAndLZNumber][2]..'; subrefbLZWantsSupport='..tostring(tAltLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] or false)..'; refiMidpointAmphibiousLabel='..(tAltLZData[M28Map.refiMidpointAmphibiousLabel] or 'nil')) end
 
                     if (bDontCheckForPacifism or not(tWZData[M28Map.subrefbPacifistArea])) and tAltLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
+                        local iAmphibiousCombatThreat = M28UnitInfo.GetCombatThreatRating(tAmphibiousUnits, false, false)
+                        function DoesZoneHaveBuildingsOrDoWeHaveEnoughCombat(tAltLZTeamData)
+                            if bDebugMessages == true then LOG(sFunctionRef..': AltLZ subrefLZTThreatAllyCombatTotal='..tAltLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; iAmphibiousCombatThreat='..iAmphibiousCombatThreat..'; subrefTThreatEnemyCombatTotal='..tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; subrefLZSValue='..(tAltLZTeamData[M28Map.subrefLZSValue] or 'nil')..'; is subreftoLZOrWZAlliedUnits empty='..tostring(M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; If it has units is table of buildings empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, (tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] or tAmphibiousUnits))))) end
+                            if tAltLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] + iAmphibiousCombatThreat >= tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
+                                    or ((tAltLZTeamData[M28Map.subrefLZSValue] or 0) > 100 and M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false)
+                            then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Zone has enough friendly combat threat combined with our amphib units to beat enemy, or has buildings in it') end
+                                return true
+                            end
+                            return false
+                        end
                         if iAmphibiousLabel == tAltLZData[M28Map.refiMidpointAmphibiousLabel] then
                             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAltLZData[M28Map.subrefMidpoint]) then
-                                iLZToSupport = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
-                                iPlateau = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
-                                break
+                                local tAltLZTeamData = tAltLZData[M28Map.subrefLZTeamData][iTeam]
+                                if not(iLZToSupport) then
+                                    iLZToSupport = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
+                                    iPlateau = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': we want to support this as the first adjacent zone we want to support, updating iLZToSupport') end
+                                    --do we have enough threat here and in the zone to beat enemy in that zone? or alternatively do we have buildings here?
+                                    if DoesZoneHaveBuildingsOrDoWeHaveEnoughCombat(tAltLZTeamData)
+                                    then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Think we can win or protect buildings if we make landfall here so wont look for other adjacent zones') end
+                                        break
+                                    end
+                                else
+                                    --Does this LZ have buildings in it?
+                                    if DoesZoneHaveBuildingsOrDoWeHaveEnoughCombat(tAltLZTeamData) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Switching iLZToSupport to be '..tSubtable[M28Map.subrefWPlatAndLZNumber][2]..' as it has friendly buldings in it or enough friendly units that we think we can beat enemies in this zone') end
+                                        iLZToSupport = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
+                                        iPlateau = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
+                                        break
+                                    end
+
+                                end
                             end
                         end
                     end
@@ -1492,6 +1521,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                         for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                             local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                             if tAltLZTeamData[M28Map.subrefLZbCoreBase] or (M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tAltLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': We want to support the adjacent LZ='..iAdjLZ..' which is either a core base or has buildings in it') end
                                 bAttackWithEverything = true
                             end
                         end
