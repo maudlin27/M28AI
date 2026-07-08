@@ -1283,7 +1283,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     --Returns true if our distance to any of tUnitsToCheck is <= iDistThreshold; if bIncludeEnemyDFRange is true then our distance to the units is reduced by the enemy unit's DF range (meaning it returns true if we are within iDistThreshold of the enemy unit being able to shoot at us);
     --iAltThresholdToDFRange - if bIncludeEnemyDFRange is true and this also has a value specified, then if we are within iAltThresholdToDFRange will return true regardless of the iDistThreshold test; i.e. we will both check if enemy dist-DF range is within iDistThreshold, or if enemy dist is within iAltThresholdToDFRange
     --oUnitIfConsideringAngleAndLastShot - if we have a unit that is very vulnerable at lcose range (e.g. a skirmisher unit), then including this here will mean a check is done of the enemy unit facing angle and unit state (to factor in how easily it could close in to us) to decide whether to run or not
-    --iIndirectDistThresholdOverride - iDistThreshold to use when checking directfire ranges, only relevant if bIncludeEnemyIndirectRangeIfNoDFRange is true and the unit lacks a DF attack
+    --iIndirectDistThresholdOverride - iDistThreshold to use when checking IF ranges, only relevant if bIncludeEnemyIndirectRangeIfNoDFRange is true and the unit lacks a DF attack
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CloseToEnemyUnit'
