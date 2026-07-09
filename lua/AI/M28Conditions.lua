@@ -106,6 +106,7 @@ function IsCivilianBrain(aiBrain)
     local sFunctionRef = 'IsCivilianBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if aiBrain.M28IsCivilian == nil then
+
         if M28Utilities.bSteamActive then import('/mods/M28AI/lua/AI/Steam/SteamCompatibility.lua').OtherSteamCompatibilityInformation() end
         local bIsCivilian = false
         if bDebugMessages == true then
@@ -118,6 +119,7 @@ function IsCivilianBrain(aiBrain)
             --Does it have no personality?
             if not(ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality) or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == "" then
                 if bDebugMessages == true then LOG(sFunctionRef..': Index='..aiBrain:GetArmyIndex()..'; Has no AI personality so will treat as being a civilian brain unless nickname contains AI or AIX and doesnt contain civilian') end
+
                 bIsCivilian = true
                 if not(aiBrain.Nickname or aiBrain.Name) and aiBrain:IsDefeated() then
                     bIsCivilian = false --Had error when players were killed so adding this as a redundancy
@@ -133,11 +135,31 @@ function IsCivilianBrain(aiBrain)
             M28Overseer.CheckIfScenarioMap()
             if bDebugMessages == true then LOG(sFunctionRef..': Is campaign map after making sure the check has been run='..tostring(M28Map.bIsCampaignMap)) end
         end
-        if bIsCivilian and M28Map.bIsCampaignMap then
-            bIsCivilian = false
-            if bDebugMessages == true then LOG(sFunctionRef..': brain name='..aiBrain.Name..'; Nickname='..aiBrain.Nickname..'; does nickanme contain "civilian"='..repru(string.find(aiBrain.Name, "civilian"))) end
-            if string.find(aiBrain.Nickname, "civilian") or string.find(aiBrain.Name, "civilian") or string.find(aiBrain.Nickname, "Civilian") or string.find(aiBrain.Nickname, "Civilian") then
-                bIsCivilian = true
+        if bIsCivilian then
+            if M28Map.bIsCampaignMap then
+                bIsCivilian = false
+                if bDebugMessages == true then LOG(sFunctionRef..': brain name='..aiBrain.Name..'; Nickname='..aiBrain.Nickname..'; does nickanme contain "civilian"='..repru(string.find(aiBrain.Name, "civilian"))) end
+                if string.find(aiBrain.Nickname, "civilian") or string.find(aiBrain.Name, "civilian") or string.find(aiBrain.Nickname, "Civilian") or string.find(aiBrain.Nickname, "Civilian") then
+                    bIsCivilian = true
+                end
+            else
+                --Some maps like survival maps can have the brain have a civilian nickname but not a civilian name; if that is the case, dont treat it as a civilian brain if it is an enemy of a player, and it has a significant number of units
+                if not(string.find(aiBrain.Name, "civilian")) then --dont search for nickname due to map where "civilian" was the nickname for brain used for enemy units
+                    for iBrain, oBrain in ArmyBrains do
+                        if oBrain.BrainType == 'Human' then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is the human player '..oBrain.Nickname..' an enemy='..tostring(IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()))) end
+                            if IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Cur units owned by aiBrain='..aiBrain:GetCurrentUnits(categories.ALLUNITS - categories.UNSELECTABLE - categories.INSIGNIFICANTUNIT)..'; Cur engineers and factories='..aiBrain:GetCurrentUnits(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory)) end
+                                if aiBrain:GetCurrentUnits(categories.MOBILE * categories.DIRECTFIRE) > 0 and aiBrain:GetCurrentUnits(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory) > 0 then
+                                    bIsCivilian = false
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Override where we wont treat as civilain afterall') end
+                                end
+                            end
+                            break
+                        end
+                    end
+                end
+
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bIsCivilian after campaign adjust (if relevant)='..tostring(bIsCivilian)) end

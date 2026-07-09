@@ -3227,20 +3227,36 @@ function OnConstructed(oEngineer, oJustBuilt)
                     if M28Utilities.IsTableEmpty(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) and not(EntityCategoryContains(categories.AIR, oJustBuilt.UnitId)) then
                         local iPlateau, iLandZone = M28Map.GetPathingOverridePlateauAndLandZone(oJustBuilt:GetPosition(), true, oJustBuilt)
                         if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
-                        oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oBrainJustBuilt.M28Team] = {iPlateau, iLandZone}
-                        if iPlateau and not(iLandZone) then
-                            --May be on water
-                            local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oJustBuilt:GetPosition())
-                            local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
-                            if iWaterZone then
-                                if not(oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
-                                oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam][oBrainJustBuilt.M28Team] = iWaterZone
+                        if not(oBrainJustBuilt.M28Team) then M28Utilities.ErrorHandler('Dont have an assigned team ref for brain '..oBrainJustBuilt.Nickname)
+                        else
+                            local bRecordedInWaterZone = false
+                            if iPlateau and not(iLandZone) then
+                                --May be on water
+                                local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oJustBuilt:GetPosition())
+                                local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
+                                if iWaterZone then
+                                    if not(oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
+                                    oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam][oBrainJustBuilt.M28Team] = iWaterZone
+                                    bRecordedInWaterZone = true
+                                end
                             end
+                            if not(bRecordedInWaterZone) then
+                                if not(iPlateau) or not(iLandZone) then iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oJustBuilt:GetPosition()) end
+                                if iPlateau == 0 and iLandZone then
+                                    if not(oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
+                                    oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam][oBrainJustBuilt.M28Team] = iLandZone
+                                    bRecordedInWaterZone = true
+                                elseif iLandZone and iPlateau then
+                                    oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oBrainJustBuilt.M28Team] = {iPlateau, iLandZone}
+                                else
+                                    M28Utilities.ErrorHandler('Just built a unit with no valid plateau or zone')
+                                end
+                            end
+                            --[[if (iPlateau or 0) > 0 then
+                                if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
+                                oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oBrainJustBuilt.M28Team] = {iPlateau, iLandZone}
+                            end--]]
                         end
-                        --[[if (iPlateau or 0) > 0 then
-                            if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
-                            oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oBrainJustBuilt.M28Team] = {iPlateau, iLandZone}
-                        end--]]
                     end
                     --Tracking of under construction experimentals
                     if oJustBuilt[M28UnitInfo.refbNonM28ExpConstruction] then
