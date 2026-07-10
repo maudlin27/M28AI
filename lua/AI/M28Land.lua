@@ -8876,8 +8876,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                 end
                                             end
                                         else
-                                            --Maybe the units have micro active so arent being included? havent traced back the code to confirm
-                                            M28Utilities.ErrorHandler('We somehow think we outrange the enemy with DF units, but have no DF units with a long range, P'..iPlateau..'Z'..iLandZone, true)
+                                            --Maybe the units have micro active so arent being included? or we have same range as enemy? havent traced back the code to confirm; however bAttackWithOutrangedDFUnits will be false if have got to here
+                                            M28Utilities.ErrorHandler('We dont want to attack with outranged SR units, but somehow think we outrange the enemy with DF units, but have no DF units with a long range, so will cancel scenario1 status, P'..iPlateau..'Z'..iLandZone, true)
+                                            bAreInScenario1 = false
                                         end
                                     end
                                 end
