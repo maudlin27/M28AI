@@ -9,3 +9,9 @@ TransferUnitsOwnership = function(units, toArmy, captured)
     ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnCaptured, tCaptured, toArmy, captured)
     return tCaptured
 end
+
+local M28OldGiveResourcesToPlayer = GiveResourcesToPlayer
+GiveResourcesToPlayer = function(data)
+    ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnPlayerChatMessageSent, data)
+    M28OldGiveResourcesToPlayer(data)
+end
