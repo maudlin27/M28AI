@@ -3683,7 +3683,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             local bHaveTooMuchIndirectVsDirect = false
             local iUnderConstructionIndirect = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryIndirect, false, true) * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
             if not (bSaveMassDueToEnemyFirebaseOrOurExperimental) then
-                local iIndirectRatioWanted = 0
+                local iIndirectRatioWanted = 0 --for every iIndirectRatioWanted of DF threat, we want 1 IF threat
                 if iFactoryTechLevel == 1 then
                     if M28Team.tTeamData[iTeam][M28Team.refbFocusOnT1Spam] and oFactory[refiTotalBuildCount] < 15 then
                         iIndirectRatioWanted = 6 + 2 * (15- oFactory[refiTotalBuildCount])/15 --i.e. 6-8 depending on build count
@@ -3697,6 +3697,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
                     if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
                         iIndirectRatioWanted = 7
+                    elseif EntityCategoryContains(categories.UEF, oFactory.UnitId) then --spearheads
+                        iIndirectRatioWanted = 8
                     else
                         iIndirectRatioWanted = 9
                     end

@@ -2971,6 +2971,10 @@ function UpdateAllRecordedUnitsFollowingTeamChange(tbOptionalVariableToBeTrue)
             tLZOrWZTeamData[M28Map.subrefTEnemyUnits] = toEnemyUnits
             tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] = nil
             tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] = toFriendlyUnits
+            if M28UnitInfo.IsUnitValid(tLZOrWZTeamData[M28Map.refoBestRadar]) and not(IsAlly(tLZOrWZTeamData[M28Map.refoBestRadar]:GetAIBrain():GetArmyIndex(), iTeamBrainIndex)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will update best radar for change in ally by treating radar as being destroyed, tLZOrWZTeamData[M28Map.refoBestRadar] owner='..tLZOrWZTeamData[M28Map.refoBestRadar]:GetAIBrain().Nickname..'; tLZOrWZTeamData[M28Map.refoBestRadar]='..tLZOrWZTeamData[M28Map.refoBestRadar].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZOrWZTeamData[M28Map.refoBestRadar])) end
+                M28Land.UpdateRadarCoverageForDestroyedRadar(tLZOrWZTeamData[M28Map.refoBestRadar], iTeam) --didnt end up needing this but left it in just in case
+            end
         end
     end
     if M28Utilities.IsTableEmpty(tiTeamsToConsider) == false then

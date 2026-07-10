@@ -6765,6 +6765,12 @@ function GetACUOrder(aiBrain, oACU)
                     if ((iClosestMobileThreatUntilInRange > 25 or (bHaveNoFactory and (iClosestMobileThreatUntilInRange > 20 or (M28Map.bIsCampaignMap and iClosestMobileThreatUntilInRange >= 10)))) and ((iClosestUntilInRange > (iOurRange + 15) and iCurDistUntilInRange > 15) or (iCurDistUntilInRange >= 10 and M28Map.bIsCampaignMap))) or (bHaveNoFactory and not(bEnemyInACURange) and (oACU:IsUnitState('Building') or oACU:IsUnitState('Repairing') or oACU:IsUnitState('Capturing')) and oACU:GetWorkProgress() >= 0.85) then
                         bProceedWithLogic = false
                         GetACUEarlyGameOrders(aiBrain, oACU) --Avoid some scenarios where ACU might get stuck in 'run to core zone' mode
+                        --Special maps might have major enemy threats, so consider running in some cases
+                    elseif M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false and  M28Conditions.GetEnemyMobileCombatThreatAndRangeInCurrentAndAdjacentZones(tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iTeam, aiBrain) >= 1700 and DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and (GetGameTimeSeconds() - (oACU[refiTimeLastWantedToRun] or 0) <= 30 or M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 1, iTeam, true, nil, nil, oACU)) then
+                        --Run from nearest enemy unit
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try to run or return to core base despite not doing early game orders due to high nearby threat levels') end
+                        oACU[refiTimeLastWantedToRun] = GetGameTimeSeconds()
+                        ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
                     elseif iClosestMobileThreatUntilInRange > 25 or (aiBrain[M28Economy.refiBrainBuildRateMultiplier] >= 3 and iClosestMobileThreatUntilInRange > 1) or aiBrain[M28Economy.refiBrainBuildRateMultiplier] >= 6 then
                         if bHaveNoFactory then
                             bProceedWithLogic = false
