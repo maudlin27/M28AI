@@ -6908,12 +6908,23 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
                 iEnergyMod = 2.5
             end
+            if (M28Team.tTeamData[iTeam][M28Team.refiEnemyNovaxCount] > 0) and EntityCategoryContains(categories.UEF, oFactory.UnitId) then
+                if tWZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] and GetGameTimeSeconds() - tWZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] <= 60 then
+                    iEnergyMod = iEnergyMod * 0.35
+                else
+                    iEnergyMod = iEnergyMod * 0.6
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iEnergyMod='..iEnergyMod..'; refiGrossEnergyBaseIncome='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; iCurShieldAndStealthBoats='..iCurShieldAndStealthBoats) end
             if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < (1 + iCurShieldAndStealthBoats) * 50 * iEnergyMod then
                 bConsiderBuildingShieldOrStealthBoats = false
+                if bDebugMessages == true then LOG(sFunctionRef..': Want more energy before getting shield boat') end
             elseif iCurShieldAndStealthBoats >= 5 then
                 --Want to be a T3 factory and have at least 5 T3 naval units before building more shield boats
                 bConsiderBuildingShieldOrStealthBoats = false
-                if iFactoryTechLevel >= 3 and iCurShieldAndStealthBoats <= 22 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3) >= 10 then
+                if tWZTeamData[M28Map.refiTimeOfNearbyEnemyNovax] and EntityCategoryContains(categories.UEF, oFactory.UnitId) and iCurShieldAndStealthBoats <= 25 and (iCurShieldAndStealthBoats <= 10 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface - categories.TECH1 - M28UnitInfo.refCategoryShieldBoat) > iCurShieldAndStealthBoats) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want shield boats to help vs novax') end
+                elseif iFactoryTechLevel >= 3 and iCurShieldAndStealthBoats <= 22 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3) >= 10 then
                     bConsiderBuildingShieldOrStealthBoats = true
                 elseif iCurShieldAndStealthBoats <= 10 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3 + M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryCruiser) * 1.5 > iCurShieldAndStealthBoats then
                     bConsiderBuildingShieldOrStealthBoats = true
