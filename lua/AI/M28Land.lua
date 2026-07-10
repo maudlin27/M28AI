@@ -6010,23 +6010,25 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local bUpdateNearestEnemy = false
                 if not(oNearestEnemyToFriendlyBase) then bUpdateNearestEnemy = true end
                 for iLREnemy, oLREnemy in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if should add oLREnemy to skirmisher enemies, oLREnemy='..oLREnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLREnemy)..'; Cur assigned P='..oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]..'Z'..oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]) end
-                    if not(tbCurOrAdjacentZones[oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]]) or not(oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau) then
-                        table.insert(tSkirmisherDFEnemies, oLREnemy)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will add oLREnemy to tSkirmisherDFEnemies') end
-                    end
-                    --If enemy is close to nearestenemytofriendlybase then also update enemy range
-                    if oLREnemy[M28UnitInfo.refiDFRange] > iEnemyBestDFRange then
-                        if bUpdateNearestEnemy or (oNearestEnemyToFriendlyBase and (M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) - oLREnemy[M28UnitInfo.refiDFRange] <= -10 or M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 50)) then
-                            iEnemyBestDFRange = oLREnemy[M28UnitInfo.refiDFRange]
-                            if bUpdateNearestEnemy and oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
-                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
-                                if iCurDist < iClosestDist then
-                                    iClosestDist = iCurDist
-                                    oNearestEnemyToFriendlyBase = oLREnemy
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if should add oLREnemy to skirmisher enemies, oLREnemy='..oLREnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLREnemy)..'; Cur assigned P='..(oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 'nil')..'Z'..(oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')) end
+                    if not(oLREnemy.Dead) then --redundancy
+                        if oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] and(not(tbCurOrAdjacentZones[oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]]) or not(oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau)) then
+                            table.insert(tSkirmisherDFEnemies, oLREnemy)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will add oLREnemy to tSkirmisherDFEnemies') end
+                        end
+                        --If enemy is close to nearestenemytofriendlybase then also update enemy range
+                        if oLREnemy[M28UnitInfo.refiDFRange] > iEnemyBestDFRange then
+                            if bUpdateNearestEnemy or (oNearestEnemyToFriendlyBase and (M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) - oLREnemy[M28UnitInfo.refiDFRange] <= -10 or M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 50)) then
+                                iEnemyBestDFRange = oLREnemy[M28UnitInfo.refiDFRange]
+                                if bUpdateNearestEnemy and oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+                                    if iCurDist < iClosestDist then
+                                        iClosestDist = iCurDist
+                                        oNearestEnemyToFriendlyBase = oLREnemy
+                                    end
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Increasing iEnemyBestDFRange to reflect LR enemy DF unit') end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Increasing iEnemyBestDFRange to reflect LR enemy DF unit') end
                         end
                     end
                 end
