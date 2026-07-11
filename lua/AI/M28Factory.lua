@@ -974,7 +974,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, tBaseLZTeamData, iPla
                             iBaseCategoryWanted = M28UnitInfo.refCategoryMobileDFLand
                             if iFactoryTechLevel == 1 then iBaseCategoryWanted = iBaseCategoryWanted - M28UnitInfo.refCategoryLightAttackBot end
                             if bDebugMessages == true then LOG(sFunctionRef..': Are in range of a firebase so wont get indirect afterall') end
-                        elseif oFactory:GetAIBrain().M28Easy or oFactory:GetAIBrain()[M28Overseer.refbPrioritiseLowTech] then
+                        elseif oFactory[M28UnitInfo.refbEasyBrain] or oFactory:GetAIBrain()[M28Overseer.refbPrioritiseLowTech] then
                             iBaseCategoryWanted = M28UnitInfo.refCategoryMobileDFLand
                             if iFactoryTechLevel == 1 then iBaseCategoryWanted = iBaseCategoryWanted - M28UnitInfo.refCategoryLightAttackBot end
                             if bDebugMessages == true then LOG(sFunctionRef..': Want DF Tanks for M28Easy or M28Rush') end

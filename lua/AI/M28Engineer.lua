@@ -9328,7 +9328,7 @@ function RecordEngineerAsPartofGameEnderTemplate(oEngineer, iPlateau, iLandZone,
         oEngineer[refiAssignedActionPriority] = 1
         local tTableRef = tLZTeamData[M28Map.reftActiveGameEnderTemplates][iTemplateRef]
         --Record engineer as being part of shield SACUs if it is a UEF shield SACU and we have flagged we want to use shieldSACU logic
-        if EntityCategoryContains(categories.UEF * categories.SUBCOMMANDER, oEngineer.UnitId) and tLZTeamData[M28Map.subrefbGEShieldSACU] and not(oEngineer:GetAIBrain().M28Easy) then
+        if EntityCategoryContains(categories.UEF * categories.SUBCOMMANDER, oEngineer.UnitId) and tLZTeamData[M28Map.subrefbGEShieldSACU] and not(oEngineer[M28UnitInfo.refbEasyBrain]) then
             local bRecordedAlready = false
             if not(tTableRef[M28Map.subreftoGEShieldSACUs]) then tTableRef[M28Map.subreftoGEShieldSACUs] = {}
             else

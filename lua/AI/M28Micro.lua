@@ -1638,7 +1638,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
                 end
             else
                 --Wait a few ticks so definitely cant be as good as normal
-                WaitTicks(5)
+                WaitTicks(8)
             end
 
             if bAdjustHoverMicroCount then aiBrain[refiCurUnitsHoverMicroing] = aiBrain[refiCurUnitsHoverMicroing] - 1 end
@@ -2334,7 +2334,7 @@ function KeepUnitsAwayFromNukeOrTMLTarget(oProjectile, oLauncher, iTeam, bEnemyN
                 if bDebugMessages == true then LOG(sFunctionRef..': Is tFriendlyUnitsNearTarget empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyUnitsNearTarget))..'; Time='..GetGameTimeSeconds()) end
                 if M28Utilities.IsTableEmpty(tFriendlyUnitsNearTarget) == false then
                     for iUnit, oUnit in tFriendlyUnitsNearTarget do
-                        if oUnit:GetAIBrain().M28AI and (not(oUnit:GetAIBrain().M28Easy) or (not(bEnemyNuke) and EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId))) then
+                        if oUnit:GetAIBrain().M28AI and (not(oUnit[M28UnitInfo.refbEasyBrain]) or (not(bEnemyNuke) and EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId))) then
                             iAngleToUnit = M28Utilities.GetAngleFromAToB(tTarget, oUnit:GetPosition())
                             if bIsTML then
                                 iAngleToTMLLauncher = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oLauncher:GetPosition())

@@ -12989,7 +12989,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
                             local iAngleToRally = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tMovePoint)
                             local iFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
-                            if M28Utilities.GetAngleDifference(iAngleToRally, iFacingAngle) > 45 then
+                            if M28Utilities.GetAngleDifference(iAngleToRally, iFacingAngle) > 45 and not(oBomber[M28UnitInfo.refbEasyBrain]) then
                                 ForkThread(M28Micro.TurnAirUnitAndMoveToTarget,oBomber, tMovePoint, 15, nil)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Doing micro turn to rally') end
                             else
@@ -13755,7 +13755,7 @@ function EnemyT1BomberTracker(oBomber, iTeam)
             if M28Utilities.IsTableEmpty(tEngisInArea) == false then
                 for iEngi, oEngi in tEngisInArea do
                     if bDebugMessages == true then LOG(sFunctionRef..': Engi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' owned by '..oEngi:GetAIBrain().Nickname..' on team '..oEngi:GetAIBrain().M28Team..' - is special micro active='..tostring(oEngi[M28UnitInfo.refbSpecialMicroActive] or false)..'; Backup dist='..(oEngi:GetBlueprint().Physics.BackUpDistance or 'nil')) end
-                    if oEngi:GetAIBrain().M28AI and oEngi:GetAIBrain().M28Team == iTeam and not(oEngi:GetAIBrain().M28Easy) then
+                    if oEngi:GetAIBrain().M28AI and oEngi:GetAIBrain().M28Team == iTeam and not(oEngi[M28UnitInfo.refbEasyBrain]) then
                         --Have an M28AI engineer on our team that is near to the enemy t1 bomber; if special micro isn't active then have the engi move towards the bomber and flag a 'special micro flag that can be ignored if want to dodge shot'
                         if not(oEngi[M28UnitInfo.refbSpecialMicroActive]) or oEngi[M28UnitInfo.refbLowerPriorityMicroActive] then
                             local iCurBackupDist = oEngi:GetBlueprint().Physics.BackUpDistance
@@ -14327,7 +14327,7 @@ function ApplyMexHuntingLogicToBomber(oBomber)
                                 local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
                                 iDistToRally = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oBomber:GetPosition())
                                 iAngleDif = M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tRallyPoint), M28UnitInfo.GetUnitFacingAngle(oBomber))
-                                if iDistToRally >= 75 and iAngleDif >= 15 and (iDistToRally >= 150 or iAngleDif >= 30) then
+                                if not(oBomber[M28UnitInfo.refbEasyBrain]) and iDistToRally >= 75 and iAngleDif >= 15 and (iDistToRally >= 150 or iAngleDif >= 30) then
                                     ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oBomber, tRallyPoint, 10, 3)
                                 else
                                     M28Orders.IssueTrackedMove(oBomber, tRallyPoint, 5, false, 'BombMxMv', false)

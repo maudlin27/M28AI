@@ -5536,7 +5536,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                 local bEnemyIsHover = EntityCategoryContains(categories.HOVER, oNearestEnemySurfaceToFriendlyBase.UnitId)
                                 if bDebugMessages == true then LOG(sFunctionRef..': We outrange the enemy surface unit nearest midpoint so will assume it is the closest unit to us and attack') end
                                 for iUnit, oUnit in tCombatUnitsOfUse do
-                                    if oUnit[M28UnitInfo.refiCombatRange] > iNearestEnemyRangeThreshold and (not(bEnemyIsHover) or (oUnit[M28UnitInfo.refiDFRange] or 0) > iNearestEnemyRangeThreshold or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > iNearestEnemyRangeThreshold) and not(oUnit:GetAIBrain().M28Easy) then
+                                    if oUnit[M28UnitInfo.refiCombatRange] > iNearestEnemyRangeThreshold and (not(bEnemyIsHover) or (oUnit[M28UnitInfo.refiDFRange] or 0) > iNearestEnemyRangeThreshold or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > iNearestEnemyRangeThreshold) and not(oUnit[M28UnitInfo.refbEasyBrain]) then
                                         table.insert(tLRUnits, oUnit)
                                     else
                                         table.insert(tSRUnits, oUnit)

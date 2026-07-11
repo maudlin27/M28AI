@@ -1812,7 +1812,7 @@ function ProjectileCreated(oProjectile, inWater)
             --LOG('TEMPCODE oTarget='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil'))
             if M28UnitInfo.IsUnitValid(oTarget) then
                 bTrackingProjectile = true
-                if oTarget:GetAIBrain().M28AI and not(oTarget:GetAIBrain().M28Easy) then
+                if oTarget:GetAIBrain().M28AI and not(oTarget[M28UnitInfo.refbEasyBrain]) then
                     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
                     local sFunctionRef = 'ProjectileCreated'
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1830,7 +1830,7 @@ function ProjectileCreated(oProjectile, inWater)
             --Gunship related
             if oProjectile.OriginalTarget then
                 local oTarget = oProjectile.OriginalTarget
-                if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetAIBrain().M28AI and not(oTarget:GetAIBrain().M28Easy) then
+                if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetAIBrain().M28AI and not(oTarget[M28UnitInfo.refbEasyBrain]) then
                     --Gunships - consider retreating early
                     if EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, oTarget.UnitId) and not(oTarget.MyShield) and not(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]) then
                         ProjectileFiredAtGunship(oTarget, oProjectile)
