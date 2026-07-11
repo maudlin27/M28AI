@@ -4073,8 +4073,12 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             end
                             --Switch to GETemplate category if we have picked something else
                             if bGetGameEnderTemplate and not(M28Utilities.DoesCategoryContainCategory(iCategoryWanted, M28UnitInfo.refCategoryGameEnder)) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will switch to gameender template type category') end
-                                iCategoryWanted = M28UnitInfo.refCategoryGameEnder
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will switch to gameender template type category, unless are seraphim and havent built any ahwassa yet and want to') end
+                                if not(bDontGetAirExp) and iCategoryWanted and tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL) == 0 and M28Utilities.DoesCategoryContainCategory(categories.xsa0402, iCategoryWanted) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will stick with getting our first air exp after all') end
+                                else
+                                    iCategoryWanted = M28UnitInfo.refCategoryGameEnder
+                                end
                             end
                         end
                     end
