@@ -4102,7 +4102,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if tLZData[M28Map.subrefLZOrWZMexCount] >= 4 then iThreatFactor = iThreatFactor * 2 end
             if bHaveLowMass then
                 if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iThreatFactor = iThreatFactor * 0.4
-                elseif GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] <= 6 then
+                elseif M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] <= 6 then
                     iThreatFactor = iThreatFactor * 0.5
                 else
                     iThreatFactor = iThreatFactor * 0.9
