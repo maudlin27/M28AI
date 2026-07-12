@@ -3649,13 +3649,21 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                                         local bGetT3Mex = M28Conditions.WantAnotherT3MexUpgrade(iTeam)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to get another t3 mex at this stage, bGetT3Mex='..tostring(bGetT3Mex)) end
                                         if bGetT3Mex then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': We want another t3 mex on our team; however if this isnt a core base/similar mod dist then want to consider our base') end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': We want another t3 mex on our team; however will avoid upgrading multiple at once in this zone if we dont have lots of mass and lack any t3 mexes; also abort if this isnt a core base/similar mod dist then want to consider our base, subrefiActiveMexUpgrades='..tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]) end
                                             if tLZOrWZTeamData[M28Map.refiModDistancePercent] > 0.05 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] < 10 then
                                                 local tNearestBaseLZData, tNearestBaseLZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(oJustBuilt:GetAIBrain()), true, iTeam)
                                                 --Does nearest base not have many t3 mexes yet, but seems as safe as this zone?
                                                 if tNearestBaseLZTeamData and tNearestBaseLZTeamData[M28Map.subrefMexCountByTech][3] <= 1 and tNearestBaseLZTeamData[M28Map.subrefMexCountByTech][2] > 0 and (tNearestBaseLZData[M28Map.subrefLZOrWZMexCount] >= 3 or tNearestBaseLZTeamData[M28Map.subrefMexCountByTech][3] == 0) and (M28Utilities.IsTableEmpty(tNearestBaseLZTeamData[M28Map.reftoNearestDFEnemies]) or not(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))) then
                                                     bGetT3Mex = false
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Want more t3 mex in core base first so will cancel getting a t3 mex') end
+                                                end
+                                            end
+                                            if bGetT3Mex and aiBrain:GetEconomyStored('MASS') <= 4000 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] > 0 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= math.min(3, tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': We already have a mex upgrading in this zone so wont get t3 mex unless we are upgrading from t1 to t2 with just one mex') end
+                                                bGetT3Mex = false
+                                                if tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] <= 1 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH2, tLZOrWZTeamData[M28Map.subreftoActiveUpgrades])) and (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) or M28Map.iLowestMassStorageTechAvailable > 1 or table.getn(tLZOrWZTeamData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) < 0.5 * tLZOrWZData[M28Map.subrefLZOrWZMexCount]) then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Have no t2 units upgrading in this zone, and only 1 active mex upgrade, and not lots of mass storage locations') end
+                                                    bGetT3Mex = true
                                                 end
                                             end
                                             if bGetT3Mex then
