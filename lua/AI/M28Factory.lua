@@ -2470,8 +2470,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     local iCurMAABeingBuilt = M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryMAA - categories.TECH1)
                     if bDebugMessages == true then LOG(sFunctionRef..': Want MAA unless already building some, iCurMAABeingBUilt='..iCurMAABeingBuilt) end
                     if (iCurMAABeingBuilt == 0 or (iCurMAABeingBuilt <= 1 and iLandFactoriesInLZ >= 4))
-                    and (iFactoryTechLevel >= 3 or not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or iLandFactoriesInLZ >= 3 or iNearbyMAAThreat < iNearbyAirToGroundThreat * 0.75)
-                     then
+                            and (iFactoryTechLevel >= 3 or not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or iLandFactoriesInLZ >= 3 or iNearbyMAAThreat < iNearbyAirToGroundThreat * 0.75)
+                    then
                         if iNearbyMAAThreat < iNearbyAirToGroundThreat then
                             if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH1) then return sBPIDToBuild end
                         else
@@ -2577,7 +2577,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                             end
                             if iCurEngineersInZone >= 3 or (iCurEngineersInZone == 2 and iCurMobileDFCount <= 1) then bIgnoreEngiBuilder = true end
                         end
-                       if not(bIgnoreEngiBuilder) then
+                        if not(bIgnoreEngiBuilder) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will get more engineers') end
                             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
                         end
@@ -3776,6 +3776,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
 
             --Be building engineers in 1/4 of land facs if we have a shortfall for this land zone
+            iCurrentConditionToTry = iCurrentConditionToTry + 1
             if iLandFactoriesInLZ > 1 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.01 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and tLZTeamData[M28Map.subrefTbWantBP] then
                 local iEngisUnderConstruction = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryEngineer)
                 if iEngisUnderConstruction < iLandFactoriesInLZ * 0.25 and (not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) or iEngisUnderConstruction < iLandFactoriesInLZ * 0.2) then
@@ -4395,6 +4396,35 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+    --Upgrade to t3 if in our core base, this is an HQ, we can path to enemy with land, we arent stalling E, and we have several other facs of this tech level in this zone'
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel < 3 and tLZTeamData[M28Map.subrefLZbCoreBase] and not(aiBrain[M28Overseer.refbPrioritiseLowTech]) and (not(bHaveLowPower) or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) and oFactory[refiTotalBuildCount] >= 8 and EntityCategoryContains(M28UnitInfo.refCategoryLandHQ, oFactory.UnitId) and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestFactoryTechLevel] then
+        local iLandFacsOfThisTechInZone = 0
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+            local tUnitsOfCategory = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel), tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
+                iLandFacsOfThisTechInZone = table.getn(tUnitsOfCategory)
+            end
+        end
+        if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or iLandFacsOfThisTechInZone >= 4 then
+            --Check we dont have upgrading HQ or same tech level
+            local bUpgradingOtherHQ = false
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
+                for iHQ, oHQ in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
+                    if not(oHQ.Dead) and M28UnitInfo.GetUnitTechLevel(oHQ) >= iFactoryTechLevel then
+                        bUpgradingOtherHQ = true
+                        break
+                    end
+                end
+            end
+            if not(bUpgradingOtherHQ) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Not upgrading other HQ, do we have gross mass to support land HQ upgrade='..tostring(M28Conditions.HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain))) end
+                if M28Conditions.HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain) then
+                    if ConsiderUpgrading() then  return sBPIDToBuild end
+                end
+            end
+        end
+    end
 
 
     M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] = GetGameTimeSeconds()

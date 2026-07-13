@@ -230,7 +230,7 @@ refCategoryUnitsWithOmni = categories.OMNI + categories.COMMAND + categories.OVE
 
 --Building - factory
 refCategoryLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT
-refCategoryLandHQ =refCategoryLandFactory - categories.SUPPORTFACTORY
+refCategoryLandHQ = refCategoryLandFactory - categories.SUPPORTFACTORY
 refCategoryAirFactory = categories.AIR * categories.FACTORY * categories.STRUCTURE - categories.ORBITALSYSTEM - categories.EXTERNALFACTORYUNIT --Novax is an air factory, so excluded from being treated as an air factory by my logic
 refCategoryAirHQ = refCategoryAirFactory - categories.SUPPORTFACTORY
 refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT

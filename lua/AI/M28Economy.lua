@@ -43,6 +43,7 @@ refbGoingSecondAir = 'M28EGo2ndA' --true if ACU will be going second air
 
 --Other against brain
 refbActiveCoreBaseReassessment = 'M28CrBsR' --true if we are monitoring for a new core base due to having no air fac
+refbLandSupportFactoryUpgradeMonitor = 'M28ELSpF' --true if are considering upgrading to t3 land once have a lot of T2 support factories in the zone
 
 --Against unit variables:
 refoBrainRecordedForEconomy = 'M28EBrainRecordedUnit' --Stores the M28 brain that has factored in this unit's mass and energy income
@@ -4090,4 +4091,74 @@ function ConsiderChangingCoreBase(aiBrain, iOriginalPlateau, iOriginalZone)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function UpgradeToT3LandOnceHaveLotsOfSupportFactories(aiBrain, tLZTeamData)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpgradeToT3LandOnceHaveLotsOfSupportFactories'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(aiBrain[refbLandSupportFactoryUpgradeMonitor]) and not(aiBrain[M28Overseer.refbPrioritiseLowTech]) and not(aiBrain[M28Overseer.refbPrioritiseNavy]) and not(aiBrain[M28Overseer.refbPrioritiseAir]) then
+        --Find HQ
+        local oT2LandHQInZone
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+            local tT2HQsInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandHQ * categories.TECH2, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tT2HQsInZone) == false then
+                for iHQ, oHQ in tT2HQsInZone do
+                    oT2LandHQInZone = oHQ
+                    break
+                end
+            end
+        end
+        if oT2LandHQInZone then
+            aiBrain[refbLandSupportFactoryUpgradeMonitor] = true
+            local iTeam = aiBrain.M28Team
+            local bUpgradeHQUnlessAlreadyGotHQUpgrading
+            local bGivenUpgradeOrder
+            while M28UnitInfo.IsUnitValid(oT2LandHQInZone) and aiBrain[refiOurHighestLandFactoryTech] == 2 do
+                local tSupportFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.SUPPORTFACTORY * categories.TECH2, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if M28Utilities.IsTableEmpty(tSupportFactoriesInZone) == false then
+                    local iCurSupportFactories = table.getn(tSupportFactoriesInZone)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurSupportFactories='..iCurSupportFactories..'; Time='..GetGameTimeSeconds()) end
+                    if iCurSupportFactories >= 3 then
+                        for iFactory, oFactory in tSupportFactoriesInZone do
+                            if oFactory:GetFractionComplete() < 1 then iCurSupportFactories = iCurSupportFactories - 1 end
+                        end
+                        if iCurSupportFactories >= 6 then
+                            bUpgradeHQUnlessAlreadyGotHQUpgrading = true
+                        elseif iCurSupportFactories >= 5 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+                            bUpgradeHQUnlessAlreadyGotHQUpgrading = true
+                        elseif not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+                            if not(M28Conditions.TeamHasLowMass(iTeam)) or (M28Conditions.HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain, 2) and (iCurSupportFactories >= 4 or oT2LandHQInZone[M28Factory.refiTotalBuildCount] >= 10 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryMobileDFLand * categories.TECH2 + M28UnitInfo.refCategoryIndirectT2Plus) >= 15)) then
+                                bUpgradeHQUnlessAlreadyGotHQUpgrading = true
+                            end
+                        end
+                    end
+                end
+                if bUpgradeHQUnlessAlreadyGotHQUpgrading then
+                    --basic check that we have enough eco to support
+                    if aiBrain[refiGrossMassBaseIncome] >= 9 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4 or tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 or (not(M28Conditions.TeamHasLowMass(iTeam)) and aiBrain[refiGrossMassBaseIncome] >= 5) then
+                        local iSearchCategory
+                        if M28Conditions.TeamHasLowMass(iTeam) or M28Conditions.HaveLowPower(iTeam) then iSearchCategory = M28UnitInfo.refCategoryLandFactory * categories.TECH2 + M28UnitInfo.refCategoryAirFactory * categories.TECH2
+                        else iSearchCategory = M28UnitInfo.refCategoryLandFactory * categories.TECH2
+                        end
+                        if not(M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iSearchCategory, false)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade from T2 to T3') end
+                            UpgradeUnit(oT2LandHQInZone, true, nil)
+                            bGivenUpgradeOrder = true
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            WaitSeconds(60)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                            break
+                        end
+                    end
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+            end
+            aiBrain[refbLandSupportFactoryUpgradeMonitor] = nil
+        end
+    end
 end

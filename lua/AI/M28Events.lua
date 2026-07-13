@@ -2819,7 +2819,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                                         end
                                     end
                                 end
-                                --refbPrimaryFactoryForIslandOrPond
+
+                                --If have completed 4th T2 support land fac in a zone then get T3 land fac once we have sufficient gross mass
+                                if tLZTeamData[M28Map.subrefLZbCoreBase] and M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 4 and EntityCategoryContains(categories.SUPPORTFACTORY, oJustBuilt.UnitId) then
+                                    ForkThread(M28Economy.UpgradeToT3LandOnceHaveLotsOfSupportFactories, oJustBuilt:GetAIBrain(), tLZTeamData)
+                                end
                             end
 
                             M28Economy.ConsiderImmediateUpgradeOfFactory(oJustBuilt)

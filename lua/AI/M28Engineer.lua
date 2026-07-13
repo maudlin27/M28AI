@@ -14967,13 +14967,61 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-    --Assist mex and air fac upgrades if in a safe zone or high resource modifier; also assist mex more generally if have already have at least 1 mex of the same tech level and no enemies in an adjacent zone
+    --Assist mex and air fac upgrades if in a safe zone or high resource modifier or have good amount of mass and number of units of that tech built; also assist mex more generally if have already have at least 1 mex of the same tech level and no enemies in an adjacent zone
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Priority mex or air fac assist, iCurPriority='..iCurPriority..'; is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]))..'; Is base in safe position='..tostring(tLZTeamData[M28Map.refbBaseInSafePosition])..'; Enemies in adj zone='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Mex count: T1='..tLZTeamData[M28Map.subrefMexCountByTech][1]..'; T2='..tLZTeamData[M28Map.subrefMexCountByTech][2]..'; T3='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Stalling E='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false and (tLZTeamData[M28Map.refbBaseInSafePosition] or (aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.3 and tLZTeamData[M28Map.subrefMexCountByTech][2] > 0) or (not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or tLZTeamData[M28Map.subrefMexCountByTech][2] > 0)  and not(M28Overseer.bUnitRestrictionsArePresent) then
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false and (tLZTeamData[M28Map.refbBaseInSafePosition] or tLZTeamData[M28Map.subrefMexCountByTech][2] > 0) then
+        -- or (tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0))) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or tLZTeamData[M28Map.subrefMexCountByTech][2] > 0)  and not(M28Overseer.bUnitRestrictionsArePresent)
         --Decide if we want to assist an air factory, or instead assist a mex upgrade
         local oFactoryOrMexToAssist
-        if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 or not(tLZTeamData[M28Map.refbBaseInSafePosition]) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.3) then
+        local tUpgradingHQs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories, tLZTeamData[M28Map.subreftoActiveUpgrades])
+        if M28Utilities.IsTableEmpty(tUpgradingHQs) == false and not(aiBrain[M28Overseer.refbPrioritiseLowTech]) then
+            local oHighestHQToConsiderAssisting
+            local iHighestHQTechLevel = 0
+            local iBestCompletionOfCurrentTechLevel
+            local iCurTechLevel
+            for iFactory, oFactory in tUpgradingHQs do
+                iCurTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
+                if iCurTechLevel > iHighestHQTechLevel then
+                    iHighestHQTechLevel = iCurTechLevel
+                    iBestCompletionOfCurrentTechLevel = oFactory:GetWorkProgress()
+                    oHighestHQToConsiderAssisting = oFactory
+                elseif iCurTechLevel == iHighestHQTechLevel then
+                    if oFactory:GetWorkProgress() > iBestCompletionOfCurrentTechLevel then
+                        iBestCompletionOfCurrentTechLevel = oFactory:GetWorkProgress()
+                        oHighestHQToConsiderAssisting = oFactory
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': oHighestHQToConsiderAssisting='..(oHighestHQToConsiderAssisting.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oHighestHQToConsiderAssisting) or 'nil')..'; iBestCompletionOfCurrentTechLevel='..iBestCompletionOfCurrentTechLevel..'; iHighestHQTechLevel='..iHighestHQTechLevel) end
+            if oHighestHQToConsiderAssisting then
+                --Do we want to assist this rather than a mex?
+                if not(bHaveLowMass) then
+                    oFactoryOrMexToAssist = oHighestHQToConsiderAssisting
+                elseif bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oHighestHQToConsiderAssisting.UnitId) and iBestCompletionOfCurrentTechLevel < 0.6 then
+                    --Dont assist anything
+                else
+                    --Tech 1 requirement to assist to get t2 sooner - want 35 mass income per sec before considering assisting
+                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oHighestHQToConsiderAssisting.UnitId) then
+                        if M28Conditions.HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain) then
+                            oFactoryOrMexToAssist = oHighestHQToConsiderAssisting
+                        end
+                    elseif EntityCategoryContains(categories.TECH1, oHighestHQToConsiderAssisting.UnitId) then
+                        if M28Conditions.HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain, 1) then
+                            oFactoryOrMexToAssist = oHighestHQToConsiderAssisting
+                        end
+                    else --T2 air
+                        local iGrossMassAdjust = 0
+                        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iGrossMassAdjust = 1 end
+                        if aiBrain[M28Economy.refiGrossMassBaseIncome] /  aiBrain[M28Economy.refiBrainBuildRateMultiplier] >= 6 + iGrossMassAdjust then
+                            oFactoryOrMexToAssist = oHighestHQToConsiderAssisting
+                        end
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': oFactoryOrMexToAssist after checking for upgrading HQs that we have enough gross income to support='..(oFactoryOrMexToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFactoryOrMexToAssist) or 'nil')) end
+        if not(oFactoryOrMexToAssist) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 or not(tLZTeamData[M28Map.refbBaseInSafePosition]) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.3) then
             local tUpgradingMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subreftoActiveUpgrades])
             if bDebugMessages == true then LOG(sFunctionRef..': is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tUpgradingMexes))) end
             if M28Utilities.IsTableEmpty(tUpgradingMexes) == false then
@@ -15014,7 +15062,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if aiBrain[M28Economy.refiBrainResourceMultiplier] >= 1.3 then iBPWanted = iBPWanted + math.max(5, iBPWanted * 0.1, math.min(4, iBPWanted * 0.7, (aiBrain[M28Economy.refiBrainResourceMultiplier] - 1.2)*10) * 5) * aiBrain[M28Economy.refiOurHighestFactoryTechLevel] end
                 if bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
             else
-                iBPWanted = 20 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]
+                iBPWanted = 20 * M28UnitInfo.GetUnitTechLevel(oFactoryOrMexToAssist)
                 local bStallingResources = false
                 if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then
                     iBPWanted = iBPWanted * 0.5
@@ -15029,7 +15077,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     if not(bHaveLowPower) then iBPWanted = iBPWanted * 2 end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Priority mex or air fac upgrade assistance, iBPWanted='..iBPWanted) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Priority mex or fac upgrade assistance, iBPWanted='..iBPWanted) end
             HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted, oFactoryOrMexToAssist)
         end
     end
@@ -17397,7 +17445,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if bDebugMessages == true then LOG(sFunctionRef..': rebuild power in minor zone check, subrefbTeamIsStallingEnergy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; subrefbTeamIsStallingMass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; subrefbEnemiesInThisOrAdjacentLZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; subrefiTeamAverageEnergyPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored]..'; subrefiTeamGrossMass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; subrefiTeamGrossEnergy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; subrefLZSValue='..tLZTeamData[M28Map.subrefLZSValue]..'; iLandZone='..iLandZone) end
     if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and tLZTeamData[M28Map.refiModDistancePercent] <= 0.6 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] <= 0.9 and tLZTeamData[M28Map.subrefLZSValue] >= 200 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 8 > M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]
             and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.5 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 6 > M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or tLZTeamData[M28Map.refiModDistancePercent] <= 0.05) then --normally would expect 10-20 times energy to mass; meanwhile t3 mexes use 3x the mass cost in energy; so if have below 5 then want more power
-        bDebugMessages = true
 
         local iMinTechWanted = 1
 
@@ -17420,7 +17467,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if bDebugMessages == true then LOG(sFunctionRef..': We have far more mass income than energy income, and are stalling E, consider building power in minor LZs, iMinTechWanted='..iMinTechWanted..'; iBPWanted='..iBPWanted) end
         HaveActionToAssign(refActionBuildPower, iMinTechWanted, iBPWanted)
     end
-    bDebugMessages = false
 
     --Fortify zone (if flagged to fortify)
     iCurPriority = iCurPriority + 1
