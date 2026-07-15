@@ -43,6 +43,7 @@ refbGoingSecondAir = 'M28EGo2ndA' --true if ACU will be going second air
 
 --Other against brain
 refbActiveCoreBaseReassessment = 'M28CrBsR' --true if we are monitoring for a new core base due to having no air fac
+refbLandSupportFactoryUpgradeMonitor = 'M28ELSpF' --true if are considering upgrading to t3 land once have a lot of T2 support factories in the zone
 
 --Against unit variables:
 refoBrainRecordedForEconomy = 'M28EBrainRecordedUnit' --Stores the M28 brain that has factored in this unit's mass and energy income
@@ -57,6 +58,7 @@ tiMinEnergyPerTech = {[1]=16,[2]=55,[3]=150,[3]=150}
 bT3MexCanBeUpgraded = false
 iSpecialHQCategory = 'M28EconomyFactoryHQ' --Used as a way of choosing to pause HQ
 iSpecialSurplusUpgradeCategory = 'M28EconomySurplusUpgrade' --used as a way of choosing to pause excess upgrades
+iSpecialNonPowerEngiAction = 'M28EcoNonPowerEngiAction'
 
 tbQuietT25MexUnitIds = {
     ['uab1204'] = true,
@@ -1525,19 +1527,19 @@ function GetCategoryAndActionsToPauseWhenStalling(iTeam, bStallingMass, bPauseNo
                     tCategoryAndEngineerTables[1] = { M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryMassFab, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryQuantumOptics, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategorySpecialFactory, M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryQuantumGateway, categories.SUBCOMMANDER, M28UnitInfo.refCategoryNavalFactory, categories.COMMAND, M28UnitInfo.refCategoryT3Radar, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, iSpecialHQCategory, M28UnitInfo.refCategoryStealthGenerator, M28UnitInfo.refCategoryStealthAndCloakPersonal, M28UnitInfo.refCategorySonar, M28UnitInfo.refCategoryRadar, M28UnitInfo.refCategoryPersonalShield, M28UnitInfo.refCategoryFixedShield, M28UnitInfo.refCategoryMobileLandShield, M28UnitInfo.refCategoryEngineer }
                     tCategoryAndEngineerTables[2] = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildT3MassFab, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildGameEnder, M28Engineer.refActionBuildLandExperimental, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildExperimental, M28Engineer.refActionBuildQuantumGateway, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionManageGameEnderTemplate, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionUpgradeBuilding, M28Engineer.refActionAssistUpgrade },
                                                       { M28Engineer.refActionAssistAirFactory, M28Engineer.refActionBuildSecondMassStorage, M28Engineer.refActionBuildMassStorage, M28Engineer.refActionSpare, M28Engineer.refActionBuildTML, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionFortifyFirebase },
-                                                      { M28Engineer.refActionBuildLandFactory, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti } }
+                                                      { M28Engineer.refActionBuildLandFactory, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti, iSpecialNonPowerEngiAction } }
                 else
                     tCategoryAndEngineerTables[1] = { M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryMassFab, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryQuantumOptics, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategorySpecialFactory, M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryQuantumGateway, categories.SUBCOMMANDER, M28UnitInfo.refCategoryNavalFactory, M28UnitInfo.refCategoryT3Radar, categories.COMMAND, M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, iSpecialHQCategory, M28UnitInfo.refCategoryStealthGenerator, M28UnitInfo.refCategoryStealthAndCloakPersonal, M28UnitInfo.refCategorySonar, M28UnitInfo.refCategoryRadar, M28UnitInfo.refCategoryPersonalShield, M28UnitInfo.refCategoryFixedShield, M28UnitInfo.refCategoryMobileLandShield, M28UnitInfo.refCategoryEngineer }
                     tCategoryAndEngineerTables[2] = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildT3MassFab, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildGameEnder, M28Engineer.refActionBuildLandExperimental, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildQuantumGateway, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionManageGameEnderTemplate, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionUpgradeBuilding, M28Engineer.refActionAssistUpgrade },
                                                       { M28Engineer.refActionBuildSecondMassStorage, M28Engineer.refActionAssistAirFactory, M28Engineer.refActionBuildExperimental, M28Engineer.refActionBuildMassStorage, M28Engineer.refActionSpare, M28Engineer.refActionAssistNavalFactory,  M28Engineer.refActionBuildTML, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionFortifyFirebase },
-                                                      { M28Engineer.refActionBuildLandFactory, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti } }
+                                                      { M28Engineer.refActionBuildLandFactory, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti, iSpecialNonPowerEngiAction } }
                 end
             else
                 --As above but air fac paused as lower priority and no land factory pausing
                 tCategoryAndEngineerTables[1] = { M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryMassFab, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryQuantumOptics, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryQuantumGateway, categories.SUBCOMMANDER, M28UnitInfo.refCategorySpecialFactory, M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryNavalFactory, M28UnitInfo.refCategoryT3Radar, categories.COMMAND, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, iSpecialHQCategory, M28UnitInfo.refCategoryStealthGenerator, M28UnitInfo.refCategoryStealthAndCloakPersonal, M28UnitInfo.refCategorySonar, M28UnitInfo.refCategoryRadar, M28UnitInfo.refCategoryPersonalShield, M28UnitInfo.refCategoryFixedShield, M28UnitInfo.refCategoryMobileLandShield, M28UnitInfo.refCategoryEngineer }
                 tCategoryAndEngineerTables[2] = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildT3MassFab, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildGameEnder, M28Engineer.refActionBuildLandExperimental, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildExperimental, M28Engineer.refActionBuildQuantumGateway, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionManageGameEnderTemplate, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionUpgradeBuilding, M28Engineer.refActionAssistUpgrade},
                                                   { M28Engineer.refActionAssistAirFactory, M28Engineer.refActionBuildSecondMassStorage, M28Engineer.refActionBuildMassStorage, M28Engineer.refActionSpare, M28Engineer.refActionAssistNavalFactory,  M28Engineer.refActionBuildTML, M28Engineer.refActionBuildSecondPower,  M28Engineer.refActionFortifyFirebase },
-                                                  { M28Engineer.refActionBuildLandFactory, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti } }
+                                                  { M28Engineer.refActionBuildLandFactory, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti, iSpecialNonPowerEngiAction } }
 
             end
             --Early game - consider pausing t1 mex and mex construction if we are really stalling
@@ -2446,7 +2448,7 @@ function ManageEnergyStalls(iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef .. ': About to cycle through every category, bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iCategoryStartPoint=' .. iCategoryStartPoint .. '; iCategoryEndPoint=' .. iCategoryEndPoint..'; iEnergyPerTickSavingNeeded='..iEnergyPerTickSavingNeeded) end
 
                     local bConsideringFactory
-                    local bFirstBrain
+                    local bFirstBrain, bUnpauseThisUnit
                     for iCategoryCount = iCategoryStartPoint, iCategoryEndPoint, iIntervalChange do
                         local tRelevantUnits
                         iCategoryRef = tCategoriesByPriority[iCategoryCount]
@@ -2566,6 +2568,7 @@ function ManageEnergyStalls(iTeam)
                                     --for iUnit, oUnit in tRelevantUnits do
                                     bApplyActionToUnit = false
                                     iCurUnitEnergyUsage = 0
+                                    if bUnpauseThisUnit then bUnpauseThisUnit = false end
                                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then  --Only consider unit if it has been constructed
                                         if not(bPauseNotUnpause) then
                                             bApplyActionToUnit = true
@@ -2618,12 +2621,18 @@ function ManageEnergyStalls(iTeam)
                                                 bApplyActionToUnit = false
 
                                                 for iActionCount, iActionRef in tEngineerActionSubtable do
-                                                    if iActionRef == oUnit[M28Engineer.refiAssignedAction] then
+                                                    if iActionRef == oUnit[M28Engineer.refiAssignedAction] or iActionRef == iSpecialNonPowerEngiAction then
                                                         bApplyActionToUnit = true
                                                         --Dont pause the last engi building power
-
-                                                        if iActionRef == M28Engineer.refActionBuildPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': action match, checking for exceptions, unit work progress='..oUnit:GetWorkProgress()..'; focus unit='..(oUnit:GetFocusUnit().UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit:GetFocusUnit()) or 'nil')..'; order blueprint='..(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] or 'nil')..'; Assigned action='..(oUnit[M28Engineer.refiAssignedAction] or 'nil')..'; iActionRef='..iActionRef..'; Team gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
+                                                        if oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionBuildPower and
+                                                            (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.7 or iActionRef == iSpecialNonPowerEngiAction --cond 1b
+                                                            or (oUnit[M28Engineer.refbPrimaryBuilder] --cond 1c
+                                                             or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 20 and oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH1, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint])))) --cond 1d
+                                                             then
                                                             bApplyActionToUnit = false
+                                                            if oUnit.GetFocusUnit and oUnit:GetFocusUnit().UnitId and (oUnit:GetWorkProgress() > 0.4 or oUnit:GetFocusUnit():GetFractionComplete() > 0.4) and EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH1, oUnit:GetFocusUnit().UnitId) and (oUnit[M28UnitInfo.refbPaused] or (oUnit.IsPaused and oUnit:IsPaused())) then bUnpauseThisUnit = true end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': cancelling applying as building power withsome E stored, bUnpauseThisUnit='..tostring(bUnpauseThisUnit)) end
                                                             --Dont pause T1 factory construction if we have a certain amount of gross energy income
                                                         elseif iActionRef == M28Engineer.refActionBuildLandFactory and EntityCategoryContains(categories.TECH1, oUnit.UnitId) and oBrain[refiGrossEnergyBaseIncome] >= 26 then
                                                             if oUnit[M28Engineer.refbPrimaryBuilder] then
@@ -2634,13 +2643,22 @@ function ManageEnergyStalls(iTeam)
                                                                 if not(tEngiTeamData[M28Map.subrefLZbCoreBase]) then
                                                                     --Keep building expansion land fac
                                                                     bApplyActionToUnit = false
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': expansion land fac exception') end
                                                                 end
                                                             end
+                                                        elseif iActionRef == iSpecialNonPowerEngiAction and (oUnit:GetWorkProgress() >= 0.99 or ((oUnit:GetFocusUnit().UnitId and (EntityCategoryContains(M28UnitInfo.refCategoryPower, oUnit:GetFocusUnit().UnitId)) and (oUnit:GetWorkProgress() > 0.4 or EntityCategoryContains(categories.TECH1, oUnit.UnitId))))) then
+                                                            bApplyActionToUnit = false
+                                                            if oUnit:GetFocusUnit().UnitId and (oUnit:GetWorkProgress() > 0.4 or oUnit:GetFocusUnit():GetFractionComplete() > 0.4) and EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH1, oUnit:GetFocusUnit().UnitId) and (oUnit[M28UnitInfo.refbPaused] or (oUnit.IsPaused and oUnit:IsPaused())) then bUnpauseThisUnit = true end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Building or repairing power during a pause non power stall exception, work progress='..oUnit:GetWorkProgress()..'; Focus unit ID='..(oUnit:GetFocusUnit().UnitId or 'nil')..'; refbPaused='..tostring(oUnit[M28UnitInfo.refbPaused] or false)..'; IsPaused='..tostring(oUnit:IsPaused())..'; bUnpauseThisUnit='..tostring(bUnpauseThisUnit)) end
                                                         elseif iActionRef == M28Engineer.refActionManageGameEnderTemplate and oUnit[M28Engineer.refbPrimaryBuilder] then
                                                             bApplyActionToUnit = false
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': primary GE Template exception') end
                                                         elseif oUnit:GetWorkProgress() >= 0.9 and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryPower, oUnit:GetFocusUnit().UnitId) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.1 or oUnit:GetWorkProgress() >= 0.98) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageEnergyPercentStored] >= 0.5 or not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) then
                                                             bApplyActionToUnit = false
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Almost completed an experimental unit so dont want to stop now unless really stalling E') end
+                                                        elseif oUnit.GetFocusUnit and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH1, oUnit:GetFocusUnit().UnitId) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 15 then
+                                                            bApplyActionToUnit = false
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': T1 builder exception') end
                                                         end
                                                         break
                                                     end
@@ -2680,7 +2698,7 @@ function ManageEnergyStalls(iTeam)
                                                 if bApplyActionToUnit then
                                                     --Dont pause factory that is building an engineer or is an air factory that isnt building an air unit, if its our highest tech level and we dont have at least 5 engis of that tech level
                                                     if M28UnitInfo.GetUnitTechLevel(oUnit) >= math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(M28UnitInfo.GetUnitTechLevel(oUnit))) < 2
-                                                    and (oUnit:GetWorkProgress() >= 0.9 or (oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]))) then
+                                                            and (oUnit:GetWorkProgress() >= 0.9 or (oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]))) then
                                                         --Dont pause factory as have too few engis and want to build power with those engis
                                                         if bDebugMessages == true then LOG(sFunctionRef .. ': Have too few engineers and are building more so wont pause factory') end
                                                         bApplyActionToUnit = false
@@ -2819,31 +2837,35 @@ function ManageEnergyStalls(iTeam)
                                             end
                                         end--]]
 
-                                    end
 
-                                    if not (bWasUnitAlreadyPaused) and bPauseNotUnpause then
-                                        iEnergySavingManaged = iEnergySavingManaged + iCurUnitEnergyUsage
-                                    elseif bWasUnitAlreadyPaused and not (bPauseNotUnpause) then
-                                        iEnergySavingManaged = iEnergySavingManaged - iCurUnitEnergyUsage
-                                    end
-                                    if bDebugMessages == true then
-                                        LOG(sFunctionRef .. ': iEnergySavingManaged=' .. iEnergySavingManaged .. '; iEnergyPerTickSavingNeeded=' .. iEnergyPerTickSavingNeeded .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bWasUnitAlreadyPaused='..tostring(bWasUnitAlreadyPaused)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; iCurUnitEnergyUsage='..iCurUnitEnergyUsage)
-                                    end
+                                        if not (bWasUnitAlreadyPaused) and bPauseNotUnpause then
+                                            iEnergySavingManaged = iEnergySavingManaged + iCurUnitEnergyUsage
+                                        elseif bWasUnitAlreadyPaused and not (bPauseNotUnpause) then
+                                            iEnergySavingManaged = iEnergySavingManaged - iCurUnitEnergyUsage
+                                        end
+                                        if bDebugMessages == true then
+                                            LOG(sFunctionRef .. ': iEnergySavingManaged=' .. iEnergySavingManaged .. '; iEnergyPerTickSavingNeeded=' .. iEnergyPerTickSavingNeeded .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bWasUnitAlreadyPaused='..tostring(bWasUnitAlreadyPaused)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; iCurUnitEnergyUsage='..iCurUnitEnergyUsage)
+                                        end
 
-                                    if bPauseNotUnpause then
-                                        if iEnergySavingManaged > iEnergyPerTickSavingNeeded then
-                                            if bDebugMessages == true then
-                                                LOG(sFunctionRef .. ': Estimate we have saved ' .. iEnergySavingManaged .. ' which is more tahn we wanted so will pause')
+                                        if bPauseNotUnpause then
+                                            if iEnergySavingManaged > iEnergyPerTickSavingNeeded then
+                                                if bDebugMessages == true then
+                                                    LOG(sFunctionRef .. ': Estimate we have saved ' .. iEnergySavingManaged .. ' which is more tahn we wanted so will pause')
+                                                end
+                                                bAbort = true
+                                                break
                                             end
-                                            bAbort = true
-                                            break
+                                        else
+                                            if iEnergySavingManaged < iEnergyPerTickSavingNeeded then
+                                                bAbort = true
+                                                break
+                                            end
                                         end
-                                    else
-                                        if iEnergySavingManaged < iEnergyPerTickSavingNeeded then
-                                            bAbort = true
-                                            break
-                                        end
+                                    elseif bUnpauseThisUnit and oUnit[M28UnitInfo.refbPaused] then
+                                        M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false, nil, iTeam, iCategoryCount)
                                     end
+
+
                                 end
                             elseif bDebugMessages == true then
                                 LOG(sFunctionRef .. ': We have no units for iCategoryCount=' .. iCategoryCount)
@@ -3649,13 +3671,21 @@ function ConsiderUpgradingMexDueToCompletion(oJustBuilt, oOptionalEngineer)
                                         local bGetT3Mex = M28Conditions.WantAnotherT3MexUpgrade(iTeam)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to get another t3 mex at this stage, bGetT3Mex='..tostring(bGetT3Mex)) end
                                         if bGetT3Mex then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': We want another t3 mex on our team; however if this isnt a core base/similar mod dist then want to consider our base') end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': We want another t3 mex on our team; however will avoid upgrading multiple at once in this zone if we dont have lots of mass and lack any t3 mexes; also abort if this isnt a core base/similar mod dist then want to consider our base, subrefiActiveMexUpgrades='..tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades]) end
                                             if tLZOrWZTeamData[M28Map.refiModDistancePercent] > 0.05 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and M28Team.tTeamData[iTeam][M28Team.refiMexCountByTech][3] < 10 then
                                                 local tNearestBaseLZData, tNearestBaseLZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.GetPlayerStartPosition(oJustBuilt:GetAIBrain()), true, iTeam)
                                                 --Does nearest base not have many t3 mexes yet, but seems as safe as this zone?
                                                 if tNearestBaseLZTeamData and tNearestBaseLZTeamData[M28Map.subrefMexCountByTech][3] <= 1 and tNearestBaseLZTeamData[M28Map.subrefMexCountByTech][2] > 0 and (tNearestBaseLZData[M28Map.subrefLZOrWZMexCount] >= 3 or tNearestBaseLZTeamData[M28Map.subrefMexCountByTech][3] == 0) and (M28Utilities.IsTableEmpty(tNearestBaseLZTeamData[M28Map.reftoNearestDFEnemies]) or not(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))) then
                                                     bGetT3Mex = false
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Want more t3 mex in core base first so will cancel getting a t3 mex') end
+                                                end
+                                            end
+                                            if bGetT3Mex and aiBrain:GetEconomyStored('MASS') <= 4000 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] > 0 and tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] >= math.min(3, tLZOrWZTeamData[M28Map.subrefMexCountByTech][3]) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': We already have a mex upgrading in this zone so wont get t3 mex unless we are upgrading from t1 to t2 with just one mex') end
+                                                bGetT3Mex = false
+                                                if tLZOrWZTeamData[M28Map.subrefiActiveMexUpgrades] <= 1 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoActiveUpgrades]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH2, tLZOrWZTeamData[M28Map.subreftoActiveUpgrades])) and (M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) or M28Map.iLowestMassStorageTechAvailable > 1 or table.getn(tLZOrWZTeamData[M28Map.subrefLZOrWZMassStorageLocationsAvailable]) < 0.5 * tLZOrWZData[M28Map.subrefLZOrWZMexCount]) then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Have no t2 units upgrading in this zone, and only 1 active mex upgrade, and not lots of mass storage locations') end
+                                                    bGetT3Mex = true
                                                 end
                                             end
                                             if bGetT3Mex then
@@ -4061,4 +4091,74 @@ function ConsiderChangingCoreBase(aiBrain, iOriginalPlateau, iOriginalZone)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function UpgradeToT3LandOnceHaveLotsOfSupportFactories(aiBrain, tLZTeamData)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpgradeToT3LandOnceHaveLotsOfSupportFactories'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(aiBrain[refbLandSupportFactoryUpgradeMonitor]) and not(aiBrain[M28Overseer.refbPrioritiseLowTech]) and not(aiBrain[M28Overseer.refbPrioritiseNavy]) and not(aiBrain[M28Overseer.refbPrioritiseAir]) then
+        --Find HQ
+        local oT2LandHQInZone
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+            local tT2HQsInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandHQ * categories.TECH2, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+            if M28Utilities.IsTableEmpty(tT2HQsInZone) == false then
+                for iHQ, oHQ in tT2HQsInZone do
+                    oT2LandHQInZone = oHQ
+                    break
+                end
+            end
+        end
+        if oT2LandHQInZone then
+            aiBrain[refbLandSupportFactoryUpgradeMonitor] = true
+            local iTeam = aiBrain.M28Team
+            local bUpgradeHQUnlessAlreadyGotHQUpgrading
+            local bGivenUpgradeOrder
+            while M28UnitInfo.IsUnitValid(oT2LandHQInZone) and aiBrain[refiOurHighestLandFactoryTech] == 2 do
+                local tSupportFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.SUPPORTFACTORY * categories.TECH2, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
+                if M28Utilities.IsTableEmpty(tSupportFactoriesInZone) == false then
+                    local iCurSupportFactories = table.getn(tSupportFactoriesInZone)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurSupportFactories='..iCurSupportFactories..'; Time='..GetGameTimeSeconds()) end
+                    if iCurSupportFactories >= 3 then
+                        for iFactory, oFactory in tSupportFactoriesInZone do
+                            if oFactory:GetFractionComplete() < 1 then iCurSupportFactories = iCurSupportFactories - 1 end
+                        end
+                        if iCurSupportFactories >= 6 then
+                            bUpgradeHQUnlessAlreadyGotHQUpgrading = true
+                        elseif iCurSupportFactories >= 5 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+                            bUpgradeHQUnlessAlreadyGotHQUpgrading = true
+                        elseif not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+                            if not(M28Conditions.TeamHasLowMass(iTeam)) or (M28Conditions.HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain, 2) and (iCurSupportFactories >= 4 or oT2LandHQInZone[M28Factory.refiTotalBuildCount] >= 10 or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryMobileDFLand * categories.TECH2 + M28UnitInfo.refCategoryIndirectT2Plus) >= 15)) then
+                                bUpgradeHQUnlessAlreadyGotHQUpgrading = true
+                            end
+                        end
+                    end
+                end
+                if bUpgradeHQUnlessAlreadyGotHQUpgrading then
+                    --basic check that we have enough eco to support
+                    if aiBrain[refiGrossMassBaseIncome] >= 9 or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4 or tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 or (not(M28Conditions.TeamHasLowMass(iTeam)) and aiBrain[refiGrossMassBaseIncome] >= 5) then
+                        local iSearchCategory
+                        if M28Conditions.TeamHasLowMass(iTeam) or M28Conditions.HaveLowPower(iTeam) then iSearchCategory = M28UnitInfo.refCategoryLandFactory * categories.TECH2 + M28UnitInfo.refCategoryAirFactory * categories.TECH2
+                        else iSearchCategory = M28UnitInfo.refCategoryLandFactory * categories.TECH2
+                        end
+                        if not(M28Team.DoesBrainHaveActiveHQUpgradesOfCategory(aiBrain, iSearchCategory, false)) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will upgrade from T2 to T3') end
+                            UpgradeUnit(oT2LandHQInZone, true, nil)
+                            bGivenUpgradeOrder = true
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            WaitSeconds(60)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                            break
+                        end
+                    end
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+            end
+            aiBrain[refbLandSupportFactoryUpgradeMonitor] = nil
+        end
+    end
 end

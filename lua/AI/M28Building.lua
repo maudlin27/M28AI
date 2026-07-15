@@ -359,66 +359,68 @@ function ForkedCheckForAnotherMissile(oUnit)
     local sFunctionRef = 'ForkedCheckForAnotherMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[refbMissileChecker]='..tostring(oUnit[refbMissileChecker] or false)..'; Time='..GetGameTimeSeconds()) end
-    if not(oUnit[refbMissileChecker]) then
+    if not(oUnit[refbMissileChecker]) and not(oUnit.Dead) then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1) --make sure we have an accurate number for missiles
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        local bUnpause
-        if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
-            oUnit[refbMissileChecker] = true
-            while M28UnitInfo.IsUnitValid(oUnit) do
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                WaitSeconds(10)
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                if M28UnitInfo.IsUnitValid(oUnit) then
-                    if not(M28Conditions.WantToPauseSMD(oUnit, false)) then
-                        bUnpause = true
-                        break
-                    end
-                end
-            end
-        else
-            local iMissiles = 0
-            if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
-            if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
-            if bDebugMessages == true then LOG(sFunctionRef..': iMissiles outside of loop='..iMissiles) end
-            if iMissiles >= 2 and M28UnitInfo.IsUnitValid(oUnit) then
+        if not(oUnit.Dead) then
+            local bUnpause
+            if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
                 oUnit[refbMissileChecker] = true
-                local iTeam = oUnit:GetAIBrain().M28Team
                 while M28UnitInfo.IsUnitValid(oUnit) do
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitSeconds(10)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     if M28UnitInfo.IsUnitValid(oUnit) then
-                        iMissiles = 0
-                        if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
-                        if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iMissiles='..iMissiles..'; Time='..GetGameTimeSeconds()) end
-                        if iMissiles < 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 400) then
+                        if not(M28Conditions.WantToPauseSMD(oUnit, false)) then
                             bUnpause = true
-
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will change unit state so it isnt paused and set autobuild status to true, time='..GetGameTimeSeconds()) end
                             break
                         end
-                    else
-                        break
                     end
-
                 end
             else
-                if M28UnitInfo.IsUnitValid(oUnit) then
-                    bUnpause = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will unpause unit as not enough missiles') end
+                local iMissiles = 0
+                if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
+                if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
+                if bDebugMessages == true then LOG(sFunctionRef..': iMissiles outside of loop='..iMissiles) end
+                if iMissiles >= 2 and M28UnitInfo.IsUnitValid(oUnit) then
+                    oUnit[refbMissileChecker] = true
+                    local iTeam = oUnit:GetAIBrain().M28Team
+                    while M28UnitInfo.IsUnitValid(oUnit) do
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitSeconds(10)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            iMissiles = 0
+                            if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
+                            if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iMissiles='..iMissiles..'; Time='..GetGameTimeSeconds()) end
+                            if iMissiles < 2 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.8 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 400) then
+                                bUnpause = true
+
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will change unit state so it isnt paused and set autobuild status to true, time='..GetGameTimeSeconds()) end
+                                break
+                            end
+                        else
+                            break
+                        end
+
+                    end
+                else
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        bUnpause = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will unpause unit as not enough missiles') end
+                    end
                 end
             end
+            if bUnpause and M28UnitInfo.IsUnitValid(oUnit) then
+                if bDebugMessages == true then LOG(sFunctionRef..': setting unit autobuild status to true, time='..GetGameTimeSeconds()) end
+                --oUnit:SetPaused(false)
+                M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
+                M28UnitInfo.SetUnitMissileAutoBuildStatus(oUnit, true)
+            end
+            if oUnit[refbMissileChecker] then oUnit[refbMissileChecker] = nil end
         end
-        if bUnpause and M28UnitInfo.IsUnitValid(oUnit) then
-            if bDebugMessages == true then LOG(sFunctionRef..': setting unit autobuild status to true, time='..GetGameTimeSeconds()) end
-            --oUnit:SetPaused(false)
-            M28UnitInfo.PauseOrUnpauseUnitWithoutTracking(oUnit, false)
-            M28UnitInfo.SetUnitMissileAutoBuildStatus(oUnit, true)
-        end
-        if oUnit[refbMissileChecker] then oUnit[refbMissileChecker] = nil end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -2138,43 +2140,41 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             local iPotentialInRangeDistance = iTMLRange + iTMLAOE + 4 --unlikely to have larger buildings than this
                             local tNearbyEnemyTMD
                             if bDebugMessages == true then LOG(sFunctionRef..': Will consider enemy ACU in TML targets in FAF/steam, M28Utilities.bFAFActive='..tostring(M28Utilities.bFAFActive)..'; Is table of enemy ACUs empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]))) end
-                            if M28Utilities.bFAFActive or M28Utilities.bSteamActive and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
-                                local tACUsInRange = {}
+                            local tACUsInRange = {}
+                            if (M28Utilities.bFAFActive or M28Utilities.bSteamActive) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
                                 local iCurDist
-                                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
-                                    for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
-                                        if M28UnitInfo.IsUnitValid(oACU) and ((oACU[refiTMLShotsFired] or 0) <= 2 or ((oACU[refiTMLShotsHit] or 0) > 0 and oACU[refiTMLShotsHit] / oACU[refiTMLShotsFired] >= 0.33))  then
-                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oLauncher:GetPosition())
-                                            if iCurDist <= iTMLRange then
-                                                --Track ACU positions
-                                                ForkThread(MonitorUnitRecentPositions, oACU)
-                                                --Is enemy ACU stationery?
-                                                if oACU[M28UnitInfo.reftRecentUnitPositions][2] then
-                                                    --Is ACU stationery, and hasnt moved from when we last had intel of their position?
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oACU owned by brain ='..oACU:GetAIBrain().Nickname..'; Dist to recent position2='..M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][2], oACU:GetPosition())..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Dist to last known position='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iCurDist='..iCurDist..'; Shots fired='..(oACU[refiTMLShotsFired] or 0)..'; refiTMLShotsHit='..(oACU[refiTMLShotsHit] or 0)..'; Dist to position 4='..M28Utilities.GetDistanceBetweenPositions((oACU[M28UnitInfo.reftRecentUnitPositions][4] or {0,0,0}), oACU:GetPosition())) end
-                                                    if oACU:GetHealth() <= 18000 and (not(oACU.MyShield.GetHealth) or oACU.MyShield:GetHealth() <= 3000) and M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][2], oACU:GetPosition()) <= 0.1 and not(oACU:IsUnitState('Moving')) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 2 then
-                                                        --Check ACU doesnt have very high health or shield
-                                                        if iCurDist <= 150 then iSecondsToWaitIfNoTarget = 1 elseif iCurDist <= 180 then iSecondsToWaitIfNoTarget = 2 else iSecondsToWaitIfNoTarget = 3 end
-                                                        if iCurDist <= 60 or (oACU[refiTMLShotsFired] or 0) == 0 or (oACU[M28UnitInfo.reftRecentUnitPositions][4] and M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][4], oACU:GetPosition()) <= 0.1) then
-                                                            --Is there TMD protecting the ACU from us?
-                                                            local tACULZData, tACULZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), false, iTeam)
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of TMD in ACU LZ empty='..tostring(M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]))) end
-                                                            if M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]) then
+                                for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+                                    if M28UnitInfo.IsUnitValid(oACU) and ((oACU[refiTMLShotsFired] or 0) <= 2 or ((oACU[refiTMLShotsHit] or 0) > 0 and oACU[refiTMLShotsHit] / oACU[refiTMLShotsFired] >= 0.33))  then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oLauncher:GetPosition())
+                                        if iCurDist <= iTMLRange then
+                                            --Track ACU positions
+                                            ForkThread(MonitorUnitRecentPositions, oACU)
+                                            --Is enemy ACU stationery?
+                                            if oACU[M28UnitInfo.reftRecentUnitPositions][2] then
+                                                --Is ACU stationery, and hasnt moved from when we last had intel of their position?
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering oACU owned by brain ='..oACU:GetAIBrain().Nickname..'; Dist to recent position2='..M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][2], oACU:GetPosition())..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Dist to last known position='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iCurDist='..iCurDist..'; Shots fired='..(oACU[refiTMLShotsFired] or 0)..'; refiTMLShotsHit='..(oACU[refiTMLShotsHit] or 0)..'; Dist to position 4='..M28Utilities.GetDistanceBetweenPositions((oACU[M28UnitInfo.reftRecentUnitPositions][4] or {0,0,0}), oACU:GetPosition())) end
+                                                if oACU:GetHealth() <= 18000 and (not(oACU.MyShield.GetHealth) or oACU.MyShield:GetHealth() <= 3000) and M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][2], oACU:GetPosition()) <= 0.1 and not(oACU:IsUnitState('Moving')) and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oACU[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 2 then
+                                                    --Check ACU doesnt have very high health or shield
+                                                    if iCurDist <= 150 then iSecondsToWaitIfNoTarget = 1 elseif iCurDist <= 180 then iSecondsToWaitIfNoTarget = 2 else iSecondsToWaitIfNoTarget = 3 end
+                                                    if iCurDist <= 60 or (oACU[refiTMLShotsFired] or 0) == 0 or (oACU[M28UnitInfo.reftRecentUnitPositions][4] and M28Utilities.GetDistanceBetweenPositions(oACU[M28UnitInfo.reftRecentUnitPositions][4], oACU:GetPosition()) <= 0.1) then
+                                                        --Is there TMD protecting the ACU from us?
+                                                        local tACULZData, tACULZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), false, iTeam)
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of TMD in ACU LZ empty='..tostring(M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]))) end
+                                                        if M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]) then
 
-                                                                local tNearbyTMD = oACU:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oACU:GetPosition(), iTMLMissileRange + 30, 'Ally')
-                                                                local bProtectedByTMD = false
-                                                                if M28Utilities.IsTableEmpty(tNearbyTMD) == false then
-                                                                    for iTMD, oTMD in tNearbyTMD do
-                                                                        if IsTMDProtectingUnitFromTML(oTMD, oACU, oLauncher) then
-                                                                            bProtectedByTMD = true
-                                                                            break
-                                                                        end
+                                                            local tNearbyTMD = oACU:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oACU:GetPosition(), iTMLMissileRange + 30, 'Ally')
+                                                            local bProtectedByTMD = false
+                                                            if M28Utilities.IsTableEmpty(tNearbyTMD) == false then
+                                                                for iTMD, oTMD in tNearbyTMD do
+                                                                    if IsTMDProtectingUnitFromTML(oTMD, oACU, oLauncher) then
+                                                                        bProtectedByTMD = true
+                                                                        break
                                                                     end
                                                                 end
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby TMD empty='..tostring(M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]))..'; bProtectedByTMD='..tostring(bProtectedByTMD)) end
-                                                                if not(bProtectedByTMD) then
-                                                                    table.insert(tACUsInRange, oACU)
-                                                                end
+                                                            end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby TMD empty='..tostring(M28Utilities.IsTableEmpty(tACULZTeamData[M28Map.subreftoEnemyTMD]))..'; bProtectedByTMD='..tostring(bProtectedByTMD)) end
+                                                            if not(bProtectedByTMD) then
+                                                                table.insert(tACUsInRange, oACU)
                                                             end
                                                         end
                                                     end
@@ -2183,19 +2183,18 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                         end
                                     end
                                 end
-                                if M28Utilities.IsTableEmpty(tACUsInRange) == false then
-                                    tPotentialTargets = tACUsInRange
-                                    if M28Utilities.IsTableEmpty(oLauncher[reftUnprotectedUnitTargetsForThisTML]) == false then
-                                        for iTarget, oTarget in oLauncher[reftUnprotectedUnitTargetsForThisTML] do
-                                            table.insert(oTarget, tPotentialTargets)
-                                        end
+                            end
+                            if M28Utilities.IsTableEmpty(tACUsInRange) == false then
+                                tPotentialTargets = tACUsInRange
+                                if M28Utilities.IsTableEmpty(oLauncher[reftUnprotectedUnitTargetsForThisTML]) == false then
+                                    for iTarget, oTarget in oLauncher[reftUnprotectedUnitTargetsForThisTML] do
+                                        table.insert(oTarget, tPotentialTargets)
                                     end
-                                else
-                                    tPotentialTargets = oLauncher[reftUnprotectedUnitTargetsForThisTML]
                                 end
                             else
                                 tPotentialTargets = oLauncher[reftUnprotectedUnitTargetsForThisTML]
                             end
+
                             --First refresh list of untis in range for any that are dead
                             if bDebugMessages == true then LOG(sFunctionRef..': Is table of potential targets empty='..tostring(M28Utilities.IsTableEmpty(tPotentialTargets))) end
                             if M28Utilities.IsTableEmpty(tPotentialTargets) == false then

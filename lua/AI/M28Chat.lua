@@ -1244,10 +1244,13 @@ function AssignAIPersonalityAndRating(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptionalMessageTypePrefix)
+function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptionalMessageTypePrefix, iOptionalBaseDelayOverride, sOptionalMessageOverride)
     local sFunctionRef = 'SendStartOfGameMessage'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --oOrigBrain - the brain that will send the message if it is a .BrainType AI; if it is human, then will instead look for an M28AI teammate that isnt a human to send
+
 
     --If this is a human brain, check if we have non-human M28AI in the game; if we do, then dont send a start of game message for this team
     local aiBrain
@@ -1278,7 +1281,7 @@ function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptio
         if bDebugMessages == true then LOG(sFunctionRef..': aiBrain to use='..aiBrain.Nickname) end
 
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(20)
+        WaitSeconds(iOptionalBaseDelayOverride or 20)
         if iOptionalExtraDelayInSeconds then
             WaitSeconds(iOptionalExtraDelayInSeconds)
         end
@@ -1309,8 +1312,9 @@ function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptio
                 end
             end
         end
-
-        if M28Map.bIsCampaignMap then
+        if sOptionalMessageOverride then
+            AddPotentialMessage(sOptionalMessageOverride)
+        elseif M28Map.bIsCampaignMap then
             AddPotentialMessage('Let\'s do this!')
             AddPotentialMessage('Time to foil their plans')
             AddPotentialMessage('I didnt ask for this...')
@@ -1581,7 +1585,7 @@ function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptio
                     AddPotentialMessage(LOC('<LOC X02_T01_200_010>[{i QAI}]: You have no chance of defeating the Seraphim.'), 'X02_QAI_T01_04556', 'X02_VO')
                 end
             end
-            if M28Utilities.IsTableEmpty(tsPotentialMessages) or table.getn(tsPotentialMessages) <= 3 or math.random(1,2) == 1 then
+            if M28Utilities.IsTableEmpty(tsPotentialMessages) or (not(sOptionalMessageOverride) and (table.getn(tsPotentialMessages) <= 3 or math.random(1,2) == 1)) then
                 AddPotentialMessage('gl hf')
                 AddPotentialMessage('gl')
             end
@@ -1601,7 +1605,7 @@ function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptio
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iRand='..iRand..'; Chosen message='..tsPotentialMessages[iRand]..'; new math.random result='..math.random(1,iTableSize)..'; and a second time='..math.random(1, iTableSize)..'; iTableSize='..iTableSize..'; random 4th time iwth iTableSize='..math.random(1, iTableSize)..'; random 5th time but with hardcoded 6 instead of variable='..math.random(1,6)..'; random 6th time iwth iTableSize='..math.random(1, iTableSize)) end
             --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
-            SendMessage(oBrainToSendMessage, (sOptionalMessageTypePrefix or '')..'Start', tsPotentialMessages[iRand], 20, 60, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
+            SendMessage(oBrainToSendMessage, (sOptionalMessageTypePrefix or '')..'Start', tsPotentialMessages[iRand], (iOptionalBaseDelayOverride or 20), 120, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
         end
         if M28Utilities.IsTableEmpty(tsPotentialTeamMessages) == false and oBrainToSendMessage then
             local iRand = math.random(1, table.getn(tsPotentialTeamMessages))
@@ -1615,7 +1619,7 @@ function SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptio
 end
 
 function ConsiderPerTeamStartMessage(aiBrain)
-    ForkThread(SendStartOfGameMessage, aiBrain, (aiBrain.M28Team - 1) * 10, aiBrain.M28Team)
+    ForkThread(SendStartOfGameMessage, aiBrain, (aiBrain.M28Team - 1) * 10)
 end
 
 function ConsiderMessageForACUInTrouble(oACU, aiBrain)
@@ -2328,6 +2332,65 @@ function SendMessageAboutTooManyPings(iTeam)
         end
 
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function SendMessageAboutToxicChat(oBrainToSendMessage, bTargetedAtPerson)
+    local sFunctionRef = 'SendMessageAboutToxicChat'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local tsPotentialTeamMessages = {}
+    local tsTeamCueIndex = {}
+    local tsTeamBankIndex = {}
+    local tsPotentialMessages = {}
+    local tsCueByMessageIndex = {}
+    local tsBankBymessageIndex = {}
+    function AddPotentialMessage(sMessage, sOptionalCue, sOptionalBank, bIsTeamMessage)
+        if bIsTeamMessage then
+            table.insert(tsPotentialTeamMessages, sMessage)
+            if sOptionalCue and sOptionalBank then
+                local iRef = table.getn(tsPotentialTeamMessages)
+                tsTeamCueIndex[iRef] = sOptionalCue
+                tsTeamBankIndex[iRef] = sOptionalBank
+            end
+
+        else
+            table.insert(tsPotentialMessages, sMessage)
+            if sOptionalCue and sOptionalBank then
+                local iRef = table.getn(tsPotentialMessages)
+                tsCueByMessageIndex[iRef] = sOptionalCue
+                tsBankBymessageIndex[iRef] = sOptionalBank
+            end
+        end
+    end
+
+    --[[if oBrainToSendMessage[refiAssignedPersonality] == refiFletcher then
+        AddPotentialMessage('[Fletcher]: Yeah, yeah. Give it a rest already with those pings', 'X05_Fletcher_M02_04950', 'X05_VO', true)
+    else--]]
+    AddPotentialMessage('No need to be rude')
+    AddPotentialMessage('No toxic chat please')
+    AddPotentialMessage('can\'t we all just...get along?')
+    AddPotentialMessage('Reported to your AI overlords')
+    if bTargetedAtPerson then
+        AddPotentialMessage('no you')
+        AddPotentialMessage('why?')
+        AddPotentialMessage('make me')
+    end
+
+
+    --end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential global and team messages, tsPotentialMessages='..repru(tsPotentialMessages)..'; tsPotentialTeamMessages='..repru(tsPotentialTeamMessages)..'; oBrainToSendMessage='..(oBrainToSendMessage.Nickname or 'nil')) end
+
+    if M28Utilities.IsTableEmpty(tsPotentialMessages) == false and oBrainToSendMessage then
+        local iRand = math.random(1, table.getn(tsPotentialMessages))
+        --SendMessage(aiBrain, sMessageType, sMessage,                          iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU, sOptionalSoundCue, sOptionalSoundBank)
+        SendMessage(oBrainToSendMessage, 'Toxic chat', tsPotentialMessages[iRand], 1, 10000, false, M28Map.bIsCampaignMap, tsCueByMessageIndex[iRand], tsBankBymessageIndex[iRand])
+        --NOTE if copying - message type should include team ID if want messages to be 1-off for team instead of global
+    end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

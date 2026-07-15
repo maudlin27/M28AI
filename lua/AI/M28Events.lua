@@ -356,7 +356,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber - M28UnitInfo.refCategoryTorpBomber - categories.EXPERIMENTAL, oKillerUnit.UnitId) then
                                 local iTeam = oKillerBrain.M28Team
                                 if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oKillerUnit.UnitId) then
-                                    M28Team.tTeamData[iTeam][M28Team.refiBomberKills] = M28Team.tTeamData[iTeam][M28Team.refiBomberKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
+                                    M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] = M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                                 else
                                     M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] = M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                                 end
@@ -1812,7 +1812,7 @@ function ProjectileCreated(oProjectile, inWater)
             --LOG('TEMPCODE oTarget='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil'))
             if M28UnitInfo.IsUnitValid(oTarget) then
                 bTrackingProjectile = true
-                if oTarget:GetAIBrain().M28AI and not(oTarget:GetAIBrain().M28Easy) then
+                if oTarget:GetAIBrain().M28AI and not(oTarget[M28UnitInfo.refbEasyBrain]) then
                     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
                     local sFunctionRef = 'ProjectileCreated'
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1830,7 +1830,7 @@ function ProjectileCreated(oProjectile, inWater)
             --Gunship related
             if oProjectile.OriginalTarget then
                 local oTarget = oProjectile.OriginalTarget
-                if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetAIBrain().M28AI and not(oTarget:GetAIBrain().M28Easy) then
+                if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetAIBrain().M28AI and not(oTarget[M28UnitInfo.refbEasyBrain]) then
                     --Gunships - consider retreating early
                     if EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.CANNOTUSEAIRSTAGING, oTarget.UnitId) and not(oTarget.MyShield) and not(oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel]) then
                         ProjectileFiredAtGunship(oTarget, oProjectile)
@@ -2819,7 +2819,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                                         end
                                     end
                                 end
-                                --refbPrimaryFactoryForIslandOrPond
+
+                                --If have completed 4th T2 support land fac in a zone then get T3 land fac once we have sufficient gross mass
+                                if tLZTeamData[M28Map.subrefLZbCoreBase] and M28UnitInfo.GetUnitLifetimeCount(oJustBuilt) >= 4 and EntityCategoryContains(categories.SUPPORTFACTORY, oJustBuilt.UnitId) then
+                                    ForkThread(M28Economy.UpgradeToT3LandOnceHaveLotsOfSupportFactories, oJustBuilt:GetAIBrain(), tLZTeamData)
+                                end
                             end
 
                             M28Economy.ConsiderImmediateUpgradeOfFactory(oJustBuilt)
@@ -5197,4 +5201,78 @@ function MissileReflected(oTarget, oAttacker)
     if M28UnitInfo.IsUnitValid(oTarget) and oTarget:GetAIBrain().M28AI and (M28Orders.bDontConsiderCombinedArmy or oTarget.M28Active) then
         ForkThread(M28Micro.DodgeShot,oTarget, nil, oAttacker, 3)
     end
+end
+
+function OnPlayerChatMessageSent(data)
+    local sFunctionRef = 'OnPlayerChatMessageSent'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': data='..reprs(data)) end
+    if data.Sender and data.Msg and data.Msg.Chat and data.Msg.text then
+        local tsToxicSearchStrings = {'stfu', 'fuck you', 'kys', 'retard'}
+        local tbDirectedAtPerson = {true, true, true, false}
+        local bToxicMessageSent = false
+        local bMessageTargetingPerson = false
+        for iMessage, sToxicMessage in tsToxicSearchStrings do
+            if string.find(string.lower(data.Msg.text), sToxicMessage, 1, true) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Toxic message detected when searching sToxicMessage='..sToxicMessage) end
+                bToxicMessageSent = true
+                bMessageTargetingPerson = tbDirectedAtPerson[iMessage]
+                break
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bToxicMessageSent='..tostring(bToxicMessageSent)) end
+        if bToxicMessageSent then
+            --Find M28 player to tell the sender off
+            for iBrain, oBrain in ArmyBrains do
+                if oBrain.M28AI and oBrain.BrainType == 'AI' and not(oBrain.M28IsDefeated) then
+                    M28Chat.SendMessageAboutToxicChat(oBrain, bMessageTargetingPerson)
+                    break
+                end
+            end
+            --Did enemy team send a polite start of game message?
+        elseif GetGameTimeSeconds() <= 180 and data.Sender and data.Msg.to == 'all' then
+            --Consider responding to early game messages
+            local tsNiceGreetings = {'gl hf', 'glhf', 'good luck', 'have fun'}
+            for iMessage, sMessage in tsNiceGreetings do
+                if string.find(string.lower(data.Msg.text), sMessage, 1, true) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Friendly message detected when searching sMessage='..sMessage) end
+                    --Find an M28 brain on the opposite team to the sender
+                    local iOriginatorTeam, oOriginatorBrain
+                    for iBrain, oBrain in ArmyBrains do
+                        if oBrain.Nickname == data.Sender then
+                            iOriginatorTeam = oBrain.M28Team
+                            oOriginatorBrain = oBrain
+                            break
+                        end
+                    end
+                    local oBrainToSendMessage
+                    for iTeam = 1, M28Team.iTotalTeamCount do
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 then
+                            if IsEnemy(oOriginatorBrain:GetArmyIndex(), M28Team.GetFirstActiveM28Brain(iTeam):GetArmyIndex()) then
+                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                    if oBrain.M28AI and oBrain.BrainType == 'AI' then
+                                        oBrainToSendMessage = oBrain
+                                        break
+                                    end
+                                end
+                                if oBrainToSendMessage then break end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': oBrainToSendMessage='..(oBrainToSendMessage.Nickname or 'nil')) end
+                    if oBrainToSendMessage then
+                        local tsPotentialmessages = {'thanks, you too', 'thx, u2', 'u2'}
+                        local iRand = math.random(1, table.getn(tsPotentialmessages))
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will send start of game message, iRand='..iRand..'; tsPotentialmessages[iRand]='..(tsPotentialmessages[iRand] or 'nil')) end
+                        --SendStartOfGameMessage(oOrigBrain, iOptionalExtraDelayInSeconds, sOptionalMessageTypePrefix, iOptionalBaseDelayOverride, sOptionalMessageOverride)
+                        M28Chat.SendStartOfGameMessage(oBrainToSendMessage, 0.1,                            nil,                     1, tsPotentialmessages[iRand])
+                    end
+                    break
+                end
+            end
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

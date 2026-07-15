@@ -218,7 +218,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiGunshipLosses = 'M28TGShLoss' --mass value of non-experimental gunships our M28 team has lost
     refiBomberLosses = 'M28TBmbLoss' --mass value of non-experimental bombers oure M28 team has lost
     refiGunshipKills = 'M28TGShKill' --mass value of units our M28 team's non-experimental gunships have killed
-    refiBomberKills = 'M28BmbKill' --mass value of units our M28 team's non-experimental bombers have killed
+    refiT1ToT3BomberKills = 'M28BmbKill' --mass value of units our M28 team's non-experimental bombers have killed
     refiAirAALossesToAir = 'M28AirALs' --mass value of airaa units that have died to enemy air units
     refiAirAAKills = 'M28AirKl' --mas value of enemy air units (i.e. all air units) that have died to friendly airaa units
 
@@ -713,7 +713,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiGunshipLosses] = 0
     tTeamData[iTotalTeamCount][refiBomberLosses] = 0
     tTeamData[iTotalTeamCount][refiGunshipKills] = 0
-    tTeamData[iTotalTeamCount][refiBomberKills] = 0
+    tTeamData[iTotalTeamCount][refiT1ToT3BomberKills] = 0
     tTeamData[iTotalTeamCount][refiAirAALossesToAir] = 0
     tTeamData[iTotalTeamCount][refiAirAAKills] = 0
 
@@ -2933,8 +2933,8 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                     if not(tbBrainsWithActiveUpgradeByIndex[oBrain:GetArmyIndex()]) and (not(oBrain[M28Overseer.refbPrioritiseLowTech]) or tTeamData[iM28Team][refiConstructedExperimentalCount] > 0 or (oBrain[M28Economy.refiOurHighestLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] and (oBrain[M28Economy.refiOurHighestLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] - 1 or ((tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or oBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and not(oBrain[M28Overseer.refbPrioritiseNavy])))) or M28Utilities.IsTableEmpty(tTeamData[iM28Team][reftEnemyLandExperimentals])) and not(oBrain[M28Overseer.refbPrioritiseAir]) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Checking pathability') end
                         if (oBrain[M28Map.refbCanPathToEnemyBaseWithLand] and oBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 and (oBrain[M28Economy.refiOurHighestLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (bNearbyUpgradedEnemyACU and oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1) or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6.5 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) * 0.5) and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 50 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1)*0.5)) or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]))) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 15 * tTeamData[iM28Team][subrefiActiveM28BrainCount]))
-                        or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][reftEnemyTML]) == false and tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 and oBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] and oBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0)
-                         then
+                                or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][reftEnemyTML]) == false and tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 and oBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious] and oBrain[M28Economy.refiOurHighestNavalFactoryTech] == 0)
+                        then
                             --Do we have any active land factory upgrades?
                             bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ))
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to hold off so we can get air instead, oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]..'; oBrain[M28Economy.refiOurHighestAirFactoryTech]='..oBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Map size='..M28Map.iMapSize) end

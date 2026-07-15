@@ -6010,23 +6010,25 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local bUpdateNearestEnemy = false
                 if not(oNearestEnemyToFriendlyBase) then bUpdateNearestEnemy = true end
                 for iLREnemy, oLREnemy in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeDFThreats] do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if should add oLREnemy to skirmisher enemies, oLREnemy='..oLREnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLREnemy)..'; Cur assigned P='..oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]..'Z'..oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]) end
-                    if not(tbCurOrAdjacentZones[oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]]) or not(oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau) then
-                        table.insert(tSkirmisherDFEnemies, oLREnemy)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will add oLREnemy to tSkirmisherDFEnemies') end
-                    end
-                    --If enemy is close to nearestenemytofriendlybase then also update enemy range
-                    if oLREnemy[M28UnitInfo.refiDFRange] > iEnemyBestDFRange then
-                        if bUpdateNearestEnemy or (oNearestEnemyToFriendlyBase and (M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) - oLREnemy[M28UnitInfo.refiDFRange] <= -10 or M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 50)) then
-                            iEnemyBestDFRange = oLREnemy[M28UnitInfo.refiDFRange]
-                            if bUpdateNearestEnemy and oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
-                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
-                                if iCurDist < iClosestDist then
-                                    iClosestDist = iCurDist
-                                    oNearestEnemyToFriendlyBase = oLREnemy
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if should add oLREnemy to skirmisher enemies, oLREnemy='..oLREnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLREnemy)..'; Cur assigned P='..(oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] or 'nil')..'Z'..(oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')) end
+                    if not(oLREnemy.Dead) then --redundancy
+                        if oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] and(not(tbCurOrAdjacentZones[oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]]) or not(oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau)) then
+                            table.insert(tSkirmisherDFEnemies, oLREnemy)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will add oLREnemy to tSkirmisherDFEnemies') end
+                        end
+                        --If enemy is close to nearestenemytofriendlybase then also update enemy range
+                        if oLREnemy[M28UnitInfo.refiDFRange] > iEnemyBestDFRange then
+                            if bUpdateNearestEnemy or (oNearestEnemyToFriendlyBase and (M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), oNearestEnemyToFriendlyBase:GetPosition()) - oLREnemy[M28UnitInfo.refiDFRange] <= -10 or M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 50)) then
+                                iEnemyBestDFRange = oLREnemy[M28UnitInfo.refiDFRange]
+                                if bUpdateNearestEnemy and oLREnemy[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1] == iPlateau then
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oLREnemy:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+                                    if iCurDist < iClosestDist then
+                                        iClosestDist = iCurDist
+                                        oNearestEnemyToFriendlyBase = oLREnemy
+                                    end
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Increasing iEnemyBestDFRange to reflect LR enemy DF unit') end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Increasing iEnemyBestDFRange to reflect LR enemy DF unit') end
                         end
                     end
                 end
@@ -7566,8 +7568,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                                         --CloseToEnemyUnit(tStartPosition,      tUnitsToCheck,      iDistThreshold,              iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
                                                         if      bFiringAtNegligibleThreatInLRExperimentalRange or
                                                                 (bEnemyHasNoDFUnits and (iAvailableCombatUnitThreat >= 1500 or M28Utilities.IsTableEmpty(tEnemyEngineers))) or
-                                                                not(oUnit[M28UnitInfo.refbCanKite]) or
-                                                                ((EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) or oUnit[M28UnitInfo.refbScoutCombatOverride]) and not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tSkirmisherDFEnemies, oUnit[M28UnitInfo.refiDFRange], iTeam, false,                  nil,                    oUnit,                              oUnit                                   ,   math.min(oUnit[M28UnitInfo.refiDFRange], math.max(oUnit[M28UnitInfo.refiDFRange] - 3,  iEnemyBestDFRange + oUnit:GetBlueprint().Physics.MaxSpeed + 2)))) and (not(tHiddenIFEnemies) or not(M28Conditions.CloseToIFUnit(oUnit, tHiddenIFEnemies, iTeam, 6)))) or
+                                                                not(oUnit[M28UnitInfo.refbCanKite]) or --line3Cond
+                                                                ((EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId) or oUnit[M28UnitInfo.refbScoutCombatOverride]) and not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tSkirmisherDFEnemies, oUnit[M28UnitInfo.refiDFRange], iTeam, false,                  nil,                    oUnit,                              oUnit                                   ,   math.min(oUnit[M28UnitInfo.refiDFRange], math.max(oUnit[M28UnitInfo.refiDFRange] - 3,  iEnemyBestDFRange + oUnit:GetBlueprint().Physics.MaxSpeed + 2)))) and (not(tHiddenIFEnemies) or not(M28Conditions.CloseToIFUnit(oUnit, tHiddenIFEnemies, iTeam, 6)))) or --Line4Cond
                                                                 --CloseToEnemyUnit(tStartPosition,      tUnitsToCheck,                            iDistThreshold,                     iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
                                                                 ((not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryAbsolver, oUnit.UnitId)) and not(oUnit[M28UnitInfo.refbScoutCombatOverride]) and (iAvailableCombatUnitThreat >= 1500 or M28Utilities.IsTableEmpty(tEnemyEngineers) or not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tEnemyEngineers, math.min(15, oUnit[M28UnitInfo.refiDFRange] - 4.5), iTeam, false, nil, nil))) and
                                                                         --Closet to enemy check for the immediate row above - if this unit is outranged by best enemy unit, but is trying to attack the closest enemy unit (that it outranges) then adjust the close to enemy unit check to include enemy range
@@ -10355,15 +10357,23 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     local iDistThresholdFurtherAdjust
                     local tPriorityEnemyScoutTargets = {}
                     local bOnlyConsiderFailedShieldsInRange
-
+                    if M28Utilities.IsTableEmpty(tEnemyEngineers) then tEnemyEngineers = nil end
                     for iUnit, oUnit in tMMLForSynchronisation do
                         iDistThresholdFurtherAdjust = 0
                         if oUnit[M28UnitInfo.refiIndirectRange] - iEnemyBestDFRange >= 40 and oUnit[M28UnitInfo.refiIndirectRange] >= 55 then iDistThresholdFurtherAdjust = math.max(8, 20 - iIndirectRunFigureSynchronisation)
                         elseif iEnemyBestDFRange > 30 and oUnit[M28UnitInfo.refiIndirectRange] >= 55 then iDistThresholdFurtherAdjust = math.min(4, 20 - iIndirectRunFigureSynchronisation)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Is MML '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' close to enemy DF units='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iIndirectRunFigureSynchronisation + iDistThresholdFurtherAdjust, iTeam, true, math.min(30, oUnit[M28UnitInfo.refiIndirectRange] - iIndirectRunFigureSynchronisation * 2, math.max(25, iEnemyBestDFRange + 5)), nil,                        oUnit))..'; iDistThresholdFurtherAdjust='..iDistThresholdFurtherAdjust..'; CloseToEnemy based on tSkirmisherDFENemies='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tSkirmisherDFEnemies, iIndirectRunFigureSynchronisation + iDistThresholdFurtherAdjust, iTeam, true, math.min(30, oUnit[M28UnitInfo.refiIndirectRange] - iIndirectRunFigureSynchronisation * 2, math.max(25, iEnemyBestDFRange + 5)), nil,                        oUnit))) end
-                        --CloseToEnemyUnit(tStartPosition,      tUnitsToCheck,                                                   iDistThreshold,                                                iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange,                                                                                        oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
-                        if not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tSkirmisherDFEnemies, iIndirectRunFigureSynchronisation + iDistThresholdFurtherAdjust, iTeam, true, math.min(30, oUnit[M28UnitInfo.refiIndirectRange] - iIndirectRunFigureSynchronisation * 2, math.max(25, iEnemyBestDFRange + 5)), nil,                        oUnit)) then
+                        --Are we about to be in reclaim range of enemy engineer? then retreat; T3 engis have a ubild range of 7, so will use 8 (since want to retreat before are actually in r ange anyway, so just means retreating with 3 threshold for t1)
+                        if tEnemyEngineers and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tEnemyEngineers,                  8,                                                         iTeam, false,                       nil,                                                                                                        nil,                            oUnit) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy engineer about to get into reclaim range, want to temporairly run to rally point') end
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+                                M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'MMLEngRetr'..iLandZone)
+                            else
+                                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'MMLEngetr'..iLandZone)
+                            end
+                            --CloseToEnemyUnit(tStartPosition,      tUnitsToCheck,                                                   iDistThreshold,                                                iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange,                                                                                        oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
+                        elseif not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tSkirmisherDFEnemies, iIndirectRunFigureSynchronisation + iDistThresholdFurtherAdjust, iTeam, true, math.min(30, oUnit[M28UnitInfo.refiIndirectRange] - iIndirectRunFigureSynchronisation * 2, math.max(25, iEnemyBestDFRange + 5)), nil,                        oUnit)) then
                             if M28Utilities.IsTableEmpty(tPriorityMMLTargets) then --redundancy - hopefully only scenario we get here is if there is 1 part-complete TMD/shield that is <30% complete
                                 M28Orders.IssueTrackedAggressiveMove(oUnit, (oNearestEnemyToFriendlyBase[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] or oNearestEnemyToFriendlyBase:GetPosition()), math.max(15, (iIndirectDistanceInsideRangeThreshold or 15)), false, 'I2KAMve'..iLandZone)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Redundancy will just attackmove as no priority MML targets') end
@@ -14085,7 +14095,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                     local tPotentiallyNearbyDFEnemies = {}
                     if M28Utilities.IsTableEmpty(tLCurZTeamData[M28Map.reftoNearestDFEnemies]) == false then
                         for iEnemy, oEnemy in tLCurZTeamData[M28Map.reftoNearestDFEnemies] do
-                            if not(oEnemy.Dead) and oEnemy:GetFractionComplete() >= 0.9 then
+                            if not(oEnemy.Dead) and oEnemy:GetFractionComplete() >= 0.9 and (oEnemy[M28UnitInfo.refiDFRange] or 0) > 0 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Extra check for DF enemies in this zone, oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; Dist to our scout='..M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oScout:GetPosition())..'; DF range='..oEnemy[M28UnitInfo.refiDFRange]) end
                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oEnemy:GetPosition(), oScout:GetPosition())
                                 if iCurDist <= 60 and (iCurDist <= iRadarRange or M28UnitInfo.CanSeeUnit(aiBrain, oEnemy, false) and iCurDist - (oEnemy[M28UnitInfo.refiDFRange] or 0) <= 8) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oEnemy.UnitId)) then
@@ -14113,7 +14123,7 @@ function HaveScoutLurkAtZone(oScout, iPlateau, iZone, iTeam)
                                         if M28Utilities.IsTableEmpty(tPotentiallyNearbyDFEnemies) == false then
                                             for iDFEnemy, oDFEnemy in tPotentiallyNearbyDFEnemies do
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Dist between potential target enemy to attack and oDFEnemy '..oDFEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oDFEnemy)..'='..M28Utilities.GetDistanceBetweenPositions(oDFEnemy:GetPosition(), oEnemy:GetPosition())..'; Enemy DF range='..oDFEnemy[M28UnitInfo.refiDFRange]) end
-                                                if M28Utilities.GetDistanceBetweenPositions(oDFEnemy:GetPosition(), oEnemy:GetPosition()) - oDFEnemy[M28UnitInfo.refiDFRange] <= 6 then
+                                                if M28Utilities.GetDistanceBetweenPositions(oDFEnemy:GetPosition(), oEnemy:GetPosition()) - (oDFEnemy[M28UnitInfo.refiDFRange] or 0) <= 6 then
                                                     bTargetNearDFEnemies = true
                                                     break
                                                 end
@@ -14821,10 +14831,10 @@ function ManageRaidersInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZon
             if bDebugMessages == true then LOG(sFunctionRef..': Raider is close to one of the enemies toconsider running from, oRaider='..oRaider.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRaider)..'; refoClosestEnemyFromLastCloseToEnemyUnitCheck]='..oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId..M28UnitInfo.GetUnitLifetimeCount(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck])..'; Dist to this unit='..M28Utilities.GetDistanceBetweenPositions(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())..'; Dist to last known position of the enemy unit='..M28Utilities.GetDistanceBetweenPositions(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Enemy Units range='..oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange]..'; Raiders range='..(oRaider[M28UnitInfo.refiCombatRange] or 0)..'; CanSeeUnit='..tostring(M28UnitInfo.CanSeeUnit(oRaider:GetAIBrain(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false))..'; Row2Cond='..tostring(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] + 1 >= oRaider[M28UnitInfo.refiCombatRange])..'; Row3Cond='..tostring((not(M28UnitInfo.CanSeeUnit(oRaider:GetAIBrain(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false)) and not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104') and oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] >= (oRaider:GetBlueprint().Intel.VisionRadius or 18)))..'; Row4Cond='..tostring(M28Utilities.GetDistanceBetweenPositions(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) < oRaider[M28UnitInfo.refiCombatRange] - 2)..'; Row5Cond='..tostring((M28UnitInfo.GetUnitSpeed(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) > 0.1 and not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104')))) end
             if ((oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] or 0) > 0 and
                     (oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] >= oRaider[M28UnitInfo.refiCombatRange]
-                    or (not(M28UnitInfo.CanSeeUnit(oRaider:GetAIBrain(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false)) and not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104') and oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] >= (oRaider:GetBlueprint().Intel.VisionRadius or 18))
-                    or (M28Utilities.GetDistanceBetweenPositions(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) < oRaider[M28UnitInfo.refiCombatRange] - 2 and (not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104') or M28UnitInfo.GetUnitSpeed(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) > 0.1))
-                    or (M28UnitInfo.GetUnitSpeed(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) > 0.1 and not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104'))))
-            or EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) then
+                            or (not(M28UnitInfo.CanSeeUnit(oRaider:GetAIBrain(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false)) and not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104') and oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiCombatRange] >= (oRaider:GetBlueprint().Intel.VisionRadius or 18))
+                            or (M28Utilities.GetDistanceBetweenPositions(oRaider:GetPosition(), oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) < oRaider[M28UnitInfo.refiCombatRange] - 2 and (not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104') or M28UnitInfo.GetUnitSpeed(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) > 0.1))
+                            or (M28UnitInfo.GetUnitSpeed(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) > 0.1 and not(oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId == 'url0104'))))
+                    or EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId) then
                 RunFromEnemy(oRaider, oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], iTeam, iPlateau, 10)
                 --If enemy outranges us then dont want to raid any more
                 if (oRaider[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck][M28UnitInfo.refiDFRange] or 0) >= oRaider[M28UnitInfo.refiCombatRange] then

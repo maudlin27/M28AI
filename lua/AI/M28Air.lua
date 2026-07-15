@@ -6204,7 +6204,7 @@ function ManageBombers(iTeam, iAirSubteam)
         elseif M28Map.bIsCampaignMap and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iSearchSize = iSearchSize * 1.5
         end
         if M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 then
-            iSearchSize = iSearchSize * math.min(2, math.max(0.5, M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]))
+            iSearchSize = iSearchSize * math.min(2, math.max(0.5, M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]))
         end
 
         --Consider snipe targets
@@ -6314,20 +6314,20 @@ function ManageBombers(iTeam, iAirSubteam)
                     iMaxEnemyGroundAAThreat = M28Team.tTeamData[iTeam][M28Team.subrefiOurT1ToT3BomberThreat] * 0.15
                     if bDebugMessages == true then LOG(sFunctionRef..': Base GroundAA threat - iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': About to adjust bomber GroundAA threat for kills and losses, bomber losses='..(M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0)..'; Bomber kills='..(M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0)) end
-                if (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) == 0 and (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) >= 1000 then
+                if bDebugMessages == true then LOG(sFunctionRef..': About to adjust bomber GroundAA threat for kills and losses, bomber losses='..(M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0)..'; Bomber kills='..(M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] or 0)) end
+                if (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) == 0 and (M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] or 0) >= 1000 then
                     iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * 1.2
                     if bDebugMessages == true then LOG(sFunctionRef..': No losses and lots of kills, will increase threshold, iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
                 elseif (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) == 0 then
                     --No change
                     if bDebugMessages == true then LOG(sFunctionRef..': No losses so no change, iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
 
-                elseif (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) > (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) then
-                    iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * math.min(1.2, (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) - 1)*0.35 + 1)
+                elseif (M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] or 0) > (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) then
+                    iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * math.min(1.2, (M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] / (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) - 1)*0.35 + 1)
                     if bDebugMessages == true then LOG(sFunctionRef..': Killed more than we have lossed to increasing threshold, iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
                 else
-                    iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * math.max(0.25, (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) /  (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0))
-                    if bDebugMessages == true then LOG(sFunctionRef..': Not killed more than we have lost so reducing AA threshold based on % of kills to losses='.. (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) /  (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0)..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
+                    iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * math.max(0.25, (M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] or 0) /  (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Not killed more than we have lost so reducing AA threshold based on % of kills to losses='.. (M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] or 0) /  (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0)..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
                 end
                 --If have strat bombers then have a higher minimum ground AA threshold
                 if bHaveT3Bombers then
@@ -12989,7 +12989,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
                             local iAngleToRally = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tMovePoint)
                             local iFacingAngle = M28UnitInfo.GetUnitFacingAngle(oBomber)
-                            if M28Utilities.GetAngleDifference(iAngleToRally, iFacingAngle) > 45 then
+                            if M28Utilities.GetAngleDifference(iAngleToRally, iFacingAngle) > 45 and not(oBomber[M28UnitInfo.refbEasyBrain]) then
                                 ForkThread(M28Micro.TurnAirUnitAndMoveToTarget,oBomber, tMovePoint, 15, nil)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Doing micro turn to rally') end
                             else
@@ -13755,7 +13755,7 @@ function EnemyT1BomberTracker(oBomber, iTeam)
             if M28Utilities.IsTableEmpty(tEngisInArea) == false then
                 for iEngi, oEngi in tEngisInArea do
                     if bDebugMessages == true then LOG(sFunctionRef..': Engi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' owned by '..oEngi:GetAIBrain().Nickname..' on team '..oEngi:GetAIBrain().M28Team..' - is special micro active='..tostring(oEngi[M28UnitInfo.refbSpecialMicroActive] or false)..'; Backup dist='..(oEngi:GetBlueprint().Physics.BackUpDistance or 'nil')) end
-                    if oEngi:GetAIBrain().M28AI and oEngi:GetAIBrain().M28Team == iTeam and not(oEngi:GetAIBrain().M28Easy) then
+                    if oEngi:GetAIBrain().M28AI and oEngi:GetAIBrain().M28Team == iTeam and not(oEngi[M28UnitInfo.refbEasyBrain]) then
                         --Have an M28AI engineer on our team that is near to the enemy t1 bomber; if special micro isn't active then have the engi move towards the bomber and flag a 'special micro flag that can be ignored if want to dodge shot'
                         if not(oEngi[M28UnitInfo.refbSpecialMicroActive]) or oEngi[M28UnitInfo.refbLowerPriorityMicroActive] then
                             local iCurBackupDist = oEngi:GetBlueprint().Physics.BackUpDistance
@@ -14327,7 +14327,7 @@ function ApplyMexHuntingLogicToBomber(oBomber)
                                 local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
                                 iDistToRally = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oBomber:GetPosition())
                                 iAngleDif = M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tRallyPoint), M28UnitInfo.GetUnitFacingAngle(oBomber))
-                                if iDistToRally >= 75 and iAngleDif >= 15 and (iDistToRally >= 150 or iAngleDif >= 30) then
+                                if not(oBomber[M28UnitInfo.refbEasyBrain]) and iDistToRally >= 75 and iAngleDif >= 15 and (iDistToRally >= 150 or iAngleDif >= 30) then
                                     ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oBomber, tRallyPoint, 10, 3)
                                 else
                                     M28Orders.IssueTrackedMove(oBomber, tRallyPoint, 5, false, 'BombMxMv', false)

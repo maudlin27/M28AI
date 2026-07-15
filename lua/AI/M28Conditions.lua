@@ -4854,3 +4854,20 @@ function  HaveMinimumVisualOrRadarRange(tUnits, iMinIntelWanted)
     end
     return false
 end
+
+function HaveEnoughGrossEcoToSupportLandHQUpgrade(aiBrain, iOptionalTechOverride)
+    local iGrossMassAdjust = 0
+    if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbTeamIsStallingMass] then iGrossMassAdjust = 1 end
+    if iOptionalTechOverride == 1 or (not(iOptionalTechOverride) and aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 1) then
+        local iT1LandCombatBuilt = GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryIndirectT2Plus)
+        if iT1LandCombatBuilt >= 50 or aiBrain[M28Economy.refiGrossMassBaseIncome] /  aiBrain[M28Economy.refiBrainBuildRateMultiplier] >= 3.5 + iGrossMassAdjust then
+            return true
+        end
+    else
+        --T2 land fac
+        local iT2LandCombatBuilt = GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryMobileDFLand * categories.TECH2 + M28UnitInfo.refCategoryIndirectT2Plus)
+        if iT2LandCombatBuilt >= 30 or aiBrain[M28Economy.refiGrossMassBaseIncome] /  aiBrain[M28Economy.refiBrainBuildRateMultiplier] >= 9 + iGrossMassAdjust or (aiBrain[M28Economy.refiGrossMassBaseIncome] /  aiBrain[M28Economy.refiBrainBuildRateMultiplier] >= 5 + iGrossMassAdjust + 4 * iT2LandCombatBuilt / 30) then
+            return true
+        end
+    end
+end

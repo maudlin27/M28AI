@@ -947,6 +947,9 @@ function DodgeShot(oTarget, oOptionalWeapon, oAttacker, iTimeToDodge)
                         iAngleToMove = iAngleFromNearestEnemy - 15
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': iAngleToMove so we run from nearest enemy='..iAngleToMove) end
+                else
+                    iAngleToMove = iAngleFromNearestEnemy
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will move in opposite direction to nearest enemy, iAngleFromNearestEnemy='..iAngleFromNearestEnemy) end
                 end
             end
         end
@@ -1638,7 +1641,7 @@ function TurnAirUnitAndMoveToTarget(oBomber, tDirectionToMoveTo, iMaxAcceptableA
                 end
             else
                 --Wait a few ticks so definitely cant be as good as normal
-                WaitTicks(5)
+                WaitTicks(8)
             end
 
             if bAdjustHoverMicroCount then aiBrain[refiCurUnitsHoverMicroing] = aiBrain[refiCurUnitsHoverMicroing] - 1 end
@@ -2334,7 +2337,7 @@ function KeepUnitsAwayFromNukeOrTMLTarget(oProjectile, oLauncher, iTeam, bEnemyN
                 if bDebugMessages == true then LOG(sFunctionRef..': Is tFriendlyUnitsNearTarget empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyUnitsNearTarget))..'; Time='..GetGameTimeSeconds()) end
                 if M28Utilities.IsTableEmpty(tFriendlyUnitsNearTarget) == false then
                     for iUnit, oUnit in tFriendlyUnitsNearTarget do
-                        if oUnit:GetAIBrain().M28AI and (not(oUnit:GetAIBrain().M28Easy) or (not(bEnemyNuke) and EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId))) then
+                        if oUnit:GetAIBrain().M28AI and (not(oUnit[M28UnitInfo.refbEasyBrain]) or (not(bEnemyNuke) and EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER + M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId))) then
                             iAngleToUnit = M28Utilities.GetAngleFromAToB(tTarget, oUnit:GetPosition())
                             if bIsTML then
                                 iAngleToTMLLauncher = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oLauncher:GetPosition())
@@ -2437,7 +2440,9 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
 
         --LOUD - check unit isn't on ground
         local bProceedWithMicro = true
-        if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(oTarget:IsUnitState('Moving')) and not(oTarget:IsUnitState('Attacking')) then
+        if oUnit.Dead or oTarget.Dead then
+            bProceedWithMicro = false
+        elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(oTarget:IsUnitState('Moving')) and not(oTarget:IsUnitState('Attacking')) then
             local tTargetPosition = oTarget:GetPosition()
             if tTargetPosition[2] - GetSurfaceHeight(tTargetPosition[1], tTargetPosition[3]) < 1 then
                 bProceedWithMicro = false
