@@ -356,7 +356,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryBomber - M28UnitInfo.refCategoryTorpBomber - categories.EXPERIMENTAL, oKillerUnit.UnitId) then
                                 local iTeam = oKillerBrain.M28Team
                                 if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oKillerUnit.UnitId) then
-                                    M28Team.tTeamData[iTeam][M28Team.refiBomberKills] = M28Team.tTeamData[iTeam][M28Team.refiBomberKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
+                                    M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] = M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                                 else
                                     M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] = M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] + M28UnitInfo.GetUnitMassCost(oKillerUnit)
                                 end

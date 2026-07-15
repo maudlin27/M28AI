@@ -5220,8 +5220,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
     local iAirSubteam = aiBrain.M28AirSubteam
+
+
+
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
+
     --exception - naval maps where we have good net energy and lack t2 air
     if  iFactoryTechLevel == 1 and bHaveLowPower and not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and aiBrain[M28Economy.refiOurHighestAirFactoryTech] == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 12 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 40 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] then
         bHaveLowPower = false
@@ -5810,6 +5814,24 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         --Upgrade t1 fac to t2 if have t3 mexes in the zone and not stalling power
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if iFactoryTechLevel == 1 and tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 400 and ConsiderUpgrading() then return sBPIDToBuild end
+
+        --If gunships are doing well and arent stalling power that much, then get gunships
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': If gunships or bombers doing well then build some more if not that low power, subrefbTeamIsStallingEnergy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; Brain Energy%Stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; refiGrossEnergyBaseIncome='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
+        if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestAirFactoryTech] and ((iFactoryTechLevel == 2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 10 * aiBrain[M28Economy.refiBrainBuildRateMultiplier]) or (iFactoryTechLevel == 3 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 250 * aiBrain[M28Economy.refiBrainBuildRateMultiplier]) or (iFactoryTechLevel == 1 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 60))) then
+            if bDebugMessages == true then LOG(sFunctionRef..': refbFarBehindOnAir='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])..'; subrefiOurAirAAThreat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; refiEnemyAirAAThreat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]) end
+            if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 1.1 then
+                --If gunships doing well try to build
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try building gunships or bombers if theyre doing well, refiGunshipKills='..M28Team.tTeamData[iTeam][M28Team.refiGunshipKills]..'; refiGunshipLosses='..M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]..'; subrefiOurGunshipThreat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]..'; refiT1ToT3BomberKills='..M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills]..'; refiBomberLosses='..M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]..'; subrefiOurT1ToT3BomberThreat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurT1ToT3BomberThreat]) end
+                if M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] > math.max(M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] * 2, 0.25 * M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]) then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                end
+                --Same for bombers
+                if M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] > math.max(M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 2, 0.25 * M28Team.tTeamData[iTeam][M28Team.subrefiOurT1ToT3BomberThreat]) then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then return sBPIDToBuild end
+                end
+            end
+        end
 
 
         if bDebugMessages == true then LOG(sFunctionRef..': end of low power builders') end
@@ -6553,9 +6575,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 --Bombers if dont have at least 2 and either losses dont exceed kills, or thye're more effective than gunships, subject to our air subteam having bombers
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if bDebugMessages == true then LOG(sFunctionRef..': Min bomber count, subrefiOurT1ToT3BomberThreat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat]..'; refbHaveAirControl='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) end
-                if (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat] < 500 or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] or (iFactoryTechLevel == 3 and M28Conditions.GetAirSubteamLifetimeBuildCount(iAirSubteam, M28UnitInfo.refCategoryBomber * categories.TECH3) == 0)) and ((M28Utilities.bQuietModActive) and M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] <= M28Team.tTeamData[iTeam][M28Team.refiBomberKills]) or (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] / M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]) then
+                if (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurT1ToT3BomberThreat] < 500 or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] or (iFactoryTechLevel == 3 and M28Conditions.GetAirSubteamLifetimeBuildCount(iAirSubteam, M28UnitInfo.refCategoryBomber * categories.TECH3) == 0)) and ((M28Utilities.bQuietModActive) and M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] <= M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills]) or (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] / M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]) then
                     local iCurBombers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber) + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryBomber, false, false)
-                    if (iCurBombers < 2 or (iCurBombers < 4 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] > M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 1.25)) and (iCurBombers == 0 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) then
+                    if (iCurBombers < 2 or (iCurBombers < 4 and M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] > M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 1.25)) and (iCurBombers == 0 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) then
                         if bDebugMessages == true then LOG(sFunctionRef..': iCurBombers='..iCurBombers..'; will try and get a basic number') end
                         if ConsiderBuildingCategory(iNormalBomberCategoryToBuild) then return sBPIDToBuild end
                     end
@@ -6872,7 +6894,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     elseif iGunshipCategoryUnlessBombersBetter == M28UnitInfo.refCategoryGunship then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will try to build a gunship as have air control') end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
-                    elseif M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] + M28Team.tTeamData[iTeam][M28Team.refiBomberKills] > (M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]) * 0.5 then
+                    elseif M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] + M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] > (M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] + M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]) * 0.5 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will try to build our preferred unti category (gunship or bomber) as have air control and dont have low mass') end
                         if ConsiderBuildingCategory(iGunshipCategoryUnlessBombersBetter) then return sBPIDToBuild end
                     end
@@ -8500,25 +8522,25 @@ function GetBomberAndGunshipOrBomberPreferredCategoryForPrimaryAirToGround(iTeam
     local bGunshipCategoryIsActuallyBombers = false
     if M28Utilities.bLoudModActive then iNormalBomberCategoryToBuild = iNormalBomberCategoryToBuild - categories.TECH3 end --LOUD has messed up bomber attributes so a bomber with an attack order on a target can keep circling it and never drop a bomb
     --Are we prioritising bombers over gunships?
-    if aiBrain[M28Overseer.refbStratsOverGunships] and iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] <= 20000 or (M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 0.5 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] > 0 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] / M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 1.2 * M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses])) then
-        if M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] < M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] * 0.35 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] < M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 0.35 then
+    if aiBrain[M28Overseer.refbStratsOverGunships] and iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] <= 20000 or (M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 0.5 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] > 0 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] / M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 1.2 * M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses])) then
+        if M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] < M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] * 0.35 and M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] < M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 0.35 then
             bAirToGroundIsIneffective = true
         end
         iGunshipCategoryUnlessBombersBetter = iNormalBomberCategoryToBuild
         bGunshipCategoryIsActuallyBombers = true
         --Seraphim - prefer strats over t2 gunships if enemy has significant AA threat on our side of map, and has built significant lightnign tanks
     elseif iFactoryTechLevel == 3 and  M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.refiEnemyGroundAAThreatNearOurSide] >= 4000 and M28Team.tTeamData[iTeam][M28Team.iEnemyT3MAAActiveCount] >= 4 + 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 2000 and (M28Conditions.EnemyTeamHasFaction(iTeam, M28UnitInfo.refFactionSeraphim) or M28Conditions.EnemyTeamHasFaction(iTeam, M28UnitInfo.refFactionUEF)) then
-        if M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] < M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] * 0.35 and M28Team.tTeamData[iTeam][M28Team.refiBomberKills] < M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 0.35 then
+        if M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] >= 5000 and M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] < M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] * 0.35 and M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] < M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] * 0.35 then
             bAirToGroundIsIneffective = true
         end
         iGunshipCategoryUnlessBombersBetter = iNormalBomberCategoryToBuild
         bGunshipCategoryIsActuallyBombers = true
     elseif M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] <= 75000 or M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 10000 then --i.e. c.50 broadswords in losses before consider switching to bombers; also want minimum level of gunships to deal with raids
         iGunshipCategoryUnlessBombersBetter = M28UnitInfo.refCategoryGunship
-    elseif (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] > 10000 or M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] >= 20000) and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 then
+    elseif (M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] > 10000 or M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] >= 20000) and M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses] > 0 and M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 then
         --Pick whichever of gunships nd bombers has the better kill:loss ratio; we know that losses are > 0 so can divide by this
         local iGunshipKillLossRatio = M28Team.tTeamData[iTeam][M28Team.refiGunshipKills] / M28Team.tTeamData[iTeam][M28Team.refiGunshipLosses]
-        local iBomberKillLossRatio = M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]
+        local iBomberKillLossRatio = M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]
         if iGunshipKillLossRatio >= iBomberKillLossRatio then
             iGunshipCategoryUnlessBombersBetter = M28UnitInfo.refCategoryGunship
         else

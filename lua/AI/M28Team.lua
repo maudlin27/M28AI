@@ -218,7 +218,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiGunshipLosses = 'M28TGShLoss' --mass value of non-experimental gunships our M28 team has lost
     refiBomberLosses = 'M28TBmbLoss' --mass value of non-experimental bombers oure M28 team has lost
     refiGunshipKills = 'M28TGShKill' --mass value of units our M28 team's non-experimental gunships have killed
-    refiBomberKills = 'M28BmbKill' --mass value of units our M28 team's non-experimental bombers have killed
+    refiT1ToT3BomberKills = 'M28BmbKill' --mass value of units our M28 team's non-experimental bombers have killed
     refiAirAALossesToAir = 'M28AirALs' --mass value of airaa units that have died to enemy air units
     refiAirAAKills = 'M28AirKl' --mas value of enemy air units (i.e. all air units) that have died to friendly airaa units
 
@@ -713,7 +713,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiGunshipLosses] = 0
     tTeamData[iTotalTeamCount][refiBomberLosses] = 0
     tTeamData[iTotalTeamCount][refiGunshipKills] = 0
-    tTeamData[iTotalTeamCount][refiBomberKills] = 0
+    tTeamData[iTotalTeamCount][refiT1ToT3BomberKills] = 0
     tTeamData[iTotalTeamCount][refiAirAALossesToAir] = 0
     tTeamData[iTotalTeamCount][refiAirAAKills] = 0
 

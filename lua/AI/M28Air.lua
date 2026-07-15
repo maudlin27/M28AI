@@ -6204,7 +6204,7 @@ function ManageBombers(iTeam, iAirSubteam)
         elseif M28Map.bIsCampaignMap and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iSearchSize = iSearchSize * 1.5
         end
         if M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] > 0 then
-            iSearchSize = iSearchSize * math.min(2, math.max(0.5, M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]))
+            iSearchSize = iSearchSize * math.min(2, math.max(0.5, M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] / M28Team.tTeamData[iTeam][M28Team.refiBomberLosses]))
         end
 
         --Consider snipe targets
@@ -6314,20 +6314,20 @@ function ManageBombers(iTeam, iAirSubteam)
                     iMaxEnemyGroundAAThreat = M28Team.tTeamData[iTeam][M28Team.subrefiOurT1ToT3BomberThreat] * 0.15
                     if bDebugMessages == true then LOG(sFunctionRef..': Base GroundAA threat - iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': About to adjust bomber GroundAA threat for kills and losses, bomber losses='..(M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0)..'; Bomber kills='..(M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0)) end
-                if (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) == 0 and (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) >= 1000 then
+                if bDebugMessages == true then LOG(sFunctionRef..': About to adjust bomber GroundAA threat for kills and losses, bomber losses='..(M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0)..'; Bomber kills='..(M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] or 0)) end
+                if (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) == 0 and (M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] or 0) >= 1000 then
                     iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * 1.2
                     if bDebugMessages == true then LOG(sFunctionRef..': No losses and lots of kills, will increase threshold, iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
                 elseif (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) == 0 then
                     --No change
                     if bDebugMessages == true then LOG(sFunctionRef..': No losses so no change, iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
 
-                elseif (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) > (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) then
-                    iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * math.min(1.2, (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] / (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) - 1)*0.35 + 1)
+                elseif (M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] or 0) > (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) then
+                    iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * math.min(1.2, (M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] / (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0) - 1)*0.35 + 1)
                     if bDebugMessages == true then LOG(sFunctionRef..': Killed more than we have lossed to increasing threshold, iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
                 else
-                    iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * math.max(0.25, (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) /  (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0))
-                    if bDebugMessages == true then LOG(sFunctionRef..': Not killed more than we have lost so reducing AA threshold based on % of kills to losses='.. (M28Team.tTeamData[iTeam][M28Team.refiBomberKills] or 0) /  (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0)..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
+                    iMaxEnemyGroundAAThreat = iMaxEnemyGroundAAThreat * math.max(0.25, (M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] or 0) /  (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Not killed more than we have lost so reducing AA threshold based on % of kills to losses='.. (M28Team.tTeamData[iTeam][M28Team.refiT1ToT3BomberKills] or 0) /  (M28Team.tTeamData[iTeam][M28Team.refiBomberLosses] or 0)..'; iMaxEnemyGroundAAThreat='..iMaxEnemyGroundAAThreat) end
                 end
                 --If have strat bombers then have a higher minimum ground AA threshold
                 if bHaveT3Bombers then

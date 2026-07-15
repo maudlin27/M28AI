@@ -21344,7 +21344,7 @@ function ConsiderDestroyingLowTechEngineers(oJustBuilt, iOptionalMaxNumberToKill
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDestroyingLowTechEngineers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if not(oJustBuilt.Dead) then
+    if not(oJustBuilt.Dead) and oJustBuilt.GetAIBrain then
         local aiBrain = oJustBuilt:GetAIBrain()
         local iCurEngineers = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer)
         local iEngineersKilled = 0
