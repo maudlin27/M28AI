@@ -947,6 +947,9 @@ function DodgeShot(oTarget, oOptionalWeapon, oAttacker, iTimeToDodge)
                         iAngleToMove = iAngleFromNearestEnemy - 15
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': iAngleToMove so we run from nearest enemy='..iAngleToMove) end
+                else
+                    iAngleToMove = iAngleFromNearestEnemy
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will move in opposite direction to nearest enemy, iAngleFromNearestEnemy='..iAngleFromNearestEnemy) end
                 end
             end
         end
@@ -2437,7 +2440,9 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
 
         --LOUD - check unit isn't on ground
         local bProceedWithMicro = true
-        if (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(oTarget:IsUnitState('Moving')) and not(oTarget:IsUnitState('Attacking')) then
+        if oUnit.Dead or oTarget.Dead then
+            bProceedWithMicro = false
+        elseif (M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) and not(oTarget:IsUnitState('Moving')) and not(oTarget:IsUnitState('Attacking')) then
             local tTargetPosition = oTarget:GetPosition()
             if tTargetPosition[2] - GetSurfaceHeight(tTargetPosition[1], tTargetPosition[3]) < 1 then
                 bProceedWithMicro = false
