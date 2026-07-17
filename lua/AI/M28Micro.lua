@@ -272,7 +272,7 @@ function FriendlyGunshipsAvoidBomb(oBomber, oWeapon, projectile)
             local aiBrain = oBomber:GetAIBrain()
             local tUnitsToRun = aiBrain:GetUnitsAroundPoint(iCategoriesToRun, tBombTarget, iRadiusSize, 'Ally')
             if M28Utilities.IsTableEmpty(tUnitsToRun) == false then
-                local tTemporaryDestination = M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint]
+                local tTemporaryDestination = M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftAirRallyPoint]
                 if M28Utilities.IsTableEmpty(tTemporaryDestination) then
                     --Campaign cutscene like fort clarke assault - wont exist yet
                     if not(ScenarioInfo.OpEnded) then
