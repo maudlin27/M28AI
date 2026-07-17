@@ -1787,7 +1787,7 @@ function ProjectileFiredAtGunship(oTarget, oProjectile)
     local iCurHealth = oTarget:GetHealth()
     local iMaxHealth = oTarget:GetMaxHealth()
     if (iCurHealth - iTotalDamage) <= iMaxHealth * M28Air.GetHealthRunThreshold(iMaxHealth, oTarget) then
-        if GetGameTimeSeconds() >= 35*60+50 then bDebugMessages = true end
+
         oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] = true
         if oTarget[M28Air.reftGunshipSpecialRallyPathing][M28Air.subrefLastRecordedZone] then
             if bDebugMessages == true then LOG(sFunctionRef..': Gunship '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' is already retreating') end
