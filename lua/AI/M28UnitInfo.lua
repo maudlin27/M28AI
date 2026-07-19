@@ -2074,12 +2074,16 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                     elseif (oCurWeapon.RangeCategory == 'UWRC_DirectFire' or (oCurWeapon.RangeCategory == 'UWRC_IndirectFire' and oCurWeapon.WeaponCategory == 'Direct Fire')) then --Sera sniper bots have an 'indirectfire' range category that is actually DF
                         bReplaceValues = false
                         bIgnoreValues = false
-                        --Monkeylord special - use main laser weapon values only
-                        if oUnit.UnitId == 'url0402' and oUnit:GetAIBrain().M28AI then
+                        --Monkeylord special - use main laser weapon values only (v310+ - for allies and enemies)
+                        if oUnit.UnitId == 'url0402' then --and oUnit:GetAIBrain().M28AI then
                             if (not(oUnit[refiDFRange]) or oCurWeapon.Label == 'MainGun') then
                                 bReplaceValues = true
                             else
                                 bIgnoreValues = true
+                            end
+                            if oUnit[refiDFRange] and not(oUnit:GetAIBrain().M28AI) then
+                                --Include indirectfire range so hopefully skirmishers are less likely to get in range
+                                oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), (oUnit[refiDFRange] or 0), (oCurWeapon.MaxRadius or 0))
                             end
                         end
                         if bReplaceValues then
