@@ -121,7 +121,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
             M28Utilities.ErrorHandler('Factory has no UnitId and doesnt have .CanBuild')
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return nil
+        return
     else
         --local Game = import("/lua/game.lua")
         local iArmyIndex = aiBrain:GetArmyIndex()
@@ -608,7 +608,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 if bDebugMessages == true then LOG(sFunctionRef..': Have recently ctrlkd a unit so want to abort if we are about to build the same unit again if we have mobile land or same category, do we contain this='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMobileLand + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild))) end
                 if EntityCategoryContains((M28UnitInfo.refCategoryMobileLand - categories.SUBCOMMANDER) + aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild) then
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return nil
+                    return
                 end
             end
         end

@@ -1332,7 +1332,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone, bRetu
                 end
                 tLZTeamData[M28Map.reftUnitsWantingTMD] = {}
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return nil
+                return
             end
         end
     end
@@ -5883,7 +5883,7 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
             if bDebugMessages == true then LOG(sFunctionRef..': iEstDistance='..iEstDistance..'; iEstTimeToTarget='..iEstTimeToTarget..'; iHeightAdjustedDistToEnemy='..iHeightAdjustedDistToEnemy..'; iClosestEnemy='..iClosestEnemy..'; iHeightDifference='..iHeightDifference) end
             if not(bAlwaysReturnTarget) and iEstDistance > 30 and iClosestEnemy - 30 > oClosestEnemy[M28UnitInfo.refiDFRange] and (iClosestEnemy >= 170 or iAngleDif >= 5 or (iClosestEnemy >= 150 and iAngleDif >= 2)) then
                 --Dont get target afterall as high risk enemy dodges
-                return nil
+                return
             else
                 return M28Utilities.MoveInDirection(oClosestEnemy:GetPosition(), iAngleToTarget, iEstDistance, true, false, not(M28Map.bIsCampaignMap))
             end

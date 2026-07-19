@@ -2162,7 +2162,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
         else
             return tPotentialBuildLocations[iBestLocationRef]
         end
-    else return nil
+    else return
     end
 end
 
@@ -2210,7 +2210,7 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
         if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetLocation) <= iDistanceWantedFromTarget then
             if bDebugMessages == true then LOG(sFunctionRef..': Target location is already in range') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            return nil
+            return
         end
     end
 
@@ -2231,7 +2231,7 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
                             M28Utilities.DrawLocation(tPotentialMoveLocation, 2)
                         end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        return nil
+                        return
                     end
                 end
             end
@@ -2245,7 +2245,7 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Backup for moving there') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return nil
+                return
             end
         elseif bDebugMessages == true then LOG(sFunctionRef..': Cant move to the desired location, will draw in red') M28Utilities.DrawLocation(tPotentialMoveLocation, 2)
         end
@@ -2258,7 +2258,7 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return nil
+    return
 
     --Below was from M27 - left commented out as might be of use when introduce naval factory logic again
     --[[
@@ -13467,7 +13467,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     else
         iCurPriority = iCurPriority + 3
     end
-    bDebugMessages = false
 
     --Shielding due to enemy novax
     iCurPriority = iCurPriority + 1
