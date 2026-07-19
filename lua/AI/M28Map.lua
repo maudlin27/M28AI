@@ -772,7 +772,7 @@ function GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathab
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of function, will return nil') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return nil, nil
+    return
 end
 
 function GetWaterZoneFromPosition(tPosition)
@@ -811,7 +811,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                         --If get this error, then refer to GetUnitPlateauAndLandZoneOverride
                         M28Utilities.ErrorHandler('No plateau group for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeHover, tPosition) or 'nil')..'; This can happen on larger maps with long cliffs with narrow paths that small units can travel partially along. Enable logs in the function GetUnitPlateauAndLandZoneOverride for more details', true)
                     end
-                    return nil
+                    return
                 else
                     if tAllPlateaus[iPlateau][subrefPlateauTotalMexCount] == 0 then
                         iLandZone = 1
@@ -821,7 +821,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                     end
                 end
             else
-                return nil
+                return
             end
         end
         return iPlateau, iLandZone

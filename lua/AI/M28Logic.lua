@@ -24,7 +24,7 @@ reftbLastShieldCheckResult = 'M28LLScB' --[x] is the shield check ref
 function GetNearestEnemyIndex(aiBrain)
     --Returns the army index of the nearest enemy brain, or nil if there is none
     local oNearestBrain = M28Overseer.GetNearestEnemyBrain(aiBrain)
-    if oNearestBrain then return oNearestBrain:GetArmyIndex() else return nil end
+    if oNearestBrain then return oNearestBrain:GetArmyIndex() else return end
 end
 
 function GetDirectFireWeaponPosition(oFiringUnit)

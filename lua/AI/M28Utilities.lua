@@ -471,7 +471,7 @@ function GetApproxTravelDistanceBetweenPositions(tStart, tEnd)
             return iDistance + VDist2(tFullPath[1][1], tFullPath[1][3], tStart[1], tStart[3]) + VDist2(tFullPath[iPathSize][1], tFullPath[iPathSize][3])
         end
     else
-        return nil
+        return
     end
 end
 function GetTravelDistanceBetweenPositions(tStart, tEnd, sPathing)
@@ -502,7 +502,7 @@ function GetTravelDistanceBetweenPositions(tStart, tEnd, sPathing)
         --Option 2 - just add in the first and last distance to the distance determined by the pathing algorithm (not as accurate):
         return iDistance + VDist2(tStart[1], tStart[3], tFullPath[1][1], tFullPath[1][3]) + VDist2(tEnd[1], tEnd[3], tFullPath[iPathSize][1], tFullPath[iPathSize][3])--]]
     else
-        return nil
+        return
     end
 end
 function GetDistanceBetweenPositions(tPosition1, tPosition2)
@@ -576,7 +576,8 @@ function GetNearestUnit(tUnits, tCurPos, bUseActualTravelDistance, sPathingToUse
         else
             return tUnits[iNearestUnit]
         end
-    else return nil end
+    else return
+    end
 end
 
 function ConvertAngleToRadians(iAngle)

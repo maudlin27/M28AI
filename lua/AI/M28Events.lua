@@ -1527,7 +1527,7 @@ function OnBombFired(oWeapon, projectile, bIgnoreProjectileCheck)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Do nothing as naval engi bomber') end
                                 else
                                     --Track exp bombs fired (relevant for when trying to use our aoe to hit mobile targets safely)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': will get bomber to head towards rally point, bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Bomber position='..repru(oUnit:GetPosition())..'; Rally point='..repru(M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Dist to rally point='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint])..'; Angle from bomber to its owners start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Map.GetPlayerStartPosition(oUnit:GetAIBrain()))..'; oTargetUnit='..(oTargetUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTargetUnit) or 'nil')) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': will get bomber to head towards rally point, bomber='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Bomber position='..repru(oUnit:GetPosition())..'; Rally point='..repru(M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirRallyPoint])..'; Dist to rally point='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirRallyPoint])..'; Angle from bomber to rally='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirRallyPoint])..'; Angle from bomber to its owners start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), M28Map.GetPlayerStartPosition(oUnit:GetAIBrain()))..'; oTargetUnit='..(oTargetUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTargetUnit) or 'nil')) end
                                     if M28UnitInfo.IsUnitValid(oTargetUnit) and EntityCategoryContains(categories.EXPERIMENTAL, sUnitID) then
                                         oTargetUnit[M28Air.refiExpBomberShotCount] = (oTargetUnit[M28Air.refiExpBomberShotCount] or 0) + 1
                                     end
@@ -1595,7 +1595,7 @@ function OnWeaponFired(oWeapon)
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; Weapon blueprint='..reprs((oWeapon.Blueprint or oWeapon.bp))..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; (oWeapon.Blueprint or oWeapon.bp).RackSalvoSize='..(oWeapon.Blueprint or oWeapon.bp).RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0)) end
                     if (oWeapon.CurrentRackSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= ((oWeapon.Blueprint or oWeapon.bp).MuzzleSalvoSize or 0) then
                         if not(oUnit[M28UnitInfo.refbEasyBrain]) then
-                            ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
+                            ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirRallyPoint], 25, 1)
                         end
                     end
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
@@ -1787,9 +1787,14 @@ function ProjectileFiredAtGunship(oTarget, oProjectile)
     local iCurHealth = oTarget:GetHealth()
     local iMaxHealth = oTarget:GetMaxHealth()
     if (iCurHealth - iTotalDamage) <= iMaxHealth * M28Air.GetHealthRunThreshold(iMaxHealth, oTarget) then
+
         oTarget[M28UnitInfo.refbProjectilesMeanShouldRefuel] = true
-        M28Air.SendUnitsForRefueling({ oTarget }, oTarget:GetAIBrain().M28Team, oTarget:GetAIBrain().M28AirSubteam, true)
-        if bDebugMessages == true then LOG(sFunctionRef..'; sent gunship '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' for refueling') end
+        if oTarget[M28Air.reftGunshipSpecialRallyPathing][M28Air.subrefLastRecordedZone] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Gunship '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' is already retreating') end
+        else
+            M28Air.SendUnitsForRefueling({ oTarget }, oTarget:GetAIBrain().M28Team, oTarget:GetAIBrain().M28AirSubteam, true)
+            if bDebugMessages == true then LOG(sFunctionRef..'; sent gunship '..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..' for refueling') end
+        end
     end
 
     --LOG('TEMP oProjectile targeting gunship reprs='..reprs(oProjectile)..'; reprs of damage data='..reprs(oProjectile.DamageData)..'; damageData.DamageAmount='..(oProjectile.DamageData.DamageAmount or 'nil'))

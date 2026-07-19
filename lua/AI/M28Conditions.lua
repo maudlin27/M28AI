@@ -4803,7 +4803,7 @@ function CanTravelToDestinationWithinMapBounds(tStart, tEnd, sPathing, bDrawPath
             if bDrawPathing then M28Utilities.DrawPath(tFullPath) end
             for iEntry, tPosition in tFullPath do
                 if not(IsLocationInPlayableArea(tPosition)) then
-                    return nil
+                    return
                 end
             end
             return true
