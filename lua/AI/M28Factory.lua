@@ -7431,17 +7431,20 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         end
     end
 
-    --Medium priority engineer if no immediate threats in this zone, are in a water start position or high mass, and want more engineers due to having mass but not needing power
+    --Medium priority engineer if no immediate threats in this zone, are in a water start position or high mass, and want more engineers due to having mass but not needing power, and we arent building many engis and last unit wasnt an engineer
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Engi fi underwtaer start: tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]=' .. tostring(tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) .. '; tWZTeamData[M28Map.subrefTbWantBP]=' .. tostring(tWZTeamData[M28Map.subrefTbWantBP]) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; aiBrain[M28Economy.refiGrossMassBaseIncome]=' .. aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Mass%='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored])
     end
     if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2)  then
-        if tWZTeamData[M28Map.subrefTbWantBP] and (not (bHaveLowMass) or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= iFactoryTechLevel * 6)) then
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
-            --Still get 1 T3 engi if dealing with a t3 factory that hasnt built any before and we have lots of mass
-        elseif iFactoryTechLevel == 3 and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and oFactory[refiTotalBuildCount] <= 5 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20 and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer, false) == 0 then
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        if (not(oFactory[refsLastBlueprintBuilt]) or not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oFactory[refsLastBlueprintBuilt])))
+                and M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tWZTeamData, M28UnitInfo.refCategoryEngineer) < math.min(3, M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tWZTeamData, M28UnitInfo.refCategoryNavalFactory)) then
+            if tWZTeamData[M28Map.subrefTbWantBP] and (not (bHaveLowMass) or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= iFactoryTechLevel * 6)) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                --Still get 1 T3 engi if dealing with a t3 factory that hasnt built any before and we have lots of mass
+            elseif iFactoryTechLevel == 3 and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] >= 0.2 and oFactory[refiTotalBuildCount] <= 5 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20 and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryEngineer, false) == 0 then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+            end
         end
     end
 
