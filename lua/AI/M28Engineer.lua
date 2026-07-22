@@ -6291,7 +6291,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                         if M28Utilities.bCPUPerformanceMode and oNearestReclaim then break end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished cycling through reclaim, is oNearestReclaim nil='..tostring(oNearestReclaim == nil)..'; bCheckTerrain='..tostring(bCheckTerrain or false)) end
-                    if not(oNearestReclaim) and bConsiderBelowMinValueIfCantFindAny and not(bDontConsiderAnyValueYetOverride) then
+                    if not(oNearestReclaim) and ((bConsiderBelowMinValueIfCantFindAny and not(bDontConsiderAnyValueYetOverride)) or (bOnlyConsiderReclaimInRangeOfEngineer and oNearestAnyValueReclaim and not(bWantEnergyNotMass) and oNearestAnyValueReclaim.MaxMassReclaim >= iMinReclaimIndividualValue))  then
                         oNearestReclaim = oNearestAnyValueReclaim
                         --Check this is in the same zone
                         if oNearestReclaim and bCheckTerrain then
@@ -17825,18 +17825,40 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             if iBPWanted > 0 then
                 if oUnderConstructionShield then
                     if bDebugMessages == true then LOG(sFunctionRef..': Have under construction shield we want to complete to cover SMD') end
-                    HaveActionToAssign(refActionRepairUnit, 1, iBPWanted, oUnderConstructionShield)
+                    if bAssistSMD then
+                        if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+                            HaveActionToAssign(refActionRepairUnit, 1, iBPWanted * 0.5, oUnderConstructionShield)
+                            HaveActionToAssign(refActionAssistSMD, 1, iBPWanted * 0.5)
+                        else
+                            HaveActionToAssign(refActionRepairUnit, 1, iBPWanted * 0.3, oUnderConstructionShield)
+                            HaveActionToAssign(refActionAssistSMD, 1, iBPWanted)
+                        end
+                    else
+                        HaveActionToAssign(refActionRepairUnit, 1, iBPWanted, oUnderConstructionShield)
+                    end
+                    iCurPriority = iCurPriority + 3
                 elseif oSMDToShield then
                     iCurPriority = iCurPriority + 1
                     if bDebugMessages == true then LOG(sFunctionRef..': Need to shield the SMD first') end
                     local iTechLevelWanted = 2
                     if (oSMDToShield[refiFailedShieldConstructionCount] or 0) > 0 or (tLZTeamData[M28Map.refiFixedShieldT2EngiFailureCount] or 0) >= 5 then iTechLevelWanted = 3 end
-                    HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oSMDToShield)
-
+                    if bAssistSMD then
+                        if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+                            HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted * 0.5, oSMDToShield)
+                            HaveActionToAssign(refActionAssistSMD, 1, iBPWanted)
+                        else
+                            HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted * 0.1, oSMDToShield)
+                            HaveActionToAssign(refActionAssistSMD, 1, iBPWanted)
+                        end
+                    else
+                        HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oSMDToShield)
+                    end
+                    iCurPriority = iCurPriority + 2
                 elseif bAssistSMD then
                     iCurPriority = iCurPriority + 2
                     if bDebugMessages == true then LOG(sFunctionRef..': Will assist existing SMD') end
                     HaveActionToAssign(refActionAssistSMD, 1, iBPWanted)
+                    iCurPriority = iCurPriority + 1
                 else
                     iCurPriority = iCurPriority + 3
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to build SMD, iCurPrioriyt='..iCurPriority) end
