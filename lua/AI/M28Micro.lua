@@ -2467,6 +2467,7 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                     local iCurAngleToTarget
                     local iCurFacingAngle
                     local iCurSpeed, iTargetCurSpeed
+                    local iOrigDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTarget:GetPosition())
                     --[[local iMinDistToTarget = math.min(iOurRange * 0.8, math.max(iOurRange * 0.5, iOurRange - 5))
                     local iMaxDistToConsiderHoverTurn = 50
                     local iHalfDistThreshold = iOurRange * 0.5
@@ -2496,48 +2497,18 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                     local bLastOrderWasStopOrder = false
                     local bShowUnitOrdersInName = import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames
 
-                    function IsTargetRunningAway(oPotentialTarget)
-                        --Assumes have already determined iOurMaxSpeed
-                        if not(oUnit.Dead) then --wierd bug where despite exact same timestamp oUnit returns valid before function is called, and dead/invalid during the function
-                            if not(iCurSpeed) then iCurSpeed = M28UnitInfo.GetUnitSpeed(oUnit) end
-                            --Are we going near our max speed (allowance given because the speed values may not be that consistent)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if oPotentialTarget is running away and is outside our range, oPotentialTarget='..oPotentialTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPotentialTarget)..'; iCurSpeed='..iCurSpeed..'; iOurMaxSpeed='..iOurMaxSpeed..'; Target speed='..M28UnitInfo.GetUnitSpeed(oPotentialTarget)..'; Target max speed='..iEnemyMaxSpeed..'; Dist to enemy='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oPotentialTarget:GetPosition())..'; Our range='..iOurRange..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; oUnit.Dead='..tostring(oUnit.Dead or false)..'; Time='..GetGameTimeSeconds()) end
-                            if iCurSpeed >= iOurMaxSpeed * 0.7 then
-                                --Is enemy going near their max speed, and almsot as fast as us or faster?
-                                iTargetCurSpeed = M28UnitInfo.GetUnitSpeed(oPotentialTarget)
-                                if iTargetCurSpeed >= iEnemyMaxSpeed * 0.7 and iTargetCurSpeed >= iCurSpeed - 0.25 then
-                                    --Is enemy out of our range?
-                                    iCurDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oPotentialTarget:GetPosition())
-                                    if iCurDistToTarget > iOurRange + 1 then
-                                        --is enemy infront of us?
-                                        iCurAngleToTarget = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oPotentialTarget:GetPosition())
-                                        if not(iCurFacingAngle) then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': About to get oUnit facing angle, is oUnit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Time='..GetGameTimeSeconds()) end
-                                            iCurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oUnit)
-                                        end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurANgleToTarget='..iCurAngleToTarget..'; iCurFacingAngle='..iCurFacingAngle..'; AngleDif='..M28Utilities.GetAngleDifference(iCurAngleToTarget, iCurFacingAngle)..'; Target facing angle='..M28UnitInfo.GetUnitFacingAngle(oPotentialTarget)..'; Dif to our facing angle='..M28Utilities.GetAngleDifference(iCurFacingAngle, M28UnitInfo.GetUnitFacingAngle(oPotentialTarget))) end
-                                        if M28Utilities.GetAngleDifference(iCurAngleToTarget, iCurFacingAngle) <= 10 then
-                                            --Is enemy going in similar direction to us?
-                                            if M28Utilities.GetAngleDifference(iCurFacingAngle, M28UnitInfo.GetUnitFacingAngle(oPotentialTarget)) <= 10 then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Target is unsuitable') end
-                                                return true
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Target is suitable') end
-                        return false
-                    end
+
                     while M28UnitInfo.IsUnitValid(oTarget) and M28UnitInfo.IsUnitValid(oUnit) do
                         local tMoveViaPoint = oTarget:GetPosition()
                         iCurFacingAngle = nil
                         iCurSpeed = nil
                         iCurDistToTarget = VDist3(oUnit:GetPosition(), oTarget:GetPosition())
                         if bDebugMessages == true then LOG(sFunctionRef..': 3d dist to target='..iCurDistToTarget..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; iOurRange='..iOurRange..'; iMaxTimeBetweenShotsWanted='..iMaxTimeBetweenShotsWanted..'; bLastOrderWasStopOrder='..tostring(bLastOrderWasStopOrder or false)..'; iMaxDistForStopMicro='..iMaxDistForStopMicro..'; Time='..GetGameTimeSeconds()) end
-
-                        if bUseStopMicro and iCurDistToTarget < iOurRange and oUnit[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] <= 2 then
+                        --Chasing gunship/similar that has gotten too far away
+                        if not(bUseStopMicro) and iCurDistToTarget > math.max(60, iOurRange + 20, iOrigDistToTarget + 20) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Aborting as target gotten too far away') end
+                            break
+                        elseif bUseStopMicro and iCurDistToTarget < iOurRange and oUnit[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] <= 2 then
                             if not(bLastOrderWasStopOrder) then
                                 M28Orders.IssueTrackedClearCommands(oUnit)
                                 if bShowUnitOrdersInName then M28Orders.UpdateUnitNameForOrder(oUnit, 'StopMicro') end
@@ -2555,7 +2526,7 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                         --Select new target if are currently stopped and cur target is dead
                         if bDebugMessages == true then LOG(sFunctionRef..': Will select new target if currently stopped and cur target is dead, is oUnit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Is oTarget valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Time='..GetGameTimeSeconds()) end
                         if M28UnitInfo.IsUnitValid(oUnit) and ((bUseStopMicro and bLastOrderWasStopOrder and not(M28UnitInfo.IsUnitValid(oTarget)))
-                                or (M28UnitInfo.IsUnitValid(oTarget) and iOurMaxSpeed <= iEnemyMaxSpeed and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= iMaxTimeBetweenShotsWanted and IsTargetRunningAway(oTarget))) then
+                                or (M28UnitInfo.IsUnitValid(oTarget) and iOurMaxSpeed <= iEnemyMaxSpeed and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= iMaxTimeBetweenShotsWanted and IsTargetRunningAway(oTarget, oUnit, iCurSpeed, iOurMaxSpeed, iTargetCurSpeed, iEnemyMaxSpeed, iOurRange, iCurFacingAngle))) then
                             oTarget = nil
 
                             local oAltTarget
@@ -2566,7 +2537,7 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                                 for iEnemy, oEnemy in toNearbyEnemyAirAA do
                                     if not(oEnemy.Dead) then --redundancy
                                         iCurDist = VDist3(oUnit:GetPosition(), oEnemy:GetPosition())
-                                        if iCurDist < iClosestDist and not(IsTargetRunningAway(oEnemy)) then
+                                        if iCurDist < iClosestDist and not(IsTargetRunningAway(oEnemy, oUnit, iCurSpeed, iOurMaxSpeed, iTargetCurSpeed, iEnemyMaxSpeed, iOurRange, iCurFacingAngle)) then
                                             oAltTarget = oEnemy
                                             iClosestDist = iCurDist
                                         end
@@ -3468,4 +3439,44 @@ function ConsiderSurfacingAtlantisToReleaseCargo(oUnit)
             end
         end
     end
+end
+
+function IsTargetRunningAway(oPotentialTarget, oUnit, iCurSpeed, iOurMaxSpeed, iTargetCurSpeed, iEnemyMaxSpeed, iOurRange, iCurFacingAngle)
+    --For some reason have to have this as a standalone function for the code to run
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsTargetRunningAway'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(oUnit.Dead) then --wierd bug where despite exact same timestamp oUnit returns valid before function is called, and dead/invalid during the function
+        if not(iCurSpeed) then iCurSpeed = M28UnitInfo.GetUnitSpeed(oUnit) end
+        --Are we going near our max speed (allowance given because the speed values may not be that consistent)
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if oPotentialTarget is running away and is outside our range, oPotentialTarget='..oPotentialTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPotentialTarget)..'; iCurSpeed='..iCurSpeed..'; iOurMaxSpeed='..iOurMaxSpeed..'; Target speed='..M28UnitInfo.GetUnitSpeed(oPotentialTarget)..'; Target max speed='..iEnemyMaxSpeed..'; Dist to enemy='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oPotentialTarget:GetPosition())..'; Our range='..iOurRange..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; oUnit.Dead='..tostring(oUnit.Dead or false)..'; Time='..GetGameTimeSeconds()) end
+        if iCurSpeed >= iOurMaxSpeed * 0.7 then
+            --Is enemy going near their max speed, and almsot as fast as us or faster?
+            iTargetCurSpeed = M28UnitInfo.GetUnitSpeed(oPotentialTarget)
+            if iTargetCurSpeed >= iEnemyMaxSpeed * 0.7 and iTargetCurSpeed >= iCurSpeed - 0.25 then
+                --Is enemy out of our range?
+                local iCurDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oPotentialTarget:GetPosition())
+                if iCurDistToTarget > iOurRange + 1 then
+                    --is enemy infront of us?
+                    local iCurAngleToTarget = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oPotentialTarget:GetPosition())
+                    if not(iCurFacingAngle) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to get oUnit facing angle, is oUnit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Time='..GetGameTimeSeconds()) end
+                        iCurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oUnit)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurANgleToTarget='..iCurAngleToTarget..'; iCurFacingAngle='..iCurFacingAngle..'; AngleDif='..M28Utilities.GetAngleDifference(iCurAngleToTarget, iCurFacingAngle)..'; Target facing angle='..M28UnitInfo.GetUnitFacingAngle(oPotentialTarget)..'; Dif to our facing angle='..M28Utilities.GetAngleDifference(iCurFacingAngle, M28UnitInfo.GetUnitFacingAngle(oPotentialTarget))) end
+                    if M28Utilities.GetAngleDifference(iCurAngleToTarget, iCurFacingAngle) <= 10 then
+                        --Is enemy going in similar direction to us?
+                        if M28Utilities.GetAngleDifference(iCurFacingAngle, M28UnitInfo.GetUnitFacingAngle(oPotentialTarget)) <= 10 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Target is unsuitable') end
+                            return true
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Target is suitable') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
 end
