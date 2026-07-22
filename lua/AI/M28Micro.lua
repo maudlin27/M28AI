@@ -2468,6 +2468,12 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                     local iCurFacingAngle
                     local iCurSpeed, iTargetCurSpeed
                     local iOrigDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTarget:GetPosition())
+                    local iMaxDistToTargetBeforeAborting
+                    if EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oTarget.UnitId) then
+                        iMaxDistToTargetBeforeAborting = math.max(110, iOrigDistToTarget + 50, iOurRange + 40)
+                    else
+                        iMaxDistToTargetBeforeAborting = math.max(60, iOrigDistToTarget + 20, iOurRange + 20)
+                    end
                     --[[local iMinDistToTarget = math.min(iOurRange * 0.8, math.max(iOurRange * 0.5, iOurRange - 5))
                     local iMaxDistToConsiderHoverTurn = 50
                     local iHalfDistThreshold = iOurRange * 0.5
@@ -2505,7 +2511,7 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                         iCurDistToTarget = VDist3(oUnit:GetPosition(), oTarget:GetPosition())
                         if bDebugMessages == true then LOG(sFunctionRef..': 3d dist to target='..iCurDistToTarget..'; Time since last weapon event='..GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0)..'; iOurRange='..iOurRange..'; iMaxTimeBetweenShotsWanted='..iMaxTimeBetweenShotsWanted..'; bLastOrderWasStopOrder='..tostring(bLastOrderWasStopOrder or false)..'; iMaxDistForStopMicro='..iMaxDistForStopMicro..'; Time='..GetGameTimeSeconds()) end
                         --Chasing gunship/similar that has gotten too far away
-                        if not(bUseStopMicro) and iCurDistToTarget > math.max(60, iOurRange + 20, iOrigDistToTarget + 20) then
+                        if iCurDistToTarget > iMaxDistToTargetBeforeAborting then
                             if bDebugMessages == true then LOG(sFunctionRef..': Aborting as target gotten too far away') end
                             break
                         elseif bUseStopMicro and iCurDistToTarget < iOurRange and oUnit[M28UnitInfo.refiLastWeaponEvent] and GetGameTimeSeconds() - oUnit[M28UnitInfo.refiLastWeaponEvent] <= 2 then
