@@ -6136,7 +6136,7 @@ function ManageBombers(iTeam, iAirSubteam)
         end
     end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.toFrontT3Bomber] = oFrontBomber
-
+    if M28UnitInfo.IsUnitValid(oFrontBomber) then bHaveT3Bombers = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; iTeam='..iTeam..'; iAirSubteam='..iAirSubteam..'; oFrontBomber (T3 bomber only)='..(oFrontBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFrontBomber) or 'nil')) end
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
@@ -6479,6 +6479,102 @@ function ManageBombers(iTeam, iAirSubteam)
                             end
                             if IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA) or IsThereNearbyAirAA(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), 200, iMaxEnemyAirAA, tFrontBomberPosition) then
                                 bAbortDueToAirAAThreat = true
+                                --Exception if have t3 bombers and nearest airaa unit is further away than target of fromt bomber who has fired recently or is close to that target
+                                if bHaveT3Bombers and M28UnitInfo.IsUnitValid(oFrontBomber) and (M28UnitInfo.IsUnitValid(oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) and GetDistancebetweenPositions(oFrontBomber:GetPosition(), oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]:GetPosition()) <= 120) or (oFrontBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oFrontBomber[M28UnitInfo.refiLastBombFired]) <= 6 then
+                                    --First check if enemy airaa in same zone as fromt bomber
+                                    local tFrontBomberLZOrWZData, tFrontBomberLZOrWZTeamData
+                                    if iBomberPlateauOrZero == 0 then
+                                        tFrontBomberLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iBomberLandOrWaterZone]][M28Map.subrefPondWaterZones][iBomberLandOrWaterZone]
+                                        tFrontBomberLZOrWZTeamData = tFrontBomberLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                    else
+                                        tFrontBomberLZOrWZData = M28Map.tAllPlateaus[iBomberPlateauOrZero][M28Map.subrefPlateauLandZones][iBomberLandOrWaterZone]
+                                        tFrontBomberLZOrWZTeamData = tFrontBomberLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                                    end
+                                    if (tFrontBomberLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) == 0 then
+                                        local oNearestBomberWithAttackOrder
+                                        local iCurDist
+                                        local iClosestDistToFrontBomber = 60 --Only consider bombers close to the front bomber
+                                        if M28UnitInfo.IsUnitValid(oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) then
+                                            oBomberToLookFrom = oFrontBomber
+                                        else
+                                            for iBomber, oBomber in tAvailableBombers do
+                                                if EntityCategoryContains(categories.TECH3, oBomber.UnitId) then
+                                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oFrontBomber:GetPosition())
+                                                    if iCurDist < iClosestDistToFrontBomber then
+                                                        if M28UnitInfo.IsUnitValid(oBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) then
+                                                            iClosestDistToFrontBomber = iCurDist
+                                                            oNearestBomberWithAttackOrder = oBomber
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                        if oNearestBomberWithAttackOrder then
+                                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirAA]) then
+                                                bAbortDueToAirAAThreat = false
+                                                if bDebugMessages == true then LOG(sFunctionRef..': No AirAA units so will ignore airaa afterall') end
+                                            else
+                                                iClosestDistToFrontBomber = 10000
+                                                local oClosestAirAA
+                                                for iAirAA, oAirAA in M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirAA] do
+                                                    if not(oAirAA.Dead) then
+                                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oFrontBomber:GetPosition(), oAirAA:GetPosition())
+                                                        if iCurDist <  iClosestDistToFrontBomber then
+                                                            if oAirAA:GetFractionComplete() == 1 and not(oAirAA:IsUnitState('Attached')) then
+                                                                iClosestDistToFrontBomber = iCurDist
+                                                                oClosestAirAA = oAirAA
+                                                            end
+                                                        end
+                                                    end
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': oClosestAirAA='..(oClosestAirAA.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestAirAA) or 'nil')) end
+                                                if oClosestAirAA then
+                                                    if iClosestDistToFrontBomber < 100 then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy AirAA unit is too close to bomber so will abort due to airaa threat still') end
+                                                    elseif M28UnitInfo.GetUnitSpeed(oClosestAirAA) <= 1 then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy AirAA unit is stationery or almost stationery so will ignore for now') end
+                                                        bAbortDueToAirAAThreat = false
+                                                    else
+                                                        local tBomberTarget = oNearestBomberWithAttackOrder[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]:GetPosition()
+                                                        local iAirAADistToTarget = M28Utilities.GetDistanceBetweenPositions(oClosestAirAA:GetPosition(), tBomberTarget)
+
+                                                        if  iAirAADistToTarget <= 50 then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': AirAA is close to target so will still avoid AirAA') end
+                                                        else
+                                                            local iAirAAFacingAngle = M28UnitInfo.GetUnitFacingAngle(oClosestAirAA)
+                                                            local iAirAAAngleToTarget = M28Utilities.GetAngleFromAToB(oClosestAirAA:GetPosition(), tBomberTarget)
+                                                            if M28Utilities.GetAngleDifference(iAirAAFacingAngle, iAirAAAngleToTarget) <= 45 then
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': AirAA is heading towards target so still avoid airaa') end
+                                                            else
+                                                                local iAirAAAngleToBomber = M28Utilities.GetAngleFromAToB(oClosestAirAA:GetPosition(), oNearestBomberWithAttackOrder:GetPosition())
+                                                                if M28Utilities.GetAngleDifference(iAirAAFacingAngle, iAirAAAngleToBomber) <= 45 then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': AirAA is heading towards bomber so still avoid airaa') end
+                                                                else
+                                                                    --Check airaa isn't between us and the target
+                                                                    local iBomberDistToTarget = M28Utilities.GetDistanceBetweenPositions(oNearestBomberWithAttackOrder:GetPosition(), tBomberTarget)
+                                                                    local iAirAADistToBomber = M28Utilities.GetDistanceBetweenPositions(oNearestBomberWithAttackOrder:GetPosition(), oClosestAirAA:GetPosition())
+                                                                    local iBomberAngleToTarget = M28Utilities.GetAngleFromAToB(oNearestBomberWithAttackOrder:GetPosition(), tBomberTarget)
+                                                                    local iBomberAngleToAsf = iAirAAAngleToBomber - 180
+                                                                    if iBomberAngleToAsf < 0 then iBomberAngleToAsf = iBomberAngleToAsf + 360 end
+
+                                                                    if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iBomberDistToTarget, iAirAADistToBomber, iAirAADistToTarget, iBomberAngleToTarget, iBomberAngleToAsf, 50) then
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Bomber will get too close to the airaa if it carries on towards target, so will continue to avoid airaa') end
+                                                                    else
+                                                                        bAbortDueToAirAAThreat = false
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy not responding with airaa yet, and we think we can get away with dropping bomb on target, so wont run from airaa just yet') end
+                                                                    end
+                                                                end
+                                                            end
+                                                        end
+                                                    end
+                                                else
+                                                    bAbortDueToAirAAThreat = false
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': No oClosestAirAA unit so will ignore airaa afterall') end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
                             end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]))..'; bAbortDueToAirAAThreat='..tostring(bAbortDueToAirAAThreat or false)) end
@@ -6504,6 +6600,31 @@ function ManageBombers(iTeam, iAirSubteam)
                                 if M28Map.iMapSize >= 1000 then iMaxModDist = 0.45
                                 elseif M28Map.iMapSize <= 256 then iMaxModDist = 0.7
                                 else iMaxModDist = 0.55
+                                end
+                            end
+                            local iZoneDistFromFrontBomberToIgnoreModDist
+                            if bHaveT3Bombers then
+                                if M28Map.iMapSize > 512 then
+                                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+                                        iZoneDistFromFrontBomberToIgnoreModDist = 250
+                                    elseif not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
+                                        iZoneDistFromFrontBomberToIgnoreModDist = 180
+                                    else iZoneDistFromFrontBomberToIgnoreModDist = 140
+                                    end
+                                elseif M28Map.iMapSize > 256 then
+                                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+                                        iZoneDistFromFrontBomberToIgnoreModDist = 200
+                                    elseif not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
+                                        iZoneDistFromFrontBomberToIgnoreModDist = 150
+                                    else iZoneDistFromFrontBomberToIgnoreModDist = 120
+                                    end
+                                else
+                                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+                                        iZoneDistFromFrontBomberToIgnoreModDist = 160
+                                    elseif not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
+                                        iZoneDistFromFrontBomberToIgnoreModDist = 120
+                                    else iZoneDistFromFrontBomberToIgnoreModDist = 100
+                                    end
                                 end
                             end
 
@@ -6541,7 +6662,7 @@ function ManageBombers(iTeam, iAirSubteam)
                                             iSearchSize = math.min(iSearchSize, (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) + 25) --i.e. consider a couple more zones in case htey are in another direction
                                             if bDebugMessages == true then LOG(sFunctionRef..': Zone has too much AA threat so wont target and will stop searching soon') end
                                             --If mod dist relatively high then only consider if we have intel coverage
-                                        elseif tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] <= iMaxModDist and (tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] < 0.45 or tOtherLZOrWZTeamData[M28Map.refiRadarCoverage] >= 50 or GetGameTimeSeconds() - (tOtherLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) <= 120) then
+                                        elseif (tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] <= iMaxModDist or (iZoneDistFromFrontBomberToIgnoreModDist and oFrontBomber and M28Utilities.GetDistanceBetweenPositions(oFrontBomber:GetPosition(), tOtherLZOrWZData[M28Map.subrefMidpoint]) <= iZoneDistFromFrontBomberToIgnoreModDist)) and (tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] < 0.45 or tOtherLZOrWZTeamData[M28Map.refiRadarCoverage] >= 50 or GetGameTimeSeconds() - (tOtherLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or 0) <= 120) then
                                             --Update mass thresholds based on mod dist if we have T3 bombers (default earlier is 160 mass for t3)
                                             if iHighestTechLevel >= 3 then
                                                 if tOtherLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.25 then iMassThreshold = 160
