@@ -4657,7 +4657,10 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
             function GetAASearchTypeForPriorityUnit(oUnit, iPlateauOrZero, tUnitLZOrWZData, tUnitLZOrWZTeamData)
                 --Only consider avoiding AA if no enemy air to ground threat in this zone or adjacent zone
                 local bAvoidGroundAA
-                if tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and EntityCategoryContains(categories.LAND + categories.NAVAL, oUnit.UnitId) then bAvoidGroundAA = false
+                if EntityCategoryContains(categories.LAND + categories.NAVAL, oUnit.UnitId) and (tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) < (tUnitLZOrWZTeamData[M28Map.subrefiThreatEnemyGroundAA] or 0) * 3 then
+                    bAvoidGroundAA = true
+                elseif tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and EntityCategoryContains(categories.LAND + categories.NAVAL, oUnit.UnitId) then
+                    bAvoidGroundAA = false
                 elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
                     bAvoidGroundAA = true
                 elseif (tUnitLZOrWZTeamData[M28Map.refiModDistancePercent] or 0) >= 0.7 and not(EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then
