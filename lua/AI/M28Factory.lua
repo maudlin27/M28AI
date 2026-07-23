@@ -3067,7 +3067,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
             end
         end
-        
+
         if bDebugMessages == true then LOG(sFunctionRef..': bSaveMassForT3OrEnemyTurtling='..tostring(bSaveMassForT3OrEnemyTurtling)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; subrefiTeamAverageMassPercentStored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored]..'; subrefbEnemiesInThisOrAdjacentLZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)..'; refiModDistancePercent='..tLZTeamData[M28Map.refiModDistancePercent]..'; subrefLZIslandRef='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; reftClosestFriendlyBase island ref='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) or 'nil')) end
 
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -4448,6 +4448,15 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     if ConsiderUpgrading() then  return sBPIDToBuild end
                 end
             end
+        end
+    end
+
+    --Not low mass, no spare engis, and have paragon
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] and aiBrain:GetEconomyStoredRatio('MASS') > 0.01 and iFactoryTechLevel >= 3 then
+        if bDebugMessages == true then LOG(sFunctionRef..': If have paragon will look to build more engis if none spare in LZ, Cur time - subrefiTimeLastHadSpareEngiByTech[3]='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][3] or 0)) end
+        if not(tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][3]) or GetGameTimeSeconds() - tLZTeamData[M28Map.subrefiTimeLastHadSpareEngiByTech][3] >= 10 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
     end
 

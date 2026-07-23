@@ -6,7 +6,7 @@ Tooltips = {
     },
     aitype_m28aie = {
         title = "<LOC M28_0001>AI: M28 Easy",
-        description = "Adaptive AI that disables most of M28s micro and kiting logic",
+        description = "Adaptive AI that disables or severely limits most of M28s micro and kiting logic, but still uses M28Adaptive's macro skills",
     },
     aitype_m28aicheat = {
         title = "AIx: M28",
@@ -14,7 +14,7 @@ Tooltips = {
     },
     aitype_m28aiecheat = {
         title = "AIx: M28 Easy",
-        description = "Cheating adaptive AI that disables most of M28s micro and kiting logic",
+        description = "Cheating adaptive AI that disables or severely limits most of M28s micro and kiting logic, but still uses M28Adaptive's macro skills",
     },
     aitype_m28aiair = {
         title = "AI: M28 Air",

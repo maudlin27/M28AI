@@ -466,32 +466,48 @@ function OnYthothaDeath(oUnit)
 
         if not(oUnit[refbYthothaDeath]) then
             oUnit[refbYthothaDeath] = true
+            local tStormPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
             local tNearbyUnits
             if bDebugMessages == true then LOG(sFunctionRef..': Ythotha has just died, will look for nearby units and tell them to run away') end
             local iTimeToRun
             local iSearchRange = 70 --at 50 distance a fatboy can end up dying to it
+            local toM28EasyUnitsToRun
             for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
-                tNearbyUnits = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand, oUnit:GetPosition(), iSearchRange, 'Ally')
+                tNearbyUnits = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand, tStormPosition, iSearchRange, 'Ally')
                 if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
                     local bRunCurrentUnit
                     for iFriendlyUnit, oFriendlyUnit in tNearbyUnits do
                         if bDebugMessages == true then LOG(sFunctionRef..': oFriendlyUnit='..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..'; if we own it then will make it run away') end
                         if oFriendlyUnit:GetAIBrain() == oBrain then --Only do this for M28 units
                             if M28UnitInfo.IsUnitValid(oFriendlyUnit, true) then
-                                if not(oFriendlyUnit[M28UnitInfo.refbEasyBrain]) then
+                                if oFriendlyUnit[M28UnitInfo.refbEasyBrain] then
+                                    if EntityCategoryContains(categories.EXPERIMENTAL, oFriendlyUnit.UnitId) then
+                                        if not(toM28EasyUnitsToRun) then toM28EasyUnitsToRun = {} end
+                                        table.insert(toM28EasyUnitsToRun, oFriendlyUnit)
+                                    end
+
+                                else
                                     bRunCurrentUnit = true
                                     if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oFriendlyUnit.UnitId) and (oFriendlyUnit:IsUnitState('Building') or oFriendlyUnit:IsUnitState('Repairing')) and oFriendlyUnit:GetWorkProgress() >= 0.94 and (oFriendlyUnit:GetWorkProgress() >= 0.97 or oFriendlyUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryAllShieldUnits + categories.MOBILE, oFriendlyUnit:GetFocusUnit().UnitId)) then
                                         bRunCurrentUnit = false
                                     end
                                     if bRunCurrentUnit then
                                         --Engineers that are assisting a near-complete shield or mobile unit - keep building
-                                        iTimeToRun = math.min(32, math.max(10, 18 + (50 - M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), oUnit:GetPosition()) / (oFriendlyUnit:GetBlueprint().Physics.MaxSpeed or 1))))
+                                        iTimeToRun = math.min(32, math.max(10, 18 + (50 - M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), tStormPosition) / (oFriendlyUnit:GetBlueprint().Physics.MaxSpeed or 1))))
                                         if bDebugMessages == true then LOG(sFunctionRef..': Telling friendly unit '..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..' to move away for 18s via moveawayfromtarget order') end
-                                        ForkThread(M28Micro.MoveAwayFromTargetTemporarily, oFriendlyUnit, iTimeToRun, oUnit:GetPosition())
+                                        ForkThread(M28Micro.MoveAwayFromTargetTemporarily, oFriendlyUnit, iTimeToRun, tStormPosition)
                                     end
                                 end
                             end
                         end
+                    end
+                end
+            end
+            if toM28EasyUnitsToRun then
+                for iUnit, oFriendlyUnit in toM28EasyUnitsToRun do
+                    if not(oFriendlyUnit.Dead) and M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), tStormPosition) <= 60 then --60 instead of 70 as want to be a bit worse
+                        iTimeToRun = math.min(25, math.max(10, 18 + (50 - M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), tStormPosition) / (oFriendlyUnit:GetBlueprint().Physics.MaxSpeed or 1))))
+                        ForkThread(M28Micro.DelayedMoveAwayFromTarget, oFriendlyUnit, iTimeToRun, tStormPosition, math.random(300,500)/100)
                     end
                 end
             end
@@ -3059,7 +3075,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     ForkThread(M28Land.ConsiderAssigningRaider, oEngineer, oJustBuilt)
                                 end
                                 --Atlantis - surface and release cargo if it has a number of air units
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileAircraftFactory, oEngineer.UnitId) and oEngineer.GetCargo then
+                            elseif oEngineer.UnitId == 'ues0401' and oEngineer.GetCargo then
                                 ForkThread(M28Micro.ConsiderSurfacingAtlantisToReleaseCargo, oEngineer)
                             end
 

@@ -4623,7 +4623,7 @@ function JustBuiltParagon(oParagon)
                     end
                 end
                 if not(bGiftedParagonToOtherBrain) then
-                    --Gift mexes, mass storage, and half of our pgens to another teammate; meanwhile have teammates gift mass using units (factories engineers, SACUs) to us
+                    --Gift mexes, mass storage, half of our pgens and (if are getting near unit cap) combat units to another teammate; meanwhile have teammates gift mass using units (factories engineers, SACUs) to us
                     --SACUs lose upgrades on transfer!
                     local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
                     local iMaxEngineersToGift = math.max(aiBrain[M28Overseer.refiExpectedRemainingCap] * 0.5, 30)
@@ -4754,7 +4754,9 @@ function JustBuiltParagon(oParagon)
                 if M28Utilities.IsTableEmpty(tUnitsToGift) then
                     tUnitsToGift = {}
                 end
+
                 local tMassStorage = aiBrain:GetListOfUnits( M28UnitInfo.refCategoryMassStorage, false, true)
+                local tUnitsToPartiallyGift
                 if M28Utilities.IsTableEmpty(tMassStorage) == false then
                     for iUnit, oUnit in tMassStorage do
                         --Is it near T3 mex?
@@ -4768,6 +4770,7 @@ function JustBuiltParagon(oParagon)
                         end
                     end
                 end
+
                 if bDebugMessages == true then
                     if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
                         LOG(sFunctionRef..': Finished checking for mass storage, tUnitsToGift size='..table.getn(tUnitsToGift))
@@ -4792,9 +4795,22 @@ function JustBuiltParagon(oParagon)
                     if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
                         LOG(sFunctionRef..': Finished checking for power, tUnitsToGift size='..table.getn(tUnitsToGift))
                     else
-                        LOG(sFunctionRef..': tUnitsToGift is empty after checking for mass storage')
+                        LOG(sFunctionRef..': tUnitsToGift is empty after checking for power')
                     end
                 end
+                --If used up at laest half our unit cap then gift combta units to a teammate to free up some space
+                if oOtherBrain.M28AI and oOtherBrain.BrainType == 'AI' and GetArmyUnitCostTotal(aiBrain:GetArmyIndex()) / GetArmyUnitCap(aiBrain:GetArmyIndex()) >= 0.5 then
+                    tUnitsToPartiallyGift = aiBrain:GetListOfUnits(categories.MOBILE * categories.AIR + categories.LAND * categories.MOBILE + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryStructureAA - categories.COMMAND - categories.SUBCOMMANDER - categories.INSIGNIFICANTUNIT - categories.UNSELECTABLE - categories.EXPERIMENTAL - categories.ENGINEER - categories.FACTORY - categories.EXTERNALFACTORYUNIT, false, true)
+                    if M28Utilities.IsTableEmpty(tUnitsToPartiallyGift) == false then
+                        for iUnit, oUnit in tUnitsToPartiallyGift do
+                            --Give away 40% of our army to free up unit cap
+                            if math.random(1,5) <= 2  then
+                                table.insert(tUnitsToGift, oUnit)
+                            end
+                        end
+                    end
+                end
+
                 if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
                     M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
                     if not(oOtherBrain.M28AI) then
