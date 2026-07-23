@@ -28,6 +28,11 @@ refiCurUnitsDodging = 'M28CrDgM' --Number of untis currently dodging (used if re
 refiMaxUnitsToHoverMicroAtOnce = 'M28MxHvM' --determiend by ScenarioInfo.Options.M28HoverMicro, nil if no limit
 refiCurUnitsHoverMicroing = 'M28CrDgM' --Number of untis currently doing hover micro (used if refiMaxUnitsToHoverMicroAtOnce isnt nil)
 
+function DelayedMoveAwayFromTarget(oUnit, iTimeToRun, tPositionToRunFrom, iDelayBeforeStarting)
+    WaitSeconds(iDelayBeforeStarting)
+    MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
+end
+
 function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MoveAwayFromTargetTemporarily'
