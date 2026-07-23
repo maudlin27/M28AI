@@ -3012,7 +3012,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                             if M28Utilities.bCPUPerformanceMode then
                                 iLRThreatInRange = M28UnitInfo.GetMassCostOfUnits(tLRAlmostInRange)
                             else
-                                iLRThreatInRange = M28UnitInfo.GetAirThreatLevel(tLRAlmostInRange, true, true, true, false, false, false)
+                                iLRThreatInRange = M28UnitInfo.GetAirThreatLevel(tLRAlmostInRange, true, true, false, false, false, false)
                             end
                         end
                         if iLRThreatInRange > 0.5 * iAirAAThreshold then
