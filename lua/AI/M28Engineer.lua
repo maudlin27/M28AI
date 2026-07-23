@@ -3285,7 +3285,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 if not(iCategoryWanted) and aiBrain[M28Economy.refbBuiltParagon] then
                     local iRand = math.random(1,4)
                     if bDebugMessages == true then LOG(sFunctionRef..': Exp re paragon - % chance of building mobile experimental, iRand='..iRand) end
-                    if iRand == 3 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                    if iRand == 3 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and tLZOrWZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) then
                         iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                         if bDebugMessages == true then LOG(sFunctionRef..': Will get land experimental') end
                     elseif iRand >= 3 then
@@ -18811,6 +18811,22 @@ end--]]
             HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tBuildLocation)
         elseif tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] <= 1500 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 then
             HaveActionToAssign(refActionBuildAA, 2, iBPWanted)
+        end
+    end
+
+    --Paragon on team - consider building exp
+    iCurPriority = iCurPriority + 1
+    if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.refbBuiltParagon] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamAverageMassPercentStored] > 0.01 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will look to start work on an experimental given paragon on our team') end
+        iBPWanted = 60
+        if aiBrain:GetEconomyStoredRatio('MASS') < 0.1 and not(aiBrain[M28Economy.refbBuiltParagon]) then iBPWanted = 30 end
+        if ((NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 0) == (NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) or -1) and (tLZTeamData[M28Map.refiModDistancePercent] >= 0.35 or M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) <= 350))
+                and (M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] <= 6 + 6 * M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti))
+        then
+
+            AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam, tLZData, tLZTeamData, false, refActionBuildLandExperimental,3, iBPWanted, nil, false, true)
+        else
+            AssignBuildExperimentalOrT3NavyAction(HaveActionToAssign, iPlateau, iLandZone, iTeam, tLZData, tLZTeamData, false, refActionBuildExperimental, 3, iBPWanted, nil, false, true)
         end
     end
 
