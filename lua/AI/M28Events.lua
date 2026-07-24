@@ -5230,8 +5230,8 @@ function OnPlayerChatMessageSent(data)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': data='..reprs(data)) end
     if data.Sender and data.Msg and data.Msg.Chat and data.Msg.text then
-        local tsToxicSearchStrings = {'stfu', 'fuck you', 'kys', 'retard'}
-        local tbDirectedAtPerson = {true, true, true, false}
+        local tsToxicSearchStrings = {'stfu', 'fuck you', 'kys', 'retard', 'clanker'}
+        local tbDirectedAtPerson = {true, true, true, false, false}
         local bToxicMessageSent = false
         local bMessageTargetingPerson = false
         for iMessage, sToxicMessage in tsToxicSearchStrings do
