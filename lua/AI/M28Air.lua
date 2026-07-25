@@ -5443,8 +5443,6 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                     end
                                 end
                             end
-                        else
-                            M28Utilities.ErrorHandler('No other land or water zones identified, likely error')
                         end
                     end
                 end
@@ -6480,7 +6478,7 @@ function ManageBombers(iTeam, iAirSubteam)
                             if IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA) or IsThereNearbyAirAA(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), 200, iMaxEnemyAirAA, tFrontBomberPosition) then
                                 bAbortDueToAirAAThreat = true
                                 --Exception if have t3 bombers and nearest airaa unit is further away than target of fromt bomber who has fired recently or is close to that target
-                                if bHaveT3Bombers and M28UnitInfo.IsUnitValid(oFrontBomber) and (M28UnitInfo.IsUnitValid(oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) and GetDistanceBetweenPositions(oFrontBomber:GetPosition(), oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]:GetPosition()) <= 120) or (oFrontBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oFrontBomber[M28UnitInfo.refiLastBombFired]) <= 6 then
+                                if bHaveT3Bombers and M28UnitInfo.IsUnitValid(oFrontBomber) and (M28UnitInfo.IsUnitValid(oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) and M28Utilities.GetDistanceBetweenPositions(oFrontBomber:GetPosition(), oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]:GetPosition()) <= 120) or (oFrontBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oFrontBomber[M28UnitInfo.refiLastBombFired]) <= 6 then
                                     --First check if enemy airaa in same zone as fromt bomber
                                     local tFrontBomberLZOrWZData, tFrontBomberLZOrWZTeamData
                                     if iBomberPlateauOrZero == 0 then

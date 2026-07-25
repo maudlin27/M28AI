@@ -5919,34 +5919,40 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
             if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits]) then
                 local iCurShieldHealth, iMaxShieldHealth
                 local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits] do
-                    if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
-                        --Check target not under lots of fixed shielding (ignore mobile shields though since we might be targeting fatboy
-                        --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCurHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth, bReturnShieldsCovringTargetInstead)
-                        iCurShieldHealth, iMaxShieldHealth = M28Logic.IsTargetUnderShield(aiBrain, oUnit,   0,                                          true,                       true,              true,                           true,                   false)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy exp oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShieldHealth (of fixed shields, cumulatively)='..iCurShieldHealth) end
-                        if iCurShieldHealth <= 14000 then --seraphim t2 shield is 13k health
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tBasePosition, oUnit:GetPosition())
-                            if bDebugMessages == true then LOG(sFunctionRef..': Dist from oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tBasePosition='..iCurDist..'; oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]='..repru(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4])) end
-                            if iCurDist < iClosestEnemy and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Attached')) then
-                                --oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]
-                                iClosestEnemy = iCurDist
-                                oClosestEnemy = oUnit
+                if aiBrain then
+                    for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits] do
+                        if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
+                            --Check target not under lots of fixed shielding (ignore mobile shields though since we might be targeting fatboy
+                            --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCurHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth, bReturnShieldsCovringTargetInstead)
+                            iCurShieldHealth, iMaxShieldHealth = M28Logic.IsTargetUnderShield(aiBrain, oUnit,   0,                                          true,                       true,              true,                           true,                   false)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy exp oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShieldHealth (of fixed shields, cumulatively)='..iCurShieldHealth) end
+                            if iCurShieldHealth <= 14000 then --seraphim t2 shield is 13k health
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(tBasePosition, oUnit:GetPosition())
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dist from oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tBasePosition='..iCurDist..'; oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]='..repru(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4])) end
+                                if iCurDist < iClosestEnemy and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Attached')) then
+                                    --oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]
+                                    iClosestEnemy = iCurDist
+                                    oClosestEnemy = oUnit
+                                end
                             end
                         end
                     end
+                else
+                    M28Utilities.ErrorHandler('No longer hve a valid brain')
                 end
             end
             local iAdditionalLoadedTMLNeeded = 0
             local bAttackingNormalTMLTarget = false
-            if not(oClosestEnemy) then --Check for normal TML targets
-                if not(M28UnitInfo.IsUnitValid(oPrimaryTML)) then
-                    for iTML, oTML in tLZTeamData[M28Map.reftoTMLBatteryUnits] do
-                        oPrimaryTML = oTML
-                        break
-                    end
+            if not(M28UnitInfo.IsUnitValid(oPrimaryTML)) then
+                oClosestEnemy = nil
+                oPrimaryTML = nil
+                for iTML, oTML in tLZTeamData[M28Map.reftoTMLBatteryUnits] do
+                    oPrimaryTML = oTML
+                    break
                 end
-                if M28Conditions.IsTableOfUnitsStillValid(oPrimaryTML[reftUnitsInRangeOfThisTML]) then
+            end
+            if not(oClosestEnemy) then --Check for normal TML targets
+                if oPrimaryTML and M28Conditions.IsTableOfUnitsStillValid(oPrimaryTML[reftUnitsInRangeOfThisTML]) then
                     local aiBrain = oPrimaryTML:GetAIBrain()
                     local iLeastTMDOrMissedShotsCoveringTarget = 3 --i.e. if a target has 4+ TMD covering it then we wont bother trying to target it
                     local iMissedShotsFactor = 4 --i.e. every 4 missiles fired at this target is treated as a 'missed shot' equivalent to 1 TMD in coverage mostly as a redundancy to stop constantly firing at the same target and failing
