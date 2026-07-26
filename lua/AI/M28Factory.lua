@@ -7770,8 +7770,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             iBSWantedAdjust = math.min(iBSWantedAdjust, math.max(-1, (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) * 0.25 - 3))
         end
         if 4 + iBSWantedAdjust < aiBrain[M28Economy.refiGrossMassBaseIncome] then  iBSWantedAdjust = iBSWantedAdjust + 1 end
+        if bDebugMessages == true then LOG(sFunctionRef..': iBSWantedAdjust before checking recent BS bombardments='..iBSWantedAdjust..'; Time since BS last focused on shield='..(GetGameTimeSeconds() - (M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam][iTeam] or 0))..'; shield value='..(M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] or 'nil')) end
+        if iBSWantedAdjust < 4 and (M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] or o) > 5000 and M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam][iTeam] and GetGameTimeSeconds() - M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam][iTeam] <= math.max(4, M28Land.iTicksPerLandCycle / 10) then
+            if M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] >= 2000 then
+                iBSWantedAdjust = iBSWantedAdjust + math.min(3,  (M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] - 3000) / 3000)
+            end
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': bAboutToOverflowMass='..tostring(bAboutToOverflowMass)..'; iPondSize='..iPondSize..'; iCurBattleships='..iCurBattleships..'; iBSWantedAdjust='..iBSWantedAdjust..'; bHaveLowMass='..tostring(bHaveLowMass)..'; M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]]='..(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 'nil')) end
-        if bAboutToOverflowMass or (iCurBattleships < 4+ iBSWantedAdjust and (not (bHaveLowMass) or iCurBattleships <= 1 + iBSWantedAdjust * 0.5)) then
+        if bAboutToOverflowMass or (iCurBattleships < 4+ iBSWantedAdjust and (not (bHaveLowMass) or iCurBattleships <= 1 + iBSWantedAdjust * 0.6)) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryBattleship) then
                 return sBPIDToBuild
             end

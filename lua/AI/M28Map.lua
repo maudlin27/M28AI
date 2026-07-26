@@ -494,6 +494,8 @@ tPondDetails = {}
     subrefBuildLocationByStartPosition = 'PondBuildLocationByStart' --Subtable, key is start position number, which stores the build location for that start position (will only record for M28 brain start positions)
 
     refiCampaignLastBombardmentWeaponFired = 'PnBmbF' --time that a unit of the bombardment category last fired its weapon in this pond
+    refiLastBombardmentBSShieldTargetValueByTeam = 'PnBmbShl' --[x] = M28 team, returns value if a battleship switches to targeting an enemy fixed shield, then this records the total enemy fixed shielding in the zone or if higher shielding the unit, so we know if we want to request more shielding
+    refiLastBombardmentBSShieldTargetTimeByTeam = 'PnBmbSht' --[x] = M28team, returns floor of time that we last had abattleship switch to targeting a fixed shield
 
     --Water zones (against tPondDetails)
     subrefPondWZCount = 'PWZCount' --Total number of water zones in a pond (cant use table.getn on below as theyre not ordered from 1-x)
