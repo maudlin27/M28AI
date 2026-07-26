@@ -11002,6 +11002,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             local iEnemyBattleshipNukes = 0
             local iEnemyNormalNukes = 0
             local bEnemyNukeNotConstructed = true
+            local iHighestEnemyNormalNukeBuildRate = 1
             if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) then
                 for iNuke, oNuke in M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers] do
                     if EntityCategoryContains(categories.BATTLESHIP, oNuke.UnitId) then
@@ -11015,6 +11016,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
                         iEnemyNormalNukes = iEnemyNormalNukes + 8
                     else
                         iEnemyNormalNukes = iEnemyNormalNukes + 1
+                        iHighestEnemyNormalNukeBuildRate = math.max(iHighestEnemyNormalNukeBuildRate, (oNuke:GetAIBrain()[M28Economy.refiBrainBuildRateMultiplier] or 1))
                     end
                     if oNuke.GetFractionComplete and oNuke:GetFractionComplete() >= 0.95 then
                         bEnemyNukeNotConstructed = false
@@ -11069,22 +11071,23 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             end
 
             if iSMDWanted <= 0 and (bObjectiveWantMoreSMD or (tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] <= 360)) then iSMDWanted = 1 end
-            if bDebugMessages == true then LOG(sFunctionRef..': iSMDsWeHave='..iSMDsWeHave..'; iSMDWanted='..iSMDWanted..'; iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
-            if iSMDsWeHave < iSMDWanted or (iSMDsWithNoMissiles > 0 and (bObjectiveCategory or iEnemyNormalNukes > 0) and iSMDWanted <= 1) then
-                if bHaveLowMass or iSMDsWeHave > 0 then iBPWanted = 150
-                elseif bWantMorePower then iBPWanted = 225
-                else iBPWanted = 300 end
-                if not(bCoreZone) and not(bObjectiveCategory) then iBPWanted = iBPWanted * 0.5 end
-            end
+            if iSMDsWeHave >= iSMDWanted and iHighestEnemyNormalNukeBuildRate > 1.2 and ((iSMDsWeHave == 1 and iSMDsWithNoMissiles == 0) or (iSMDsWeHave > 1 and iSMDsWithNoMissiles < iSMDsWeHave)) and iEnemyNormalNukes > 0 and iSMDsWeHave < iEnemyNormalNukes * iHighestEnemyNormalNukeBuildRate then iSMDWanted = iSMDWanted + math.min(2, math.max(1, iEnemyNormalNukes * iHighestEnemyNormalNukeBuildRate)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': iSMDsWeHave='..iSMDsWeHave..'; iSMDWanted='..iSMDWanted..'; iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
+        if iSMDsWeHave < iSMDWanted or (iSMDsWithNoMissiles > 0 and (bObjectiveCategory or iEnemyNormalNukes > 0) and iSMDWanted <= 1) then
+        if bHaveLowMass or iSMDsWeHave > 0 then iBPWanted = 150
+        elseif bWantMorePower then iBPWanted = 225
+        else iBPWanted = 300 end
+        if not(bCoreZone) and not(bObjectiveCategory) then iBPWanted = iBPWanted * 0.5 end
+        end
             if iSMDsWithNoMissiles > 0 and (iSMDsWeHave >= iSMDWanted or iSMDsWeHave == iSMDsWithNoMissiles) and iUnderConstructionSMD ==0 and (bObjectiveCategory or iEnemyNormalNukes > 0) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Want to assist SMD') end
-                --If have under construction SMD then finish it off
-                bAssistSMD = true
-                iBPWanted = math.max(150, iBPWanted * 3)
-                --first smd and enemy has nuke constructed - prioritise even more
-                if iSMDsWithNoMissiles == 1 and iSMDsWeHave == 1 and iEnemyNormalNukes > 0 and not(bEnemyNukeNotConstructed) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > 500 then
-                    iBPWanted = iBPWanted + 120
-                end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to assist SMD') end
+        --If have under construction SMD then finish it off
+        bAssistSMD = true
+        iBPWanted = math.max(150, iBPWanted * 3)
+        --first smd and enemy has nuke constructed - prioritise even more
+        if iSMDsWithNoMissiles == iSMDsWeHave and iEnemyNormalNukes > 0 and not(bEnemyNukeNotConstructed) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > 500 then
+            iBPWanted = iBPWanted + 120
+            end
             end
         end
     end
