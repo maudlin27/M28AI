@@ -154,7 +154,7 @@ function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack, tAltMoveFirstT
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local bShotIsBlocked = false
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oFiringUnit='..oFiringUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFiringUnit)..'; oTargetUnit='..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)..'; refiDFAOE='..(oTargetUnit[M28UnitInfo.refiDFAOE] or 'nil')..'; tAltMoveFirstToFirePosition='..repru(tAltMoveFirstToFirePosition)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oFiringUnit='..oFiringUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFiringUnit)..'; oTargetUnit='..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)..'; refiDFAOE='..(oFiringUnit[M28UnitInfo.refiDFAOE] or 'nil')..'; tAltMoveFirstToFirePosition='..repru(tAltMoveFirstToFirePosition)) end
     if oTargetUnit.CanBeKilled == false and oFiringUnit:GetAIBrain().M28AI then bShotIsBlocked = true
     else
         local tShotStartPosition = GetDirectFireWeaponPosition(oFiringUnit)
@@ -244,8 +244,19 @@ function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack, tAltMoveFirstT
                 else
                     --Have the shot end and start positions; now want to move along a line between the two and work out if terrain will block the shot
                     --IsLineBlocked(aiBrain,                 tShotStartPosition, tShotEndPosition, iAOE, bReturnDistanceThatBlocked, bAntiNavy)
-                    bShotIsBlocked = IsLineBlocked(oFiringUnit:GetAIBrain(), tShotStartPosition, tShotEndPosition,  nil, nil,                   bAntiNavyAttack)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Just seen if line is blocked. tShotStartPosition='..repru(tShotStartPosition)..'; tShotEndPosition='..repru(tShotEndPosition)..'; Terrain height at start='..GetTerrainHeight(tShotStartPosition[1], tShotStartPosition[3])..'; Terrain height at end='..GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3])..'; bShotIsBlocked='..tostring(bShotIsBlocked)) end
+
+                    --Battleships have a slight arc to their shot, try to approximate this
+                    if EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oFiringUnit.UnitId) then
+                        if tShotStartPosition[2] - 1 <= tShotEndPosition[2] then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Increasing shot end position height as a proxy for slight firing arc') end
+                            tShotEndPosition[2] = tShotEndPosition[2] + 5 --On twin rivers with battleships firing at a shield, +6 meant battleship would think it could hit, +3 and it still incorrectly thoguht its shot was blocked, so will go with +5 to be safe
+                        end
+                    end
+                    bShotIsBlocked = IsLineBlocked(oFiringUnit:GetAIBrain(), tShotStartPosition, tShotEndPosition,  oFiringUnit[M28UnitInfo.refiDFAOE], nil,                   bAntiNavyAttack)
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Just seen if line is blocked. tShotStartPosition='..repru(tShotStartPosition)..'; tShotEndPosition='..repru(tShotEndPosition)..'; Terrain height at start='..GetTerrainHeight(tShotStartPosition[1], tShotStartPosition[3])..'; Terrain height at end='..GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3])..'; bShotIsBlocked='..tostring(bShotIsBlocked))
+                        LOG(sFunctionRef..': IsLineBlocked if increase shot end position by 3='..tostring(IsLineBlocked(oFiringUnit:GetAIBrain(), tShotStartPosition, {tShotEndPosition[1], tShotEndPosition[2] + 3, tShotEndPosition[3]},  oFiringUnit[M28UnitInfo.refiDFAOE], nil,                   bAntiNavyAttack)))
+                    end
                 end
             end
         end
