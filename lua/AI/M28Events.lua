@@ -391,8 +391,13 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                         end
                                         if bConsiderMessage then
                                             if (oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < (oUnitKilled[M28UnitInfo.refiUnitMassCost] or 0) * 0.5 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder, oUnitKilled.UnitId) then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerBrain.Nickname or 'nil')) end
-                                                ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                                --If enemy is beating us on eco and units on our side of map then dont gloat
+                                                if not(EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId)) and M28Team.tLandSubteamData[oKillerBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] > M28Team.tLandSubteamData[oKillerBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] and M28Conditions.GetEnemyTeamActualMassIncome(oKillerBrain.M28Team) > 1.3 * M28Team.tTeamData[oKillerBrain.M28Team][M28Team.subrefiTeamGrossMass] / oKillerBrain[M28Economy.refiBrainResourceMultiplier] then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': We still are losing so wont gloat') end
+                                                else
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerBrain.Nickname or 'nil')) end
+                                                    ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                                end
                                             end
                                         end
                                     end
