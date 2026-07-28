@@ -5230,7 +5230,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
     local iAirSubteam = aiBrain.M28AirSubteam
 
-
+    if iFactoryTechLevel >= 2 and GetGameTimeSeconds() >= 21*60 then bDebugMessages = true end
 
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
@@ -5671,6 +5671,31 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if bDebugMessages == true then LOG(sFunctionRef..': Low power want scouts for priority units, if we dont have many and last unit built wasnt air scout then will get one, oFactory[refsLastBlueprintBuilt]='..(oFactory[refsLastBlueprintBuilt] or 'nil')..'; Cur air scouts='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout)) end
             if oFactory[refsLastBlueprintBuilt] and not(EntityCategoryContains(M28UnitInfo.refCategoryAirScout, oFactory[refsLastBlueprintBuilt])) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout) < 2 then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
+            end
+        end
+
+        --Moderate priority transport for low power
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': low power medium priority transport builder, Is island shortlist empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]))..'; refiGrossEnergyBaseIncome for brain='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Time since last tried building transport='..GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or 0)) end
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 150 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 15 * (0.5 + 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) * aiBrain[M28Economy.refiBrainBuildRateMultiplier]) and M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer) >= 5 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.15 then
+            bDebugMessages = true
+            local iAlreadyBuilding = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryTransport, false)
+            if bDebugMessages == true then LOG(sFunctionRef..': iAlreadyBuilding='..iAlreadyBuilding) end
+            if iAlreadyBuilding == 0 then
+                if GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or 0) >= 300 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Transports on air subteam='..M28Conditions.GetNumberOfConstructedUnitsInAirSubteam(iAirSubteam, M28UnitInfo.refCategoryTransport)) end
+                    if M28Conditions.GetNumberOfConstructedUnitsInAirSubteam(iAirSubteam, M28UnitInfo.refCategoryTransport) == 0 then
+                        M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and build a transport as a high priority at time='..GetGameTimeSeconds()..'; iCurrentConditionToTry='..iCurrentConditionToTry) end
+                        local iCategoryWanted
+                        if iFactoryTechLevel <= 2 then
+                            iCategoryWanted = M28UnitInfo.refCategoryTransport * categories.TECH1
+                        else    iCategoryWanted = M28UnitInfo.refCategoryTransport - categories.TECH3 end
+                        if ConsiderBuildingCategory(iCategoryWanted) then
+                            return sBPIDToBuild
+                        end
+                    end
+                end
             end
         end
 
