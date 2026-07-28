@@ -3191,7 +3191,7 @@ function FixUnitResourceCheatModifiers(oUnit)
         local iResourceModifier = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
         local iBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
         local oBP = oUnit:GetBlueprint()
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering applying resource modifier to unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', iResourceModifier='..iResourceModifier..'; iBuildModifier='..iBuildModifier..'; oBP.Economy.BuildRate='..oBP.Economy.BuildRate) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering applying resource modifier to unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', iResourceModifier='..iResourceModifier..'; iBuildModifier='..iBuildModifier..'; oBP.Economy.BuildRate='..oBP.Economy.BuildRate..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; ScenarioInfo.Options.BuildMult='..(ScenarioInfo.Options.BuildMult or 'nil')) end
         if iResourceModifier > 0 then
             local iBaseMassPerSec = (oBP.Economy.ProductionPerSecondMass or 0)
             local iBaseEnergyPerSec = (oBP.Economy.ProductionPerSecondEnergy or 0)
