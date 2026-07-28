@@ -1148,6 +1148,7 @@ function AdjustAIxOverwhelmRate()
                     iCurBuildModifier = math.min(iCurBuildModifier + iRateAdjustment, iUpperCap)
                     ScenarioInfo.Options.CheatMult = tostring(iCurResourceModifier)
                     ScenarioInfo.Options.BuildMult = tostring(iCurBuildModifier)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Increased modifiers to reflect iRateAdjustment='..iRateAdjustment..'; CheatMult now='..ScenarioInfo.Options.CheatMult..'; BuildMult now='..ScenarioInfo.Options.BuildMult) end
                     bChangedModifier = true
                 end
             else
@@ -1156,6 +1157,7 @@ function AdjustAIxOverwhelmRate()
                     iCurBuildModifier = math.max(iCurBuildModifier + iRateAdjustment, iLowerCap)
                     ScenarioInfo.Options.CheatMult = tostring(iCurResourceModifier)
                     ScenarioInfo.Options.BuildMult = tostring(iCurBuildModifier)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Rate adjustment is negative, adjusted modifiers to reflect iRateAdjustment='..iRateAdjustment..'; CheatMult now='..ScenarioInfo.Options.CheatMult..'; BuildMult now='..ScenarioInfo.Options.BuildMult) end
                     bChangedModifier = true
                 end
             end
@@ -1179,18 +1181,19 @@ function AdjustAIxOverwhelmRate()
                     if bChangedModifier then return oBrain.CheatValue + iRateAdjustment end
                 end
                 local iIndividualModifier
-                for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
-                    if oBrain.CheatEnabled and not(oBrain.M28IsDefeated) then
+                for iBrain, oBrain in ArmyBrains do
+                    if oBrain.CheatEnabled and not(oBrain.M28IsDefeated) and (oBrain.M28AI or oBrain.BrainType == 'AI') then
                         if bHaveIndividualAIBrainMods and oBrain.CheatValue then
                             iIndividualModifier = GetIndividualModifier(oBrain)
                             if bChangedModifier and iIndividualModifier then
                                 bChangedAnyAI = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Changing AIx modifier for brain '..oBrain.Nickname..' to '..iIndividualModifier) end
                                 --Also change the AI .CheatValue
-                                                                            --aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust, bDontApplyToUnits, bUpdateCheatValue)
+                                --aiBrain, iBuildModifier, iResourceModifier, bDontChangeScenarioInfo, iOptionalRecordedUnitResourceAdjust, bDontApplyToUnits, bUpdateCheatValue)
                                 M28Overseer.SetBuildAndResourceCheatModifiers(oBrain, iIndividualModifier, iIndividualModifier, true,                   nil,                                false,           true)
                             end
                         else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will update AIx modifiers for brain to iCurBuildModifier='..iCurBuildModifier..'; iCurResourceModifier='..iCurResourceModifier) end
                             M28Overseer.SetBuildAndResourceCheatModifiers(oBrain, iCurBuildModifier, iCurResourceModifier, true)
                         end
                     end
