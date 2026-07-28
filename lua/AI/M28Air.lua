@@ -510,7 +510,7 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
     local sFunctionRef = 'AirSubteamOverseer'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
+    while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) or (not(M28Map.bRecordedIslands) and GetGameTimeSeconds() <= 15) do
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -10328,7 +10328,7 @@ function UpdateTransportPlateauDropLocationShortlist(iTeam, bUpdateCombatDropSho
     local tbPlateausWithPlayerStartOrIslandDrop = {}
 
     --First record (once per game) potential islands to consider dropping for this team
-    if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau]) then
+    if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau]) and M28Map.bRecordedIslands then
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off exercise at start of game to identify islands to drop, time='..GetGameTimeSeconds()) end
         M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau] = {}
         --First identify any islands by plateau that have mexes and dont have an enemy or friendly start position
