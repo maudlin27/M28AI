@@ -117,21 +117,25 @@ function OtherSteamCompatibilityInformation()
         if bDebugMessages == true then LOG(sFunctionRef..': Finsihed updating for steam compatibility') end
 
         --fix the scenarioinfo values from custom game options if are in LOUD, as it uses keys
-        --[[local LobbyOptions = import('/mods/M28AI/lua/CustomOptions/M28LOUDLobbyOptions.lua')
+        local LobbyOptions = import('/mods/M28AI/lua/AI/LobbyOptions/lobbyoptions.lua')
         local vCurKey
         if bDebugMessages == true then LOG(sFunctionRef..': About to go through lobby options and update scenario info, LobbyOptions.LobbyGlobalOptions='..repru(LobbyOptions.LobbyGlobalOptions)) end
-        for iEntry, tOptionData in LobbyOptions.LobbyGlobalOptions do
+        local bUseKeyForValue
+        for iEntry, tOptionData in LobbyOptions.AIOpts do
             vCurKey = ScenarioInfo.Options[tOptionData.key]
+            bUseKeyForValue = tOptionData.bUseKeyAsValueInScenarioInfo or false
             if bDebugMessages == true then LOG(sFunctionRef..': Considering vCurKey='..(vCurKey or 'nil')..'; tOptionData.key='..(tOptionData.key or 'nil')..'; iEntry='..iEntry) end
-            for iValueEntry, tValueData in tOptionData.values do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering tValueData.key='..tValueData.key or 'nil') end
-                if tValueData.key == vCurKey then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Replacing scenario info for option Data key='..tOptionData.key..'; Scenario info value='..ScenarioInfo.Options[tOptionData.key]..'; Will change to tValueData.text='..tValueData.text) end
-                    ScenarioInfo.Options[tOptionData.key] = tValueData.text
-                    break
+            if not(bUseKeyForValue) then
+                for iValueEntry, sValue in tOptionData.values do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iValueEntry='..iValueEntry..'; sValue='..sValue) end
+                    if iValueEntry == vCurKey then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Replacing scenario info for option Data iValueEntry='..iValueEntry..'; vCurKey='..vCurKey..'; sValue='..sValue) end
+                        ScenarioInfo.Options[tOptionData.key] = sValue
+                        break
+                    end
                 end
             end
-        end--]]
+        end
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
