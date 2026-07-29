@@ -5230,7 +5230,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
     local iAirSubteam = aiBrain.M28AirSubteam
 
-    if iFactoryTechLevel >= 2 and GetGameTimeSeconds() >= 21*60 then bDebugMessages = true end
+
 
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
@@ -5678,7 +5678,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef..': low power medium priority transport builder, Is island shortlist empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]))..'; refiGrossEnergyBaseIncome for brain='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Time since last tried building transport='..GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or 0)) end
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 150 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 15 * (0.5 + 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) * aiBrain[M28Economy.refiBrainBuildRateMultiplier]) and M28Conditions.GetNumberOfConstructedUnitsMeetingCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer) >= 5 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.15 then
-            bDebugMessages = true
+
             local iAlreadyBuilding = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandOrWaterZone(tLZTeamData, M28UnitInfo.refCategoryTransport, false)
             if bDebugMessages == true then LOG(sFunctionRef..': iAlreadyBuilding='..iAlreadyBuilding) end
             if iAlreadyBuilding == 0 then
@@ -7796,7 +7796,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         end
         if 4 + iBSWantedAdjust < aiBrain[M28Economy.refiGrossMassBaseIncome] then  iBSWantedAdjust = iBSWantedAdjust + 1 end
         if bDebugMessages == true then LOG(sFunctionRef..': iBSWantedAdjust before checking recent BS bombardments='..iBSWantedAdjust..'; Time since BS last focused on shield='..(GetGameTimeSeconds() - (M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam][iTeam] or 0))..'; shield value='..(M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] or 'nil')) end
-        if iBSWantedAdjust < 4 and (M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] or o) > 5000 and M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam][iTeam] and GetGameTimeSeconds() - M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam][iTeam] <= math.max(4, M28Land.iTicksPerLandCycle / 10) then
+        if iBSWantedAdjust < 4 and (M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] or 0) > 5000 and M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam][iTeam] and GetGameTimeSeconds() - M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam][iTeam] <= math.max(4, M28Land.iTicksPerLandCycle / 10) then
             if M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] >= 2000 then
                 iBSWantedAdjust = iBSWantedAdjust + math.min(3,  (M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] - 3000) / 3000)
             end
