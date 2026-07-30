@@ -2537,7 +2537,7 @@ function ConsiderAirAAHoverAttackTowardsTarget(oUnit, oWeapon)
                         --Select new target if are currently stopped and cur target is dead
                         if bDebugMessages == true then LOG(sFunctionRef..': Will select new target if currently stopped and cur target is dead, is oUnit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Is oTarget valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Time='..GetGameTimeSeconds()) end
                         if M28UnitInfo.IsUnitValid(oUnit) and ((bUseStopMicro and bLastOrderWasStopOrder and not(M28UnitInfo.IsUnitValid(oTarget)))
-                                or (M28UnitInfo.IsUnitValid(oTarget) and iOurMaxSpeed <= iEnemyMaxSpeed and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= iMaxTimeBetweenShotsWanted and IsTargetRunningAway(oTarget, oUnit, iCurSpeed, iOurMaxSpeed, iTargetCurSpeed, iEnemyMaxSpeed, iOurRange, iCurFacingAngle))) then
+                                or (M28UnitInfo.IsUnitValid(oTarget) and iOurMaxSpeed <= iEnemyMaxSpeed + 0.5 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or 0) >= iMaxTimeBetweenShotsWanted and IsTargetRunningAway(oTarget, oUnit, iCurSpeed, iOurMaxSpeed, iTargetCurSpeed, iEnemyMaxSpeed, iOurRange, iCurFacingAngle))) then
                             oTarget = nil
 
                             local oAltTarget
