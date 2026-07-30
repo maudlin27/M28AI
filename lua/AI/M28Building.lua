@@ -5673,6 +5673,7 @@ function RecordNukeTarget(iTeam, tLaunchLocation)
         local iCycleCount = 0
         if bDebugMessages == true then LOG(sFunctionRef..': Recording nuke target, iTeam='..iTeam..'; tLaunchLocation='..repru(tLaunchLocation)..'; Time='..GetGameTimeSeconds()..'; iCurTime='..iCurTime..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])) end
         if M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] then iCurTime = GetGameTimeSeconds() end
+        local bAbortRecording
         while M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] do
             iCurTime = iCurTime - 0.0001
             --Wierd issue where sometimes but not always iCurTime doesnt change (likely also rseolved by having iCurTime switch to gametimeseconds
@@ -5681,13 +5682,18 @@ function RecordNukeTarget(iTeam, tLaunchLocation)
             end
             iCycleCount = iCycleCount + 1
             if bDebugMessages == true then LOG(sFunctionRef..': iCycleCount='..iCycleCount..'; iCurTime='..iCurTime..'; is M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] nil='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] == nil)) end
-            if iCycleCount >= 30 then
-                M28Utilities.ErrorHandler('Potential infinite loop, aborted recording nuke missile location')
+            if iCycleCount >= 15 then
+                bAbortRecording = true
+                M28Utilities.ErrorHandler('Potential infinite loop or too many simultaneous missile launches, aborted recording nuke missile location')
                 break
             end
         end
-        M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] = { tLaunchLocation[1],tLaunchLocation[2], tLaunchLocation[3] }
-        ForkThread(RemoveOldNukeTarget, iTeam, iCurTime, math.max(180, 60*M28Map.iMapSize / 1024))
+        if bAbortRecording then
+            --Do nothing
+        else
+            M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] = { tLaunchLocation[1],tLaunchLocation[2], tLaunchLocation[3] }
+            ForkThread(RemoveOldNukeTarget, iTeam, iCurTime, math.max(180, 60*M28Map.iMapSize / 1024))
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': End of code, iTeam='..iTeam..'; tLaunchLocation='..repru(tLaunchLocation)..'; Time='..GetGameTimeSeconds()..'; iCurTime='..iCurTime..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])) end
     elseif bDebugMessages == true then LOG(sFunctionRef..': End of code, not recording as have recenlty recorded this location or a very nearby one')
     end
