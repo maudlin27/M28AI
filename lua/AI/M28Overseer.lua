@@ -293,12 +293,22 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         tModIsOk[sAI] = true
     end
     tModIsOk['Player Modifier PCx'] = true
+    local tModIsIncompatible = {}
+    tModIsIncompatible['Unit Cap Removed'] = true
+
 
     local iSimModCount = 0
     local bFlyingEngineers
     local bM27InGame = false
+    local sBlacklistModMessage
     for iMod, tModData in tSimMods do
-        if not (tModIsOk[tModData.name]) and tModData.enabled and not (tModData.ui_only) then
+        if tModIsIncompatible[tModData.name] then
+            if not(sBlacklistModMessage) then
+                sBlacklistModMessage = ' **WARNING** Incompatible mod detected: '..tModData.name
+            else
+                sBlacklistModMessage = sBlacklistModMessage ..'; '..tModData.name
+            end
+        elseif not (tModIsOk[tModData.name]) and tModData.enabled and not (tModData.ui_only) then
             iSimModCount = iSimModCount + 1
             bNonAISimModsActive = true
             if not(M28Utilities.bLoudModActive or M28Utilities.bQuietModActive) then
@@ -384,7 +394,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         end
     end
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Finished checking compatibility; compatibility message=' .. sIncompatibleMessage .. '; iSimModCount=' .. iSimModCount)
+        LOG(sFunctionRef .. ': Finished checking compatibility; compatibility message=' .. sIncompatibleMessage .. '; iSimModCount=' .. iSimModCount..'; sBlacklistModMessage='..(sBlacklistModMessage or 'nil'))
     end
 
     if iSimModCount > 0 then
@@ -398,6 +408,10 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         --BREWLAN compatibility - it adds the TRANSPORTATION category to units that cant transport, leading to errors when M28 tries using them or getting their cargo
         if categories.TORPEDOBOMBER then M28UnitInfo.refCategoryTransport = M28UnitInfo.refCategoryTransport - categories.TORPEDOBOMBER end --thanks to Balthazaar who gave this tip for checking if a custom category exists
     end
+    if sBlacklistModMessage then
+        bIncompatible = true
+        sIncompatibleMessage = sIncompatibleMessage..sBlacklistModMessage
+    end
 
     if bIncompatible then
         if bDontPlayWithM27 then
@@ -409,7 +423,9 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
                 M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t get on well with my brother M27 when adults are around – he teases me about how much better he is and sometimes the game desyncs', 15, 15)
             end
         else
-            M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected'..sIncompatibleMessage .. ' (v'..import('/mods/M28AI/mod_info.lua').version..') if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
+            local sMessageToSend = 'Detected'..sIncompatibleMessage .. ' (v'..import('/mods/M28AI/mod_info.lua').version..') if you come across M28AI issues with these settings/mods let maudlin27 know via Discord'
+            if sBlacklistModMessage then sMessageToSend = sIncompatibleMessage..'. It is recommended you disable the incompatible mods for M28 to function properly.  M28 v'..import('/mods/M28AI/mod_info.lua').version end
+            M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', sMessageToSend, 0, 10)
         end
     end
 

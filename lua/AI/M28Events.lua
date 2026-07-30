@@ -391,8 +391,13 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                         end
                                         if bConsiderMessage then
                                             if (oUnitKilled.VetExperience or oUnitKilled.Sync.totalMassKilled or 0) < (oUnitKilled[M28UnitInfo.refiUnitMassCost] or 0) * 0.5 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryGameEnder, oUnitKilled.UnitId) then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerBrain.Nickname or 'nil')) end
-                                                ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                                --If enemy is beating us on eco and units on our side of map then dont gloat
+                                                if not(EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnitKilled.UnitId)) and M28Team.tLandSubteamData[oKillerBrain.M28LandSubteam][M28Team.refiEnemyMobileDFThreatNearOurSide] > M28Team.tLandSubteamData[oKillerBrain.M28LandSubteam][M28Team.refiAllyMobileDFThreatNearOurSide] and M28Conditions.GetEnemyTeamActualMassIncome(oKillerBrain.M28Team) > 1.3 * M28Team.tTeamData[oKillerBrain.M28Team][M28Team.subrefiTeamGrossMass] / oKillerBrain[M28Economy.refiBrainResourceMultiplier] then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': We still are losing so wont gloat') end
+                                                else
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': About to call chat for valuable unit killed, oUnitKilled='..oUnitKilled.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitKilled)..', owned by brain '..oUnitKilled:GetAIBrain().Nickname..'; oKillerUnit='..oKillerUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oKillerUnit)..' owned by brain '..(oKillerBrain.Nickname or 'nil')) end
+                                                    ForkThread(M28Chat.JustKilledEnemyValuableUnit, oUnitKilled.UnitId, oUnitKilled:GetAIBrain(), oKillerBrain) --If dont do as forked thread then any error breaks the game
+                                                end
                                             end
                                         end
                                     end
@@ -4075,7 +4080,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Utilities.bSteamActive then import('/mods/M28AI/lua/AI/Steam/SteamCompatibility.lua').OtherSteamCompatibilityInformation() end
-    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)..'; .M28AI='..tostring(aiBrain.M28AI or false)..'; .M27AI='..tostring(aiBrain.M27AI or false)..'; M28Overseer.iTimeOfLatestBrainToCheckForM28Logic='..(M28Overseer.iTimeOfLatestBrainToCheckForM28Logic or 'nil')..'; brain current plan first 6 chars='..string.sub(aiBrain.CurrentPlan or 'nil', 1, 6)..'; Army index='..aiBrain:GetArmyIndex()..';  ScenarioInfo.ArmySetup='..reprs( ScenarioInfo.ArmySetup)..'; reprs for player2='..reprs(ScenarioInfo.ArmySetup['Player2'])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)..'; .M28AI='..tostring(aiBrain.M28AI or false)..'; .M27AI='..tostring(aiBrain.M27AI or false)..'; M28Overseer.iTimeOfLatestBrainToCheckForM28Logic='..(M28Overseer.iTimeOfLatestBrainToCheckForM28Logic or 'nil')..'; brain current plan first 6 chars='..string.sub(aiBrain.CurrentPlan or 'nil', 1, 6)..'; Army index='..aiBrain:GetArmyIndex()..';  ScenarioInfo.ArmySetup='..reprs( ScenarioInfo.ArmySetup)..'; reprs for player2='..reprs(ScenarioInfo.ArmySetup['Player2'])..'; M28Utilities.bSteamActive='..tostring(M28Utilities.bSteamActive or false)) end
     if M28Overseer.iTimeOfLatestBrainToCheckForM28Logic >= 0 then
         while GetGameTimeSeconds() < M28Overseer.iTimeOfLatestBrainToCheckForM28Logic + 1 do
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -5230,8 +5235,8 @@ function OnPlayerChatMessageSent(data)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': data='..reprs(data)) end
     if data.Sender and data.Msg and data.Msg.Chat and data.Msg.text then
-        local tsToxicSearchStrings = {'stfu', 'fuck you', 'kys', 'retard'}
-        local tbDirectedAtPerson = {true, true, true, false}
+        local tsToxicSearchStrings = {'stfu', 'fuck you', 'kys', 'retard', 'clanker'}
+        local tbDirectedAtPerson = {true, true, true, false, false}
         local bToxicMessageSent = false
         local bMessageTargetingPerson = false
         for iMessage, sToxicMessage in tsToxicSearchStrings do

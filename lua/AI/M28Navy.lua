@@ -2857,7 +2857,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
         end
         local iOurBestIndirectRange = 0
         --Get nearest friendly DF/IF unit near enemy base, and record max indirect range
-        local iCurUnitDist
+        local iCurDist
         local oClosestFriendlyUnitToEnemyBase
         local iClosestUnitDist = 100000
         local tClosestEnemyBase = tWZTeamData[M28Map.reftClosestEnemyBase]
@@ -2869,9 +2869,9 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
             iOurBestIndirectRange = math.max(iOurBestIndirectRange, (oUnit[M28UnitInfo.refiIndirectRange] or 0))
             if (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0 or (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
                 if bGetDFRangeOfBombardmentUnits then iOurBestDFRange = math.max(iOurBestDFRange,(oUnit[M28UnitInfo.refiDFRange] or 0)) end
-                iCurUnitDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tClosestEnemyBase)
-                if iCurUnitDist < iClosestUnitDist then
-                    iClosestUnitDist = iCurUnitDist
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tClosestEnemyBase)
+                if iCurDist < iClosestUnitDist then
+                    iClosestUnitDist = iCurDist
                     oClosestFriendlyUnitToEnemyBase = oUnit
                 end
             end
@@ -2896,7 +2896,6 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         if aiBrain then
 
-            local iCurDist
             local iClosestMexDist = 100000
             local tBasePoint = tWZData[M28Map.subrefMidpoint]
             local iMaxSearchRange, iClosestMexRef
@@ -3130,9 +3129,22 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                 tEnemyDefences = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti, tEnemyCombatNearFrontUnit)
             end
             local tEnemyShieldsAndTMD
+            local bDoneExtraCheckForShieldsNearTarget = false --used if bombardment unit is closer to taret than oClosestFriendlyUnitToEnemyBase
+            local bCheckForShieldsNearTarget
+            local iClosestFriendlyUnitDistToPriority
+            if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to just look at tEnemyCombatNearFrontUnit for enemy shields and TMD - if indirect range is bigger then will include units almost in range of indirect units, iSearchRange='..iSearchRange..'; iOurBestIndirectRange='..iOurBestIndirectRange..'; is tEnemyCombatNearFrontUnit empty='..tostring(M28Utilities.IsTableEmpty(tEnemyCombatNearFrontUnit))..'; oClosestFriendlyUnitToEnemyBase='..(oClosestFriendlyUnitToEnemyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestFriendlyUnitToEnemyBase) or 'nil')) end
             if iSearchRange >= iOurBestIndirectRange + 10 then
                 if M28Utilities.IsTableEmpty(tEnemyCombatNearFrontUnit) == false then
                     tEnemyShieldsAndTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedShield, tEnemyCombatNearFrontUnit)
+                    if bDebugMessages == true then
+                        if M28Utilities.IsTableEmpty(tEnemyShieldsAndTMD) == false then
+                            for iRecorded, oRecorded in tEnemyShieldsAndTMD do
+                                LOG(sFunctionRef..': Cycling through tEnemyShieldsAndTMD, oRecorded='..oRecorded.UnitId..M28UnitInfo.GetUnitLifetimeCount(tEnemyShieldsAndTMD)..'; dist to oClosestFriendlyUnitToEnemyBase='..M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyUnitToEnemyBase:GetPosition(), oRecorded:GetPosition()))
+                            end
+                        else
+                            LOG(sFunctionRef..': tEnemyShieldsAndTMD is empty')
+                        end
+                    end
                 end
             else
                 tEnemyShieldsAndTMD = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryFixedShield, oClosestFriendlyUnitToEnemyBase:GetPosition(), iOurBestIndirectRange + 10, 'Enemy')
@@ -3160,11 +3172,11 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
             local bCheckForDangerousDefences = false
             local bRetreatUnit
             if M28Utilities.IsTableEmpty(tEnemyCombatNearFrontUnit) then
-                if bDebugMessages == true then LOG(sFunctionRef .. ': No enemy structures within a range of iSearchRange='..iSearchRange..'; Min IF range='..iIndirectMinRange..'; iDFMinRange='..iDFMinRange..'; iOurBestIndirectRange='..(iOurBestIndirectRange or 'nil') .. ' of the unit closest to the enemy base') end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': No enemy structures within a range of iSearchRange='..iSearchRange..'; Min IF range='..iIndirectMinRange..'; iDFMinRange='..iDFMinRange..'; iOurBestIndirectRange='..(iOurBestIndirectRange or 'nil') .. ' of the unit closest to the enemy base, oClosestFriendlyUnitToEnemyBase='..(oClosestFriendlyUnitToEnemyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestFriendlyUnitToEnemyBase) or 'nil')) end
                 bCheckForBuildingsToAttack = false
             elseif bDebugMessages == true then
                 for iUnit, oUnit in tEnemyCombatNearFrontUnit do
-                    LOG(sFunctionRef..': Going through tEnemyCombatNearFrontUnit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to oClosestFriendlyUnitToEnemyBase='..M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyUnitToEnemyBase:GetPosition(), oUnit:GetPosition()))
+                    LOG(sFunctionRef..': Going through tEnemyCombatNearFrontUnit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to closestFriendlyUnitToEnemyBase='..M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyUnitToEnemyBase:GetPosition(), oUnit:GetPosition()))
                 end
             end
             --Add under construction experimentals to the buildings to attack
@@ -3242,7 +3254,9 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
             end
 
             for iUnit, oUnit in tPotentialBombardmentUnits do
+                bCheckForShieldsNearTarget = false
                 bDontCheckIfTargetUnderwater = (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0
+                iCurDist = nil
                 if bDebugMessages == true then LOG(sFunctionRef .. ': Considering unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; is underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; oUnit[M28UnitInfo.refiDFRange]=' .. (oUnit[M28UnitInfo.refiDFRange] or 'nil') .. '; oUnit[M28UnitInfo.refiIndirectRange]=' .. (oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Unit position='..repru(oUnit:GetPosition())..'; refbLastShotBlocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)) end
 
                 if not (M28UnitInfo.IsUnitUnderwater(oUnit)) then
@@ -3285,6 +3299,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
 
                     local bChangedBlockedLocation = false
                     local tBlockedShotActualMoveLocation
+                    local bUpdatedBSShieldBombardment = false
 
                     if bRetreatUnit then
                         if bDebugMessages == true then LOG(sFunctionRef .. ': WIll retreat ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. ' towards our base as we are too close to enemy PD') end
@@ -3361,6 +3376,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                     if bDebugMessages == true then LOG(sFunctionRef..': Cant find blocked move location') end
                                 end
                             else
+                                bCheckForShieldsNearTarget = true
                                 --If have a battleship on bombardment duty and its shot isnt blocked and it has fired recently then record this so we know
                                 if not(bHaveUnblockedBombardingBattleship) and bCheckForBuildingsToAttack and EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiLastWeaponEvent] or -100) <= 20 and not(oUnit[M28UnitInfo.refbLastShotBlocked]) then
                                     bHaveUnblockedBombardingBattleship = true
@@ -3379,14 +3395,13 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                     local iDistToPriority, iModDistToPriority
                                     local iClosestDist = 100000
                                     local iClosestImmobileDist = 100000
-                                    local bConsiderImmobile = oUnit[M28UnitInfo.refiIndirectRange] > (oUnit[M28UnitInfo.refiDFRange] or 0)
 
                                     if M28Utilities.IsTableEmpty(tEnemyCombatNearFrontUnit) == false then
                                         for iPriority, oPriority in tEnemyCombatNearFrontUnit do
                                             if ((oPriority[M28UnitInfo.refiMissileShotBlockedCount] or 0) <= 10 or not(oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId]) or (oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][oPriority.EntityId] or 0) == 0) and (oPriority[M28UnitInfo.refiTargetShotBlockedCount] or 0) < 15 then
                                                 iDistToPriority = M28Utilities.GetDistanceBetweenPositions(oPriority:GetPosition(), oUnit:GetPosition())
                                                 if iDistToPriority < iClosestDist then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oPriority='..oPriority.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPriority)..'; iDistToPriority='..iDistToPriority..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oPriority))..'; refiMissileShotBlockedCount='..(oPriority[M28UnitInfo.refiMissileShotBlockedCount] or 'nil')..'; refiTargetShotBlockedCount='..(oPriority[M28UnitInfo.refiTargetShotBlockedCount] or 'nil')) end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oPriority='..oPriority.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPriority)..'; iDistToPriority='..iDistToPriority..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oPriority))..'; refiMissileShotBlockedCount='..(oPriority[M28UnitInfo.refiMissileShotBlockedCount] or 'nil')..'; refiTargetShotBlockedCount='..(oPriority[M28UnitInfo.refiTargetShotBlockedCount] or 'nil')..'; is our shot blocked to oPriority IsShotBlocked='..tostring(M28Logic.IsShotBlocked(oUnit, oPriority))) end
                                                     if bDontCheckIfTargetUnderwater or not(M28UnitInfo.IsUnitUnderwater(oPriority)) then
                                                         --Is our shot blocked if we try and shoot from either our current position (if in range and shot is blocked), or a similar angle if we arent in range?
                                                         if (oUnit[M28UnitInfo.refiDFRange] or 0) > (oUnit[M28UnitInfo.refiIndirectRange] or 0) and ((oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 and iDistToPriority <= oUnit[M28UnitInfo.refiDFRange] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) <= 4) or M28Logic.IsShotBlocked(oUnit, oPriority)) then
@@ -3402,7 +3417,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                                         end
                                                     end
                                                 end
-                                                if bConsiderImmobile and iClosestDist < iClosestImmobileDist and (not(EntityCategoryContains(categories.MOBILE, oPriority.UnitId)) or M28UnitInfo.GetUnitSpeed(oPriority) == 0) then
+                                                if oUnit[M28UnitInfo.refiIndirectRange] > (oUnit[M28UnitInfo.refiDFRange] or 0) and iClosestDist < iClosestImmobileDist and (not(EntityCategoryContains(categories.MOBILE, oPriority.UnitId)) or M28UnitInfo.GetUnitSpeed(oPriority) == 0) then
                                                     iClosestImmobileDist = iClosestDist
                                                     oAlternativeStationeryOnlyUnitToAttack = oPriority
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Recording oAlternativeStationeryOnlyUnitToAttack='..oPriority.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAlternativeStationeryOnlyUnitToAttack)) end
@@ -3418,45 +3433,115 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                             LOG(sFunctionRef..': Dont have a building to attack')
                                         end
                                     end
-                                    if oBuildingOrPriorityToAttack and M28Utilities.GetDistanceBetweenPositions(oBuildingOrPriorityToAttack:GetPosition(), oUnit:GetPosition()) > math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0)) then
-                                        --Not in range so dont give specific attack order
-                                        oBuildingOrPriorityToAttack = nil
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Not in range of enemy building so wont attack it') end
+                                    if oBuildingOrPriorityToAttack then
+                                        if not(iClosestFriendlyUnitDistToPriority) then iClosestFriendlyUnitDistToPriority = M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyUnitToEnemyBase:GetPosition(), oBuildingOrPriorityToAttack:GetPosition()) end
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oBuildingOrPriorityToAttack:GetPosition(), oUnit:GetPosition())
+                                        if iCurDist  > math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0)) then
+                                            --Not in range so dont give specific attack order
+                                            oBuildingOrPriorityToAttack = nil
+                                            bCheckForShieldsNearTarget = false
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Not in range of enemy building so wont attack it') end
+                                        end
                                     else
+                                        bCheckForShieldsNearTarget = false
+                                    end
+                                    if bCheckForShieldsNearTarget or not(oBuildingOrPriorityToAttack) then
                                         --Consider overwriting with a priority target (e.g. TMD and shields)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to ignore closest building if enoguh defence headroom, iDefencesHeadroom='..(iDefencesHeadroom or 'nil')..'; bCheckForDangerousDefences='..tostring(bCheckForDangerousDefences)..'; Is tEnemyShieldsAndTMD empty='..tostring(M28Utilities.IsTableEmpty(tEnemyShieldsAndTMD))) end
-                                        if (iDefencesHeadroom >= 10 or not(bCheckForDangerousDefences)) and M28Utilities.IsTableEmpty(tEnemyShieldsAndTMD) == false then
-                                            local iPriorityCategory = M28UnitInfo.refCategoryFixedShield
-                                            if EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
-                                                iPriorityCategory = iPriorityCategory + M28UnitInfo.refCategoryTMD
-                                            end
-                                            local tPriorityTargets = EntityCategoryFilterDown(iPriorityCategory, tEnemyShieldsAndTMD)
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting TMD and shields, is tPriorityTargets empty='..tostring(M28Utilities.IsTableEmpty(tPriorityTargets))) end
-                                            if M28Utilities.IsTableEmpty(tPriorityTargets) == false then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to ignore closest building if enoguh defence headroom, iDefencesHeadroom='..(iDefencesHeadroom or 'nil')..'; bCheckForDangerousDefences='..tostring(bCheckForDangerousDefences)..'; Is tEnemyShieldsAndTMD empty='..tostring(M28Utilities.IsTableEmpty(tEnemyShieldsAndTMD))..'; bDoneExtraCheckForShieldsNearTarget='..tostring(bDoneExtraCheckForShieldsNearTarget)) end
+                                        if (iDefencesHeadroom >= 10 or not(bCheckForDangerousDefences)) then
 
-                                                for iPriority, oPriority in tPriorityTargets do
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering shield (or  TMD for missile ships), oPriority='..oPriority.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oPriority[M28UnitInfo.refiMissileShotBlockedCount]='..(oPriority[M28UnitInfo.refiMissileShotBlockedCount] or 'nil')..'; Is oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId] nil='..tostring(oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId] == nil)..'; oPriority[M28UnitInfo.refiTargetShotBlockedCount]='..(oPriority[M28UnitInfo.refiTargetShotBlockedCount] or 'nil')) end
-                                                    if ((oPriority[M28UnitInfo.refiMissileShotBlockedCount] or 0) <= 10 or not(oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId]) or (oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][oPriority.EntityId] or 0) == 0) and (oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId] or (oPriority[M28UnitInfo.refiTargetShotBlockedCount] or 0) < 15) then
-                                                        iDistToPriority = M28Utilities.GetDistanceBetweenPositions(oPriority:GetPosition(), oUnit:GetPosition())
-                                                        iModDistToPriority = iDistToPriority
-                                                        iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oPriority, false)
-                                                        if iMaxShield > 0 and iCurShield < math.min(iMaxShield * 0.1, 1000) then
-                                                            iModDistToPriority = iModDistToPriority - math.min(20, iModDistToPriority * 0.2)
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering a low health shield so will reduce dist to make it more likely we attack it') end
+                                            if not(bDoneExtraCheckForShieldsNearTarget) and oBuildingOrPriorityToAttack then
+                                                if not(iClosestFriendlyUnitDistToPriority) then iClosestFriendlyUnitDistToPriority = M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyUnitToEnemyBase:GetPosition(), oBuildingOrPriorityToAttack:GetPosition()) end
+                                                if not(iCurDist) then iCurDist = M28Utilities.GetDistanceBetweenPositions(oBuildingOrPriorityToAttack:GetPosition(), oUnit:GetPosition()) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': IF this unit is closer to target tahn our closest unit, then update table of shields and tmd, iCurDist='..iCurDist..'; iClosestFriendlyUnitDistToPriority='..iClosestFriendlyUnitDistToPriority) end
+                                                if iCurDist <= iClosestFriendlyUnitDistToPriority - 4 then
+                                                    --Look for shields near oBuildingOrPriorityToAttack
+                                                    bDoneExtraCheckForShieldsNearTarget = true
+                                                    local bAlreadyRecorded
+                                                    local toShieldsAndTMDNearTarget = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, oBuildingOrPriorityToAttack:GetPosition(), 25, 'Enemy')
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Just done getunitsaroundpoint, Is toShieldsAndTMDNearTarget empty='..tostring(M28Utilities.IsTableEmpty(toShieldsAndTMDNearTarget))) end
+                                                    if M28Utilities.IsTableEmpty(toShieldsAndTMDNearTarget) == false then
+                                                        if M28Utilities.IsTableEmpty(tEnemyShieldsAndTMD) then tEnemyShieldsAndTMD = toShieldsAndTMDNearTarget
+                                                        else
+                                                            for iEnemyShield, oEnemyShield in toShieldsAndTMDNearTarget do
+                                                                bAlreadyRecorded = false
+                                                                for iRecordedShield, oRecordedShield in tEnemyShieldsAndTMD do
+                                                                    if oRecordedShield == oEnemyShield then bAlreadyRecorded = true break end
+                                                                end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Already recorded shield  bAlreadyRecorded='..tostring(bAlreadyRecorded)..'; oEnemyShield='..oEnemyShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyShield)) end
+                                                                if not(bAlreadyRecorded) then
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..'; Adding oEnemyShield='..oEnemyShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyShield)..' to table of enemy shields and TMD as it is near the target and not in our table to consider') end
+                                                                    table.insert(tEnemyShieldsAndTMD, oEnemyShield)
+                                                                end
+                                                            end
                                                         end
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Dist between unit and oPriority='..M28Utilities.GetDistanceBetweenPositions(oPriority:GetPosition(), oUnit:GetPosition())..'; iModDistToPriority='..iModDistToPriority..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield) end
-                                                        if iModDistToPriority < iClosestDist then
-                                                            if bDontCheckIfTargetUnderwater or not(M28UnitInfo.IsUnitUnderwater(oPriority)) then
-                                                                iClosestDist = iModDistToPriority
-                                                                if iModDistToPriority - math.min((iDefencesHeadroom or 30), 30) <= math.max((oUnit[M28UnitInfo.refiIndirectRange] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0)) then
-                                                                    if not((oUnit[M28UnitInfo.refiDFRange] or 0) > (oUnit[M28UnitInfo.refiIndirectRange] or 0) and ((oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 and iDistToPriority <= oUnit[M28UnitInfo.refiDFRange] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) <= 4) or M28Logic.IsShotBlocked(oUnit, oPriority))) then
-                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Changing oBuildingOrPriorityToAttack to be this unit, iDistToPriority='..iDistToPriority) end
-                                                                        oBuildingOrPriorityToAttack = oPriority
-                                                                    else
-                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Shot blocked so wont change oBuildingOrPriorityToAttack afterall, iDistToPriority='..iDistToPriority..'; our unit refiDFRange='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; iRangeThreshold='..iRangeThreshold) end
-                                                                        if iDistToPriority < (oUnit[M28UnitInfo.refiDFRange] or 0) - iRangeThreshold then
-                                                                            table.insert(toBlockedBuildingsAndDistWithinRange, {oPriority, (oUnit[M28UnitInfo.refiDFRange] or 0) - iDistToPriority})
+                                                    end
+                                                end
+                                            end
+
+                                            if M28Utilities.IsTableEmpty(tEnemyShieldsAndTMD) == false then
+
+                                                local tPriorityTargets
+                                                if EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
+                                                    tPriorityTargets = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, tEnemyShieldsAndTMD)
+                                                else
+                                                    tPriorityTargets = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tEnemyShieldsAndTMD)
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting TMD and shields, is tPriorityTargets empty='..tostring(M28Utilities.IsTableEmpty(tPriorityTargets))..'; size of tPriorityTargets='..table.getn(tPriorityTargets)..'; size of tEnemyShieldsAndTMD='..table.getn(tEnemyShieldsAndTMD)) end
+                                                if M28Utilities.IsTableEmpty(tPriorityTargets) == false then
+                                                    for iCurPriority, oPriority in tPriorityTargets do
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering shield (or  TMD for missile ships), oPriority='..oPriority.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPriority)..'; oPriority[M28UnitInfo.refiMissileShotBlockedCount]='..(oPriority[M28UnitInfo.refiMissileShotBlockedCount] or 'nil')..'; Is oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId] nil='..tostring(oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId] == nil)..'; oPriority[M28UnitInfo.refiTargetShotBlockedCount]='..(oPriority[M28UnitInfo.refiTargetShotBlockedCount] or 'nil')..'; iCurPriority='..iCurPriority) end
+                                                        if ((oPriority[M28UnitInfo.refiMissileShotBlockedCount] or 0) <= 10 or not(oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId]) or (oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId][oPriority.EntityId] or 0) == 0) and (oUnit[M28UnitInfo.reftoTargetBlockedMissileCountByEntityId] or (oPriority[M28UnitInfo.refiTargetShotBlockedCount] or 0) < 15) then
+                                                            iDistToPriority = M28Utilities.GetDistanceBetweenPositions(oPriority:GetPosition(), oUnit:GetPosition())
+                                                            iModDistToPriority = iDistToPriority
+                                                            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oPriority, false)
+                                                            if iMaxShield > 0 and iCurShield < math.min(iMaxShield * 0.1, 1000) then
+                                                                if GetGameTimeSeconds() >= 45*60 then iModDistToPriority = iModDistToPriority - math.max((oPriority:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5, math.min(20, iModDistToPriority * 0.2))
+                                                                else iModDistToPriority = iModDistToPriority - math.min(20, iModDistToPriority * 0.2)
+                                                                end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering a low health shield so will reduce dist to make it more likely we attack it, iModDistToPriority='..iModDistToPriority..'; iDistToPriority='..iDistToPriority..'; iClosestDist='..iClosestDist) end
+                                                            end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Dist between unit and oPriority='..M28Utilities.GetDistanceBetweenPositions(oPriority:GetPosition(), oUnit:GetPosition())..'; iModDistToPriority='..iModDistToPriority..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; is ModDist < closest dist='..tostring(iModDistToPriority < iClosestDist)) end
+                                                            if iModDistToPriority < iClosestDist then
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Dist between oBuildingOrPriorityToAttack and oPriority='..M28Utilities.GetDistanceBetweenPositions(oBuildingOrPriorityToAttack:GetPosition(), oPriority:GetPosition())..'; bDontCheckIfTargetUnderwater='..tostring(bDontCheckIfTargetUnderwater)..'; Is underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oPriority))..'; Is shot blocked='..tostring(M28Logic.IsShotBlocked(oUnit, oPriority))..'; Time of last unblocked shot='..(GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100))) end
+                                                                if bDontCheckIfTargetUnderwater or not(M28UnitInfo.IsUnitUnderwater(oPriority)) then
+                                                                    if (iModDistToPriority - math.min((iDefencesHeadroom or 30), 30) <= math.max((oUnit[M28UnitInfo.refiIndirectRange] or 0), (oUnit[M28UnitInfo.refiDFRange] or 0)))
+                                                                            --If current target is proteted by this shield then target this isntead
+                                                                            or (M28Utilities.GetDistanceBetweenPositions(oBuildingOrPriorityToAttack:GetPosition(), oPriority:GetPosition()) <= 23)
+                                                                    then
+                                                                        if not((oUnit[M28UnitInfo.refiDFRange] or 0) > (oUnit[M28UnitInfo.refiIndirectRange] or 0) and ((oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 and iDistToPriority <= oUnit[M28UnitInfo.refiDFRange] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) <= 4) or M28Logic.IsShotBlocked(oUnit, oPriority))) then
+                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Changing oBuildingOrPriorityToAttack to be this unit, iDistToPriority='..iDistToPriority) end
+                                                                            oBuildingOrPriorityToAttack = oPriority
+                                                                            iClosestDist = iModDistToPriority
+                                                                            --Fixed shield targeted by battleship - set zone flag
+                                                                            if not(bUpdatedBSShieldBombardment) and EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oPriority.UnitId) then
+                                                                                local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oPriority:GetPosition(), true, iTeam)
+                                                                                local iEnemyShielding = (tTargetLZOrWZTeamData[M28Map.subrefThreatEnemyShield] or 0)
+                                                                                if M28Utilities.IsTableEmpty(oPriority[M28Building.reftoShieldsProvidingCoverage]) == false then
+                                                                                    iEnemyShielding = math.max(iEnemyShielding, (oPriority[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oPriority)) + M28UnitInfo.GetMassCostOfUnits(oPriority[M28Building.reftoShieldsProvidingCoverage], true))
+                                                                                else
+                                                                                    iEnemyShielding = math.max(iEnemyShielding, (oPriority[M28UnitInfo.refiUnitMassCost] or M28UnitInfo.GetUnitMassCost(oPriority)))
+                                                                                end
+
+                                                                                if not(M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam]) then M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam] = {} end
+                                                                                if not(M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam]) then M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam] = {} end
+                                                                                local iTime = math.floor(GetGameTimeSeconds())
+                                                                                if M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam] >= iTime then
+                                                                                    M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] = math.max((M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] or 0), iEnemyShielding)
+                                                                                else
+                                                                                    M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetValueByTeam][iTeam] = iEnemyShielding
+                                                                                end
+                                                                                bUpdatedBSShieldBombardment = true
+                                                                                M28Map.tPondDetails[iPond][M28Map.refiLastBombardmentBSShieldTargetTimeByTeam][iTeam] = math.floor(GetGameTimeSeconds())
+                                                                                if bDebugMessages == true then LOG(sFunctionRef..': iEnemyShielding='..iEnemyShielding) end
+                                                                            end
+                                                                        else
+                                                                            if bDebugMessages == true then LOG(sFunctionRef..': Shot blocked so wont change oBuildingOrPriorityToAttack afterall, iDistToPriority='..iDistToPriority..'; our unit refiDFRange='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; iRangeThreshold='..iRangeThreshold) end
+                                                                            if iDistToPriority < (oUnit[M28UnitInfo.refiDFRange] or 0) - iRangeThreshold then
+                                                                                table.insert(toBlockedBuildingsAndDistWithinRange, {oPriority, (oUnit[M28UnitInfo.refiDFRange] or 0) - iDistToPriority})
+                                                                            end
                                                                         end
+
                                                                     end
                                                                 end
                                                             end
@@ -3466,6 +3551,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                             end
                                         end
                                     end
+
                                     if bBombardmentMainTargetIsClosestBase and not(oBuildingOrPriorityToAttack) and M28Utilities.IsTableEmpty(tEnemyLowerPriorityBuildings) == false then
                                         --check lower priority buildings for potential targets
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will check lower priority buildings for if we want to attack them instead') end

@@ -12,7 +12,7 @@ AIOpts = {
         key = 'UnitCap',
         value_text = "<LOC lobui_0719>%s",
         value_help = "<LOC lobui_0171>%s units per player may be in play",
-        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key); if key equals table index then record bUseKeyAsValueInScenarioInfo = true as an entry
             '125','250', '375', '500', '625', '750', '875', '1000', '1250', '1500', '2000', '2500', '3000', '4000', '5000', '7500', '10000'
         },
     },
@@ -23,7 +23,7 @@ AIOpts = {
         key = 'CheatMult',
         value_text = "%s",
         value_help = "<LOC aisettings_0003>Cheat multiplier of %s",
-        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key); if key equals table index then record bUseKeyAsValueInScenarioInfo = true as an entry
             '0.5', '0.6', '0.7', '0.8', '0.9',
             '1.0', '1.1', '1.2', '1.3', '1.4', '1.5', '1.6', '1.7', '1.8', '1.9',
             '2.0', '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8', '2.9', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9',
@@ -40,7 +40,7 @@ AIOpts = {
         key = 'BuildMult',
         value_text = "%s",
         value_help = "<LOC aisettings_0056>Build multiplier of %s",
-        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key); if key equals table index then record bUseKeyAsValueInScenarioInfo = true as an entry
             '0.5', '0.6', '0.7', '0.8', '0.9',
             '1.0', '1.1', '1.2', '1.3', '1.4', '1.5', '1.6', '1.7', '1.8', '1.9',
             '2.0', '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8', '2.9', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9',
@@ -57,7 +57,7 @@ AIOpts = {
         key = 'M28OvwR',
         value_text = "%s",
         value_help = "Amount to change the cheat modifiers by",
-        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key); if key equals table index then record bUseKeyAsValueInScenarioInfo = true as an entry
             '-0.5', '-0.4', '-0.3', '-0.2', '-0.1', '-0.05', '-0.02', '-0.01',
             '0.0', '0.01', '0.02', '0.05', '0.1', '0.2', '0.3', '0.4', '0.5',
         },
@@ -69,7 +69,7 @@ AIOpts = {
         key = 'M28OvwT',
         value_text = "%s",
         value_help = "Minutes between each change",
-        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key); if key equals table index then record bUseKeyAsValueInScenarioInfo = true as an entry
             '0.5', '1', '2', '3', '4', '5',
             '6', '7', '8', '9', '10',
             '11', '12', '13', '14', '15',
@@ -84,7 +84,7 @@ AIOpts = {
         key = 'M28OvwC',
         value_text = "%s",
         value_help = "Resource and build multiplier limit",
-        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key); if key equals table index then record bUseKeyAsValueInScenarioInfo = true as an entry
             '0.5', '0.6', '0.7', '0.8', '0.9',
             '1.0', '1.1', '1.2', '1.3', '1.4', '1.5', '1.6', '1.7', '1.8', '1.9',
             '2.0', '2.1', '2.2', '2.3', '2.4', '2.5', '2.6', '2.7', '2.8', '2.9', '3.0', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '3.7', '3.8', '3.9',
@@ -123,6 +123,7 @@ AIOpts = {
                 key = 4,
             },
         },
+        bUseKeyAsValueInScenarioInfo = true
     },
     {
         default = 9,
@@ -131,7 +132,7 @@ AIOpts = {
         key = 'CmpAIDelay', --refer to this with ScenarioInfo.Options.CmpAIDelay, which will return the key value below; relevant for brains where aiBrain.HostileCampaignAI is true
         value_text = "%s",
         value_help = "Delay (if any) in seconds to apply",
-        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key); if key equals table index then record bUseKeyAsValueInScenarioInfo = true as an entry
             '0','30','60','90','120',
             '150', '180', '240', '300', '360', '420', '480', '540', '600',
             '720', '900', '1080', '1200', '1800', '2400', '3000', '3600',
@@ -142,6 +143,7 @@ AIOpts = {
         label = "M28 Coop: Use AIx modifiers?",
         help = "If M28 is being applied to hostile and/or allied campaign AI, this gives them the AIx build rate and resource rate modifiers specified in game options",
         key = 'CmApplyAIx',
+        bUseKeyAsValueInScenarioInfo = true,
         value_text = "",
         value_help = "Apply AIx Resource and build rate to campaign AI?",
         values = {
@@ -156,12 +158,14 @@ AIOpts = {
                 key = 2,
             },
         },
+
     },
     {
         default = 2,
         label = "M28 Coop: M28 personality",
         help = "If M28 is being applied to hostile and/or allied campaign AI, this allows you to change the M28 personality (which will get applied to all the M28 campaign AI)",
         key = 'CmM28CampPers',
+        bUseKeyAsValueInScenarioInfo = true,
         value_text = "",
         value_help = "M28 personality to use",
         values = {
@@ -219,7 +223,7 @@ AIOpts = {
         key = 'M28TimeBetweenOrders',
         value_text = "%s",
         value_help = "Seconds between orders",
-        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key); if key equals table index then record bUseKeyAsValueInScenarioInfo = true as an entry
             '1.0', '1.1', '1.2', '1.3', '1.4', '1.5',
             '2.0', '2.5', '3.0', '3.5', '4.0', '5.0',
             '6.0', '7.0', '8.0', '9.0', '10.0'
@@ -232,7 +236,7 @@ AIOpts = {
         key = 'M28Aggression',
         value_text = "%s",
         value_help = "Enemy threat factor",
-        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key)
+        values = { --By having values in this format, it means that FAF will record the value in ScenarioInfo.Options (not the key); if key equals table index then record bUseKeyAsValueInScenarioInfo = true as an entry
             '0.1', '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9',
             '1.0', '1.1', '1.2', '1.3', '1.4', '1.5', '1.6', '1.7', '1.8', '1.9',
             '2.0', '2.5', '3.0', '4.0', '5.0',
@@ -243,6 +247,7 @@ AIOpts = {
         label = "M28: CPU performance mode?",
         help = 'If enabled, M28 will use simpler functionality for parts of its logic, making it less challenging but also faster to run',
         key = 'M28CPUPerformance',
+        bUseKeyAsValueInScenarioInfo = true,
         value_text = "",
         value_help = "Enable performance mode?",
         values = {
@@ -263,6 +268,7 @@ AIOpts = {
         label = "M28: Prioritise stronger units?",
         help = 'By default M28 will always build certain T1-T3 land and certain experimental units over others (e.g. bricks instead of loyalists after a few have been built); disabling this should increase variety of units built',
         key = 'M28PrioritiseBPs',
+        bUseKeyAsValueInScenarioInfo = true,
         value_text = "",
         value_help = "Apply unit prioritisation?",
         values = {
@@ -283,6 +289,7 @@ AIOpts = {
         label = "M28: Use dodge micro?",
         help = 'By default M28 will try and dodge slow moving shots and bombs with units (except for M28Easy), you can limit the number of units it can dodge at once',
         key = 'M28DodgeMicro',
+        bUseKeyAsValueInScenarioInfo = true,
         value_text = "",
         value_help = "Dodge slow moving shots?",
         values = {
@@ -318,6 +325,7 @@ AIOpts = {
         label = "M28: Use hover air micro?",
         help = 'By default M28 will try and slow down his air units in certain scenarios (except for M28Easy), you can limit the number of units it can apply such hover micro to at once',
         key = 'M28HoverMicro',
+        bUseKeyAsValueInScenarioInfo = true,
         value_text = "",
         value_help = "Use hover micro for air units?",
         values = {
@@ -353,6 +361,7 @@ AIOpts = {
         label = "M28: Combined AI-Human armies?",
         help = 'Enable to have M28 work more closely as a teammate, and to enable toggling M28AI logic on individual units (game will run slower in large teamgames)',
         key = 'M28CombinedArmy',
+        bUseKeyAsValueInScenarioInfo = true,
         value_text = "",
         value_help = "Allow M28 to take control of certain units?",
         values = {
@@ -388,6 +397,7 @@ AIOpts = {
         label = "M28: CA Inherit constructing unit status?",
         help = 'If combined armies are enabled, this determines whether units starting control will be based on their parent/constructing unit',
         key = 'M28CAInherit',
+        bUseKeyAsValueInScenarioInfo = true,
         value_text = "",
         value_help = "M28AI will by default control units built by M28AI controlled shared army units",
         values = {
@@ -408,6 +418,7 @@ AIOpts = {
         label = "M28: CA Disable engineer production?",
         help = 'If combined armies are enabled, then this prevents factories controlled by the AI from building engineers',
         key = 'M28CAEngi',
+        bUseKeyAsValueInScenarioInfo = true,
         value_text = "",
         value_help = "M28AI will by default build engineers if it thinks appropriate from factories it controls.  You can disable this behaviour to prevent it building engineers",
         values = {
@@ -428,6 +439,7 @@ AIOpts = {
         label = "M28: Helpful teammates?",
         help = 'Should M28 help by assisting player experimentals; gifting asfs to the air player; and gifting mexes it builds in a teammate\'s base',
         key = 'M28Teammate',
+        bUseKeyAsValueInScenarioInfo = true,
         value_text = "",
         value_help = "Enable/disable M28 teammate logic",
         values = {

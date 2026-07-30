@@ -726,9 +726,11 @@ function RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, iTMLTeam)
     local oTMDBrain = oUnit:GetAIBrain()
     local tNearbyTMD = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oUnit:GetPosition(), iTMLMissileRange + 2, 'Ally')
 
-    if oUnit:GetFractionComplete() < 1 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
-        if not(oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam]) then oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] = {} end
-        oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam][iTMLTeam] = true
+    if oUnit:GetFractionComplete() < 1 then
+        if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
+            if not(oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam]) then oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] = {} end
+            oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam][iTMLTeam] = true
+        end
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Detected unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMLTeam='..iTMLTeam..'; Is table of active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyHumanAndAIBrains]))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; TimeOfGame='..GetGameTimeSeconds()) end
@@ -2237,7 +2239,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                     else
                                         --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory, iOptionalReclaimFactor)
                                         iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,       nil,                                nil,                true,                           nil,                nil,                            nil,                                        false,              nil,                            true,                               nil,                                nil,                    nil)
-                                        if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iCurTargetValue = iCurTargetValue * 1.5 end
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPower + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategorySML, oUnit.UnitId) then iCurTargetValue = iCurTargetValue * 1.5 end
                                         --Adjust value if we think the missile will hit a cliff
                                         if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] == nil then
                                             if not(oUnit[tbExpectMissileBlockedByCliff]) then oUnit[tbExpectMissileBlockedByCliff] = {} end
@@ -2273,15 +2275,19 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                                     oUnit[refiTMLShotsFired] = oUnit[refiTMLShotsFired] - 1
                                                 end
                                                 if oUnit[refiTMLShotsFired] > math.min((oUnit[refiTMLShotsHit] or 0), 4) and (oUnit[refiTimeOfLastLaunch] or oUnit[refiTMLShotsFired] >= 2) then
-                                                    if oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] then iCurTargetValue = 0
+                                                    if oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam][iTeam] then iCurTargetValue = 0
                                                     else
                                                         local iUnitMaxHealth = oUnit:GetMaxHealth()
                                                         local iUnitCurShield, iUnitMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
                                                         if (iUnitMaxHealth + iUnitMaxShield <= iDamage and M28UnitInfo.IsUnitValid(oUnit[refoLastTMLLauncher])) and (not(oUnit[refoLastTMLLauncher] == oLauncher) or GetGameTimeSeconds() - (oUnit[refiTimeOfLastLaunch] or -100) <= 35) then
                                                             iCurTargetValue = 0
                                                         else
-
+                                                            local iUnitRegen = (oUnit:GetBlueprint().Defense.RegenRate or 0)
+                                                            --Assume unit will have effectively increased its max health by regenerating over 30s
+                                                            if iUnitRegen > 0 then iUnitMaxHealth = iUnitRegen * 30 end
                                                             local iExpectedShots = math.ceil((iUnitMaxHealth + iUnitMaxShield) / iDamage)
+
+
                                                             if oUnit[refiTMLShotsFired] - (oUnit[refiTMLShotsHit] or 0) > iExpectedShots then
                                                                 --Reduce by 50% for each time are over
                                                                 iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots - math.min(4, (oUnit[refiTMLShotsHit] or 0)))
@@ -2293,15 +2299,21 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                                                         if bDebugMessages == true then LOG(sFunctionRef..': iUnitMaxHealth='..iUnitMaxHealth..'; iUnitMaxShield='..iUnitMaxShield..'; oUnit[refiTMLShotsFired]='..oUnit[refiTMLShotsFired]..'; refiTMLShotsHit='..(oUnit[refiTMLShotsHit] or 'nil')..'; oUnit[refiTimeOfLastLaunch]='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; iCurTargetValue after adjusting for excess='..iCurTargetValue) end
                                                     end
                                                 end
-                                            elseif oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam] then
+                                            elseif oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam][iTeam] then
                                                 iCurTargetValue = iCurTargetValue * 0.25
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Target was recorded when under construction, significantly decreasing value due to risk of enemy TMD as appears to be issue with logic not picking up tmd when unit is being upgraded') end
-                                                if iCurTargetValue > iBestTargetValue then
+                                                if iCurTargetValue > iBestTargetValue or oUnit:GetFractionComplete() == 1 then
                                                     --Do more detailed check
-                                                    if not(tNearbyEnemyTMD) then tNearbyEnemyTMD = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oLauncher:GetPosition(), iTMLMissileRange + 20, 'Ally') end
-                                                    if M28Utilities.IsTableEmpty(tNearbyEnemyTMD) == false then
-                                                        for iTMD, oTMD in tNearbyEnemyTMD do
-                                                            RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oLauncher, tNearbyEnemyTMD, false)
+                                                    if oUnit:GetFractionComplete() == 1 then
+                                                        --Redundancy in event onconstructed didnt trigger
+                                                        RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, iTeam)
+                                                        if oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam][iTeam] then oUnit[refbRecheckTMLAndTMDWhenConstructedByTeam][iTeam] = false end
+                                                    else
+                                                        if not(tNearbyEnemyTMD) then tNearbyEnemyTMD = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oLauncher:GetPosition(), iTMLMissileRange + 20, 'Ally') end
+                                                        if M28Utilities.IsTableEmpty(tNearbyEnemyTMD) == false then
+                                                            for iTMD, oTMD in tNearbyEnemyTMD do
+                                                                RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oLauncher, tNearbyEnemyTMD, false)
+                                                            end
                                                         end
                                                     end
                                                     if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then
@@ -5661,6 +5673,7 @@ function RecordNukeTarget(iTeam, tLaunchLocation)
         local iCycleCount = 0
         if bDebugMessages == true then LOG(sFunctionRef..': Recording nuke target, iTeam='..iTeam..'; tLaunchLocation='..repru(tLaunchLocation)..'; Time='..GetGameTimeSeconds()..'; iCurTime='..iCurTime..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])) end
         if M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] then iCurTime = GetGameTimeSeconds() end
+        local bAbortRecording
         while M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] do
             iCurTime = iCurTime - 0.0001
             --Wierd issue where sometimes but not always iCurTime doesnt change (likely also rseolved by having iCurTime switch to gametimeseconds
@@ -5669,13 +5682,18 @@ function RecordNukeTarget(iTeam, tLaunchLocation)
             end
             iCycleCount = iCycleCount + 1
             if bDebugMessages == true then LOG(sFunctionRef..': iCycleCount='..iCycleCount..'; iCurTime='..iCurTime..'; is M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] nil='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] == nil)) end
-            if iCycleCount >= 30 then
-                M28Utilities.ErrorHandler('Potential infinite loop, aborted recording nuke missile location')
+            if iCycleCount >= 15 then
+                bAbortRecording = true
+                M28Utilities.ErrorHandler('Potential infinite loop or too many simultaneous missile launches, aborted recording nuke missile location')
                 break
             end
         end
-        M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] = { tLaunchLocation[1],tLaunchLocation[2], tLaunchLocation[3] }
-        ForkThread(RemoveOldNukeTarget, iTeam, iCurTime, math.max(180, 60*M28Map.iMapSize / 1024))
+        if bAbortRecording then
+            --Do nothing
+        else
+            M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][iCurTime] = { tLaunchLocation[1],tLaunchLocation[2], tLaunchLocation[3] }
+            ForkThread(RemoveOldNukeTarget, iTeam, iCurTime, math.max(180, 60*M28Map.iMapSize / 1024))
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': End of code, iTeam='..iTeam..'; tLaunchLocation='..repru(tLaunchLocation)..'; Time='..GetGameTimeSeconds()..'; iCurTime='..iCurTime..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])) end
     elseif bDebugMessages == true then LOG(sFunctionRef..': End of code, not recording as have recenlty recorded this location or a very nearby one')
     end
@@ -5919,34 +5937,40 @@ function TMLBatteryMonitor(tLZTeamData, oLauncher)
             if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits]) then
                 local iCurShieldHealth, iMaxShieldHealth
                 local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-                for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits] do
-                    if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
-                        --Check target not under lots of fixed shielding (ignore mobile shields though since we might be targeting fatboy
-                        --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCurHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth, bReturnShieldsCovringTargetInstead)
-                        iCurShieldHealth, iMaxShieldHealth = M28Logic.IsTargetUnderShield(aiBrain, oUnit,   0,                                          true,                       true,              true,                           true,                   false)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy exp oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShieldHealth (of fixed shields, cumulatively)='..iCurShieldHealth) end
-                        if iCurShieldHealth <= 14000 then --seraphim t2 shield is 13k health
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tBasePosition, oUnit:GetPosition())
-                            if bDebugMessages == true then LOG(sFunctionRef..': Dist from oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tBasePosition='..iCurDist..'; oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]='..repru(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4])) end
-                            if iCurDist < iClosestEnemy and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Attached')) then
-                                --oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]
-                                iClosestEnemy = iCurDist
-                                oClosestEnemy = oUnit
+                if aiBrain then
+                    for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftoLongRangeEnemyDFUnits] do
+                        if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) then
+                            --Check target not under lots of fixed shielding (ignore mobile shields though since we might be targeting fatboy
+                            --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisCurHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth, bReturnShieldsCovringTargetInstead)
+                            iCurShieldHealth, iMaxShieldHealth = M28Logic.IsTargetUnderShield(aiBrain, oUnit,   0,                                          true,                       true,              true,                           true,                   false)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy exp oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShieldHealth (of fixed shields, cumulatively)='..iCurShieldHealth) end
+                            if iCurShieldHealth <= 14000 then --seraphim t2 shield is 13k health
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(tBasePosition, oUnit:GetPosition())
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dist from oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tBasePosition='..iCurDist..'; oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]='..repru(oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4])) end
+                                if iCurDist < iClosestEnemy and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Attached')) then
+                                    --oClosestEnemy[M28UnitInfo.reftRecentUnitPositions][4]
+                                    iClosestEnemy = iCurDist
+                                    oClosestEnemy = oUnit
+                                end
                             end
                         end
                     end
+                else
+                    M28Utilities.ErrorHandler('No longer hve a valid brain')
                 end
             end
             local iAdditionalLoadedTMLNeeded = 0
             local bAttackingNormalTMLTarget = false
-            if not(oClosestEnemy) then --Check for normal TML targets
-                if not(M28UnitInfo.IsUnitValid(oPrimaryTML)) then
-                    for iTML, oTML in tLZTeamData[M28Map.reftoTMLBatteryUnits] do
-                        oPrimaryTML = oTML
-                        break
-                    end
+            if not(M28UnitInfo.IsUnitValid(oPrimaryTML)) then
+                oClosestEnemy = nil
+                oPrimaryTML = nil
+                for iTML, oTML in tLZTeamData[M28Map.reftoTMLBatteryUnits] do
+                    oPrimaryTML = oTML
+                    break
                 end
-                if M28Conditions.IsTableOfUnitsStillValid(oPrimaryTML[reftUnitsInRangeOfThisTML]) then
+            end
+            if not(oClosestEnemy) then --Check for normal TML targets
+                if oPrimaryTML and M28Conditions.IsTableOfUnitsStillValid(oPrimaryTML[reftUnitsInRangeOfThisTML]) then
                     local aiBrain = oPrimaryTML:GetAIBrain()
                     local iLeastTMDOrMissedShotsCoveringTarget = 3 --i.e. if a target has 4+ TMD covering it then we wont bother trying to target it
                     local iMissedShotsFactor = 4 --i.e. every 4 missiles fired at this target is treated as a 'missed shot' equivalent to 1 TMD in coverage mostly as a redundancy to stop constantly firing at the same target and failing

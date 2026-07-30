@@ -2100,6 +2100,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
                             end
                             if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
                             if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max((oUnit[refiTimeBetweenDFShots] or 0), math.max(1 / oCurWeapon.RateOfFire, (oCurWeapon.RackSalvoReloadTime or -1))) end
+                            --LOG('TEMPCODE refiDFAOE after update='..(oUnit[refiDFAOE] or 'nil')..'; oCurWeapon.DamageRadius='..(oCurWeapon.DamageRadius or 'nil')..'; oCurWeapon.Label='..(oCurWeapon.Label or 'nil'))
                         end
 
                     elseif oCurWeapon.RangeCategory == 'UWRC_AntiNavy' then
@@ -2386,7 +2387,7 @@ function RecordUnitRange(oUnit, bReferenceIsATableWithUnitId)
         end
     end
     oUnit[refiUnitMassCost] = iMassCost
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording range, mass value and other info for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[refiDFRange] or 'nil')..'; Indirect range='..(oUnit[refiIndirectRange] or 'nil')..'; AARange='..(oUnit[refiAARange] or 'nil')..'; AntiNavy range='..(oUnit[refiAntiNavyRange] or 'nil')..'; CombatRange='..(oUnit[refiCombatRange] or 'nil')..'; Mass cost='..oUnit[refiUnitMassCost]..'; Can unit kite='..tostring(oUnit[refbCanKite] or false)..'; Bomber range='..(oUnit[refiBomberRange] or 'nil')..'; refiTimeBetweenDFShots='..(oUnit[refiTimeBetweenDFShots] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording range, mass value and other info for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; DFRange='..(oUnit[refiDFRange] or 'nil')..'; DFAOE='..(oUnit[refiDFAOE] or 'nil')..'; Indirect range='..(oUnit[refiIndirectRange] or 'nil')..'; AARange='..(oUnit[refiAARange] or 'nil')..'; AntiNavy range='..(oUnit[refiAntiNavyRange] or 'nil')..'; CombatRange='..(oUnit[refiCombatRange] or 'nil')..'; Mass cost='..oUnit[refiUnitMassCost]..'; Can unit kite='..tostring(oUnit[refbCanKite] or false)..'; Bomber range='..(oUnit[refiBomberRange] or 'nil')..'; refiTimeBetweenDFShots='..(oUnit[refiTimeBetweenDFShots] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -3190,7 +3191,7 @@ function FixUnitResourceCheatModifiers(oUnit)
         local iResourceModifier = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
         local iBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
         local oBP = oUnit:GetBlueprint()
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering applying resource modifier to unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', iResourceModifier='..iResourceModifier..'; iBuildModifier='..iBuildModifier..'; oBP.Economy.BuildRate='..oBP.Economy.BuildRate) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering applying resource modifier to unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..', iResourceModifier='..iResourceModifier..'; iBuildModifier='..iBuildModifier..'; oBP.Economy.BuildRate='..oBP.Economy.BuildRate..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; ScenarioInfo.Options.BuildMult='..(ScenarioInfo.Options.BuildMult or 'nil')) end
         if iResourceModifier > 0 then
             local iBaseMassPerSec = (oBP.Economy.ProductionPerSecondMass or 0)
             local iBaseEnergyPerSec = (oBP.Economy.ProductionPerSecondEnergy or 0)

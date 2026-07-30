@@ -510,7 +510,7 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
     local sFunctionRef = 'AirSubteamOverseer'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
+    while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) or (not(M28Map.bRecordedIslands) and GetGameTimeSeconds() <= 15) do
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -5443,8 +5443,6 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                     end
                                 end
                             end
-                        else
-                            M28Utilities.ErrorHandler('No other land or water zones identified, likely error')
                         end
                     end
                 end
@@ -6480,7 +6478,7 @@ function ManageBombers(iTeam, iAirSubteam)
                             if IsThereAANearLandOrWaterZone(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), -1, iMaxEnemyAirAA) or IsThereNearbyAirAA(iTeam, iBomberPlateauOrZero, iBomberLandOrWaterZone, (iBomberPlateauOrZero == 0), 200, iMaxEnemyAirAA, tFrontBomberPosition) then
                                 bAbortDueToAirAAThreat = true
                                 --Exception if have t3 bombers and nearest airaa unit is further away than target of fromt bomber who has fired recently or is close to that target
-                                if bHaveT3Bombers and M28UnitInfo.IsUnitValid(oFrontBomber) and (M28UnitInfo.IsUnitValid(oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) and GetDistancebetweenPositions(oFrontBomber:GetPosition(), oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]:GetPosition()) <= 120) or (oFrontBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oFrontBomber[M28UnitInfo.refiLastBombFired]) <= 6 then
+                                if bHaveT3Bombers and M28UnitInfo.IsUnitValid(oFrontBomber) and ((M28UnitInfo.IsUnitValid(oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) and M28Utilities.GetDistanceBetweenPositions(oFrontBomber:GetPosition(), oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]:GetPosition()) <= 120) or (oFrontBomber[M28UnitInfo.refiLastBombFired] and GetGameTimeSeconds() - oFrontBomber[M28UnitInfo.refiLastBombFired]) <= 6) then
                                     --First check if enemy airaa in same zone as fromt bomber
                                     local tFrontBomberLZOrWZData, tFrontBomberLZOrWZTeamData
                                     if iBomberPlateauOrZero == 0 then
@@ -6490,20 +6488,25 @@ function ManageBombers(iTeam, iAirSubteam)
                                         tFrontBomberLZOrWZData = M28Map.tAllPlateaus[iBomberPlateauOrZero][M28Map.subrefPlateauLandZones][iBomberLandOrWaterZone]
                                         tFrontBomberLZOrWZTeamData = tFrontBomberLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                                     end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if can ignore airaa threat around front bomber, iBomberPlateauOrZero='..(iBomberPlateauOrZero or 'nil')..'; iBomberLandOrWaterZone='..(iBomberLandOrWaterZone or 'nil')) end
                                     if (tFrontBomberLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) == 0 then
                                         local oNearestBomberWithAttackOrder
                                         local iCurDist
                                         local iClosestDistToFrontBomber = 60 --Only consider bombers close to the front bomber
                                         if M28UnitInfo.IsUnitValid(oFrontBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) then
-                                            oBomberToLookFrom = oFrontBomber
+                                            oNearestBomberWithAttackOrder = oFrontBomber
                                         else
-                                            for iBomber, oBomber in tAvailableBombers do
-                                                if EntityCategoryContains(categories.TECH3, oBomber.UnitId) then
-                                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oFrontBomber:GetPosition())
-                                                    if iCurDist < iClosestDistToFrontBomber then
-                                                        if M28UnitInfo.IsUnitValid(oBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) then
-                                                            iClosestDistToFrontBomber = iCurDist
-                                                            oNearestBomberWithAttackOrder = oBomber
+                                            if not(oFrontBomber.GetPosition) then M28Utilities.ErrorHandler('Front bomber is valid but doesnt have get poition')
+                                            else
+                                                for iBomber, oBomber in tAvailableBombers do
+                                                    if EntityCategoryContains(categories.TECH3, oBomber.UnitId) then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking dist between oBomber='..(oBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBomber) or 'nil')..' and oFrontBomber='..(oFrontBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFrontBomber) or 'nil')) end
+                                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), oFrontBomber:GetPosition())
+                                                        if iCurDist < iClosestDistToFrontBomber then
+                                                            if M28UnitInfo.IsUnitValid(oBomber[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget]) then
+                                                                iClosestDistToFrontBomber = iCurDist
+                                                                oNearestBomberWithAttackOrder = oBomber
+                                                            end
                                                         end
                                                     end
                                                 end
@@ -7740,7 +7743,7 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget, oOptionalTarget)
     end
 
     local bConsiderAttackIfCloseToTarget
-    if oOptionalTarget and M28Utilities.bLoudModActive then --(QUIET meant to have fixed LOUD's issues with gunships not being able to fire at nearby units)
+    if oOptionalTarget and (M28Utilities.bLoudModActive or M28Utilities.bSteamActive) then --(QUIET meant to have fixed LOUD's issues with gunships not being able to fire at nearby units); Steam has issues similar to loud where gunsihps may not fire if not facing target
         bConsiderAttackIfCloseToTarget = true
     end
 
@@ -10325,7 +10328,7 @@ function UpdateTransportPlateauDropLocationShortlist(iTeam, bUpdateCombatDropSho
     local tbPlateausWithPlayerStartOrIslandDrop = {}
 
     --First record (once per game) potential islands to consider dropping for this team
-    if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau]) then
+    if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau]) and M28Map.bRecordedIslands then
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off exercise at start of game to identify islands to drop, time='..GetGameTimeSeconds()) end
         M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau] = {}
         --First identify any islands by plateau that have mexes and dont have an enemy or friendly start position

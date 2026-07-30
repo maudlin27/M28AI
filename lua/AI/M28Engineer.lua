@@ -4828,7 +4828,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                         end
                                         local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
                                         if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; oNearestReclaimableDangerousEnemy='..(oNearestReclaimableDangerousEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableDangerousEnemy) or 'nil')..'; oNearestReclaimableEnemy='..(oNearestReclaimableEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy) or 'nil')..'; iEngiBuildDistance='..iEngiBuildDistance..'; iNearestReclaimableDangerousEnemy='..iNearestReclaimableDangerousEnemy..'; iReclaimRangeAdjust='..iReclaimRangeAdjust) end
-                                        if oNearestReclaimableEnemy and (iNearestReclaimableEnemy < 20 + iReclaimRangeAdjust or
+                                        if oNearestReclaimableEnemy and (iClosestDistUntilInRangeOfMobileEnemy > 10 or iNearestReclaimableEnemy < iEngiBuildDistance + 3 or EntityCategoryContains(M28UnitInfo.refCategoryLightAttackBot, oNearestReclaimableEnemy.UnitId)) and (iNearestReclaimableEnemy < 20 + iReclaimRangeAdjust or
                                                 (iNearestReclaimableEnemy < 40 and bCheckForWallsToReclaim and EntityCategoryContains(M28UnitInfo.refCategoryWall, oNearestReclaimableEnemy) and iClosestDistUntilInRangeOfStaticEnemy >= iNearestReclaimableEnemy + 10 and (not(oNearestReclaimableDangerousEnemy) or iNearestReclaimableDangerousEnemy >= iNearestReclaimableEnemy + 20 or (iNearestReclaimableEnemy <= 30 and iNearestReclaimableDangerousEnemy >= 35 and M28Utilities.GetDistanceBetweenPositions(oNearestReclaimableEnemy:GetPosition(), oNearestReclaimableDangerousEnemy:GetPosition()) > 10 + iNearestReclaimableDangerousEnemy)))) --i.e. if have a wall taht is in an adjacent zone but on the border, then increase search range to reduce issues where we try travel to that zone and take the wrong path
                                                 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= iEngiBuildDistance) or iNearestReclaimableEnemy <= (iEngiBuildDistance + 7 + iReclaimRangeAdjust) or (iNearestReclaimableEnemy <= iEngiBuildDistance + 14 + iReclaimRangeAdjust and (tLZTeamData[M28Map.subrefLZbCoreBase] or tLZTeamData[M28Map.subrefLZCoreExpansion])) or (bCheckForWallsToReclaim and EntityCategoryContains(M28UnitInfo.refCategoryWall, oNearestReclaimableEnemy) and (not(oNearestReclaimableDangerousEnemy) or iNearestReclaimableDangerousEnemy >= iNearestReclaimableEnemy + 20 + iReclaimRangeAdjust or (iNearestReclaimableEnemy <= 30 and iNearestReclaimableDangerousEnemy >= 35)))) then
                                             --Reclaim enemy
@@ -11002,6 +11002,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             local iEnemyBattleshipNukes = 0
             local iEnemyNormalNukes = 0
             local bEnemyNukeNotConstructed = true
+            local iHighestEnemyNormalNukeBuildRate = 1
             if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) then
                 for iNuke, oNuke in M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers] do
                     if EntityCategoryContains(categories.BATTLESHIP, oNuke.UnitId) then
@@ -11015,6 +11016,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
                         iEnemyNormalNukes = iEnemyNormalNukes + 8
                     else
                         iEnemyNormalNukes = iEnemyNormalNukes + 1
+                        iHighestEnemyNormalNukeBuildRate = math.max(iHighestEnemyNormalNukeBuildRate, (oNuke:GetAIBrain()[M28Economy.refiBrainBuildRateMultiplier] or 1))
                     end
                     if oNuke.GetFractionComplete and oNuke:GetFractionComplete() >= 0.95 then
                         bEnemyNukeNotConstructed = false
@@ -11069,22 +11071,23 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             end
 
             if iSMDWanted <= 0 and (bObjectiveWantMoreSMD or (tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] and GetGameTimeSeconds() - tLZTeamData[M28Map.refiTimeOfLastSMDPrioritisationRequest] <= 360)) then iSMDWanted = 1 end
-            if bDebugMessages == true then LOG(sFunctionRef..': iSMDsWeHave='..iSMDsWeHave..'; iSMDWanted='..iSMDWanted..'; iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
-            if iSMDsWeHave < iSMDWanted or (iSMDsWithNoMissiles > 0 and (bObjectiveCategory or iEnemyNormalNukes > 0) and iSMDWanted <= 1) then
-                if bHaveLowMass or iSMDsWeHave > 0 then iBPWanted = 150
-                elseif bWantMorePower then iBPWanted = 225
-                else iBPWanted = 300 end
-                if not(bCoreZone) and not(bObjectiveCategory) then iBPWanted = iBPWanted * 0.5 end
-            end
+            if iSMDsWeHave >= iSMDWanted and iHighestEnemyNormalNukeBuildRate > 1.2 and ((iSMDsWeHave == 1 and iSMDsWithNoMissiles == 0) or (iSMDsWeHave > 1 and iSMDsWithNoMissiles < iSMDsWeHave)) and iEnemyNormalNukes > 0 and iSMDsWeHave < iEnemyNormalNukes * iHighestEnemyNormalNukeBuildRate then iSMDWanted = iSMDWanted + math.min(2, math.max(1, iEnemyNormalNukes * iHighestEnemyNormalNukeBuildRate)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': iSMDsWeHave='..iSMDsWeHave..'; iSMDWanted='..iSMDWanted..'; iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
+        if iSMDsWeHave < iSMDWanted or (iSMDsWithNoMissiles > 0 and (bObjectiveCategory or iEnemyNormalNukes > 0) and iSMDWanted <= 1) then
+        if bHaveLowMass or iSMDsWeHave > 0 then iBPWanted = 150
+        elseif bWantMorePower then iBPWanted = 225
+        else iBPWanted = 300 end
+        if not(bCoreZone) and not(bObjectiveCategory) then iBPWanted = iBPWanted * 0.5 end
+        end
             if iSMDsWithNoMissiles > 0 and (iSMDsWeHave >= iSMDWanted or iSMDsWeHave == iSMDsWithNoMissiles) and iUnderConstructionSMD ==0 and (bObjectiveCategory or iEnemyNormalNukes > 0) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Want to assist SMD') end
-                --If have under construction SMD then finish it off
-                bAssistSMD = true
-                iBPWanted = math.max(150, iBPWanted * 3)
-                --first smd and enemy has nuke constructed - prioritise even more
-                if iSMDsWithNoMissiles == 1 and iSMDsWeHave == 1 and iEnemyNormalNukes > 0 and not(bEnemyNukeNotConstructed) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > 500 then
-                    iBPWanted = iBPWanted + 120
-                end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to assist SMD') end
+        --If have under construction SMD then finish it off
+        bAssistSMD = true
+        iBPWanted = math.max(150, iBPWanted * 3)
+        --first smd and enemy has nuke constructed - prioritise even more
+        if iSMDsWithNoMissiles == iSMDsWeHave and iEnemyNormalNukes > 0 and not(bEnemyNukeNotConstructed) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > 500 then
+            iBPWanted = iBPWanted + 120
+            end
             end
         end
     end
@@ -17364,7 +17367,18 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         --Do we already have fixed AA in this LZ?
         if not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) or M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround] >= 200 or tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] == 0 then
             local iAACategory = M28UnitInfo.refCategoryStructureAA
-            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then iAACategory = iAACategory * categories.TECH3 end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then
+
+                if iNearbyEnemyAirToGroundThreat * 6 < tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] then
+                    if iNearbyEnemyAirToGroundThreat * 10 < tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] then
+                        --Dont change tech level
+                    else
+                        iAACategory = iAACategory - categories.TECH1
+                    end
+                else
+                    iAACategory = iAACategory - categories.TECH1 - categories.TECH2
+                end
+            end
             local tExistingFixedAA = EntityCategoryFilterDown(iAACategory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             local bHaveFixedAA = false
             if M28Utilities.IsTableEmpty(tExistingFixedAA) == false then
