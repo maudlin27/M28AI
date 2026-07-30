@@ -17367,7 +17367,18 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         --Do we already have fixed AA in this LZ?
         if not(M28Conditions.ZoneWantsT1Spam(tLZTeamData, iTeam)) or M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround] >= 200 or tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] == 0 then
             local iAACategory = M28UnitInfo.refCategoryStructureAA
-            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then iAACategory = iAACategory * categories.TECH3 end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then
+
+                if iNearbyEnemyAirToGroundThreat * 6 < tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] then
+                    if iNearbyEnemyAirToGroundThreat * 10 < tLZTeamData[M28Map.subrefLZOrWZThreatAllyGroundAA] then
+                        --Dont change tech level
+                    else
+                        iAACategory = iAACategory - categories.TECH1
+                    end
+                else
+                    iAACategory = iAACategory - categories.TECH1 - categories.TECH2
+                end
+            end
             local tExistingFixedAA = EntityCategoryFilterDown(iAACategory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             local bHaveFixedAA = false
             if M28Utilities.IsTableEmpty(tExistingFixedAA) == false then
