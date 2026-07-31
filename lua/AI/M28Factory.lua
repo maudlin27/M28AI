@@ -5412,6 +5412,30 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         end
     end
 
+    --Upgrade T1/T2 if have T3 air in this zone and have built a lot
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Upgrade lower tech air facs if not highest tech level and have built some units at this one or not low energy, iFactoryTechLevel='..iFactoryTechLevel..'; refiOurHighestAirFactoryTech='..aiBrain[M28Economy.refiOurHighestAirFactoryTech]..'; bHaveLowPower='..tostring(bHaveLowPower)..'; subrefbTeamIsStallingMass='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; subrefbTeamIsStallingEnergy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; refiGrossEnergyBaseIncome='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
+    if iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestAirFactoryTech] and (not(bHaveLowPower) or (oFactory[refiTotalBuildCount] >= 5 and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 180 * iFactoryTechLevel * iFactoryTechLevel))) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then
+        local bUpgradingAirFac = false
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoActiveUpgrades]) == false then
+            local tUpgradingAirFacs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subreftoActiveUpgrades])
+            if M28Utilities.IsTableEmpty(tUpgradingAirFacs) == false then
+                for iUpgradingFac, oUpgradingFac in tUpgradingAirFacs do
+                    if not(oUpgradingFac.Dead) and M28UnitInfo.GetUnitTechLevel(oUpgradingFac) >= iFactoryTechLevel and not(oUpgradingFac == oFactory) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have an upgrading factory in this zone, oUpgradingFac='..oUpgradingFac.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUpgradingFac)..'; Workprogress='..oUpgradingFac:GetWorkProgress()..'; Fractioncomplete='..oUpgradingFac:GetFractionComplete()..'; refsLastBlueprintBuilt='..(oUpgradingFac[refsLastBlueprintBuilt] or 'nil')) end
+                        bUpgradingAirFac = true
+                        break
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to upgrade air fac to current air tech if not already upgrading an air fac in this zone, bUpgradingAirFac='..tostring(bUpgradingAirFac)) end
+        if not(bUpgradingAirFac) then
+            if ConsiderUpgrading() then return sBPIDToBuild end
+        end
+    end
+
+
     --Low power - only consider building engineers (if have lots of mass) unless enemies already attacking
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': If low power then will only consider building engineers or emergency AirAA, bHaveLowPower=' .. tostring(bHaveLowPower))
