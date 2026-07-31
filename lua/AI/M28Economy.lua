@@ -101,9 +101,9 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker, iOptionalWait)
             sUpgradeID = oUnitToUpgrade:GetBlueprint().General.UpgradesTo
         end
 
-        if sUpgradeID and M28UnitInfo.IsUnitValid(oUnitToUpgrade) and bUpdateUpgradeTracker then
+        if sUpgradeID and M28UnitInfo.IsUnitValid(oUnitToUpgrade) then
             local bDelayedUpgradeTrackingCheck = false
-            if M28Overseer.bUnitRestrictionsArePresent and not(oUnitToUpgrade:CanBuild(sUpgradeID)) then
+            if bUpdateUpgradeTracker and M28Overseer.bUnitRestrictionsArePresent and not(oUnitToUpgrade:CanBuild(sUpgradeID)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Dont think we c an upgrade this unit due to unit restrictions, so wont update the upgrade tracking') end
                 bDelayedUpgradeTrackingCheck = true
                 bUpdateUpgradeTracker = false
@@ -162,7 +162,8 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker, iOptionalWait)
                     --Issue upgrade
                     M28Orders.IssueTrackedUpgrade(oUnitToUpgrade, sUpgradeID, bAddToExistingQueue)
                     --Issue where if we give the upgrade presumably just as the unit has finihsed its own upgrade, then it shows as beingupgrade while also being complete; so we wait 1 second and try again
-                elseif oUnitToUpgrade:GetFractionComplete() == 1 and oUnitToUpgrade.CanBuild then
+                    --Only do below if bUpdateUpgradeTracker is true, to avoid infinite loop
+                elseif oUnitToUpgrade:GetFractionComplete() == 1 and oUnitToUpgrade.CanBuild and bUpdateUpgradeTracker then
                     ForkThread(UpgradeUnit, oUnitToUpgrade, false, 1)
                 end
             end
